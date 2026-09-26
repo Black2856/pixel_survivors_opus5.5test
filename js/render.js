@@ -396,6 +396,13 @@ function render() {
     sx.globalAlpha = 1;
   }
 
+  // ---- マウス照準のカーソル ----
+  if (mouse.aim && !P.dead) {
+    const mx = Math.round(mouse.x), my = Math.round(mouse.y);
+    pCircle(gx, mx, my, 4, '#ff5d73');
+    for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) pLine(gx, mx + dx * 3, my + dy * 3, mx + dx * 7, my + dy * 7, '#ffffff');
+  }
+
   // ---- タッチスティック ----
   if (touch.active) {
     const ox = touch.ox / GFX.PX, oy = touch.oy / GFX.PX;
