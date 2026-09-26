@@ -72,6 +72,7 @@ function update(rdt) {
   updEnemies(dt);
   if (!P.dead) updEnemyLevel(dt);
   updEprojs(dt);
+  updHazards(dt);
   if (!P.dead) { updGems(dt); updDrops(dt); updSpawner(dt); }
   updFx(dt);
   S.comboT -= dt;

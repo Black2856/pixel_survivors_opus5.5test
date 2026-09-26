@@ -58,7 +58,7 @@ const UI = (() => {
     if (S.combo >= 10) {
       c.classList.add('on');
       if (last.combo !== S.combo) { last.combo = S.combo; $('combo-n').textContent = S.combo; c.classList.remove('bump'); void c.offsetWidth; c.classList.add('bump'); }
-      $('combo-fill').style.width = (S.comboT / 3 * 100) + '%';
+      $('combo-fill').style.width = (S.comboT / DATA.player.comboTime * 100) + '%';
       c.dataset.tier = S.combo >= 300 ? 3 : S.combo >= 100 ? 2 : S.combo >= 40 ? 1 : 0;
     } else c.classList.remove('on');
     if (S.boss) {
@@ -168,22 +168,22 @@ const UI = (() => {
     });
     const btns = $('choice-btns');
     btns.innerHTML = '';
-    if (mode !== 'artifact') {
-      const rb = el('button', 'btn', `リロール (${S.rerolls}) <small>R</small>`);
-      rb.disabled = S.rerolls <= 0;
-      rb.onclick = reroll;
-      btns.appendChild(rb);
-    }
+    const rb = el('button', 'btn', `リロール (${S.rerolls}) <small>R</small>`);
+    rb.disabled = !canReroll();
+    rb.onclick = reroll;
+    btns.appendChild(rb);
     if (mode !== 'start') {
       const sb = el('button', 'btn ghost', mode === 'artifact' ? 'スキップ (+50G)' : 'スキップ (+10G)');
       sb.onclick = () => { if (chosen) return; chosen = true; addGold(mode === 'artifact' ? 50 : 10); close(); };
       btns.appendChild(sb);
     }
   }
+  // アーティファクトは未所持が3つ以下だと引き直しても同じ候補になるので不可
+  const canReroll = () => S.rerolls > 0 && !chosen && (mode !== 'artifact' || Object.keys(DATA.artifacts).filter(k => !P.art[k]).length > 3);
   function reroll() {
-    if (S.rerolls <= 0 || chosen || mode === 'artifact') return;
+    if (!canReroll()) return;
     S.rerolls--;
-    choices = mode === 'start' ? startChoices() : buildChoices();
+    choices = mode === 'start' ? startChoices() : mode === 'artifact' ? buildArtifactChoices() : buildChoices();
     AudioMan.select();
     renderCards();
   }

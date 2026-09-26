@@ -18,13 +18,14 @@ function initRun() {
     freeze: 0, ts: 1, tsBack: 0, schedIdx: 0, spawnT: 0, spawnCfg: null,
     eliteT: 95, goblinT: 70, propT: 2, elv: 1, elvT: 0, boss: null, pendingLv: 0, lvFx: 0,
     rerolls: 2 + metaLv('reroll'), weaponSlots: 4 + metaLv('weapon'), passiveSlots: 4 + metaLv('passive'),
-    gold: 0, deathT: 0, victoryT: 0, hudDirty: true, won: false,
+    gold: 0, deathT: 0, victoryT: 0, hudDirty: true, won: false, hint: {},
   };
   P = {
     x: 0, y: 0, hp: 0, maxhp: 100, level: 1, xp: 0, xpNext: xpFor(1), weapons: {}, passives: {}, art: {},
     ifr: 0, facing: 1, animT: 0, moving: false, dashT: 0, dashG: 1, dashDir: [1, 0], hurtT: 0, dead: false,
+    slowT: 0, cdSlowT: 0, burnT: 0, burnDmg: 0, burnTick: 0,
   };
-  enemies = []; projs = []; eprojs = []; gems = []; drops = []; props = [];
+  enemies = []; projs = []; eprojs = []; gems = []; drops = []; props = []; hazards = [];
   parts = []; floats = []; rings = []; zones = []; slashes = []; bolts = []; warns = []; flashes = [];
   recalc();
   P.hp = P.maxhp;
@@ -68,8 +69,9 @@ const critRate = () => 0.05 + 0.06 * (P.passives.lens || 0) + 0.02 * metaLv('cri
 const wst = k => { const w = P.weapons[k]; return w.evo ? DATA.weapons[k].evo.st : DATA.weapons[k].lv[w.lv - 1]; };
 
 // ---------- 敵レベル ----------
-// 基本倍率(悪魔の契約書・混沌) × Lv成長。成長率は混沌 1Lv につき +20%
+// 基本倍率(悪魔の契約書) × Lv成長。HPのみ混沌 1Lv につき +20%
 const enemyBase = () => (P.art.pact ? 1.2 : 1);
+const enemyHpBase = () => enemyBase() * (1 + 0.2 * metaLv('chaos'));
 const lvK = (kind, lv = S.elv) => 1 + DATA.enemyLevel[kind] * (lv - 1);
 const enemyDmgK = () => enemyBase() * lvK('dmg');
 function updEnemyLevel(dt) {
@@ -77,9 +79,9 @@ function updEnemyLevel(dt) {
   S.elvT += dt * (1 + 0.2 * metaLv('chaos')); // 混沌: Lv上昇速度 +20%/Lv
   if (S.elvT >= DATA.enemyLevel.interval) { S.elvT -= DATA.enemyLevel.interval; S.elv++; UI.enemyLvUp(); }
 }
-// 周回開始時の処理(混沌: 敵Lv +2/Lv)
+// 周回開始時の処理(混沌: 敵Lv +5/Lv)
 function onLoopStart() {
-  const add = 2 * metaLv('chaos');
+  const add = 5 * metaLv('chaos');
   if (add) { S.elv += add; UI.enemyLvUp(); }
 }
 
@@ -100,17 +102,18 @@ function updPlayer(dt) {
   const [mx, my] = moveInput();
   P.moving = mx !== 0 || my !== 0;
   if (P.moving) { P.dashDir = [mx, my]; if (mx) P.facing = mx > 0 ? 1 : -1; }
+  const aim = mouseAimPt();
+  if (aim && aim.x !== P.x) P.facing = aim.x > P.x ? 1 : -1; // 照準中はマウス側を向く(アックスの投擲方向も追従)
   P.dashG = Math.min(1, P.dashG + P.dashRegen * dt);
-  if ((keys.Space || keys._touchDash) && P.dashG >= P.dashCost && P.dashT <= 0) {
-    keys._touchDash = false;
+  if (keys._dash && P.dashG >= P.dashCost && P.dashT <= 0) {
     P.dashT = DATA.player.dashTime; P.dashG -= P.dashCost;
     P.issen = P.weapons.katana && P.weapons.katana.evo ? { x: P.x, y: P.y, hits: new Set() } : null;
     AudioMan.dash(); shake(1);
     burst(P.x, P.y + 5, 10, ['#9ff7ff', '#ffffff'], { sp: 50, glow: true });
     addRing(P.x, P.y, 14, '#9ff7ff', { life: 0.25 });
   }
-  keys._touchDash = false;
-  let sp = P.speed;
+  keys._dash = false;
+  let sp = P.speed * (P.slowT > 0 ? DATA.debuff.slow : 1);
   let [dx, dy] = [mx, my];
   if (P.dashT > 0) {
     P.dashT -= dt; sp = DATA.player.dashSpeed * P.dashMul; [dx, dy] = P.dashDir;
@@ -123,15 +126,41 @@ function updPlayer(dt) {
   if (P.after) P.after = P.after.filter(a => a.t < 0.25);
   P.animT += dt * (P.moving ? 1 : 0.35);
   P.ifr -= dt; P.hurtT -= dt;
+  updDebuffs(dt);
   if (P.regen > 0 && P.hp < P.maxhp) P.hp = Math.min(P.maxhp, P.hp + P.regen * dt);
   if (P.moving && Math.random() < dt * 10) part(P.x + rand(-2, 2), P.y + 6, rand(-6, 6), rand(-8, -2), 0.35, '#8a8098', { drag: 4 });
   GFX.fx.lowhp = lerp(GFX.fx.lowhp, P.hp / P.maxhp < 0.3 ? 1 : 0, dt * 3);
+}
+
+// 状態異常(ボス由来): 粘液・スロウタイムの減速 / CD回復低下、炎上の継続ダメージ(無敵時間を無視)
+function updDebuffs(dt) {
+  P.slowT -= dt; P.cdSlowT -= dt;
+  if (P.slowT > 0 && Math.random() < dt * 8) part(P.x + rand(-3, 3), P.y + 6, 0, 8, 0.4, P.cdSlowT > 0 ? '#c29bff' : '#4fd6a8', { glow: P.cdSlowT > 0 });
+  if (P.burnT <= 0) return;
+  P.burnT -= dt; P.burnTick -= dt;
+  if (Math.random() < dt * 16) part(P.x + rand(-4, 4), P.y + rand(-4, 4), 0, -26, 0.4, pick(['#ff6a2a', '#ffc34a']), { glow: true });
+  if (P.burnTick > 0) return;
+  P.burnTick = DATA.debuff.burnTick;
+  const dmg = Math.max(1, Math.round(P.burnDmg));
+  P.hp -= dmg; breakCombo(); S.hudDirty = true;
+  addFloat(P.x, P.y - 10, String(dmg), '#ff8a3d');
+  if (P.hp <= 0) playerDown();
+}
+function burnPlayer(dmg) {
+  if (P.dashT > 0 || P.dead) return;
+  if (P.burnT <= 0) { P.burnTick = DATA.debuff.burnTick; P.burnDmg = 0; }
+  P.burnT = DATA.debuff.burnDur; P.burnDmg = Math.max(P.burnDmg, dmg);
+}
+function breakCombo() {
+  if (S.combo >= 10) addFloat(P.x, P.y - 18, 'x' + S.combo, '#8a8098');
+  S.combo = 0; S.comboT = 0;
 }
 
 function hurtPlayer(dmg) {
   if (P.ifr > 0 || P.dashT > 0 || P.dead || state !== 'play') return;
   dmg = Math.max(1, Math.round(dmg - P.armor));
   P.hp -= dmg; P.ifr = P.iframe; P.hurtT = 0.12;
+  breakCombo();
   GFX.fx.hurt = 1; GFX.fx.aberr = Math.max(GFX.fx.aberr, 0.9);
   shake(4); AudioMan.hurt();
   addFloat(P.x, P.y - 10, String(dmg), '#ff4a5a', 1);
@@ -176,31 +205,36 @@ function randomTargets(n) {
   return shuffle(vis).slice(0, n);
 }
 function aimAt(maxD) {
+  const m = mouseAimPt();
+  if (m) return Math.atan2(m.y - P.y, m.x - P.x);
   const t = nearestEnemy(P.x, P.y, maxD);
   return t ? Math.atan2(t.y - P.y, t.x - P.x) : (P.facing > 0 ? 0 : Math.PI);
 }
 
+// アーケインレイの旋回性能(rad/s)。以前の既定値 4 の 20%
+const ARCANE_TURN = 0.8;
 function fire(kind, x, y, ang, spd, o) {
   projs.push(Object.assign({ kind, x, y, vx: Math.cos(ang) * spd, vy: Math.sin(ang) * spd, ang, t: 0, life: 1.5, r: 3, pierce: 0, hit: new Set() }, o));
 }
 
 function updWeapons(dt) {
+  const cdt = dt * (P.cdSlowT > 0 ? DATA.debuff.cdRate : 1); // スロウタイム中はCD回復が遅い
   for (const k in P.weapons) {
     const w = P.weapons[k], st = wst(k);
     w.t += dt;
-    w.cd -= dt;
+    w.cd -= cdt;
     const n = (st.count || 1);
     const mir = P.art.mirror ? 0.75 : 1;
     switch (k) {
       case 'bolt':
         if (w.cd <= 0) {
-          const t = nearestEnemy(P.x, P.y, 180);
+          const m = mouseAimPt(), t = m || nearestEnemy(P.x, P.y, 180);
           if (!t) { w.cd = 0.1; break; }
           w.cd = st.cd * P.cdMul;
           const base = Math.atan2(t.y - P.y, t.x - P.x);
           for (let i = 0; i < n; i++) {
             const a = base + (i - (n - 1) / 2) * 0.13;
-            const o = { dmg: st.dmg * mir, pierce: st.pierce, life: 1.5, src: k, home: w.evo, col: w.evo ? '#ff9bf5' : '#7ad7ff', r: 3 * elemSize(k) };
+            const o = { dmg: st.dmg * mir, pierce: st.pierce, life: 1.5, src: k, home: w.evo, homing: w.evo ? ARCANE_TURN : 0, col: w.evo ? '#ff9bf5' : '#7ad7ff', r: 3 * elemSize(k) };
             fire('bolt', P.x, P.y, a, st.speed, o);
             if (P.art.mirror) fire('bolt', P.x, P.y, a + Math.PI, st.speed, Object.assign({}, o, { hit: new Set() }));
           }
@@ -237,7 +271,7 @@ function updWeapons(dt) {
       case 'aura': {
         const R = st.radius * P.area;
         w.R = R;
-        w.tick -= dt;
+        w.tick -= cdt;
         if (w.tick <= 0) {
           w.tick = st.tick;
           let healed = 0;
@@ -289,7 +323,7 @@ function updWeapons(dt) {
       case 'blizzard':
         if (w.cd <= 0) {
           w.cd = st.cd * P.cdMul;
-          const ts = randomTargets(1);
+          const ts = [mouseAimPt() || randomTargets(1)[0]];
           for (let i = 0; i < 1; i++) {
             const t = ts[i];
             const x = t ? t.x : P.x + rand(-40, 40), y = t ? t.y : P.y + rand(-40, 40);
@@ -302,7 +336,7 @@ function updWeapons(dt) {
       case 'bhole':
         if (w.cd <= 0) {
           w.cd = st.cd * P.cdMul;
-          const ts = randomTargets(1);
+          const ts = [mouseAimPt() || randomTargets(1)[0]];
           for (let i = 0; i < 1; i++) {
             const t = ts[i];
             const tx = t ? t.x : P.x + P.facing * 70, ty = t ? t.y : P.y;
@@ -551,7 +585,7 @@ function killEnemy(e, o = {}) {
     return;
   }
   S.kills++;
-  S.combo++; S.comboT = 3; S.bestCombo = Math.max(S.bestCombo, S.combo);
+  S.combo++; S.comboT = DATA.player.comboTime; S.bestCombo = Math.max(S.bestCombo, S.combo);
   if (S.combo % 100 === 0) { UI.announce(S.combo + ' COMBO!!', 'ボーナス +' + Math.round(S.combo / 10) + 'G'); addGold(S.combo / 10); }
   burst(e.x, e.y, e.elite ? 40 : 7, [col[0], col[1], '#ffffff'], { sp: e.elite ? 120 : 60, up: 15, g: 120, drag: 3 });
   part(e.x, e.y, 0, -20, 0.45, '#ffffff', { glow: true, sz: 2, drag: 1 });
@@ -589,7 +623,7 @@ function spawnEnemy(type, o = {}) {
     x = P.x + Math.cos(a) * R; y = P.y + Math.sin(a) * R;
   }
   const EL = DATA.enemyLevel, base = enemyBase();
-  const hpk = base * lvK('hp') * (o.elite ? EL.elite : 1);
+  const hpk = enemyHpBase() * lvK('hp') * (o.elite ? EL.elite : 1);
   const spk = base * Math.min(EL.spdMax, lvK('spd')) * (P.art.clock ? 1.15 : 1) * (o.elite ? 1.1 : 1);
   const e = {
     id: nextId++, type, x, y, hp: d.hp * hpk, maxhp: d.hp * hpk, spd: d.spd * spk * rand(0.9, 1.1), dmg: d.dmg * enemyDmgK(),
@@ -672,7 +706,7 @@ function updEnemies(dt) {
         e.x = P.x + Math.cos(a2) * R; e.y = P.y + Math.sin(a2) * R;
       }
     }
-    if (e.dmg > 0 && d2(e.x, e.y, P.x, P.y) < Math.pow(e.r + 4, 2)) hurtPlayer(e.dmg);
+    if (e.dmg > 0 && !e.air && d2(e.x, e.y, P.x, P.y) < Math.pow(e.r + 4, 2)) hurtPlayer(e.dmg);
   }
   if (enemies.length > 40) enemies = enemies.filter(e => !e.dead);
 }
@@ -680,18 +714,21 @@ function updEnemies(dt) {
 // ============================================================
 // ボス
 // ============================================================
-function spawnBoss(key) {
+function spawnBoss(key, final) {
   const b = DATA.bosses[key];
   AudioMan.roar(); AudioMan.warning(); AudioMan.playMusic(b.music);
   UI.banner('⚠ WARNING ⚠', b.name);
   shake(8); screenFlash(0.3, '#ff3b5c');
   const a = rand(0, TAU), R = Math.hypot(GFX.VW, GFX.VH) / 2 + 30;
-  const hp = b.hp * enemyBase() * lvK('boss');
+  const hp = b.hp * enemyHpBase() * lvK('boss');
   const e = {
-    id: nextId++, type: key, boss: key, name: b.name, x: P.x + Math.cos(a) * R, y: P.y + Math.sin(a) * R,
+    id: nextId++, type: key, boss: key, name: b.name, final: !!final, enrage: b.enrage ?? 0.5, x: P.x + Math.cos(a) * R, y: P.y + Math.sin(a) * R,
     hp, maxhp: hp, spd: b.spd * Math.min(DATA.enemyLevel.spdMax, lvK('spd')), dmg: b.dmg * enemyDmgK(), r: b.r, col: b.col, xp: 0, kbRes: 1,
-    t: 0, seed: 0, kx: 0, ky: 0, flash: 0, frost: 0, frostT: 0, burn: 0, burnT: 0, burnTick: 0, stun: 0, slowT: 0, scale: 1,
-    ai: { ph: 'chase', pt: 0, atk: 3, sum: 7, slam: 6, ring: 3, aim: 2, tp: 5, spiral: 3.5, spN: 0, spGap: 0, spA: 0, enraged: false },
+    t: 0, seed: 0, kx: 0, ky: 0, flash: 0, frost: 0, frostT: 0, burn: 0, burnT: 0, burnTick: 0, stun: 0, slowT: 0, scale: 1, jz: 0, sq: 1,
+    ai: {
+      ph: 'chase', pt: 0, atk: 3, sum: 7, slam: 6, ring: 3, aim: 2, tp: 5, spiral: 3.5, spN: 0, spGap: 0, spA: 0, enraged: false,
+      q: [], act: null, wind: 0, cd: 2.5, hop: 1, spinCd: 4, beamCd: 8, throw: 3, clock: 7,
+    },
   };
   enemies.push(e);
   S.boss = e;
@@ -701,14 +738,51 @@ function spawnBoss(key) {
 function eball(x, y, a, spd, dmg, kind = 'ball') {
   eprojs.push({ kind, x, y, vx: Math.cos(a) * spd, vy: Math.sin(a) * spd, dmg: dmg * enemyDmgK(), life: 7, t: 0, r: kind === 'scythe' ? 4 : 3 });
 }
+// 放物線で飛ぶ弾(着弾まで当たり判定なし。着地で onLand)
+function lob(kind, x, y, tx, ty, T, H, onLand) {
+  eprojs.push({ kind, lob: true, x, y, x0: x, y0: y, tx, ty, T, H, z: 0, t: 0, onLand });
+}
+// 往復する大鎌(当たっても消えない)
+function boomerang(e, a) {
+  eprojs.push({ kind: 'boomer', x: e.x, y: e.y, a, v: 220, ret: false, owner: e, t: 0, life: 8, r: 7, keep: true, dmg: 18 * enemyDmgK() });
+}
+function addHazard(kind, x, y, o) {
+  if (kind === 'goo' && hazards.length > 40) hazards.splice(hazards.findIndex(h => h.kind === 'goo'), 1);
+  hazards.push(Object.assign({ kind, x, y, t: 0, r: 10, dur: 6 }, o));
+}
+
+// ---------- ボス共通 ----------
+// 時間差処理はゲーム時間で進める(setTimeout だとポーズ・選択画面中も進んでしまう)
+const later = (ai, t, fn) => ai.q.push({ t, fn });
+function runLater(ai, dt) {
+  for (let i = ai.q.length - 1; i >= 0; i--) { const q = ai.q[i]; if ((q.t -= dt) <= 0) { ai.q.splice(i, 1); q.fn(); } }
+}
+function segD2(px, py, x0, y0, x1, y1) {
+  const vx = x1 - x0, vy = y1 - y0, k = clamp(((px - x0) * vx + (py - y0) * vy) / (vx * vx + vy * vy || 1), 0, 1);
+  return d2(px, py, x0 + vx * k, y0 + vy * k);
+}
+const hitCircle = (x, y, r, dmg) => { if (d2(x, y, P.x, P.y) < (r + 3) * (r + 3)) hurtPlayer(dmg); };
+const hitLine = (x, y, a, len, w, dmg) => { if (segD2(P.x, P.y, x, y, x + Math.cos(a) * len, y + Math.sin(a) * len) < Math.pow(w / 2 + 3, 2)) hurtPlayer(dmg); };
+const angDiff = (a, b) => Math.atan2(Math.sin(a - b), Math.cos(a - b));
+// 予備動作(停止して点滅 → fn)
+function windup(e, t, fn) { e.ai.wind = t; e.ai.fire = fn; }
 
 function bossAI(e, dt) {
   const ai = e.ai, a = Math.atan2(P.y - e.y, P.x - e.x), dist = Math.sqrt(d2(e.x, e.y, P.x, P.y));
   const slow = 1 - 0.03 * e.frost;
   e.face = P.x < e.x ? -1 : 1;
-  if (!ai.enraged && e.hp < e.maxhp * (e.boss === 'reaper' ? 0.3 : 0.5)) {
+  if (!ai.enraged && e.hp < e.maxhp * e.enrage) {
     ai.enraged = true; e.spd *= 1.35;
     UI.announce(e.name.split(' ')[0] + ' が激昂した!!', ''); AudioMan.roar(); shake(8); screenFlash(0.25, '#ff3b5c');
+  }
+  runLater(ai, dt);
+  e.sq = lerp(e.sq, 1, Math.min(1, dt * 6));
+  if (ai.wind > 0) {
+    ai.wind -= dt;
+    e.flash = Math.sin(ai.wind * 40) > 0 ? 0.05 : 0;
+    if (ai.chg) { const pa = rand(0, TAU), pr = rand(24, 40); part(e.x + Math.cos(pa) * pr, e.y + Math.sin(pa) * pr, -Math.cos(pa) * pr * 3, -Math.sin(pa) * pr * 3, 0.3, pick(['#ff4a8a', '#ffd0f0', '#ffffff']), { glow: true, drag: 0 }); }
+    if (ai.wind <= 0) { ai.chg = false; ai.fire(); }
+    return;
   }
   switch (e.boss) {
     case 'king':
@@ -792,9 +866,230 @@ function bossAI(e, dt) {
         ai.spGap -= dt;
         if (ai.spGap <= 0) { ai.spGap = 0.07; ai.spN--; ai.spA += 0.55; eball(e.x, e.y, ai.spA, 63, 16, 'scythe'); }
       }
+      // 鎌投げ: 投げた大鎌が減速して死神のもとへ戻ってくる
+      ai.throw -= dt;
+      if (ai.throw <= 0 && !ai.tpTo) {
+        ai.throw = ai.enraged ? 3.4 : 5.5;
+        if (ai.enraged) { boomerang(e, a - 0.35); boomerang(e, a + 0.35); } else boomerang(e, a);
+        AudioMan.slash(); burst(e.x, e.y, 10, ['#c29bff', '#ffffff'], { sp: 60, glow: true });
+      }
+      // スロウタイム: 周囲に時の歪みを展開(範囲内は移動速度・CD回復が低下)
+      ai.clock -= dt;
+      if (ai.clock <= 0 && !ai.tpTo) {
+        ai.clock = ai.enraged ? 9 : 14;
+        addHazard('clock', e.x, e.y, { owner: e, r: 80, dur: 5 });
+        AudioMan.charge(0.5); shockAt(e.x, e.y, 1.2, 0.6); screenFlash(0.15, '#c29bff');
+        if (!S.hint.clock) { S.hint.clock = true; UI.announce('スロウタイム', '範囲内は移動速度とクールダウンが低下'); }
+      }
       ai.sum -= dt;
       if (ai.enraged && ai.sum <= 0) { ai.sum = 6; for (let i = 0; i < 4; i++) spawnEnemy('ghost', { x: e.x + rand(-30, 30), y: e.y + rand(-30, 30) }); }
       break;
+
+    case 'gslime': gslimeAI(e, ai, dt, a, dist, slow); break;
+    case 'golem': golemAI(e, ai, dt, a, dist, slow); break;
+    case 'cdragon': dragonAI(e, ai, dt, a, dist, slow); break;
+  }
+}
+
+// ---------- 巨大スライム: 跳ねて接近し粘液をまき散らす / ストンプ / スライム召喚 ----------
+function gslimeAI(e, ai, dt, a, dist, slow) {
+  if (ai.act === 'stomp') {
+    const s = ai.st;
+    s.t += dt;
+    const k = Math.min(1, s.t / s.T);
+    e.x = lerp(s.x0, s.tx, k); e.y = lerp(s.y0, s.ty, k);
+    e.jz = Math.sin(k * Math.PI) * 48; e.air = k < 0.9;
+    if (k < 1) return;
+    ai.act = null; e.jz = 0; e.air = false; e.sq = 0.55; ai.cd = ai.enraged ? 2 : 3;
+    hitCircle(e.x, e.y, 40, e.dmg * 1.3);
+    addHazard('goo', e.x, e.y, { r: 30, dur: 8 });
+    const n = ai.enraged ? 16 : 10;
+    for (let i = 0; i < n; i++) eball(e.x, e.y, TAU / n * i, 50, 11, 'glob');
+    shockAt(e.x, e.y, 1.6, 0.8); shake(9); AudioMan.boom(); AudioMan.splat();
+    burst(e.x, e.y, 40, ['#4fd6a8', '#d8fff2', '#23735f'], { sp: 140, g: 200 });
+    return;
+  }
+  // 跳ねながら接近。着地点に粘液を残す
+  ai.hop -= dt;
+  const air = ai.hop < 0.5;
+  e.jz = air ? Math.sin(ai.hop / 0.5 * Math.PI) * 7 : 0;
+  e.air = e.jz > 3;
+  if (air) { e.x += Math.cos(a) * e.spd * 2.6 * slow * dt; e.y += Math.sin(a) * e.spd * 2.6 * slow * dt; }
+  if (ai.hop <= 0) {
+    ai.hop = ai.enraged ? 1.0 : 1.3; e.sq = 0.75;
+    if (ai.enraged || Math.random() < 0.4) addHazard('goo', e.x, e.y + 4, { r: 14, dur: 6 });
+  }
+  ai.cd -= dt; ai.sum -= dt;
+  if (ai.cd > 0 || air) return;
+  ai.cd = ai.enraged ? 2.2 : 3.2;
+  if (ai.sum <= 0) { // スライム召喚
+    ai.sum = 12; e.sq = 1.3;
+    const n = ai.enraged ? 6 : 4;
+    for (let i = 0; i < n; i++) spawnEnemy('slime', { x: e.x + Math.cos(TAU / n * i) * 22, y: e.y + Math.sin(TAU / n * i) * 22 });
+    burst(e.x, e.y, 30, ['#4fd6a8', '#d8fff2'], { sp: 110 }); AudioMan.splat();
+  } else if (dist < 150 && Math.random() < 0.45) { // ストンプ: 高く跳んでプレイヤーの位置へ落下
+    ai.act = 'stomp'; ai.st = { t: 0, T: 1.3, x0: e.x, y0: e.y, tx: P.x, ty: P.y };
+    warns.push({ kind: 'circle', x: P.x, y: P.y, r: 40, t: 0, life: 1.3 });
+    AudioMan.dash();
+  } else { // 粘液弾: プレイヤー周辺へ放物線で撒き、着弾点に粘液床
+    e.sq = 1.3;
+    windup(e, 0.5, () => {
+      const n = ai.enraged ? 8 : 5;
+      for (let i = 0; i < n; i++) {
+        const tx = P.x + (i ? rand(-55, 55) : 0), ty = P.y + (i ? rand(-45, 45) : 0), T = 0.9 + i * 0.06;
+        warns.push({ kind: 'circle', x: tx, y: ty, r: 14, t: 0, life: T });
+        lob('glob', e.x, e.y - 6, tx, ty, T, 40, p => {
+          hitCircle(p.x, p.y, 14, e.dmg * 0.7);
+          addHazard('goo', p.x, p.y, { r: 17, dur: 7 });
+          burst(p.x, p.y, 10, ['#4fd6a8', '#d8fff2'], { sp: 60 }); AudioMan.splat();
+        });
+      }
+      e.sq = 0.7; AudioMan.fire();
+    });
+  }
+}
+
+// ---------- ゴーレム: 範囲叩きつけ / 岩投げ / 両腕回転 / ストンプ+衝撃波 ----------
+function golemAI(e, ai, dt, a, dist, slow) {
+  if (ai.act === 'spin') {
+    ai.pt -= dt; ai.spinA += (ai.enraged ? 9 : 7) * dt;
+    e.x += Math.cos(a) * e.spd * 1.5 * slow * dt; e.y += Math.sin(a) * e.spd * 1.5 * slow * dt;
+    e.fists = [0, 1].map(i => { const fa = ai.spinA + Math.PI * i; return { x: e.x + Math.cos(fa) * 30, y: e.y + Math.sin(fa) * 30 }; });
+    for (const f of e.fists) {
+      hitCircle(f.x, f.y, 7, e.dmg);
+      if (Math.random() < 0.5) part(f.x, f.y, rand(-20, 20), rand(-20, 20), 0.4, pick(['#a89e8c', '#6ee7ff']), { glow: true });
+    }
+    ai.snd = (ai.snd || 0) - dt;
+    if (ai.snd <= 0) { ai.snd = 0.28; AudioMan.slash(); }
+    if (ai.pt <= 0) { ai.act = null; e.fists = null; ai.cd = ai.enraged ? 1.4 : 2.2; }
+    return;
+  }
+  e.x += Math.cos(a) * e.spd * slow * dt; e.y += Math.sin(a) * e.spd * slow * dt;
+  ai.cd -= dt; ai.spinCd -= dt;
+  if (ai.cd > 0) return;
+  ai.cd = ai.enraged ? 1.8 : 2.6;
+  const r = Math.random();
+  if (dist > 95) { if (r < 0.75) golemThrow(e, ai); else ai.cd = 0.8; }
+  else if (ai.spinCd <= 0 && r < 0.35) { // 両腕を回し続けながら追ってくる
+    ai.spinCd = 10;
+    warns.push({ kind: 'circle', x: e.x, y: e.y, r: 34, t: 0, life: 0.6 });
+    windup(e, 0.6, () => { ai.act = 'spin'; ai.pt = ai.enraged ? 4.5 : 3.5; ai.spinA = a; AudioMan.roar(); });
+  } else if (r < 0.7) { // 範囲叩きつけ
+    const tx = e.x + Math.cos(a) * Math.min(dist, 38), ty = e.y + Math.sin(a) * Math.min(dist, 38);
+    warns.push({ kind: 'circle', x: tx, y: ty, r: 30, t: 0, life: 0.85 });
+    windup(e, 0.85, () => {
+      hitCircle(tx, ty, 30, e.dmg * 1.2);
+      if (ai.enraged) for (let i = 0; i < 6; i++) eball(tx, ty, TAU / 6 * i + rand(0, 1), 60, 12, 'rbit');
+      burst(tx, ty, 30, ['#a89e8c', '#6a6258', '#3a3530'], { sp: 120, g: 220 });
+      shockAt(tx, ty, 1.2, 0.8); shake(7); AudioMan.boom();
+    });
+  } else { // ストンプ: 周囲に範囲ダメージ + 外へ広がる衝撃波
+    warns.push({ kind: 'circle', x: e.x, y: e.y, r: 58, t: 0, life: 1 });
+    windup(e, 1, () => {
+      hitCircle(e.x, e.y, 58, e.dmg * 1.3);
+      addHazard('quake', e.x, e.y, { r: 58, spd: 100, max: 170, dur: 9, dmg: e.dmg * 0.8 });
+      if (ai.enraged) later(ai, 0.45, () => addHazard('quake', e.x, e.y, { r: 20, spd: 100, max: 170, dur: 9, dmg: e.dmg * 0.8 }));
+      burst(e.x, e.y, 50, ['#a89e8c', '#6a6258', '#6ee7ff'], { sp: 160, g: 220 });
+      shockAt(e.x, e.y, 2, 0.8); shake(11); AudioMan.boom();
+    });
+  }
+}
+function golemThrow(e, ai) {
+  e.hold = true;
+  windup(e, 0.7, () => {
+    e.hold = false;
+    const n = ai.enraged ? 3 : 1;
+    for (let i = 0; i < n; i++) later(ai, i * 0.35, () => {
+      const tx = P.x + (i ? rand(-45, 45) : 0), ty = P.y + (i ? rand(-40, 40) : 0), T = 1.1;
+      warns.push({ kind: 'circle', x: tx, y: ty, r: 24, t: 0, life: T });
+      lob('rock', e.x, e.y - 16, tx, ty, T, 70, p => {
+        hitCircle(p.x, p.y, 24, e.dmg * 1.1);
+        for (let k = 0; k < 8; k++) eball(p.x, p.y, TAU / 8 * k + rand(0, 0.4), 62, 12, 'rbit');
+        burst(p.x, p.y, 26, ['#a89e8c', '#6a6258', '#3a3530'], { sp: 110, g: 220 });
+        shockAt(p.x, p.y, 1, 0.9); shake(6); AudioMan.boom();
+      });
+      AudioMan.dash();
+    });
+  });
+}
+
+// ---------- カオスドラゴン: 持続ファイアブレス / 一周ビーム / グランドクロス / 切り裂き ----------
+const BEAM_LEN = 260;
+function dragonAI(e, ai, dt, a, dist, slow) {
+  const endAct = () => { ai.act = null; ai.cd = ai.enraged ? 1.6 : 2.4; };
+  if (ai.act === 'breath') { // ゆっくりプレイヤーを追う扇状の炎。当たると炎上
+    ai.pt -= dt;
+    ai.ba += clamp(angDiff(a, ai.ba), -0.9 * dt, 0.9 * dt);
+    const L = 125, H = 0.32, mx = e.x + Math.cos(ai.ba) * 10, my = e.y + Math.sin(ai.ba) * 10;
+    for (let i = 0; i < 4; i++) {
+      const aa = ai.ba + rand(-H, H), sp = rand(120, 170);
+      part(mx, my, Math.cos(aa) * sp, Math.sin(aa) * sp, rand(0.55, 0.8), pick(['#ff6a2a', '#ffc34a', '#ff4a8a', '#fff6c8']), { glow: true, drag: 0.6, sz: pick([1, 2, 2]) });
+    }
+    if (dist < L && Math.abs(angDiff(a, ai.ba)) < H + 4 / Math.max(dist, 1)) { hurtPlayer(e.dmg * 0.5); burnPlayer(e.dmg * 0.12); }
+    AudioMan.fire();
+    if (ai.pt <= 0) endAct();
+    return;
+  }
+  if (ai.act === 'beam') { // 全周を薙ぎ払うビーム(ダッシュの無敵ですり抜ける前提)
+    ai.pt += dt;
+    const k = ai.pt / ai.T;
+    ai.bA = ai.b0 + ai.dir * TAU * Math.min(1, k);
+    hitLine(e.x, e.y, ai.bA, BEAM_LEN, 10, e.dmg * 1.2);
+    const r = rand(20, BEAM_LEN);
+    part(e.x + Math.cos(ai.bA) * r, e.y + Math.sin(ai.bA) * r, rand(-30, 30), rand(-30, 30), 0.4, pick(['#ff4a8a', '#ffd0f0', '#ffffff']), { glow: true });
+    shake(1.5);
+    if (k >= 1) { ai.bA = null; endAct(); }
+    return;
+  }
+  if (ai.act === 'lunge') { // 切り裂き: 踏み込んで二連の爪撃
+    ai.pt -= dt;
+    e.x += Math.cos(ai.la) * 230 * dt; e.y += Math.sin(ai.la) * 230 * dt;
+    if (ai.pt > 0) return;
+    endAct();
+    for (let c = 0; c < 2; c++) later(ai, c * 0.14, () => {
+      const ca = Math.atan2(P.y - e.y, P.x - e.x);
+      slashes.push({ x: e.x, y: e.y, a: ai.la, r: 70, t: 0, life: 0.22, flip: c % 2, evo: true });
+      if (d2(e.x, e.y, P.x, P.y) < 47 * 47 && Math.abs(angDiff(ca, ai.la)) < 1.1) hurtPlayer(e.dmg * 1.1);
+      AudioMan.slash();
+    });
+    return;
+  }
+  // 距離を保って旋回
+  const want = 95, dir = dist > want ? a : a + Math.PI, k = Math.abs(dist - want) > 20 ? 1 : 0.2;
+  e.x += (Math.cos(dir) * e.spd * k + Math.cos(a + Math.PI / 2) * 18) * slow * dt;
+  e.y += (Math.sin(dir) * e.spd * k + Math.sin(a + Math.PI / 2) * 18) * slow * dt;
+  ai.cd -= dt; ai.beamCd -= dt;
+  if (ai.cd > 0) return;
+  ai.cd = 99; // 行動終了時に再設定
+  if (ai.beamCd <= 0) {
+    ai.beamCd = ai.enraged ? 11 : 15;
+    ai.b0 = a + Math.PI; ai.dir = Math.random() < 0.5 ? 1 : -1; ai.chg = true;
+    warns.push({ kind: 'line', x: e.x, y: e.y, a: ai.b0, len: BEAM_LEN, w: 10, t: 0, life: 1.3 });
+    AudioMan.warning(); AudioMan.charge(1.3);
+    if (!S.hint.beam) { S.hint.beam = true; UI.announce('全周ビーム!!', 'ダッシュの無敵ですり抜けろ'); }
+    windup(e, 1.3, () => { ai.act = 'beam'; ai.pt = 0; ai.T = ai.enraged ? 2 : 2.4; AudioMan.zap(); shockAt(e.x, e.y, 1, 1); });
+  } else if (dist < 60) {
+    warns.push({ kind: 'line', x: e.x, y: e.y, a, len: 70, w: 34, t: 0, life: 0.4 });
+    windup(e, 0.4, () => { ai.act = 'lunge'; ai.pt = 0.2; ai.la = Math.atan2(P.y - e.y, P.x - e.x); });
+  } else if (dist < 130 && Math.random() < 0.55) {
+    warns.push({ kind: 'line', x: e.x, y: e.y, a, len: 125, w: 30, t: 0, life: 0.6 });
+    windup(e, 0.6, () => { ai.act = 'breath'; ai.pt = 2.6; ai.ba = Math.atan2(P.y - e.y, P.x - e.x); AudioMan.roar(); });
+  } else { // グランドクロス: プレイヤーの位置に十字の光柱(激昂時は続けてX字)
+    const tx = P.x, ty = P.y, L = 120, W = 16, T = 1.2;
+    const arms = off => [off, off + Math.PI / 2].map(aa => ({ x: tx - Math.cos(aa) * L, y: ty - Math.sin(aa) * L, a: aa }));
+    const mark = off => arms(off).forEach(r => warns.push({ kind: 'line', x: r.x, y: r.y, a: r.a, len: L * 2, w: W, t: 0, life: T }));
+    const blast = off => {
+      for (const r of arms(off)) {
+        hitLine(r.x, r.y, r.a, L * 2, W, e.dmg * 1.3);
+        slashes.push({ line: true, x: r.x, y: r.y, x1: r.x + Math.cos(r.a) * L * 2, y1: r.y + Math.sin(r.a) * L * 2, t: 0, life: 0.45, w: 10 });
+      }
+      addFlash(tx, ty, 160, '#ff4a8a', 0.5); shockAt(tx, ty, 1.6, 0.9); shake(7); AudioMan.boom(); AudioMan.zap();
+      burst(tx, ty, 30, ['#ff4a8a', '#ffd0f0', '#ffffff'], { sp: 140, glow: true });
+    };
+    mark(0); later(ai, T, () => blast(0));
+    if (ai.enraged) { later(ai, 0.5, () => mark(Math.PI / 4)); later(ai, 0.5 + T, () => blast(Math.PI / 4)); }
+    AudioMan.charge(T);
+    endAct();
   }
 }
 
@@ -808,12 +1103,12 @@ function onBossDeath(e) {
   addRing(e.x, e.y, 140, '#ffd23f', { w: 3, life: 0.8 }); addRing(e.x, e.y, 90, '#ffffff', { w: 2, life: 0.6 });
   addFlash(e.x, e.y, 260, '#ffd23f', 1.2);
   AudioMan.boom(); AudioMan.chest();
-  eprojs = []; warns = [];
+  eprojs = []; warns = []; hazards = [];
   for (let i = 0; i < 14; i++) dropGem(e.x + rand(-30, 30), e.y + rand(-30, 30), 20 * S.stage);
   for (let i = 0; i < 25; i++) dropItem('coin', e.x, e.y, 3 * S.stage);
   dropItem('meat', e.x + 14, e.y); dropItem('magnet', e.x - 14, e.y);
   dropItem('chest', e.x, e.y - 14); dropItem('orb', e.x, e.y + 16);
-  if (e.boss === 'reaper') {
+  if (e.final) {
     if (S.loop === 1 && !S.won) { S.won = true; S.victoryT = 2.4; AudioMan.stopMusic(1.5); return; }
     S.loop++; S.schedIdx = 0; S.loopStart = S.time; setStage(1); onLoopStart();
     UI.announce('LOOP ' + S.loop, '敵はさらに強くなる…');
@@ -835,14 +1130,56 @@ function setStage(n) {
 function updEprojs(dt) {
   for (let i = eprojs.length - 1; i >= 0; i--) {
     const p = eprojs[i];
-    p.t += dt; p.x += p.vx * dt; p.y += p.vy * dt;
+    p.t += dt;
+    if (p.lob) {
+      const k = Math.min(1, p.t / p.T);
+      p.x = lerp(p.x0, p.tx, k); p.y = lerp(p.y0, p.ty, k); p.z = Math.sin(k * Math.PI) * p.H;
+      if (k >= 1) { eprojs.splice(i, 1); p.onLand(p); }
+      continue;
+    }
+    if (p.kind === 'boomer') {
+      if (!p.ret) {
+        p.v -= 200 * dt;
+        if (p.v <= 0) { p.ret = true; p.v = 0; }
+        p.x += Math.cos(p.a) * p.v * dt; p.y += Math.sin(p.a) * p.v * dt;
+      } else {
+        p.v = Math.min(240, p.v + 260 * dt);
+        const ta = Math.atan2(p.owner.y - p.y, p.owner.x - p.x);
+        p.x += Math.cos(ta) * p.v * dt; p.y += Math.sin(ta) * p.v * dt;
+        if (p.owner.dead || d2(p.x, p.y, p.owner.x, p.owner.y) < 100) p.t = p.life + 1;
+      }
+    } else { p.x += p.vx * dt; p.y += p.vy * dt; }
     if (p.t > p.life) { eprojs.splice(i, 1); continue; }
     if (d2(p.x, p.y, P.x, P.y) < Math.pow(p.r + 3, 2)) {
       if (P.dashT > 0) continue;
       hurtPlayer(p.dmg);
+      if (p.keep) continue;
       burst(p.x, p.y, 6, ['#ff3b5c', '#ffffff'], { sp: 50, glow: true });
       eprojs.splice(i, 1);
     }
+  }
+}
+
+// ---------- ボスの設置物(粘液床 / 衝撃波 / スロウタイム) ----------
+function updHazards(dt) {
+  for (let i = hazards.length - 1; i >= 0; i--) {
+    const h = hazards[i];
+    h.t += dt;
+    if (h.owner) { if (h.owner.dead) h.t = h.dur; else { h.x = h.owner.x; h.y = h.owner.y; } }
+    const dd = d2(h.x, h.y, P.x, P.y);
+    if (h.kind === 'goo') {
+      if (dd < h.r * h.r && h.t > 0.1) P.slowT = Math.max(P.slowT, 0.15);
+      if (Math.random() < dt * h.r * 0.15) part(h.x + rand(-h.r, h.r) * 0.7, h.y + rand(-h.r, h.r) * 0.7, 0, -6, 0.5, '#8affd8', { drag: 1 });
+    } else if (h.kind === 'quake') {
+      h.r += h.spd * dt;
+      if (Math.abs(Math.sqrt(dd) - h.r) < 5) hurtPlayer(h.dmg);
+      for (let k = 0; k < 3; k++) { const pa = rand(0, TAU); part(h.x + Math.cos(pa) * h.r, h.y + Math.sin(pa) * h.r, 0, -rand(10, 40), 0.35, pick(['#a89e8c', '#6a6258', '#ffb347']), { g: 120, sz: pick([1, 2]) }); }
+      if (h.r >= h.max) h.t = h.dur;
+    } else if (h.kind === 'clock') {
+      const R = h.r * Math.min(1, h.t * 4);
+      if (dd < R * R) { P.slowT = Math.max(P.slowT, 0.15); P.cdSlowT = Math.max(P.cdSlowT, 0.15); }
+    }
+    if (h.t >= h.dur) hazards.splice(i, 1);
   }
 }
 
@@ -938,7 +1275,7 @@ function updSpawner(dt) {
   const sc = DATA.schedule, el = S.time - S.loopStart;
   while (S.schedIdx < sc.length && el >= sc[S.schedIdx].t) {
     const en = sc[S.schedIdx++];
-    if (en.boss) spawnBoss(en.boss);
+    if (en.boss) spawnBoss(pick(en.boss), en.final);
     else if (en.event === 'horde') horde();
     else S.spawnCfg = en;
   }
