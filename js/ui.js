@@ -48,7 +48,8 @@ const UI = (() => {
     $('xpfill').style.width = (P.xp / P.xpNext * 100).toFixed(1) + '%';
     set('lvl', 'LV ' + P.level);
     set('timer', fmtTime(S.time));
-    set('stage-name', (S.loop > 1 ? 'LOOP ' + S.loop + ' · ' : '') + DATA.stages[S.stage - 1].label);
+    const pre = S.mode === 'arena' ? 'ROUND ' + Math.min(S.arena.idx + 1, DATA.arena.order.length) + '/' + DATA.arena.order.length + ' · ' : S.loop > 1 ? 'LOOP ' + S.loop + ' · ' : '';
+    set('stage-name', pre + DATA.stages[S.stage - 1].label);
     set('kills', '☠ ' + S.kills.toLocaleString());
     set('gold', '● ' + S.gold.toLocaleString());
     set('dmgtotal', '⚔ ' + fmtBig(S.totalDmg));
@@ -399,7 +400,8 @@ const UI = (() => {
     only('title-screen');
     hide($('hud'));
     $('title-gold').textContent = '● ' + META.gold.toLocaleString() + ' G';
-    $('title-best').textContent = META.best.time ? `BEST ${fmtTime(META.best.time)} · ${META.best.kills} KILLS · LV ${META.best.level}` : '';
+    const b = META.best, arena = b.arenaTime ? `ARENA ${fmtTime(b.arenaTime)}` : b.arenaRound ? `ARENA ROUND ${b.arenaRound}/${DATA.arena.order.length}` : '';
+    $('title-best').innerHTML = [b.time ? `BEST ${fmtTime(b.time)} · ${b.kills} KILLS · LV ${b.level}` : '', arena].filter(Boolean).join('<br>');
   }
   function shop() {
     state = 'shop';
@@ -455,11 +457,12 @@ const UI = (() => {
   function result(win, earned) {
     only('result-screen');
     hide($('hud'));
-    $('result-title').textContent = win ? 'VICTORY!' : 'YOU DIED';
+    const arena = S.mode === 'arena';
+    $('result-title').textContent = win ? (arena ? 'ARENA CLEAR!' : 'VICTORY!') : 'YOU DIED';
     $('result-title').className = win ? 'win' : 'lose';
-    $('btn-endless').classList.toggle('hidden', !win);
-    const rows = [['生存時間', fmtTime(S.time)], ['レベル', P.level], ['撃破数', S.kills.toLocaleString()], ['最大コンボ', S.bestCombo], ['総ダメージ', Math.round(S.totalDmg).toLocaleString()], ['獲得ゴールド', '● ' + earned]];
-    $('result-stats').innerHTML = rows.map(([a, b]) => `<div class="rs"><span>${a}</span><b>${b}</b></div>`).join('');
+    $('btn-endless').classList.toggle('hidden', !win || arena);
+    const rows = [arena ? ['撃破ボス', S.arena.idx + ' / ' + DATA.arena.order.length] : null, [arena ? 'タイム' : '生存時間', fmtTime(S.time)], ['レベル', P.level], ['撃破数', S.kills.toLocaleString()], ['最大コンボ', S.bestCombo], ['総ダメージ', Math.round(S.totalDmg).toLocaleString()], ['獲得ゴールド', '● ' + earned]];
+    $('result-stats').innerHTML = rows.filter(Boolean).map(([a, b]) => `<div class="rs"><span>${a}</span><b>${b}</b></div>`).join('');
     const tot = Object.values(S.dmgBy).reduce((a, b) => a + b, 0) || 1;
     const list = Object.entries(S.dmgBy).filter(([k]) => DATA.weapons[k]).sort((a, b) => b[1] - a[1]);
     $('result-dmg').innerHTML = list.map(([k, v]) => `<div class="dm">${icon('weapon', k)}<div class="dm-bar"><i style="width:${(v / tot * 100).toFixed(1)}%;background:${DATA.weapons[k].col}"></i></div><span>${Math.round(v).toLocaleString()}</span></div>`).join('');
@@ -467,6 +470,7 @@ const UI = (() => {
 
   // ボタン
   $('btn-start').onclick = () => startRun();
+  $('btn-arena').onclick = () => startRun('arena');
   $('btn-shop').onclick = () => { AudioMan.click(); shop(); };
   // リセットは2回押しで確定(誤操作防止)
   let resetArm = null;
@@ -486,7 +490,7 @@ const UI = (() => {
   $('btn-shop-back').onclick = () => { AudioMan.click(); state = 'title'; title(); };
   $('btn-resume').onclick = () => resumeGame();
   $('btn-quit').onclick = () => endRun(false);
-  $('btn-retry').onclick = () => startRun();
+  $('btn-retry').onclick = () => startRun(S.mode);
   $('btn-totitle').onclick = () => goTitle();
   $('btn-endless').onclick = () => startEndless();
   $('chest-screen').onclick = chestAct;

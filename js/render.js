@@ -12,7 +12,46 @@ function valueNoise(x, y) {
   const a = hash2(xi, yi), b = hash2(xi + 1, yi), c = hash2(xi, yi + 1), d = hash2(xi + 1, yi + 1);
   return lerp(lerp(a, b, s(xf)), lerp(c, d, s(xf)), s(yf));
 }
+// 闘技場の床: 半枚ずらしの石畳 + ひび・血痕・骨・砂溜まり
+function buildTileChunk(cx, cy, st) {
+  const c = ART.canvas(CH, CH), x = c.getContext('2d'), g = ART.canvas(CH, CH);
+  const [g0, g1, g2, g3] = st.ground, [mortar, hi, blood, bone] = st.deco, T = 16;
+  const ox = cx * CH, oy = cy * CH;
+  x.fillStyle = g0; x.fillRect(0, 0, CH, CH);
+  for (let ty = 0; ty < CH; ty += T) {
+    const off = (((oy + ty) / T) & 1) ? T / 2 : 0;
+    for (let tx = -T; tx < CH + T; tx += T) {
+      const px = tx + off, h = hash2(ox + px, oy + ty);
+      x.fillStyle = h < 0.3 ? g1 : h < 0.55 ? g2 : h < 0.7 ? g3 : g0; x.fillRect(px, ty, T, T);
+      x.fillStyle = hi; x.globalAlpha = 0.3; x.fillRect(px + 1, ty + 1, T - 2, 1); x.globalAlpha = 1;
+      x.fillStyle = mortar; x.fillRect(px, ty, T, 1); x.fillRect(px, ty, 1, T);
+      if (h > 0.9) { x.fillStyle = mortar; x.fillRect(px + 4, ty + 6, 3, 1); x.fillRect(px + 6, ty + 7, 1, 3); } // 欠け
+    }
+  }
+  for (let i = 0; i < 160; i++) { // 細かい砂粒
+    x.fillStyle = hash2(ox + i * 11, oy + i * 5) < 0.5 ? g3 : g2;
+    x.fillRect((hash2(i, cx * 29 + cy) * CH) | 0, (hash2(cy * 19 + i, cx) * CH) | 0, 1, 1);
+  }
+  for (let i = 0; i < 10; i++) {
+    const hx = (hash2(cx * 97 + i, cy * 57) * (CH - 10)) | 0, hy = (hash2(cy * 89 + i, cx * 43 + i) * (CH - 10)) | 0;
+    const kind = hash2(hx + ox, hy + oy);
+    if (kind < 0.3) { // ひび割れ
+      let lx = hx, ly = hy; x.fillStyle = mortar;
+      for (let k = 0; k < 9; k++) { x.fillRect(lx, ly, 1, 1); lx += 1; ly += hash2(lx + ox, k) < 0.5 ? 1 : -1; }
+    } else if (kind < 0.5) { // 血痕
+      x.fillStyle = blood; x.globalAlpha = 0.55;
+      x.fillRect(hx + 1, hy, 3, 1); x.fillRect(hx, hy + 1, 5, 2); x.fillRect(hx + 1, hy + 3, 2, 1); x.fillRect(hx + 6, hy + 2, 1, 1);
+      x.globalAlpha = 1;
+    } else if (kind < 0.62) { // 骨
+      x.fillStyle = bone; x.fillRect(hx, hy + 1, 5, 1); x.fillRect(hx, hy, 1, 3); x.fillRect(hx + 4, hy, 1, 3);
+    } else if (kind < 0.8) { // 砂溜まり
+      x.fillStyle = g3; x.fillRect(hx, hy + 1, 6, 1); x.fillRect(hx + 1, hy, 3, 1); x.fillRect(hx + 2, hy + 2, 4, 1);
+    }
+  }
+  return { c, g };
+}
 function buildChunk(cx, cy, st) {
+  if (st.tiles) return buildTileChunk(cx, cy, st);
   const c = ART.canvas(CH, CH), x = c.getContext('2d');
   const g = ART.canvas(CH, CH), gx = g.getContext('2d');
   const [g0, g1, g2, g3] = st.ground, [d0, d1, d2c, d3] = st.deco;
@@ -81,6 +120,69 @@ function drawGround() {
   }
 }
 
+// ============================================================
+// 闘技場: 床の紋章・円形の壁・観客席(一度だけ描いてキャッシュ) + 松明
+// ============================================================
+const ARENA_OUT = 90; // 壁の外側に描く観客席の幅
+let arenaImg = null;
+function buildArenaImg() {
+  const R = DATA.arena.r, C = R + ARENA_OUT, W = C * 2;
+  const c = ART.canvas(W, W), x = c.getContext('2d'), img = x.createImageData(W, W), d = img.data;
+  const hex = h => [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)];
+  const crowd = ['#c46a4a', '#7a8ab8', '#d8c07a', '#8a4fc0', '#5a9a6a', '#e0e0d0', '#b04050'].map(hex);
+  const put = (i, [r, g, b], a = 255) => { d[i] = r; d[i + 1] = g; d[i + 2] = b; d[i + 3] = a; };
+  const WALL_T = hex('#cbbb98'), WALL = hex('#7a6850'), WALL_D = hex('#4a3c2e'), STEP = hex('#2a2030'), SEAT = hex('#3a2e3e'), VOID = hex('#0b0710'), MARK = hex('#3a2c22');
+  for (let py = 0; py < W; py++) for (let px = 0; px < W; px++) {
+    const dx = px - C + 0.5, dy = py - C + 0.5, r = Math.hypot(dx, dy), i = (py * W + px) * 4;
+    if (r < R - 8) { // 床: 中央の紋章(二重円 + 十字)と壁際の影
+      if ((r > 44 && r < 46.5) || (r > 92 && r < 93.5) || (r < 92 && r > 46 && (Math.abs(dx) < 1 || Math.abs(dy) < 1))) put(i, MARK, 150);
+      continue;
+    }
+    if (r < R - 1) { put(i, [0, 0, 0], Math.round((r - (R - 8)) / 7 * 90)); continue; }
+    if (r < R + 7) { // 壁: 天端の明るい縁 + 石ブロック
+      const a = Math.atan2(dy, dx), blk = Math.floor(a * R / 9 + (r > R + 3 ? 0.5 : 0));
+      const seam = Math.abs(a * R / 9 + (r > R + 3 ? 0.5 : 0) - blk) < 0.12 || Math.abs(r - (R + 3)) < 0.5;
+      put(i, r < R + 1 ? WALL_T : seam ? WALL_D : (hash2(blk, r > R + 3 ? 1 : 0) < 0.5 ? WALL : hex('#6c5a44')));
+      continue;
+    }
+    if (r < R + ARENA_OUT - 6) { // 観客席: 8px ごとの段 + 観客のドット
+      const k = (r - R - 7) % 9;
+      if (k < 1.2) { put(i, STEP); continue; }
+      const a = Math.atan2(dy, dx), seatI = Math.floor(a * r / 4), row = Math.floor((r - R - 7) / 9);
+      const h = hash2(seatI, row);
+      if (h < 0.7 && k > 3 && k < 7.5 && Math.abs(a * r / 4 - seatI - 0.5) < 0.3) put(i, crowd[(h * 70 | 0) % crowd.length]);
+      else if (h < 0.7 && k > 1.5 && k < 3.5 && Math.abs(a * r / 4 - seatI - 0.5) < 0.22) put(i, hex('#e8c8a8')); // 頭
+      else put(i, SEAT);
+      continue;
+    }
+    put(i, VOID);
+  }
+  x.putImageData(img, 0, 0);
+  return c;
+}
+function drawArena(t) {
+  const sx = GFX.sctx, gx = GFX.gctx, R = DATA.arena.r, C = R + ARENA_OUT;
+  if (!arenaImg) arenaImg = buildArenaImg();
+  const ax = -C - cam.x, ay = -C - cam.y, W = C * 2;
+  sx.drawImage(arenaImg, ax, ay);
+  sx.fillStyle = '#0b0710'; // キャッシュ範囲の外は闇
+  if (ay > 0) sx.fillRect(0, 0, GFX.VW, ay);
+  if (ay + W < GFX.VH) sx.fillRect(0, ay + W, GFX.VW, GFX.VH - ay - W);
+  if (ax > 0) sx.fillRect(0, 0, ax, GFX.VH);
+  if (ax + W < GFX.VW) sx.fillRect(ax + W, 0, GFX.VW - ax - W, GFX.VH);
+  // 壁の上の松明
+  for (let i = 0; i < 20; i++) {
+    const a = TAU / 20 * i, wx = Math.cos(a) * (R + 3), wy = Math.sin(a) * (R + 3);
+    if (!onScreen(wx, wy, 40)) continue;
+    const px = Math.round(wx - cam.x), py = Math.round(wy - cam.y), fl = Math.sin(t * 13 + i * 2.1) * 0.5 + Math.sin(t * 7.3 + i) * 0.5;
+    sx.fillStyle = '#3a2a1e'; sx.fillRect(px - 1, py - 1, 3, 3);
+    const fh = 3 + (fl > 0.3 ? 1 : 0);
+    for (const ctx of [sx, gx]) { ctx.fillStyle = '#ff6a2a'; ctx.fillRect(px - 1, py - fh, 3, fh - 1); ctx.fillStyle = '#ffd27a'; ctx.fillRect(px, py - fh + 1, 1, fh - 2); }
+    addLight(wx, wy - 2, 80 + fl * 8, '#ffb347', 0.75 + fl * 0.1);
+    if (Math.random() < 0.05) part(wx + rand(-1, 1), wy - fh, rand(-4, 4), -rand(14, 26), rand(0.5, 0.9), pick(['#ffb347', '#ff6a2a']), { glow: true });
+  }
+}
+
 // 影(楕円)
 const shadowCache = {};
 function shadow(x, y, w) {
@@ -126,6 +228,7 @@ function render() {
   drawGround();
   if (!S || S.demo) return drawMotes(st);
   const t = GFX.fx.time;
+  if (S.mode === 'arena') drawArena(t);
 
   // 自分の攻撃は専用レイヤーへ描き、「攻撃の濃さ」の透明度でまとめて合成する(重なっても濃くならない)
   const layered = SET.fxA < 0.999;
@@ -244,6 +347,19 @@ function render() {
       pLine(gx, hx, hy, hx + Math.cos(-t * 0.5) * R * 0.5, hy + Math.sin(-t * 0.5) * R * 0.5, '#c29bff', 2);
       gx.globalAlpha = 1;
       addLight(h.x, h.y, R * 2, '#c29bff', 0.4 * fade);
+    } else if (h.kind === 'vortex') { // 渦: 内側へ縮む輪と回転する腕
+      const R = Math.round(h.r * Math.min(1, h.t * 4));
+      sx.globalAlpha = 0.2 * fade; pDisc(sx, hx, hy, R, '#5a1a4a');
+      sx.globalAlpha = 0.35 * fade; pDisc(sx, hx, hy, Math.round(R * 0.18), '#1a0514');
+      sx.globalAlpha = fade; pCircle(sx, hx, hy, R, warnBlink ? '#ff3b5c' : '#ff4a8a'); sx.globalAlpha = 1;
+      gx.globalAlpha = 0.6 * fade;
+      for (let j = 0; j < 3; j++) pCircle(gx, hx, hy, Math.round(R * (1 - ((t * 0.9 + j / 3) % 1))), '#ff4a8a');
+      for (let i = 0; i < 4; i++) for (let s = 0; s < 8; s++) {
+        const r = R * (1 - s / 8), a = t * 2.5 + TAU / 4 * i + s * 0.35;
+        gx.fillStyle = s % 2 ? '#c78bff' : '#ffd0f0'; gx.fillRect(Math.round(hx + Math.cos(a) * r), Math.round(hy + Math.sin(a) * r), 2, 2);
+      }
+      gx.globalAlpha = 1;
+      addLight(h.x, h.y, R * 2, '#ff4a8a', 0.45 * fade);
     }
   }
 
@@ -505,4 +621,5 @@ function updFx(dt) {
   }
   for (let i = floats.length - 1; i >= 0; i--) { const f = floats[i]; f.t += dt; f.y += f.vy * dt; f.vy *= Math.exp(-5 * dt); if (f.t >= f.life) floats.splice(i, 1); }
   for (const arr of [rings, slashes, bolts, warns, flashes]) for (let i = arr.length - 1; i >= 0; i--) { arr[i].t += dt; if (arr[i].t >= arr[i].life) arr.splice(i, 1); }
+  for (const w of warns) if (w.track) w.track(w); // 追随する予兆(発生源・向きを毎フレーム更新)
 }

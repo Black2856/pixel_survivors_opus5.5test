@@ -11,9 +11,9 @@ const xpFor = l => Math.floor(4 + l * 2.6 + Math.pow(l, 1.72));
 // ============================================================
 // ラン初期化 / ステータス
 // ============================================================
-function initRun() {
+function initRun(mode = 'normal') {
   S = {
-    time: 0, kills: 0, totalDmg: 0, dmgBy: {}, stage: 1, loop: 1, loopStart: 0,
+    mode, arena: null, time: 0, kills: 0, totalDmg: 0, dmgBy: {}, stage: 1, loop: 1, loopStart: 0,
     combo: 0, comboT: 0, bestCombo: 0, gemStreak: 0, gemStreakT: 0,
     freeze: 0, ts: 1, tsBack: 0, schedIdx: 0, spawnT: 0, spawnCfg: null,
     eliteT: 95, goblinT: 70, propT: 2, elv: 1, elvT: 0, boss: null, pendingLv: 0, lvFx: 0,
@@ -29,6 +29,13 @@ function initRun() {
   parts = []; floats = []; rings = []; zones = []; slashes = []; bolts = []; warns = []; flashes = [];
   recalc();
   P.hp = P.maxhp;
+  if (mode === 'arena') { S.stage = 4; S.elv = arenaElv(0); S.arena = { idx: 0, restT: 3, warned: false }; }
+}
+// 現在地から n レベル上がるのに必要な経験値(倍率適用前)
+function xpForLevels(n) {
+  let v = P.xpNext - P.xp;
+  for (let l = P.level + 1; l < P.level + n; l++) v += xpFor(l);
+  return v;
 }
 
 function recalc() {
@@ -75,10 +82,12 @@ const enemyHpBase = () => enemyBase() * (1 + 0.2 * metaLv('chaos'));
 const lvK = (kind, lv = S.elv) => 1 + DATA.enemyLevel[kind] * (lv - 1);
 const enemyDmgK = () => enemyBase() * lvK('dmg');
 function updEnemyLevel(dt) {
-  if (S.boss) return; // ボス出現中は停止
+  if (S.boss || S.mode === 'arena') return; // ボス出現中は停止(闘技場はラウンドごとに固定)
   S.elvT += dt * (1 + 0.2 * metaLv('chaos')); // 混沌: Lv上昇速度 +20%/Lv
   if (S.elvT >= DATA.enemyLevel.interval) { S.elvT -= DATA.enemyLevel.interval; S.elv++; UI.enemyLvUp(); }
 }
+// 闘技場の敵Lv: 基準値の Lv1 からの上昇分に混沌の上昇速度(+20%/Lv)を掛ける
+const arenaElv = i => 1 + Math.round((DATA.arena.elv[i] - 1) * (1 + 0.2 * metaLv('chaos')));
 // 周回開始時の処理(混沌: 敵Lv +5/Lv)
 function onLoopStart() {
   const add = 5 * metaLv('chaos');
@@ -730,12 +739,13 @@ function spawnBoss(key, final) {
     t: 0, seed: 0, kx: 0, ky: 0, flash: 0, frost: 0, frostT: 0, burn: 0, burnT: 0, burnTick: 0, stun: 0, slowT: 0, scale: 1, jz: 0, sq: 1,
     ai: {
       ph: 'chase', pt: 0, atk: 3, sum: 7, slam: 6, ring: 3, aim: 2, tp: 5, spiral: 3.5, spN: 0, spGap: 0, spA: 0, enraged: false,
-      q: [], act: null, wind: 0, cd: 2.5, hop: 1, spinCd: 4, beamCd: 8, throw: 3, clock: 7,
+      q: [], act: null, wind: 0, cd: 2.5, hop: 1, spinCd: 4, beamCd: 8, vortexCd: 5, throw: 3, clock: 7,
     },
   };
   enemies.push(e);
   S.boss = e;
   UI.bossBar(e);
+  return e;
 }
 
 function eball(x, y, a, spd, dmg, kind = 'ball') {
@@ -1016,8 +1026,8 @@ function golemThrow(e, ai) {
   });
 }
 
-// ---------- カオスドラゴン: 持続ファイアブレス / 一周ビーム / グランドクロス / 切り裂き ----------
-const BEAM_LEN = 260;
+// ---------- カオスドラゴン: 持続ファイアブレス / 一周ビーム / グランドクロス / 切り裂き / 渦(吸引) ----------
+const BEAM_LEN = 260, LUNGE_RANGE = 150, LUNGE_SPD = 420;
 function dragonAI(e, ai, dt, a, dist, slow) {
   const endAct = () => { ai.act = null; ai.cd = ai.enraged ? 1.6 : 2.4; };
   if (ai.act === 'breath') { // ゆっくりプレイヤーを追う扇状の炎。当たると炎上
@@ -1028,7 +1038,7 @@ function dragonAI(e, ai, dt, a, dist, slow) {
       const aa = ai.ba + rand(-H, H), sp = rand(120, 170);
       part(mx, my, Math.cos(aa) * sp, Math.sin(aa) * sp, rand(0.55, 0.8), pick(['#ff6a2a', '#ffc34a', '#ff4a8a', '#fff6c8']), { glow: true, drag: 0.6, sz: pick([1, 2, 2]) });
     }
-    if (dist < L && Math.abs(angDiff(a, ai.ba)) < H + 4 / Math.max(dist, 1)) { hurtPlayer(e.dmg * 0.5); burnPlayer(e.dmg * 0.12); }
+    if (dist < L && Math.abs(angDiff(a, ai.ba)) < H + 4 / Math.max(dist, 1)) { hurtPlayer(e.dmg * 0.3); burnPlayer(e.dmg * 0.03); }
     AudioMan.fire();
     if (ai.pt <= 0) endAct();
     return;
@@ -1044,9 +1054,9 @@ function dragonAI(e, ai, dt, a, dist, slow) {
     if (k >= 1) { ai.bA = null; endAct(); }
     return;
   }
-  if (ai.act === 'lunge') { // 切り裂き: 踏み込んで二連の爪撃
+  if (ai.act === 'lunge') { // 切り裂き: 踏み込んで二連の爪撃(距離に応じて踏み込み時間が伸びる)
     ai.pt -= dt;
-    e.x += Math.cos(ai.la) * 230 * dt; e.y += Math.sin(ai.la) * 230 * dt;
+    e.x += Math.cos(ai.la) * LUNGE_SPD * dt; e.y += Math.sin(ai.la) * LUNGE_SPD * dt;
     if (ai.pt > 0) return;
     endAct();
     for (let c = 0; c < 2; c++) later(ai, c * 0.14, () => {
@@ -1061,7 +1071,7 @@ function dragonAI(e, ai, dt, a, dist, slow) {
   const want = 95, dir = dist > want ? a : a + Math.PI, k = Math.abs(dist - want) > 20 ? 1 : 0.2;
   e.x += (Math.cos(dir) * e.spd * k + Math.cos(a + Math.PI / 2) * 18) * slow * dt;
   e.y += (Math.sin(dir) * e.spd * k + Math.sin(a + Math.PI / 2) * 18) * slow * dt;
-  ai.cd -= dt; ai.beamCd -= dt;
+  ai.cd -= dt; ai.beamCd -= dt; ai.vortexCd -= dt;
   if (ai.cd > 0) return;
   ai.cd = 99; // 行動終了時に再設定
   if (ai.beamCd <= 0) {
@@ -1071,11 +1081,25 @@ function dragonAI(e, ai, dt, a, dist, slow) {
     AudioMan.warning(); AudioMan.charge(1.3);
     if (!S.hint.beam) { S.hint.beam = true; UI.announce('全周ビーム!!', 'ダッシュの無敵ですり抜けろ'); }
     windup(e, 1.3, () => { ai.act = 'beam'; ai.pt = 0; ai.T = ai.enraged ? 2 : 2.4; AudioMan.zap(); shockAt(e.x, e.y, 1, 1); });
-  } else if (dist < 60) {
-    warns.push({ kind: 'line', x: e.x, y: e.y, a, len: 70, w: 34, t: 0, life: 0.4 });
-    windup(e, 0.4, () => { ai.act = 'lunge'; ai.pt = 0.2; ai.la = Math.atan2(P.y - e.y, P.x - e.x); });
-  } else if (dist < 130 && Math.random() < 0.55) {
-    warns.push({ kind: 'line', x: e.x, y: e.y, a, len: 125, w: 30, t: 0, life: 0.6 });
+  } else if (ai.vortexCd <= 0) { // 渦: プレイヤーの足元に吸引する範囲を召喚(ダメージなし)
+    ai.vortexCd = ai.enraged ? 9 : 13;
+    const tx = P.x, ty = P.y, T = 0.8;
+    warns.push({ kind: 'circle', x: tx, y: ty, r: 100, t: 0, life: T });
+    AudioMan.charge(T);
+    later(ai, T, () => {
+      addHazard('vortex', tx, ty, { r: 100, dur: 4.5, pull: ai.enraged ? 42 : 34 });
+      shockAt(tx, ty, 1.2, 0.6); AudioMan.roar();
+      if (!S.hint.vortex) { S.hint.vortex = true; UI.announce('混沌の渦', '中心へ引き寄せられる。外へ走るかダッシュで脱出'); }
+    });
+    endAct();
+  } else if (dist < LUNGE_RANGE && (dist < 60 || Math.random() < 0.35)) { // 近距離は必ず、中距離は確率で飛びつき
+    warns.push({ kind: 'line', x: e.x, y: e.y, a, len: LUNGE_RANGE + 20, w: 34, t: 0, life: 0.4 });
+    windup(e, 0.4, () => {
+      ai.act = 'lunge'; ai.la = Math.atan2(P.y - e.y, P.x - e.x);
+      ai.pt = clamp((Math.sqrt(d2(e.x, e.y, P.x, P.y)) - 14) / LUNGE_SPD, 0.08, (LUNGE_RANGE + 20) / LUNGE_SPD); // プレイヤーの手前まで踏み込む
+    });
+  } else if (dist < 130 && Math.random() < 0.55) { // 予兆はボスからプレイヤーへ向きを追随
+    warns.push({ kind: 'line', x: e.x, y: e.y, a, len: 125, w: 30, t: 0, life: 0.6, track: w => { w.x = e.x; w.y = e.y; w.a = Math.atan2(P.y - e.y, P.x - e.x); } });
     windup(e, 0.6, () => { ai.act = 'breath'; ai.pt = 2.6; ai.ba = Math.atan2(P.y - e.y, P.x - e.x); AudioMan.roar(); });
   } else { // グランドクロス: プレイヤーの位置に十字の光柱(激昂時は続けてX字)
     const tx = P.x, ty = P.y, L = 120, W = 16, T = 1.2;
@@ -1107,6 +1131,7 @@ function onBossDeath(e) {
   addFlash(e.x, e.y, 260, '#ffd23f', 1.2);
   AudioMan.boom(); AudioMan.chest();
   eprojs = []; warns = []; hazards = [];
+  if (S.mode === 'arena') return arenaBossDown(e);
   for (let i = 0; i < 14; i++) dropGem(e.x + rand(-30, 30), e.y + rand(-30, 30), 20 * S.stage);
   for (let i = 0; i < 25; i++) dropItem('coin', e.x, e.y, 3 * S.stage);
   dropItem('meat', e.x + 14, e.y); dropItem('magnet', e.x - 14, e.y);
@@ -1163,7 +1188,7 @@ function updEprojs(dt) {
   }
 }
 
-// ---------- ボスの設置物(粘液床 / 衝撃波 / スロウタイム) ----------
+// ---------- ボスの設置物(粘液床 / 衝撃波 / スロウタイム / 渦) ----------
 function updHazards(dt) {
   for (let i = hazards.length - 1; i >= 0; i--) {
     const h = hazards[i];
@@ -1181,6 +1206,13 @@ function updHazards(dt) {
     } else if (h.kind === 'clock') {
       const R = h.r * Math.min(1, h.t * 4);
       if (dd < R * R) { P.slowT = Math.max(P.slowT, 0.15); P.cdSlowT = Math.max(P.cdSlowT, 0.15); }
+    } else if (h.kind === 'vortex') { // 中心へ引き寄せる(移動速度より弱いので歩いて脱出できる)
+      const R = h.r * Math.min(1, h.t * 4), d = Math.sqrt(dd);
+      if (d < R && d > 2 && !P.dead && state === 'play') {
+        const k = Math.min(d, h.pull * Math.min(1, (h.dur - h.t) * 2) * dt);
+        P.x += (h.x - P.x) / d * k; P.y += (h.y - P.y) / d * k;
+      }
+      if (Math.random() < dt * 30) { const pa = rand(0, TAU), pr = rand(0.5, 1) * R; part(h.x + Math.cos(pa) * pr, h.y + Math.sin(pa) * pr, (Math.cos(pa + 1.2) * -pr) * 0.9, (Math.sin(pa + 1.2) * -pr) * 0.9, 0.6, pick(['#ff4a8a', '#c78bff', '#ffd0f0']), { glow: true, drag: 1 }); }
     }
     if (h.t >= h.dur) hazards.splice(i, 1);
   }
@@ -1275,6 +1307,7 @@ function updDrops(dt) {
 // スポナー
 // ============================================================
 function updSpawner(dt) {
+  if (S.mode === 'arena') return updArena(dt);
   const sc = DATA.schedule, el = S.time - S.loopStart;
   while (S.schedIdx < sc.length && el >= sc[S.schedIdx].t) {
     const en = sc[S.schedIdx++];
@@ -1309,6 +1342,44 @@ function updSpawner(dt) {
   }
   S.propT -= dt;
   if (S.propT <= 0) { S.propT = 6; if (enemies.filter(e => e.prop && !e.dead).length < 5) spawnProp(); }
+}
+
+// ============================================================
+// 闘技場(ボスラッシュ): 休憩 → ボス入場 → 撃破報酬 → 休憩 …
+// ============================================================
+function updArena(dt) {
+  const A = S.arena, cfg = DATA.arena;
+  if (S.boss || S.won || A.idx >= cfg.order.length || S.pendingLv > 0) return; // レベルアップ処理中は休憩時間を止める
+  A.restT -= dt;
+  if (!A.warned && A.restT <= 2.5) { A.warned = true; UI.announce('ROUND ' + (A.idx + 1) + ' / ' + cfg.order.length, '次の挑戦者が入場する…'); AudioMan.warning(); }
+  if (A.restT > 0) return;
+  S.elv = arenaElv(A.idx); UI.enemyLvUp();
+  const e = spawnBoss(cfg.order[A.idx], A.idx === cfg.order.length - 1);
+  // 闘技場の中、プレイヤーと中心を挟んだ反対側から入場
+  const a = Math.hypot(P.x, P.y) > 30 ? Math.atan2(-P.y, -P.x) : rand(0, TAU), R = cfg.r * 0.6;
+  e.x = Math.cos(a) * R; e.y = Math.sin(a) * R;
+  shockAt(e.x, e.y, 1.5, 0.6); burst(e.x, e.y, 40, [e.col, '#ffffff'], { sp: 120, glow: true });
+}
+function arenaBossDown(e) {
+  const A = S.arena, cfg = DATA.arena, xp = xpForLevels(cfg.rewardLv), n = 14;
+  for (let i = 0; i < n; i++) dropGem(e.x + rand(-30, 30), e.y + rand(-30, 30), xp / n);
+  for (let i = 0; i < 25; i++) dropItem('coin', e.x, e.y, 2 + A.idx);
+  dropItem('meat', e.x + 14, e.y); dropItem('magnet', e.x - 14, e.y);
+  dropItem('chest', e.x, e.y - 14); dropItem('orb', e.x, e.y + 16);
+  A.idx++;
+  if (A.idx >= cfg.order.length) { S.won = true; S.victoryT = 3.2; AudioMan.stopMusic(1.5); UI.announce('ARENA CLEAR!!', '全ボス撃破'); return; }
+  A.restT = cfg.rest; A.warned = false;
+  UI.announce('ROUND ' + A.idx + ' CLEAR!', '報酬を拾って次に備えよ');
+  AudioMan.playMusic('field2');
+}
+// 闘技場の壁: プレイヤー・敵・ドロップを円内に収める
+function confineArena() {
+  const R = DATA.arena.r;
+  const fit = (o, r) => { const d = Math.hypot(o.x, o.y), m = R - r; if (d > m) { o.x *= m / d; o.y *= m / d; } };
+  fit(P, 5);
+  for (const e of enemies) if (!e.dead) fit(e, e.r);
+  for (const g of gems) fit(g, 3);
+  for (const d of drops) fit(d, 5);
 }
 
 function horde() {

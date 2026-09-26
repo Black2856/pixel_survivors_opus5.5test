@@ -234,5 +234,17 @@ const DATA = {
       amb: [0.62, 0.56, 0.78], tint: [1.04, 0.98, 1.08], motes: { col: '#e0c3fc', rise: false } },
     { label: '灼熱の奈落',     ground: ['#3a1e1b', '#452520', '#321815', '#502a22'], deco: ['#6b3024', '#a23e3e', '#ffb347', '#ff6a2a'],
       amb: [0.74, 0.52, 0.48], tint: [1.1, 0.96, 0.9], motes: { col: '#ff9b3d', rise: true }, lava: true },
+    // 闘技場モード専用(石畳 + 円形の壁と観客席)
+    { label: '血戦の闘技場',   ground: ['#5a4838', '#65513f', '#4d3d30', '#6f5a45'], deco: ['#3a2c22', '#8a7058', '#7a1e24', '#cfc2a8'],
+      amb: [0.6, 0.52, 0.5], tint: [1.06, 0.98, 0.94], motes: { col: '#ffcf8a', rise: true }, tiles: true },
   ],
+
+  // ---------- 闘技場(ボスラッシュ) ----------
+  // order: 登場順 / elv: 各ラウンドの敵Lv(固定) / startLv: 開始時のレベルアップ回数
+  // rewardLv: ボス撃破で得るレベルアップ回数(ジェムで配布) / rest: 次のボスまでの休憩秒 / r: 闘技場の半径
+  arena: {
+    r: 250, rest: 8, startLv: 6, rewardLv: 5,
+    order: ['king', 'gslime', 'wyrm', 'golem', 'reaper', 'cdragon'],
+    elv:   [6,      9,        13,     16,      20,       23],
+  },
 };
