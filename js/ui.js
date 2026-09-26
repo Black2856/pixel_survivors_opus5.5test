@@ -51,6 +51,9 @@ const UI = (() => {
     set('stage-name', (S.loop > 1 ? 'LOOP ' + S.loop + ' · ' : '') + DATA.stages[S.stage - 1].label);
     set('kills', '☠ ' + S.kills.toLocaleString());
     set('gold', '● ' + S.gold.toLocaleString());
+    set('dmgtotal', '⚔ ' + fmtBig(S.totalDmg));
+    set('elv-n', 'ENEMY LV ' + S.elv + (S.boss ? '  ⏸' : ''));
+    $('elv-fill').style.width = (S.elvT / DATA.enemyLevel.interval * 100).toFixed(1) + '%';
     const c = $('combo');
     if (S.combo >= 10) {
       c.classList.add('on');
@@ -83,6 +86,8 @@ const UI = (() => {
     p.innerHTML = h;
     a.innerHTML = Object.keys(P.art).map(k => `<div class="slot tiny" data-tip="a:${k}">${icon('artifact', k)}</div>`).join('');
   }
+  const fmtBig = n => n >= 1e6 ? (n / 1e6).toFixed(2) + 'M' : n >= 1e4 ? (n / 1e3).toFixed(1) + 'K' : Math.round(n).toLocaleString();
+  function enemyLvUp() { const e = $('elv'); e.classList.remove('up'); void e.offsetWidth; e.classList.add('up'); }
   function bossBar(e) {
     if (!e) { hide($('bossbar')); return; }
     bossLag = 1;
@@ -204,49 +209,187 @@ const UI = (() => {
   const startChoices = () => shuffle(Object.keys(DATA.weapons)).slice(0, 3).map(k => ({ type: 'weapon', key: k }));
 
   // ============================================================
-  // 宝箱
+  // 宝箱(演出: 落下 → 溜め → 大爆発 → ルーレットで報酬確定 → ゴールドカウント)
   // ============================================================
+  const TIERS = {
+    normal:  { label: 'TREASURE!',      cols: ['#ffd23f', '#ffb347', '#fff6c8'], coins: 50,  conf: 60 },
+    rare:    { label: 'GREAT!!',        cols: ['#6ee7ff', '#ffd23f', '#ffffff'], coins: 110, conf: 140 },
+    jackpot: { label: 'JACKPOT!!!',     cols: ['#ff3b5c', '#ffd23f', '#5dff8a', '#6ee7ff', '#b06ef0'], coins: 220, conf: 260 },
+    evo:     { label: 'EVOLUTION!!!!',  cols: ['#ff6ec7', '#b06ef0', '#6ee7ff', '#ffd23f', '#ffffff'], coins: 180, conf: 300 },
+  };
   let chest = null;
+  const fxc = $('chest-fx'), fx = fxc.getContext('2d');
+  let fxParts = [], fxRun = false, fxLast = 0;
+  const coinImgs = ART.S.coin.map(sp => sp.c);
+
+  function fxLoop(ts) {
+    const dt = Math.min(0.05, (ts - fxLast) / 1000 || 0.016); fxLast = ts;
+    if (fxc.width !== innerWidth || fxc.height !== innerHeight) { fxc.width = innerWidth; fxc.height = innerHeight; }
+    fx.clearRect(0, 0, fxc.width, fxc.height);
+    fx.imageSmoothingEnabled = false;
+    if (chest && chest.phase === 'charge') { // 溜め: 光の粒が宝箱へ吸い込まれる
+      const c = chestCenter();
+      for (let i = 0; i < 3; i++) {
+        const an = Math.random() * TAU, r = 260 + Math.random() * 200;
+        fxParts.push({ k: 'suck', x: c.x + Math.cos(an) * r, y: c.y + Math.sin(an) * r, tx: c.x, ty: c.y, t: 0, life: 0.6, col: pick(chest.tier.cols), s: 3 + Math.random() * 4 });
+      }
+    }
+    for (let i = fxParts.length - 1; i >= 0; i--) {
+      const p = fxParts[i];
+      p.t += dt;
+      if (p.t >= p.life) { fxParts.splice(i, 1); continue; }
+      const f = 1 - p.t / p.life;
+      if (p.k === 'suck') {
+        const e = easeOutCubic(p.t / p.life);
+        const x = lerp(p.x, p.tx, e), y = lerp(p.y, p.ty, e);
+        fx.globalCompositeOperation = 'lighter'; fx.fillStyle = p.col; fx.globalAlpha = f;
+        fx.fillRect(x - p.s / 2, y - p.s / 2, p.s, p.s);
+        continue;
+      }
+      p.vy += p.g * dt; p.vx *= Math.exp(-p.drag * dt); p.vy *= Math.exp(-p.drag * dt);
+      p.x += p.vx * dt; p.y += p.vy * dt; p.rot += p.vr * dt;
+      fx.globalAlpha = Math.min(1, f * 2.5);
+      fx.save(); fx.translate(p.x, p.y);
+      if (p.k === 'coin') {
+        fx.globalCompositeOperation = 'source-over';
+        const img = coinImgs[Math.floor(p.t * 10 + p.seed) % 2];
+        fx.drawImage(img, -img.width * p.s / 2, -img.height * p.s / 2, img.width * p.s, img.height * p.s);
+      } else if (p.k === 'conf') {
+        fx.globalCompositeOperation = 'source-over';
+        fx.rotate(p.rot); fx.scale(1, Math.cos(p.t * 9 + p.seed));
+        fx.fillStyle = p.col; fx.fillRect(-p.s, -p.s / 2, p.s * 2, p.s);
+      } else {
+        fx.globalCompositeOperation = 'lighter'; fx.fillStyle = p.col;
+        const s = p.s * f; fx.fillRect(-s / 2, -s / 2, s, s);
+      }
+      fx.restore();
+    }
+    fx.globalAlpha = 1; fx.globalCompositeOperation = 'source-over';
+    if (fxRun) requestAnimationFrame(fxLoop);
+  }
+  function fxStart() { if (!fxRun) { fxRun = true; fxLast = performance.now(); requestAnimationFrame(fxLoop); } }
+  function fxBurst(x, y, n, kind, cols, o = {}) {
+    for (let i = 0; i < n; i++) {
+      const an = o.up ? -Math.PI / 2 + (Math.random() - 0.5) * (o.spread || 1.6) : Math.random() * TAU;
+      const sp = (o.sp || 600) * (0.35 + Math.random() * 0.65);
+      fxParts.push({ k: kind, x, y, vx: Math.cos(an) * sp, vy: Math.sin(an) * sp, g: o.g ?? 900, drag: o.drag ?? 0.6, t: 0,
+        life: (o.life || 2.4) * (0.6 + Math.random() * 0.4), col: pick(cols), s: o.s || (kind === 'coin' ? 4 : kind === 'conf' ? 5 + Math.random() * 4 : 6 + Math.random() * 8),
+        rot: Math.random() * TAU, vr: (Math.random() - 0.5) * 16, seed: Math.random() * 10 });
+    }
+  }
+  function chestCenter() { const r = $('chest-img').getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; }
+  const shakeScreen = (el, cls = 'quake') => { el.classList.remove(cls); void el.offsetWidth; el.classList.add(cls); };
+
   function openChest(rewards) {
     state = 'chest';
-    chest = { rewards, opened: false, shown: 0 };
+    const evo = rewards.some(r => r.type === 'evo');
+    const tierKey = evo ? 'evo' : rewards.length >= 5 ? 'jackpot' : rewards.length >= 3 ? 'rare' : 'normal';
+    chest = { rewards, phase: 'idle', tierKey, tier: TIERS[tierKey], skip: false, done: false };
     const cs = $('chest-screen');
-    cs.className = 'screen';
+    cs.className = 'screen tier-' + tierKey;
     $('chest-img').src = ART.S.chest.c.toDataURL();
-    $('chest-rewards').innerHTML = '';
+    $('chest-rewards').innerHTML = ''; $('chest-gold').textContent = ''; $('chest-tier').textContent = '';
     $('chest-hint').textContent = 'クリック / SPACE で開ける';
     hide($('chest-ok'));
     only('chest-screen');
-    AudioMan.setDuck(0.45);
+    AudioMan.setDuck(0.3);
+    fxParts = []; fxStart();
+    AudioMan.chest();
+    setTimeout(() => { const c = chestCenter(); fxBurst(c.x, c.y + 60, 24, 'spark', ['#ffffff', '#c8b89a'], { sp: 380, g: 300, life: 0.8, up: true, spread: 3 }); }, 520);
   }
+
   function chestAct() {
     if (!chest) return;
-    if (!chest.opened) {
-      chest.opened = true;
-      const cs = $('chest-screen');
-      const evo = chest.rewards.some(r => r.type === 'evo');
-      cs.classList.add('opening');
-      if (evo) cs.classList.add('evo');
+    const cs = $('chest-screen');
+    if (chest.phase === 'idle') {
+      chest.phase = 'charge';
+      cs.classList.add('charging');
       $('chest-hint').textContent = '';
-      AudioMan.chest();
-      setTimeout(() => {
-        cs.classList.add('open');
-        screenFlash(0.6, evo ? '#ff9bf5' : '#ffd23f');
-        chest.rewards.forEach((r, i) => setTimeout(() => {
-          const { html, rar } = cardHTML(r);
-          applyChoice(r);
-          if (r.type === 'evo') { AudioMan.evolve(); shockAt(P.x, P.y, 2.5, 0.6); screenFlash(0.9, '#ff9bf5'); }
-          else AudioMan.levelup();
-          $('chest-rewards').appendChild(el('div', 'card reward ' + rar, html));
-          if (i === chest.rewards.length - 1) setTimeout(() => { show($('chest-ok')); $('chest-hint').textContent = ''; }, 300);
-        }, 450 + i * 380));
-        const g = addGold(10 + Math.random() * 20);
-        $('chest-gold').textContent = '+' + g + ' G';
-      }, 900);
-    } else if (!$('chest-ok').classList.contains('hidden')) {
-      chest = null;
+      const dur = chest.tierKey === 'normal' ? 0.6 : 0.85;
+      AudioMan.drumroll(dur);
+      setTimeout(() => chestBurst(), dur * 1000);
+    } else if (chest.phase === 'reveal') {
+      chest.skip = true; // ルーレットを早送り
+    } else if (chest.phase === 'done') {
+      chest = null; fxRun = false; fxParts = [];
       close();
     }
+  }
+
+  function chestBurst() {
+    const cs = $('chest-screen'), T = chest.tier;
+    chest.phase = 'reveal';
+    cs.classList.remove('charging'); cs.classList.add('open');
+    shakeScreen(cs);
+    const fl = $('chest-flash'); fl.classList.remove('go'); void fl.offsetWidth; fl.classList.add('go');
+    AudioMan.burstOpen(); AudioMan.coinRain(Math.min(40, T.coins / 5));
+    screenFlash(0.9, T.cols[0]); shockAt(P.x, P.y, 2.5, 0.6);
+    const c = chestCenter();
+    fxBurst(c.x, c.y, T.coins, 'coin', ['#ffd23f'], { sp: 1100, up: true, spread: 2.2, g: 1500, life: 2.6 });
+    fxBurst(c.x, c.y, T.conf, 'conf', T.cols, { sp: 1300, g: 500, drag: 1.4, life: 3.2 });
+    fxBurst(c.x, c.y, 90, 'spark', T.cols, { sp: 900, g: 0, drag: 2.5, life: 1 });
+    // 大当たりは時間差で追加の噴水
+    if (chest.tierKey !== 'normal') [300, 650].forEach(d => setTimeout(() => {
+      if (!chest) return;
+      fxBurst(c.x, c.y, T.coins / 2, 'coin', ['#ffd23f'], { sp: 1000, up: true, spread: 1.8, g: 1500 });
+      fxBurst(innerWidth * Math.random(), innerHeight + 10, 60, 'conf', T.cols, { sp: 1400, up: true, spread: 0.6, g: 700, drag: 1 });
+      AudioMan.coinRain(10);
+    }, d));
+    const tl = $('chest-tier');
+    tl.textContent = T.label; tl.classList.remove('in'); void tl.offsetWidth; tl.classList.add('in');
+    setTimeout(() => revealNext(0), 350);
+  }
+
+  // 報酬カード: アイコンが減速しながら回転し、最後に確定する
+  function revealNext(i) {
+    if (!chest) return;
+    const r = chest.rewards[i];
+    if (!r) return finishChest();
+    const { html, rar } = cardHTML(r);
+    const card = el('div', 'card reward rolling ' + rar, html);
+    $('chest-rewards').appendChild(card);
+    const iconBox = card.querySelector('.card-icon');
+    const finalIcon = iconBox.innerHTML;
+    const pool = Object.keys(DATA.weapons).map(k => icon('weapon', k, 'big')).concat(Object.keys(DATA.passives).map(k => icon('passive', k, 'big')));
+    const spins = r.type === 'evo' ? 12 : 7;
+    let n = 0;
+    const step = () => {
+      if (!chest) return;
+      if (n >= spins || chest.skip) {
+        iconBox.innerHTML = finalIcon;
+        applyChoice(r);
+        card.classList.remove('rolling'); card.classList.add('landed');
+        const rc = card.getBoundingClientRect(), cx = rc.left + rc.width / 2, cy = rc.top + rc.height / 2;
+        const cols = r.type === 'evo' ? TIERS.evo.cols : rar === 'epic' ? ['#ffd23f', '#ffffff'] : rar === 'new' ? ['#6ee7ff', '#ffffff'] : ['#b8a8ff', '#ffffff'];
+        fxBurst(cx, cy, r.type === 'evo' ? 160 : 60, 'spark', cols, { sp: r.type === 'evo' ? 900 : 550, g: 200, drag: 2, life: 1 });
+        fxBurst(cx, cy, 30, 'conf', cols, { sp: 700, g: 600, drag: 1.5 });
+        if (r.type === 'evo') {
+          AudioMan.evolve(); shakeScreen($('chest-screen'), 'quake-big'); screenFlash(1, '#ff6ec7'); shockAt(P.x, P.y, 3, 0.5);
+          const fl = $('chest-flash'); fl.classList.remove('go'); void fl.offsetWidth; fl.classList.add('go');
+        } else AudioMan.land(rar === 'epic' ? 2 : rar === 'new' ? 1 : 0);
+        setTimeout(() => revealNext(i + 1), chest.skip ? 60 : 150);
+        return;
+      }
+      iconBox.innerHTML = pick(pool);
+      AudioMan.tick(n);
+      n++;
+      setTimeout(step, 30 + Math.pow(n / spins, 3) * 110); // 減速(イーズアウト)
+    };
+    setTimeout(step, 80);
+  }
+
+  function finishChest() {
+    const total = Math.round(10 + Math.random() * 20) * (chest.tierKey === 'jackpot' ? 5 : chest.tierKey === 'normal' ? 1 : 3);
+    const g = addGold(total);
+    const gl = $('chest-gold'), t0 = performance.now();
+    gl.classList.add('in');
+    const count = ts => {
+      const k = easeOutCubic((ts - t0) / 450);
+      gl.textContent = '+' + Math.round(g * k) + ' G';
+      if (k < 1) { if (Math.random() < 0.4) AudioMan.coin(); requestAnimationFrame(count); }
+      else if (chest) { chest.phase = 'done'; show($('chest-ok')); }
+    };
+    requestAnimationFrame(count);
   }
 
   // ============================================================
@@ -268,8 +411,8 @@ const UI = (() => {
     const box = $('shop-list');
     box.innerHTML = '';
     for (const k in DATA.meta) {
-      const m = DATA.meta[k], lv = metaLv(k), max = lv >= m.max, cost = metaCost(k);
-      const b = el('button', 'shop-item' + (max ? ' max' : ''), `<div class="si-name">${m.name}</div><div class="si-desc">${m.desc}</div><div class="si-pips">${'◆'.repeat(lv)}${'◇'.repeat(m.max - lv)}</div><div class="si-cost">${max ? 'MAX' : '● ' + cost}</div>`);
+      const m = DATA.meta[k], lv = metaLv(k), mx = metaMax(k), max = lv >= mx, cost = metaCost(k);
+      const b = el('button', 'shop-item' + (max ? ' max' : ''), `<div class="si-name">${m.name}</div><div class="si-desc">${m.desc}</div><div class="si-pips">${'◆'.repeat(lv)}${'◇'.repeat(mx - lv)}</div><div class="si-cost">${max ? 'MAX' : '● ' + cost}</div>`);
       b.disabled = max || META.gold < cost;
       b.onclick = () => {
         if (META.gold < cost || max) return;
@@ -312,6 +455,21 @@ const UI = (() => {
   // ボタン
   $('btn-start').onclick = () => startRun();
   $('btn-shop').onclick = () => { AudioMan.click(); shop(); };
+  // リセットは2回押しで確定(誤操作防止)
+  let resetArm = null;
+  $('btn-shop-reset').onclick = () => {
+    const b = $('btn-shop-reset');
+    if (!resetArm) {
+      b.textContent = '本当にリセット? もう一度押す'; b.classList.add('warn');
+      resetArm = setTimeout(() => { resetArm = null; b.textContent = 'リセット(全額返金)'; b.classList.remove('warn'); }, 3000);
+      return;
+    }
+    clearTimeout(resetArm); resetArm = null;
+    const back = metaRefund();
+    b.textContent = 'リセット(全額返金)'; b.classList.remove('warn');
+    AudioMan.coinRain(12); announce('+' + back.toLocaleString() + ' G 返金', '永続強化をリセットしました');
+    renderShop();
+  };
   $('btn-shop-back').onclick = () => { AudioMan.click(); state = 'title'; title(); };
   $('btn-resume').onclick = () => resumeGame();
   $('btn-quit').onclick = () => endRun(false);
@@ -327,5 +485,5 @@ const UI = (() => {
     } else if (state === 'chest' && (e.code === 'Space' || e.code === 'Enter')) chestAct();
   }
 
-  return { announce, banner, hud, bossBar, openChest, openArtifact, levelUp, startPick, title, shop, pause, result, onKey, show, hide, $ };
+  return { announce, banner, hud, bossBar, enemyLvUp, openChest, openArtifact, levelUp, startPick, title, shop, pause, result, onKey, show, hide, $ };
 })();

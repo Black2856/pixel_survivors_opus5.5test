@@ -2,22 +2,26 @@
 'use strict';
 
 const DATA = {
-  player: { hp: 100, speed: 58, magnet: 30, dashCd: 1.6, dashTime: 0.16, dashSpeed: 260 },
+  player: { hp: 100, speed: 58, magnet: 30, dashCd: 1.6, iframe: 0.5, dashTime: 0.16, dashSpeed: 260 },
 
   // ---------- 敵 ----------
   // ai: chase / flutter / keep(距離を取り射撃) / flee(逃走)
   enemies: {
-    zombie:   { hp: 14,  spd: 13, dmg: 8,  xp: 1, r: 5, ai: 'chase' },
-    bat:      { hp: 9,   spd: 30, dmg: 6,  xp: 1, r: 4, ai: 'flutter' },
-    slime:    { hp: 22,  spd: 15, dmg: 8,  xp: 2, r: 5, ai: 'hop', split: 'slimelet' },
-    slimelet: { hp: 7,   spd: 22, dmg: 5,  xp: 1, r: 3, ai: 'hop' },
-    skeleton: { hp: 26,  spd: 18, dmg: 10, xp: 2, r: 5, ai: 'chase' },
-    archer:   { hp: 22,  spd: 16, dmg: 9,  xp: 3, r: 5, ai: 'keep', shot: { cd: 3.2, spd: 70, dmg: 9 } },
-    ghost:    { hp: 34,  spd: 22, dmg: 12, xp: 3, r: 5, ai: 'chase', ghost: true },
-    brute:    { hp: 110, spd: 10, dmg: 18, xp: 6, r: 8, ai: 'chase', kbRes: 0.8 },
-    imp:      { hp: 30,  spd: 38, dmg: 12, xp: 4, r: 4, ai: 'flutter' },
-    goblin:   { hp: 160, spd: 44, dmg: 0,  xp: 12, r: 5, ai: 'flee', kbRes: 0.5 },
+    zombie:   { hp: 20, spd: 13, dmg: 9,  xp: 1, r: 5, ai: 'chase' },
+    bat:      { hp: 14, spd: 30, dmg: 8,  xp: 1, r: 4, ai: 'flutter' },
+    slime:    { hp: 20, spd: 15, dmg: 9,  xp: 1, r: 5, ai: 'hop', split: 'slimelet' },
+    slimelet: { hp: 8,  spd: 22, dmg: 6,  xp: 1, r: 3, ai: 'hop' },
+    skeleton: { hp: 24, spd: 18, dmg: 10, xp: 1, r: 5, ai: 'chase' },
+    archer:   { hp: 20, spd: 16, dmg: 9,  xp: 1, r: 5, ai: 'keep', shot: { cd: 3.2, spd: 70, dmg: 9 } },
+    ghost:    { hp: 22, spd: 22, dmg: 10, xp: 1, r: 5, ai: 'chase', ghost: true },
+    brute:    { hp: 40, spd: 11, dmg: 13, xp: 2, r: 8, ai: 'chase', kbRes: 0.8 },
+    imp:      { hp: 18, spd: 34, dmg: 10, xp: 1, r: 4, ai: 'flutter' },
+    goblin:   { hp: 160, spd: 44, dmg: 0, xp: 12, r: 5, ai: 'flee', kbRes: 0.5 },
   },
+
+  // ---------- 敵レベル(時間経過で上昇・ボス出現中は停止・周回してもリセットしない) ----------
+  // 各値は Lv が 1 上がるごとの増加率(Lv1 = 基本値)
+  enemyLevel: { interval: 30, hp: 0.2, dmg: 0.02, spd: 0.005, spdMax: 1.5, xp: 0.04, boss: 0.08, elite: 14 },
 
   bosses: {
     king:   { name: '腐肉の王 ROT KING',  hp: 1600, spd: 14, dmg: 22, r: 13, music: 'boss1', col: '#8fce5e' },
@@ -58,7 +62,7 @@ const DATA = {
         { cd: 0.85, dmg: 22, count: 3, speed: 185, pierce: 1 },
         { cd: 0.72, dmg: 30, count: 4, speed: 200, pierce: 2 },
       ],
-      evo: { need: 'tome', name: 'アーケインレイ', desc: '追尾する魔弾の奔流', st: { cd: 0.42, dmg: 34, count: 5, speed: 210, pierce: 4 } },
+      evo: { need: 'tome', name: 'アーケインレイ', desc: '追尾する魔弾の奔流', st: { cd: 0.6, dmg: 34, count: 5, speed: 210, pierce: 2 } },
     },
     blade: {
       name: 'オービットブレード', desc: '周囲を回転する刃', col: '#d8e4ff',
@@ -74,24 +78,24 @@ const DATA = {
     thunder: {
       name: 'サンダー', desc: 'ランダムな敵に落雷', col: '#fff27a',
       lv: [
-        { cd: 2.4, strikes: 1, dmg: 24, aoe: 17 },
-        { cd: 2.2, strikes: 1, dmg: 30, aoe: 19 },
-        { cd: 2.0, strikes: 2, dmg: 40, aoe: 21 },
-        { cd: 1.7, strikes: 2, dmg: 48, aoe: 24 },
-        { cd: 1.4, strikes: 3, dmg: 60, aoe: 27 },
+        { cd: 3.4, strikes: 1, dmg: 24, aoe: 17 },
+        { cd: 3.2, strikes: 1, dmg: 30, aoe: 19 },
+        { cd: 3.0, strikes: 2, dmg: 40, aoe: 21 },
+        { cd: 2.8, strikes: 2, dmg: 48, aoe: 24 },
+        { cd: 2.6, strikes: 3, dmg: 60, aoe: 27 },
       ],
-      evo: { need: 'lens', name: 'ジャッジメント', desc: '落雷が敵から敵へ連鎖する', st: { cd: 1.1, strikes: 4, dmg: 72, aoe: 30 } },
+      evo: { need: 'lens', name: 'ジャッジメント', desc: '落雷が敵から敵へ連鎖する', st: { cd: 2.3, strikes: 3, dmg: 72, aoe: 30 } },
     },
     aura: {
       name: 'ホーリーオーラ', desc: '周囲の敵に継続ダメージ', col: '#ffe38a',
       lv: [
-        { radius: 22, dmg: 5,  tick: 0.5 },
-        { radius: 27, dmg: 7,  tick: 0.5 },
-        { radius: 31, dmg: 9,  tick: 0.45 },
-        { radius: 37, dmg: 12, tick: 0.4 },
-        { radius: 43, dmg: 16, tick: 0.33 },
+        { radius: 22, dmg: 8,  tick: 0.5 },
+        { radius: 27, dmg: 11, tick: 0.5 },
+        { radius: 31, dmg: 14, tick: 0.45 },
+        { radius: 37, dmg: 18, tick: 0.4 },
+        { radius: 43, dmg: 24, tick: 0.33 },
       ],
-      evo: { need: 'armor', name: 'サンクチュアリ', desc: '敵を鈍化させ、命中毎にHP回復', st: { radius: 50, dmg: 20, tick: 0.28 } },
+      evo: { need: 'armor', name: 'サンクチュアリ', desc: '命中1回につきHP 0.4 回復(1判定で最大5回分)', st: { radius: 60, dmg: 25, tick: 0.28 } },
     },
     axe: {
       name: 'スローイングアックス', desc: '放物線を描く重い斧', col: '#ffb070',
@@ -113,7 +117,7 @@ const DATA = {
         { cd: 1.5, count: 3, dmg: 25, pierce: 5 },
         { cd: 1.2, count: 4, dmg: 32, pierce: 6 },
       ],
-      evo: { need: 'magnet', name: 'ソウルイーター', desc: '撃破した魂でHPを回復', st: { cd: 0.9, count: 6, dmg: 40, pierce: 10 } },
+      evo: { need: 'magnet', name: 'ソウルイーター', desc: '敵を倒すたび(武器問わず)その場から魂を召喚', st: { cd: 0.9, count: 6, dmg: 40, pierce: 10 } },
     },
     fire: {
       name: 'ファイアー', desc: '貫通する火炎弾。燃焼を付与', col: '#ff8a3d',
@@ -135,7 +139,7 @@ const DATA = {
         { cd: 3.4, dmg: 12, radius: 35, dur: 3.2 },
         { cd: 3.0, dmg: 16, radius: 40, dur: 3.5 },
       ],
-      evo: { need: 'boots', name: 'アブソリュートゼロ', desc: '凍傷が最大になった敵を完全凍結', st: { cd: 2.6, dmg: 20, radius: 48, dur: 4.0 } },
+      evo: { need: 'boots', name: 'アブソリュートゼロ', desc: '凍傷1スタックごとに被ダメージ+1%。吹雪が毎秒+10%拡大', st: { cd: 2.6, dmg: 20, radius: 48, dur: 4.0 } },
     },
     bhole: {
       name: 'ブラックホール', desc: '敵を吸い込む特異点を生成', col: '#c78bff',
@@ -146,18 +150,18 @@ const DATA = {
         { cd: 4.8, dmg: 10, dur: 1.6, radius: 40, pull: 100 },
         { cd: 4.2, dmg: 13, dur: 2.0, radius: 43, pull: 110 },
       ],
-      evo: { need: 'dup', name: 'ビッグクランチ', desc: '消滅時に超新星爆発を起こす', st: { cd: 3.8, dmg: 16, dur: 2.6, radius: 52, pull: 130 } },
+      evo: { need: 'cloak', name: 'ビッグクランチ', desc: '消滅時に超新星爆発を起こす', st: { cd: 4.0, dmg: 16, dur: 2.6, radius: 55, pull: 130 } },
     },
     katana: {
       name: '刀', desc: '最も近い敵へ素早い斬撃', col: '#ff5d73',
       lv: [
         { cd: 1.0,  dmg: 16, count: 1, aoe: 35 },
-        { cd: 0.9,  dmg: 22, count: 1, aoe: 38 },
-        { cd: 0.85, dmg: 26, count: 2, aoe: 41 },
-        { cd: 0.8,  dmg: 32, count: 2, aoe: 44 },
-        { cd: 0.7,  dmg: 40, count: 3, aoe: 49 },
+        { cd: 0.9,  dmg: 22, count: 1, aoe: 40 },
+        { cd: 0.85, dmg: 26, count: 2, aoe: 46 },
+        { cd: 0.8,  dmg: 32, count: 2, aoe: 52 },
+        { cd: 0.7,  dmg: 40, count: 3, aoe: 58 },
       ],
-      evo: { need: 'heart', name: '鬼神・村正', desc: '十字の斬撃。斬るたび生命を啜る', st: { cd: 0.55, dmg: 52, count: 4, aoe: 56 } },
+      evo: { need: 'heart', name: '鬼神・村正', desc: '斬撃の後に斬撃波(50%)。ダッシュで通過した敵を一閃(200%)', st: { cd: 0.55, dmg: 52, count: 3, aoe: 70 } },
     },
   },
 
@@ -176,8 +180,8 @@ const DATA = {
     lens:   { name: '幸運のクローバー', desc: 'クリティカル率 +6%',  max: 5 },
     area:   { name: '拡がりの宝珠',     desc: '攻撃範囲 +10%',       max: 5 },
     regen:  { name: '再生の指輪',       desc: '毎秒HP +0.5 回復',    max: 5 },
-    armor:  { name: '鉄の守り',         desc: '被ダメージ -1',       max: 5 },
-    dup:    { name: '複製の鏡',         desc: '発射数 +1',           max: 2 },
+    armor:  { name: '鉄の守り',         desc: '被ダメージ -1、無敵時間 +10%',       max: 5 },
+    cloak:  { name: '疾風のマント',     desc: 'ダッシュ距離 +20%',   max: 5 },
   },
 
   // ---------- アーティファクト(ボス撃破報酬) ----------
@@ -185,27 +189,33 @@ const DATA = {
     wslot:  { name: '拡張ホルスター',   desc: '武器の装備枠 +1', col: '#ffd23f' },
     pslot:  { name: '秘伝の腰袋',       desc: 'パッシブの装備枠 +1', col: '#7cfc8a' },
     frenzy: { name: '狂戦士の血晶',     desc: '失ったHP 1% につき攻撃力 +1%', col: '#ff3b5c' },
-    clock:  { name: '狂気の懐中時計',   desc: 'クールダウン -20%。敵の出現数と速度 +15%', col: '#ffb347' },
-    critdmg:{ name: '処刑人の刻印',     desc: 'クリティカル倍率 +100%。非クリティカル -20%', col: '#ff6ec7' },
-    pact:   { name: '悪魔の契約書',     desc: '獲得経験値 +50%。敵のHP・攻撃力 +20%', col: '#b06ef0' },
-    aegis:  { name: '不動の重鎧',       desc: '最大HP +100・被ダメ -3。移動速度 -25%', col: '#9fb8d0' },
-    mirror: { name: '双面の魔鏡',       desc: 'ボルト/アックス/ファイアーが背後にも発射(威力-25%)', col: '#6ee7ff' },
-    grail:  { name: '聖杯の加護',       desc: 'ホーリーオーラ命中毎に HP 0.4 回復', col: '#fff3a0' },
-    fang:   { name: '吸血の牙',         desc: '敵撃破時 8% で HP 2 回復', col: '#d0304a' },
-    glass:  { name: 'ガラスの大砲',     desc: '攻撃力 +50%。最大HP -40%', col: '#e0f4ff' },
-    greed:  { name: '黄金の杯',         desc: '獲得ゴールド x2。宝箱の報酬 +1', col: '#ffcc33' },
+    clock:  { name: '狂気の懐中時計',   desc: 'クールダウン -15%。敵の出現数と速度 +15%', col: '#ffb347' },
+    critdmg:{ name: '処刑人の刻印',     desc: 'クリティカル倍率 +50%。非クリティカル -20%', col: '#ff6ec7' },
+    pact:   { name: '悪魔の契約書',     desc: '獲得経験値 +50%。敵のステータス +20%', col: '#b06ef0' },
+    aegis:  { name: '不動の重鎧',       desc: '最大HP 2倍。移動速度 -30%', col: '#9fb8d0' },
+    mirror: { name: '双面の魔鏡',       desc: 'ボルト/ファイアーが背後にも発射(対象武器の威力 -25%)', col: '#6ee7ff' },
+    fang:   { name: '吸血の牙',         desc: '敵撃破時 10% で HP 1 回復', col: '#d0304a' },
+    gale:   { name: '疾風の羽根',       desc: 'ダッシュの消費量 -50%、回復速度 -50%', col: '#b8fff0' },
+    greed:  { name: '黄金の杯',         desc: '獲得ゴールド x1.5。宝箱の報酬 +1', col: '#ffcc33' },
+    bleed:  { name: '渇血の棘',         desc: '刀/アックス/ブレードが出血を付与(5秒)。1スタックにつき被ダメージ +2%、最大スタックは対象武器1つにつき +10。対象外の武器はダメージ -30%', col: '#a0122a' },
+    element:{ name: '元素の冠',         desc: 'ボルト/サンダー/ファイアー/ブリザードのダメージ +25%・サイズ +25%。対象外の武器はダメージ -30%', col: '#7ad7ff' },
+    annihil:{ name: '光闇の天秤',       desc: 'オーラが「光輝」、ブラックホールが「暗黒」を付与。両方揃うと対消滅し、オーラ+ブラックホールの合計ダメージを範囲に与える', col: '#f0e0ff' },
   },
 
   // ---------- 永続強化(ゴールドで購入) ----------
   meta: {
-    might:   { name: '剛力',     desc: '攻撃力 +5%',        max: 5, cost: 60 },
-    vital:   { name: '頑健',     desc: '最大HP +10',        max: 5, cost: 50 },
-    swift:   { name: '俊足',     desc: '移動速度 +4%',      max: 5, cost: 50 },
-    haste:   { name: '詠唱',     desc: 'クールダウン -3%',  max: 5, cost: 80 },
-    growth:  { name: '成長',     desc: '獲得経験値 +6%',    max: 5, cost: 70 },
-    greed:   { name: '強欲',     desc: '獲得ゴールド +12%', max: 5, cost: 40 },
-    reroll:  { name: '天運',     desc: 'リロール回数 +1',   max: 3, cost: 120 },
-    revive:  { name: '不死鳥',   desc: '死亡時に一度だけ復活', max: 1, cost: 400 },
+    might:   { name: '剛力',   desc: '攻撃力 +4%',        costs: [100, 200, 600, 2400, 12000] },
+    vital:   { name: '頑健',   desc: '最大HP +5',         costs: [60, 120, 360, 1440, 7200] },
+    swift:   { name: '俊足',   desc: '移動速度 +3%',      costs: [80, 160, 480, 1920, 9600] },
+    haste:   { name: '詠唱',   desc: 'クールダウン -2%',  costs: [125, 250, 750, 3000, 15000] },
+    growth:  { name: '成長',   desc: '獲得経験値 +4%',    costs: [100, 200, 600, 2400, 12000] },
+    greed:   { name: '強欲',   desc: '獲得ゴールド +10%', costs: [60, 120, 360, 1440, 7200] },
+    reroll:  { name: '天運',   desc: 'リロール回数 +1',   costs: [100, 200, 600, 2400, 12000] },
+    reach:   { name: '広域',   desc: '攻撃範囲 +3%',      costs: [90, 180, 540, 2160, 10800] },
+    crit:    { name: '会心',   desc: 'クリティカル率 +2%', costs: [120, 240, 720, 2880, 14400] },
+    weapon:  { name: '武器庫', desc: '武器の装備枠 +1',   costs: [5000] },
+    passive: { name: '道具箱', desc: 'パッシブの装備枠 +1', costs: [5000] },
+    chaos:   { name: '混沌',   desc: '獲得ゴールド +50%・敵のLvの上昇速度 +20%・周回時に敵Lv +2', costs: [1000, 2500, 5000, 7500, 10000] },
   },
 
   // ---------- ステージ ----------

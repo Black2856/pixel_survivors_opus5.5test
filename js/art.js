@@ -418,7 +418,7 @@ const ART = (() => {
   I.area = mk({ a: '#3a8ad0', b: '#8ad0ff', c: '#ffffff' }, ['...aaa...', '..abbba..', '.abbcbba.', 'abbcccbba', 'abcccccba', 'abbcccbba', '.abbcbba.', '..abbba..', '...aaa...']);
   I.regen = mk({ a: '#d6ae5c', b: '#fff3a0', c: '#5dff8a' }, ['...ccc...', '..c.c.c..', '...ccc...', '..aaaaa..', '.a.....a.', 'a.......a', 'a.......a', '.a.....a.', '..aaaaa..']);
   I.armor = mk({ a: '#5a6a80', b: '#9fb8d0', c: '#e8f4ff' }, ['aaaaaaaaa', 'abbbcbbba', 'abbbcbbba', 'abcccccba', 'abbbcbbba', '.abbcbba.', '.abbbbba.', '..abbba..', '...aaa...']);
-  I.dup = mk({ a: '#3aa0c0', b: '#9df4ff', c: '#ffffff' }, ['aaaa.....', 'abba.....', 'abcaaaaa.', 'abbabbba.', 'aaaabcba.', '...abbba.', '...abbba.', '...aaaaa.']);
+  I.cloak = mk({ a: '#1f7a6a', b: '#4fd6b8', c: '#b8fff0', d: '#ffd23f' }, ['..aaaa...', '.abbbba..', '.adbbda..', 'abbbbbba.', 'abbbbbbba', 'abcbbbbba', 'abbcbbba.', '.abbcba..', '..aaaa...']);
   I.artifact = S.orb;
   I.gold = S.coin[0];
   S.icons = I;

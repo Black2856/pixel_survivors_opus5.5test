@@ -22,7 +22,7 @@ button { font: inherit; color: inherit; cursor: pointer; border: 0; background: 
 /* ---------- HUD ---------- */
 #hud { position: absolute; inset: 0; pointer-events: none; }
 #xpbar { position: absolute; top: 0; left: 0; right: 0; height: 14px; background: #120d22; border-bottom: 3px solid var(--ink); }
-#xpfill { height: 100%; width: 0; background: linear-gradient(180deg, #9ff7ff 0 30%, #3ab0ff 30% 70%, #1d6fd8 70%); box-shadow: 0 0 12px #3ab0ff; transition: width .12s steps(6); }
+#xpfill { height: 100%; width: 0; background: linear-gradient(180deg, #9ff7ff 0 30%, #3ab0ff 30% 70%, #1d6fd8 70%); box-shadow: 0 0 12px #3ab0ff; transition: width .12s cubic-bezier(.22,1,.36,1); }
 #lvl { position: absolute; right: 10px; top: 1px; font: 10px 'Press Start 2P'; text-shadow: 2px 2px 0 var(--ink); }
 #hud-top { position: absolute; top: 22px; left: 12px; right: 12px; display: flex; justify-content: space-between; align-items: flex-start; }
 #slotbox { display: flex; flex-direction: column; gap: 6px; pointer-events: auto; }
@@ -31,7 +31,7 @@ button { font: inherit; color: inherit; cursor: pointer; border: 0; background: 
 .slot.small { width: 30px; height: 30px; }
 .slot.tiny { width: 24px; height: 24px; }
 .slot.empty { opacity: .35; }
-.slot.evo { --line: var(--pink); animation: evoGlow 1.2s steps(4) infinite; }
+.slot.evo { --line: var(--pink); animation: evoGlow 1.2s ease-in-out infinite; }
 .slot .icon { width: 27px; image-rendering: pixelated; }
 .slot.small .icon { width: 18px; } .slot.tiny .icon { width: 14px; }
 .pips { position: absolute; bottom: -4px; right: -2px; font: 7px 'Press Start 2P'; color: var(--gold); text-shadow: 1px 1px 0 var(--ink), -1px -1px 0 var(--ink); letter-spacing: -1px; }
@@ -39,22 +39,29 @@ button { font: inherit; color: inherit; cursor: pointer; border: 0; background: 
 #timebox { position: absolute; left: 50%; transform: translateX(-50%); text-align: center; }
 #timer { font: 22px 'Press Start 2P'; text-shadow: 3px 3px 0 var(--ink), 0 0 16px rgba(159,247,255,.5); }
 #stage-name { margin-top: 6px; font-size: 13px; color: var(--dim); text-shadow: 2px 2px 0 var(--ink); }
+#dmgtotal { color: #ff8a9a; }
 #counters { text-align: right; font: 12px 'Press Start 2P'; line-height: 22px; text-shadow: 2px 2px 0 var(--ink); }
 #gold { color: var(--gold); }
-#combo { position: absolute; right: 16px; top: 110px; text-align: right; opacity: 0; transform: translateX(20px); transition: opacity .2s, transform .2s; }
+#elv { margin: 8px auto 0; width: 150px; font: 9px 'Press Start 2P'; color: #ff8a9a; text-shadow: 2px 2px 0 var(--ink); }
+#elv-bar { margin-top: 4px; height: 4px; background: var(--ink); }
+#elv-fill { height: 100%; background: linear-gradient(90deg, #a0122a, #ff5d73); transition: width .3s linear; }
+#elv.up { animation: elvUp .7s cubic-bezier(.34,1.56,.64,1); }
+@keyframes elvUp { 0% { transform: scale(1.6); color: #fff; filter: drop-shadow(0 0 10px #ff3b5c); } 100% { transform: none; } }
+.btn.warn { --line: var(--red); color: var(--red); }
+#combo { position: absolute; right: 16px; top: 128px; text-align: right; opacity: 0; transform: translateX(20px); transition: opacity .2s, transform .2s; }
 #combo.on { opacity: 1; transform: none; }
 #combo-n { font: 34px 'Press Start 2P'; color: #fff; text-shadow: 3px 3px 0 var(--ink), 0 0 18px var(--cyan); }
 #combo[data-tier="1"] #combo-n { color: var(--cyan); }
 #combo[data-tier="2"] #combo-n { color: var(--gold); text-shadow: 3px 3px 0 var(--ink), 0 0 22px var(--gold); }
 #combo[data-tier="3"] #combo-n { color: var(--pink); text-shadow: 3px 3px 0 var(--ink), 0 0 26px var(--pink); animation: hue 1s linear infinite; }
-#combo.bump #combo-n { animation: bump .15s steps(3); }
+#combo.bump #combo-n { animation: bump .15s cubic-bezier(.22,1,.36,1); }
 @keyframes bump { 0% { transform: scale(1.35); } 100% { transform: scale(1); } }
 @keyframes hue { to { filter: hue-rotate(360deg); } }
 .combo-lbl { font: 9px 'Press Start 2P'; color: var(--dim); margin-top: 4px; }
 #combo-bar { margin-top: 5px; margin-left: auto; width: 110px; height: 5px; background: var(--ink); }
 #combo-fill { height: 100%; background: var(--cyan); }
 #bossbar { position: absolute; top: 96px; left: 50%; transform: translateX(-50%); width: min(560px, 70vw); text-align: center; }
-#bossname { font-size: 16px; color: #ffd0d8; text-shadow: 2px 2px 0 var(--ink), 0 0 10px var(--red); margin-bottom: 6px; animation: flick 2s steps(2) infinite; }
+#bossname { font-size: 16px; color: #ffd0d8; text-shadow: 2px 2px 0 var(--ink), 0 0 10px var(--red); margin-bottom: 6px; animation: flick 2s ease-in-out infinite; }
 @keyframes flick { 50% { opacity: .85; } }
 #bossbar .track { position: relative; height: 14px; background: var(--ink); box-shadow: 0 0 0 3px var(--ink), inset 0 0 0 2px #5a1a2a; }
 #bossfill, #bossfill-lag { position: absolute; left: 2px; top: 2px; bottom: 2px; max-width: calc(100% - 4px); }
@@ -63,30 +70,30 @@ button { font: inherit; color: inherit; cursor: pointer; border: 0; background: 
 
 /* ---------- 告知 ---------- */
 #announce { position: absolute; top: 30%; left: 0; right: 0; text-align: center; pointer-events: none; opacity: 0; }
-#announce.pop { animation: ann 1.9s steps(24) forwards; }
+#announce.pop { animation: ann 1.9s cubic-bezier(.22,1,.36,1) forwards; }
 .ann-main { font: 30px 'Press Start 2P'; color: var(--gold); text-shadow: 4px 4px 0 var(--ink), 0 0 24px rgba(255,210,63,.7); }
 .ann-sub { margin-top: 12px; font-size: 18px; text-shadow: 2px 2px 0 var(--ink); }
 @keyframes ann { 0% { opacity: 0; transform: scale(2.2); } 12% { opacity: 1; transform: scale(1); } 80% { opacity: 1; } 100% { opacity: 0; transform: translateY(-20px); } }
 #banner { position: absolute; top: 42%; left: 0; right: 0; padding: 16px 0; text-align: center; pointer-events: none; opacity: 0;
   background: repeating-linear-gradient(135deg, rgba(160,18,42,.85) 0 24px, rgba(60,6,16,.85) 24px 48px); border-top: 4px solid var(--red); border-bottom: 4px solid var(--red); }
-#banner.on { animation: ban 2.6s steps(20) forwards; }
-.ban-main { font: 26px 'Press Start 2P'; color: #fff; text-shadow: 4px 4px 0 var(--ink); animation: flick .25s steps(2) infinite; }
+#banner.on { animation: ban 2.6s cubic-bezier(.22,1,.36,1) forwards; }
+.ban-main { font: 26px 'Press Start 2P'; color: #fff; text-shadow: 4px 4px 0 var(--ink); animation: flick .25s ease-in-out infinite; }
 .ban-sub { margin-top: 10px; font-size: 18px; text-shadow: 2px 2px 0 var(--ink); }
 @keyframes ban { 0% { opacity: 0; clip-path: inset(50% 0); } 10% { opacity: 1; clip-path: inset(0 0); } 85% { opacity: 1; } 100% { opacity: 0; } }
 
 /* ---------- 画面共通 ---------- */
 .screen { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px; background: rgba(8,5,16,.62); }
-.scr-title { font: 30px 'Press Start 2P'; color: var(--gold); text-shadow: 4px 4px 0 var(--ink), 0 0 24px rgba(255,210,63,.6); animation: bob 1.4s steps(4) infinite; }
+.scr-title { font: 30px 'Press Start 2P'; color: var(--gold); text-shadow: 4px 4px 0 var(--ink), 0 0 24px rgba(255,210,63,.6); animation: bob 1.4s ease-in-out infinite; }
 @keyframes bob { 50% { transform: translateY(-4px); } }
 .hint { font-size: 13px; color: var(--dim); text-shadow: 2px 2px 0 var(--ink); }
 .menu { display: flex; flex-direction: column; gap: 14px; align-items: center; }
 .menu.row { flex-direction: row; }
-.btn { padding: 12px 22px; font: 13px 'Press Start 2P'; min-width: 200px; transition: transform .08s steps(2); }
+.btn { padding: 12px 22px; font: 13px 'Press Start 2P'; min-width: 200px; transition: transform .08s cubic-bezier(.22,1,.36,1); }
 .btn small { font-size: 8px; color: var(--dim); }
 .btn:hover:not(:disabled) { --line: var(--gold); transform: translateY(-3px); color: var(--gold); }
 .btn:active:not(:disabled) { transform: translateY(1px); }
 .btn:disabled { opacity: .4; cursor: default; }
-.btn.big { font-size: 18px; padding: 16px 30px; --line: var(--gold); color: var(--gold); animation: pulse 1.2s steps(3) infinite; }
+.btn.big { font-size: 18px; padding: 16px 30px; --line: var(--gold); color: var(--gold); animation: pulse 1.2s ease-in-out infinite; }
 .btn.ghost { background: transparent; --line: #3a2e5e; color: var(--dim); }
 @keyframes pulse { 50% { filter: drop-shadow(0 0 8px var(--gold)); } }
 .gold-chip { padding: 8px 16px; font: 12px 'Press Start 2P'; color: var(--gold); }
@@ -96,15 +103,15 @@ button { font: inherit; color: inherit; cursor: pointer; border: 0; background: 
 .title-wrap { display: flex; flex-direction: column; align-items: center; gap: 22px; }
 .logo { display: flex; flex-direction: column; align-items: center; margin-bottom: 18px; }
 .logo .l1, .logo .l2 { font-family: 'Press Start 2P'; line-height: 1.1; letter-spacing: 4px; }
-.logo .l1 { font-size: clamp(34px, 7vw, 76px); color: #fff; text-shadow: 6px 6px 0 #4c3a86, 12px 12px 0 var(--ink), 0 0 40px rgba(159,247,255,.6); animation: bob 2s steps(4) infinite; }
-.logo .l2 { font-size: clamp(28px, 6vw, 64px); color: var(--gold); text-shadow: 6px 6px 0 #a0122a, 12px 12px 0 var(--ink), 0 0 40px rgba(255,210,63,.6); animation: bob 2s steps(4) .25s infinite; }
+.logo .l1 { font-size: clamp(34px, 7vw, 76px); color: #fff; text-shadow: 6px 6px 0 #4c3a86, 12px 12px 0 var(--ink), 0 0 40px rgba(159,247,255,.6); animation: bob 2s ease-in-out infinite; }
+.logo .l2 { font-size: clamp(28px, 6vw, 64px); color: var(--gold); text-shadow: 6px 6px 0 #a0122a, 12px 12px 0 var(--ink), 0 0 40px rgba(255,210,63,.6); animation: bob 2s ease-in-out .25s infinite; }
 .logo .l3 { margin-top: 18px; font-size: 20px; color: var(--cyan); letter-spacing: 8px; text-shadow: 2px 2px 0 var(--ink); }
 .best { font: 10px 'Press Start 2P'; color: var(--dim); text-shadow: 2px 2px 0 var(--ink); }
 .howto { font-size: 13px; color: var(--dim); text-shadow: 2px 2px 0 var(--ink); text-align: center; padding: 0 16px; }
 
 /* ---------- ショップ ---------- */
 #shop-list { display: grid; grid-template-columns: repeat(4, 180px); gap: 16px; }
-.shop-item { padding: 14px 12px; text-align: left; display: flex; flex-direction: column; gap: 6px; transition: transform .08s steps(2); }
+.shop-item { padding: 14px 12px; text-align: left; display: flex; flex-direction: column; gap: 6px; transition: transform .08s cubic-bezier(.22,1,.36,1); }
 .shop-item:hover:not(:disabled) { --line: var(--gold); transform: translateY(-3px); }
 .shop-item:disabled { opacity: .55; cursor: default; }
 .shop-item.max { --line: var(--green); opacity: 1; }
@@ -115,22 +122,22 @@ button { font: inherit; color: inherit; cursor: pointer; border: 0; background: 
 
 /* ---------- カード ---------- */
 #cards, #chest-rewards { display: flex; gap: 22px; flex-wrap: wrap; justify-content: center; padding: 0 16px; }
-.card { position: relative; width: 210px; min-height: 280px; padding: 16px 14px 14px; display: flex; flex-direction: column; align-items: center; gap: 8px; text-align: center; animation: cardIn .35s steps(6) backwards; transition: transform .08s steps(2); }
+.card { position: relative; width: 210px; min-height: 280px; padding: 16px 14px 14px; display: flex; flex-direction: column; align-items: center; gap: 8px; text-align: center; animation: cardIn .45s cubic-bezier(.34,1.56,.64,1) backwards; transition: transform .08s cubic-bezier(.22,1,.36,1); }
 .card:hover { transform: translateY(-8px); }
 .card.new { --line: var(--cyan); }
 .card.rare { --line: #6a8aff; }
 .card.epic { --line: var(--gold); }
 .card.legend { --line: var(--pink); background: linear-gradient(180deg, #3a1a4a, var(--panel)); }
-.card.legend::before { content: ''; position: absolute; inset: 0; background: linear-gradient(115deg, transparent 30%, rgba(255,255,255,.25) 45%, transparent 60%) 0 0 / 300% 100%; animation: shine 1.8s steps(12) infinite; pointer-events: none; }
-.card.picked { animation: picked .25s steps(4) forwards; }
+.card.legend::before { content: ''; position: absolute; inset: 0; background: linear-gradient(115deg, transparent 30%, rgba(255,255,255,.25) 45%, transparent 60%) 0 0 / 300% 100%; animation: shine 1.8s ease-in-out infinite; pointer-events: none; }
+.card.picked { animation: picked .25s cubic-bezier(.22,1,.36,1) forwards; }
 @keyframes cardIn { 0% { transform: translateY(60px) scale(.6); opacity: 0; } 100% { transform: none; opacity: 1; } }
 @keyframes picked { 50% { transform: scale(1.12); filter: brightness(2); } 100% { transform: scale(1.3); opacity: 0; } }
 @keyframes shine { from { background-position: 100% 0; } to { background-position: -200% 0; } }
 .card-head { font: 10px 'Press Start 2P'; color: var(--gold); }
 .card.new .card-head { color: var(--cyan); }
-.card.legend .card-head { color: var(--pink); animation: flick .4s steps(2) infinite; }
+.card.legend .card-head { color: var(--pink); animation: flick .4s ease-in-out infinite; }
 .card-icon { width: 76px; height: 76px; display: grid; place-items: center; background: var(--ink); box-shadow: inset 0 0 0 3px var(--panel2); }
-.card-icon .big { width: 54px; image-rendering: pixelated; filter: drop-shadow(0 0 6px rgba(255,255,255,.35)); animation: bob 1.2s steps(2) infinite; }
+.card-icon .big { width: 54px; image-rendering: pixelated; filter: drop-shadow(0 0 6px rgba(255,255,255,.35)); animation: bob 1.2s ease-in-out infinite; }
 .card-name { font-size: 19px; color: #fff; text-shadow: 2px 2px 0 var(--ink); }
 .card-body { font-size: 14px; color: #d8d0f0; line-height: 1.5; flex: 1; }
 .diff { display: flex; justify-content: space-between; gap: 10px; font-size: 13px; }
@@ -143,20 +150,67 @@ button { font: inherit; color: inherit; cursor: pointer; border: 0; background: 
 #choice-title[data-mode="artifact"] { color: var(--pink); text-shadow: 4px 4px 0 var(--ink), 0 0 24px var(--pink); }
 
 /* ---------- 宝箱 ---------- */
-#chest-screen { cursor: pointer; background: rgba(8,5,16,.75); }
-#chest-img { width: 176px; image-rendering: pixelated; filter: drop-shadow(0 0 20px rgba(255,210,63,.5)); animation: bob 1s steps(2) infinite; z-index: 1; }
-#chest-screen.opening #chest-img { animation: shakeC .08s steps(2) infinite; filter: drop-shadow(0 0 30px var(--gold)) brightness(1.3); }
-#chest-screen.open #chest-img { animation: none; transform: scale(.7); opacity: .6; transition: all .3s steps(4); }
-.beams { position: absolute; width: 900px; height: 900px; left: 50%; top: 50%; margin: -450px 0 0 -450px; opacity: 0; pointer-events: none;
-  background: repeating-conic-gradient(from 0deg, rgba(255,210,63,.22) 0 10deg, transparent 10deg 20deg); mask: radial-gradient(circle, #000 20%, transparent 65%); -webkit-mask: radial-gradient(circle, #000 20%, transparent 65%); }
-#chest-screen.open .beams { opacity: 1; animation: spin 8s linear infinite; }
-#chest-screen.evo .beams { background: repeating-conic-gradient(from 0deg, rgba(255,110,199,.3) 0 10deg, transparent 10deg 20deg); }
+#chest-screen { cursor: pointer; background: radial-gradient(ellipse at center, rgba(40,20,60,.75), rgba(4,2,10,.92)); animation: fadeIn .35s ease-out; }
+#chest-fx { position: absolute; inset: 0; pointer-events: none; z-index: 3; }
+#chest-stage { position: relative; z-index: 2; animation: chestDrop .6s cubic-bezier(.34,1.56,.64,1) backwards; }
+#chest-img { width: 200px; image-rendering: pixelated; display: block; filter: drop-shadow(0 0 18px rgba(255,210,63,.55)); animation: wobble 1.6s ease-in-out infinite; }
+#chest-aura { position: absolute; left: 50%; top: 50%; width: 360px; height: 360px; margin: -180px 0 0 -180px; border-radius: 50%; background: radial-gradient(circle, rgba(255,210,63,.45), transparent 65%); animation: breathe 1.6s ease-in-out infinite; }
+@keyframes chestDrop { 0% { transform: translateY(-120vh) scale(.6); } 100% { transform: none; } }
+@keyframes wobble { 0%, 100% { transform: rotate(-2deg) translateY(0); } 50% { transform: rotate(2deg) translateY(-8px); } }
+@keyframes breathe { 50% { transform: scale(1.15); opacity: .7; } }
+@keyframes fadeIn { from { opacity: 0; } }
+#chest-screen.charging #chest-img { animation: charge var(--chg, .85s) cubic-bezier(.55,0,1,.45) forwards; }
+#chest-screen.charging #chest-aura { animation: auraCharge var(--chg, .85s) cubic-bezier(.55,0,1,.45) forwards; }
+@keyframes charge {
+  0% { transform: scale(1); filter: brightness(1) drop-shadow(0 0 18px #ffd23f); }
+  20% { transform: translate(-3px, 1px) rotate(-3deg) scale(1.02); } 30% { transform: translate(3px, -1px) rotate(3deg) scale(1.04); }
+  45% { transform: translate(-6px, 2px) rotate(-6deg) scale(1.08); } 55% { transform: translate(6px, -3px) rotate(6deg) scale(1.1); }
+  70% { transform: translate(-9px, 3px) rotate(-9deg) scale(1.16); } 80% { transform: translate(9px, -4px) rotate(9deg) scale(1.2); }
+  90% { transform: translate(-12px, 4px) rotate(-12deg) scale(1.26); }
+  100% { transform: translate(0, 0) scale(1.35); filter: brightness(3) drop-shadow(0 0 60px #fff); } }
+@keyframes auraCharge { 100% { transform: scale(2.2); opacity: 1; filter: brightness(2); } }
+#chest-screen.open #chest-img { animation: blown .7s cubic-bezier(.22,1,.36,1) forwards; }
+#chest-screen.open #chest-aura { animation: none; opacity: 0; }
+@keyframes blown { 0% { transform: scale(1.6); filter: brightness(4); } 100% { transform: scale(.55) translateY(-40px); opacity: .5; filter: brightness(1); } }
+.beams { position: absolute; width: 1400px; height: 1400px; left: 50%; top: 50%; margin: -700px 0 0 -700px; opacity: 0; pointer-events: none; transition: opacity .5s ease-out;
+  background: repeating-conic-gradient(from 0deg, var(--beam, rgba(255,210,63,.28)) 0 8deg, transparent 8deg 18deg);
+  mask: radial-gradient(circle, #000 12%, transparent 62%); -webkit-mask: radial-gradient(circle, #000 12%, transparent 62%); }
+.beams.b2 { --beam: rgba(255,255,255,.12); animation-direction: reverse !important; }
+#chest-screen.charging .beams { opacity: .35; animation: spin 3s linear infinite; }
+#chest-screen.open .beams { opacity: 1; animation: spin 7s linear infinite; }
+#chest-screen.open .beams.b2 { animation: spin 11s linear infinite reverse; }
+#chest-screen.tier-normal { --chg: .6s; }
+#chest-screen.tier-rare { --beam: rgba(110,231,255,.3); }
+#chest-screen.tier-jackpot .beams, #chest-screen.tier-evo .beams { filter: hue-rotate(0deg); animation: spin 5s linear infinite, hue 2s linear infinite !important; }
+#chest-screen.tier-evo { --beam: rgba(255,110,199,.35); }
 @keyframes spin { to { transform: rotate(360deg); } }
-@keyframes shakeC { 0% { transform: translate(-4px, 2px) rotate(-3deg); } 100% { transform: translate(4px, -2px) rotate(3deg); } }
-.card.reward { min-height: 230px; animation: rewardIn .45s steps(8) backwards; z-index: 1; }
-@keyframes rewardIn { 0% { transform: translateY(-120px) scale(.2) rotate(-20deg); opacity: 0; filter: brightness(4); } 70% { transform: scale(1.1); } 100% { transform: none; opacity: 1; } }
-#chest-gold { font: 16px 'Press Start 2P'; color: var(--gold); text-shadow: 3px 3px 0 var(--ink); z-index: 1; min-height: 16px; }
-#chest-ok { z-index: 1; }
+@keyframes hue { to { filter: hue-rotate(360deg); } }
+#chest-screen.quake { animation: quake .5s cubic-bezier(.36,.07,.19,.97); }
+#chest-screen.quake-big { animation: quake 0.8s cubic-bezier(.36,.07,.19,.97); }
+@keyframes quake { 10%, 90% { transform: translate(-4px, 2px); } 20%, 80% { transform: translate(8px, -4px); } 30%, 50%, 70% { transform: translate(-14px, 6px); } 40%, 60% { transform: translate(14px, -6px); } }
+#chest-flash { position: absolute; inset: 0; background: #fff; opacity: 0; pointer-events: none; z-index: 5; }
+#chest-flash.go { animation: flashOut .6s ease-out; }
+@keyframes flashOut { 0% { opacity: .95; } 100% { opacity: 0; } }
+#chest-tier { position: relative; z-index: 4; min-height: 48px; font: clamp(28px, 5vw, 56px) 'Press Start 2P'; color: #fff; opacity: 0;
+  background: linear-gradient(90deg, #ffd23f, #ff6ec7, #6ee7ff, #5dff8a, #ffd23f) 0 0 / 300% 100%; -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
+  filter: drop-shadow(4px 4px 0 var(--ink)) drop-shadow(0 0 18px rgba(255,255,255,.5)); }
+#chest-tier.in { animation: tierIn .8s cubic-bezier(.34,1.56,.64,1) forwards, rainbow 1.5s linear infinite; }
+@keyframes tierIn { 0% { opacity: 0; transform: scale(4) rotate(-8deg); letter-spacing: 40px; } 100% { opacity: 1; transform: none; } }
+@keyframes rainbow { to { background-position: -300% 0; } }
+#chest-rewards { position: relative; z-index: 4; }
+.card.reward { min-height: 230px; animation: rewardIn .55s cubic-bezier(.34,1.56,.64,1) backwards; }
+@keyframes rewardIn { 0% { transform: translateY(-180px) scale(.2) rotate(-25deg); opacity: 0; filter: brightness(4); } 100% { transform: none; opacity: 1; } }
+.card.reward.rolling .card-icon { box-shadow: inset 0 0 0 3px var(--gold), 0 0 24px rgba(255,210,63,.5); }
+.card.reward.rolling .card-name, .card.reward.rolling .card-body, .card.reward.rolling .card-head, .card.reward.rolling .evohint { opacity: 0; }
+.card.reward.landed { animation: landed .5s cubic-bezier(.34,1.56,.64,1); }
+.card.reward.landed.legend { animation: landed .5s cubic-bezier(.34,1.56,.64,1), legendGlow 1.4s ease-in-out infinite .5s; }
+@keyframes landed { 0% { transform: scale(1.35); filter: brightness(3); } 100% { transform: none; filter: none; } }
+@keyframes legendGlow { 50% { filter: drop-shadow(0 0 18px #ff6ec7) brightness(1.15); } }
+.card-name, .card-body, .card-head, .evohint { transition: opacity .3s ease-out; }
+#chest-gold { position: relative; z-index: 4; min-height: 24px; font: 24px 'Press Start 2P'; color: var(--gold); text-shadow: 3px 3px 0 var(--ink), 0 0 20px rgba(255,210,63,.8); }
+#chest-gold.in { animation: tierIn .5s cubic-bezier(.34,1.56,.64,1); }
+#chest-ok, #chest-hint { position: relative; z-index: 4; }
+#chest-ok { animation: cardIn .45s cubic-bezier(.34,1.56,.64,1), pulse 1.2s ease-in-out infinite .45s; }
 
 /* ---------- ポーズ ---------- */
 #pause-build { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; max-width: 500px; }
@@ -166,21 +220,21 @@ button { font: inherit; color: inherit; cursor: pointer; border: 0; background: 
 input[type=range] { width: 220px; accent-color: var(--gold); }
 
 /* ---------- リザルト ---------- */
-#result-title { font: clamp(28px, 5vw, 48px) 'Press Start 2P'; animation: resIn .8s steps(8) backwards; }
+#result-title { font: clamp(28px, 5vw, 48px) 'Press Start 2P'; animation: resIn .8s cubic-bezier(.22,1,.36,1) backwards; }
 #result-title.lose { color: var(--red); text-shadow: 5px 5px 0 var(--ink), 0 0 30px var(--red); }
 #result-title.win { color: var(--gold); text-shadow: 5px 5px 0 var(--ink), 0 0 30px var(--gold); }
 @keyframes resIn { 0% { transform: scale(3); opacity: 0; letter-spacing: 30px; } 100% { transform: none; opacity: 1; } }
 .result-body { display: flex; gap: 28px; flex-wrap: wrap; justify-content: center; }
 #result-stats, #result-dmg { min-width: 300px; padding: 18px 20px; display: flex; flex-direction: column; gap: 10px; }
 #result-stats, #result-dmg { background: var(--panel); box-shadow: 0 0 0 3px var(--ink), inset 0 0 0 3px var(--line); }
-.rs { display: flex; justify-content: space-between; font-size: 16px; animation: cardIn .3s steps(4) backwards; }
+.rs { display: flex; justify-content: space-between; font-size: 16px; animation: cardIn .3s cubic-bezier(.22,1,.36,1) backwards; }
 .rs:nth-child(2) { animation-delay: .1s; } .rs:nth-child(3) { animation-delay: .2s; } .rs:nth-child(4) { animation-delay: .3s; } .rs:nth-child(5) { animation-delay: .4s; } .rs:nth-child(6) { animation-delay: .5s; }
 .rs span { color: var(--dim); } .rs b { font: 12px 'Press Start 2P'; line-height: 20px; }
 .rs:last-child b { color: var(--gold); }
 .dm { display: flex; align-items: center; gap: 10px; font: 9px 'Press Start 2P'; }
 .dm img { width: 22px; image-rendering: pixelated; }
 .dm-bar { flex: 1; height: 8px; background: var(--ink); min-width: 120px; }
-.dm-bar i { display: block; height: 100%; animation: grow 1s steps(10) backwards .4s; }
+.dm-bar i { display: block; height: 100%; animation: grow 1s cubic-bezier(.22,1,.36,1) backwards .4s; }
 @keyframes grow { from { width: 0 !important; } }
 
 /* ---------- ツールチップ ---------- */
