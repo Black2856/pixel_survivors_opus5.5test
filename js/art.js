@@ -507,5 +507,13 @@ const ART = (() => {
     ROT[k + 'E'] = S[k].e ? rotFrames(S[k].e, 16) : null;
   }
 
-  return { S, ROT, mk, text, light, variant, canvas };
+  // 任意の canvas の単色シルエット(回転フレーム等の縁取り用)
+  const tintCache = new WeakMap();
+  function tint(src, col) {
+    let m = tintCache.get(src);
+    if (!m) tintCache.set(src, m = {});
+    return m[col] || (m[col] = silhouette(src, col));
+  }
+
+  return { S, ROT, mk, text, light, variant, canvas, tint };
 })();

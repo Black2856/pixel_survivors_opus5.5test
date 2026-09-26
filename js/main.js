@@ -50,7 +50,7 @@ function demoWorld() {
 
 function onKey(e) {
   if (e.code === 'KeyM') AudioMan.toggleMute();
-  if (e.code === 'Escape') { if (state === 'play') pauseGame(); else if (state === 'pause') resumeGame(); }
+  if (e.code === 'Escape') { if (state === 'play') pauseGame(); else if (state === 'pause') resumeGame(); else if (state === 'settings') { state = 'title'; UI.title(); } }
   if (state === 'title' && (e.code === 'Enter' || e.code === 'Space')) startRun();
   else if ((state === 'over' || state === 'victory') && e.code === 'KeyR') startRun();
   else if (state === 'victory' && e.code === 'Enter') startEndless();
@@ -66,9 +66,11 @@ function update(rdt) {
   const dt = rdt * S.ts;
   if (!P.dead) { S.time += dt; updPlayer(dt); }
   buildGrid();
+  FX_MINE = true; // 自分の攻撃による演出(濃さ設定の対象)
   if (!P.dead) updWeapons(dt);
   updProjs(dt);
   updZones(dt);
+  FX_MINE = false;
   updEnemies(dt);
   if (!P.dead) updEnemyLevel(dt);
   updEprojs(dt);

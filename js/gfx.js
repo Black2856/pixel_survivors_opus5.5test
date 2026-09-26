@@ -7,8 +7,10 @@ const GFX = (() => {
   const out = document.getElementById('game');
   const mk = () => { const c = document.createElement('canvas'); return [c, c.getContext('2d')]; };
   const [scene, sctx] = mk(), [light, lctx] = mk(), [glow, gctx] = mk();
+  // 自分の攻撃専用レイヤー(濃さ設定に合わせて半透明で合成する)
+  const [mscene, msctx] = mk(), [mglow, mgctx] = mk();
   const G = {
-    scene, sctx, light, lctx, glow, gctx, VW: 480, VH: 270, PX: 4, gl: null,
+    scene, sctx, light, lctx, glow, gctx, mscene, msctx, mglow, mgctx, VW: 480, VH: 270, PX: 4, gl: null, lightMul: 1,
     ambient: [0.5, 0.5, 0.6], tint: [1, 1, 1],
     fx: { flash: 0, flashCol: [1, 1, 1], aberr: 0, hurt: 0, lowhp: 0, sat: 1, bloom: 1, time: 0 },
     waves: [],
@@ -19,11 +21,11 @@ const GFX = (() => {
     const iw = innerWidth, ih = innerHeight;
     G.PX = Math.max(2, Math.round(Math.min(iw / 480, ih / 280)));
     G.VW = Math.ceil(iw / G.PX); G.VH = Math.ceil(ih / G.PX);
-    for (const c of [scene, glow]) { c.width = G.VW; c.height = G.VH; }
+    for (const c of [scene, glow, mscene, mglow]) { c.width = G.VW; c.height = G.VH; }
     light.width = Math.ceil(G.VW / 2); light.height = Math.ceil(G.VH / 2);
     out.width = G.VW * G.PX * dpr; out.height = G.VH * G.PX * dpr;
     out.style.width = G.VW * G.PX + 'px'; out.style.height = G.VH * G.PX + 'px';
-    for (const x of [sctx, gctx, lctx]) x.imageSmoothingEnabled = false;
+    for (const x of [sctx, gctx, lctx, msctx, mgctx]) x.imageSmoothingEnabled = false;
     if (G.gl) allocTargets();
   }
 
@@ -76,7 +78,7 @@ uniform sampler2D uSrc, uBloom, uBloom2;
 uniform vec2 uRes; uniform float uPX;
 uniform vec4 uWaves[6];
 uniform vec3 uTint, uFlashCol;
-uniform float uTime, uFlash, uAberr, uHurt, uLow, uSat, uBloomK;
+uniform float uTime, uFlash, uAberr, uHurt, uLow, uSat, uBloomK, uPost;
 float hash(vec2 p){ return fract(sin(dot(p, vec2(12.9898,78.233))) * 43758.5453); }
 void main(){
   vec2 st = uv;
@@ -93,7 +95,7 @@ void main(){
   }
   // 画面端ほど強い色収差
   vec2 cd = st - 0.5;
-  float ab = (0.0015 + uAberr * 0.012) * dot(cd, cd) * 4.0;
+  float ab = (0.0015 + uAberr * 0.012) * dot(cd, cd) * 4.0 * uPost;
   vec3 col;
   col.r = texture(uSrc, st + cd * ab).r;
   col.g = texture(uSrc, st).g;
@@ -111,8 +113,8 @@ void main(){
   col *= mix(0.55, 1.0, vig);
   // 走査線(実ピクセル行単位) + フィルムグレイン
   float row = mod(gl_FragCoord.y, uPX);
-  col *= 1.0 - 0.10 * step(uPX - 1.0, row);
-  col += (hash(gl_FragCoord.xy + uTime) - 0.5) * 0.025;
+  col *= 1.0 - 0.10 * step(uPX - 1.0, row) * uPost;
+  col += (hash(gl_FragCoord.xy + uTime) - 0.5) * 0.025 * uPost;
   col = mix(col, uFlashCol, uFlash);
   o = vec4(col, 1.);
 }`;
@@ -228,14 +230,17 @@ void main(){
     gl.uniform3fv(c.u.uAmb, G.ambient);
     draw();
 
-    const b = progs.bright;
-    pass(b, fbo.a); bindTex(0, fbo.comp.t, b.u.uSrc); bindTex(1, tex.glow, b.u.uGlow); draw();
-    blur(fbo.a, fbo.b, fbo.a, 1.0);
-    // 広域ブルーム: 1/4 解像度へ縮小してさらにぼかす
-    const bl = progs.blur;
-    pass(bl, fbo.c); bindTex(0, fbo.a.t, bl.u.uSrc); gl.uniform2f(bl.u.uDir, 0, 0); draw();
-    blur(fbo.c, fbo.d, fbo.c, 1.6);
-    blur(fbo.c, fbo.d, fbo.c, 2.6);
+    const q = gq();
+    if (q.bloom > 0) { // 低品質ではブルームのパスごと省略
+      const b = progs.bright;
+      pass(b, fbo.a); bindTex(0, fbo.comp.t, b.u.uSrc); bindTex(1, tex.glow, b.u.uGlow); draw();
+      blur(fbo.a, fbo.b, fbo.a, 1.0);
+      // 広域ブルーム: 1/4 解像度へ縮小してさらにぼかす
+      const bl = progs.blur;
+      pass(bl, fbo.c); bindTex(0, fbo.a.t, bl.u.uSrc); gl.uniform2f(bl.u.uDir, 0, 0); draw();
+      blur(fbo.c, fbo.d, fbo.c, 1.6);
+      blur(fbo.c, fbo.d, fbo.c, 2.6);
+    }
 
     const fn = progs.fin;
     pass(fn, null);
@@ -253,7 +258,8 @@ void main(){
     gl.uniform1f(fn.u.uHurt, f.hurt);
     gl.uniform1f(fn.u.uLow, f.lowhp);
     gl.uniform1f(fn.u.uSat, f.sat);
-    gl.uniform1f(fn.u.uBloomK, f.bloom);
+    gl.uniform1f(fn.u.uBloomK, f.bloom * q.bloom);
+    gl.uniform1f(fn.u.uPost, q.post);
     draw();
   }
 

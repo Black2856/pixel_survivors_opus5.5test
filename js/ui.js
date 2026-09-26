@@ -5,7 +5,7 @@ const UI = (() => {
   const $ = id => document.getElementById(id);
   const el = (tag, cls, html) => { const e = document.createElement(tag); if (cls) e.className = cls; if (html !== undefined) e.innerHTML = html; return e; };
   const show = e => e.classList.remove('hidden'), hide = e => e.classList.add('hidden');
-  const screens = ['title-screen', 'shop-screen', 'choice-screen', 'chest-screen', 'pause-screen', 'result-screen'];
+  const screens = ['title-screen', 'shop-screen', 'choice-screen', 'chest-screen', 'pause-screen', 'settings-screen', 'result-screen'];
   const only = id => screens.forEach(s => (s === id ? show : hide)($(s)));
 
   // ---------- アイコン(スプライト → dataURL) ----------
@@ -429,10 +429,23 @@ const UI = (() => {
     openChoices('artifact', list, 'ARTIFACT');
   }
 
+  // ---------- 設定パネル(ポーズ画面とタイトルの設定画面で共用。開く画面へ移動させる) ----------
+  function syncSettings(host) {
+    $(host).insertBefore($('settings-panel'), host === 'pause-screen' ? $('pause-screen').querySelector('.menu') : null);
+    $('vol-music').value = AudioMan.vol.music * 100; $('vol-sfx').value = AudioMan.vol.sfx * 100;
+    $('set-fxa').value = Math.round(SET.fxA * 100); $('set-fxa-n').textContent = Math.round(SET.fxA * 100) + '%';
+    for (const b of $('set-gfx').children) b.classList.toggle('on', b.dataset.v === SET.gfx);
+  }
+  for (const b of $('set-gfx').children) b.onclick = () => { SET.gfx = b.dataset.v; saveSet(); AudioMan.click(); syncSettings($('settings-panel').parentNode.id); };
+  $('set-fxa').oninput = e => { SET.fxA = e.target.value / 100; $('set-fxa-n').textContent = e.target.value + '%'; saveSet(); };
+  function settings() { state = 'settings'; only('settings-screen'); syncSettings('settings-slot'); }
+  $('btn-settings').onclick = () => { AudioMan.click(); settings(); };
+  $('btn-set-back').onclick = () => { AudioMan.click(); state = 'title'; title(); };
+
   function pause(on) {
     if (on) {
       only('pause-screen');
-      $('vol-music').value = AudioMan.vol.music * 100; $('vol-sfx').value = AudioMan.vol.sfx * 100;
+      syncSettings('pause-screen');
       $('pause-build').innerHTML = Object.keys(P.weapons).map(k => icon('weapon', k)).join('') + Object.keys(P.passives).map(k => icon('passive', k)).join('');
     } else only(null);
   }
