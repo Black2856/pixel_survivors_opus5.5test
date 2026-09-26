@@ -48,6 +48,8 @@ button { font: inherit; color: inherit; cursor: pointer; border: 0; background: 
 #elv.up { animation: elvUp .7s cubic-bezier(.34,1.56,.64,1); }
 @keyframes elvUp { 0% { transform: scale(1.6); color: #fff; filter: drop-shadow(0 0 10px #ff3b5c); } 100% { transform: none; } }
 .btn.warn { --line: var(--red); color: var(--red); }
+.btn.arena { --line: #a0122a; color: #ff8a9a; }
+.btn.arena:hover:not(:disabled) { --line: var(--red); color: var(--red); }
 #combo { position: absolute; right: 16px; top: 128px; text-align: right; opacity: 0; transform: translateX(20px); transition: opacity .2s, transform .2s; }
 #combo.on { opacity: 1; transform: none; }
 #combo-n { font: 34px 'Press Start 2P'; color: #fff; text-shadow: 3px 3px 0 var(--ink), 0 0 18px var(--cyan); }

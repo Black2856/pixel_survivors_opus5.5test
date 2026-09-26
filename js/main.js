@@ -4,14 +4,16 @@
 // ============================================================
 // 画面遷移
 // ============================================================
-function startRun() {
+function startRun(mode = 'normal') {
   AudioMan.unlock();
-  initRun();
+  initRun(mode);
   cam.fx = P.x - GFX.VW / 2; cam.fy = P.y - GFX.VH / 2;
   groundCache.clear();
   UI.show(UI.$('hud'));
-  AudioMan.playMusic('field1');
+  AudioMan.playMusic(mode === 'arena' ? 'field2' : 'field1');
   UI.startPick();
+  // 闘技場: 雑魚から経験値を稼げないので開始時にまとめてレベルアップ
+  if (mode === 'arena') gainXP(xpForLevels(DATA.arena.startLv) / P.xpMul);
   screenFlash(0.5);
   shockAt(P.x, P.y, 1.5);
 }
@@ -20,9 +22,14 @@ function resumeGame() { if (state !== 'pause') return; state = 'play'; UI.pause(
 function endRun(win) {
   const earned = S.gold + Math.floor(S.kills / 25);
   META.gold += earned; META.runs++;
-  if (S.time > META.best.time) META.best.time = S.time;
-  META.best.kills = Math.max(META.best.kills, S.kills);
-  META.best.level = Math.max(META.best.level, P.level);
+  if (S.mode === 'arena') { // 闘技場は専用の記録(撃破ラウンド / 最速クリア)
+    META.best.arenaRound = Math.max(META.best.arenaRound || 0, S.arena.idx);
+    if (win) META.best.arenaTime = Math.min(META.best.arenaTime || Infinity, S.time);
+  } else {
+    if (S.time > META.best.time) META.best.time = S.time;
+    META.best.kills = Math.max(META.best.kills, S.kills);
+    META.best.level = Math.max(META.best.level, P.level);
+  }
   saveMeta();
   state = win ? 'victory' : 'over';
   if (!win) AudioMan.stopMusic(1.5);
@@ -52,8 +59,8 @@ function onKey(e) {
   if (e.code === 'KeyM') AudioMan.toggleMute();
   if (e.code === 'Escape') { if (state === 'play') pauseGame(); else if (state === 'pause') resumeGame(); else if (state === 'settings') { state = 'title'; UI.title(); } }
   if (state === 'title' && (e.code === 'Enter' || e.code === 'Space')) startRun();
-  else if ((state === 'over' || state === 'victory') && e.code === 'KeyR') startRun();
-  else if (state === 'victory' && e.code === 'Enter') startEndless();
+  else if ((state === 'over' || state === 'victory') && e.code === 'KeyR') startRun(S.mode);
+  else if (state === 'victory' && e.code === 'Enter' && S.mode !== 'arena') startEndless();
   UI.onKey(e);
 }
 
@@ -75,6 +82,7 @@ function update(rdt) {
   if (!P.dead) updEnemyLevel(dt);
   updEprojs(dt);
   updHazards(dt);
+  if (S.mode === 'arena') confineArena();
   if (!P.dead) { updGems(dt); updDrops(dt); updSpawner(dt); }
   updFx(dt);
   S.comboT -= dt;
