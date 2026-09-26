@@ -361,7 +361,10 @@ function updWeapons(dt) {
   }
 }
 
-function strike(x, y, st, evo) {
+// 遅延実行される自分の攻撃も「自分の演出」として扱う
+function asMine(fn) { const prev = FX_MINE; FX_MINE = true; try { fn(); } finally { FX_MINE = prev; } }
+function strike(x, y, st, evo) { asMine(() => strikeNow(x, y, st, evo)); }
+function strikeNow(x, y, st, evo) {
   const R = st.aoe * P.area * elemSize('thunder');
   const hitSet = new Set();
   forEachNear(x, y, R, e => { hitSet.add(e); hitEnemy(e, st.dmg, { src: 'thunder', ang: Math.atan2(e.y - y, e.x - x), kb: 30, col: '#fff27a' }); });
@@ -415,14 +418,14 @@ function issen() {
   if (!d || !d.hits.size || !P.weapons.katana) return;
   const st = wst('katana');
   slashes.push({ line: true, x: d.x, y: d.y, x1: P.x, y1: P.y, t: 0, life: 0.35 });
-  setTimeout(() => {
+  setTimeout(() => asMine(() => {
     if (state !== 'play') return;
     for (const e of d.hits) if (!e.dead) {
       hitEnemy(e, st.dmg * 2, { src: 'katana', col: '#ff3b5c' });
       burst(e.x, e.y, 8, ['#ff3b5c', '#ffffff'], { sp: 80, glow: true, life: 0.35 });
     }
-    hitstop(0.05); shake(4); screenFlash(0.2, '#ff5d73'); AudioMan.slash(); AudioMan.crit();
-  }, 120);
+    hitstop(0.05); shake(4); screenFlash(0.2 * SET.fxA, '#ff5d73'); AudioMan.slash(); AudioMan.crit();
+  }), 120);
 }
 
 // 光闇の天秤: 光輝と暗黒が揃った敵で対消滅
@@ -1048,7 +1051,7 @@ function dragonAI(e, ai, dt, a, dist, slow) {
     endAct();
     for (let c = 0; c < 2; c++) later(ai, c * 0.14, () => {
       const ca = Math.atan2(P.y - e.y, P.x - e.x);
-      slashes.push({ x: e.x, y: e.y, a: ai.la, r: 70, t: 0, life: 0.22, flip: c % 2, evo: true });
+      slashes.push({ x: e.x, y: e.y, a: ai.la, r: 70, t: 0, life: 0.22, flip: c % 2, evo: true, enemy: true });
       if (d2(e.x, e.y, P.x, P.y) < 47 * 47 && Math.abs(angDiff(ca, ai.la)) < 1.1) hurtPlayer(e.dmg * 1.1);
       AudioMan.slash();
     });
@@ -1081,7 +1084,7 @@ function dragonAI(e, ai, dt, a, dist, slow) {
     const blast = off => {
       for (const r of arms(off)) {
         hitLine(r.x, r.y, r.a, L * 2, W, e.dmg * 1.3);
-        slashes.push({ line: true, x: r.x, y: r.y, x1: r.x + Math.cos(r.a) * L * 2, y1: r.y + Math.sin(r.a) * L * 2, t: 0, life: 0.45, w: 10 });
+        slashes.push({ line: true, x: r.x, y: r.y, x1: r.x + Math.cos(r.a) * L * 2, y1: r.y + Math.sin(r.a) * L * 2, t: 0, life: 0.45, w: 10, enemy: true });
       }
       addFlash(tx, ty, 160, '#ff4a8a', 0.5); shockAt(tx, ty, 1.6, 0.9); shake(7); AudioMan.boom(); AudioMan.zap();
       burst(tx, ty, 30, ['#ff4a8a', '#ffd0f0', '#ffffff'], { sp: 140, glow: true });

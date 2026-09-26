@@ -36,6 +36,7 @@
       <div class="menu">
         <button id="btn-start" class="btn big">▶ START</button>
         <button id="btn-shop" class="btn">永続強化</button>
+        <button id="btn-settings" class="btn ghost">設定</button>
       </div>
       <div id="title-gold" class="gold-chip"></div>
       <div id="title-best" class="best"></div>
@@ -72,12 +73,23 @@
   <div id="pause-screen" class="screen hidden">
     <h2 class="scr-title">PAUSED</h2>
     <div id="pause-build"></div>
-    <div class="vol"><label>音楽</label><input type="range" id="vol-music" min="0" max="100"></div>
-    <div class="vol"><label>効果音</label><input type="range" id="vol-sfx" min="0" max="100"></div>
+    <div id="settings-panel">
+      <div class="vol"><label>音楽</label><input type="range" id="vol-music" min="0" max="100"></div>
+      <div class="vol"><label>効果音</label><input type="range" id="vol-sfx" min="0" max="100"></div>
+      <div class="vol"><label>画質</label><div class="seg" id="set-gfx"><button data-v="high">高</button><button data-v="mid">中</button><button data-v="low">低</button></div></div>
+      <div class="vol"><label>攻撃の濃さ</label><input type="range" id="set-fxa" min="15" max="100"><span id="set-fxa-n" class="set-n"></span></div>
+      <div class="set-note">画質: 低いほどブルーム・画面の歪み・パーティクルを減らし軽くなります<br>攻撃の濃さ: 自分の攻撃エフェクトの不透明度(敵の攻撃は常にくっきり表示)</div>
+    </div>
     <div class="menu">
       <button id="btn-resume" class="btn">再開 (ESC)</button>
       <button id="btn-quit" class="btn ghost">あきらめる</button>
     </div>
+  </div>
+
+  <div id="settings-screen" class="screen hidden">
+    <h2 class="scr-title">設定</h2>
+    <div id="settings-slot"></div>
+    <div class="menu"><button id="btn-set-back" class="btn">戻る</button></div>
   </div>
 
   <div id="result-screen" class="screen hidden">

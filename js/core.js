@@ -34,6 +34,19 @@ const META = (() => {
 })();
 function saveMeta() { try { localStorage.setItem('ps55_meta', JSON.stringify(META)); } catch (e) { /* 保存不可でも続行 */ } }
 const metaLv = k => META.up[k] || 0;
+
+// ---------- 設定(グラフィック品質 / 自分の攻撃の濃さ) ----------
+// gfx: high=全演出 / mid=ブルーム弱・歪みや粒状ノイズなし・パーティクル60% / low=ブルームなし・パーティクル35%
+const GFX_Q = { high: { bloom: 1, post: 1, parts: 1 }, mid: { bloom: 0.55, post: 0, parts: 0.6 }, low: { bloom: 0, post: 0, parts: 0.35 } };
+const SET = (() => {
+  const d = { gfx: 'high', fxA: 1 };
+  try { Object.assign(d, JSON.parse(localStorage.getItem('ps55_set') || '{}')); } catch (e) { /* 既定値で続行 */ }
+  if (!GFX_Q[d.gfx]) d.gfx = 'high';
+  d.fxA = clamp(+d.fxA || 1, 0.15, 1);
+  return d;
+})();
+function saveSet() { try { localStorage.setItem('ps55_set', JSON.stringify(SET)); } catch (e) { /* 保存不可でも続行 */ } }
+const gq = () => GFX_Q[SET.gfx];
 const metaMax = k => DATA.meta[k].costs.length;
 const metaCost = k => DATA.meta[k].costs[metaLv(k)];
 // 購入済みの永続強化をすべて返金してリセット
@@ -110,10 +123,13 @@ function moveInput() {
 // 演出ヘルパー
 // ============================================================
 const MAX_PARTS = 2600;
+// 自分の攻撃処理中は true。この間に出た演出は「自分の攻撃」として濃さ設定の対象になる
+let FX_MINE = false;
 // 汎用パーティクル: glow=true でグロー層にも描画(ブルームの光源になる)
 function part(x, y, vx, vy, life, col, o = {}) {
+  if (gq().parts < 1 && Math.random() > gq().parts) return;
   if (parts.length >= MAX_PARTS) parts.shift();
-  parts.push({ x, y, vx, vy, t: 0, life, col, sz: o.sz || 1, g: o.g || 0, drag: o.drag ?? 2.5, glow: !!o.glow, shrink: !!o.shrink, up: o.up || 0 });
+  parts.push({ x, y, vx, vy, t: 0, life, col, sz: o.sz || 1, g: o.g || 0, drag: o.drag ?? 2.5, glow: !!o.glow, shrink: !!o.shrink, up: o.up || 0, mine: FX_MINE });
 }
 function burst(x, y, n, cols, o = {}) {
   const sp = o.sp || 60;
@@ -130,13 +146,13 @@ function addFloat(x, y, txt, col, scale = 1, vy = -30, k = 1) {
 // イージング
 const easeOutCubic = t => 1 - Math.pow(1 - clamp(t, 0, 1), 3);
 const easeOutBack = t => { t = clamp(t, 0, 1); const c = 1.70158; return 1 + (c + 1) * Math.pow(t - 1, 3) + c * Math.pow(t - 1, 2); };
-function addRing(x, y, r, col, o = {}) { rings.push({ x, y, r0: o.r0 || 2, r, t: 0, life: o.life || 0.4, col, w: o.w || 1 }); }
-function addFlash(x, y, r, col, life = 0.25) { flashes.push({ x, y, r, col, t: 0, life }); }
+function addRing(x, y, r, col, o = {}) { rings.push({ x, y, r0: o.r0 || 2, r, t: 0, life: o.life || 0.4, col, w: o.w || 1, mine: FX_MINE }); }
+function addFlash(x, y, r, col, life = 0.25) { flashes.push({ x, y, r, col, t: 0, life, mine: FX_MINE }); }
 function shake(n) { cam.shake = Math.max(cam.shake, n); }
 function hitstop(t) { S.freeze = Math.max(S.freeze, t); }
 function slowmo(k, dur) { S.ts = k; S.tsBack = dur; }
 function screenFlash(a, col = '#ffffff') { GFX.fx.flash = Math.max(GFX.fx.flash, a); GFX.fx.flashCol = hexRgb(col); }
-function shockAt(x, y, k = 1, spd = 0.9) { GFX.shock(x - cam.x, y - cam.y, k, spd); }
+function shockAt(x, y, k = 1, spd = 0.9) { if (gq().post) GFX.shock(x - cam.x, y - cam.y, k * (FX_MINE ? SET.fxA : 1), spd); }
 const onScreen = (x, y, m = 16) => x > cam.x - m && x < cam.x + GFX.VW + m && y > cam.y - m && y < cam.y + GFX.VH + m;
 
 // ============================================================
@@ -206,15 +222,6 @@ function pDisc(x, cx, cy, r, col) {
     x.fillRect(cx - w, cy + dy, w * 2 + 1, 1);
   }
 }
-// 市松ディザで半透明円(ドット絵らしい半透明表現)
-function pDither(x, cx, cy, r, col, phase = 0) {
-  cx = Math.round(cx); cy = Math.round(cy);
-  x.fillStyle = col;
-  for (let dy = -r; dy <= r; dy++) {
-    const w = Math.round(Math.sqrt(r * r - dy * dy));
-    for (let dx = -w + ((dy + cy + cx + w + phase) & 1); dx <= w; dx += 2) x.fillRect(cx + dx, cy + dy, 1, 1);
-  }
-}
 function pLine(x, x0, y0, x1, y1, col, w = 1) {
   x0 = Math.round(x0); y0 = Math.round(y0); x1 = Math.round(x1); y1 = Math.round(y1);
   x.fillStyle = col;
@@ -237,6 +244,7 @@ function drawSp(sp, x, y, o = {}) {
   const w = sp.w * sc * (o.sxk || 1), h = sp.h * sc * sy;
   const dx = Math.round(x - cam.x - w / 2), dy = Math.round(y - cam.y + sp.h * sc / 2 - h);
   const sx = GFX.sctx;
+  if (o.outline) outlineImg(img, dx, dy, Math.round(w), Math.round(h), o.outline);
   if (o.alpha !== undefined) sx.globalAlpha = o.alpha;
   sx.drawImage(img, dx, dy, Math.round(w), Math.round(h));
   sx.globalAlpha = 1;
@@ -252,13 +260,22 @@ function drawRot(key, ang, x, y, o = {}) {
   const i = ((Math.round(ang / TAU * n) % n) + n) % n;
   const img = fr[i], sc = o.scale || 1;
   const dx = Math.round(x - cam.x - img.width * sc / 2), dy = Math.round(y - cam.y - img.height * sc / 2);
+  if (o.outline) outlineImg(img, dx, dy, img.width * sc, img.height * sc, o.outline);
   GFX.sctx.drawImage(img, dx, dy, img.width * sc, img.height * sc);
   const e = ART.ROT[key + 'E'];
   if (e || o.glowAll) { GFX.gctx.globalAlpha = o.emitA ?? 0.8; GFX.gctx.drawImage(e ? e[i] : img, dx, dy, img.width * sc, img.height * sc); GFX.gctx.globalAlpha = 1; }
 }
+// 形に沿った1pxの縁取り(敵弾の強調用)。グロー層にも描いて光らせる
+function outlineImg(img, dx, dy, w, h, col) {
+  const s = ART.tint(img, col);
+  for (const [ox, oy] of [[-1, 0], [1, 0], [0, -1], [0, 1]]) {
+    GFX.sctx.drawImage(s, dx + ox, dy + oy, w, h);
+    GFX.gctx.drawImage(s, dx + ox, dy + oy, w, h);
+  }
+}
 // ライトマップへ光源を置く(ライト層は半解像度)
 function addLight(x, y, r, col, a = 1) {
   const lx = GFX.lctx;
-  lx.globalAlpha = a;
+  lx.globalAlpha = a * GFX.lightMul;
   lx.drawImage(ART.light(col), (x - cam.x - r) / 2, (y - cam.y - r) / 2, r, r);
 }
