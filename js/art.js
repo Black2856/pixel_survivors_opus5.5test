@@ -336,6 +336,68 @@ const ART = (() => {
     '.b.b.bb.bb.bb.b...',
   ], { emit: 'd' });
 
+  // 左半分の行を左右対称に展開
+  const sym = rows => rows.map(r => r + [...r].reverse().join(''));
+
+  S.gslime = mk({ a: '#1f6e58', b: '#4fd6a8', c: '#d8fff2', d: '#0f2a26', e: '#ffd23f', f: '#ff4a6a' }, sym([
+    '........e.e',
+    '........eee',
+    '.......aefe',
+    '.....aabbbb',
+    '....abbbbbb',
+    '...abbbbbbb',
+    '..abbbbbbbb',
+    '..abbbddbbb',
+    '.abbbbddbbb',
+    '.abbbbbbbbb',
+    '.abbbbbbbdd',
+    'abbcbbbbbbb',
+    'abcbbbbbbbb',
+    'abbbbbbbbbb',
+    '.aabbbbbbbb',
+    '...aaaaaaaa',
+  ]), { emit: 'cef' });
+
+  S.golem = mk({ a: '#241f1c', b: '#544c44', c: '#7a6f60', d: '#6ee7ff', f: '#3f6e3c' }, sym([
+    '.......abbb',
+    '......abccc',
+    '......abddb',
+    '......abbbb',
+    '...aaaaabff',
+    '..abbbbbbbb',
+    '.abccbbbbbd',
+    'abccbbbbbbd',
+    'abcbb.abbbd',
+    'abbba.abbbb',
+    'accca.abfbb',
+    'acdca.abbbb',
+    '.aaa..abbbb',
+    '......abbb.',
+    '......abba.',
+    '.....abbba.',
+    '.....aaaaa.',
+  ]), { emit: 'd' });
+
+  S.cdragon = mk({ a: '#1a0a1e', b: '#5a1a4a', c: '#a0306a', d: '#ff4a8a', e: '#ffd23f', f: '#2a1030', g: '#7a3aa0', h: '#e8e0d0' }, sym([
+    '.g.........h..',
+    'gg.........hh.',
+    'gfg.......bhcc',
+    'gffg.....bcccc',
+    'gfffg...bcceec',
+    'gffffg.bcccccc',
+    'gfffffgbcchchc',
+    'gffffffbbcdddc',
+    '.gffffbbccccdc',
+    '..gfffbcccccdc',
+    '...gffbcccccdc',
+    '....gbbcccccdc',
+    '.....bccbcccdc',
+    '.....bcb.bccdc',
+    '....bcb..bccbc',
+    '...hhb...bcb.b',
+    '.........hh...',
+  ]), { emit: 'deg' });
+
   // ---------- 弾・エフェクト ----------
   S.bolt = mk({ a: '#2d8cff', b: '#7ad7ff', c: '#ffffff' }, ['.aba.', 'abcba', 'bcccb', 'abcba', '.aba.'], { outline: false, emit: 'abc' });
   S.boltEvo = mk({ a: '#b04dff', b: '#ff9bf5', c: '#ffffff' }, ['.aba.', 'abcba', 'bcccb', 'abcba', '.aba.'], { outline: false, emit: 'abc' });
@@ -372,7 +434,11 @@ const ART = (() => {
   S.ball = mk({ a: '#a0122a', b: '#ff3b5c', c: '#ffc0c8' }, ['.aba.', 'abcba', 'bcccb', 'abcba', '.aba.'], { outline: false, emit: 'abc' });
   S.arrow = mk({ a: '#8a6a3a', b: '#e8e6da', c: '#ffb13a' }, ['c.....', '.aaaab', 'c.....']);
   S.scythe = mk({ a: '#c29bff', b: '#ffffff', c: '#5a3a9a' }, ['..aaa..', '.a...a.', 'b.....a', '.....ca', '....c..', '...c...'], { emit: 'ab' });
-  S.flake = mk({ a: '#bff4ff', b: '#ffffff' }, ['.a.a.', 'aabaa', '.bbb.', 'aabaa', '.a.a.'], { outline: false, emit: 'ab' });
+  S.glob = mk({ a: '#23735f', b: '#4fd6a8', c: '#d8fff2' }, ['.aba.', 'abcba', 'bcccb', 'abcba', '.aba.'], { emit: 'bc' });
+  S.rock = mk({ a: '#241f1c', b: '#544c44', c: '#7a6f60', d: '#6ee7ff' }, ['...aaaa...', '..abbcba..', '.abbccbba.', 'abbbbbbbba', 'abdbbbbcba', 'abbbbbdbba', '.abbbbbba.', '..aaaaaa..'], { emit: 'd' });
+  S.rbit = mk({ b: '#7a7266', c: '#a89e8c' }, ['cb', 'bb']);
+  S.fist = mk({ a: '#241f1c', b: '#544c44', c: '#7a6f60', d: '#6ee7ff' }, ['.aaaa.', 'abccba', 'acccca', 'acddca', 'abccba', '.aaaa.'], { emit: 'd' });
+  S.flake =mk({ a: '#bff4ff', b: '#ffffff' }, ['.a.a.', 'aabaa', '.bbb.', 'aabaa', '.a.a.'], { outline: false, emit: 'ab' });
 
   // ---------- ドロップ ----------
   const gem = (a, b, c) => mk({ a, b, c }, ['..a..', '.abb.', 'abbcb', '.abb.', '..a..'], { emit: 'bc' });

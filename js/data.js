@@ -2,20 +2,20 @@
 'use strict';
 
 const DATA = {
-  player: { hp: 100, speed: 58, magnet: 30, dashCd: 1.6, iframe: 0.5, dashTime: 0.16, dashSpeed: 260 },
+  player: { hp: 100, speed: 58, magnet: 30, dashCd: 1.6, iframe: 0.5, dashTime: 0.16, dashSpeed: 260, comboTime: 3 },
 
   // ---------- 敵 ----------
   // ai: chase / flutter / keep(距離を取り射撃) / flee(逃走)
   enemies: {
-    zombie:   { hp: 20, spd: 13, dmg: 9,  xp: 1, r: 5, ai: 'chase' },
-    bat:      { hp: 14, spd: 30, dmg: 8,  xp: 1, r: 4, ai: 'flutter' },
-    slime:    { hp: 20, spd: 15, dmg: 9,  xp: 1, r: 5, ai: 'hop', split: 'slimelet' },
-    slimelet: { hp: 8,  spd: 22, dmg: 6,  xp: 1, r: 3, ai: 'hop' },
-    skeleton: { hp: 24, spd: 18, dmg: 10, xp: 1, r: 5, ai: 'chase' },
-    archer:   { hp: 20, spd: 16, dmg: 9,  xp: 1, r: 5, ai: 'keep', shot: { cd: 3.2, spd: 70, dmg: 9 } },
-    ghost:    { hp: 22, spd: 22, dmg: 10, xp: 1, r: 5, ai: 'chase', ghost: true },
-    brute:    { hp: 40, spd: 11, dmg: 13, xp: 2, r: 8, ai: 'chase', kbRes: 0.8 },
-    imp:      { hp: 18, spd: 34, dmg: 10, xp: 1, r: 4, ai: 'flutter' },
+    zombie:   { hp: 30, spd: 13, dmg: 9,  xp: 1, r: 5, ai: 'chase' },
+    bat:      { hp: 21, spd: 30, dmg: 8,  xp: 1, r: 4, ai: 'flutter' },
+    slime:    { hp: 30, spd: 15, dmg: 9,  xp: 1, r: 5, ai: 'hop', split: 'slimelet' },
+    slimelet: { hp: 12, spd: 22, dmg: 6,  xp: 1, r: 3, ai: 'hop' },
+    skeleton: { hp: 36, spd: 18, dmg: 10, xp: 1, r: 5, ai: 'chase' },
+    archer:   { hp: 30, spd: 16, dmg: 9,  xp: 1, r: 5, ai: 'keep', shot: { cd: 3.2, spd: 70, dmg: 9 } },
+    ghost:    { hp: 33, spd: 22, dmg: 10, xp: 1, r: 5, ai: 'chase', ghost: true },
+    brute:    { hp: 60, spd: 11, dmg: 13, xp: 2, r: 8, ai: 'chase', kbRes: 0.8 },
+    imp:      { hp: 27, spd: 34, dmg: 10, xp: 1, r: 4, ai: 'flutter' },
     goblin:   { hp: 160, spd: 44, dmg: 0, xp: 12, r: 5, ai: 'flee', kbRes: 0.5 },
   },
 
@@ -23,30 +23,37 @@ const DATA = {
   // 各値は Lv が 1 上がるごとの増加率(Lv1 = 基本値)
   enemyLevel: { interval: 30, hp: 0.2, dmg: 0.02, spd: 0.005, spdMax: 1.5, xp: 0.04, boss: 0.08, elite: 14 },
 
+  // enrage: 激昂する残りHP割合(省略時 0.5)
   bosses: {
-    king:   { name: '腐肉の王 ROT KING',  hp: 1600, spd: 14, dmg: 22, r: 13, music: 'boss1', col: '#8fce5e' },
-    wyrm:   { name: '白骨竜 BONE WYRM',   hp: 3400, spd: 19, dmg: 22, r: 14, music: 'boss2', col: '#efe9d4' },
-    reaper: { name: '死神 THE REAPER',    hp: 6000, spd: 22, dmg: 28, r: 12, music: 'boss3', col: '#c29bff' },
+    king:    { name: '腐肉の王 ROT KING',          hp: 1600, spd: 14, dmg: 22, r: 13, music: 'boss1', col: '#8fce5e' },
+    gslime:  { name: '巨大スライム GIANT SLIME',   hp: 1700, spd: 16, dmg: 20, r: 14, music: 'boss1', col: '#4fd6a8' },
+    wyrm:    { name: '白骨竜 BONE WYRM',           hp: 3400, spd: 19, dmg: 22, r: 14, music: 'boss2', col: '#efe9d4' },
+    golem:   { name: 'ゴーレム GOLEM',             hp: 3800, spd: 12, dmg: 24, r: 15, music: 'boss2', col: '#6ee7ff' },
+    reaper:  { name: '死神 THE REAPER',            hp: 6000, spd: 22, dmg: 28, r: 12, music: 'boss3', col: '#c29bff', enrage: 0.3 },
+    cdragon: { name: 'カオスドラゴン CHAOS DRAGON', hp: 6400, spd: 20, dmg: 28, r: 16, music: 'boss3', col: '#ff4a8a', enrage: 0.4 },
   },
+  // 状態異常(プレイヤー): 粘液・スロウタイムの移動速度倍率 / スロウタイムのCD回復倍率 / 炎上
+  debuff: { slow: 0.6, cdRate: 0.5, burnTick: 0.5, burnDur: 3 },
 
   // ---------- 出現スケジュール(周回内の経過秒) ----------
+  // boss: 候補からランダムに1体。final: 撃破で勝利/周回
   schedule: [
     { t: 0,   types: ['zombie'],                            interval: 0.95, max: 60 },
     { t: 35,  types: ['zombie', 'bat'],                     interval: 0.75, max: 100 },
     { t: 80,  types: ['bat', 'slime', 'zombie'],            interval: 0.6,  max: 130 },
     { t: 130, types: ['skeleton', 'slime', 'bat'],          interval: 0.5,  max: 160 },
-    { t: 180, boss: 'king' },
+    { t: 180, boss: ['king', 'gslime'] },
     { t: 186, types: ['skeleton', 'archer', 'zombie'],      interval: 0.55, max: 170 },
     { t: 250, types: ['ghost', 'skeleton', 'archer'],       interval: 0.48, max: 190 },
     { t: 320, types: ['ghost', 'brute', 'bat', 'slime'],    interval: 0.45, max: 200 },
     { t: 360, event: 'horde' },
-    { t: 420, boss: 'wyrm' },
+    { t: 420, boss: ['wyrm', 'golem'] },
     { t: 426, types: ['brute', 'imp', 'ghost'],             interval: 0.42, max: 220 },
     { t: 500, types: ['imp', 'brute', 'archer', 'skeleton'], interval: 0.38, max: 240 },
     { t: 560, event: 'horde' },
     { t: 600, types: ['imp', 'brute', 'ghost', 'archer'],   interval: 0.33, max: 270 },
     { t: 630, event: 'horde' },
-    { t: 660, boss: 'reaper' },
+    { t: 660, boss: ['reaper', 'cdragon'], final: true },
     { t: 666, types: ['imp', 'ghost', 'brute', 'slime'],    interval: 0.4,  max: 240 },
   ],
 
@@ -215,7 +222,7 @@ const DATA = {
     crit:    { name: '会心',   desc: 'クリティカル率 +2%', costs: [120, 240, 720, 2880, 14400] },
     weapon:  { name: '武器庫', desc: '武器の装備枠 +1',   costs: [5000] },
     passive: { name: '道具箱', desc: 'パッシブの装備枠 +1', costs: [5000] },
-    chaos:   { name: '混沌',   desc: '獲得ゴールド +50%・敵のLvの上昇速度 +20%・周回時に敵Lv +2', costs: [1000, 2500, 5000, 7500, 10000] },
+    chaos:   { name: '混沌',   desc: '獲得ゴールド +50%・敵の基礎HP+20%・敵のLvの上昇速度 +20%・周回時に敵Lv+5', costs: [1000, 2500, 5000, 7500, 10000] },
   },
 
   // ---------- ステージ ----------

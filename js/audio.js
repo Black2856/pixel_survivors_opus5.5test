@@ -121,6 +121,8 @@ const AudioMan = (() => {
     fire()    { if (this._ok('fire', 0.08)) this.noise(0.25, { vol: 0.1, f0: 1800, f1: 300 }); },
     blizz()   { if (this._ok('blizz', 0.2)) this.noise(0.8, { vol: 0.1, f0: 6000, f1: 2000, ftype: 'highpass' }); },
     hole()    { if (this._ok('hole', 0.2)) this.tone(90, 40, 0.8, { vol: 0.16, type: 'sine' }); },
+    splat()   { if (this._ok('splat', 0.08)) { this.noise(0.3, { vol: 0.16, f0: 900, f1: 120 }); this.tone(220, 60, 0.2, { vol: 0.08, type: 'sine' }); } },
+    charge(dur) { if (this._ok('charge', 0.3)) { this.tone(120, 900, dur, { vol: 0.07, type: 'sawtooth' }); this.noise(dur, { vol: 0.08, f0: 400, f1: 6000, ftype: 'bandpass' }); } },
     dash()    { if (this._ok('dash', 0.05)) this.noise(0.18, { vol: 0.14, f0: 1200, f1: 5000, ftype: 'bandpass' }); },
     roar()    { if (!this._ok('roar', 0.3)) return; this.tone(110, 50, 0.9, { vol: 0.16, type: 'sawtooth' }); this.noise(0.9, { vol: 0.18, f0: 900, f1: 90 }); },
     warning() { if (!this._ok('warn', 0.5)) return; for (let i = 0; i < 3; i++) this.tone(880, 880, 0.14, { vol: 0.08, delay: i * 0.22, type: 'square' }); },

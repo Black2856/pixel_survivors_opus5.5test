@@ -70,7 +70,7 @@ write('enemy_level.csv', ['敵Lv', '到達目安(ボス時間除く)', 'HP倍率
     return [l, `${(t / 60) | 0}:${String(t % 60).padStart(2, '0')}`, r2(FORMULA.lvK('hp', l)), r2(FORMULA.lvK('dmg', l)), r2(spdK(l)), r2(FORMULA.lvK('xp', l)), r2(FORMULA.lvK('boss', l))]; }));
 
 // ボス出現時の Lv 目安: 出現時刻までの経過から、それ以前のボス戦分は停止しないものとして概算
-const bossAt = Object.fromEntries(D.schedule.filter(s => s.boss).map(s => [s.boss, s.t]));
+const bossAt = Object.fromEntries(D.schedule.filter(s => s.boss).flatMap(s => s.boss.map(k => [k, s.t])));
 const lvAt = t => 1 + Math.floor(t / EL.interval);
 write('bosses.csv', ['ID', '名称', '基本HP', '出現(秒)', '出現時Lv目安', '出現時HP目安', '速度', '攻撃力', '半径', 'BGM'],
   Object.entries(D.bosses).map(([k, b]) => { const t = bossAt[k]; const l = t !== undefined ? lvAt(t) : '';
@@ -79,7 +79,7 @@ write('bosses.csv', ['ID', '名称', '基本HP', '出現(秒)', '出現時Lv目�
 // ---------- 出現スケジュール ----------
 write('schedule.csv', ['時刻(秒)', '時刻', '種別', '出現敵', '出現間隔(秒)', '毎秒出現数', '最大同時数'],
   D.schedule.map(s => [s.t, `${(s.t / 60) | 0}:${String(s.t % 60).padStart(2, '0')}`, s.boss ? 'ボス' : s.event ? 'イベント' : '通常',
-    s.boss || s.event || s.types.join(' '), s.interval ?? '', s.interval ? r2(1 / s.interval) : '', s.max ?? '']));
+    s.boss ? s.boss.join(' / ') + (s.final ? ' (最終)' : '') : s.event || s.types.join(' '), s.interval ?? '', s.interval ? r2(1 / s.interval) : '', s.max ?? '']));
 
 // ---------- 経験値テーブル ----------
 let cum = 0;

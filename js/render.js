@@ -124,6 +124,8 @@ function render() {
   drawGround();
   if (!S || S.demo) return drawMotes(st);
   const t = GFX.fx.time;
+  // ディザ位相は全範囲表現で共通にする(個別だと重なり部分が市松/ベタで交互に切り替わりちらつく)
+  const dph = Math.floor(t * 8);
 
   // ---- 警告(ボス攻撃予兆) ----
   for (const w of warns) {
@@ -134,7 +136,30 @@ function render() {
       pLine(gx, w.x - cam.x, w.y - cam.y, lerp(w.x, ex, k) - cam.x, lerp(w.y, ey, k) - cam.y, '#ff3b5c', 3);
     } else {
       pCircle(sx, w.x - cam.x, w.y - cam.y, w.r, blink);
-      pDither(gx, w.x - cam.x, w.y - cam.y, Math.round(w.r * k), '#ff3b5c', Math.floor(t * 20));
+      pDither(gx, w.x - cam.x, w.y - cam.y, Math.round(w.r * k), '#ff3b5c', dph);
+    }
+  }
+
+  // ---- ボスの設置物 ----
+  for (const h of hazards) {
+    const hx = h.x - cam.x, hy = h.y - cam.y, fade = Math.min(1, (h.dur - h.t) * 3, h.t * 8);
+    if (h.kind === 'goo') {
+      const R = Math.round(h.r * Math.min(1, h.t * 6));
+      sx.globalAlpha = 0.55 * fade; pDither(sx, hx, hy, R, '#2f9c7c', dph);
+      sx.globalAlpha = 0.8 * fade; pCircle(sx, hx, hy, R, '#4fd6a8'); sx.globalAlpha = 1;
+      gx.globalAlpha = 0.2 * fade; pCircle(gx, hx, hy, R, '#4fd6a8'); gx.globalAlpha = 1;
+    } else if (h.kind === 'quake') {
+      pCircle(sx, hx, hy, Math.round(h.r), '#c8b090'); pCircle(sx, hx, hy, Math.round(h.r) - 1, '#6a6258');
+      gx.globalAlpha = 0.6; pCircle(gx, hx, hy, Math.round(h.r), '#ffb347', 2); gx.globalAlpha = 1;
+    } else if (h.kind === 'clock') { // 時計盤: 目盛りと逆回転する針
+      const R = Math.round(h.r * Math.min(1, h.t * 4));
+      sx.globalAlpha = 0.25 * fade; pDither(sx, hx, hy, R, '#6a3aa0', dph); sx.globalAlpha = 1;
+      gx.globalAlpha = 0.6 * fade; pCircle(gx, hx, hy, R, '#c29bff');
+      for (let i = 0; i < 12; i++) { const a = TAU / 12 * i; gx.fillStyle = '#c29bff'; gx.fillRect(Math.round(hx + Math.cos(a) * (R - 4)), Math.round(hy + Math.sin(a) * (R - 4)), 2, 2); }
+      pLine(gx, hx, hy, hx + Math.cos(-t * 3) * R * 0.8, hy + Math.sin(-t * 3) * R * 0.8, '#ffffff');
+      pLine(gx, hx, hy, hx + Math.cos(-t * 0.5) * R * 0.5, hy + Math.sin(-t * 0.5) * R * 0.5, '#c29bff', 2);
+      gx.globalAlpha = 1;
+      addLight(h.x, h.y, R * 2, '#c29bff', 0.4 * fade);
     }
   }
 
@@ -143,7 +168,7 @@ function render() {
     const zx = z.x - cam.x, zy = z.y - cam.y;
     const fade = Math.min(1, (z.dur - z.t) * 4, z.t * 6);
     if (z.kind === 'blizz') {
-      sx.globalAlpha = 0.22 * fade; pDither(sx, zx, zy, Math.round(z.r), '#bff4ff', Math.floor(t * 10));
+      sx.globalAlpha = 0.22 * fade; pDither(sx, zx, zy, Math.round(z.r), '#bff4ff', dph);
       sx.globalAlpha = 1; pCircle(sx, zx, zy, Math.round(z.r), '#ffffff', 2);
       gx.globalAlpha = 0.25 * fade; pCircle(gx, zx, zy, Math.round(z.r), '#bff4ff'); gx.globalAlpha = 1;
       addLight(z.x, z.y, z.r * 2.2, '#7ad7ff', 0.6 * fade);
@@ -160,7 +185,7 @@ function render() {
   const aw = P.weapons.aura;
   if (aw && aw.R && !P.dead) {
     const R = Math.round(aw.R), col = aw.evo ? '#fff3a0' : '#ffe38a';
-    sx.globalAlpha = 0.18; pDither(sx, P.x - cam.x, P.y - cam.y, R, col, Math.floor(t * 6)); sx.globalAlpha = 1;
+    sx.globalAlpha = 0.18; pDither(sx, P.x - cam.x, P.y - cam.y, R, col, dph); sx.globalAlpha = 1;
     pCircle(gx, P.x - cam.x, P.y - cam.y, R, col, 1);
     gx.globalAlpha = 0.5;
     for (let i = 0; i < 8; i++) { const a = t * 1.2 + TAU / 8 * i; gx.fillStyle = col; gx.fillRect(Math.round(P.x - cam.x + Math.cos(a) * (R - 3)), Math.round(P.y - cam.y + Math.sin(a) * (R - 3)), 2, 2); }
@@ -204,7 +229,7 @@ function render() {
     if (e.ai === 'hop') { const h = e.hopT < 0.35 ? Math.sin((e.hopT / 0.35) * Math.PI) : 0; yo = -h * 5; sy = 1 + h * 0.15 - (e.hopT > 0.9 ? 0.15 : 0); sxk = 2 - sy; }
     else if (e.ai === 'flutter') yo = Math.sin(e.t * 12) * 1.5;
     else if (!e.prop && !e.boss) { const w = Math.abs(Math.sin(e.t * 7 + e.seed * 6)); sy = 1 - w * 0.06; sxk = 1 + w * 0.04; }
-    if (e.boss) { sy = 1 + Math.sin(e.t * 3) * 0.03; }
+    if (e.boss) { sy = (e.sq || 1) + Math.sin(e.t * 3) * 0.03; sxk = 2 - sy; yo = -(e.jz || 0); }
     const flip = (e.face || 1) < 0;
     let alpha = e.ghost ? 0.7 : 1;
     if (e.hideA !== undefined) alpha *= e.hideA;
@@ -224,7 +249,7 @@ function render() {
       addLight(e.x, e.y, 50, '#ffd23f', 0.8);
     }
     if (e.prop) addLight(e.x, e.y - 3, 70 + Math.sin(t * 13 + e.seed * 9) * 6, '#ff9b3d', 1);
-    if (e.boss) addLight(e.x, e.y, 90, e.col, 0.8);
+    if (e.boss) { addLight(e.x, e.y, 90, e.col, 0.8); drawBossFx(e, sp, yo); }
     if (e.aim) { gx.fillStyle = '#ffb13a'; gx.fillRect(Math.round(e.x - cam.x), Math.round(e.y - cam.y - 10), 1, 3); }
     if (e.type === 'goblin') addLight(e.x, e.y, 40, '#ffcc33', 0.8);
     if (!e.boss && !e.prop && e.hp < e.maxhp && (e.elite || e.maxhp > 90)) {
@@ -268,7 +293,7 @@ function render() {
   // ---- 斬撃 ----
   for (const s of slashes) {
     if (s.line) { // 一閃: 通過経路に走る鋭い光
-      const k = easeOutCubic(s.t / s.life), w = Math.max(1, Math.round(4 * (1 - k)));
+      const k = easeOutCubic(s.t / s.life), w = Math.max(1, Math.round((s.w || 4) * (1 - k)));
       pLine(gx, s.x - cam.x, s.y - cam.y, s.x1 - cam.x, s.y1 - cam.y, '#ff3b5c', w + 2);
       pLine(sx, s.x - cam.x, s.y - cam.y, s.x1 - cam.x, s.y1 - cam.y, '#ffffff', w);
       addLight((s.x + s.x1) / 2, (s.y + s.y1) / 2, 90, '#ff5d73', 1 - k);
@@ -312,9 +337,16 @@ function render() {
     }
   }
   for (const p of eprojs) {
-    if (!onScreen(p.x, p.y)) continue;
+    if (!onScreen(p.x, p.y, 30)) continue;
     const a = Math.atan2(p.vy, p.vx);
-    if (p.kind === 'arrow') drawRot('arrow', a, p.x, p.y);
+    if (p.lob) { // 放物線弾: 地面に影、高さぶん持ち上げて描く
+      shadow(p.x, p.y + 2, p.kind === 'rock' ? 10 : 5);
+      drawSp(ART.S[p.kind], p.x, p.y - p.z, { scale: p.kind === 'rock' ? 1 + p.z / 140 : 1 });
+      addLight(p.x, p.y - p.z, 20, p.kind === 'rock' ? '#6ee7ff' : '#4fd6a8', 0.5);
+    }
+    else if (p.kind === 'boomer') { drawRot('scythe', p.t * 16, p.x, p.y, { scale: 2 }); addLight(p.x, p.y, 34, '#c29bff', 0.8); }
+    else if (p.kind === 'glob' || p.kind === 'rbit') drawSp(ART.S[p.kind], p.x, p.y);
+    else if (p.kind === 'arrow') drawRot('arrow', a, p.x, p.y);
     else if (p.kind === 'scythe') { drawRot('scythe', p.t * 14, p.x, p.y); addLight(p.x, p.y, 20, '#c29bff', 0.6); }
     else { drawSp(ART.S.ball, p.x, p.y); addLight(p.x, p.y, 18, '#ff3b5c', 0.6); }
   }
@@ -368,6 +400,29 @@ function render() {
   if (touch.active) {
     const ox = touch.ox / GFX.PX, oy = touch.oy / GFX.PX;
     gx.globalAlpha = 0.4; pCircle(gx, ox, oy, 12, '#ffffff'); pDisc(gx, ox + touch.dx * 10, oy + touch.dy * 10, 4, '#ffffff'); gx.globalAlpha = 1;
+  }
+}
+
+// ボス固有の付随表現(ゴーレムの拳・掲げた岩 / ドラゴンのブレス・ビーム・溜め)
+function drawBossFx(e, sp, yo) {
+  const sx = GFX.sctx, gx = GFX.gctx, ai = e.ai, ex = e.x - cam.x, ey = e.y - cam.y;
+  if (e.fists) for (const f of e.fists) {
+    pLine(sx, ex, ey, f.x - cam.x, f.y - cam.y, '#6a6258', 3);
+    drawSp(ART.S.fist, f.x, f.y);
+    addLight(f.x, f.y, 26, '#6ee7ff', 0.5);
+  }
+  if (e.hold) drawSp(ART.S.rock, e.x, e.y + yo - sp.h / 2 - 5);
+  if (ai.act === 'breath') for (let r = 20; r < 125; r += 26) addLight(e.x + Math.cos(ai.ba) * r, e.y + Math.sin(ai.ba) * r, r * 0.9, '#ff6a2a', 0.7);
+  if (ai.act === 'beam' && ai.bA != null) {
+    const bx = ex + Math.cos(ai.bA) * BEAM_LEN, by = ey + Math.sin(ai.bA) * BEAM_LEN, fl = Math.floor(GFX.fx.time * 30) % 2;
+    pLine(gx, ex, ey, bx, by, '#ff4a8a', 9 + fl * 2);
+    pLine(sx, ex, ey, bx, by, '#ffd0f0', 5);
+    pLine(sx, ex, ey, bx, by, '#ffffff', 3);
+    for (let r = 0; r < BEAM_LEN; r += 40) addLight(e.x + Math.cos(ai.bA) * r, e.y + Math.sin(ai.bA) * r, 60, '#ff4a8a', 0.8);
+  }
+  if (ai.chg && ai.wind > 0) {
+    gx.globalAlpha = 0.6; pCircle(gx, ex, ey, Math.round(10 + ai.wind * 20), '#ff4a8a', 2); gx.globalAlpha = 1;
+    addLight(e.x, e.y, 120 - ai.wind * 50, '#ff4a8a', 1);
   }
 }
 

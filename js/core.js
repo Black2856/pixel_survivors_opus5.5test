@@ -20,6 +20,7 @@ let state = 'title'; // title | play | levelup | chest | pause | over | victory 
 let S = null, P = null;
 let enemies = [], projs = [], eprojs = [], gems = [], drops = [], props = [];
 let parts = [], floats = [], rings = [], zones = [], slashes = [], bolts = [], warns = [], flashes = [];
+let hazards = []; // ボスが設置する床・フィールド(粘液 / 衝撃波 / スロウタイム)
 let nextId = 1;
 const cam = { x: 0, y: 0, shake: 0, sx: 0, sy: 0 };
 
@@ -51,6 +52,8 @@ const keys = {};
 const touch = { active: false, id: null, ox: 0, oy: 0, dx: 0, dy: 0 };
 addEventListener('keydown', e => {
   keys[e.code] = true;
+  // ダッシュは押した瞬間のみ受け付ける(長押し・キーリピートで連続発動させない)
+  if (e.code === 'Space' && !e.repeat && state === 'play') keys._dash = true;
   if (['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code)) e.preventDefault();
   AudioMan.unlock();
   if (typeof onKey === 'function') onKey(e);
@@ -64,7 +67,7 @@ const cvsEl = document.getElementById('game');
 cvsEl.addEventListener('touchstart', e => {
   for (const t of e.changedTouches) {
     if (t.clientX < innerWidth * 0.6 && !touch.active) { Object.assign(touch, { active: true, id: t.identifier, ox: t.clientX, oy: t.clientY, dx: 0, dy: 0 }); }
-    else keys._touchDash = true;
+    else keys._dash = true;
   }
   e.preventDefault();
 }, { passive: false });
@@ -75,6 +78,16 @@ cvsEl.addEventListener('touchmove', e => {
   e.preventDefault();
 }, { passive: false });
 cvsEl.addEventListener('touchend', e => { for (const t of e.changedTouches) if (t.identifier === touch.id) { touch.active = false; touch.dx = touch.dy = 0; } });
+
+// マウス位置(内部解像度の画面座標)。Shift 押下中はマウス方向へ攻撃する
+const mouse = { x: 0, y: 0 };
+addEventListener('pointermove', e => {
+  if (e.pointerType === 'touch') return;
+  const r = cvsEl.getBoundingClientRect();
+  mouse.x = (e.clientX - r.left) / GFX.PX; mouse.y = (e.clientY - r.top) / GFX.PX;
+});
+// 照準点(ワールド座標)。Shift を押していなければ null(従来の自動照準)
+const mouseAimPt = () => (keys.ShiftLeft || keys.ShiftRight ? { x: cam.x + mouse.x, y: cam.y + mouse.y } : null);
 
 function moveInput() {
   let x = 0, y = 0;
