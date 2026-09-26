@@ -253,8 +253,8 @@ function render() {
     sx.fillStyle = '#3a1520'; sx.fillRect(bx, by, 14, 1);
     sx.fillStyle = P.hp / P.maxhp < 0.3 ? (Math.floor(t * 8) % 2 ? '#ff3b5c' : '#ffffff') : '#ff3b5c';
     sx.fillRect(bx, by, Math.round(14 * clamp(P.hp / P.maxhp, 0, 1)), 1);
-    sx.fillStyle = P.dashCd <= 0 ? '#9ff7ff' : '#3a5a70';
-    sx.fillRect(bx, by + 1, Math.round(14 * clamp(1 - P.dashCd / DATA.player.dashCd, 0, 1)), 1);
+    sx.fillStyle = P.dashG >= P.dashCost ? '#9ff7ff' : '#3a5a70';
+    sx.fillRect(bx, by + 1, Math.round(14 * clamp(P.dashG, 0, 1)), 1);
     addLight(P.x, P.y, 105, '#ffe2b8', 0.95);
   }
 
@@ -267,6 +267,13 @@ function render() {
 
   // ---- 斬撃 ----
   for (const s of slashes) {
+    if (s.line) { // 一閃: 通過経路に走る鋭い光
+      const k = easeOutCubic(s.t / s.life), w = Math.max(1, Math.round(4 * (1 - k)));
+      pLine(gx, s.x - cam.x, s.y - cam.y, s.x1 - cam.x, s.y1 - cam.y, '#ff3b5c', w + 2);
+      pLine(sx, s.x - cam.x, s.y - cam.y, s.x1 - cam.x, s.y1 - cam.y, '#ffffff', w);
+      addLight((s.x + s.x1) / 2, (s.y + s.y1) / 2, 90, '#ff5d73', 1 - k);
+      continue;
+    }
     const k = s.t / s.life, R = s.r, span = 1.9, n = 26;
     for (let i = 0; i < n; i++) {
       const u = i / (n - 1);
@@ -290,6 +297,17 @@ function render() {
       case 'wisp': drawSp(ART.S.wisp, p.x, p.y + Math.sin(p.t * 20)); addLight(p.x, p.y, 24, '#9dffcf', 0.7); break;
       case 'fire': drawSp(ART.S.fire, p.x, p.y); addLight(p.x, p.y, 30, '#ff8a3d', 0.8); break;
       case 'axe': drawRot('axe', p.ang, p.x, p.y, { scale: p.big ? 2 : 1 }); break;
+      case 'wave': { // 村正の斬撃波(三日月)
+        const a = Math.atan2(p.vy, p.vx), fade = 1 - p.t / p.life;
+        for (let i = -7; i <= 7; i++) {
+          const u = i / 7, aa = a + u * 1.1, rr = 8 - u * u * 3;
+          const px = Math.round(p.x + Math.cos(aa) * rr - cam.x), py = Math.round(p.y + Math.sin(aa) * rr - cam.y);
+          sx.fillStyle = Math.abs(i) < 4 ? '#ffffff' : '#ff5d73'; sx.fillRect(px, py, 1, 2);
+          gx.globalAlpha = fade; gx.fillStyle = '#ff5d73'; gx.fillRect(px, py, 2, 2); gx.globalAlpha = 1;
+        }
+        addLight(p.x, p.y, 30, '#ff5d73', 0.7 * fade);
+        break;
+      }
       case 'orbShot': pDisc(sx, p.x - cam.x, p.y - cam.y, 3, '#05020a'); pCircle(gx, p.x - cam.x, p.y - cam.y, 3, '#c78bff'); addLight(p.x, p.y, 20, '#c78bff', 0.7); break;
     }
   }
@@ -339,7 +357,7 @@ function render() {
   // ---- ダメージ数値 ----
   for (const f of floats) {
     const k = f.t / f.life;
-    const pop = f.t < 0.08 ? 1.4 : 1;
+    const pop = (1 + 0.5 * (1 - easeOutCubic(f.t / 0.18))) * f.k;
     const w = f.img.width * pop, h = f.img.height * pop;
     sx.globalAlpha = k > 0.7 ? 1 - (k - 0.7) / 0.3 : 1;
     sx.drawImage(f.img, Math.round(f.x - cam.x - w / 2), Math.round(f.y - cam.y - h / 2), Math.round(w), Math.round(h));

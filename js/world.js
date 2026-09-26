@@ -16,13 +16,13 @@ function initRun() {
     time: 0, kills: 0, totalDmg: 0, dmgBy: {}, stage: 1, loop: 1, loopStart: 0,
     combo: 0, comboT: 0, bestCombo: 0, gemStreak: 0, gemStreakT: 0,
     freeze: 0, ts: 1, tsBack: 0, schedIdx: 0, spawnT: 0, spawnCfg: null,
-    eliteT: 95, goblinT: 70, propT: 2, boss: null, pendingLv: 0, lvFx: 0,
-    rerolls: 2 + metaLv('reroll'), weaponSlots: 4, passiveSlots: 4, revive: metaLv('revive') > 0,
+    eliteT: 95, goblinT: 70, propT: 2, elv: 1, elvT: 0, boss: null, pendingLv: 0, lvFx: 0,
+    rerolls: 2 + metaLv('reroll'), weaponSlots: 4 + metaLv('weapon'), passiveSlots: 4 + metaLv('passive'),
     gold: 0, deathT: 0, victoryT: 0, hudDirty: true, won: false,
   };
   P = {
     x: 0, y: 0, hp: 0, maxhp: 100, level: 1, xp: 0, xpNext: xpFor(1), weapons: {}, passives: {}, art: {},
-    ifr: 0, facing: 1, animT: 0, moving: false, dashT: 0, dashCd: 0, dashDir: [1, 0], hurtT: 0, dead: false,
+    ifr: 0, facing: 1, animT: 0, moving: false, dashT: 0, dashG: 1, dashDir: [1, 0], hurtT: 0, dead: false,
   };
   enemies = []; projs = []; eprojs = []; gems = []; drops = []; props = [];
   parts = []; floats = []; rings = []; zones = []; slashes = []; bolts = []; warns = []; flashes = [];
@@ -32,27 +32,56 @@ function initRun() {
 
 function recalc() {
   const pv = P.passives, af = P.art;
-  P.speed = DATA.player.speed * (1 + 0.08 * (pv.boots || 0)) * (1 + 0.04 * metaLv('swift')) * (af.aegis ? 0.75 : 1);
-  P.maxhp = Math.round((DATA.player.hp + 20 * (pv.heart || 0) + 10 * metaLv('vital') + (af.aegis ? 100 : 0)) * (af.glass ? 0.6 : 1));
+  P.speed = DATA.player.speed * (1 + 0.08 * (pv.boots || 0)) * (1 + 0.03 * metaLv('swift')) * (af.aegis ? 0.7 : 1);
+  P.maxhp = Math.round((DATA.player.hp + 20 * (pv.heart || 0) + 5 * metaLv('vital')) * (af.aegis ? 2 : 1));
   P.hp = Math.min(P.hp, P.maxhp);
   P.magnet = DATA.player.magnet * (1 + 0.3 * (pv.magnet || 0));
-  P.cdMul = Math.pow(0.93, pv.tome || 0) * (1 - 0.03 * metaLv('haste')) * (af.clock ? 0.8 : 1);
+  P.cdMul = Math.pow(0.93, pv.tome || 0) * (1 - 0.02 * metaLv('haste')) * (af.clock ? 0.85 : 1);
   P.regen = 0.5 * (pv.regen || 0);
-  P.area = 1 + 0.1 * (pv.area || 0);
-  P.armor = (pv.armor || 0) + (af.aegis ? 3 : 0);
-  P.amount = pv.dup || 0;
-  P.xpMul = (1 + 0.06 * metaLv('growth')) * (af.pact ? 1.5 : 1);
-  P.goldMul = (1 + 0.12 * metaLv('greed')) * (af.greed ? 2 : 1);
+  P.area = (1 + 0.1 * (pv.area || 0)) * (1 + 0.03 * metaLv('reach'));
+  P.armor = pv.armor || 0;
+  P.iframe = DATA.player.iframe * (1 + 0.1 * (pv.armor || 0));
+  P.dashMul = 1 + 0.2 * (pv.cloak || 0);
+  // ダッシュはゲージ制(満タン=1)。疾風の羽根: 消費量 -50%・回復速度 -50%
+  P.dashCost = af.gale ? 0.5 : 1;
+  P.dashRegen = (af.gale ? 0.5 : 1) / DATA.player.dashCd;
+  P.xpMul = (1 + 0.04 * metaLv('growth')) * (af.pact ? 1.5 : 1);
+  P.goldMul = (1 + 0.1 * metaLv('greed')) * (af.greed ? 1.5 : 1) * (1 + 0.5 * metaLv('chaos'));
   S.hudDirty = true;
 }
 function dmgMul() {
-  let m = 1 + 0.1 * (P.passives.power || 0) + 0.05 * metaLv('might');
+  let m = 1 + 0.1 * (P.passives.power || 0) + 0.03 * metaLv('might');
   if (P.art.frenzy) m += 1 - P.hp / P.maxhp;
-  return m * (P.art.glass ? 1.5 : 1);
+  return m;
 }
-const critRate = () => 0.05 + 0.06 * (P.passives.lens || 0);
+// 武器別の倍率(渇血の棘 / 元素の冠)。武器以外(爆弾・対消滅など)には掛けない
+const BLEED_W = ['katana', 'axe', 'blade'], ELEM_W = ['bolt', 'thunder', 'fire', 'blizzard'];
+function srcMul(src) {
+  if (!DATA.weapons[src]) return 1;
+  let m = 1;
+  if (P.art.bleed) m *= BLEED_W.includes(src) ? 1 : 0.7;
+  if (P.art.element) m *= ELEM_W.includes(src) ? 1.25 : 0.7;
+  return m;
+}
+const elemSize = k => (P.art.element && ELEM_W.includes(k) ? 1.25 : 1);
+const critRate = () => 0.05 + 0.06 * (P.passives.lens || 0) + 0.02 * metaLv('crit');
 const wst = k => { const w = P.weapons[k]; return w.evo ? DATA.weapons[k].evo.st : DATA.weapons[k].lv[w.lv - 1]; };
-const enemyMul = () => (1 + (S.loop - 1) * 0.6) * (P.art.pact ? 1.2 : 1);
+
+// ---------- 敵レベル ----------
+// 基本倍率(悪魔の契約書・混沌) × Lv成長。成長率は混沌 1Lv につき +20%
+const enemyBase = () => (P.art.pact ? 1.2 : 1);
+const lvK = (kind, lv = S.elv) => 1 + DATA.enemyLevel[kind] * (lv - 1);
+const enemyDmgK = () => enemyBase() * lvK('dmg');
+function updEnemyLevel(dt) {
+  if (S.boss) return; // ボス出現中は停止
+  S.elvT += dt * (1 + 0.2 * metaLv('chaos')); // 混沌: Lv上昇速度 +20%/Lv
+  if (S.elvT >= DATA.enemyLevel.interval) { S.elvT -= DATA.enemyLevel.interval; S.elv++; UI.enemyLvUp(); }
+}
+// 周回開始時の処理(混沌: 敵Lv +2/Lv)
+function onLoopStart() {
+  const add = 2 * metaLv('chaos');
+  if (add) { S.elv += add; UI.enemyLvUp(); }
+}
 
 function heal(n, silent) {
   const before = P.hp;
@@ -71,10 +100,11 @@ function updPlayer(dt) {
   const [mx, my] = moveInput();
   P.moving = mx !== 0 || my !== 0;
   if (P.moving) { P.dashDir = [mx, my]; if (mx) P.facing = mx > 0 ? 1 : -1; }
-  P.dashCd -= dt;
-  if ((keys.Space || keys._touchDash) && P.dashCd <= 0) {
+  P.dashG = Math.min(1, P.dashG + P.dashRegen * dt);
+  if ((keys.Space || keys._touchDash) && P.dashG >= P.dashCost && P.dashT <= 0) {
     keys._touchDash = false;
-    P.dashT = DATA.player.dashTime; P.dashCd = DATA.player.dashCd;
+    P.dashT = DATA.player.dashTime; P.dashG -= P.dashCost;
+    P.issen = P.weapons.katana && P.weapons.katana.evo ? { x: P.x, y: P.y, hits: new Set() } : null;
     AudioMan.dash(); shake(1);
     burst(P.x, P.y + 5, 10, ['#9ff7ff', '#ffffff'], { sp: 50, glow: true });
     addRing(P.x, P.y, 14, '#9ff7ff', { life: 0.25 });
@@ -83,7 +113,9 @@ function updPlayer(dt) {
   let sp = P.speed;
   let [dx, dy] = [mx, my];
   if (P.dashT > 0) {
-    P.dashT -= dt; sp = DATA.player.dashSpeed; [dx, dy] = P.dashDir;
+    P.dashT -= dt; sp = DATA.player.dashSpeed * P.dashMul; [dx, dy] = P.dashDir;
+    if (P.issen) forEachNear(P.x, P.y, 8, e => { if (!e.prop) P.issen.hits.add(e); });
+    if (P.dashT <= 0 && P.issen) issen();
     if (Math.random() < 0.9) P.after = (P.after || []).concat([{ x: P.x, y: P.y, t: 0, f: P.facing }]).slice(-6);
   }
   P.x += dx * sp * dt; P.y += dy * sp * dt;
@@ -99,7 +131,7 @@ function updPlayer(dt) {
 function hurtPlayer(dmg) {
   if (P.ifr > 0 || P.dashT > 0 || P.dead || state !== 'play') return;
   dmg = Math.max(1, Math.round(dmg - P.armor));
-  P.hp -= dmg; P.ifr = 0.5; P.hurtT = 0.12;
+  P.hp -= dmg; P.ifr = P.iframe; P.hurtT = 0.12;
   GFX.fx.hurt = 1; GFX.fx.aberr = Math.max(GFX.fx.aberr, 0.9);
   shake(4); AudioMan.hurt();
   addFloat(P.x, P.y - 10, String(dmg), '#ff4a5a', 1);
@@ -109,19 +141,6 @@ function hurtPlayer(dmg) {
 }
 
 function playerDown() {
-  if (S.revive) {
-    S.revive = false;
-    P.hp = P.maxhp * 0.5; P.ifr = 2.5;
-    screenFlash(1, '#ffd23f'); shockAt(P.x, P.y, 3, 0.7); hitstop(0.2); slowmo(0.2, 1.2); shake(14);
-    burst(P.x, P.y, 90, ['#ffd23f', '#ff8c42', '#ffffff'], { sp: 180, glow: true, life: 1.2 });
-    addRing(P.x, P.y, 140, '#ffd23f', { w: 3, life: 0.7 });
-    for (const e of enemies) if (!e.dead && d2(e.x, e.y, P.x, P.y) < 140 * 140) {
-      if (e.boss) hitEnemy(e, 300, { src: 'revive', noCrit: true }); else killEnemy(e, {});
-    }
-    UI.announce('REVIVE!!', '不死鳥の加護が発動した');
-    AudioMan.evolve();
-    return;
-  }
   P.dead = true; P.hp = 0;
   S.deathT = 1.8; slowmo(0.25, 2.5);
   screenFlash(0.8, '#ff3b5c'); shockAt(P.x, P.y, 2, 0.6); shake(12);
@@ -170,7 +189,7 @@ function updWeapons(dt) {
     const w = P.weapons[k], st = wst(k);
     w.t += dt;
     w.cd -= dt;
-    const n = (st.count || 1) + P.amount;
+    const n = (st.count || 1);
     const mir = P.art.mirror ? 0.75 : 1;
     switch (k) {
       case 'bolt':
@@ -181,7 +200,7 @@ function updWeapons(dt) {
           const base = Math.atan2(t.y - P.y, t.x - P.x);
           for (let i = 0; i < n; i++) {
             const a = base + (i - (n - 1) / 2) * 0.13;
-            const o = { dmg: st.dmg * mir, pierce: st.pierce, life: 1.5, src: k, home: w.evo, col: w.evo ? '#ff9bf5' : '#7ad7ff' };
+            const o = { dmg: st.dmg * mir, pierce: st.pierce, life: 1.5, src: k, home: w.evo, col: w.evo ? '#ff9bf5' : '#7ad7ff', r: 3 * elemSize(k) };
             fire('bolt', P.x, P.y, a, st.speed, o);
             if (P.art.mirror) fire('bolt', P.x, P.y, a + Math.PI, st.speed, Object.assign({}, o, { hit: new Set() }));
           }
@@ -209,7 +228,7 @@ function updWeapons(dt) {
       case 'thunder':
         if (w.cd <= 0) {
           w.cd = st.cd * P.cdMul;
-          const ts = randomTargets((st.strikes || 1) + P.amount);
+          const ts = randomTargets((st.strikes || 1));
           if (!ts.length) { w.cd = 0.2; break; }
           ts.forEach((t, i) => setTimeout(() => state === 'play' && strike(t.x, t.y, st, w.evo), i * 70));
         }
@@ -224,8 +243,8 @@ function updWeapons(dt) {
           let healed = 0;
           forEachNear(P.x, P.y, R, e => {
             hitEnemy(e, st.dmg, { src: k, noNum: Math.random() < 0.5, ang: Math.atan2(e.y - P.y, e.x - P.x), kb: 6 });
-            if (w.evo) e.slowT = 0.6;
-            if ((P.art.grail || w.evo) && healed < 3) { heal(P.art.grail ? 0.4 : 0.25, true); healed++; }
+            if (P.art.annihil && !e.dead) { e.holyT = 3; annihilate(e); }
+            if (w.evo && healed < 5) { heal(0.4, true); healed++; }
           });
         }
         break;
@@ -236,9 +255,8 @@ function updWeapons(dt) {
           w.cd = st.cd * P.cdMul;
           for (let i = 0; i < n; i++) {
             const dir = (i % 2 ? -1 : 1) * P.facing;
-            const o = { dmg: st.dmg * mir, pierce: 999, life: 2.4, src: k, g: 300, spin: dir * 12, r: w.evo ? 9 : 5, big: w.evo };
+            const o = { dmg: st.dmg, pierce: 999, life: 2.4, src: k, g: 300, spin: dir * 12, r: w.evo ? 9 : 5, big: w.evo };
             projs.push(Object.assign({ kind: 'axe', x: P.x, y: P.y - 4, vx: dir * rand(20, 55) + i * 8 * dir, vy: -rand(150, 185), ang: 0, t: 0, hit: new Set() }, o));
-            if (P.art.mirror) projs.push(Object.assign({ kind: 'axe', x: P.x, y: P.y - 4, vx: -dir * rand(20, 55), vy: -rand(150, 185), ang: 0, t: 0, hit: new Set() }, o));
           }
           AudioMan.slash();
         }
@@ -249,7 +267,7 @@ function updWeapons(dt) {
           w.cd = st.cd * P.cdMul;
           for (let i = 0; i < n; i++) {
             const a = rand(0, TAU);
-            fire('wisp', P.x, P.y, a, 90, { dmg: st.dmg, pierce: st.pierce, life: 3.2, src: k, homing: 5.5, speed: 110, col: '#9dffcf', soul: w.evo });
+            fire('wisp', P.x, P.y, a, 90, { dmg: st.dmg, pierce: st.pierce, life: 3.2, src: k, homing: 5.5, speed: 110, col: '#9dffcf' });
           }
         }
         break;
@@ -260,7 +278,7 @@ function updWeapons(dt) {
           const base = aimAt(160);
           for (let i = 0; i < n; i++) {
             const a = base + (i - (n - 1) / 2) * 0.22;
-            const o = { dmg: st.dmg * mir, pierce: 999, life: 0.95, src: k, burn: st.burn, r: 4, boom: w.evo ? 6 : 0, col: '#ff8a3d' };
+            const o = { dmg: st.dmg * mir, pierce: 999, life: 0.95, src: k, burn: st.burn, r: 4 * elemSize(k), boom: w.evo ? 6 : 0, col: '#ff8a3d' };
             fire('fire', P.x, P.y, a, 135, o);
             if (P.art.mirror) fire('fire', P.x, P.y, a + Math.PI, 135, Object.assign({}, o, { hit: new Set() }));
           }
@@ -271,11 +289,11 @@ function updWeapons(dt) {
       case 'blizzard':
         if (w.cd <= 0) {
           w.cd = st.cd * P.cdMul;
-          const ts = randomTargets(1 + P.amount);
-          for (let i = 0; i < 1 + P.amount; i++) {
+          const ts = randomTargets(1);
+          for (let i = 0; i < 1; i++) {
             const t = ts[i];
             const x = t ? t.x : P.x + rand(-40, 40), y = t ? t.y : P.y + rand(-40, 40);
-            zones.push({ kind: 'blizz', x, y, r: st.radius * P.area, t: 0, dur: st.dur, tick: 0, dmg: st.dmg, evo: w.evo });
+            zones.push({ kind: 'blizz', x, y, r: st.radius * P.area * elemSize(k), r0: st.radius * P.area * elemSize(k), t: 0, dur: st.dur, tick: 0, dmg: st.dmg, evo: w.evo });
           }
           AudioMan.blizz();
         }
@@ -284,8 +302,8 @@ function updWeapons(dt) {
       case 'bhole':
         if (w.cd <= 0) {
           w.cd = st.cd * P.cdMul;
-          const ts = randomTargets(1 + P.amount);
-          for (let i = 0; i < 1 + P.amount; i++) {
+          const ts = randomTargets(1);
+          for (let i = 0; i < 1; i++) {
             const t = ts[i];
             const tx = t ? t.x : P.x + P.facing * 70, ty = t ? t.y : P.y;
             const a = Math.atan2(ty - P.y, tx - P.x), dist = Math.hypot(tx - P.x, ty - P.y);
@@ -297,13 +315,12 @@ function updWeapons(dt) {
       case 'katana':
         if (w.cd <= 0) {
           w.cd = st.cd * P.cdMul;
-          const base = aimAt(st.aoe * P.area + 20);
-          for (let i = 0; i < n; i++) w.q.push({ t: i * 0.09, a: base + (i % 2 ? Math.PI : 0) + (i >> 1) * 0.5, flip: i % 2 });
+          for (let i = 0; i < n; i++) w.q.push({ t: i * 0.09, flip: i % 2 });
         }
         for (let i = w.q.length - 1; i >= 0; i--) {
           const s = w.q[i];
           s.t -= dt;
-          if (s.t <= 0) { w.q.splice(i, 1); doSlash(s.a, st, w.evo, s.flip); }
+          if (s.t <= 0) { w.q.splice(i, 1); doSlash(aimAt(st.aoe * P.area + 20), st, w.evo, s.flip); }
         }
         break;
     }
@@ -311,7 +328,7 @@ function updWeapons(dt) {
 }
 
 function strike(x, y, st, evo) {
-  const R = st.aoe * P.area;
+  const R = st.aoe * P.area * elemSize('thunder');
   const hitSet = new Set();
   forEachNear(x, y, R, e => { hitSet.add(e); hitEnemy(e, st.dmg, { src: 'thunder', ang: Math.atan2(e.y - y, e.x - x), kb: 30, col: '#fff27a' }); });
   bolts.push({ x0: x + rand(-20, 20), y0: cam.y - 10, x1: x, y1: y, t: 0, life: 0.22, w: 2 });
@@ -345,19 +362,45 @@ function spawnHole(x, y, st, evo) {
 
 function doSlash(a, st, evo, flip) {
   const R = st.aoe * P.area;
-  const dirs = evo ? [a, a + Math.PI / 2] : [a];
-  let drained = 0;
-  for (const da of dirs) {
-    slashes.push({ x: P.x, y: P.y, a: da, r: R, t: 0, life: 0.2, flip, evo });
-    forEachNear(P.x, P.y, R, e => {
-      let diff = Math.atan2(e.y - P.y, e.x - P.x) - da;
-      diff = Math.atan2(Math.sin(diff), Math.cos(diff));
-      if (Math.abs(diff) > 1.05) return;
-      hitEnemy(e, st.dmg, { src: 'katana', ang: da, kb: 55, col: '#ff8a9a' });
-      if (evo && drained < 3) { heal(0.5, true); drained++; }
-    });
-  }
+  slashes.push({ x: P.x, y: P.y, a, r: R, t: 0, life: 0.2, flip, evo });
+  forEachNear(P.x, P.y, R, e => {
+    let diff = Math.atan2(e.y - P.y, e.x - P.x) - a;
+    diff = Math.atan2(Math.sin(diff), Math.cos(diff));
+    if (Math.abs(diff) > 1.05) return;
+    hitEnemy(e, st.dmg, { src: 'katana', ang: a, kb: 55, col: '#ff8a9a' });
+  });
+  // 鬼神・村正: 斬撃の後に飛ぶ斬撃波(威力50%・貫通)
+  if (evo) setTimeout(() => { if (state === 'play') fire('wave', P.x, P.y, a, 170, { dmg: st.dmg * 0.5, pierce: 999, life: 0.55, src: 'katana', r: 9, col: '#ff5d73' }); }, 90);
   AudioMan.slash();
+}
+
+// 鬼神・村正: ダッシュで通過した敵をまとめて一閃(威力200%)
+function issen() {
+  const d = P.issen;
+  P.issen = null;
+  if (!d || !d.hits.size || !P.weapons.katana) return;
+  const st = wst('katana');
+  slashes.push({ line: true, x: d.x, y: d.y, x1: P.x, y1: P.y, t: 0, life: 0.35 });
+  setTimeout(() => {
+    if (state !== 'play') return;
+    for (const e of d.hits) if (!e.dead) {
+      hitEnemy(e, st.dmg * 2, { src: 'katana', col: '#ff3b5c' });
+      burst(e.x, e.y, 8, ['#ff3b5c', '#ffffff'], { sp: 80, glow: true, life: 0.35 });
+    }
+    hitstop(0.05); shake(4); screenFlash(0.2, '#ff5d73'); AudioMan.slash(); AudioMan.crit();
+  }, 120);
+}
+
+// 光闇の天秤: 光輝と暗黒が揃った敵で対消滅
+function annihilate(e) {
+  if (!(e.holyT > 0 && e.darkT > 0) || (e.annCd || 0) > S.time) return;
+  e.holyT = e.darkT = 0; e.annCd = S.time + 0.6;
+  const a = P.weapons.aura ? wst('aura').dmg : 0, b = P.weapons.bhole ? wst('bhole').dmg : 0;
+  const R = 24 * P.area, x = e.x, y = e.y;
+  forEachNear(x, y, R, o => hitEnemy(o, a + b, { src: 'annihil', col: '#f0e0ff', ang: Math.atan2(o.y - y, o.x - x), kb: 40 }));
+  burst(x, y, 22, ['#ffffff', '#fff3a0', '#c78bff', '#2b1b4a'], { sp: 110, glow: true, life: 0.5 });
+  addRing(x, y, R, '#fff3a0', { w: 2, life: 0.3 }); addRing(x, y, R * 0.6, '#c78bff', { life: 0.3 });
+  addFlash(x, y, 70, '#f0e0ff', 0.3); shockAt(x, y, 0.6, 1.2); AudioMan.zap();
 }
 
 // ---------- 弾 ----------
@@ -397,7 +440,6 @@ function updProjs(dt) {
         burst(bx, by, 12, ['#ff6a2a', '#ffc34a', '#fff6c8'], { sp: 70, glow: true });
         addFlash(bx, by, 40, '#ff8a3d', 0.2); addRing(bx, by, 16 * P.area, '#ffc34a', { life: 0.2 });
       }
-      if (p.soul && e.dead) heal(1, true);
       if (p.pierce-- <= 0) {
         dead = true;
         burst(p.x, p.y, 5, [p.col || '#fff', '#ffffff'], { sp: 50, glow: true, life: 0.3 });
@@ -415,6 +457,7 @@ function updZones(dt) {
     const z = zones[i];
     z.t += dt; z.tick -= dt;
     if (z.kind === 'blizz') {
+      if (z.evo) z.r = z.r0 * (1 + 0.1 * z.t);
       for (let k = 0; k < 3; k++) {
         const a = rand(0, TAU), r = rand(0, z.r);
         part(z.x + Math.cos(a) * r, z.y + Math.sin(a) * r, -Math.sin(a) * 40, Math.cos(a) * 40, 0.5, pick(['#bff4ff', '#ffffff', '#7ad7ff']), { glow: true, drag: 1 });
@@ -424,10 +467,6 @@ function updZones(dt) {
         forEachNear(z.x, z.y, z.r, e => {
           hitEnemy(e, z.dmg, { src: 'blizzard', noNum: Math.random() < 0.6, col: '#bff4ff' });
           e.frost = Math.min(10, (e.frost || 0) + 1); e.frostT = 5;
-          if (z.evo && e.frost >= 10 && !e.boss && !(e.stun > 0)) {
-            e.stun = 1.4; e.frost = 0;
-            burst(e.x, e.y, 10, ['#bff4ff', '#ffffff', '#7ad7ff'], { sp: 60, glow: true });
-          }
         });
       }
     } else if (z.kind === 'hole') {
@@ -440,7 +479,7 @@ function updZones(dt) {
       });
       if (z.tick <= 0) {
         z.tick = 0.1;
-        forEachNear(z.x, z.y, R, e => hitEnemy(e, z.dmg, { src: 'bhole', noNum: Math.random() < 0.75, col: '#c78bff' }));
+        forEachNear(z.x, z.y, R, e => { hitEnemy(e, z.dmg, { src: 'bhole', noNum: Math.random() < 0.75, col: '#c78bff' }); if (P.art.annihil && !e.dead) { e.darkT = 3; annihilate(e); } });
       }
       for (let k = 0; k < 3; k++) {
         const a = rand(0, TAU), r = R * rand(1, 1.6);
@@ -464,9 +503,15 @@ function updZones(dt) {
 function hitEnemy(e, base, o = {}) {
   if (e.dead) return 0;
   if (e.prop) { killEnemy(e, o); return 0; }
-  let dmg = base * dmgMul();
+  let dmg = base * dmgMul() * srcMul(o.src);
+  if (e.bleed > 0) dmg *= 1 + 0.02 * e.bleed;
+  if (e.frost > 0 && P.weapons.blizzard && P.weapons.blizzard.evo) dmg *= 1 + 0.01 * e.frost;
   const crit = !o.noCrit && Math.random() < critRate();
-  if (crit) dmg *= P.art.critdmg ? 3 : 2; else if (P.art.critdmg) dmg *= 0.8;
+  if (crit) dmg *= P.art.critdmg ? 2.5 : 2; else if (P.art.critdmg) dmg *= 0.8;
+  if (P.art.bleed && BLEED_W.includes(o.src)) {
+    const max = 10 * BLEED_W.filter(k => P.weapons[k]).length;
+    e.bleed = Math.min(max, (e.bleed || 0) + 1); e.bleedT = 5;
+  }
   dmg = Math.max(1, Math.round(dmg * rand(0.9, 1.1)));
   e.hp -= dmg; e.flash = 0.08;
   S.totalDmg += dmg;
@@ -476,7 +521,7 @@ function hitEnemy(e, base, o = {}) {
     e.kx += Math.cos(o.ang) * k; e.ky += Math.sin(o.ang) * k;
   }
   if (crit) {
-    addFloat(e.x, e.y - e.r - 3, dmg + '!', '#ffe14a', 2, -40);
+    addFloat(e.x, e.y - e.r - 3, dmg + '!', '#ffe14a', 1, -38);
     burst(e.x, e.y, 6, ['#ffe14a', '#ffffff'], { sp: 90, glow: true, life: 0.3 });
     AudioMan.crit();
   } else {
@@ -514,7 +559,14 @@ function killEnemy(e, o = {}) {
   dropGem(e.x, e.y, e.xp * (e.elite ? 12 : 1));
   if (Math.random() < 0.035) dropItem('coin', e.x, e.y, 1);
   if (Math.random() < 0.004) dropItem('meat', e.x, e.y);
-  if (P.art.fang && Math.random() < 0.08) heal(2);
+  if (P.art.fang && Math.random() < 0.1) heal(1);
+  // ソウルイーター: 撃破地点から魂を召喚(同時40体まで)
+  const ww = P.weapons.wisp;
+  if (ww && ww.evo && projs.filter(p => p.summon).length < 40) {
+    const st = wst('wisp');
+    fire('wisp', e.x, e.y, rand(0, TAU), 90, { dmg: st.dmg, pierce: st.pierce, life: 2.2, src: 'wisp', homing: 5.5, speed: 110, col: '#9dffcf', summon: true });
+    part(e.x, e.y, 0, -30, 0.5, '#9dffcf', { glow: true, sz: 2 });
+  }
   AudioMan.kill();
   if (DATA.enemies[e.type].split && !e.elite) for (let i = 0; i < 2; i++) spawnEnemy(DATA.enemies[e.type].split, { x: e.x + rand(-4, 4), y: e.y + rand(-4, 4) });
   if (e.elite || e.type === 'goblin') {
@@ -536,13 +588,14 @@ function spawnEnemy(type, o = {}) {
     const a = rand(0, TAU), R = Math.hypot(GFX.VW, GFX.VH) / 2 + 16;
     x = P.x + Math.cos(a) * R; y = P.y + Math.sin(a) * R;
   }
-  const hpk = (1 + S.time * 0.0014) * enemyMul() * (o.elite ? 14 : 1);
-  const spk = (1 + (S.loop - 1) * 0.15) * (P.art.clock ? 1.15 : 1) * (o.elite ? 1.1 : 1);
+  const EL = DATA.enemyLevel, base = enemyBase();
+  const hpk = base * lvK('hp') * (o.elite ? EL.elite : 1);
+  const spk = base * Math.min(EL.spdMax, lvK('spd')) * (P.art.clock ? 1.15 : 1) * (o.elite ? 1.1 : 1);
   const e = {
-    id: nextId++, type, x, y, hp: d.hp * hpk, maxhp: d.hp * hpk, spd: d.spd * spk * rand(0.9, 1.1), dmg: d.dmg * enemyMul(),
-    r: d.r * (o.elite ? 2 : 1), xp: d.xp, ai: d.ai, kbRes: o.elite ? 0.9 : d.kbRes || 0, ghost: d.ghost,
+    id: nextId++, type, x, y, hp: d.hp * hpk, maxhp: d.hp * hpk, spd: d.spd * spk * rand(0.9, 1.1), dmg: d.dmg * enemyDmgK(),
+    r: d.r * (o.elite ? 2 : 1), xp: d.xp * lvK('xp'), ai: d.ai, kbRes: o.elite ? 0.9 : d.kbRes || 0, ghost: d.ghost,
     t: rand(0, 5), seed: Math.random(), kx: 0, ky: 0, flash: 0, elite: !!o.elite, scale: o.elite ? 2 : 1,
-    frost: 0, frostT: 0, burn: 0, burnT: 0, burnTick: 0, stun: 0, slowT: 0, shotT: d.shot ? rand(1, d.shot.cd) : 0, hopT: rand(0, 1),
+    frost: 0, frostT: 0, burn: 0, burnT: 0, burnTick: 0, stun: 0, slowT: 0, bleed: 0, bleedT: 0, shotT: d.shot ? rand(1, d.shot.cd) : 0, hopT: rand(0, 1),
     life: type === 'goblin' ? 16 : 0,
   };
   enemies.push(e);
@@ -568,6 +621,8 @@ function updEnemies(dt) {
       if (Math.random() < dt * 12) part(e.x + rand(-3, 3), e.y + rand(-3, 3), 0, -20, 0.4, pick(['#ff6a2a', '#ffc34a']), { glow: true });
     }
     if (e.frostT > 0) { e.frostT -= dt; if (e.frostT <= 0) e.frost = 0; }
+    if (e.bleedT > 0) { e.bleedT -= dt; if (e.bleedT <= 0) e.bleed = 0; if (Math.random() < dt * e.bleed * 0.6) part(e.x + rand(-2, 2), e.y, 0, 15, 0.4, '#a0122a', { g: 60 }); }
+    e.holyT -= dt; e.darkT -= dt;
     e.slowT -= dt;
     // ノックバック
     e.x += e.kx * dt; e.y += e.ky * dt;
@@ -590,7 +645,7 @@ function updEnemies(dt) {
         if (e.shotT <= 0 && dd < 180) {
           const s = DATA.enemies.archer.shot;
           e.shotT = s.cd;
-          eprojs.push({ kind: 'arrow', x: e.x, y: e.y, vx: Math.cos(a) * s.spd, vy: Math.sin(a) * s.spd, dmg: s.dmg * enemyMul(), life: 4, t: 0, r: 2 });
+          eprojs.push({ kind: 'arrow', x: e.x, y: e.y, vx: Math.cos(a) * s.spd, vy: Math.sin(a) * s.spd, dmg: s.dmg * enemyDmgK(), life: 4, t: 0, r: 2 });
         }
         e.aim = e.shotT < 0.4;
       } else if (e.ai === 'flee') {
@@ -631,10 +686,10 @@ function spawnBoss(key) {
   UI.banner('⚠ WARNING ⚠', b.name);
   shake(8); screenFlash(0.3, '#ff3b5c');
   const a = rand(0, TAU), R = Math.hypot(GFX.VW, GFX.VH) / 2 + 30;
-  const hp = b.hp * (1 + S.time * 0.001) * enemyMul() * (1 + (S.loop - 1) * 0.8);
+  const hp = b.hp * enemyBase() * lvK('boss');
   const e = {
     id: nextId++, type: key, boss: key, name: b.name, x: P.x + Math.cos(a) * R, y: P.y + Math.sin(a) * R,
-    hp, maxhp: hp, spd: b.spd * (1 + (S.loop - 1) * 0.15), dmg: b.dmg * enemyMul(), r: b.r, col: b.col, xp: 0, kbRes: 1,
+    hp, maxhp: hp, spd: b.spd * Math.min(DATA.enemyLevel.spdMax, lvK('spd')), dmg: b.dmg * enemyDmgK(), r: b.r, col: b.col, xp: 0, kbRes: 1,
     t: 0, seed: 0, kx: 0, ky: 0, flash: 0, frost: 0, frostT: 0, burn: 0, burnT: 0, burnTick: 0, stun: 0, slowT: 0, scale: 1,
     ai: { ph: 'chase', pt: 0, atk: 3, sum: 7, slam: 6, ring: 3, aim: 2, tp: 5, spiral: 3.5, spN: 0, spGap: 0, spA: 0, enraged: false },
   };
@@ -644,7 +699,7 @@ function spawnBoss(key) {
 }
 
 function eball(x, y, a, spd, dmg, kind = 'ball') {
-  eprojs.push({ kind, x, y, vx: Math.cos(a) * spd, vy: Math.sin(a) * spd, dmg: dmg * enemyMul(), life: 7, t: 0, r: kind === 'scythe' ? 4 : 3 });
+  eprojs.push({ kind, x, y, vx: Math.cos(a) * spd, vy: Math.sin(a) * spd, dmg: dmg * enemyDmgK(), life: 7, t: 0, r: kind === 'scythe' ? 4 : 3 });
 }
 
 function bossAI(e, dt) {
@@ -760,7 +815,7 @@ function onBossDeath(e) {
   dropItem('chest', e.x, e.y - 14); dropItem('orb', e.x, e.y + 16);
   if (e.boss === 'reaper') {
     if (S.loop === 1 && !S.won) { S.won = true; S.victoryT = 2.4; AudioMan.stopMusic(1.5); return; }
-    S.loop++; S.schedIdx = 0; S.loopStart = S.time; setStage(1);
+    S.loop++; S.schedIdx = 0; S.loopStart = S.time; setStage(1); onLoopStart();
     UI.announce('LOOP ' + S.loop, '敵はさらに強くなる…');
     AudioMan.playMusic('field1');
     return;
@@ -987,7 +1042,7 @@ function applyArtifact(k) {
   P.art[k] = true;
   if (k === 'wslot') S.weaponSlots++;
   if (k === 'pslot') S.passiveSlots++;
-  if (k === 'aegis') P.hp += 100;
+  if (k === 'aegis') P.hp *= 2;
   recalc();
   AudioMan.artifact();
   screenFlash(0.4, DATA.artifacts[k].col); shockAt(P.x, P.y, 1.2);

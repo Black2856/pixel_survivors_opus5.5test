@@ -17,8 +17,8 @@
     <div id="xpbar"><div id="xpfill"></div><div id="lvl">LV 1</div></div>
     <div id="hud-top">
       <div id="slotbox"><div id="wslots"></div><div id="pslots"></div><div id="aslots"></div></div>
-      <div id="timebox"><div id="timer">00:00</div><div id="stage-name"></div></div>
-      <div id="counters"><div id="kills"></div><div id="gold"></div></div>
+      <div id="timebox"><div id="timer">00:00</div><div id="stage-name"></div><div id="elv"><span id="elv-n">ENEMY LV 1</span><div id="elv-bar"><div id="elv-fill"></div></div></div></div>
+      <div id="counters"><div id="dmgtotal"></div><div id="kills"></div><div id="gold"></div></div>
     </div>
     <div id="combo"><div id="combo-n">0</div><div class="combo-lbl">COMBO</div><div id="combo-bar"><div id="combo-fill"></div></div></div>
     <div id="bossbar" class="hidden">
@@ -47,7 +47,7 @@
     <h2 class="scr-title">永続強化</h2>
     <div id="shop-gold" class="gold-chip"></div>
     <div id="shop-list"></div>
-    <button id="btn-shop-back" class="btn">戻る</button>
+    <div class="menu row"><button id="btn-shop-reset" class="btn ghost">リセット(全額返金)</button><button id="btn-shop-back" class="btn">戻る</button></div>
   </div>
 
   <div id="choice-screen" class="screen hidden">
@@ -58,12 +58,15 @@
   </div>
 
   <div id="chest-screen" class="screen hidden">
-    <div class="beams"></div>
-    <img id="chest-img" alt="">
-    <div id="chest-gold"></div>
+    <div class="beams"></div><div class="beams b2"></div>
+    <canvas id="chest-fx"></canvas>
+    <div id="chest-tier"></div>
+    <div id="chest-stage"><div id="chest-aura"></div><img id="chest-img" alt=""></div>
     <div id="chest-rewards"></div>
+    <div id="chest-gold"></div>
     <div id="chest-hint" class="hint"></div>
-    <button id="chest-ok" class="btn hidden">OK</button>
+    <button id="chest-ok" class="btn big hidden">OK (SPACE)</button>
+    <div id="chest-flash"></div>
   </div>
 
   <div id="pause-screen" class="screen hidden">

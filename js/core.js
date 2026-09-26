@@ -26,11 +26,23 @@ const cam = { x: 0, y: 0, shake: 0, sx: 0, sy: 0 };
 // ---------- 永続データ(ゴールド・永続強化・記録) ----------
 const META = (() => {
   const def = { gold: 0, up: {}, best: { time: 0, kills: 0, level: 0 }, runs: 0 };
-  try { return Object.assign(def, JSON.parse(localStorage.getItem('ps55_meta') || '{}')); } catch (e) { return def; }
+  let m;
+  try { m = Object.assign(def, JSON.parse(localStorage.getItem('ps55_meta') || '{}')); } catch (e) { m = def; }
+  for (const k in m.up) if (!DATA.meta[k]) delete m.up[k]; // 廃止された項目(不死鳥など)
+  return m;
 })();
 function saveMeta() { try { localStorage.setItem('ps55_meta', JSON.stringify(META)); } catch (e) { /* 保存不可でも続行 */ } }
 const metaLv = k => META.up[k] || 0;
-function metaCost(k) { const m = DATA.meta[k]; return Math.round(m.cost * Math.pow(metaLv(k) + 1, 1.55)); }
+const metaMax = k => DATA.meta[k].costs.length;
+const metaCost = k => DATA.meta[k].costs[metaLv(k)];
+// 購入済みの永続強化をすべて返金してリセット
+function metaRefund() {
+  let back = 0;
+  for (const k in META.up) { const c = DATA.meta[k] ? DATA.meta[k].costs : []; for (let i = 0; i < META.up[k]; i++) back += c[i] || 0; }
+  META.gold += back; META.up = {};
+  saveMeta();
+  return back;
+}
 
 // ============================================================
 // 入力
@@ -91,10 +103,14 @@ function burst(x, y, n, cols, o = {}) {
     part(x, y, Math.cos(a) * s, Math.sin(a) * s - (o.up || 0), rand(0.3, o.life || 0.7), pick(cols), o);
   }
 }
-function addFloat(x, y, txt, col, scale = 1, vy = -30) {
+// k: 表示倍率(クリティカルは 1.2)
+function addFloat(x, y, txt, col, scale = 1, vy = -30, k = 1) {
   if (floats.length > 140) floats.shift();
-  floats.push({ x: x + rand(-3, 3), y, vy, t: 0, img: ART.text(txt, col, scale), life: scale > 1 ? 0.9 : 0.6 });
+  floats.push({ x: x + rand(-3, 3), y, vy, t: 0, img: ART.text(txt, col, scale), k, life: k > 1 ? 0.8 : 0.6 });
 }
+// イージング
+const easeOutCubic = t => 1 - Math.pow(1 - clamp(t, 0, 1), 3);
+const easeOutBack = t => { t = clamp(t, 0, 1); const c = 1.70158; return 1 + (c + 1) * Math.pow(t - 1, 3) + c * Math.pow(t - 1, 2); };
 function addRing(x, y, r, col, o = {}) { rings.push({ x, y, r0: o.r0 || 2, r, t: 0, life: o.life || 0.4, col, w: o.w || 1 }); }
 function addFlash(x, y, r, col, life = 0.25) { flashes.push({ x, y, r, col, t: 0, life }); }
 function shake(n) { cam.shake = Math.max(cam.shake, n); }

@@ -1,0 +1,11 @@
+﻿ID,名称,最大Lv,効果(1Lvあたり),進化対象武器
+boots,ラピッドブーツ,5,移動速度 +8%,blizzard
+power,パワークリスタル,5,攻撃力 +10%,axe
+heart,いのちの器,5,最大HP +20,katana
+magnet,マグネット,5,吸引範囲 +30%,wisp
+tome,古の魔導書,5,クールダウン -7%,bolt
+lens,幸運のクローバー,5,クリティカル率 +6%,thunder
+area,拡がりの宝珠,5,攻撃範囲 +10%,blade
+regen,再生の指輪,5,毎秒HP +0.5 回復,fire
+armor,鉄の守り,5,被ダメージ -1、無敵時間 +10%,aura
+cloak,疾風のマント,5,ダッシュ距離 +20%,bhole

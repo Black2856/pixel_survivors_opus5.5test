@@ -128,6 +128,12 @@ const AudioMan = (() => {
     select()  { if (!this._ok()) return; this.tone(660, 1320, 0.1, { vol: 0.08 }); this.tone(990, 1980, 0.14, { vol: 0.06, delay: 0.06 }); },
     heal()    { if (!this._ok('heal', 0.1)) return; [523, 784, 1047].forEach((f, i) => this.tone(f, f, 0.12, { vol: 0.06, delay: i * 0.05, type: 'sine' })); },
     artifact(){ if (!this._ok()) return; [330, 415, 494, 659, 831, 988].forEach((f, i) => this.tone(f, f, 0.35, { vol: 0.07, delay: i * 0.08, type: 'triangle' })); },
+    // 宝箱演出用
+    drumroll(dur) { if (!this._ok()) return; const n = Math.floor(dur / 0.045); for (let i = 0; i < n; i++) this.noise(0.04, { vol: 0.05 + 0.12 * i / n, f0: 900 + 3000 * i / n, f1: 300, delay: i * 0.045 }); this.tone(120, 900, dur, { vol: 0.07, type: 'sawtooth' }); },
+    tick(i)   { if (this._ok('tick', 0.02)) this.tone(600 + i * 60, 600 + i * 60, 0.03, { vol: 0.05, type: 'square' }); },
+    land(r)   { if (!this._ok()) return; const b = [523, 659, 784, 1047][r] || 523; [1, 1.25, 1.5, 2].forEach((m, i) => this.tone(b * m, b * m, 0.18, { vol: 0.08, delay: i * 0.04, type: 'triangle' })); this.noise(0.25, { vol: 0.1, f0: 9000, f1: 3000, ftype: 'highpass' }); },
+    burstOpen(){ if (!this._ok()) return; this.noise(0.9, { vol: 0.35, f0: 6000, f1: 80 }); this.tone(80, 30, 0.7, { vol: 0.2, type: 'sine' }); [784, 988, 1175, 1568, 1976, 2349].forEach((f, i) => this.tone(f, f, 0.5, { vol: 0.06, delay: 0.1 + i * 0.05, type: 'triangle' })); },
+    coinRain(n) { if (!this._ok()) return; for (let i = 0; i < n; i++) this.tone(1800 + Math.random() * 900, 2400 + Math.random() * 900, 0.05, { vol: 0.03, delay: i * 0.05 + Math.random() * 0.03, type: 'square' }); },
     death()   { if (!this._ok()) return; [440, 349, 262, 196, 131].forEach((f, i) => this.tone(f, f * 0.97, 0.3, { vol: 0.1, delay: i * 0.16, type: 'square' })); },
   };
   return A;
