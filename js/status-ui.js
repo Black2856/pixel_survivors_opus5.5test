@@ -1,5 +1,6 @@
 // status-ui.js — ステータス画面(設計書 8.1)
 // ラン中: Tab / ポーズ画面から開く(開いている間は一時停止)。ラン外: クラス画面・装備画面にパネルとして常に表示
+// ラン外の値は、装備オプションが最大Lv まで育ったときのもの(開始時の Lv0 は表示しない)
 // 4タブ: ステータス(最終値と出どころごとの内訳)/ スキル(実際の CD と威力)/ 装備(オプションの Lv と値)/ ビルド(ラン中のみ)
 'use strict';
 
@@ -26,8 +27,8 @@ const StatusUI = (() => {
   // ラン中なら P から、ラン外なら META から、スキル計算に使う値を集める
   function ctx(run, cls = META.cls) {
     if (run) return { run, cls: P.cls, mainW: P.mainW, st: P.stats, wm: P.wm[P.mainW] || {}, lvFx: P.lvFx, cuV, hasSp, wlv: P.weapons[P.mainW], atkMul: dmgMul(), cdMul: P.cdMul, atkSpd: P.atkSpd };
-    const st = computeStats({ cls }), mainW = META.classes[cls].weapon;
-    return { run, cls, mainW, st, stMax: computeStats({ cls, eq: 'max' }), wm: weaponMastery(mainW), lvFx: classLvFx(cls), cuV: (c, p, d = 0) => d, hasSp: () => false,
+    const st = computeStats({ cls, eq: 'max' }), mainW = META.classes[cls].weapon;
+    return { run, cls, mainW, st, wm: weaponMastery(mainW), lvFx: classLvFx(cls), cuV: (c, p, d = 0) => d, hasSp: () => false,
       wlv: { lv: 1, evo: false }, atkMul: (1 + st.v.atk) * st.mul.atk, cdMul: (1 - st.v.cd) * st.mul.cd, atkSpd: 1 };
   }
 
@@ -39,24 +40,21 @@ const StatusUI = (() => {
     return h + '</div>';
   }
   function statTab(c) {
-    let h = c.run ? '' : '<div class="sv-row sv-cols"><span></span><em>開始時</em><em>装備最大時</em></div>';
+    let h = c.run ? '' : '<div class="sv-note">装備は最大Lv まで育ったときの値</div>';
     for (const g in GROUPS) {
-      const ks = Object.keys(DATA.stats).filter(k => DATA.stats[k].group === g && (g !== 'special' || c.st.v[k] || (c.stMax && c.stMax.v[k])));
+      const ks = Object.keys(DATA.stats).filter(k => DATA.stats[k].group === g && (g !== 'special' || c.st.v[k]));
       if (!ks.length) continue;
       h += `<div class="sv-g">${GROUPS[g]}</div>`;
       for (const k of ks) {
         const a = eff(c.st, k);
-        h += `<div class="sv-row" data-k="${k}"><span>${DATA.stats[k].label}</span><b class="${a ? '' : 'z'}">${fmt(k, a)}</b>${c.stMax ? `<b class="mx">${fmt(k, eff(c.stMax, k))}</b>` : ''}</div>`;
+        h += `<div class="sv-row" data-k="${k}"><span>${DATA.stats[k].label}</span><b class="${a ? '' : 'z'}">${fmt(k, a)}</b></div>`;
       }
     }
     return h;
   }
-  // 内訳: 出どころごとの値(ラン外の装備は「開始時 0 / 最大時」)
+  // 内訳: 出どころごとの値
   function breakdown(c, k) {
-    const rows = STAT_SRC.filter(s => c.st.by[k][s] || (c.stMax && c.stMax.by[k][s])).map(s => {
-      const a = c.st.by[k][s] || 0;
-      return `<div class="sv-row"><span>${STAT_SRC_LABEL[s]}</span><b>${fmt(k, a)}</b>${c.stMax ? `<b class="mx">${fmt(k, c.stMax.by[k][s] || 0)}</b>` : ''}</div>`;
-    });
+    const rows = STAT_SRC.filter(s => c.st.by[k][s]).map(s => `<div class="sv-row"><span>${STAT_SRC_LABEL[s]}</span><b>${fmt(k, c.st.by[k][s])}</b></div>`);
     if ((c.st.mul[k] || 1) !== 1) rows.push(`<div class="sv-row"><span>固有効果の倍率</span><b>×${num(c.st.mul[k])}</b></div>`);
     return `<div class="sv-g">${DATA.stats[k].label} の内訳</div>` + (rows.join('') || '<div class="dim">なし</div>');
   }
@@ -81,9 +79,10 @@ const StatusUI = (() => {
       if (!it) { h += '<div class="dim sv-note">なし</div>'; continue; }
       h += `<div class="sv-it" style="color:${DATA.equip.rarity[it.rarity].col}">${itemName(it)}${it.enh ? ' +' + it.enh : ''}</div>`;
       it.opts.forEach((o, i) => {
-        const lv = c.run && S.eqLv[slot] ? S.eqLv[slot][i] : 0, red = DATA.stats[o.k].kind === 'red';
-        const val = n => (red ? 1 - Math.pow(1 - o.v, n) : o.v * n);
-        h += `<div class="sv-row sv-op"><span>${DATA.stats[o.k].label}</span><em>Lv ${lv} / ${o.max}</em><b>${fmt(o.k, val(lv))}</b><b class="mx">${fmt(o.k, val(o.max))}</b></div>`;
+        const red = DATA.stats[o.k].kind === 'red', val = n => (red ? 1 - Math.pow(1 - o.v, n) : o.v * n);
+        // ラン中は「現在Lv の値 / 最大時」、ラン外は最大時だけ
+        if (c.run) { const lv = S.eqLv[slot] ? S.eqLv[slot][i] : 0; h += `<div class="sv-row sv-op"><span>${DATA.stats[o.k].label}</span><em>Lv ${lv} / ${o.max}</em><b>${fmt(o.k, val(lv))}</b><b class="mx">${fmt(o.k, val(o.max))}</b></div>`; }
+        else h += `<div class="sv-row sv-op1"><span>${DATA.stats[o.k].label}</span><em>最大Lv ${o.max}</em><b>${fmt(o.k, val(o.max))}</b></div>`;
       });
       if (it.uq) h += `<div class="sv-uq">★ ${DATA.uniques[it.uq].desc}</div>`;
     }
