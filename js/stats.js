@@ -36,7 +36,7 @@ const TREE = (() => {
   dirKeys.forEach((dk, di) => {
     const D = T.dirs[dk], secW = Math.PI * 2 / dirKeys.length, c0 = -Math.PI / 2 + di * secW;
     const root = mk(D.root, dk, 1, c0);
-    const bw = secW * 0.9 / D.branches.length, tips = []; // 方向の間に少し隙間を空ける
+    const bw = secW * 0.9 / D.branches.length; // 方向の間に少し隙間を空ける
     D.branches.forEach((B, bi) => {
       // 列: 行き止まり / 本線 / 行き止まり / 本線 / 行き止まり(本線 L 本なら 2L+1 列)
       const bc = c0 - secW * 0.45 + bw * (bi + 0.5), L = B.lanes || 1, cols = 2 * L + 1;
@@ -76,10 +76,9 @@ const TREE = (() => {
       if (B.tip) {
         const depth = Math.max(...lanes.map(ln => ln.length)) + 2, tip = mk(B.tip, dk, depth, bc, { big: true });
         for (const ln of lanes) link(ln[ln.length - 1], tip);
-        tips.push(tip);
+        if (B.crown) link(tip, mk(B.crown, dk, depth + 1, bc, { big: true }));
       }
     });
-    if (D.crown) { const cr = mk(D.crown, dk, Math.max(...tips.map(t => t.depth)) + 1, c0, { big: true }); for (const t of tips) link(t, cr); }
   });
   return nodes;
 })();

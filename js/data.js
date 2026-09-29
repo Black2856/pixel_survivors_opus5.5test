@@ -254,7 +254,7 @@ const DATA = {
     classXp:   { label: 'クラス経験値',         kind: 'pct',  group: 'balance' },
     reroll:    { label: 'リロール回数',         kind: 'flat', group: 'balance' },
     classPick: { label: 'クラス強化選択枠',     kind: 'flat', group: 'balance' },
-    gearPick:  { label: '武具選択肢',           kind: 'flat', group: 'balance' }, // 武器カード・装備カードの枚数 +1
+    gearPick:  { label: '武具強化選択枠',       kind: 'flat', group: 'balance' }, // 武器カード・装備カードの枚数 +1
     shots:     { label: '弾数',                 kind: 'flat', group: 'special' },
     eqMaxLv:   { label: '装備最大Lv',           kind: 'flat', group: 'special' },
     eqMaxVal:  { label: '装備最大値',           kind: 'pct',  group: 'special' },
@@ -389,7 +389,7 @@ const DATA = {
     // 形(設計書 6.2): 方向ごとに 根(深さ1)→ 3本の枝
     // 枝 = 本線(chain)を lanes 本の一本道に並べる(深さ2 から外へ。横のつながりはない)
     //      + 行き止まり(leaf): 本線から横に1つだけ生えるノード。貴重なステータスはここに置く(つながりが1本だけ)
-    // tip: 本線の先端の1つ外側の特別なノード / crown: 方向の枝の tip すべてに隣接する最奥のノード
+    // tip: 本線の先端の1つ外側の特別なノード / crown: tip のさらに1つ外側のノード(その枝の tip とだけつながる)
     // mid: { stat: [深さ...] } 本線の間(枝の真ん中)に置く特別なノード。同じ深さの本線ノードとつながる
     dirs: {
       life: { name: '生命', col: '#ff5d73', root: 'hp', branches: [
@@ -402,9 +402,9 @@ const DATA = {
         { name: '精妙', lanes: 1, chain: { crit: 5 }, leaf: { cd: 4 }, tip: 'wslot' },
         { name: '広域', lanes: 2, chain: { area: 5, range: 5 }, leaf: { spd: 5 } },
       ] },
-      balance: { name: '天秤', col: '#7ad7ff', root: 'magnet', crown: 'classPick', branches: [
+      balance: { name: '天秤', col: '#7ad7ff', root: 'magnet', branches: [
         { name: '成長', lanes: 1, chain: { xp: 4 }, leaf: { xp: 1, classXp: 5 }, tip: 'gearPick' },
-        { name: '財宝', lanes: 2, chain: { gold: 8 }, leaf: { eqQual: 5 }, mid: { reroll: [2, 4] }, tip: 'reroll' }, // リロール: 序盤・中盤・最奥
+        { name: '財宝', lanes: 2, chain: { gold: 8 }, leaf: { eqQual: 5 }, mid: { reroll: [2, 4] }, tip: 'reroll', crown: 'classPick' }, // リロール: 序盤・中盤・最奥 → クラス強化選択枠
         { name: '探索', lanes: 2, chain: { magnet: 7 }, leaf: { chestQual: 5 } },
       ] },
     },
