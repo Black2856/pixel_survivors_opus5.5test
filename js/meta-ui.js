@@ -34,7 +34,7 @@ const MetaUI = (() => {
     $('eq-count').textContent = `${META.inventory.length} / ${DATA.equip.invMax}`;
     for (const b of $('eq-tabs').children) b.classList.toggle('on', b.dataset.f === filter);
     $('eq-list').innerHTML = list.length ? list.map(it => `<button class="eq-item ${sel === it ? 'sel' : ''}" data-id="${it.id}" style="--rc:${rcol(it)}" title="${itemName(it)}">
-        ${icon(it)}${it.lock ? '<span class="lk">🔒</span>' : ''}${isEquipped(it) ? '<span class="eqd">E</span>' : ''}${it.enh ? `<span class="en">+${it.enh}</span>` : ''}</button>`).join('')
+        ${icon(it)}${it.lock ? '<span class="lk">🔒</span>' : ''}${isEquipped(it) ? '<span class="eqd">E</span>' : ''}${it.enh ? `<span class="en">+${it.enh}</span>` : ''}${it.isNew ? '<span class="nw">NEW</span>' : ''}</button>`).join('')
       : '<div class="dim eq-empty">装備がありません。ボスを倒すと装備宝箱を落とします</div>';
     detail();
     const unlocked = META.inventory.filter(it => !it.lock && !isEquipped(it));
@@ -78,7 +78,12 @@ const MetaUI = (() => {
   $('btn-equip').onclick = () => { AudioMan.click(); open(); };
   $('eq-back').onclick = () => { AudioMan.click(); close(); };
   $('eq-tabs').onclick = e => { const b = e.target.closest('button'); if (!b) return; filter = b.dataset.f; AudioMan.click(); render(); };
-  const pickItem = e => { const b = e.target.closest('[data-id]'); if (!b || !b.dataset.id) return; sel = itemById(+b.dataset.id); AudioMan.click(); render(); };
+  const pickItem = e => {
+    const b = e.target.closest('[data-id]'); if (!b || !b.dataset.id) return;
+    sel = itemById(+b.dataset.id);
+    if (sel.isNew) { sel.isNew = false; saveMeta(); } // 見たら NEW を消す
+    AudioMan.click(); render();
+  };
   $('eq-list').onclick = pickItem;
   $('eq-slots').onclick = pickItem;
   $('eq-detail').onclick = e => { const b = e.target.closest('[data-act]'); if (b && !b.disabled) act(b.dataset.act); };

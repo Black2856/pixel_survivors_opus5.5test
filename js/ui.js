@@ -567,6 +567,8 @@ const UI = (() => {
     only('title-screen');
     hide($('hud'));
     $('title-gold').textContent = '● ' + META.gold.toLocaleString() + ' G';
+    const nNew = META.inventory.filter(it => it.isNew).length;
+    $('btn-equip').innerHTML = '装備' + (nNew ? ` <span class="nw-badge">NEW ${nNew}</span>` : '');
     const b = META.best, arena = b.arenaTime ? `ARENA ${fmtTime(b.arenaTime)}` : b.arenaRound ? `ARENA ROUND ${b.arenaRound}/${DATA.arena.order.length}` : '';
     $('title-best').innerHTML = [b.time ? `BEST ${fmtTime(b.time)} · ${b.kills} KILLS · LV ${b.level}` : '', arena].filter(Boolean).join('<br>');
     if (metaMigratedGold) { announce('+' + metaMigratedGold.toLocaleString() + ' G 返金', '永続強化は新しいツリーに移行しました'); metaMigratedGold = 0; }

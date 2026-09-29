@@ -26,7 +26,7 @@ function genItem(o = {}) {
   const types = Object.keys(DATA.equip.types).filter(t => !o.slot || DATA.equip.types[t].slot === o.slot);
   const type = o.type || pick(types), rarity = o.rarity || rollRarity(st.eqQual || 0);
   const keys = shuffle(Object.keys(DATA.equip.types[type].opts)).slice(0, DATA.equip.rarity[rarity].n);
-  const it = { id: META.nextItemId++, type, rarity, opts: keys.map(k => rollOpt(type, k, st)), uq: null, enh: 0, spent: 0, lock: false };
+  const it = { id: META.nextItemId++, type, rarity, opts: keys.map(k => rollOpt(type, k, st)), uq: null, enh: 0, spent: 0, lock: false, isNew: true }; // isNew: 装備画面で見るまで NEW
   if (rarity === 'legendary') {
     const slot = DATA.equip.types[type].slot;
     it.uq = pick(Object.keys(DATA.uniques).filter(u => DATA.uniques[u].slot === slot));
@@ -145,5 +145,5 @@ function gainClassXp() {
 function optText(o) {
   const d = DATA.stats[o.k], pct = d.kind !== 'flat';
   const val = pct ? (o.v * 100).toFixed(1) + '%' : String(o.v);
-  return `${d.label} ${d.kind === 'red' ? '-' : '+'}${val}${d.unit || ''}/Lv`;
+  return `${d.label} ${d.kind === 'red' ? '-' : '+'}${val}${d.unit || ''} /Lv`;
 }
