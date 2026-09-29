@@ -31,7 +31,7 @@ function initRun(mode = 'normal', stageNo = 1) {
   P = {
     cls: META.cls, mainW: META.classes[META.cls].weapon, micro: {}, lvFx: classLvFx(META.cls), wm: {}, x: 0, y: 0, hp: 0, maxhp: 100, level: 1, xp: 0, xpNext: xpFor(1), weapons: {},
     ifr: 0, facing: 1, animT: 0, moving: false, hurtT: 0, dead: false,
-    slowT: 0, cdSlowT: 0, burnT: 0, burnDmg: 0, burnTick: 0, shield: 0,
+    slowT: 0, cdSlowT: 0, burnT: 0, burnDmg: 0, burnTick: 0, shield: 0, oShield: 0, oChunks: [],
   };
   enemies = []; projs = []; eprojs = []; gems = []; drops = []; props = []; hazards = [];
   parts = []; floats = []; rings = []; zones = []; slashes = []; bolts = []; warns = []; flashes = [];
@@ -93,6 +93,7 @@ function updEnemyLevel(dt) {
 function heal(n, silent) {
   if (P.uq.mercy) n *= 1.25;
   const before = P.hp;
+  overheal(P.hp + n - P.maxhp);
   P.hp = Math.min(P.maxhp, P.hp + n);
   if (!silent && P.hp - before >= 1) {
     addFloat(P.x, P.y - 12, '+' + Math.round(P.hp - before), '#5dff8a');
@@ -118,7 +119,8 @@ function updPlayer(dt) {
   P.animT += dt * (P.moving ? 1 : 0.35);
   P.ifr -= dt; P.hurtT -= dt;
   updDebuffs(dt);
-  if (P.regen > 0 && P.hp < P.maxhp) P.hp = Math.min(P.maxhp, P.hp + P.regen * dt);
+  if (P.regen > 0) { overheal(P.hp + P.regen * dt - P.maxhp); P.hp = Math.min(P.maxhp, P.hp + P.regen * dt); } // 満タンで余った分は超過回復
+  updOverShield(dt); // 聖盾のシールドは得た分ごとに時間で消える
   if (P.moving && Math.random() < dt * 10) part(P.x + rand(-2, 2), P.y + 6, rand(-6, 6), rand(-8, -2), 0.35, '#8a8098', { drag: 4 });
   GFX.fx.lowhp = lerp(GFX.fx.lowhp, P.hp / P.maxhp < 0.3 ? 1 : 0, dt * 3);
 }
@@ -147,18 +149,40 @@ function breakCombo() {
   S.combo = 0; S.comboT = 0;
 }
 
+// シールド: P.shield(魔力障壁など。時間では消えない)+ P.oShield(聖盾の。得た分ごとに10秒で消える)。合計は最大HP まで
+// P.oChunks = [{ v, t }](古い順)。自然回復のように少しずつ得る分は、1秒以内なら同じかたまりにまとめる
+const shieldTotal = () => (P.shield || 0) + (P.oShield || 0);
+function overheal(n) {
+  if (!P.uq.aegis || n <= 0) return;
+  const v = Math.min(n * 0.2, P.maxhp - shieldTotal()), last = P.oChunks[P.oChunks.length - 1];
+  if (v <= 0) return;
+  if (last && last.t > 9) last.v += v; else P.oChunks.push({ v, t: 10 });
+  P.oShield += v; S.hudDirty = true;
+}
+function updOverShield(dt) {
+  if (!P.oChunks.length) return;
+  for (const c of P.oChunks) c.t -= dt;
+  while (P.oChunks.length && P.oChunks[0].t <= 0) { P.oShield = Math.max(0, P.oShield - P.oChunks[0].v); P.oChunks.shift(); S.hudDirty = true; }
+}
+// 聖盾のシールドを a だけ削る(古いかたまりから)
+function takeOverShield(a) {
+  P.oShield = Math.max(0, P.oShield - a);
+  while (a > 0 && P.oChunks.length) { const c = P.oChunks[0], k = Math.min(c.v, a); c.v -= k; a -= k; if (c.v <= 1e-9) P.oChunks.shift(); }
+}
 function hurtPlayer(dmg) {
   if (P.ifr > 0 || P.invT > 0 || P.dead || state !== 'play') return;
   const r = clsOnHurt(dmg); // ガードなどでクラスが受けきった場合は null
   if (r === null) { S.hudDirty = true; return; }
   dmg = Math.max(1, Math.round((r - P.armor) * (1 - P.dr)));
   // シールドが先に受ける
-  if (P.shield > 0) {
-    const a = Math.min(Math.ceil(P.shield), dmg); // 整数で受ける
-    P.shield = Math.max(0, P.shield - a); dmg -= a; S.hudDirty = true;
+  const a = Math.min(Math.floor(shieldTotal()), dmg); // 整数で受ける。先に消える聖盾から
+  if (a > 0) {
+    const fromO = Math.min(P.oShield || 0, a);
+    takeOverShield(fromO); P.shield = Math.max(0, P.shield - (a - fromO));
+    dmg -= a; S.hudDirty = true;
     addFloat(P.x, P.y - 10, String(a), '#7ab8ff', 1);
     burst(P.x, P.y, 8, ['#9fd8ff', '#4f8ff0', '#ffffff'], { sp: 60, glow: true, life: 0.3 });
-    if (P.shield <= 0) { addRing(P.x, P.y, 20, '#4f8ff0', { w: 2, life: 0.3 }); AudioMan.hit(); } // 割れた
+    if (shieldTotal() < 1) { P.shield = P.oShield = 0; P.oChunks = []; addRing(P.x, P.y, 20, '#4f8ff0', { w: 2, life: 0.3 }); AudioMan.hit(); } // 割れた
     if (dmg <= 0) { P.ifr = P.iframe; AudioMan.hit(); return; }
   }
   P.hp -= dmg; P.ifr = P.iframe; P.hurtT = 0.12;

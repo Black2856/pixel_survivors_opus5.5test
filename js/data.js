@@ -470,6 +470,7 @@ const DATA = {
     mercy:     { slot: 'armor',  epi: '慈愛の',   desc: '被回復量 +25%' },
     phoenix:   { slot: 'armor',  epi: '不死鳥の', desc: '一度だけ、倒れたときに最大HP の 25% で蘇生する' },
     adversity: { slot: 'armor',  epi: '逆境の',   desc: '受けたダメージ分のスタミナを回復する' },
+    aegis:     { slot: 'armor',  epi: '聖盾の',   desc: '最大HP を超えた回復量の 20% をシールドにする(10秒持続)' },
     clock:     { slot: 'ring',   epi: '狂時の',   desc: 'クールダウン -15%。敵の出現数と速度 +15%', stat: { cd: 0.15 } },
     pact:      { slot: 'ring',   epi: '背徳の',   desc: '獲得経験値 +25%。敵の基礎ステータス +10%', stat: { xp: 0.25 } },
     golden:    { slot: 'ring',   epi: '黄金の',   desc: '獲得ゴールド ×1.25', mul: { gold: 1.25 } },

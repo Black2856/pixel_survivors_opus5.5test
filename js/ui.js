@@ -168,7 +168,8 @@ const UI = (() => {
     if (P.slowT > 0 && P.cdSlowT <= 0) out.push({ id: 'slow', glyph: '鈍', name: '鈍足', fx: `移動速度 -${Math.round((1 - d.slow) * 100)}%`, t: P.slowT, kind: 'debuff' });
     if (P.cdSlowT > 0) out.push({ id: 'cdslow', glyph: '遅', name: 'スロウタイム', fx: `移動 -${Math.round((1 - d.slow) * 100)}% CD回復 -${Math.round((1 - d.cdRate) * 100)}%`, t: P.cdSlowT, kind: 'debuff' });
     if (P.burnT > 0) out.push({ id: 'burn', glyph: '炎', name: '炎上', fx: `毎${d.burnTick}秒 ${Math.round(P.burnDmg)} ダメージ`, t: P.burnT, max: d.burnDur, kind: 'debuff' });
-    if (P.shield > 0) out.push({ id: 'shield', glyph: '盾', name: 'シールド', fx: `${Math.ceil(P.shield)} のダメージを先に受ける`, kind: 'buff' });
+    if (P.shield >= 1) out.push({ id: 'shield', glyph: '盾', name: 'シールド', fx: `${Math.floor(P.shield)} のダメージを先に受ける`, kind: 'buff' });
+    if (P.oShield >= 1) out.push({ id: 'oshield', glyph: '聖', name: '聖盾', fx: `${Math.floor(P.oShield)} のダメージを先に受ける(超過回復から。得た分ごとに10秒で消える)`, t: P.oChunks[0].t, max: 10, kind: 'buff' });
     if (P.uq.phoenix && !P.revived) out.push({ id: 'phoenix', glyph: '鳳', name: '不死鳥の加護', fx: '一度だけ蘇生', kind: 'buff' });
     return out;
   }
@@ -224,7 +225,7 @@ const UI = (() => {
     const hpC = healT > 0 ? ['#c8ffd8', '#5dff8a', '#2a9a52'] : low && Math.floor(pt * 6) % 2 ? ['#ffc0b8', '#ff5a4a', '#b0302a'] : ['#ff8a78', '#d8473b', '#9a2a24'];
     // シールド: HP ゲージの左から重ねる青いゲージ(上が濃く下が薄い)。走査線と流れる格子のテクノロジー風の光
     // 下の行ほど透明にして、下の HP が透けて見えるようにする
-    const sh = clamp((P.shield || 0) / P.maxhp, 0, 1), SHC = ['#1c3fb8', '#2f63e0', '#3f7ff0', '#5a9cff', '#7ab8ff'], SHA = [0.95, 0.8, 0.62, 0.45, 0.3];
+    const sh = clamp(shieldTotal() / P.maxhp, 0, 1), SHC = ['#1c3fb8', '#2f63e0', '#3f7ff0', '#5a9cff', '#7ab8ff'], SHA = [0.95, 0.8, 0.62, 0.45, 0.3];
     const scanX = (pt * 50) % (170 + 40) - 20; // 左から右へ流れる走査線の中心
     bar(32, 170, 15, 5, 12, (i, r, L) => i < k * L ? (r === 0 ? hpC[0] : r === 4 ? hpC[2] : hpC[1]) : i < hpLag * L ? '#e8e4f0' : null,
       (i, r, L) => {
@@ -245,7 +246,7 @@ const UI = (() => {
       return r === 0 ? '#c8fff0' : '#4fc8a0';
     });
     // 数値: 数字の下端をゲージの色の一番下の行に揃える(4×7 ドットで、上に少しはみ出す)
-    gaugeNum(Math.ceil(Math.max(0, P.hp)), P.maxhp, 166, 21, Math.ceil(P.shield || 0));
+    gaugeNum(Math.ceil(Math.max(0, P.hp)), P.maxhp, 166, 21, Math.floor(shieldTotal()));
     gaugeNum(Math.floor(P.sta), Math.round(P.maxSta), 156, 31);
 
     // 円環: 銀の帯 + 回り続ける光 + 内側にクラスリソースのゲージ
