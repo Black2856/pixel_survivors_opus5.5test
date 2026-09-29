@@ -44,15 +44,11 @@ for (const k in D.weapons) {
   for (const [st, s] of stages) {
     const dps = refDps(k, s);
     wRows.push([k, st === 'EVO' ? w.evo.name : w.name, st, ...statKeys.map(sk => s[sk]), dps === '' ? '' : r2(dps),
-      st === 'EVO' ? w.evo.need : '', st === 'EVO' ? w.evo.desc : w.desc]);
+      st === 'EVO' ? w.evo.desc : w.desc]);
   }
 }
-write('weapons.csv', ['ID', '名称', '段階', ...statKeys.map(k => D.statLabels[k]), '参考DPS', '進化素材', '説明'], wRows);
+write('weapons.csv', ['ID', '名称', '段階', ...statKeys.map(k => D.statLabels[k]), '参考DPS', '説明'], wRows);
 
-// ---------- パッシブ / アーティファクト / 永続強化 ----------
-write('passives.csv', ['ID', '名称', '最大Lv', '効果(1Lvあたり)', '進化対象武器'],
-  Object.entries(D.passives).map(([k, p]) => [k, p.name, p.max, p.desc, Object.keys(D.weapons).filter(w => D.weapons[w].evo.need === k).join(' ')]));
-write('artifacts.csv', ['ID', '名称', '効果'], Object.entries(D.artifacts).map(([k, a]) => [k, a.name, a.desc]));
 
 // ---------- 敵(Lv別) ----------
 // 敵Lvは interval 秒ごとに +1(ボス出現中は停止)。目安時刻はボス停止時間を含まない
