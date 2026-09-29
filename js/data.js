@@ -299,7 +299,7 @@ const DATA = {
       },
       // 居合・朧月(Q): 構え windup 秒 → dist 先へ突進(幅 width、無敵)→ 通過した敵を斬る。硬直 recover 秒
       // ダメージ = 基礎威力 pow + 消費した剣気 × kiPow(武器に依存しない)
-      q: { name: '居合・朧月', cd: 30, windup: 0.25, dash: 0.1, recover: 0.2, dist: 90, width: 12, pow: 150, kiPow: 5 },
+      q: { name: '居合・朧月', cd: 30, windup: 0.25, dash: 0.1, recover: 0.2, dist: 90, width: 12, pow: 150, kiPow: 3 },
       // ラン中の強化ツリー(3の倍数のLv で選ぶ)。カテゴリ → 強化パス(Lv1〜3、v が各Lvの値)→ 特殊強化(sp)
       // need: そのスキルが実装済みの場合だけ候補に出す(CLASS_RT の skills に含まれるもの)
       // 特殊強化は各パスが Lv3 で候補に出る。1カテゴリにつき1つだけ取れる
