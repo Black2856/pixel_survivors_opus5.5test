@@ -94,17 +94,19 @@ const UI = (() => {
   // 枠付きのバー(x0〜x1 が本体)。fill(i, row) で中身の色を返す(null なら背景)
   // 右端: 枠の上下が 45 度で閉じて尖る → 少し離してひし形の飾り → 縁取り付きの細い穂先
   // 行数(ih + 4)は奇数にする(先端が1ドットで上下対称になる)
+  // ゲージの長さ L は、本体に先端の内側(枠が閉じていく部分)を足した列数。fill(i, r, L) で i < 割合 × L を塗る
   function bar(x0, x1, top, ih, spear, fill) {
     const rows = ih + 4, bot = top + rows - 1, mid = top + (rows - 1) / 2, hr = (rows - 1) / 2;
+    const L = (x1 - x0 + 1) + (ih - 1) / 2;
     for (let x = x0 - 1; x <= x1; x++) {
       px(x, top, PC.out); px(x, bot, PC.out);
       if (x < x0) { for (let y = top + 1; y < bot; y++) px(x, y, PC.out); continue; }
       px(x, top + 1, PC.lt); px(x, bot - 1, PC.dk);
-      for (let r = 0; r < ih; r++) px(x, top + 2 + r, fill(x - x0, r) || PC.bg);
+      for (let r = 0; r < ih; r++) px(x, top + 2 + r, fill(x - x0, r, L) || PC.bg);
     }
-    for (let i = 1; i <= hr; i++) { // 尖った先端(枠の線が斜めに閉じる)
+    for (let i = 1; i <= hr; i++) { // 尖った先端(枠の線が斜めに閉じる)。内側もゲージとして塗る
       const x = x1 + i, y0 = top + i, y1 = bot - i;
-      for (let y = y0; y <= y1; y++) px(x, y, y === y0 || y === y1 ? PC.out : y === y0 + 1 ? PC.lt : y === y1 - 1 ? PC.dk : PC.bg);
+      for (let y = y0; y <= y1; y++) px(x, y, y === y0 || y === y1 ? PC.out : y === y0 + 1 ? PC.lt : y === y1 - 1 ? PC.dk : fill(x - x0, y - top - 2, L) || PC.bg);
     }
     const sx = x1 + hr + 1, ex = sx + spear; // 穂先の線(上下に縁取り)
     for (let x = sx; x <= ex; x++) {
@@ -170,12 +172,12 @@ const UI = (() => {
     pc.clearRect(0, 0, PW, PH);
 
     // HP バー: 被弾は白が遅れて減る / 回復は緑に光る / 30% 以下は点滅
-    const hpW = 170 - 32 + 1, hpC = healT > 0 ? ['#c8ffd8', '#5dff8a', '#2a9a52'] : low && Math.floor(pt * 6) % 2 ? ['#ffc0b8', '#ff5a4a', '#b0302a'] : ['#ff8a78', '#d8473b', '#9a2a24'];
-    bar(32, 170, 15, 5, 12, (i, r) => i < k * hpW ? (r === 0 ? hpC[0] : r === 4 ? hpC[2] : hpC[1]) : i < hpLag * hpW ? '#e8e4f0' : null);
+    const hpC = healT > 0 ? ['#c8ffd8', '#5dff8a', '#2a9a52'] : low && Math.floor(pt * 6) % 2 ? ['#ffc0b8', '#ff5a4a', '#b0302a'] : ['#ff8a78', '#d8473b', '#9a2a24'];
+    bar(32, 170, 15, 5, 12, (i, r, L) => i < k * L ? (r === 0 ? hpC[0] : r === 4 ? hpC[2] : hpC[1]) : i < hpLag * L ? '#e8e4f0' : null);
     // スタミナバー: 回復停止中は灰色の縞が流れる / ガードブレイク中は赤く点滅
-    const sk = clamp(P.sta / P.maxSta, 0, 1), stW = 160 - 32 + 1, lock = P.staLockT > 0, brk = clsStaBroken();
-    bar(32, 160, 27, 3, 9, (i, r) => {
-      if (i >= sk * stW) return null;
+    const sk = clamp(P.sta / P.maxSta, 0, 1), lock = P.staLockT > 0, brk = clsStaBroken();
+    bar(32, 160, 27, 3, 9, (i, r, L) => {
+      if (i >= sk * L) return null;
       if (brk) return Math.floor(pt * 8) % 2 ? '#ff3b5c' : '#8a1a2a';
       if (lock) return (i + Math.floor(pt * 16)) % 6 < 3 ? '#7a8a98' : '#4a5866';
       return r === 0 ? '#c8fff0' : '#4fc8a0';
