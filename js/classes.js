@@ -176,13 +176,13 @@ WEAPON_SKILL.longbow = {
     const one = dmg * sk.pow * (1 + c.cuV('e', 'pow')) * (1 + (m.ePow || 0)) * (heavy ? 0.7 : 1);
     return { name: sk.name, cat: 'e', desc: [
       `構え ${sk.windup}秒(動けない)→ 照準位置の半径 ${sk.radius} に ${sk.dur}秒間、矢が降り注ぐ`,
-      `${sk.every}秒ごとに1本、範囲内のランダムな位置へ(1本 武器の威力 × ${Math.round(sk.pow * 100)}%)`,
+      `${sk.every}秒ごとに、範囲内の敵全員へ 武器の威力 × ${Math.round(sk.pow * 100)}%`,
       '放った後は自由に動ける(雨はその場に残る)',
-      'E の攻撃なので、クラスの「攻撃1回ごと」の効果が1本ごとに起きる',
+      'E の攻撃なので、クラスの「攻撃1回ごと」の効果が1回ごとに起きる',
     ], rows: [
       ['CD', `<b>${(sk.cd * (1 - c.cuV('e', 'cd')) * (1 - (m.cd || 0)) * c.cdMul).toFixed(1)}</b> 秒`],
-      ['矢の数', `${Math.round(dur / (sk.every * (heavy ? 0.5 : 1)))} 本 / ${dur.toFixed(1)} 秒`],
-      ['1本の威力', `${Math.round(one)} → <b>${Math.round(one * c.atkMul)}</b>`, '武器の威力 × ' + Math.round(sk.pow * 100) + '%。攻撃力を掛けた値'],
+      ['攻撃回数', `${Math.round(dur / (sk.every * (heavy ? 0.5 : 1)))} 回 / ${dur.toFixed(1)} 秒`],
+      ['1回の威力', `${Math.round(one)} → <b>${Math.round(one * c.atkMul)}</b>`, '武器の威力 × ' + Math.round(sk.pow * 100) + '%。攻撃力を掛けた値'],
     ] };
   },
   start() {
@@ -203,7 +203,7 @@ WEAPON_SKILL.longbow = {
     const heavy = hasSp('e', 'pow'), delay = 0.25; // 放ってから降り始めるまで
     zones.push({ kind: 'rain', x: a.x, y: a.y, r: sk.radius * (1 + cuV('e', 'area')) * P.area, t: 0, delay, dur: delay + sk.dur + (m.eDur || 0), tick: 0, acc: 0,
       every: sk.every * (heavy ? 0.5 : 1), dmg: wst(P.mainW).dmg * sk.pow * (1 + cuV('e', 'pow')) * a.pow * (heavy ? 0.7 : 1),
-      hitR: sk.hitR * P.area, follow: hasSp('e', 'cd'), pin: hasSp('e', 'area'), arrows: [] });
+      nArrows: sk.arrows, follow: hasSp('e', 'cd'), pin: hasSp('e', 'area'), arrows: [] });
     asMine(() => { // 空へ放つ光の矢
       for (let i = 0; i < 10; i++) part(P.x + P.facing * 4, P.y - 10, rand(-30, 30) + P.facing * 20, -rand(200, 320), 0.35, pick(['#e4ffd8', '#b8ff9a', '#ffffff']), { glow: true, drag: 0 });
       addRing(P.x, P.y, 18, '#b8ff9a', { w: 2, life: 0.3 }); shake(2);

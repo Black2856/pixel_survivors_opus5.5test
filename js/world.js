@@ -538,19 +538,21 @@ function updZones(dt) {
     } else if (z.kind === 'rain') { // アローレイン: 範囲のランダムな位置へ矢が刺さる
       if (z.follow) { z.x = P.x; z.y = P.y; }
       for (const ar of z.arrows) ar.t += dt;
-      z.arrows = z.arrows.filter(ar => ar.t < 0.5);
+      z.arrows = z.arrows.filter(ar => ar.t < 0.5); // t < 0 は降り始める前(少しずつずらして降らせる)
       if (z.t >= z.delay && z.t < z.dur) {
         if (z.pin) forEachNear(z.x, z.y, z.r, e => { e.pinUntil = S.time + 0.15; });
         z.acc += dt;
-        while (z.acc >= z.every) {
+        while (z.acc >= z.every) { // every 秒ごとに、範囲内の敵全員へ(見た目の矢はランダムな位置に nArrows 本)
           z.acc -= z.every;
-          const a = rand(0, TAU), rr = Math.sqrt(Math.random()) * z.r, x = z.x + Math.cos(a) * rr, y = z.y + Math.sin(a) * rr, el = clsNextEl();
-          z.arrows.push({ x, y, t: 0 });
-          setTimeout(() => { // 落ちてから当たる
+          const el = clsNextEl(), x0 = z.x, y0 = z.y;
+          for (let i = 0; i < z.nArrows; i++) { const a = rand(0, TAU), rr = Math.sqrt(Math.random()) * z.r; z.arrows.push({ x: x0 + Math.cos(a) * rr, y: y0 + Math.sin(a) * rr, t: -i * z.every / z.nArrows }); }
+          setTimeout(() => { // 矢が落ちてから当たる
             if (state !== 'play') return;
             asMine(() => {
-              forEachNear(x, y, z.hitR, e => { hitEnemy(e, z.dmg, { src: 'arrowrain', col: '#b8ff9a', el, eHit: true, noNum: Math.random() < 0.5 }); });
-              part(x, y, rand(-20, 20), -rand(10, 30), 0.3, pick(['#b8ff9a', '#e4ffd8', '#8a8098']), { glow: true });
+              forEachNear(x0, y0, z.r, e => {
+                hitEnemy(e, z.dmg, { src: 'arrowrain', col: '#b8ff9a', el, eHit: true, noNum: Math.random() < 0.5 });
+                if (Math.random() < 0.4) part(e.x, e.y, rand(-20, 20), -rand(10, 30), 0.3, pick(['#b8ff9a', '#e4ffd8', '#8a8098']), { glow: true });
+              });
             });
           }, 70);
         }

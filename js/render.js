@@ -363,6 +363,7 @@ function render() {
       sx.globalAlpha = 0.22 * fade * on; pDisc(sx, zx, zy, Math.round(z.r), '#0c1a10'); // 影の円
       sx.globalAlpha = 0.6 * fade * on; pCircle(sx, zx, zy, Math.round(z.r), '#b8ff9a', 1); sx.globalAlpha = 1;
       for (const ar of z.arrows) { // 落ちてくる矢(0.07秒)→ 刺さった矢(薄れて消える)
+        if (ar.t < 0) continue;
         const ax = Math.round(ar.x - cam.x), ay = Math.round(ar.y - cam.y);
         if (ar.t < 0.07) {
           const top = ay - Math.round(26 * (1 - ar.t / 0.07));
