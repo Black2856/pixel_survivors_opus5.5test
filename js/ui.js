@@ -156,6 +156,31 @@ const UI = (() => {
     const img = digImg([[String(cur), '#ffffff'], ['/' + max, '#b9c6de']]);
     pc.drawImage(img, right - (img.width - 2), bottom - 7);
   }
+  // 状態の札: クラスの状態 + ボス由来の状態異常 + 装備の効果。種類が変わったときだけ作り直し、毎フレーム残り時間を更新する
+  function playerStatuses() {
+    const d = DATA.debuff, out = clsStatuses();
+    if (P.slowT > 0 && P.cdSlowT <= 0) out.push({ id: 'slow', glyph: '鈍', name: '鈍足', fx: `移動速度 -${Math.round((1 - d.slow) * 100)}%`, t: P.slowT, kind: 'debuff' });
+    if (P.cdSlowT > 0) out.push({ id: 'cdslow', glyph: '遅', name: 'スロウタイム', fx: `移動 -${Math.round((1 - d.slow) * 100)}% CD回復 -${Math.round((1 - d.cdRate) * 100)}%`, t: P.cdSlowT, kind: 'debuff' });
+    if (P.burnT > 0) out.push({ id: 'burn', glyph: '炎', name: '炎上', fx: `毎${d.burnTick}秒 ${Math.round(P.burnDmg)} ダメージ`, t: P.burnT, max: d.burnDur, kind: 'debuff' });
+    if (P.uq.phoenix && !P.revived) out.push({ id: 'phoenix', glyph: '鳳', name: '不死鳥の加護', fx: '一度だけ蘇生', kind: 'buff' });
+    return out;
+  }
+  const chipMax = {}; // 残り時間の最大値(max がない状態は、出現したときの残り時間を最大とする)
+  function statusChips() {
+    const list = playerStatuses(), box = $('ps-status'), sig = list.map(s => s.id + s.name + s.fx).join('|');
+    if (last.stSig !== sig) {
+      last.stSig = sig;
+      box.innerHTML = list.map(s => `<div class="st ${s.kind}" data-id="${s.id}"><span class="gl">${s.glyph}</span><span class="tx"><b>${s.name}</b><small>${s.fx}</small></span><span class="sec"></span><i class="tb"></i></div>`).join('');
+    }
+    for (const s of list) {
+      const el = box.querySelector(`[data-id="${s.id}"]`); if (!el) continue;
+      if (s.t === undefined) { el.querySelector('.sec').textContent = ''; el.querySelector('.tb').style.width = '100%'; delete chipMax[s.id]; continue; }
+      const mx = s.max || (chipMax[s.id] = Math.max(chipMax[s.id] || 0, s.t));
+      el.querySelector('.sec').textContent = s.t.toFixed(1);
+      el.querySelector('.tb').style.width = clamp(s.t / mx * 100, 0, 100).toFixed(1) + '%';
+    }
+    for (const id in chipMax) if (!list.some(s => s.id === id)) delete chipMax[id];
+  }
   // E / Q のアイコン。構成が変わったときだけ作り直し、毎フレーム CD のスイープを更新する
   function skillIcons() {
     const list = clsSkillIcons(), box = $('ps-skills'), sig = list.map(s => s.slot + s.glyph).join() + SET.autoE + SET.autoQ;
@@ -232,6 +257,7 @@ const UI = (() => {
     star(CX - 17, CY, 2 + Math.round(tw(2)), sc); star(CX + 16, CY, 2 + Math.round(tw(3)), sc);
 
     skillIcons();
+    statusChips();
     // プレイヤーがパネルの裏に入ったら薄くする
     const pr = box.getBoundingClientRect(), cr = cvsEl.getBoundingClientRect();
     const sx = cr.left + (P.x - cam.x) * GFX.PX, sy = cr.top + (P.y - cam.y) * GFX.PX;

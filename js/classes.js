@@ -209,6 +209,17 @@ const CLASS_RT = {
     // HUD 用: クラスリソース / スキル
     res: () => ({ kind: 'blade', label: '剣気', v: P.ki, max: P.kiMax }),
     staBroken: () => P.breakT > 0,
+    // HUD 用: いま効いている状態。t / max は残り時間(無期限なら省略)
+    statuses() {
+      const c = DATA.classes.samurai.params, out = [];
+      if (P.zanshinT > 0) {
+        const k = zanshinK(), mv = cuV('passive', 'migaru') * k;
+        out.push({ id: 'zanshin', glyph: '残', name: '残心' + (k > 1 ? '(背水)' : ''), fx: `攻撃力 +${Math.round(cuV('passive', 'kihaku', c.zanshinAtk) * k * 100)}%` + (mv ? ` 移動 +${Math.round(mv * 100)}%` : '') + (hasSp('passive', 'migaru') ? ' 被ダメ -25%' : ''), t: P.zanshinT, max: c.zanshinT + cuV('passive', 'jizoku'), kind: 'buff' });
+      }
+      if (kiHigh()) out.push({ id: 'kiHigh', glyph: '気', name: hasSp('trait', 'juu') ? '明鏡止水' : '剣気解放', fx: `攻撃力 +${Math.round(cuV('trait', 'juu', c.kiFullAtk) * 100)}%` + (hasSp('trait', 'juu') ? ' 攻撃速度 +25% 被ダメ -30%' : ''), kind: 'buff' });
+      if (P.breakT > 0) out.push({ id: 'break', glyph: '崩', name: 'ガードブレイク', fx: `ガード不可 被ダメ +${Math.round(c.breakDmg * 100)}%`, t: P.breakT, max: c.breakT, kind: 'debuff' });
+      return out;
+    },
     qInfo: () => ({ name: DATA.classes.samurai.q.name, glyph: '居' }),
   },
 };
@@ -335,6 +346,7 @@ const clsAtkBonus = () => (clsRT() ? clsRT().atkBonus() : 0);
 // E スキルの威力倍率(クラスの特殊強化など。武器スキルからは「クラスの倍率」としてだけ参照する)
 const clsESkillMul = () => (clsRT() && clsRT().eMul ? clsRT().eMul() : 1);
 const clsRes = () => (clsRT() && clsRT().res ? clsRT().res() : null);
+const clsStatuses = () => (clsRT() && clsRT().statuses ? clsRT().statuses() : []);
 const clsStaBroken = () => !!(clsRT() && clsRT().staBroken && clsRT().staBroken());
 // HUD 用: E / Q のアイコン情報
 function clsSkillIcons() {
