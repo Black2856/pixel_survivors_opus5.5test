@@ -101,7 +101,7 @@ WEAPON_SKILL.bolt = {
       `詠唱 ${sk.windup}秒(動けない)→ ${sk.dur}秒間、照準方向へ毎秒 ${sk.rate}発の魔弾を連射`,
       `1発の威力: 武器の威力 × ${Math.round(sk.pow * 100)}%`,
       `連射中は移動速度 ×${sk.slow}`,
-      '魔弾は通常攻撃と同じ弾数・弾速・貫通(進化後は追尾も)',
+      `弾数は通常攻撃の ${Math.round(sk.countMul * 100)}%(切り上げ)。弾速・貫通は通常攻撃と同じ(進化後は追尾も)`,
       'E の攻撃なので、クラスの「攻撃1回ごと」の効果が1発ごとに起きる',
     ], rows: [
       ['CD', `<b>${(sk.cd * (1 - c.cuV('e', 'cd')) * (1 - (m.cd || 0)) * c.cdMul).toFixed(1)}</b> 秒`],
@@ -159,10 +159,10 @@ function gainShield(n) {
   addRing(P.x, P.y, 16, '#4f8ff0', { w: 2, life: 0.35 }); burst(P.x, P.y, 14, ['#9fd8ff', '#4f8ff0', '#ffffff'], { sp: 60, glow: true });
   S.hudDirty = true;
 }
-// バラージュの1回の発射: 通常攻撃(メイン武器)と同じ弾数・弾速・貫通・追尾で扇状に撃つ。E の攻撃なので発射ごとに属性が変わる
+// バラージュの1回の発射: 通常攻撃(メイン武器)の半分の弾数を、同じ弾速・貫通・追尾で扇状に撃つ。E の攻撃なので発射ごとに属性が変わる
 function barrageShot(a, x, y, ang) {
   const sk = DATA.weapons.bolt.skill, w = P.weapons[P.mainW], st = wst(P.mainW), dmg = st.dmg * sk.pow * (1 + cuV('e', 'pow')) * a.pow, el = clsNextEl();
-  const n = (st.count || 1) + P.shots, base = ang + rand(-0.12, 0.12);
+  const n = Math.ceil(((st.count || 1) + P.shots) * sk.countMul), base = ang + rand(-0.12, 0.12); // 弾数は通常攻撃の半分(切り上げ)
   for (let i = 0; i < n; i++) fire('bolt', x, y, base + (i - (n - 1) / 2) * 0.13, st.speed || 200, { dmg, pierce: st.pierce || 0, life: 1.3, src: 'barrage', col: '#b98bff', r: 3, el, home: w.evo, homing: w.evo ? ARCANE_TURN : 0, focus: hasSp('e', 'pow') ? a.id : 0 });
   if (Math.random() < 0.5) part(x + Math.cos(ang) * 6, y + Math.sin(ang) * 6, Math.cos(ang) * 60, Math.sin(ang) * 60, 0.2, '#ffffff', { glow: true });
   AudioMan.shoot();
