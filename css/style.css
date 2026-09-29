@@ -479,3 +479,11 @@ input[type=range] { width: 220px; accent-color: var(--gold); }
 #sv-modal .sv-g:first-child { font-size: 16px; margin-top: 0; }
 .sv-row.z { color: var(--dim); }
 .sv-row.z i { color: var(--dim); }
+
+/* スキル詳細: 特殊強化 */
+.sv-sp { padding: 3px 4px 5px; color: var(--dim); font-size: 12px; }
+.sv-sp b { font-weight: normal; margin-right: 6px; color: #b89aa8; }
+.sv-sp div { padding-left: 16px; }
+.sv-sp.on { color: var(--txt); }
+.sv-sp.on b { color: #ffb7d5; }
+.sv-g small { font-size: 10px; margin-left: 6px; }

@@ -79,14 +79,18 @@ const StatusUI = (() => {
     if (!b.cat) return h;
     const T = b.cat === 'e' ? DATA.weapons[c.mainW].skill && DATA.weapons[c.mainW].skill.tree : DATA.classes[c.cls].tree[b.cat];
     if (!T) return h;
-    const got = c.run ? Object.keys(T.paths).filter(p => cuLv(b.cat, p)) : [];
     h += '<div class="sv-g">強化' + (c.run ? '' : '(ラン中に3の倍数のLv で選ぶ)') + '</div>';
     h += Object.keys(T.paths).map(p => {
       const d = T.paths[p], lv = c.run ? cuLv(b.cat, p) : 0;
       return `<div class="sv-row ${lv ? '' : 'z'}"><span>${d.name} ${lv ? 'Lv' + lv : ''}</span><i>${lv ? d.desc[lv - 1] : d.desc[0] + ' …'}</i></div>`;
     }).join('');
+    // 特殊強化: 各パスを Lv3 にすると候補に出る(1カテゴリにつき1つ)。取ったものは明るく
     const sp = c.run && P.cs[b.cat];
-    h += sp ? `<div class="sv-note sp">★ ${T.paths[sp].sp.name}: ${T.paths[sp].sp.desc}</div>` : '';
+    h += '<div class="sv-g">特殊強化<small class="dim">(パスを Lv3 にすると候補に出る・1つだけ)</small></div>';
+    h += Object.keys(T.paths).map(p => {
+      const d = T.paths[p].sp, on = sp === p;
+      return `<div class="sv-sp ${on ? 'on' : ''}"><b>${on ? '★' : '☆'} ${d.name}</b><span class="dim">(${T.paths[p].name})</span><div>${d.desc}</div></div>`;
+    }).join('');
     return h;
   }
   function equipTab(c) {
