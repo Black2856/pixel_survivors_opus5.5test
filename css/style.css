@@ -151,7 +151,7 @@ button { font: inherit; color: inherit; cursor: pointer; border: 0; background: 
 .card.new .card-head { color: var(--cyan); }
 .card.legend .card-head { color: var(--pink); animation: flick .4s ease-in-out infinite; }
 .card-icon { width: 76px; height: 76px; display: grid; place-items: center; background: var(--ink); box-shadow: inset 0 0 0 3px var(--panel2); }
-.cls-cat { position: absolute; top: 4px; left: 50%; transform: translateX(-50%); font-size: 13px; color: var(--cc); text-shadow: 2px 2px 0 var(--ink); white-space: nowrap; }
+.cls-cat { display: inline-block; margin-right: 6px; padding: 2px 5px; font: 12px 'DotGothic16'; color: var(--ink); background: var(--cc); vertical-align: middle; animation: none; } /* カテゴリの札(見出しの行の左) */
 .card-name small { display: block; font-size: 14px; color: var(--dim); }
 .cls-ic i { position: absolute; font-style: normal; font-size: 16px; color: var(--gold); transform: translate(18px, -18px); }
 .cls-ic { position: relative; font: 38px 'DotGothic16'; color: var(--cc); text-shadow: 0 0 12px var(--cc), 3px 3px 0 var(--ink); animation: bob 1.2s ease-in-out infinite; } /* クラス強化カード */
