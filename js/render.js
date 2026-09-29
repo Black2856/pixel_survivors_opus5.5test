@@ -211,6 +211,46 @@ function spriteOf(e) {
   return s;
 }
 
+// スキルのモーション中の描画(motions.js の状態): 姿勢を足元基準で前傾・伸縮し、武器を任意の角度で1ドットずつ描く
+// 武器を振った軌跡には、直近 0.07 秒の角度の範囲に光の弧(スミア)を残す
+const BLADE_LEN = 11;
+function drawPose(rig, sp, ms, x, y, flip, white) {
+  const sx = GFX.sctx, gx = GFX.gctx, sg = flip ? -1 : 1;
+  const fx = Math.round(x - cam.x), fy = Math.round(y - cam.y + sp.h / 2 - 1), ax = sp.w / 2, ay = sp.h - 1;
+  const img = white ? ART.variant(sp, 'white') : sp.c;
+  sx.setTransform(sg, 0, -ms.lean * sg, ms.sy, fx, fy); sx.drawImage(img, -ax, -ay); sx.setTransform(1, 0, 0, 1, 0, 0);
+  if (sp.e) { gx.globalAlpha = 0.9; gx.setTransform(sg, 0, -ms.lean * sg, ms.sy, fx, fy); gx.drawImage(white ? img : sp.e, -ax, -ay); gx.setTransform(1, 0, 0, 1, 0, 0); gx.globalAlpha = 1; }
+  const hist = P.anim.hist || (P.anim.hist = []);
+  if (!ms.blade || !ms.hand) { hist.length = 0; return; }
+  const rx = 1 + rig.padX + ms.hand[0] - ax, ry = 1 + ms.hand[1] - ay;
+  const hx = fx + sg * (rx - ms.lean * ry), hy = fy + ms.sy * ry;
+  const ang = flip ? Math.PI - ms.ang : ms.ang, T = P.anim.t;
+  // スミア: 直近の角度の範囲を扇形に塗る(新しい角度ほど明るい)
+  hist.push({ t: T, a: ang }); while (hist.length && T - hist[0].t > 0.07) hist.shift();
+  let a0 = Infinity, a1 = -Infinity;
+  for (const h of hist) { const d = Math.atan2(Math.sin(h.a - ang), Math.cos(h.a - ang)); a0 = Math.min(a0, d); a1 = Math.max(a1, d); }
+  if (a1 - a0 > 0.25) {
+    const span = a1 - a0;
+    for (let yy = -BLADE_LEN - 1; yy <= BLADE_LEN + 1; yy++) for (let xx = -BLADE_LEN - 1; xx <= BLADE_LEN + 1; xx++) {
+      const d = Math.hypot(xx, yy); if (d < 3 || d > BLADE_LEN + 0.5) continue;
+      const da = Math.atan2(Math.sin(Math.atan2(yy, xx) - ang), Math.cos(Math.atan2(yy, xx) - ang));
+      if (da < a0 || da > a1) continue;
+      const alpha = 0.55 * (1 - Math.abs(da) / (span + 0.01)) * (d / BLADE_LEN);
+      sx.globalAlpha = gx.globalAlpha = alpha * SET.fxA; sx.fillStyle = gx.fillStyle = '#eaf4ff';
+      sx.fillRect(Math.round(hx + xx), Math.round(hy + yy), 1, 1); gx.fillRect(Math.round(hx + xx), Math.round(hy + yy), 1, 1);
+    }
+    sx.globalAlpha = gx.globalAlpha = 1;
+  }
+  // 刀身(柄は金)
+  const seen = new Set();
+  for (let i = 0; i <= BLADE_LEN; i++) {
+    const px = Math.round(hx + Math.cos(ang) * i), py = Math.round(hy + Math.sin(ang) * i), k = px * 1000 + py;
+    if (seen.has(k)) continue; seen.add(k);
+    sx.fillStyle = i < 2 ? '#d6ae5c' : '#eaf4ff'; sx.fillRect(px, py, 1, 1);
+    if (i >= 2) { gx.fillStyle = '#eaf4ff'; gx.fillRect(px, py, 1, 1); }
+  }
+}
+
 function render() {
   const { lctx: lx, VW, VH } = GFX;
   const REAL_S = GFX.sctx, REAL_G = GFX.gctx;
@@ -431,22 +471,26 @@ function render() {
 
   // ---- プレイヤー ----
   if (!P.dead) {
-    // クラスの部位アニメーションがあればそのフレーム、なければ旧プレイヤー(拡大縮小で揺らす)
+    // クラスの部位アニメーション: スキルのモーション中は補間した姿勢、それ以外は待機・歩きのフレーム。なければ旧プレイヤー
     const rig = ART.S[DATA.classes[P.cls].rig];
-    const psp = rig ? ART.rigFrame(rig, P.moving ? 'walk' : 'idle', t) : ART.S.player;
+    const ms = rig && P.anim && MOTIONS[P.anim.name] ? MOTIONS[P.anim.name].state(P.anim.t, P.anim.arg) : null;
+    const psp = ms ? rig.pose(ms.p) : rig ? ART.rigFrame(rig, P.moving ? 'walk' : 'idle', t) : ART.S.player;
     const py = P.y - (psp.h - ART.S.player.h) / 2; // 足元の位置を旧プレイヤーと揃える
+    // 空蝉の分身(白いシルエットが明滅する)
+    if (S.decoy && rig) drawSp(rig.base, S.decoy.x, S.decoy.y - (rig.base.h - ART.S.player.h) / 2, { white: true, alpha: 0.35 + 0.25 * Math.sin(t * 20), flip: P.facing < 0, emit: false });
+    // 残像: クラスの色のシルエット(白だとブルームで塊になるため)
     if (P.after) for (const a of P.after) {
       const ax = Math.round(a.x - cam.x - psp.w / 2), ay = Math.round(a.y - (P.y - py) - cam.y - psp.h / 2);
-      sx.globalAlpha = 0.4 * (1 - a.t / 0.25);
-      sx.drawImage(ART.variant(psp, a.f < 0 ? 'whiteFlip' : 'white'), ax, ay);
-      gx.globalAlpha = 0.5 * (1 - a.t / 0.25);
-      gx.drawImage(ART.variant(psp, a.f < 0 ? 'whiteFlip' : 'white'), ax, ay);
-      sx.globalAlpha = gx.globalAlpha = 1;
+      const src = a.f < 0 ? ART.variant(psp, 'flip') : psp.c;
+      sx.globalAlpha = 0.45 * (1 - a.t / 0.25);
+      sx.drawImage(ART.tint(src, DATA.classes[P.cls].col), ax, ay);
+      sx.globalAlpha = 1;
     }
     shadow(P.x, P.y + 7, 9);
     const step = rig ? 0 : P.moving ? Math.sin(P.animT * 14) : Math.sin(P.animT * 3) * 0.5;
     const blink = P.ifr > 0 && Math.floor(t * 20) % 2 === 0;
-    if (!blink || P.invT > 0) drawSp(psp, P.x, py - Math.abs(step) * (P.moving ? 1.5 : 0.5), { flip: P.facing < 0, white: P.hurtT > 0, sy: 1 + step * 0.05, sxk: 1 - step * 0.03 });
+    if (ms) { if (!blink || P.invT > 0) drawPose(rig, psp, ms, P.x, py, P.facing < 0, P.hurtT > 0); }
+    else if (!blink || P.invT > 0) drawSp(psp, P.x, py - Math.abs(step) * (P.moving ? 1.5 : 0.5), { flip: P.facing < 0, white: P.hurtT > 0, sy: 1 + step * 0.05, sxk: 1 - step * 0.03 });
     // ガード(見切り): 正面に光る弧。ジャスト受付中は白く明るい
     if (P.guard) {
       const just = P.guardT <= DATA.classes.samurai.params.parryWin, col = just ? '#ffffff' : '#9ff7ff';

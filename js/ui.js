@@ -155,6 +155,22 @@ const UI = (() => {
     const img = digImg([[String(cur), '#ffffff'], ['/' + max, '#b9c6de']]);
     pc.drawImage(img, right - (img.width - 2), bottom - 7);
   }
+  // E / Q のアイコン。構成が変わったときだけ作り直し、毎フレーム CD のスイープを更新する
+  function skillIcons() {
+    const list = clsSkillIcons(), box = $('ps-skills'), sig = list.map(s => s.slot + s.glyph).join();
+    if (last.skSig !== sig) {
+      last.skSig = sig;
+      box.innerHTML = list.map(s => `<div class="ps-sk" data-slot="${s.slot}" title="${s.name}">${s.glyph}<div class="cd"></div><span class="key">${s.key}</span></div>`).join('');
+    }
+    for (const el of box.children) {
+      const sk = P.sk[el.dataset.slot], p = sk.cd > 0 ? sk.cd / sk.max * 100 : 0;
+      el.lastElementChild.previousElementSibling.style.setProperty('--p', p.toFixed(1));
+      const ready = sk.cd <= 0;
+      if (ready && el.dataset.ready === '0') { el.classList.remove('ready'); void el.offsetWidth; el.classList.add('ready'); }
+      el.dataset.ready = ready ? '1' : '0';
+      el.classList.toggle('busy', !!(P.act && P.act.slot === el.dataset.slot));
+    }
+  }
   function pstat(dt) {
     const c = DATA.classes[P.cls], box = $('pstat');
     pt += dt;
@@ -214,6 +230,7 @@ const UI = (() => {
     star(CX, CY - 17, 3 + Math.round(tw(0) * 2), sc); star(CX, CY + 17, 3 + Math.round(tw(1) * 2), sc);
     star(CX - 17, CY, 2 + Math.round(tw(2)), sc); star(CX + 16, CY, 2 + Math.round(tw(3)), sc);
 
+    skillIcons();
     // プレイヤーがパネルの裏に入ったら薄くする
     const pr = box.getBoundingClientRect(), cr = cvsEl.getBoundingClientRect();
     const sx = cr.left + (P.x - cam.x) * GFX.PX, sy = cr.top + (P.y - cam.y) * GFX.PX;
@@ -275,7 +292,7 @@ const UI = (() => {
       foot = `<div class="evohint">進化 ${evoCond(c.key)}${c.key === P.mainW ? ' (メイン)' : ''}</div>`;
     } else if (c.type === 'cls') {
       // クラス強化: カテゴリ名 / パス名 / 次のLvの効果。特殊強化は性質が変わる派生
-      const C = DATA.classes[P.cls].tree[c.cat], d = C.paths[c.path], lv = cuLv(c.cat, c.path);
+      const C = treeCat(c.cat), d = C.paths[c.path], lv = cuLv(c.cat, c.path);
       ic = `<div class="cls-ic" style="--cc:${DATA.classes[P.cls].col}">${c.sp ? '★' : '◆'}</div>`;
       if (c.sp) { name = d.sp.name; head = 'SPECIAL'; rar = 'legend'; body = `<p>${d.sp.desc}</p>`; foot = `<div class="evohint">${C.name} / ${d.name} の派生(1つだけ)</div>`; }
       else { name = d.name; head = `${C.name} Lv ${lv} → ${lv + 1}`; rar = lv + 1 === 3 ? 'epic' : 'rare'; body = `<p>${d.desc[lv]}</p>`; foot = `<div class="evohint">${'◆'.repeat(lv + 1)}${'◇'.repeat(2 - lv)}</div>`; }

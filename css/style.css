@@ -83,7 +83,8 @@ button { font: inherit; color: inherit; cursor: pointer; border: 0; background: 
 /* E / Q アイコン(CD は円形のスイープ) */
 #ps-skills { position: absolute; left: calc(var(--px) * 44); top: calc(var(--px) * 37); display: flex; gap: calc(var(--px) * 4); }
 #ps-skills:empty { display: none; }
-.ps-sk { position: relative; width: calc(var(--px) * 12); height: calc(var(--px) * 12); background: #141024; box-shadow: 0 0 0 calc(var(--px) * .7) #0c0913, inset 0 0 0 calc(var(--px) * .7) #b9c6de; display: grid; place-items: center; font: calc(var(--px) * 3) 'Press Start 2P'; }
+.ps-sk { position: relative; width: calc(var(--px) * 12); height: calc(var(--px) * 12); background: #141024; box-shadow: 0 0 0 calc(var(--px) * .7) #0c0913, inset 0 0 0 calc(var(--px) * .7) #b9c6de; display: grid; place-items: center; font: calc(var(--px) * 6) 'DotGothic16'; color: #fff; text-shadow: 0 0 calc(var(--px) * 2) var(--cc), calc(var(--px) * .5) calc(var(--px) * .5) 0 var(--ink); }
+.ps-sk.busy { box-shadow: 0 0 0 calc(var(--px) * .7) #0c0913, inset 0 0 0 calc(var(--px) * .7) var(--cc), 0 0 calc(var(--px) * 4) var(--cc); }
 .ps-sk .cd { position: absolute; inset: 0; background: conic-gradient(rgba(12,9,19,.8) calc(var(--p) * 1%), transparent 0); }
 .ps-sk .key { position: absolute; left: calc(var(--px) * -2); top: calc(var(--px) * -2); font: calc(var(--px) * 2.2) 'Press Start 2P'; background: #0c0913; padding: 1px 2px; color: var(--gold); }
 .ps-sk .auto { position: absolute; right: calc(var(--px) * -2); bottom: calc(var(--px) * -2); font: calc(var(--px) * 1.8) 'Press Start 2P'; background: var(--cc); color: var(--ink); padding: 1px; }

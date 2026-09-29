@@ -18,7 +18,7 @@ function initRun(mode = 'normal') {
     freeze: 0, ts: 1, tsBack: 0, schedIdx: 0, spawnT: 0, spawnCfg: null,
     eliteT: 95, goblinT: 70, propT: 2, elv: 1, elvT: 0, boss: null, pendingLv: 0, lvFx: 0,
     rerolls: 0, weaponSlots: 4, lvQueue: [],
-    gold: 0, deathT: 0, victoryT: 0, hudDirty: true, won: false, hint: {},
+    gold: 0, deathT: 0, victoryT: 0, hudDirty: true, won: false, hint: {}, decoy: null,
   };
   P = {
     cls: META.cls, mainW: META.classes[META.cls].weapon, micro: {}, x: 0, y: 0, hp: 0, maxhp: 100, level: 1, xp: 0, xpNext: xpFor(1), weapons: {},
@@ -592,6 +592,12 @@ function updEnemies(dt) {
       if (Math.random() < dt * 12) part(e.x + rand(-3, 3), e.y + rand(-3, 3), 0, -20, 0.4, pick(['#ff6a2a', '#ffc34a']), { glow: true });
     }
     if (e.frostT > 0) { e.frostT -= dt; if (e.frostT <= 0) e.frost = 0; }
+    if (e.bleedT > 0 && e.bleed > 0 && (e.bleedTick = (e.bleedTick || 1) - dt) <= 0) {
+      const B = DATA.bleed, k = e.boss ? B.boss : e.elite ? B.elite : 1;
+      e.bleedTick = 1;
+      hitEnemy(e, e.maxhp * B.pct * e.bleed * k / dmgMul(), { src: 'bleed', noCrit: true, col: '#a0122a', noNum: Math.random() < 0.5 });
+      if (e.dead) continue;
+    }
     if (e.bleedT > 0) { e.bleedT -= dt; if (e.bleedT <= 0) e.bleed = 0; if (Math.random() < dt * e.bleed * 0.6) part(e.x + rand(-2, 2), e.y, 0, 15, 0.4, '#a0122a', { g: 60 }); }
     e.slowT -= dt;
     // ノックバック
@@ -603,7 +609,8 @@ function updEnemies(dt) {
     else {
       const slow = (1 - 0.04 * e.frost) * (e.slowT > 0 ? 0.6 : 1);
       const sp = e.spd * slow;
-      const a = Math.atan2(P.y - e.y, P.x - e.x);
+      const dc = S.decoy && d2(e.x, e.y, S.decoy.x, S.decoy.y) < 200 * 200 ? S.decoy : P; // 空蝉の分身
+      const a = Math.atan2(dc.y - e.y, dc.x - e.x);
       let mx = Math.cos(a), my = Math.sin(a);
       if (e.ai === 'flutter') { const w = Math.sin(e.t * 5 + e.seed * 10) * 0.8; mx -= Math.sin(a) * w; my += Math.cos(a) * w; }
       else if (e.ai === 'hop') { e.hopT -= dt; const hop = e.hopT < 0.35; if (e.hopT <= 0) e.hopT = 1.1; mx *= hop ? 2.4 : 0.1; my *= hop ? 2.4 : 0.1; }

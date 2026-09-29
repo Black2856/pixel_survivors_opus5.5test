@@ -79,6 +79,9 @@ const touch = { active: false, id: null, ox: 0, oy: 0, dx: 0, dy: 0 };
 addEventListener('keydown', e => {
   keys[e.code] = true;
   if ((e.code === 'ShiftLeft' || e.code === 'ShiftRight') && !e.repeat && state === 'play') toggleAim();
+  // E(武器スキル)/ Q(クラススキル)は押した瞬間だけ受け付ける
+  if (e.code === 'KeyE' && !e.repeat && state === 'play') keys._e = true;
+  if (e.code === 'KeyQ' && !e.repeat && state === 'play') keys._q = true;
   if (['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code)) e.preventDefault();
   AudioMan.unlock();
   if (typeof onKey === 'function') onKey(e);

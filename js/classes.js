@@ -1,5 +1,5 @@
-// classes.js — クラスのランタイム(スタミナ・防御スキル・クラス特性・パッシブ)
-// world.js からは clsInit / clsUpdate / clsOnHurt / clsOnMainHit / clsAtkBonus だけを呼ぶ
+// classes.js — クラスのランタイム(スタミナ・防御スキル・クラス特性・パッシブ・E / Q スキル)
+// world.js からは clsInit / clsUpdate / clsOnHurt / clsOnMainHit / clsOnKill / clsAtkBonus などの入口だけを呼ぶ
 'use strict';
 
 // ---------- 共通: スタミナ ----------
@@ -16,14 +16,85 @@ function updStamina(dt) {
 
 // ---------- ラン中の強化(強化ツリー) ----------
 // P.cu['カテゴリ.パス'] = Lv(1〜3) / P.cs[カテゴリ] = 特殊強化を取ったパス
+// カテゴリ e(武器スキル)はメイン武器の skill.tree、それ以外はクラスの tree
+const weaponSkill = () => DATA.weapons[P.mainW] && DATA.weapons[P.mainW].skill;
+const treeCat = cat => (cat === 'e' ? weaponSkill() && weaponSkill().tree : DATA.classes[P.cls].tree[cat]);
 const cuLv = (cat, path) => P.cu[cat + '.' + path] || 0;
-const cuV = (cat, path, def = 0) => { const l = cuLv(cat, path); return l ? DATA.classes[P.cls].tree[cat].paths[path].v[l - 1] : def; };
+const cuV = (cat, path, def = 0) => { const l = cuLv(cat, path); return l ? treeCat(cat).paths[path].v[l - 1] : def; };
 const hasSp = (cat, path) => P.cs[cat] === path;
+
+// ---------- 共通: E / Q ----------
+// P.sk[slot] = { cd: 残り秒, max: 直近の CD 秒 } / P.act = 実行中のスキル(動けない時間などを管理)
+// P.anim = 再生中のモーション { name, t, dur }(motions.js)
+function aimDir(maxD) {
+  const m = mouseAimPt();
+  if (m) return Math.atan2(m.y - P.y, m.x - P.x);
+  const e = nearestEnemy(P.x, P.y, maxD);
+  if (e) return Math.atan2(e.y - P.y, e.x - P.x);
+  return P.dir ? Math.atan2(P.dir[1], P.dir[0]) : (P.facing < 0 ? Math.PI : 0);
+}
+function setCd(slot, sec) { P.sk[slot].cd = P.sk[slot].max = Math.max(1, sec); S.hudDirty = true; }
+function playAnim(name, dur, arg) { P.anim = { name, t: 0, dur, arg }; } // arg: モーションに渡す値(乱れ桜の持続時間など)
+// スキル名を頭上に出す(カットイン)
+function skillCall(name, col) {
+  addFloat(P.x, P.y - 26, name, col, 1.4, -18);
+  UI.announce(name, '');
+}
+
+// 武器スキル(E)。メイン武器ごとの実装
+const WEAPON_SKILL = {
+  // 乱れ桜: 構え → 周囲を連続で斬る(移動できる)→ 終了
+  katana: {
+    start() {
+      const sk = weaponSkill(), dur = sk.dur + cuV('e', 'dur');
+      P.act = { slot: 'e', ph: 'wind', t: 0, dur, hits: sk.hits + Math.round(cuV('e', 'dur') / 0.15), n: 0, hitT: 0 };
+      playAnim('ranbu', MOTIONS.ranbu.duration(dur), dur);
+      setCd('e', sk.cd * (1 - cuV('e', 'cd')) * P.cdMul);
+      skillCall(sk.name, '#ffb7d5'); AudioMan.click();
+      burst(P.x, P.y, 12, ['#ffb7d5', '#ffffff'], { sp: 40, up: 20, glow: true });
+    },
+    update(a, dt) {
+      const sk = weaponSkill();
+      if (a.ph === 'wind') { P.moveMul = 0; if (a.t >= sk.windup) { a.ph = 'spin'; a.t0 = a.t; } return; }
+      const u = a.t - a.t0;
+      if (hasSp('e', 'dur')) { P.moveMul *= 1.5; P.invT = Math.max(P.invT, 0.05); } // 千本桜
+      a.hitT -= dt;
+      if (a.hitT <= 0 && a.n < a.hits) { a.hitT += a.dur / a.hits; a.n++; ranbuHit(sk); }
+      if (Math.random() < dt * 40) part(P.x + rand(-sk.radius, sk.radius) * P.area, P.y + rand(-sk.radius, sk.radius) * P.area, rand(-20, 20), rand(-30, 0), 0.8, pick(['#ffb7d5', '#ff8ac0', '#ffffff']), { glow: true, drag: 1 });
+      if (u >= a.dur) {
+        if (hasSp('e', 'pow')) sakuraBurst(sk); // 桜吹雪
+        P.act = null;
+      }
+    },
+  },
+};
+function ranbuHit(sk) {
+  const R = sk.radius * P.area, dmg = wst(P.mainW).dmg * sk.pow * (1 + cuV('e', 'pow')), k0 = S.kills;
+  asMine(() => {
+    forEachNear(P.x, P.y, R, e => { if (!e.prop) hitEnemy(e, dmg, { src: 'ranbu', ang: Math.atan2(e.y - P.y, e.x - P.x), kb: 25, col: '#ffb7d5', noNum: Math.random() < 0.4 }); });
+    slashes.push({ x: P.x, y: P.y, a: rand(0, TAU), r: R * rand(0.8, 1.1), t: 0, life: 0.18, flip: Math.random() < 0.5 });
+    burst(P.x + rand(-R, R) * 0.6, P.y + rand(-R, R) * 0.6, 6, ['#ffb7d5', '#ffffff'], { sp: 70, glow: true, life: 0.3 });
+    shake(1.5);
+  });
+  AudioMan.slash();
+  if (hasSp('e', 'cd')) P.sk.e.cd = Math.max(0, P.sk.e.cd - (S.kills - k0)); // 剣の舞: 撃破1体ごとに CD -1秒
+}
+function sakuraBurst(sk) {
+  const R = sk.burstR * P.area, dmg = wst(P.mainW).dmg * sk.burst * (1 + cuV('e', 'pow'));
+  asMine(() => {
+    forEachNear(P.x, P.y, R, e => { if (!e.prop) hitEnemy(e, dmg, { src: 'ranbu', ang: Math.atan2(e.y - P.y, e.x - P.x), kb: 120, col: '#ff8ac0' }); });
+    addRing(P.x, P.y, R, '#ffb7d5', { w: 3, life: 0.5 }); addRing(P.x, P.y, R * 0.6, '#ffffff', { w: 2, life: 0.35 });
+    addFlash(P.x, P.y, R * 2, '#ffb7d5', 0.5); shockAt(P.x, P.y, 1.6, 0.9);
+    burst(P.x, P.y, 70, ['#ffb7d5', '#ff8ac0', '#ffffff'], { sp: 170, glow: true, life: 0.8, drag: 1.5 });
+    hitstop(0.06); shake(8); screenFlash(0.3 * SET.fxA, '#ffb7d5');
+  });
+  AudioMan.boom();
+}
 
 // ---------- クラスごとの実装 ----------
 const CLASS_RT = {
   samurai: {
-    skills: [], // 実装済みのスキル(強化ツリーの need と対応。居合 = q / 乱れ桜 = e)
+    skills: ['q'], // 実装済みのクラススキル(強化ツリーの need と対応)
     init() {
       const c = DATA.classes.samurai.params;
       P.ki = 0; P.kiMax = c.kiMax; P.kiWin = 0; P.kiWinT = 0;
@@ -35,8 +106,8 @@ const CLASS_RT = {
       P.zanshinT -= dt; P.breakT -= dt;
       P.atkSpd = hasSp('trait', 'juu') && P.ki >= P.kiMax ? 1.25 : 1; // 明鏡止水: 満タンの間 攻撃速度 +25%
       // 見切り(Space 長押しでガード)。構えた瞬間にスタミナ guardCost を消費する(連打でジャストを狙いやすくしないため)
-      // 押し直すまで再び構えない / スタミナ不足・ガードブレイク中は構えられない
-      const held = keys.Space || keys.TouchDef;
+      // 押し直すまで再び構えない / スタミナ不足・ガードブレイク中・スキル中は構えられない
+      const held = (keys.Space || keys.TouchDef) && !P.act;
       if (held && !P.guard && !P.guardHeld && P.breakT <= 0) {
         if (P.sta >= c.guardCost) { staUse(c.guardCost); P.guard = true; P.guardT = 0; AudioMan.click(); }
         else { addFloat(P.x, P.y - 16, 'STAMINA', '#6a7a88'); }
@@ -85,11 +156,76 @@ const CLASS_RT = {
       const c = DATA.classes.samurai.params;
       return (P.ki >= P.kiMax ? cuV('trait', 'juu', c.kiFullAtk) : 0) + (P.zanshinT > 0 ? cuV('passive', 'kihaku', c.zanshinAtk) * zanshinK() : 0);
     },
-    // HUD 用: クラスリソース(kind は ui.js の表示の種類)
+    // 居合・朧月(Q): 構え → 突進して通過した敵を斬る。剣気を全て消費し、消費量で威力が上がる
+    qStart() {
+      const q = DATA.classes.samurai.q, a = aimDir(q.dist * 1.6);
+      P.act = { slot: 'q', ph: 'wind', t: 0, a, ki: P.ki, x0: P.x, y0: P.y, hits: new Set(), back: false };
+      if (Math.cos(a) !== 0) P.facing = Math.cos(a) < 0 ? -1 : 1;
+      playAnim('iai', MOTIONS.iai.dur);
+      slowmo(0.35, 0.22);
+      skillCall(q.name, '#ff5d73'); AudioMan.click();
+      if (P.ki >= P.kiMax) { addRing(P.x, P.y, 22, '#ff3b5c', { w: 2, life: 0.35 }); burst(P.x, P.y, 20, ['#ff3b5c', '#ffd0d8'], { sp: 50, up: 20, glow: true }); }
+    },
+    qUpdate(a, dt) {
+      const q = DATA.classes.samurai.q, reach = 1 + cuV('q', 'reach');
+      P.moveMul = 0;
+      if (a.ph === 'wind') {
+        if (a.t < q.windup) return;
+        // 抜刀: 剣気を全て消費して突進
+        a.ph = 'dash'; a.t0 = a.t; a.ki = P.ki; P.ki = 0;
+        P.invT = Math.max(P.invT, q.dash + 0.15);
+        if (hasSp('q', 'reach')) S.decoy = { x: P.x, y: P.y, t: 2 }; // 空蝉: 開始地点に分身
+        AudioMan.dash(); shake(2);
+        return;
+      }
+      if (a.ph === 'dash') {
+        const sp = q.dist * reach / q.dash, dir = a.back ? a.a + Math.PI : a.a;
+        P.x += Math.cos(dir) * sp * dt; P.y += Math.sin(dir) * sp * dt;
+        forEachNear(P.x, P.y, q.width * reach, e => { if (!e.prop && !e.dead) a.hits.add(e); });
+        const la = P.after && P.after[P.after.length - 1]; // 残像は 6 ドットごとに残す(重なって白い塊にならないように)
+        if (!la || d2(la.x, la.y, P.x, P.y) > 36) P.after = (P.after || []).concat([{ x: P.x, y: P.y, t: 0, f: P.facing }]).slice(-6);
+        if (a.t - a.t0 < q.dash) return;
+        iaiStrike(a);
+        if (hasSp('q', 'cd') && !a.back) { a.back = true; a.hits = new Set(); a.t0 = a.t; a.x0 = P.x; a.y0 = P.y; return; } // 燕返し
+        a.ph = 'rec'; a.t0 = a.t;
+        return;
+      }
+      if (a.t - a.t0 >= q.recover) P.act = null; // 残心の硬直
+    },
+    // HUD 用: クラスリソース / スキル
     res: () => ({ kind: 'blade', label: '剣気', v: P.ki, max: P.kiMax }),
     staBroken: () => P.breakT > 0,
+    qInfo: () => ({ name: DATA.classes.samurai.q.name, glyph: '居' }),
   },
 };
+
+// 居合の斬撃: 通過した敵にまとめてダメージ(少し遅れて斬撃線が炸裂する)
+function iaiStrike(a) {
+  const q = DATA.classes.samurai.q, full = a.ki >= P.kiMax, ittou = hasSp('q', 'pow') && full;
+  const dmg = (q.pow + a.ki * q.kiPow) * (1 + cuV('q', 'pow')) * (a.back ? 0.6 : 1) * (ittou ? 1.5 : 1);
+  const x0 = a.x0, y0 = a.y0, x1 = P.x, y1 = P.y, hits = [...a.hits];
+  slashes.push({ line: true, x: x0, y: y0, x1, y1, t: 0, life: 0.2, w: 2 }); // 突進の軌跡(細い線。直後の炸裂との差を出す)
+  setTimeout(() => asMine(() => {
+    if (state !== 'play' && state !== 'levelup') return;
+    for (const e of hits) if (!e.dead) {
+      hitEnemy(e, dmg, { src: 'iai', ang: a.a, kb: 120, col: '#ff3b5c' });
+      if (ittou && !e.dead) { e.bleed = (e.bleed || 0) + 10; e.bleedT = DATA.bleed.dur; } // 一刀両断: 出血 10スタック
+      burst(e.x, e.y, 10, ['#ff3b5c', '#ffffff'], { sp: 100, glow: true, life: 0.35 });
+    }
+    slashes.push({ line: true, x: x0, y: y0, x1, y1, t: 0, life: 0.3, w: full ? 8 : 6 });
+    const mx = (x0 + x1) / 2, my = (y0 + y1) / 2;
+    hitstop(0.08); shake(full ? 10 : 7); screenFlash((full ? 0.3 : 0.2) * SET.fxA, full ? '#ff3b5c' : '#ffffff');
+    shockAt(mx, my, full ? 1.8 : 1.3, 1); addFlash(mx, my, 120, full ? '#ff3b5c' : '#ffffff', 0.4);
+    if (full) addRing(mx, my, 70, '#ff3b5c', { w: 3, life: 0.45 });
+    AudioMan.slash(); AudioMan.crit();
+  }), 110);
+  // 剣気の消費と、残気・連環
+  if (!a.back) {
+    if (cuLv('trait', 'zan')) kiAdd(a.ki * cuV('trait', 'zan'), true);
+    const base = q.cd * (1 - cuV('q', 'cd')) * P.cdMul;
+    setCd('q', hasSp('trait', 'zan') ? Math.max(3, base - a.ki * 0.2) : base);
+  }
+}
 
 // 背水: HP 50% 以下で残心の効果が2倍
 const zanshinK = () => (hasSp('passive', 'kihaku') && P.hp <= P.maxhp * 0.5 ? 2 : 1);
@@ -124,21 +260,40 @@ function samuraiParry() {
 const clsRT = () => CLASS_RT[P.cls];
 function clsInit() {
   P.sta = P.maxSta; P.staLockT = 0; P.moveMul = 1; P.invT = 0; P.atkSpd = 1; P.cu = {}; P.cs = {};
+  P.sk = { q: { cd: 0, max: 1 }, e: { cd: 0, max: 1 } }; P.act = null; P.anim = null;
   if (clsRT()) clsRT().init();
 }
 function clsUpdate(dt) {
   updStamina(dt);
   P.invT -= dt;
-  if (clsRT()) clsRT().update(dt);
+  for (const k in P.sk) P.sk[k].cd = Math.max(0, P.sk[k].cd - dt);
+  if (S.decoy && (S.decoy.t -= dt) <= 0) S.decoy = null;
+  const rt = clsRT();
+  if (rt) rt.update(dt);
+  // スキルの発動(実行中は他のスキルを使えない)
+  if (!P.act && rt) {
+    if (keys._q && rt.qStart && P.sk.q.cd <= 0) rt.qStart();
+    else if (keys._e && WEAPON_SKILL[P.mainW] && P.sk.e.cd <= 0) WEAPON_SKILL[P.mainW].start();
+  }
+  keys._q = keys._e = false;
+  // 実行中のスキル
+  if (P.act) {
+    P.act.t += dt;
+    if (P.act.slot === 'q') rt.qUpdate(P.act, dt); else WEAPON_SKILL[P.mainW].update(P.act, dt);
+  }
+  // モーション(スキルが終わった後に歩き出したら途中で打ち切る)
+  if (P.anim) { P.anim.t += dt; if (P.anim.t >= P.anim.dur || (!P.act && P.moving)) P.anim = null; }
 }
 const clsOnHurt = dmg => (clsRT() ? clsRT().onHurt(dmg) : dmg);
 function clsOnMainHit(e) { if (clsRT()) clsRT().onMainHit(e); }
 function clsOnKill(e) { if (clsRT() && clsRT().onKill) clsRT().onKill(e); }
 
 // ---------- 強化ツリーのカード ----------
-// 候補: Lv3 未満のパス + Lv3 に達したパスの特殊強化(カテゴリで未取得のとき)。特殊強化が出せるなら1枚は必ず入れる
+// 候補: クラスのツリー + メイン武器の E のツリー。Lv3 未満のパス + Lv3 に達したパスの特殊強化(カテゴリで未取得のとき)
+// 特殊強化が出せるなら1枚は必ず入れる
 function clsChoices(n) {
-  const tree = DATA.classes[P.cls].tree, skills = (clsRT() && clsRT().skills) || [], ok = need => !need || skills.includes(need);
+  const tree = Object.assign({}, DATA.classes[P.cls].tree), skills = (clsRT() && clsRT().skills) || [], ok = need => !need || skills.includes(need);
+  if (weaponSkill()) tree.e = weaponSkill().tree;
   const ups = [], sps = [];
   for (const cat in tree) {
     if (!ok(tree[cat].need)) continue;
@@ -159,3 +314,10 @@ function clsApply(c) {
 const clsAtkBonus = () => (clsRT() ? clsRT().atkBonus() : 0);
 const clsRes = () => (clsRT() && clsRT().res ? clsRT().res() : null);
 const clsStaBroken = () => !!(clsRT() && clsRT().staBroken && clsRT().staBroken());
+// HUD 用: E / Q のアイコン情報
+function clsSkillIcons() {
+  const out = [], ws = weaponSkill(), rt = clsRT();
+  if (ws) out.push({ slot: 'e', key: 'E', name: ws.name, glyph: ws.name[0] });
+  if (rt && rt.qInfo) out.push(Object.assign({ slot: 'q', key: 'Q' }, rt.qInfo()));
+  return out;
+}
