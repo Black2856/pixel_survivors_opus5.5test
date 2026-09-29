@@ -107,7 +107,7 @@ const CLASS_RT = {
     skills: ['q'], // 実装済みのクラススキル(強化ツリーの need と対応)
     init() {
       const c = DATA.classes.samurai.params;
-      P.kiMax = c.kiMax; P.ki = Math.min(P.kiMax, P.lvFx.kiStart || 0); P.kiWin = 0; P.kiWinT = 0; // クラスLv16: 開始時の剣気
+      P.ki = 0; P.kiMax = c.kiMax; P.kiWin = 0; P.kiWinT = 0;
       P.guard = false; P.guardT = 0; P.breakT = 0; P.zanshinT = 0;
     },
     update(dt) {
