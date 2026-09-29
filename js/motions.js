@@ -25,23 +25,23 @@ function samuraiPose(L, U, crouch, lunge, arm, sheathV, headV) {
 }
 
 const MOTIONS = {
-  // 居合(Q): 構え(W 秒)→ 抜刀して振り上げ → 残心 → 血振り → 納刀
+  // 居合(Q): 構え(0.25 秒)→ 抜刀して振り上げ → 残心 → 血振り → 納刀
   iai: {
-    dur: 1.18, release: 0.3,
+    dur: 1.13, release: 0.25,
     K: {
-      crouch: [[0, 0], [0.08, 1, 'out'], [0.22, 2, 'out'], [0.3, 2], [0.36, 0, 'out']],
-      lunge:  [[0, 0], [0.3, 0], [0.36, 2, 'out'], [0.73, 2], [1.03, 0]],
-      lean:   [[0, 0], [0.19, -0.06], [0.3, -0.08], [0.36, 0.16, 'out'], [0.63, 0.04], [1.03, 0]],
-      sy:     [[0, 1], [0.22, 0.96, 'out'], [0.3, 0.95], [0.36, 1.04, 'out'], [0.48, 1]],
-      ang:    [[0.3, 0.7], [0.38, -2.1, 'out'], [0.68, -1.95], [0.85, -2.25], [0.95, 0.9, 'inOut']],
+      crouch: [[0, 0], [0.07, 1, 'out'], [0.18, 2, 'out'], [0.25, 2], [0.31, 0, 'out']],
+      lunge:  [[0, 0], [0.25, 0], [0.31, 2, 'out'], [0.68, 2], [0.98, 0]],
+      lean:   [[0, 0], [0.16, -0.06], [0.25, -0.08], [0.31, 0.16, 'out'], [0.58, 0.04], [0.98, 0]],
+      sy:     [[0, 1], [0.18, 0.96, 'out'], [0.25, 0.95], [0.31, 1.04, 'out'], [0.43, 1]],
+      ang:    [[0.25, 0.7], [0.33, -2.1, 'out'], [0.63, -1.95], [0.8, -2.25], [0.9, 0.9, 'inOut']],
     },
     state(t) {
       const K = this.K, crouch = track(K.crouch, t), lunge = track(K.lunge, t);
       const L = Math.round(lunge), U = Math.round(crouch) + (lunge > 0.5 ? 1 : 0);
-      const bladeEnd = 0.99, blade = t >= this.release && t < bladeEnd, ang = track(K.ang, t);
-      const arm = t < 0.03 ? 'base' : t < this.release ? 'grip' : t < bladeEnd ? (ang > -0.8 ? 'slash' : 'high') : t < 1.08 ? 'grip' : 'base';
-      const sheathV = blade ? 'empty' : (t > 0.22 && t < this.release) || (t > bladeEnd && t < 1.13) ? 'glint' : 'base';
-      const headV = t > this.release && t < 0.73 && Math.floor(t * 12) % 2 ? 'b' : 'base';
+      const bladeEnd = 0.94, blade = t >= this.release && t < bladeEnd, ang = track(K.ang, t);
+      const arm = t < 0.03 ? 'base' : t < this.release ? 'grip' : t < bladeEnd ? (ang > -0.8 ? 'slash' : 'high') : t < 1.03 ? 'grip' : 'base';
+      const sheathV = blade ? 'empty' : (t > 0.18 && t < this.release) || (t > bladeEnd && t < 1.08) ? 'glint' : 'base';
+      const headV = t > this.release && t < 0.68 && Math.floor(t * 12) % 2 ? 'b' : 'base';
       return Object.assign(samuraiPose(L, U, crouch, lunge, arm, sheathV, headV), { blade, ang, lean: track(K.lean, t), sy: track(K.sy, t) });
     },
   },

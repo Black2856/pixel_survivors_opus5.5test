@@ -104,7 +104,8 @@ const CLASS_RT = {
       const c = DATA.classes.samurai.params;
       P.kiWinT -= dt; if (P.kiWinT <= 0) P.kiWin = 0;
       P.zanshinT -= dt; P.breakT -= dt;
-      P.atkSpd = hasSp('trait', 'juu') && P.ki >= P.kiMax ? 1.25 : 1; // 明鏡止水: 満タンの間 攻撃速度 +25%
+      P.kiMax = c.kiMax + cuV('trait', 'zan'); // 残気: 最大値アップ
+      P.atkSpd = hasSp('trait', 'juu') && kiHigh() ? 1.25 : 1; // 明鏡止水: 剣気100以上の間 攻撃速度 +25%
       // 見切り(Space 長押しでガード)。構えた瞬間にスタミナ guardCost を消費する(連打でジャストを狙いやすくしないため)
       // 押し直すまで再び構えない / スタミナ不足・ガードブレイク中・スキル中は構えられない
       const held = (keys.Space || keys.TouchDef) && !P.act;
@@ -124,7 +125,7 @@ const CLASS_RT = {
       if (P.breakT > 0) return dmg * (1 + c.breakDmg);
       if (!P.guard) {
         let k = 1;
-        if (hasSp('trait', 'juu') && P.ki >= P.kiMax) k *= 0.7;  // 明鏡止水
+        if (hasSp('trait', 'juu') && kiHigh()) k *= 0.7;  // 明鏡止水
         if (hasSp('passive', 'migaru') && P.zanshinT > 0) k *= 0.75; // 不動
         return dmg * k;
       }
@@ -141,7 +142,7 @@ const CLASS_RT = {
       P.ifr = P.iframe * 0.5;
       return null;
     },
-    // 通常攻撃(メイン武器)が命中: 剣気 +kiHit(一定時間内の獲得は kiHitCap まで)
+    // 通常攻撃(メイン武器)が命中: 1体につき剣気 +kiHit(1回の攻撃 = 0.15 秒以内の獲得は kiHitCap まで)
     onMainHit() {
       const c = DATA.classes.samurai.params;
       if (P.kiWinT <= 0) { P.kiWinT = 0.15; P.kiWin = 0; }
@@ -154,7 +155,7 @@ const CLASS_RT = {
     },
     atkBonus() {
       const c = DATA.classes.samurai.params;
-      return (P.ki >= P.kiMax ? cuV('trait', 'juu', c.kiFullAtk) : 0) + (P.zanshinT > 0 ? cuV('passive', 'kihaku', c.zanshinAtk) * zanshinK() : 0);
+      return (kiHigh() ? cuV('trait', 'juu', c.kiFullAtk) : 0) + (P.zanshinT > 0 ? cuV('passive', 'kihaku', c.zanshinAtk) * zanshinK() : 0);
     },
     // 居合・朧月(Q): 構え → 突進して通過した敵を斬る。剣気を全て消費し、消費量で威力が上がる
     qStart() {
@@ -164,7 +165,7 @@ const CLASS_RT = {
       playAnim('iai', MOTIONS.iai.dur);
       slowmo(0.35, 0.22);
       skillCall(q.name, '#ff5d73'); AudioMan.click();
-      if (P.ki >= P.kiMax) { addRing(P.x, P.y, 22, '#ff3b5c', { w: 2, life: 0.35 }); burst(P.x, P.y, 20, ['#ff3b5c', '#ffd0d8'], { sp: 50, up: 20, glow: true }); }
+      if (kiHigh()) { addRing(P.x, P.y, 22, '#ff3b5c', { w: 2, life: 0.35 }); burst(P.x, P.y, 20, ['#ff3b5c', '#ffd0d8'], { sp: 50, up: 20, glow: true }); }
     },
     qUpdate(a, dt) {
       const q = DATA.classes.samurai.q, reach = 1 + cuV('q', 'reach');
@@ -201,7 +202,7 @@ const CLASS_RT = {
 
 // 居合の斬撃: 通過した敵にまとめてダメージ(少し遅れて斬撃線が炸裂する)
 function iaiStrike(a) {
-  const q = DATA.classes.samurai.q, full = a.ki >= P.kiMax, ittou = hasSp('q', 'pow') && full;
+  const q = DATA.classes.samurai.q, full = a.ki >= DATA.classes.samurai.params.kiFull, ittou = hasSp('q', 'pow') && full;
   const dmg = (q.pow + a.ki * q.kiPow) * (1 + cuV('q', 'pow')) * (a.back ? 0.6 : 1) * (ittou ? 1.5 : 1);
   const x0 = a.x0, y0 = a.y0, x1 = P.x, y1 = P.y, hits = [...a.hits];
   slashes.push({ line: true, x: x0, y: y0, x1, y1, t: 0, life: 0.2, w: 2 }); // 突進の軌跡(細い線。直後の炸裂との差を出す)
@@ -219,21 +220,23 @@ function iaiStrike(a) {
     if (full) addRing(mx, my, 70, '#ff3b5c', { w: 3, life: 0.45 });
     AudioMan.slash(); AudioMan.crit();
   }), 110);
-  // 剣気の消費と、残気・連環
+  // CD(連環: 消費した剣気1につき 0.1秒短縮)
   if (!a.back) {
-    if (cuLv('trait', 'zan')) kiAdd(a.ki * cuV('trait', 'zan'), true);
     const base = q.cd * (1 - cuV('q', 'cd')) * P.cdMul;
-    setCd('q', hasSp('trait', 'zan') ? Math.max(3, base - a.ki * 0.2) : base);
+    setCd('q', hasSp('trait', 'zan') ? Math.max(3, base - a.ki * 0.1) : base);
   }
 }
 
-// 背水: HP 50% 以下で残心の効果が2倍
-const zanshinK = () => (hasSp('passive', 'kihaku') && P.hp <= P.maxhp * 0.5 ? 2 : 1);
+// 背水: HP 75% 以下で残心の効果が2倍
+const zanshinK = () => (hasSp('passive', 'kihaku') && P.hp <= P.maxhp * 0.75 ? 2 : 1);
+// 剣気100以上(攻撃力アップ・明鏡止水・一刀両断の条件)
+const kiHigh = () => P.ki >= DATA.classes.samurai.params.kiFull;
 // 剣気を得る(練気で獲得量アップ。flat = 倍率をかけない)
 function kiAdd(n, flat) {
   const was = P.ki;
   P.ki = Math.min(P.kiMax, P.ki + (flat ? n : n * (1 + cuV('trait', 'ren'))));
-  if (was < P.kiMax && P.ki >= P.kiMax) { // 満タンになった瞬間
+  const full = DATA.classes.samurai.params.kiFull;
+  if ((was < full && P.ki >= full) || (was < P.kiMax && P.ki >= P.kiMax)) { // 100 に届いた瞬間 / 最大値に届いた瞬間
     AudioMan.levelup(); addRing(P.x, P.y, 30, '#ff3b5c', { w: 2, life: 0.4 });
     burst(P.x, P.y, 16, ['#ff3b5c', '#ffd0d8'], { sp: 60, up: 30, glow: true });
   }

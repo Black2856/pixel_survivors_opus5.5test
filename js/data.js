@@ -236,20 +236,21 @@ const DATA = {
   classes: {
     samurai: {
       name: 'サムライ', en: 'SAMURAI', weapon: 'katana', col: '#ff5d73', light: '#ffe2c8', rig: 'samurai', // rig: 部位アニメーション(ART.S) / light: 足元の光
-      base: { hp: 110, regen: 0.3, def: 1, sta: 100, staRegen: 20, atk: 0.1, range: -0.1, crit: 0.08, critDmg: 1.2, magnet: -0.1, wslot: 4, reroll: 2 },
+      base: { hp: 110, regen: 0.2, def: 1, sta: 100, staRegen: 20, atk: 0.1, range: -0.1, crit: 0.05, critDmg: 1.0, magnet: -0.1, wslot: 4, reroll: 2 },
       lvStats: { 2: { hp: 10 }, 13: { hp: 15, sta: 20 } },
-      // 剣気: 通常攻撃の命中 +kiHit(0.15秒で kiHitCap まで)、ジャスト見切り +kiParry、満タンで攻撃力 +kiFullAtk
+      // 剣気: 通常攻撃の命中 +kiHit(1回の攻撃で kiHitCap まで)、ジャスト見切り +kiParry。kiFull 以上の間は攻撃力 +kiFullAtk
+      //       最大値は kiMax(残気で増える)
       // 見切り: 構えた瞬間にスタミナ guardCost を消費。ガード中は移動 ×guardSlow。押してから parryWin 秒以内の被弾でジャスト(反撃 基礎威力 parryPow・半径 parryR・無敵 parryIfr)
       //         スタミナ 0 でガードブレイク(breakT 秒ガード不可・被ダメ +breakDmg)
       // 残心: 防御スキルで攻撃を受けた後 zanshinT 秒、攻撃力 +zanshinAtk
       params: {
-        kiMax: 100, kiHit: 2, kiHitCap: 10, kiParry: 30, kiFullAtk: 0.2,
+        kiMax: 100, kiFull: 100, kiHit: 1, kiHitCap: 5, kiParry: 30, kiFullAtk: 0.2,
         guardCost: 15, guardSlow: 0.5, parryWin: 0.25, parryPow: 60, parryR: 40, parryIfr: 0.5, breakT: 2, breakDmg: 0.2,
         zanshinT: 3, zanshinAtk: 0.15,
       },
       // 居合・朧月(Q): 構え windup 秒 → dist 先へ突進(幅 width、無敵)→ 通過した敵を斬る。硬直 recover 秒
       // ダメージ = 基礎威力 pow + 消費した剣気 × kiPow(武器に依存しない)
-      q: { name: '居合・朧月', cd: 30, windup: 0.3, dash: 0.1, recover: 0.2, dist: 90, width: 12, pow: 150, kiPow: 1 },
+      q: { name: '居合・朧月', cd: 30, windup: 0.25, dash: 0.1, recover: 0.2, dist: 90, width: 12, pow: 150, kiPow: 1 },
       // ラン中の強化ツリー(3の倍数のLv で選ぶ)。カテゴリ → 強化パス(Lv1〜3、v が各Lvの値)→ 特殊強化(sp)
       // need: そのスキルが実装済みの場合だけ候補に出す(CLASS_RT の skills に含まれるもの)
       // 特殊強化は各パスが Lv3 で候補に出る。1カテゴリにつき1つだけ取れる
@@ -257,16 +258,16 @@ const DATA = {
       tree: {
         trait: { name: '剣気', paths: {
           ren: { name: '練気', desc: ['剣気獲得 +20%', '剣気獲得 +40%', '剣気獲得 +60%'], v: [0.2, 0.4, 0.6], sp: { name: '無尽', desc: '敵を倒すと剣気 +3' } },
-          juu: { name: '充溢', desc: ['満タン時の攻撃力 20% → 30%', '満タン時の攻撃力 40%', '満タン時の攻撃力 50%'], v: [0.3, 0.4, 0.5], sp: { name: '明鏡止水', desc: '剣気が満タンの間、被ダメージ -30%・攻撃速度 +25%' } },
-          zan: { name: '残気', need: 'q', desc: ['居合の後、消費した剣気の 20% を戻す', '35% を戻す', '50% を戻す'], v: [0.2, 0.35, 0.5], sp: { name: '連環', desc: '居合のCDが、消費した剣気1につき 0.2秒短くなる' } },
+          juu: { name: '充溢', desc: ['剣気100以上の攻撃力 20% → 30%', '剣気100以上の攻撃力 40%', '剣気100以上の攻撃力 50%'], v: [0.3, 0.4, 0.5], sp: { name: '明鏡止水', desc: '剣気100以上の間、被ダメージ -30%・攻撃速度 +25%' } },
+          zan: { name: '残気', need: 'q', desc: ['剣気の最大値 +30', '剣気の最大値 +60', '剣気の最大値 +100'], v: [30, 60, 100], sp: { name: '連環', desc: '居合のCDが、消費した剣気1につき 0.1秒短くなる' } },
         } },
         passive: { name: '残心', paths: {
-          kihaku: { name: '気迫', desc: ['残心の攻撃力 15% → 20%', '残心の攻撃力 25%', '残心の攻撃力 30%'], v: [0.2, 0.25, 0.3], sp: { name: '背水', desc: 'HP 50% 以下で、残心の効果が2倍' } },
+          kihaku: { name: '気迫', desc: ['残心の攻撃力 15% → 20%', '残心の攻撃力 25%', '残心の攻撃力 30%'], v: [0.2, 0.25, 0.3], sp: { name: '背水', desc: 'HP 75% 以下で、残心の効果が2倍' } },
           jizoku: { name: '持続', desc: ['残心の効果時間 +1秒', '+2秒', '+3秒'], v: [1, 2, 3], sp: { name: '常在戦場', desc: '残心中に敵を倒すと、効果時間がリセットされる' } },
           migaru: { name: '身軽', desc: ['残心中の移動速度 +10%', '+20%', '+30%'], v: [0.1, 0.2, 0.3], sp: { name: '不動', desc: '残心中の被ダメージ -25%' } },
         } },
         q: { name: '居合・朧月', need: 'q', paths: {
-          pow: { name: '威力', desc: ['居合の威力 +20%', '+40%', '+60%'], v: [0.2, 0.4, 0.6], sp: { name: '一刀両断', desc: '剣気100で使うと威力 ×1.5、斬った敵に出血10スタック' } },
+          pow: { name: '威力', desc: ['居合の威力 +20%', '+40%', '+60%'], v: [0.2, 0.4, 0.6], sp: { name: '一刀両断', desc: '剣気100以上で使うと威力 ×1.5、斬った敵に出血10スタック' } },
           cd:  { name: '迅速', desc: ['居合のCD -10%', '-20%', '-30%'], v: [0.1, 0.2, 0.3], sp: { name: '燕返し', desc: '到達後、元の位置へ戻りながらもう一度斬る(60%)' } },
           reach: { name: '間合', desc: ['突進距離・幅 +20%', '+40%', '+60%'], v: [0.2, 0.4, 0.6], sp: { name: '空蝉', desc: '開始地点に分身を残し、2秒間敵の攻撃を引きつける' } },
         } },
