@@ -293,9 +293,11 @@ const UI = (() => {
     } else if (c.type === 'cls') {
       // クラス強化: カテゴリ名 / パス名 / 次のLvの効果。特殊強化は性質が変わる派生
       const C = treeCat(c.cat), d = C.paths[c.path], lv = cuLv(c.cat, c.path);
-      ic = `<div class="cls-ic" style="--cc:${DATA.classes[P.cls].col}">${c.sp ? '★' : '◆'}</div>`;
+      // カテゴリごとにアイコンと色を分ける(特性 / パッシブ / クラススキル Q / 武器スキル E)
+      const CAT = { trait: ['特性', '#ff5d73'], passive: ['パッシブ', '#5dff8a'], q: ['スキル Q', '#ffd23f'], e: ['スキル E', '#ffb7d5'] }[c.cat];
+      ic = `<div class="cls-ic" style="--cc:${CAT[1]}">${C.name[0]}${c.sp ? '<i>★</i>' : ''}</div><div class="cls-cat" style="--cc:${CAT[1]}">${CAT[0]}</div>`;
       if (c.sp) { name = d.sp.name; head = 'SPECIAL'; rar = 'legend'; body = `<p>${d.sp.desc}</p>`; foot = `<div class="evohint">${C.name} / ${d.name} の派生(1つだけ)</div>`; }
-      else { name = d.name; head = `${C.name} Lv ${lv} → ${lv + 1}`; rar = lv + 1 === 3 ? 'epic' : 'rare'; body = `<p>${d.desc[lv]}</p>`; foot = `<div class="evohint">${'◆'.repeat(lv + 1)}${'◇'.repeat(2 - lv)}</div>`; }
+      else { name = d.name; head = `Lv ${lv} → ${lv + 1}`; name = `<small>${C.name}</small>${d.name}`; rar = lv + 1 === 3 ? 'epic' : 'rare'; body = `<p>${d.desc[lv]}</p>`; foot = `<div class="evohint">${'◆'.repeat(lv + 1)}${'◇'.repeat(2 - lv)}</div>`; }
     } else if (c.type === 'evo') {
       const d = DATA.weapons[c.key];
       name = d.evo.name; ic = icon('weapon', c.key, 'big'); head = 'EVOLUTION!!'; rar = 'legend'; body = `<p>${d.name} が進化した!<br>${d.evo.desc}</p>`;

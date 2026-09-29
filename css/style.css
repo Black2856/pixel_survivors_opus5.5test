@@ -151,7 +151,10 @@ button { font: inherit; color: inherit; cursor: pointer; border: 0; background: 
 .card.new .card-head { color: var(--cyan); }
 .card.legend .card-head { color: var(--pink); animation: flick .4s ease-in-out infinite; }
 .card-icon { width: 76px; height: 76px; display: grid; place-items: center; background: var(--ink); box-shadow: inset 0 0 0 3px var(--panel2); }
-.cls-ic { font: 30px 'Press Start 2P'; color: var(--cc); text-shadow: 0 0 12px var(--cc), 3px 3px 0 var(--ink); animation: bob 1.2s ease-in-out infinite; } /* クラス強化カード */
+.cls-cat { position: absolute; top: 4px; left: 50%; transform: translateX(-50%); font-size: 13px; color: var(--cc); text-shadow: 2px 2px 0 var(--ink); white-space: nowrap; }
+.card-name small { display: block; font-size: 14px; color: var(--dim); }
+.cls-ic i { position: absolute; font-style: normal; font-size: 16px; color: var(--gold); transform: translate(18px, -18px); }
+.cls-ic { position: relative; font: 38px 'DotGothic16'; color: var(--cc); text-shadow: 0 0 12px var(--cc), 3px 3px 0 var(--ink); animation: bob 1.2s ease-in-out infinite; } /* クラス強化カード */
 .card-icon .big { width: 54px; image-rendering: pixelated; filter: drop-shadow(0 0 6px rgba(255,255,255,.35)); animation: bob 1.2s ease-in-out infinite; }
 .card-name { font-size: 19px; color: #fff; text-shadow: 2px 2px 0 var(--ink); }
 .card-body { font-size: 14px; color: #d8d0f0; line-height: 1.5; flex: 1; }
