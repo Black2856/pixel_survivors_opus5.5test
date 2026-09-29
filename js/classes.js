@@ -692,7 +692,7 @@ function elEffect(e, el, dealt) {
   const p = MG(), L = cuLv('trait', 'el');
   if (el === 'fire') {
     const perSec = dealt * p.burnPct * (1 + 0.1 * L) / p.burnDur / dmgMul();
-    e.burn = Math.max(e.burnT > 0 ? e.burn || 0 : 0, perSec); e.burnT = p.burnDur; e.burnSrc = 'elfire';
+    addBurn(e, perSec, p.burnDur, 'elfire'); // 炎上はスタックする
   } else if (el === 'ice') {
     e.frost = Math.max(e.frost || 0, Math.min(mageFrostCap(), (e.frost || 0) + 1)); e.frostT = 5;
   } else if (el === 'bolt') {

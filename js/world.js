@@ -446,6 +446,16 @@ function spawnHole(x, y, st, evo) {
 }
 
 // 長弓の矢(天弓: 同じ敵に二重ヒット。2回目は貫通を1消費)
+// 敵の炎上: 燃やすたびに別々の炎上として積む(スタック)。perSec = 1秒あたりの基礎ダメージ(攻撃力を掛ける前)
+// 0.5秒ごとに、残っている炎上の合計を出どころごとにまとめて与える。1体あたり最大 40 個
+function addBurn(e, perSec, dur = DATA.debuff.burnDur, src = 'fire') {
+  if (!(perSec > 0) || e.dead || e.prop) return;
+  const b = e.burns || (e.burns = []);
+  b.push({ v: perSec, t: dur, src });
+  if (b.length > 40) b.shift();
+  if (e.burnT <= 0) e.burnTick = DATA.debuff.burnTick;
+  e.burnT = Math.max(e.burnT, dur);
+}
 function shootArrow(k, st, evo) {
   const a = aimAt(220 * P.range);
   fire('arrow', P.x, P.y - 2, a, st.speed, { dmg: st.dmg, pierce: st.pierce, life: 0.9 * P.range, src: k, r: 3, col: evo ? '#ffe14a' : '#e4ffd8', dbl: evo });
@@ -500,7 +510,7 @@ function updProjs(dt) {
       hitEnemy(e, dmg, { src: p.src, ang, kb: p.kind === 'axe' ? 50 : 22, col: p.col, el: p.el, eHit: p.eHit, forceCrit: p.forceCrit });
       if (p.onHit) p.onHit(e);
       if (p.dbl && p.pierce > 0 && !e.dead) { hitEnemy(e, dmg, { src: p.src, col: p.col, el: p.el, eHit: p.eHit, noNum: true }); p.pierce--; } // 天弓: 二重ヒット(貫通を1消費)
-      if (p.burn) { e.burn = Math.max(e.burn || 0, p.burn); e.burnT = 3; }
+      if (p.burn) addBurn(e, p.burn, 3, p.src);
       if (p.boom > 0) {
         p.boom--;
         const bx = e.x, by = e.y;
@@ -552,7 +562,7 @@ function updZones(dt) {
             asMine(() => {
               forEachNear(x0, y0, z.r, e => {
                 const dealt = hitEnemy(e, z.dmg, { src: 'arrowrain', col: z.fire ? '#ff8a3d' : '#b8ff9a', el, eHit: true, noNum: Math.random() < 0.5 });
-                if (z.fire && dealt && !e.dead) { e.burn = Math.max(e.burnT > 0 ? e.burn || 0 : 0, dealt * z.fire / z.fireT / dmgMul()); e.burnT = z.fireT; e.burnSrc = 'arrowrain'; } // 炎の矢
+                if (z.fire && dealt && !e.dead) addBurn(e, dealt * z.fire / z.fireT / dmgMul(), z.fireT, 'arrowrain'); // 炎の矢(与えたダメージの 40% を3秒で)
                 if (Math.random() < 0.4) part(e.x, e.y, rand(-20, 20), -rand(10, 30), 0.3, pick(['#b8ff9a', '#e4ffd8', '#8a8098']), { glow: true });
               });
             });
@@ -691,7 +701,7 @@ function spawnEnemy(type, o = {}) {
     id: nextId++, type, x, y, hp: d.hp * hpk, maxhp: d.hp * hpk, spd: d.spd * spk * rand(0.9, 1.1), dmg: d.dmg * enemyDmgK(),
     r: d.r * (o.elite ? 2 : 1), xp: d.xp * lvK('xp'), ai: d.ai, kbRes: o.elite ? 0.9 : d.kbRes || 0, ghost: d.ghost,
     t: rand(0, 5), seed: Math.random(), kx: 0, ky: 0, flash: 0, elite: !!o.elite, scale: o.elite ? 2 : 1,
-    frost: 0, frostT: 0, burn: 0, burnT: 0, burnTick: 0, stun: 0, slowT: 0, bleed: 0, bleedT: 0, shotT: d.shot ? rand(1, d.shot.cd) : 0, hopT: rand(0, 1),
+    frost: 0, frostT: 0, burns: [], burnT: 0, burnTick: 0, stun: 0, slowT: 0, bleed: 0, bleedT: 0, shotT: d.shot ? rand(1, d.shot.cd) : 0, hopT: rand(0, 1),
     life: type === 'goblin' ? 16 : 0,
   };
   enemies.push(e);
@@ -711,10 +721,19 @@ function updEnemies(dt) {
     e.t += dt; e.flash -= dt;
     if (e.prop) { if (d2(e.x, e.y, P.x, P.y) > R2 * 2) e.dead = true; continue; }
     // 状態異常
-    if (e.burnT > 0) {
+    if (e.burnT > 0) { // 炎上(スタック): 積んだ炎上の合計を 0.5秒ごとに、出どころごとにまとめて
       e.burnT -= dt; e.burnTick -= dt;
-      if (e.burnTick <= 0) { e.burnTick = 0.5; hitEnemy(e, e.burn * 0.5, { src: e.burnSrc || 'fire', noCrit: true, col: '#ff8a3d', noNum: Math.random() < 0.5 }); if (e.dead) continue; }
-      if (Math.random() < dt * 12) part(e.x + rand(-3, 3), e.y + rand(-3, 3), 0, -20, 0.4, pick(['#ff6a2a', '#ffc34a']), { glow: true });
+      const bs = e.burns || [];
+      for (const b of bs) b.t -= dt;
+      if (e.burnTick <= 0) {
+        e.burnTick = DATA.debuff.burnTick;
+        const by = {};
+        for (const b of bs) if (b.t > -DATA.debuff.burnTick) by[b.src] = (by[b.src] || 0) + b.v * DATA.debuff.burnTick;
+        for (const src in by) { hitEnemy(e, by[src], { src, noCrit: true, col: '#ff8a3d', noNum: Math.random() < 0.5 }); if (e.dead) break; }
+        if (e.dead) continue;
+      }
+      e.burns = bs.filter(b => b.t > 0);
+      if (Math.random() < dt * (8 + 2 * Math.min(10, e.burns.length))) part(e.x + rand(-3, 3), e.y + rand(-3, 3), 0, -20, 0.4, pick(['#ff6a2a', '#ffc34a']), { glow: true }); // 積むほど火の粉が増える
     }
     if (e.frostT > 0) { e.frostT -= dt; if (e.frostT <= 0) e.frost = 0; }
     if (e.bleedT > 0 && e.bleed > 0 && (e.bleedTick = (e.bleedTick || 1) - dt) <= 0) {
@@ -792,7 +811,7 @@ function spawnBoss(key, final) {
   const e = {
     id: nextId++, type: key, boss: key, name: b.name, final: !!final, enrage: b.enrage ?? 0.5, x: P.x + Math.cos(a) * R, y: P.y + Math.sin(a) * R,
     hp, maxhp: hp, spd: b.spd * Math.min(DATA.enemyLevel.spdMax, lvK('spd')), dmg: b.dmg * enemyDmgK(), r: b.r, col: b.col, xp: 0, kbRes: 1,
-    t: 0, seed: 0, kx: 0, ky: 0, flash: 0, frost: 0, frostT: 0, burn: 0, burnT: 0, burnTick: 0, stun: 0, slowT: 0, scale: 1, jz: 0, sq: 1,
+    t: 0, seed: 0, kx: 0, ky: 0, flash: 0, frost: 0, frostT: 0, burns: [], burnT: 0, burnTick: 0, stun: 0, slowT: 0, scale: 1, jz: 0, sq: 1,
     ai: {
       ph: 'chase', pt: 0, atk: 3, sum: 7, slam: 6, ring: 3, aim: 2, tp: 5, spiral: 3.5, spN: 0, spGap: 0, spA: 0, enraged: false,
       q: [], act: null, wind: 0, cd: 2.5, hop: 1, spinCd: 4, beamCd: 8, vortexCd: 5, throw: 3, clock: 7,
