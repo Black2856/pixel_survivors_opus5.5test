@@ -15,10 +15,10 @@ const STAT_SRC_LABEL = {
 const TREE_R = d => (d === 1 ? 56 : 80 + d * 40);
 const TREE = (() => {
   const T = DATA.tree, nodes = {}, n = {}, R = TREE_R;
-  const mk = (k, dir, depth, ang, big) => {
+  const mk = (k, dir, depth, ang, o = {}) => {
     n[k] = (n[k] || 0) + 1;
-    const id = k + '#' + n[k];
-    nodes[id] = { id, k, dir, depth, big: !!big, adj: [], x: Math.cos(ang) * R(depth), y: Math.sin(ang) * R(depth) };
+    const id = k + '#' + n[k], r = R(depth) + (o.out || 0);
+    nodes[id] = { id, k, dir, depth, big: !!o.big, leaf: !!o.leaf, adj: [], x: Math.cos(ang) * r, y: Math.sin(ang) * r };
     return nodes[id];
   };
   const link = (a, b) => { a.adj.push(b.id); b.adj.push(a.id); };
@@ -34,36 +34,42 @@ const TREE = (() => {
   };
   const dirKeys = Object.keys(T.dirs);
   dirKeys.forEach((dk, di) => {
-    const D = T.dirs[dk], c0 = -Math.PI / 2 + di * Math.PI * 2 / dirKeys.length, secW = Math.PI * 2 / dirKeys.length;
+    const D = T.dirs[dk], secW = Math.PI * 2 / dirKeys.length, c0 = -Math.PI / 2 + di * secW;
     const root = mk(D.root, dk, 1, c0);
     const bw = secW * 0.9 / D.branches.length, tips = []; // 方向の間に少し隙間を空ける
     D.branches.forEach((B, bi) => {
-      const bc = c0 - secW * 0.45 + bw * (bi + 0.5), seq = interleave(B.nodes), lanes = Math.ceil(seq.length / B.rows);
-      const grid = [];
-      seq.forEach((k, i) => {
-        const row = Math.floor(i / lanes), lane = i % lanes, inRow = Math.min(lanes, seq.length - row * lanes);
-        const ang = lanes > 1 ? bc + (lane - (inRow - 1) / 2) * (bw * 0.7 / (lanes - 1)) : bc;
-        const nd = mk(k, dk, row + 2, ang);
-        (grid[row] = grid[row] || []).push(nd);
+      // 列: 行き止まり / 本線 / 行き止まり / 本線 / 行き止まり(本線 L 本なら 2L+1 列)
+      const bc = c0 - secW * 0.45 + bw * (bi + 0.5), L = B.lanes || 1, cols = 2 * L + 1;
+      const colAng = c => bc + (c - L) * (bw * 0.8 / (cols - 1));
+      // 本線: 深さ2 から外へ、レーンを交互に埋める
+      const lanes = Array.from({ length: L }, () => []);
+      interleave(B.chain).forEach((k, i) => {
+        const l = i % L, nd = mk(k, dk, lanes[l].length + 2, colAng(2 * l + 1));
+        if (lanes[l].length) link(lanes[l][lanes[l].length - 1], nd); else link(root, nd);
+        lanes[l].push(nd);
       });
-      // 隣接: 根 ↔ 1段目、同じ段の隣、1つ内側の段の近い位置
-      for (const nd of grid[0]) link(root, nd);
-      grid.forEach((row, r) => {
-        row.forEach((nd, i) => {
-          if (i > 0) link(row[i - 1], nd);
-          if (r > 0) {
-            const prev = grid[r - 1], j = Math.round(i * (prev.length - 1) / Math.max(1, row.length - 1));
-            link(prev[row.length === 1 ? Math.floor((prev.length - 1) / 2) : j], nd);
-          }
-        });
+      // 行き止まり: 本線の横の空き(同じ深さ、少し外側)に、深さが偏らないよう均等に置く。つながるのは隣の本線ノード1つだけ
+      const slots = [];
+      lanes.forEach((ln, l) => ln.forEach(p => {
+        for (const c of [2 * l + 1 + (l === 0 ? 1 : -1), 2 * l + 1 + (l === 0 ? -1 : 1)]) slots.push({ c, d: p.depth, p });
+      }));
+      const byD = {}; for (const s of slots) (byD[s.d] = byD[s.d] || []).push(s);
+      const depths = Object.keys(byD).map(Number).sort((a, b) => a - b), used = new Set(), leaves = interleave(B.leaf || {});
+      leaves.forEach((k, i) => {
+        const want = depths[Math.min(depths.length - 1, Math.floor((i + 0.5) * depths.length / leaves.length))];
+        const order = depths.slice().sort((a, b) => Math.abs(a - want) - Math.abs(b - want) || b - a);
+        let s = null;
+        for (const d of order) { s = byD[d].find(x => !used.has(x.c + ':' + x.d)); if (s) break; }
+        used.add(s.c + ':' + s.d);
+        link(s.p, mk(k, dk, s.d, colAng(s.c), { leaf: true, out: 18 }));
       });
       if (B.tip) {
-        const last = grid[grid.length - 1], tip = mk(B.tip, dk, grid.length + 2, bc, true);
-        for (const nd of last) link(nd, tip);
+        const depth = Math.max(...lanes.map(ln => ln.length)) + 2, tip = mk(B.tip, dk, depth, bc, { big: true });
+        for (const ln of lanes) link(ln[ln.length - 1], tip);
         tips.push(tip);
       }
     });
-    if (D.crown) { const cr = mk(D.crown, dk, Math.max(...tips.map(t => t.depth)) + 1, c0, true); for (const t of tips) link(t, cr); }
+    if (D.crown) { const cr = mk(D.crown, dk, Math.max(...tips.map(t => t.depth)) + 1, c0, { big: true }); for (const t of tips) link(t, cr); }
   });
   return nodes;
 })();

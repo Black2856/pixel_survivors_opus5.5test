@@ -150,8 +150,10 @@ const MetaUI = (() => {
     for (const nd of nodes) {
       const st = treeOwned(nd.id) ? 'own' : treeOpen(nd) ? (META.gold >= treeCost(nd) ? 'open' : 'poor') : 'lock';
       const r = nd.big ? 15 : 10.5;
-      svg += `<g class="nd ${st} ${nd.big ? 'big' : ''} ${trSel === nd.id ? 'sel' : ''}" data-id="${nd.id}" style="--dc:${T.dirs[nd.dir].col}" transform="translate(${nd.x.toFixed(1)} ${nd.y.toFixed(1)})">
-        <circle r="${r}"/><text y="${nd.big ? 5.5 : 4.5}">${T.glyph[nd.k]}</text></g>`;
+      // 行き止まり(貴重なステータス)はひし形
+      const sh = nd.leaf ? `<rect class="sh" x="-9" y="-9" width="18" height="18" transform="rotate(45)"/>` : `<circle class="sh" r="${r}"/>`;
+      svg += `<g class="nd ${st} ${nd.big ? 'big' : ''} ${nd.leaf ? 'leaf' : ''} ${trSel === nd.id ? 'sel' : ''}" data-id="${nd.id}" style="--dc:${T.dirs[nd.dir].col}" transform="translate(${nd.x.toFixed(1)} ${nd.y.toFixed(1)})">
+        ${sh}<text y="${nd.big ? 5.5 : 4.5}">${T.glyph[nd.k]}</text></g>`;
     }
     $('tr-svg').innerHTML = svg;
     treeInfo();
@@ -166,7 +168,7 @@ const MetaUI = (() => {
     if (!nd) { box.innerHTML = '<div class="dim">ノードを選ぶと詳細が表示されます。中心に近いノードから、取得済みのノードの隣へ広げていきます</div>'; return; }
     const D = DATA.tree.dirs[nd.dir], own = treeOwned(nd.id), open = treeOpen(nd), cost = treeCost(nd);
     box.innerHTML = `<div class="tr-nm" style="color:${D.col}">${DATA.tree.glyph[nd.k]} ${nodeName(nd)}</div>
-      <div class="dim">${D.name} ・ 深さ ${nd.depth}${nd.big ? ' ・ 特別なノード' : ''}</div>
+      <div class="dim">${D.name} ・ 深さ ${nd.depth}${nd.big ? ' ・ 特別なノード' : nd.leaf ? ' ・ 行き止まり' : ''}</div>
       <button class="btn tr-buy" ${!own && open && META.gold >= cost ? '' : 'disabled'}>${own ? '取得済み' : !open ? '隣のノードを先に取得' : `取得 ● ${cost.toLocaleString()}`}</button>`;
   }
   $('tr-svg').onclick = e => {

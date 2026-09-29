@@ -405,18 +405,18 @@ input[type=range] { width: 220px; accent-color: var(--gold); }
 #tr-svg line.lit { stroke: var(--dc); stroke-width: 3; filter: drop-shadow(0 0 3px var(--dc)); }
 #tr-svg .dirname { font: 15px 'DotGothic16'; text-anchor: middle; }
 #tr-svg .nd { cursor: pointer; }
-#tr-svg .nd circle { fill: #120d22; stroke: #3a3060; stroke-width: 2; }
+#tr-svg .nd .sh { fill: #120d22; stroke: #3a3060; stroke-width: 2; }
 #tr-svg .nd text { font: 13px 'DotGothic16'; fill: #5a5078; text-anchor: middle; pointer-events: none; }
 #tr-svg .nd.big text { font-size: 17px; }
-#tr-svg .nd.own circle { fill: var(--dc); stroke: #fff; }
+#tr-svg .nd.own .sh { fill: var(--dc); stroke: #fff; }
 #tr-svg .nd.own text { fill: #120d22; }
-#tr-svg .nd.open circle { stroke: var(--dc); animation: trPulse 1.2s ease-in-out infinite; }
+#tr-svg .nd.open .sh { stroke: var(--dc); animation: trPulse 1.2s ease-in-out infinite; }
 #tr-svg .nd.open text { fill: var(--dc); }
-#tr-svg .nd.poor circle { stroke: color-mix(in srgb, var(--dc) 50%, #3a3060); stroke-dasharray: 3 2; }
+#tr-svg .nd.poor .sh { stroke: color-mix(in srgb, var(--dc) 50%, #3a3060); stroke-dasharray: 3 2; }
 #tr-svg .nd.poor text { fill: color-mix(in srgb, var(--dc) 60%, #5a5078); }
-#tr-svg .nd.big circle { stroke-width: 3; }
-#tr-svg .nd.sel circle { stroke: #fff; stroke-width: 3; }
-#tr-svg .nd:hover circle { stroke: #fff; }
+#tr-svg .nd.big .sh { stroke-width: 3; }
+#tr-svg .nd.sel .sh { stroke: #fff; stroke-width: 3; }
+#tr-svg .nd:hover .sh { stroke: #fff; }
 @keyframes trPulse { 50% { filter: drop-shadow(0 0 4px var(--dc)); } }
 .tr-side { display: flex; flex-direction: column; gap: 12px; min-height: 0; }
 #tr-info { padding: 12px; background: var(--panel); box-shadow: inset 0 0 0 3px var(--line); display: flex; flex-direction: column; gap: 6px; min-height: 120px; font-size: 13px; }
