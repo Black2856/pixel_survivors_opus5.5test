@@ -121,13 +121,47 @@ const UI = (() => {
       else px(dx, mid, PC.dd);
     }
   }
+  // ゲージの数値用の 4×7 ドット数字(1ドットの縁取り付き)
+  const DIG = {
+    0: '.##.#..##..##..##..##..#.##.', 1: '.#..##...#...#...#...#..###.', 2: '.##.#..#...#..#..#..#...####',
+    3: '###....#...#.##....#...####.', 4: '#..##..##..#####...#...#...#', 5: '#####...###....#...##..#.##.',
+    6: '.##.#...#...###.#..##..#.##.', 7: '####...#..#...#..#...#...#..', 8: '.##.#..##..#.##.#..##..#.##.',
+    9: '.##.#..##..#.###...#...#.##.', '/': '...#...#..#...#..#..#...#...',
+  };
+  const digCache = new Map();
+  // parts: [[文字列, 色], ...] を1枚に並べる(1文字 5 ドット送り)
+  function digImg(parts) {
+    const key = JSON.stringify(parts);
+    if (digCache.has(key)) return digCache.get(key);
+    const n = parts.reduce((a, [s]) => a + s.length, 0), W = n * 5 + 1, H = 9;
+    const mask = Array.from({ length: H }, () => Array(W).fill(null));
+    let cx = 1;
+    for (const [s, col] of parts) for (const ch of s) {
+      const g = DIG[ch];
+      if (g) for (let i = 0; i < 28; i++) if (g[i] === '#') mask[1 + ((i / 4) | 0)][cx + (i % 4)] = col;
+      cx += 5;
+    }
+    const cv = ART.canvas(W, H), x = cv.getContext('2d');
+    for (let y = 0; y < H; y++) for (let xx = 0; xx < W; xx++) {
+      if (mask[y][xx]) { x.fillStyle = mask[y][xx]; x.fillRect(xx, y, 1, 1); continue; }
+      const nb = (yy, xs) => yy >= 0 && yy < H && xs >= 0 && xs < W && mask[yy][xs];
+      if (nb(y - 1, xx) || nb(y + 1, xx) || nb(y, xx - 1) || nb(y, xx + 1)) { x.fillStyle = PC.out; x.fillRect(xx, y, 1, 1); }
+    }
+    digCache.set(key, cv);
+    if (digCache.size > 200) digCache.delete(digCache.keys().next().value);
+    return cv;
+  }
+  // 「現在値/最大値」を右端 right・下端 bottom(ドット座標)に揃えて描く。数字の下端 = ゲージの色の一番下の行
+  function gaugeNum(cur, max, right, bottom) {
+    const img = digImg([[String(cur), '#ffffff'], ['/' + max, '#b9c6de']]);
+    pc.drawImage(img, right - (img.width - 2), bottom - 7);
+  }
   function pstat(dt) {
     const c = DATA.classes[P.cls], box = $('pstat');
     pt += dt;
     if (last.cls !== P.cls) { last.cls = P.cls; box.style.setProperty('--cc', c.col); hpLag = 1; lastHp = P.hp; }
     if (last.px !== GFX.PX) { last.px = GFX.PX; box.style.setProperty('--px', GFX.PX + 'px'); pcv.style.width = PW * GFX.PX + 'px'; pcv.style.height = PH * GFX.PX + 'px'; }
     set('ps-name', `<b>${c.en}</b> Lv${META.classes[P.cls].lv}`, 'innerHTML');
-    set('ps-hp-n', `${Math.ceil(Math.max(0, P.hp))}<small>/${P.maxhp}</small>`, 'innerHTML');
     const k = clamp(P.hp / P.maxhp, 0, 1), low = k < 0.3;
     hpLag = Math.max(k, hpLag - dt * 0.5);
     if (P.hp > lastHp + 0.5) healT = 0.3;
@@ -140,12 +174,15 @@ const UI = (() => {
     bar(32, 170, 15, 5, 12, (i, r) => i < k * hpW ? (r === 0 ? hpC[0] : r === 4 ? hpC[2] : hpC[1]) : i < hpLag * hpW ? '#e8e4f0' : null);
     // スタミナバー: 回復停止中は灰色の縞が流れる / ガードブレイク中は赤く点滅
     const sk = clamp(P.sta / P.maxSta, 0, 1), stW = 160 - 32 + 1, lock = P.staLockT > 0, brk = clsStaBroken();
-    bar(32, 160, 26, 3, 9, (i, r) => {
+    bar(32, 160, 27, 3, 9, (i, r) => {
       if (i >= sk * stW) return null;
       if (brk) return Math.floor(pt * 8) % 2 ? '#ff3b5c' : '#8a1a2a';
       if (lock) return (i + Math.floor(pt * 16)) % 6 < 3 ? '#7a8a98' : '#4a5866';
       return r === 0 ? '#c8fff0' : '#4fc8a0';
     });
+    // 数値: 数字の下端をゲージの色の一番下の行に揃える(4×7 ドットで、上に少しはみ出す)
+    gaugeNum(Math.ceil(Math.max(0, P.hp)), P.maxhp, 166, 21);
+    gaugeNum(Math.floor(P.sta), Math.round(P.maxSta), 156, 31);
 
     // 円環: 銀の帯 + 回り続ける光 + 内側にクラスリソースのゲージ
     const res = clsRes(), full = res && res.v >= res.max, frac = res ? res.v / res.max : 0;

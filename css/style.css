@@ -79,10 +79,8 @@ button { font: inherit; color: inherit; cursor: pointer; border: 0; background: 
 @keyframes psDanger { 50% { filter: drop-shadow(0 0 10px rgba(255,59,92,.8)); } }
 #ps-name { position: absolute; left: calc(var(--px) * 40); top: calc(var(--px) * 3); font: max(calc(var(--px) * 2.7), 9px) 'Press Start 2P'; color: #dfe8f5; text-shadow: calc(var(--px) * .7) calc(var(--px) * .7) 0 var(--ink); letter-spacing: 1px; white-space: nowrap; }
 #ps-name b { color: var(--cc); font-weight: normal; }
-#ps-hp-n { position: absolute; right: calc(var(--px) * 24); top: calc(var(--px) * 3); font: max(calc(var(--px) * 2.7), 9px) 'Press Start 2P'; color: #fff; text-shadow: calc(var(--px) * .7) calc(var(--px) * .7) 0 var(--ink); white-space: nowrap; }
-#ps-hp-n small { color: var(--dim); font-size: 1em; }
 /* E / Q アイコン(CD は円形のスイープ) */
-#ps-skills { position: absolute; left: calc(var(--px) * 44); top: calc(var(--px) * 35); display: flex; gap: calc(var(--px) * 4); }
+#ps-skills { position: absolute; left: calc(var(--px) * 44); top: calc(var(--px) * 37); display: flex; gap: calc(var(--px) * 4); }
 #ps-skills:empty { display: none; }
 .ps-sk { position: relative; width: calc(var(--px) * 12); height: calc(var(--px) * 12); background: #141024; box-shadow: 0 0 0 calc(var(--px) * .7) #0c0913, inset 0 0 0 calc(var(--px) * .7) #b9c6de; display: grid; place-items: center; font: calc(var(--px) * 3) 'Press Start 2P'; }
 .ps-sk .cd { position: absolute; inset: 0; background: conic-gradient(rgba(12,9,19,.8) calc(var(--p) * 1%), transparent 0); }
