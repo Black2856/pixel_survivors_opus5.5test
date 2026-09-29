@@ -68,6 +68,7 @@ function onKey(e) {
   else if (state === 'victory' && e.code === 'Enter' && S.mode === 'normal') startEndless();
   UI.onKey(e);
   MetaUI.onKey(e);
+  StatusUI.onKey(e);
 }
 
 // ============================================================

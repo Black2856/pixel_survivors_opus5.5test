@@ -68,6 +68,7 @@
     <div class="cl-wrap">
       <div id="cl-list"></div>
       <div id="cl-detail"></div>
+      <div id="cl-status" class="sv"></div>
     </div>
     <div class="menu row"><button id="cl-back" class="btn">戻る (ESC)</button></div>
   </div>
@@ -106,6 +107,7 @@
         <div id="eq-list"></div>
       </div>
       <div id="eq-detail"></div>
+      <div id="eq-status" class="sv"></div>
     </div>
     <div class="menu row"><button id="eq-sellall" class="btn ghost"></button><button id="eq-back" class="btn">戻る (ESC)</button></div>
   </div>
@@ -144,8 +146,15 @@
     </div>
     <div class="menu">
       <button id="btn-resume" class="btn">再開 (ESC)</button>
+      <button id="btn-status" class="btn">ステータス (TAB)</button>
       <button id="btn-quit" class="btn ghost">あきらめる</button>
     </div>
+  </div>
+
+  <div id="status-screen" class="screen hidden">
+    <h2 class="scr-title">STATUS</h2>
+    <div id="status-panel" class="sv sv-big"></div>
+    <div class="menu row"><button id="st-close" class="btn">閉じる (TAB)</button></div>
   </div>
 
   <div id="settings-screen" class="screen hidden">
@@ -185,6 +194,7 @@
 <script src="js/render.js"></script>
 <script src="js/ui.js"></script>
 <script src="js/meta-ui.js"></script>
+<script src="js/status-ui.js"></script>
 <script src="js/main.js"></script>
 </body>
 </html>

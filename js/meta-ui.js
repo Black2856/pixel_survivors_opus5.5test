@@ -41,6 +41,7 @@ const MetaUI = (() => {
     const b = $('eq-sellall');
     b.disabled = !unlocked.length;
     if (!sellArm) b.textContent = `ロック以外を売却 (${unlocked.length}個 +${unlocked.reduce((a, it) => a + sellValue(it), 0)}G)`;
+    statusPanel('eq-status');
   }
 
   // 選んだ装備の詳細と操作
@@ -106,7 +107,10 @@ const MetaUI = (() => {
       <div class="cl-sub">メイン武器 ${swap ? '' : '<span class="dim">(Lv15 で切り替え解放)</span>'}</div>
       <div class="cl-weps">${wepBtns}</div>
       <button class="btn cl-go" ${clsReady(k) ? '' : 'disabled'}>${META.cls === k ? '使用中' : 'このクラスにする'}</button>`;
+    statusPanel('cl-status', k);
   }
+  // MetaUI は StatusUI より先に読み込まれるので、実行時に参照する
+  const statusPanel = (id, cls) => { if (typeof StatusUI !== 'undefined') StatusUI.render($(id), false, cls); };
   $('cl-list').onclick = e => { const b = e.target.closest('.cl-card'); if (!b) return; clSel = b.dataset.k; AudioMan.click(); renderClass(); };
   $('cl-detail').onclick = e => {
     const w = e.target.closest('.cl-wep');

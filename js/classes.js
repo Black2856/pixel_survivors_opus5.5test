@@ -51,6 +51,16 @@ function skillCall(name, col) {
 const WEAPON_SKILL = {
   // 乱れ桜: 構え → 周囲を連続で斬る(移動できる)→ 終了
   katana: {
+    // ステータス画面用(c: StatusUI の値一式 / dmg: 熟練を掛けた武器の威力)
+    info(c, dmg) {
+      const sk = DATA.weapons.katana.skill, m = c.wm;
+      const cd = sk.cd * (1 - c.cuV('e', 'cd')) * (1 - (m.cd || 0)) * c.cdMul, one = dmg * sk.pow * (1 + c.cuV('e', 'pow')) * (1 + (m.ePow || 0));
+      return { name: sk.name, rows: [
+        ['CD', `<b>${cd.toFixed(1)}</b> 秒`],
+        ['斬る回数', `${sk.hits + Math.round(c.cuV('e', 'dur') / 0.15) + (m.eHits || 0)} 回 / ${(sk.dur + c.cuV('e', 'dur')).toFixed(2)} 秒`],
+        ['1回の威力', `${Math.round(one)} → <b>${Math.round(one * c.atkMul)}</b>`, '武器の威力 × ' + Math.round(sk.pow * 100) + '%。攻撃力を掛けた値'],
+      ] };
+    },
     start() {
       const sk = weaponSkill(), dur = sk.dur + cuV('e', 'dur');
       const m = P.wm.katana || {}; // 熟練: 斬る回数・威力
@@ -225,6 +235,22 @@ const CLASS_RT = {
       return out;
     },
     qInfo: () => ({ name: DATA.classes.samurai.q.name, glyph: '居' }),
+    // ステータス画面用: Q と Space
+    info(c) {
+      const S2 = DATA.classes.samurai, q = S2.q, p = S2.params, k = 1 + c.cuV('q', 'pow') + (c.lvFx.qPow || 0);
+      return [
+        { key: 'Q', name: q.name, rows: [
+          ['CD', `<b>${(q.cd * (1 - c.cuV('q', 'cd')) * c.cdMul).toFixed(1)}</b> 秒`],
+          ['威力', `${Math.round(q.pow * k)} → <b>${Math.round(q.pow * k * c.atkMul)}</b>`, `消費した剣気1につき +${(q.kiPow * k).toFixed(1)}(武器に依存しない)`],
+          ['突進距離', `${Math.round(q.dist * (1 + c.cuV('q', 'reach')))}`],
+        ] },
+        { key: 'Space', name: '見切り', rows: [
+          ['スタミナ消費', `${p.guardCost} + 受けたダメージ分`, '構えた瞬間に消費。ガード中の被弾はダメージ分'],
+          ['ジャスト受付', `<b>${(p.parryWin + (c.lvFx.parryWin || 0)).toFixed(2)}</b> 秒`],
+          ['反撃の威力', `${p.parryPow} → <b>${Math.round(p.parryPow * c.atkMul)}</b>`],
+        ] },
+      ];
+    },
   },
 };
 
