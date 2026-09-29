@@ -33,6 +33,12 @@ function aimDir(maxD) {
   if (e) return Math.atan2(e.y - P.y, e.x - P.x);
   return P.dir ? Math.atan2(P.dir[1], P.dir[0]) : (P.facing < 0 ? Math.PI : 0);
 }
+// 半径 r 以内に敵が n 体以上いるか(自動発動の条件)。ボスは1体で条件を満たす
+function crowd(r, n) {
+  let c = 0;
+  forEachNear(P.x, P.y, r, e => { if (!e.prop && !e.dead) c += e.boss ? n : 1; });
+  return c >= n;
+}
 function setCd(slot, sec) { P.sk[slot].cd = P.sk[slot].max = Math.max(1, sec); S.hudDirty = true; }
 function playAnim(name, dur, arg) { P.anim = { name, t: 0, dur, arg }; } // arg: モーションに渡す値(乱れ桜の持続時間など)
 // スキル名を頭上に出す(カットイン)
@@ -273,10 +279,13 @@ function clsUpdate(dt) {
   if (S.decoy && (S.decoy.t -= dt) <= 0) S.decoy = null;
   const rt = clsRT();
   if (rt) rt.update(dt);
-  // スキルの発動(実行中は他のスキルを使えない)
+  // スキルの発動(実行中は他のスキルを使えない)。自動発動は周りに敵が集まっているときだけ(ガード中は使わない)
   if (!P.act && rt) {
-    if (keys._q && rt.qStart && P.sk.q.cd <= 0) rt.qStart();
-    else if (keys._e && WEAPON_SKILL[P.mainW] && P.sk.e.cd <= 0) WEAPON_SKILL[P.mainW].start();
+    const ws = weaponSkill(), auto = !P.guard;
+    const wantQ = keys._q || (auto && SET.autoQ && crowd(90, 5));
+    const wantE = keys._e || (auto && SET.autoE && ws && crowd(ws.radius * P.area, 4));
+    if (wantQ && rt.qStart && P.sk.q.cd <= 0) rt.qStart();
+    else if (wantE && WEAPON_SKILL[P.mainW] && P.sk.e.cd <= 0) WEAPON_SKILL[P.mainW].start();
   }
   keys._q = keys._e = false;
   // 実行中のスキル

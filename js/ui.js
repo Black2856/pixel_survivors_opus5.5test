@@ -157,14 +157,14 @@ const UI = (() => {
   }
   // E / Q のアイコン。構成が変わったときだけ作り直し、毎フレーム CD のスイープを更新する
   function skillIcons() {
-    const list = clsSkillIcons(), box = $('ps-skills'), sig = list.map(s => s.slot + s.glyph).join();
+    const list = clsSkillIcons(), box = $('ps-skills'), sig = list.map(s => s.slot + s.glyph).join() + SET.autoE + SET.autoQ;
     if (last.skSig !== sig) {
       last.skSig = sig;
-      box.innerHTML = list.map(s => `<div class="ps-sk" data-slot="${s.slot}" title="${s.name}">${s.glyph}<div class="cd"></div><span class="key">${s.key}</span></div>`).join('');
+      box.innerHTML = list.map(s => `<div class="ps-sk" data-slot="${s.slot}" title="${s.name}">${s.glyph}<div class="cd"></div><span class="key">${s.key}</span>${SET[s.slot === 'e' ? 'autoE' : 'autoQ'] ? '<span class="auto">AUTO</span>' : ''}</div>`).join('');
     }
     for (const el of box.children) {
       const sk = P.sk[el.dataset.slot], p = sk.cd > 0 ? sk.cd / sk.max * 100 : 0;
-      el.lastElementChild.previousElementSibling.style.setProperty('--p', p.toFixed(1));
+      el.querySelector('.cd').style.setProperty('--p', p.toFixed(1));
       const ready = sk.cd <= 0;
       if (ready && el.dataset.ready === '0') { el.classList.remove('ready'); void el.offsetWidth; el.classList.add('ready'); }
       el.dataset.ready = ready ? '1' : '0';
@@ -569,8 +569,10 @@ const UI = (() => {
     $('vol-music').value = AudioMan.vol.music * 100; $('vol-sfx').value = AudioMan.vol.sfx * 100;
     $('set-fxa').value = Math.round(SET.fxA * 100); $('set-fxa-n').textContent = Math.round(SET.fxA * 100) + '%';
     for (const b of $('set-gfx').children) b.classList.toggle('on', b.dataset.v === SET.gfx);
+    for (const k of ['autoE', 'autoQ']) for (const b of $('set-' + k).children) b.classList.toggle('on', (b.dataset.v === '1') === SET[k]);
   }
   for (const b of $('set-gfx').children) b.onclick = () => { SET.gfx = b.dataset.v; saveSet(); AudioMan.click(); syncSettings($('settings-panel').parentNode.id); };
+  for (const k of ['autoE', 'autoQ']) for (const b of $('set-' + k).children) b.onclick = () => { SET[k] = b.dataset.v === '1'; saveSet(); AudioMan.click(); syncSettings($('settings-panel').parentNode.id); last.skSig = null; };
   $('set-fxa').oninput = e => { SET.fxA = e.target.value / 100; $('set-fxa-n').textContent = e.target.value + '%'; saveSet(); };
   function settings() { state = 'settings'; only('settings-screen'); syncSettings('settings-slot'); }
   $('btn-settings').onclick = () => { AudioMan.click(); settings(); };
