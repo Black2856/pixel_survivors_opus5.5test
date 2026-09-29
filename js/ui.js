@@ -5,7 +5,7 @@ const UI = (() => {
   const $ = id => document.getElementById(id);
   const el = (tag, cls, html) => { const e = document.createElement(tag); if (cls) e.className = cls; if (html !== undefined) e.innerHTML = html; return e; };
   const show = e => e.classList.remove('hidden'), hide = e => e.classList.add('hidden');
-  const screens = ['title-screen', 'choice-screen', 'chest-screen', 'pause-screen', 'settings-screen', 'result-screen'];
+  const screens = ['title-screen', 'equip-screen', 'choice-screen', 'chest-screen', 'pause-screen', 'settings-screen', 'result-screen'];
   const only = id => screens.forEach(s => (s === id ? show : hide)($(s)));
 
   // ---------- アイコン(スプライト → dataURL) ----------
@@ -634,5 +634,5 @@ const UI = (() => {
     } else if (state === 'chest' && (e.code === 'Space' || e.code === 'Enter')) chestAct();
   }
 
-  return { announce, banner, hud, bossBar, enemyLvUp, openChest, levelUp, beginPlay: close, title, pause, result, onKey, show, hide, $ };
+  return { announce, banner, hud, bossBar, enemyLvUp, openChest, levelUp, beginPlay: close, only, title, pause, result, onKey, show, hide, $ };
 })();

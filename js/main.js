@@ -63,6 +63,7 @@ function onKey(e) {
   else if ((state === 'over' || state === 'victory') && e.code === 'KeyR') startRun(S.mode);
   else if (state === 'victory' && e.code === 'Enter' && S.mode !== 'arena') startEndless();
   UI.onKey(e);
+  MetaUI.onKey(e);
 }
 
 // ============================================================

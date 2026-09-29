@@ -42,12 +42,28 @@
       <div class="menu">
         <button id="btn-start" class="btn big">▶ START</button>
         <button id="btn-arena" class="btn arena">⚔ 闘技場 <small>BOSS RUSH</small></button>
+        <button id="btn-equip" class="btn">装備</button>
         <button id="btn-settings" class="btn ghost">設定</button>
       </div>
       <div id="title-gold" class="gold-chip"></div>
       <div id="title-best" class="best"></div>
-      <div class="howto">WASD / 矢印 移動 ・ SPACE ダッシュ(無敵) ・ 攻撃は自動(SHIFT でマウス照準切替) ・ ESC ポーズ ・ M ミュート</div>
+      <div class="howto">WASD / 矢印 移動 ・ SPACE 防御スキル ・ E 武器スキル ・ Q クラススキル ・ 攻撃は自動(SHIFT でマウス照準切替) ・ ESC ポーズ ・ M ミュート</div>
     </div>
+  </div>
+
+  <!-- 装備画面(ラン外) -->
+  <div id="equip-screen" class="screen hidden">
+    <h2 class="scr-title">EQUIPMENT</h2>
+    <div id="eq-gold" class="gold-chip"></div>
+    <div class="eq-wrap">
+      <div id="eq-slots"></div>
+      <div class="eq-mid">
+        <div class="eq-bar"><div id="eq-tabs" class="seg"><button data-f="all">全部</button><button data-f="weapon">武器</button><button data-f="armor">防具</button><button data-f="ring">指輪</button></div><span id="eq-count" class="dim"></span></div>
+        <div id="eq-list"></div>
+      </div>
+      <div id="eq-detail"></div>
+    </div>
+    <div class="menu row"><button id="eq-sellall" class="btn ghost"></button><button id="eq-back" class="btn">戻る (ESC)</button></div>
   </div>
 
   <div id="choice-screen" class="screen hidden">
@@ -123,6 +139,7 @@
 <script src="js/world.js"></script>
 <script src="js/render.js"></script>
 <script src="js/ui.js"></script>
+<script src="js/meta-ui.js"></script>
 <script src="js/main.js"></script>
 </body>
 </html>
