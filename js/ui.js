@@ -580,12 +580,14 @@ const UI = (() => {
     $(host).insertBefore($('settings-panel'), host === 'pause-screen' ? $('pause-screen').querySelector('.menu') : null);
     $('vol-music').value = AudioMan.vol.music * 100; $('vol-sfx').value = AudioMan.vol.sfx * 100;
     $('set-fxa').value = Math.round(SET.fxA * 100); $('set-fxa-n').textContent = Math.round(SET.fxA * 100) + '%';
+    $('set-ui').value = Math.round(SET.ui * 100); $('set-ui-n').textContent = Math.round(SET.ui * 100) + '%';
     for (const b of $('set-gfx').children) b.classList.toggle('on', b.dataset.v === SET.gfx);
     for (const k of ['autoE', 'autoQ']) for (const b of $('set-' + k).children) b.classList.toggle('on', (b.dataset.v === '1') === SET[k]);
   }
   for (const b of $('set-gfx').children) b.onclick = () => { SET.gfx = b.dataset.v; saveSet(); AudioMan.click(); syncSettings($('settings-panel').parentNode.id); };
   for (const k of ['autoE', 'autoQ']) for (const b of $('set-' + k).children) b.onclick = () => { SET[k] = b.dataset.v === '1'; saveSet(); AudioMan.click(); syncSettings($('settings-panel').parentNode.id); last.skSig = null; };
   $('set-fxa').oninput = e => { SET.fxA = e.target.value / 100; $('set-fxa-n').textContent = e.target.value + '%'; saveSet(); };
+  $('set-ui').oninput = e => { SET.ui = e.target.value / 100; $('set-ui-n').textContent = e.target.value + '%'; applyUiScale(); saveSet(); };
   function settings() { state = 'settings'; only('settings-screen'); syncSettings('settings-slot'); }
   $('btn-settings').onclick = () => { AudioMan.click(); settings(); };
   $('btn-set-back').onclick = () => { AudioMan.click(); state = 'title'; title(); };

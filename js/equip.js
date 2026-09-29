@@ -66,17 +66,20 @@ function equipItem(it) { META.loadout[itemSlot(it)] = it.id; saveMeta(); }
 function unequipSlot(slot) { META.loadout[slot] = null; saveMeta(); }
 
 // ---------- 強化 ----------
-// 1回の強化で、ランダムな1オプションのロール値を +20〜30%。回数の上限と費用はレアリティで決まる(費用は1回ごとに ×1.5)
+// 1回の強化で、ランダムな1オプションのロール値を +20〜30%。ロール値は範囲の最大(品質 100%)が上限
+// 回数の上限と費用はレアリティで決まる(費用は1回ごとに ×1.5)。全オプションが上限なら強化できない
 const enhCost = it => Math.round(DATA.equip.rarity[it.rarity].cost * Math.pow(1.5, it.enh));
-const canEnhance = it => it.enh < DATA.equip.rarity[it.rarity].enh;
+const optCap = (it, o) => DATA.equip.types[it.type].opts[o.k][1];
+const enhTargets = it => it.opts.filter(o => o.v < optCap(it, o));
+const canEnhance = it => it.enh < DATA.equip.rarity[it.rarity].enh && enhTargets(it).length > 0;
 function enhanceItem(it) {
   if (!canEnhance(it)) return null;
   const cost = enhCost(it);
   if (META.gold < cost) return null;
   META.gold -= cost; it.spent += cost; it.enh++;
-  const o = pick(it.opts), k = 1 + rand(0.2, 0.3), [lo, hi] = DATA.equip.types[it.type].opts[o.k];
+  const o = pick(enhTargets(it)), k = 1 + rand(0.2, 0.3), [lo, hi] = DATA.equip.types[it.type].opts[o.k];
   const unit = DATA.stats[o.k].kind === 'flat' ? 10 : 1000;
-  o.v = Math.round(o.v * k * unit) / unit;
+  o.v = Math.min(hi, Math.round(o.v * k * unit) / unit);
   o.q = hi > lo ? (o.v - lo) / (hi - lo) : 1;
   saveMeta();
   return o;

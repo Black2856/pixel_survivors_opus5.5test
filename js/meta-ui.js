@@ -5,10 +5,10 @@ const MetaUI = (() => {
   const $ = UI.$;
   let filter = 'all', sel = null, sellArm = null;
 
-  // ロール品質の表示: 範囲の最小 = 0%、最大 = 100%。強化で 100% を超えた分は金色
+  // ロール品質の表示: 範囲の最小 = 0%、最大 = 100%(強化の上限)。100% は金色
   const qualHTML = q => {
     const p = Math.round(q * 100);
-    return `<span class="q ${p > 100 ? 'over' : ''}"><i style="width:${Math.min(100, Math.max(0, p))}%"></i></span><b class="${p > 100 ? 'over' : ''}">${p}%</b>`;
+    return `<span class="q ${p >= 100 ? 'over' : ''}"><i style="width:${Math.min(100, Math.max(0, p))}%"></i></span><b class="${p >= 100 ? 'over' : ''}">${p >= 100 ? 'MAX' : p + '%'}</b>`;
   };
   const icon = (it, cls = 'icon') => `<img class="${cls}" src="${ART.S.eqIcons[it.type].c.toDataURL()}" alt="">`;
   const rcol = it => DATA.equip.rarity[it.rarity].col;
@@ -57,7 +57,7 @@ const MetaUI = (() => {
       <div class="eq-btns">
         <button class="btn" data-act="equip">${eq ? '外す' : '装備する'}</button>
         <button class="btn ghost" data-act="lock">${it.lock ? 'ロック解除' : 'ロック'}</button>
-        <button class="btn" data-act="enh" ${canEnhance(it) && META.gold >= enhCost(it) ? '' : 'disabled'}>${canEnhance(it) ? `強化 ● ${enhCost(it)}` : '強化 MAX'}</button>
+        <button class="btn" data-act="enh" ${canEnhance(it) && META.gold >= enhCost(it) ? '' : 'disabled'}>${canEnhance(it) ? `強化 ● ${enhCost(it)}` : it.enh >= R.enh ? '強化 回数上限' : '強化 全て最大'}</button>
         <button class="btn ghost" data-act="sell" ${it.lock || eq ? 'disabled' : ''}>売却 +${sellValue(it)}G</button>
       </div>`;
   }
