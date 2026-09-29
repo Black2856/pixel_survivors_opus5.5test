@@ -61,6 +61,17 @@ function computeStats({ cls = META.cls, run = false, eq = run ? 'run' : 'zero' }
     : eq === 'max' ? (slot, i, o) => o.max : () => 0;
   for (const o of equippedOpts(lvOf)) addN('equip', o.k, o.v, o.lv);
 
+  // 固有効果(レジェンダリー)。ステータス以外の効果は uq のキーで各処理が見る
+  const uq = {};
+  for (const slot in DATA.equip.slots) {
+    const it = META.loadout[slot] && META.inventory.find(x => x.id === META.loadout[slot]);
+    if (!it || !it.uq) continue;
+    const U = DATA.uniques[it.uq];
+    uq[it.uq] = true;
+    for (const k in U.stat || {}) add('unique', k, U.stat[k]);
+    for (const k in U.mul || {}) mul[k] *= U.mul[k];
+  }
+
   // 微強化(hpPct は最大HP の倍率)
   if (run && P) for (const k in P.micro) { if (k === 'hpPct') mul.hp *= 1 + P.micro[k]; else add('micro', k, P.micro[k]); }
 
@@ -69,7 +80,7 @@ function computeStats({ cls = META.cls, run = false, eq = run ? 'run' : 'zero' }
     const vals = Object.values(by[k]);
     v[k] = DATA.stats[k].kind === 'red' ? 1 - vals.reduce((p, x) => p * (1 - x), 1) : vals.reduce((a, b) => a + b, 0);
   }
-  return { v, by, mul };
+  return { v, by, mul, uq };
 }
 
 // computeStats の結果をプレイヤーの実数値に反映する
@@ -84,12 +95,14 @@ function applyStats() {
   P.maxSta = v.sta; P.staRegen = v.staRegen;
   P.iframe = DATA.player.iframe * (1 + v.iframe);
   P.speed = DATA.player.speed * Math.max(0.1, 1 + v.spd) * m.spd;
-  P.atk = v.atk;
-  P.area = Math.max(0.1, 1 + v.area);
-  P.range = Math.max(0.1, 1 + v.range);
+  P.uq = st.uq;
+  P.atk = v.atk; P.atkMul = m.atk;
+  P.area = Math.max(0.1, 1 + v.area) * m.area;
+  P.range = Math.max(0.1, 1 + v.range) * m.range;
   P.cdMul = (1 - v.cd) * m.cd;
+  P.shots = Math.round(v.shots || 0);
   P.crit = v.crit;
-  P.critMul = 1 + v.critDmg;
+  P.critMul = 1 + v.critDmg + (P.uq.eye ? Math.max(0, v.crit - 1) : 0); // 天眼の: 100% を超えた会心率を会心ダメージへ
   P.xpMul = (1 + v.xp) * m.xp;
   P.goldMul = (1 + v.gold) * m.gold;
   P.magnet = DATA.player.magnet * Math.max(0.1, 1 + v.magnet);

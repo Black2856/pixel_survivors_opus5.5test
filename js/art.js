@@ -587,6 +587,17 @@ const ART = (() => {
   I.bhole = mk({ a: '#c78bff', b: '#1a0a2a', c: '#6a3aa0' }, ['...aaa...', '.aacccaa.', '.acbbbca.', 'acbbbbbca', 'acbbbbbca', 'acbbbbbca', '.acbbbca.', '.aacccaa.', '...aaa...']);
   I.katana = mk({ a: '#e8f0ff', b: '#ff5d73', c: '#3a2a2a', d: '#ffd23f' }, ['........a', '.......aa', '......aa.', '.....aa..', '....aa...', '...aa....', '.dd......', '.bd......', 'bc.......']);
   I.gold = S.coin[0];
+  // 装備の種類(9×9)。指輪は宝石の色だけ変える
+  const ringIc = gem => mk({ a: '#d6ae5c', b: '#fff3a0', c: gem, d: '#ffffff' }, ['...ccc...', '..cdcc...', '...ccc...', '..aabaa..', '.a.....a.', 'a.......a', 'a.......a', '.a.....a.', '..aaaaa..']);
+  S.eqIcons = {
+    sword: mk({ a: '#dfe8f5', b: '#8a9ab8', c: '#d6ae5c', d: '#6b4a2c' }, ['........a', '.......ab', '......ab.', '.....ab..', '....ab...', '.c.ab....', '..cb.....', '.dcc.....', 'd........']),
+    staff: mk({ a: '#7ad7ff', b: '#ffffff', c: '#6b4a2c', d: '#d6ae5c' }, ['......aa.', '.....abba', '.....abaa', '....dcaa.', '...cd....', '..cc.....', '.cc......', 'cc.......', 'c........']),
+    bow:   mk({ a: '#a0703a', b: '#d9d2b0', c: '#6b4a2c' }, ['..aa.....', '.a..b....', 'a....b...', 'a.....b..', 'c......b.', 'a.....b..', 'a....b...', '.a..b....', '..aa.....']),
+    heavy: mk({ a: '#9fb8d0', b: '#e8f4ff', c: '#5a6a80' }, ['.aa...aa.', 'abaaaaaba', 'aabbbbbaa', '.abbcbba.', '.abbcbba.', '.abbcbba.', '.aabbbaa.', '.acaaaca.', '..a...a..']),
+    light: mk({ a: '#a0703a', b: '#d9a060', c: '#6b4a2c' }, ['.aa...aa.', 'aba...aba', 'abbaaabba', '.abbcbba.', '.abbcbba.', '.abbbbba.', '.abbbbba.', '.aaaaaaa.', '.........']),
+    robe:  mk({ a: '#3b2a7a', b: '#6a5ab0', c: '#d6ae5c' }, ['...aaa...', '..abcba..', '.abbcbba.', '.abbcbba.', 'abbbcbbba', 'abbbcbbba', 'abbbcbbba', 'abbccbcba', 'aaaaaaaaa']),
+    ruby: ringIc('#ff3b5c'), sapphire: ringIc('#5ab8ff'), emerald: ringIc('#5dff8a'),
+  };
   S.icons = I;
 
   // 派生キャッシュ(白シルエット / 左右反転)

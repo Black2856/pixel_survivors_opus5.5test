@@ -27,6 +27,7 @@ function initRun(mode = 'normal') {
   };
   enemies = []; projs = []; eprojs = []; gems = []; drops = []; props = []; hazards = [];
   parts = []; floats = []; rings = []; zones = []; slashes = []; bolts = []; warns = []; flashes = [];
+  eqInitRun();
   const st = recalc();
   P.hp = P.maxhp;
   addWeapon(P.mainW); // 1枠目はクラスのメイン武器(固定)
@@ -49,14 +50,14 @@ function recalc() {
 }
 // 攻撃力倍率 = ステータス + クラスの一時的な強化(剣気満タン・残心など)
 function dmgMul() {
-  return 1 + P.atk + clsAtkBonus();
+  return (1 + P.atk + clsAtkBonus() + (P.uq.berserk ? 1 - P.hp / P.maxhp : 0)) * P.atkMul;
 }
 const critRate = () => P.crit;
 const wst = k => { const w = P.weapons[k]; return w.evo ? DATA.weapons[k].evo.st : DATA.weapons[k].lv[w.lv - 1]; };
 
 // ---------- 敵レベル ----------
 // 敵の強さの基本倍率(Lv成長は別)
-const enemyBase = () => 1;
+const enemyBase = () => (P.uq.pact ? 1.1 : 1); // 背徳の: 敵の基礎ステータス +10%
 const lvK = (kind, lv = S.elv) => 1 + DATA.enemyLevel[kind] * (lv - 1);
 // HP倍率 = 線形 + 指数(Lv1 = 1)。雑魚とボスで共通
 const hpK = (lv = S.elv) => DATA.enemyLevel.hpLin * (lv - 1) + Math.pow(DATA.enemyLevel.hpExp, lv - 1);
@@ -67,6 +68,7 @@ function updEnemyLevel(dt) {
   if (S.elvT >= DATA.enemyLevel.interval) { S.elvT -= DATA.enemyLevel.interval; S.elv++; UI.enemyLvUp(); }
 }
 function heal(n, silent) {
+  if (P.uq.mercy) n *= 1.25;
   const before = P.hp;
   P.hp = Math.min(P.maxhp, P.hp + n);
   if (!silent && P.hp - before >= 1) {
@@ -128,6 +130,7 @@ function hurtPlayer(dmg) {
   if (r === null) { S.hudDirty = true; return; }
   dmg = Math.max(1, Math.round((r - P.armor) * (1 - P.dr)));
   P.hp -= dmg; P.ifr = P.iframe; P.hurtT = 0.12;
+  if (P.uq.adversity) P.sta = Math.min(P.maxSta, P.sta + dmg);
   breakCombo();
   GFX.fx.hurt = 1; GFX.fx.aberr = Math.max(GFX.fx.aberr, 0.9);
   shake(4); AudioMan.hurt();
@@ -138,6 +141,13 @@ function hurtPlayer(dmg) {
 }
 
 function playerDown() {
+  if (P.uq.phoenix && !P.revived) {
+    P.revived = true; P.hp = P.maxhp * 0.25; P.ifr = 2;
+    UI.announce('REVIVE', '不死鳥の加護'); AudioMan.evolve();
+    screenFlash(0.6, '#ffb347'); shockAt(P.x, P.y, 2, 0.8); addRing(P.x, P.y, 60, '#ffb347', { w: 3, life: 0.6 });
+    burst(P.x, P.y, 60, ['#ffb347', '#ff6a2a', '#ffffff'], { sp: 140, up: 60, glow: true, life: 1 });
+    return;
+  }
   P.dead = true; P.hp = 0;
   S.deathT = 1.8; slowmo(0.25, 2.5);
   screenFlash(0.8, '#ff3b5c'); shockAt(P.x, P.y, 2, 0.6); shake(12);
@@ -149,6 +159,7 @@ function gainXP(v) {
   P.xp += v * P.xpMul;
   while (P.xp >= P.xpNext) {
     P.xp -= P.xpNext; P.level++; P.xpNext = xpFor(P.level); S.pendingLv++; S.lvQueue.push(P.level);
+    eqGrow(); // 装備のオプションが1つ +1Lv
   }
   S.hudDirty = true;
 }
@@ -191,7 +202,7 @@ function updWeapons(dt) {
     const w = P.weapons[k], st = wst(k);
     w.t += dt;
     w.cd -= cdt;
-    const n = (st.count || 1);
+    const n = (st.count || 1) + P.shots; // 弾数(千手の など)
     switch (k) {
       case 'bolt':
         if (w.cd <= 0) {
@@ -228,7 +239,7 @@ function updWeapons(dt) {
       case 'thunder':
         if (w.cd <= 0) {
           w.cd = st.cd * P.cdMul;
-          const ts = randomTargets((st.strikes || 1));
+          const ts = randomTargets((st.strikes || 1) + P.shots);
           if (!ts.length) { w.cd = 0.2; break; }
           ts.forEach((t, i) => setTimeout(() => state === 'play' && strike(t.x, t.y, st, w.evo), i * 70));
         }
@@ -481,7 +492,7 @@ function hitEnemy(e, base, o = {}) {
   let dmg = base * dmgMul();
   if (e.frost > 0 && P.weapons.blizzard && P.weapons.blizzard.evo) dmg *= 1 + 0.01 * e.frost;
   const crit = !o.noCrit && Math.random() < critRate();
-  if (crit) dmg *= P.critMul;
+  if (crit) dmg *= P.critMul; else if (P.uq.exec) dmg *= 0.8; // 処刑人の
   dmg = Math.max(1, Math.round(dmg * rand(0.9, 1.1)));
   e.hp -= dmg; e.flash = 0.08;
   if (o.src && o.src === P.mainW) clsOnMainHit(e); // 通常攻撃(メイン武器)の命中
@@ -531,6 +542,7 @@ function killEnemy(e, o = {}) {
   if (Math.random() < 0.035) dropItem('coin', e.x, e.y, 1);
   if (Math.random() < 0.004) dropItem('meat', e.x, e.y);
   clsOnKill(e);
+  if (P.uq.vamp && Math.random() < 0.25) heal(P.maxhp * 0.01, true); // 吸血鬼の
   // ソウルイーター: 撃破地点から魂を召喚(同時40体まで)
   const ww = P.weapons.wisp;
   if (ww && ww.evo && projs.filter(p => p.summon).length < 40) {
@@ -561,7 +573,7 @@ function spawnEnemy(type, o = {}) {
   }
   const EL = DATA.enemyLevel, base = enemyBase();
   const hpk = base * hpK() * (o.elite ? EL.elite : 1);
-  const spk = base * Math.min(EL.spdMax, lvK('spd')) * (o.elite ? 1.1 : 1);
+  const spk = base * Math.min(EL.spdMax, lvK('spd')) * (P.uq.clock ? 1.15 : 1) * (o.elite ? 1.1 : 1); // 狂時の: 速度 +15%
   const e = {
     id: nextId++, type, x, y, hp: d.hp * hpk, maxhp: d.hp * hpk, spd: d.spd * spk * rand(0.9, 1.1), dmg: d.dmg * enemyDmgK(),
     r: d.r * (o.elite ? 2 : 1), xp: d.xp * lvK('xp'), ai: d.ai, kbRes: o.elite ? 0.9 : d.kbRes || 0, ghost: d.ghost,
@@ -1245,11 +1257,11 @@ function updSpawner(dt) {
   }
   const cfg = S.spawnCfg;
   if (!cfg) return;
-  const rate = (1 + (S.loop - 1) * 0.3) * (S.boss ? 0.6 : 1);
+  const rate = (1 + (S.loop - 1) * 0.3) * (P.uq.clock ? 1.15 : 1) * (S.boss ? 0.6 : 1); // 狂時の: 出現数 +15%
   S.spawnT -= dt;
   while (S.spawnT <= 0) {
     S.spawnT += cfg.interval / rate;
-    if (enemies.length < cfg.max) {
+    if (enemies.length < cfg.max * (P.uq.clock ? 1.15 : 1)) {
       // 時々小集団で出現
       if (Math.random() < 0.12) {
         const t = pick(cfg.types), a = rand(0, TAU), R = Math.hypot(GFX.VW, GFX.VH) / 2 + 16;

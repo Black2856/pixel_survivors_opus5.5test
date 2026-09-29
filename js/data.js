@@ -320,6 +320,33 @@ const DATA = {
       legendary: { name: 'レジェンダリー', n: 4, w: 1,  enh: 5, cost: 1600, col: '#ffb347' },
     },
     maxLv: [3, 5], // オプションの最大Lv のロール範囲
+    invMax: 1000,  // インベントリの上限(超えた分は自動で売却)
+    // 宝箱に入る装備の数: 1 / 2 / 3 個の基礎確率(宝箱品質で多い側へ寄る)
+    chestN: [0.7, 0.25, 0.05],
+    // ラン終了時の報酬: 撃破ボス数 → 宝箱の数(最大 runEndMax)、クリアで +1
+    runEndPerBoss: 0.67, runEndMax: 2,
+  },
+
+  // ---------- レジェンダリーの固有効果(部位ごとの候補からランダムに1つ。名前の頭に二つ名が付く) ----------
+  // stat: ステータスへの加算 / mul: 最終値への倍率 / それ以外の効果は world.js・classes.js で P.uq[キー] を見て処理する
+  uniques: {
+    exec:      { slot: 'weapon', epi: '処刑人の', desc: 'クリティカルダメージ +30%、非クリティカルダメージ -20%', stat: { critDmg: 0.3 } },
+    hundred:   { slot: 'weapon', epi: '百刃の',   desc: '武器枠 +1', stat: { wslot: 1 } },
+    berserk:   { slot: 'weapon', epi: '狂戦士の', desc: '失ったHP 1% につき攻撃力 +1%' },
+    vamp:      { slot: 'weapon', epi: '吸血鬼の', desc: '敵撃破時 25% で HP を最大HP の 1% 回復' },
+    giant:     { slot: 'weapon', epi: '巨人の',   desc: '攻撃力 ×0.9、範囲 ×1.1、射程 ×1.1', mul: { atk: 0.9, area: 1.1, range: 1.1 } },
+    senju:     { slot: 'weapon', epi: '千手の',   desc: '弾数 +1(近接武器は攻撃回数 +1)', stat: { shots: 1 } },
+    unbreak:   { slot: 'armor',  epi: '不壊の',   desc: '無敵時間 +20%', stat: { iframe: 0.2 } },
+    fortress:  { slot: 'armor',  epi: '城塞の',   desc: '最大HP ×1.3、移動速度 ×0.8', mul: { hp: 1.3, spd: 0.8 } },
+    mercy:     { slot: 'armor',  epi: '慈愛の',   desc: '被回復量 +25%' },
+    phoenix:   { slot: 'armor',  epi: '不死鳥の', desc: '一度だけ、倒れたときに最大HP の 25% で蘇生する' },
+    adversity: { slot: 'armor',  epi: '逆境の',   desc: '受けたダメージ分のスタミナを回復する' },
+    clock:     { slot: 'ring',   epi: '狂時の',   desc: 'クールダウン -15%。敵の出現数と速度 +15%', stat: { cd: 0.15 } },
+    pact:      { slot: 'ring',   epi: '背徳の',   desc: '獲得経験値 +25%。敵の基礎ステータス +10%', stat: { xp: 0.25 } },
+    golden:    { slot: 'ring',   epi: '黄金の',   desc: '獲得ゴールド ×1.25', mul: { gold: 1.25 } },
+    eye:       { slot: 'ring',   epi: '天眼の',   desc: '100% を超えたクリティカル率を、クリティカルダメージに加算する' },
+    craft:     { slot: 'ring',   epi: '神匠の',   desc: '装備品質 +25%、宝箱品質 +25%', stat: { eqQual: 0.25, chestQual: 0.25 } },
+    fate:      { slot: 'ring',   epi: '運命の',   desc: 'リロール回数 +2', stat: { reroll: 2 } },
   },
 
   // ---------- ステージ ----------
