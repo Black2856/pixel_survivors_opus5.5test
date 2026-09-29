@@ -278,7 +278,7 @@ function render() {
         addLight((s.x + s.x1) / 2, (s.y + s.y1) / 2, 90, '#ff5d73', 1 - k);
         continue;
       }
-      const k = s.t / s.life, R = s.r, span = 1.9, n = 26;
+      const k = s.t / s.life, R = s.r, span = s.full ? TAU : 1.9, n = s.full ? 64 : 26; // full: 全周の斬撃(見切りの反撃など)
       for (let i = 0; i < n; i++) {
         const u = i / (n - 1);
         if (u > k * 1.6) break;
@@ -446,16 +446,20 @@ function render() {
     shadow(P.x, P.y + 7, 9);
     const step = rig ? 0 : P.moving ? Math.sin(P.animT * 14) : Math.sin(P.animT * 3) * 0.5;
     const blink = P.ifr > 0 && Math.floor(t * 20) % 2 === 0;
-    if (!blink || P.dashT > 0) drawSp(psp, P.x, py - Math.abs(step) * (P.moving ? 1.5 : 0.5), { flip: P.facing < 0, white: P.hurtT > 0, sy: 1 + step * 0.05, sxk: 1 - step * 0.03 });
-    // HP・ダッシュゲージ
-    const bx = Math.round(P.x - cam.x - 7), by = Math.round(P.y - cam.y + 10);
-    sx.fillStyle = '#0c0913'; sx.fillRect(bx - 1, by - 1, 16, 4);
-    sx.fillStyle = '#3a1520'; sx.fillRect(bx, by, 14, 1);
-    sx.fillStyle = P.hp / P.maxhp < 0.3 ? (Math.floor(t * 8) % 2 ? '#ff3b5c' : '#ffffff') : '#ff3b5c';
-    sx.fillRect(bx, by, Math.round(14 * clamp(P.hp / P.maxhp, 0, 1)), 1);
-    sx.fillStyle = P.dashG >= P.dashCost ? '#9ff7ff' : '#3a5a70';
-    sx.fillRect(bx, by + 1, Math.round(14 * clamp(P.dashG, 0, 1)), 1);
-    addLight(P.x, P.y, 105, '#ffe2b8', 0.95);
+    if (!blink || P.invT > 0) drawSp(psp, P.x, py - Math.abs(step) * (P.moving ? 1.5 : 0.5), { flip: P.facing < 0, white: P.hurtT > 0, sy: 1 + step * 0.05, sxk: 1 - step * 0.03 });
+    // ガード(見切り): 正面に光る弧。ジャスト受付中は白く明るい
+    if (P.guard) {
+      const just = P.guardT <= DATA.classes.samurai.params.parryWin, col = just ? '#ffffff' : '#9ff7ff';
+      const a0 = P.facing < 0 ? Math.PI : 0, R = 11, cx = P.x - cam.x, cy = P.y - cam.y - 2;
+      sx.fillStyle = gx.fillStyle = col;
+      gx.globalAlpha = just ? 1 : 0.6;
+      for (let a = -1.2; a <= 1.2; a += 0.1) {
+        const x = Math.round(cx + Math.cos(a0 + a) * R), y = Math.round(cy + Math.sin(a0 + a) * R);
+        sx.fillRect(x, y, 1, 1); gx.fillRect(x, y, 1, 1);
+      }
+      gx.globalAlpha = 1;
+    }
+    addLight(P.x, P.y, 105, DATA.classes[P.cls].light || '#ffe2b8', 0.95);
   }
 
   // ======== 自分の攻撃(手前側): ブレード・斬撃・弾・落雷・演出 ========

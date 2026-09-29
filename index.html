@@ -20,6 +20,14 @@
       <div id="timebox"><div id="timer">00:00</div><div id="stage-name"></div><div id="elv"><span id="elv-n">ENEMY LV 1</span><div id="elv-bar"><div id="elv-fill"></div></div></div></div>
       <div id="counters"><div id="dmgtotal"></div><div id="kills"></div><div id="gold"></div></div>
     </div>
+    <!-- 左下のステータスパネル(HP / スタミナ / クラスリソース / E・Q) -->
+    <div id="pstat">
+      <div class="ps-head"><span id="ps-emblem"></span><span id="ps-cls"></span><span id="ps-clv"></span></div>
+      <div class="ps-row"><div class="ps-bar hp"><i id="ps-hp-lag"></i><i id="ps-hp"></i></div><span class="ps-num" id="ps-hp-n"></span></div>
+      <div class="ps-row"><div class="ps-bar sta" id="ps-sta-box"><i id="ps-sta"></i></div><span class="ps-lbl">STA</span></div>
+      <div class="ps-row" id="ps-res"></div>
+      <div id="ps-skills"></div>
+    </div>
     <div id="combo"><div id="combo-n">0</div><div class="combo-lbl">COMBO</div><div id="combo-bar"><div id="combo-fill"></div></div></div>
     <div id="bossbar" class="hidden">
       <div id="bossname"></div>
@@ -107,6 +115,7 @@
 <script src="js/gfx.js"></script>
 <script src="js/core.js"></script>
 <script src="js/stats.js"></script>
+<script src="js/classes.js"></script>
 <script src="js/world.js"></script>
 <script src="js/render.js"></script>
 <script src="js/ui.js"></script>

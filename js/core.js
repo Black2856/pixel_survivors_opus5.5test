@@ -78,8 +78,6 @@ const keys = {};
 const touch = { active: false, id: null, ox: 0, oy: 0, dx: 0, dy: 0 };
 addEventListener('keydown', e => {
   keys[e.code] = true;
-  // ダッシュは押した瞬間のみ受け付ける(長押し・キーリピートで連続発動させない)
-  if (e.code === 'Space' && !e.repeat && state === 'play') keys._dash = true;
   if ((e.code === 'ShiftLeft' || e.code === 'ShiftRight') && !e.repeat && state === 'play') toggleAim();
   if (['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code)) e.preventDefault();
   AudioMan.unlock();
@@ -89,12 +87,12 @@ addEventListener('keyup', e => { keys[e.code] = false; });
 addEventListener('blur', () => { for (const k in keys) keys[k] = false; if (state === 'play') pauseGame(); });
 addEventListener('pointerdown', () => AudioMan.unlock());
 
-// タッチ: 画面左半分で仮想スティック / 右半分タップでダッシュ
+// タッチ: 画面左半分で仮想スティック / 右側を押している間は防御スキル
 const cvsEl = document.getElementById('game');
 cvsEl.addEventListener('touchstart', e => {
   for (const t of e.changedTouches) {
     if (t.clientX < innerWidth * 0.6 && !touch.active) { Object.assign(touch, { active: true, id: t.identifier, ox: t.clientX, oy: t.clientY, dx: 0, dy: 0 }); }
-    else keys._dash = true;
+    else keys.TouchDef = true;
   }
   e.preventDefault();
 }, { passive: false });
@@ -104,7 +102,7 @@ cvsEl.addEventListener('touchmove', e => {
   }
   e.preventDefault();
 }, { passive: false });
-cvsEl.addEventListener('touchend', e => { for (const t of e.changedTouches) if (t.identifier === touch.id) { touch.active = false; touch.dx = touch.dy = 0; } });
+cvsEl.addEventListener('touchend', e => { for (const t of e.changedTouches) { if (t.identifier === touch.id) { touch.active = false; touch.dx = touch.dy = 0; } else keys.TouchDef = false; } });
 
 // マウス位置(内部解像度の画面座標)。Shift でマウス照準モードを切り替える
 const mouse = { x: 0, y: 0, aim: false };

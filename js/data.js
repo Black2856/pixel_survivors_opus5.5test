@@ -2,7 +2,8 @@
 'use strict';
 
 const DATA = {
-  player: { hp: 100, speed: 58, magnet: 30, dashCd: 1.6, iframe: 0.5, dashTime: 0.16, dashSpeed: 260, comboTime: 3 },
+  // staLock: ガード系の防御スキルで受けた後、スタミナ回復が止まる秒数
+  player: { hp: 100, speed: 58, magnet: 30, iframe: 0.5, comboTime: 3, staLock: 5 },
 
   // ---------- 敵 ----------
   // ai: chase / flutter / keep(距離を取り射撃) / flee(逃走)
@@ -247,12 +248,21 @@ const DATA = {
   // lvStats: クラスLv で得るステータス({ Lv: { stat: 値 } })。スキル系の強化はクラスの実装側で扱う
   classes: {
     samurai: {
-      name: 'サムライ', weapon: 'katana', col: '#ff5d73', rig: 'samurai', // rig: 部位アニメーション(ART.S)
+      name: 'サムライ', en: 'SAMURAI', weapon: 'katana', col: '#ff5d73', light: '#ffe2c8', rig: 'samurai', // rig: 部位アニメーション(ART.S) / light: 足元の光
       base: { hp: 110, regen: 0.3, def: 1, sta: 100, staRegen: 20, atk: 0.1, range: -0.1, crit: 0.08, critDmg: 1.2, magnet: -0.1, wslot: 4, reroll: 2 },
       lvStats: { 2: { hp: 10 }, 13: { hp: 15, sta: 20 } },
+      // 剣気: 通常攻撃の命中 +kiHit(0.15秒で kiHitCap まで)、ジャスト見切り +kiParry、満タンで攻撃力 +kiFullAtk
+      // 見切り: ガード中は移動 ×guardSlow。押してから parryWin 秒以内の被弾でジャスト(反撃 基礎威力 parryPow・半径 parryR・無敵 parryIfr)
+      //         スタミナ 0 でガードブレイク(breakT 秒ガード不可・被ダメ +breakDmg)
+      // 残心: 防御スキルで攻撃を受けた後 zanshinT 秒、攻撃力 +zanshinAtk
+      params: {
+        kiMax: 100, kiHit: 2, kiHitCap: 10, kiParry: 30, kiFullAtk: 0.2,
+        guardSlow: 0.5, parryWin: 0.25, parryPow: 60, parryR: 40, parryIfr: 0.5, breakT: 2, breakDmg: 0.2,
+        zanshinT: 3, zanshinAtk: 0.15,
+      },
     },
     mage: {
-      name: 'メイジ', weapon: 'bolt', col: '#7ad7ff',
+      name: 'メイジ', en: 'MAGE', weapon: 'bolt', col: '#7ad7ff', light: '#cfeeff',
       base: { hp: 80, sta: 90, staRegen: 24, spd: -0.03, area: 0.1, range: 0.1, cd: 0.05, crit: 0.05, critDmg: 1.0, xp: 0.05, magnet: 0.15, wslot: 4, reroll: 2 },
       lvStats: { 2: { hp: 10 }, 13: { hp: 15 } },
     },

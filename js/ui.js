@@ -69,6 +69,49 @@ const UI = (() => {
       $('bossfill-lag').style.width = bossLag * 100 + '%';
     }
     if (S.hudDirty) { S.hudDirty = false; slots(); }
+    pstat(dt);
+  }
+
+  // ---------- 左下のステータスパネル ----------
+  let hpLag = 1, lastHp = 0, healT = 0;
+  function pstat(dt) {
+    const c = DATA.classes[P.cls], box = $('pstat');
+    if (last.cls !== P.cls) {
+      last.cls = P.cls; box.style.setProperty('--cc', c.col);
+      $('ps-cls').textContent = c.en;
+      const r = clsRes();
+      $('ps-res').innerHTML = r ? `<div class="ps-ki"><i></i></div><span class="ps-res-lbl"></span>` : '';
+      hpLag = 1; lastHp = P.hp;
+    }
+    set('ps-clv', 'Lv ' + META.classes[P.cls].lv);
+    // HP: 被弾は白いバーが遅れて減る / 回復は一瞬光る / 30% 以下は点滅
+    const k = clamp(P.hp / P.maxhp, 0, 1);
+    hpLag = Math.max(k, hpLag - dt * 0.5);
+    if (P.hp > lastHp + 0.5) healT = 0.3;
+    lastHp = P.hp; healT -= dt;
+    $('ps-hp').style.width = (k * 100).toFixed(1) + '%';
+    $('ps-hp-lag').style.width = (hpLag * 100).toFixed(1) + '%';
+    set('ps-hp-n', Math.ceil(Math.max(0, P.hp)) + ' / ' + P.maxhp);
+    const hb = $('ps-hp').parentNode;
+    hb.classList.toggle('heal', healT > 0); hb.classList.toggle('low', k < 0.3);
+    box.classList.toggle('danger', k < 0.3);
+    // スタミナ: 回復停止中は灰色の斜線 / ガードブレイク中は赤
+    $('ps-sta').style.width = (clamp(P.sta / P.maxSta, 0, 1) * 100).toFixed(1) + '%';
+    const sb = $('ps-sta-box');
+    sb.classList.toggle('lock', P.staLockT > 0); sb.classList.toggle('break', clsStaBroken());
+    // クラスリソース
+    const r = clsRes();
+    if (r) {
+      const full = r.v >= r.max, g = $('ps-res').firstChild, lbl = $('ps-res').lastChild;
+      g.firstChild.style.width = (r.v / r.max * 100).toFixed(1) + '%';
+      g.classList.toggle('full', full); lbl.classList.toggle('full', full);
+      const txt = r.label + (full ? ' 満' : ' ' + Math.floor(r.v));
+      if (lbl.textContent !== txt) lbl.textContent = txt;
+    }
+    // プレイヤーがパネルの裏に入ったら薄くする
+    const pr = box.getBoundingClientRect(), cr = cvsEl.getBoundingClientRect();
+    const sx = cr.left + (P.x - cam.x) * GFX.PX, sy = cr.top + (P.y - cam.y) * GFX.PX;
+    box.classList.toggle('behind', sx > pr.left - 20 && sx < pr.right + 20 && sy > pr.top - 30 && sy < pr.bottom + 10);
   }
   function slots() {
     const w = $('wslots'), p = $('pslots'), a = $('aslots');

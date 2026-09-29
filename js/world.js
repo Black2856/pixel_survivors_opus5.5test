@@ -21,8 +21,8 @@ function initRun(mode = 'normal') {
     gold: 0, deathT: 0, victoryT: 0, hudDirty: true, won: false, hint: {},
   };
   P = {
-    cls: META.cls, micro: {}, x: 0, y: 0, hp: 0, maxhp: 100, level: 1, xp: 0, xpNext: xpFor(1), weapons: {}, passives: {}, art: {},
-    ifr: 0, facing: 1, animT: 0, moving: false, dashT: 0, dashG: 1, dashDir: [1, 0], hurtT: 0, dead: false,
+    cls: META.cls, mainW: META.classes[META.cls].weapon, micro: {}, x: 0, y: 0, hp: 0, maxhp: 100, level: 1, xp: 0, xpNext: xpFor(1), weapons: {}, passives: {}, art: {},
+    ifr: 0, facing: 1, animT: 0, moving: false, hurtT: 0, dead: false,
     slowT: 0, cdSlowT: 0, burnT: 0, burnDmg: 0, burnTick: 0,
   };
   enemies = []; projs = []; eprojs = []; gems = []; drops = []; props = []; hazards = [];
@@ -30,6 +30,7 @@ function initRun(mode = 'normal') {
   const st = recalc();
   P.hp = P.maxhp;
   S.rerolls = st.v.reroll; S.weaponSlots = st.v.wslot;
+  clsInit();
   if (mode === 'arena') { S.stage = 4; S.elv = DATA.arena.elv[0]; S.arena = { idx: 0, restT: 3, warned: false }; }
 }
 // 現在地から n レベル上がるのに必要な経験値(倍率適用前)
@@ -39,18 +40,15 @@ function xpForLevels(n) {
   return v;
 }
 
-// ステータスの再計算(stats.js)。ダッシュは旧仕様のまま(フェーズ2で防御スキルに置き換える)
+// ステータスの再計算(stats.js)
 function recalc() {
-  const st = applyStats(), pv = P.passives, af = P.art;
-  P.dashMul = 1 + 0.2 * (pv.cloak || 0);
-  // ダッシュはゲージ制(満タン=1)。疾風の羽根: 消費量 -50%・回復速度 -50%
-  P.dashCost = af.gale ? 0.5 : 1;
-  P.dashRegen = (af.gale ? 0.5 : 1) / DATA.player.dashCd;
+  const st = applyStats();
   S.hudDirty = true;
   return st;
 }
+// 攻撃力倍率 = ステータス + クラスの一時的な強化(剣気満タン・残心など)
 function dmgMul() {
-  let m = 1 + P.atk;
+  let m = 1 + P.atk + clsAtkBonus();
   if (P.art.frenzy) m += 1 - P.hp / P.maxhp;
   return m;
 }
@@ -95,27 +93,12 @@ function heal(n, silent) {
 function updPlayer(dt) {
   const [mx, my] = moveInput();
   P.moving = mx !== 0 || my !== 0;
-  if (P.moving) { P.dashDir = [mx, my]; if (mx) P.facing = mx > 0 ? 1 : -1; }
+  if (P.moving) { P.dir = [mx, my]; if (mx) P.facing = mx > 0 ? 1 : -1; }
   const aim = mouseAimPt();
   if (aim && aim.x !== P.x) P.facing = aim.x > P.x ? 1 : -1; // 照準中はマウス側を向く(アックスの投擲方向も追従)
-  P.dashG = Math.min(1, P.dashG + P.dashRegen * dt);
-  if (keys._dash && P.dashG >= P.dashCost && P.dashT <= 0) {
-    P.dashT = DATA.player.dashTime; P.dashG -= P.dashCost;
-    P.issen = P.weapons.katana && P.weapons.katana.evo ? { x: P.x, y: P.y, hits: new Set() } : null;
-    AudioMan.dash(); shake(1);
-    burst(P.x, P.y + 5, 10, ['#9ff7ff', '#ffffff'], { sp: 50, glow: true });
-    addRing(P.x, P.y, 14, '#9ff7ff', { life: 0.25 });
-  }
-  keys._dash = false;
-  let sp = P.speed * (P.slowT > 0 ? DATA.debuff.slow : 1);
-  let [dx, dy] = [mx, my];
-  if (P.dashT > 0) {
-    P.dashT -= dt; sp = DATA.player.dashSpeed * P.dashMul; [dx, dy] = P.dashDir;
-    if (P.issen) forEachNear(P.x, P.y, 8, e => { if (!e.prop) P.issen.hits.add(e); });
-    if (P.dashT <= 0 && P.issen) issen();
-    if (Math.random() < 0.9) P.after = (P.after || []).concat([{ x: P.x, y: P.y, t: 0, f: P.facing }]).slice(-6);
-  }
-  P.x += dx * sp * dt; P.y += dy * sp * dt;
+  clsUpdate(dt);
+  const sp = P.speed * P.moveMul * (P.slowT > 0 ? DATA.debuff.slow : 1);
+  P.x += mx * sp * dt; P.y += my * sp * dt;
   if (P.after) for (const a of P.after) a.t += dt;
   if (P.after) P.after = P.after.filter(a => a.t < 0.25);
   P.animT += dt * (P.moving ? 1 : 0.35);
@@ -141,7 +124,7 @@ function updDebuffs(dt) {
   if (P.hp <= 0) playerDown();
 }
 function burnPlayer(dmg) {
-  if (P.dashT > 0 || P.dead) return;
+  if (P.invT > 0 || P.dead) return;
   if (P.burnT <= 0) { P.burnTick = DATA.debuff.burnTick; P.burnDmg = 0; }
   P.burnT = DATA.debuff.burnDur; P.burnDmg = Math.max(P.burnDmg, dmg);
 }
@@ -151,8 +134,10 @@ function breakCombo() {
 }
 
 function hurtPlayer(dmg) {
-  if (P.ifr > 0 || P.dashT > 0 || P.dead || state !== 'play') return;
-  dmg = Math.max(1, Math.round((dmg - P.armor) * (1 - P.dr)));
+  if (P.ifr > 0 || P.invT > 0 || P.dead || state !== 'play') return;
+  const r = clsOnHurt(dmg); // ガードなどでクラスが受けきった場合は null
+  if (r === null) { S.hudDirty = true; return; }
+  dmg = Math.max(1, Math.round((r - P.armor) * (1 - P.dr)));
   P.hp -= dmg; P.ifr = P.iframe; P.hurtT = 0.12;
   breakCombo();
   GFX.fx.hurt = 1; GFX.fx.aberr = Math.max(GFX.fx.aberr, 0.9);
@@ -405,23 +390,6 @@ function doSlash(a, st, evo, flip) {
   AudioMan.slash();
 }
 
-// 鬼神・村正: ダッシュで通過した敵をまとめて一閃(威力200%)
-function issen() {
-  const d = P.issen;
-  P.issen = null;
-  if (!d || !d.hits.size || !P.weapons.katana) return;
-  const st = wst('katana');
-  slashes.push({ line: true, x: d.x, y: d.y, x1: P.x, y1: P.y, t: 0, life: 0.35 });
-  setTimeout(() => asMine(() => {
-    if (state !== 'play') return;
-    for (const e of d.hits) if (!e.dead) {
-      hitEnemy(e, st.dmg * 2, { src: 'katana', col: '#ff3b5c' });
-      burst(e.x, e.y, 8, ['#ff3b5c', '#ffffff'], { sp: 80, glow: true, life: 0.35 });
-    }
-    hitstop(0.05); shake(4); screenFlash(0.2 * SET.fxA, '#ff5d73'); AudioMan.slash(); AudioMan.crit();
-  }), 120);
-}
-
 // 光闇の天秤: 光輝と暗黒が揃った敵で対消滅
 function annihilate(e) {
   if (!(e.holyT > 0 && e.darkT > 0) || (e.annCd || 0) > S.time) return;
@@ -545,6 +513,7 @@ function hitEnemy(e, base, o = {}) {
   }
   dmg = Math.max(1, Math.round(dmg * rand(0.9, 1.1)));
   e.hp -= dmg; e.flash = 0.08;
+  if (o.src && o.src === P.mainW) clsOnMainHit(e); // 通常攻撃(メイン武器)の命中
   S.totalDmg += dmg;
   if (o.src) S.dmgBy[o.src] = (S.dmgBy[o.src] || 0) + dmg;
   if (o.kb && o.ang !== undefined && !e.boss) {
@@ -1164,7 +1133,7 @@ function updEprojs(dt) {
     } else { p.x += p.vx * dt; p.y += p.vy * dt; }
     if (p.t > p.life) { eprojs.splice(i, 1); continue; }
     if (d2(p.x, p.y, P.x, P.y) < Math.pow(p.r + 3, 2)) {
-      if (P.dashT > 0) continue;
+      if (P.invT > 0) continue;
       hurtPlayer(p.dmg);
       if (p.keep) continue;
       burst(p.x, p.y, 6, ['#ff3b5c', '#ffffff'], { sp: 50, glow: true });
