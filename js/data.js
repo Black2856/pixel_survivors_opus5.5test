@@ -403,9 +403,9 @@ const DATA = {
         { name: '広域', lanes: 2, chain: { area: 5, range: 5 }, leaf: { spd: 5 } },
       ] },
       balance: { name: '天秤', col: '#7ad7ff', root: 'magnet', crown: 'classPick', branches: [
-        { name: '成長', lanes: 1, chain: { xp: 4 }, leaf: { xp: 1, classXp: 5 } },
+        { name: '成長', lanes: 1, chain: { xp: 4 }, leaf: { xp: 1, classXp: 5 }, tip: 'gearPick' },
         { name: '財宝', lanes: 2, chain: { gold: 8 }, leaf: { eqQual: 5 }, mid: { reroll: [2, 4] }, tip: 'reroll' }, // リロール: 序盤・中盤・最奥
-        { name: '探索', lanes: 2, chain: { magnet: 7 }, leaf: { chestQual: 5 }, tip: 'gearPick' },
+        { name: '探索', lanes: 2, chain: { magnet: 7 }, leaf: { chestQual: 5 } },
       ] },
     },
     // ノードに表示する1文字
