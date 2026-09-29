@@ -5,7 +5,7 @@ const UI = (() => {
   const $ = id => document.getElementById(id);
   const el = (tag, cls, html) => { const e = document.createElement(tag); if (cls) e.className = cls; if (html !== undefined) e.innerHTML = html; return e; };
   const show = e => e.classList.remove('hidden'), hide = e => e.classList.add('hidden');
-  const screens = ['title-screen', 'equip-screen', 'choice-screen', 'chest-screen', 'pause-screen', 'settings-screen', 'result-screen'];
+  const screens = ['title-screen', 'stage-screen', 'equip-screen', 'choice-screen', 'chest-screen', 'pause-screen', 'settings-screen', 'result-screen'];
   const only = id => screens.forEach(s => (s === id ? show : hide)($(s)));
 
   // ---------- アイコン(スプライト → dataURL) ----------
@@ -650,7 +650,7 @@ const UI = (() => {
     const arena = S.mode === 'arena';
     $('result-title').textContent = win ? (arena ? 'ARENA CLEAR!' : 'VICTORY!') : 'YOU DIED';
     $('result-title').className = win ? 'win' : 'lose';
-    $('btn-endless').classList.toggle('hidden', !win || arena);
+    $('btn-endless').classList.toggle('hidden', !win || S.mode !== 'normal'); // エンドレスは通常モードのみ
     const rows = [arena ? ['撃破ボス', S.arena.idx + ' / ' + DATA.arena.order.length] : null, [arena ? 'タイム' : '生存時間', fmtTime(S.time)], ['レベル', P.level], ['撃破数', S.kills.toLocaleString()], ['最大コンボ', S.bestCombo], ['総ダメージ', Math.round(S.totalDmg).toLocaleString()], ['獲得ゴールド', '● ' + earned]];
     $('result-stats').innerHTML = rows.filter(Boolean).map(([a, b]) => `<div class="rs"><span>${a}</span><b>${b}</b></div>`).join('');
     const tot = Object.values(S.dmgBy).reduce((a, b) => a + b, 0) || 1;
@@ -664,11 +664,10 @@ const UI = (() => {
   }
 
   // ボタン
-  $('btn-start').onclick = () => startRun();
-  $('btn-arena').onclick = () => startRun('arena');
+  $('btn-start').onclick = () => MetaUI.stageSelect();
   $('btn-resume').onclick = () => resumeGame();
   $('btn-quit').onclick = () => endRun(false);
-  $('btn-retry').onclick = () => startRun(S.mode);
+  $('btn-retry').onclick = () => startRun(S.mode, S.stageNo);
   $('btn-totitle').onclick = () => goTitle();
   $('btn-endless').onclick = () => startEndless();
   $('chest-screen').onclick = chestAct;

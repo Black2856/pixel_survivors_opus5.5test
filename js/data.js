@@ -363,6 +363,15 @@ const DATA = {
       amb: [0.6, 0.52, 0.5], tint: [1.06, 0.98, 0.94], motes: { col: '#ffcf8a', rise: true }, tiles: true },
   ],
 
+  // ---------- ステージ単体モード ----------
+  // stage: 対応するステージ / from, to: 通常モードの出現スケジュールから使う区間(秒)/ elv: 開始時の敵Lv
+  // bosses: 1体目(180秒)・2体目(360秒)。2体目を倒したらクリア
+  stageRuns: [
+    { stage: 1, from: 0,   to: 180, elv: 1,  bosses: ['king', 'gslime'] },
+    { stage: 2, from: 186, to: 420, elv: 7,  bosses: ['wyrm', 'golem'] },
+    { stage: 3, from: 426, to: 660, elv: 14, bosses: ['reaper', 'cdragon'] },
+  ],
+
   // ---------- 闘技場(ボスラッシュ) ----------
   // order: 登場順 / elv: 各ラウンドの敵Lv(固定) / startLv: 開始時のレベルアップ回数
   // rewardLv: ボス撃破で得るレベルアップ回数(ジェムで配布) / rest: 次のボスまでの休憩秒 / r: 闘技場の半径

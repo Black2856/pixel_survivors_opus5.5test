@@ -4,19 +4,21 @@
 // ============================================================
 // 画面遷移
 // ============================================================
-function startRun(mode = 'normal') {
+function startRun(mode = 'normal', stageNo = 1) {
   AudioMan.unlock();
-  initRun(mode);
+  initRun(mode, stageNo);
   cam.fx = P.x - GFX.VW / 2; cam.fy = P.y - GFX.VH / 2;
   groundCache.clear();
   UI.show(UI.$('hud'));
   UI.beginPlay();
-  AudioMan.playMusic(mode === 'arena' ? 'field2' : 'field1');
+  AudioMan.playMusic(mode === 'arena' ? 'field2' : 'field' + S.stage);
   // 闘技場: 雑魚から経験値を稼げないので開始時にまとめてレベルアップ
   if (mode === 'arena') gainXP(xpForLevels(DATA.arena.startLv) / P.xpMul);
   screenFlash(0.5);
   shockAt(P.x, P.y, 1.5);
 }
+// クリア記録のキー: normal / arena / stage1〜3
+const runKey = () => (S.mode === 'stage' ? 'stage' + S.stageNo : S.mode);
 function pauseGame() { if (state !== 'play') return; state = 'pause'; UI.pause(true); AudioMan.pauseMusic(); }
 function resumeGame() { if (state !== 'pause') return; state = 'play'; UI.pause(false); AudioMan.resumeMusic(); }
 function endRun(win) {
@@ -30,6 +32,7 @@ function endRun(win) {
     META.best.kills = Math.max(META.best.kills, S.kills);
     META.best.level = Math.max(META.best.level, P.level);
   }
+  if (win) META.stageClear[runKey()] = true; // クリアしたモード・ステージ(カオス強化の解放条件)
   const loot = runEndLoot(win), cxp = gainClassXp(); // 装備の報酬(インベントリへ)とクラス経験値
   saveMeta();
   state = win ? 'victory' : 'over';
@@ -59,9 +62,9 @@ function demoWorld() {
 function onKey(e) {
   if (e.code === 'KeyM') AudioMan.toggleMute();
   if (e.code === 'Escape') { if (state === 'play') pauseGame(); else if (state === 'pause') resumeGame(); else if (state === 'settings') { state = 'title'; UI.title(); } }
-  if (state === 'title' && (e.code === 'Enter' || e.code === 'Space')) startRun();
-  else if ((state === 'over' || state === 'victory') && e.code === 'KeyR') startRun(S.mode);
-  else if (state === 'victory' && e.code === 'Enter' && S.mode !== 'arena') startEndless();
+  if (state === 'title' && (e.code === 'Enter' || e.code === 'Space')) MetaUI.stageSelect();
+  else if ((state === 'over' || state === 'victory') && e.code === 'KeyR') startRun(S.mode, S.stageNo);
+  else if (state === 'victory' && e.code === 'Enter' && S.mode === 'normal') startEndless();
   UI.onKey(e);
   MetaUI.onKey(e);
 }

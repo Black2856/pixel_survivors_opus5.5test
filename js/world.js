@@ -11,7 +11,15 @@ const xpFor = l => Math.floor(4 + l * 2.6 + Math.pow(l, 1.72));
 // ============================================================
 // ラン初期化 / ステータス
 // ============================================================
-function initRun(mode = 'normal') {
+// ステージ単体モードの出現スケジュール: そのステージの敵の波を 0 秒から並べ直し、180秒と360秒にボス
+function stageSchedule(n) {
+  const R = DATA.stageRuns[n - 1];
+  const waves = DATA.schedule.filter(e => !e.boss && e.t >= R.from && e.t < R.to && e.t - R.from < 180).map(e => Object.assign({}, e, { t: e.t - R.from }));
+  const again = waves.filter(e => e.t > 0).map(e => Object.assign({}, e, { t: e.t + 186 })).filter(e => e.t < 360);
+  // 時刻順に並べる(スポナーは先頭から順に処理するため)
+  return [...waves, { t: 180, boss: [R.bosses[0]] }, { t: 186, ...waves[0] }, ...again, { t: 360, boss: [R.bosses[1]], final: true }].sort((x, y) => x.t - y.t);
+}
+function initRun(mode = 'normal', stageNo = 1) {
   S = {
     mode, arena: null, time: 0, kills: 0, totalDmg: 0, dmgBy: {}, stage: 1, loop: 1, loopStart: 0,
     combo: 0, comboT: 0, bestCombo: 0, gemStreak: 0, gemStreakT: 0,
@@ -33,7 +41,9 @@ function initRun(mode = 'normal') {
   addWeapon(P.mainW); // 1枠目はクラスのメイン武器(固定)
   S.rerolls = st.v.reroll; S.weaponSlots = st.v.wslot;
   clsInit();
+  S.stageNo = stageNo; S.sched = mode === 'stage' ? stageSchedule(stageNo) : DATA.schedule;
   if (mode === 'arena') { S.stage = 4; S.elv = DATA.arena.elv[0]; S.arena = { idx: 0, restT: 3, warned: false }; }
+  if (mode === 'stage') { const R = DATA.stageRuns[stageNo - 1]; S.stage = R.stage; S.elv = R.elv; }
 }
 // 現在地から n レベル上がるのに必要な経験値(倍率適用前)
 function xpForLevels(n) {
@@ -1079,12 +1089,13 @@ function onBossDeath(e) {
   dropItem('meat', e.x + 14, e.y); dropItem('magnet', e.x - 14, e.y);
   dropItem('chest', e.x, e.y - 14); // 装備宝箱
   if (e.final) {
-    if (S.loop === 1 && !S.won) { S.won = true; S.victoryT = 2.4; AudioMan.stopMusic(1.5); return; }
+    if (S.mode === 'stage' || (S.loop === 1 && !S.won)) { S.won = true; S.victoryT = 2.4; AudioMan.stopMusic(1.5); return; }
     S.loop++; S.schedIdx = 0; S.loopStart = S.time; setStage(1);
     UI.announce('LOOP ' + S.loop, '敵はさらに強くなる…');
     AudioMan.playMusic('field1');
     return;
   }
+  if (S.mode === 'stage') { UI.announce('BOSS 1/2 撃破!', '次のボスに備えよ'); AudioMan.playMusic('field' + S.stage); return; } // ステージ単体: ステージはそのまま
   setStage(Math.min(3, S.stage + 1));
   UI.announce('STAGE ' + S.stage, DATA.stages[S.stage - 1].label);
   AudioMan.playMusic('field' + S.stage);
@@ -1249,7 +1260,7 @@ function updDrops(dt) {
 // ============================================================
 function updSpawner(dt) {
   if (S.mode === 'arena') return updArena(dt);
-  const sc = DATA.schedule, el = S.time - S.loopStart;
+  const sc = S.sched, el = S.time - S.loopStart;
   while (S.schedIdx < sc.length && el >= sc[S.schedIdx].t) {
     const en = sc[S.schedIdx++];
     if (en.boss) spawnBoss(pick(en.boss), en.final);

@@ -342,3 +342,13 @@ input[type=range] { width: 220px; accent-color: var(--gold); }
 .st.debuff { --sc: #ff3b5c; }
 @keyframes stIn { from { transform: scale(.4); opacity: 0; } }
 .st .gl { position: relative; font: calc(var(--px) * 7) 'DotGothic16'; color: var(--sc); text-shadow: 0 0 calc(var(--px) * 2) var(--sc); line-height: 1; }
+
+/* ---------- ステージ選択 ---------- */
+#stage-list { display: flex; flex-direction: column; gap: 10px; width: min(640px, 92vw); }
+.stg { display: grid; grid-template-columns: 1fr; gap: 3px; padding: 12px 16px; text-align: left; background: var(--panel); box-shadow: inset 4px 0 0 0 var(--sc), inset 0 0 0 2px #3a3060; transition: transform .08s; }
+.stg:hover { transform: translateX(6px); box-shadow: inset 4px 0 0 0 var(--sc), inset 0 0 0 2px var(--sc); }
+.stg .nm { font-size: 20px; color: var(--sc); }
+.stg .clr { font: 9px 'Press Start 2P'; color: var(--gold); margin-left: 8px; }
+.stg .sub { font-size: 13px; color: var(--txt); }
+.stg .chaos { font-size: 11px; color: var(--dim); }
+.stg .chaos.on { color: #c78bff; }

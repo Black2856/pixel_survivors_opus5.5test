@@ -1,4 +1,4 @@
-// meta-ui.js — ラン外の画面(装備)。ステージ選択・クラス画面・ツリー・ショップはフェーズ4で追加する
+// meta-ui.js — ラン外の画面(ステージ選択 / 装備)
 'use strict';
 
 const MetaUI = (() => {
@@ -74,6 +74,26 @@ const MetaUI = (() => {
     render();
   }
 
+  // ---------- ステージ選択 ----------
+  // 通常モード(3ステージを周回) / ステージ単体(ボス2体) / 闘技場(ボスラッシュ)。クリアしたものに ★、カオス強化はクリアで解放
+  const STAGE_ITEMS = () => [
+    { key: 'normal', mode: 'normal', n: 1, name: '通常モード', sub: '3つのステージを進み、最終ボスを倒す', col: '#ffd23f' },
+    ...DATA.stageRuns.map((R, i) => ({ key: 'stage' + (i + 1), mode: 'stage', n: i + 1, name: DATA.stages[R.stage - 1].label, sub: `ボス2体でクリア ・ 敵Lv ${R.elv} から ・ ${R.bosses.map(b => DATA.bosses[b].name.split(' ')[0]).join(' → ')}`, col: '#9ff7ff' })),
+    { key: 'arena', mode: 'arena', n: 1, name: '闘技場', sub: `ボス${DATA.arena.order.length}体の連戦`, col: '#ff3b5c' },
+  ];
+  function stageSelect() {
+    state = 'stage';
+    UI.only('stage-screen');
+    $('stage-list').innerHTML = STAGE_ITEMS().map(s => {
+      const clear = META.stageClear[s.key];
+      return `<button class="stg" data-mode="${s.mode}" data-n="${s.n}" style="--sc:${s.col}">
+        <span class="nm">${s.name}${clear ? ' <b class="clr">★ CLEAR</b>' : ''}</span><span class="sub">${s.sub}</span>
+        <span class="chaos ${clear ? 'on' : ''}">${clear ? 'カオス強化: 解放済み(内容は今後追加)' : 'カオス強化: クリアで解放'}</span></button>`;
+    }).join('');
+  }
+  $('stage-list').onclick = e => { const b = e.target.closest('.stg'); if (!b) return; AudioMan.click(); startRun(b.dataset.mode, +b.dataset.n); };
+  $('st-back').onclick = () => { AudioMan.click(); state = 'title'; UI.title(); };
+
   // ---------- 入力 ----------
   $('btn-equip').onclick = () => { AudioMan.click(); open(); };
   $('eq-back').onclick = () => { AudioMan.click(); close(); };
@@ -96,7 +116,10 @@ const MetaUI = (() => {
     if (n) { AudioMan.coinRain(10); UI.announce(`+${g.toLocaleString()} G`, `${n}個 売却しました`); }
     sel = null; render();
   };
-  function onKey(e) { if (state === 'equip' && e.code === 'Escape') close(); }
+  function onKey(e) {
+    if (state === 'equip' && e.code === 'Escape') close();
+    if (state === 'stage' && e.code === 'Escape') { state = 'title'; UI.title(); }
+  }
 
-  return { open, onKey };
+  return { open, stageSelect, onKey };
 })();
