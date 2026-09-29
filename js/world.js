@@ -29,6 +29,7 @@ function initRun(mode = 'normal') {
   parts = []; floats = []; rings = []; zones = []; slashes = []; bolts = []; warns = []; flashes = [];
   const st = recalc();
   P.hp = P.maxhp;
+  addWeapon(P.mainW); // 1枠目はクラスのメイン武器(固定)
   S.rerolls = st.v.reroll; S.weaponSlots = st.v.wslot;
   clsInit();
   if (mode === 'arena') { S.stage = 4; S.elv = DATA.arena.elv[0]; S.arena = { idx: 0, restT: 3, warned: false }; }
@@ -1350,7 +1351,7 @@ function buildChoices() {
   const pool = [], wc = Object.keys(P.weapons).length, pc = Object.keys(P.passives).length;
   for (const k in DATA.weapons) {
     const w = P.weapons[k];
-    if (!w) { if (wc < S.weaponSlots) pool.push({ type: 'weapon', key: k, w: 1 }); }
+    if (!w) { if (wc < S.weaponSlots) pool.push({ type: 'weapon', key: k, w: 1 }); } // サブ武器(メイン武器は所持済みなので Lv アップのみ)
     else if (w.lv < 5) pool.push({ type: 'weapon', key: k, w: 1.6 });
   }
   for (const k in DATA.passives) {

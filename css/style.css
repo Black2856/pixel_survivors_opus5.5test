@@ -31,6 +31,7 @@ button { font: inherit; color: inherit; cursor: pointer; border: 0; background: 
 .slot.small { width: 30px; height: 30px; }
 .slot.tiny { width: 24px; height: 24px; }
 .slot.empty { opacity: .35; }
+.slot.main { --line: var(--gold); } /* メイン武器(1枠目・固定) */
 .slot.evo { --line: var(--pink); animation: evoGlow 1.2s ease-in-out infinite; }
 .slot .icon { width: 27px; image-rendering: pixelated; }
 .slot.small .icon { width: 18px; } .slot.tiny .icon { width: 14px; }

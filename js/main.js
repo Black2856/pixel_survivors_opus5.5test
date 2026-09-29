@@ -10,8 +10,8 @@ function startRun(mode = 'normal') {
   cam.fx = P.x - GFX.VW / 2; cam.fy = P.y - GFX.VH / 2;
   groundCache.clear();
   UI.show(UI.$('hud'));
+  UI.beginPlay();
   AudioMan.playMusic(mode === 'arena' ? 'field2' : 'field1');
-  UI.startPick();
   // 闘技場: 雑魚から経験値を稼げないので開始時にまとめてレベルアップ
   if (mode === 'arena') gainXP(xpForLevels(DATA.arena.startLv) / P.xpMul);
   screenFlash(0.5);

@@ -227,7 +227,7 @@ const UI = (() => {
       const k = Object.keys(P.weapons)[i];
       if (!k) { h += '<div class="slot empty"></div>'; continue; }
       const wp = P.weapons[k];
-      h += `<div class="slot ${wp.evo ? 'evo' : ''}" data-tip="w:${k}">${icon('weapon', k)}<span class="pips">${wp.evo ? '★' : '▮'.repeat(wp.lv)}</span></div>`;
+      h += `<div class="slot ${wp.evo ? 'evo' : ''} ${k === P.mainW ? 'main' : ''}" data-tip="w:${k}">${icon('weapon', k)}<span class="pips">${wp.evo ? '★' : '▮'.repeat(wp.lv)}</span></div>`;
     }
     w.innerHTML = h; h = '';
     for (let i = 0; i < S.passiveSlots; i++) {
@@ -323,18 +323,16 @@ const UI = (() => {
     rb.disabled = !canReroll();
     rb.onclick = reroll;
     btns.appendChild(rb);
-    if (mode !== 'start') {
-      const sb = el('button', 'btn ghost', mode === 'artifact' ? 'スキップ (+50G)' : 'スキップ (+10G)');
-      sb.onclick = () => { if (chosen) return; chosen = true; addGold(mode === 'artifact' ? 50 : 10); close(); };
-      btns.appendChild(sb);
-    }
+    const sb = el('button', 'btn ghost', mode === 'artifact' ? 'スキップ (+50G)' : 'スキップ (+10G)');
+    sb.onclick = () => { if (chosen) return; chosen = true; addGold(mode === 'artifact' ? 50 : 10); close(); };
+    btns.appendChild(sb);
   }
   // アーティファクトは未所持が3つ以下だと引き直しても同じ候補になるので不可
   const canReroll = () => S.rerolls > 0 && !chosen && (mode !== 'artifact' || Object.keys(DATA.artifacts).filter(k => !P.art[k]).length > 3);
   function reroll() {
     if (!canReroll()) return;
     S.rerolls--;
-    choices = mode === 'start' ? startChoices() : mode === 'artifact' ? buildArtifactChoices() : buildChoices();
+    choices = mode === 'artifact' ? buildArtifactChoices() : buildChoices();
     AudioMan.select();
     renderCards();
   }
@@ -351,13 +349,13 @@ const UI = (() => {
     addRing(P.x, P.y, 40, col, { life: 0.35 });
     setTimeout(close, 240);
   }
+  // 画面を閉じてプレイに戻る(ラン開始時にも使う)
   function close() {
     only(null);
     state = 'play';
     AudioMan.setDuck(1);
     S.hudDirty = true;
   }
-  const startChoices = () => shuffle(Object.keys(DATA.weapons)).slice(0, 3).map(k => ({ type: 'weapon', key: k }));
 
   // ============================================================
   // 宝箱(演出: 落下 → 溜め → 大爆発 → ルーレットで報酬確定 → ゴールドカウント)
@@ -554,7 +552,6 @@ const UI = (() => {
     $('title-best').innerHTML = [b.time ? `BEST ${fmtTime(b.time)} · ${b.kills} KILLS · LV ${b.level}` : '', arena].filter(Boolean).join('<br>');
     if (metaMigratedGold) { announce('+' + metaMigratedGold.toLocaleString() + ' G 返金', '永続強化は新しいツリーに移行しました'); metaMigratedGold = 0; }
   }
-  function startPick() { openChoices('start', startChoices(), '最初の武器を選べ'); }
   function levelUp() { openChoices('level', buildChoices(), 'LEVEL UP!'); }
   function openArtifact(list) {
     if (!list.length) { addGold(100); announce('+100 G', ''); return; }
@@ -615,5 +612,5 @@ const UI = (() => {
     } else if (state === 'chest' && (e.code === 'Space' || e.code === 'Enter')) chestAct();
   }
 
-  return { announce, banner, hud, bossBar, enemyLvUp, openChest, openArtifact, levelUp, startPick, title, pause, result, onKey, show, hide, $ };
+  return { announce, banner, hud, bossBar, enemyLvUp, openChest, openArtifact, levelUp, beginPlay: close, title, pause, result, onKey, show, hide, $ };
 })();
