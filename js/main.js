@@ -34,6 +34,7 @@ function endRun(win) {
   }
   if (win) META.stageClear[runKey()] = true; // クリアしたモード・ステージ(カオス強化の解放条件)
   const loot = runEndLoot(win), cxp = gainClassXp(); // 装備の報酬(インベントリへ)とクラス経験値
+  META.shop = null; // ショップの商品はランごとに入れ替える
   saveMeta();
   state = win ? 'victory' : 'over';
   if (!win) AudioMan.stopMusic(1.5);

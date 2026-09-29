@@ -143,6 +143,36 @@ function gainClassXp() {
   return { xp, lv0, lv: c.lv };
 }
 
+// ---------- ショップ ----------
+// META.shop = { items: [装備...], sold: [id...] }。endRun で null に戻し、次に開いたときに作り直す
+function shopRarity(qual) {
+  const W = DATA.shop.w, ks = RARITY_KEYS.filter(k => W[k]), w = ks.map((k, i) => W[k] * (1 + qual * i));
+  let r = Math.random() * w.reduce((a, b) => a + b, 0);
+  for (let i = 0; i < ks.length; i++) if ((r -= w[i]) <= 0) return ks[i];
+  return ks[0];
+}
+function shopStock() {
+  if (META.shop) return META.shop;
+  const st = computeStats({}).v, items = [];
+  for (const slot in DATA.equip.slots) for (let i = 0; i < DATA.shop.perSlot; i++) {
+    const it = genItem({ stats: st, slot, rarity: shopRarity(st.eqQual || 0) });
+    it.isNew = false;
+    items.push(it);
+  }
+  META.shop = { items, sold: [] };
+  saveMeta();
+  return META.shop;
+}
+const shopPrice = it => DATA.shop.price[it.rarity];
+function shopBuy(id) {
+  const sh = shopStock(), it = sh.items.find(x => x.id === id);
+  if (!it || sh.sold.includes(id) || META.gold < shopPrice(it) || META.inventory.length >= DATA.equip.invMax) return false;
+  META.gold -= shopPrice(it); sh.sold.push(id);
+  META.inventory.push(Object.assign({}, it, { opts: it.opts.map(o => Object.assign({}, o)), isNew: true }));
+  saveMeta();
+  return true;
+}
+
 // ---------- 表示用 ----------
 // オプション1行: 「攻撃力 +8.0% /Lv」。乗算系・% 系は % 表示
 function optVal(o) {

@@ -382,6 +382,13 @@ const DATA = {
     // ラン終了時の報酬: 撃破ボス数 → 宝箱の数(最大 runEndMax)、クリアで +1
     runEndPerBoss: 0.67, runEndMax: 2,
   },
+  // ---------- ショップ(ランが終わるたびに商品を入れ替える) ----------
+  // perSlot: 部位ごとの商品数 / w: レアリティの重み(装備品質で上位に寄る)/ price: レアリティごとの価格
+  shop: {
+    perSlot: 2,
+    w: { uncommon: 55, rare: 32, epic: 11, legendary: 2 },
+    price: { uncommon: 600, rare: 1500, epic: 4000, legendary: 12000 },
+  },
 
   // ---------- レジェンダリーの固有効果(部位ごとの候補からランダムに1つ。名前の頭に二つ名が付く) ----------
   // stat: ステータスへの加算 / mul: 最終値への倍率 / それ以外の効果は world.js・classes.js で P.uq[キー] を見て処理する
