@@ -254,6 +254,7 @@ const DATA = {
     classXp:   { label: 'クラス経験値',         kind: 'pct',  group: 'balance' },
     reroll:    { label: 'リロール回数',         kind: 'flat', group: 'balance' },
     classPick: { label: 'クラス強化選択枠',     kind: 'flat', group: 'balance' },
+    gearPick:  { label: '武具選択肢',           kind: 'flat', group: 'balance' }, // 武器カード・装備カードの枚数 +1
     shots:     { label: '弾数',                 kind: 'flat', group: 'special' },
     eqMaxLv:   { label: '装備最大Lv',           kind: 'flat', group: 'special' },
     eqMaxVal:  { label: '装備最大値',           kind: 'pct',  group: 'special' },
@@ -383,12 +384,13 @@ const DATA = {
     stats: {
       life:    { hp: [20, 10], regen: [1, 5], def: [1, 4], dr: [0.1, 5], sta: [30, 10], staRegen: [2, 5], iframe: [0.1, 1] },
       skill:   { spd: [0.1, 5], atk: [0.2, 10], area: [0.1, 5], range: [0.1, 5], cd: [0.1, 4], crit: [0.05, 5], critDmg: [0.2, 5], wslot: [1, 1] },
-      balance: { xp: [0.1, 5], gold: [0.2, 8], magnet: [0.2, 8], eqQual: [0.2, 5], chestQual: [0.2, 5], classXp: [0.2, 5], reroll: [3, 3], classPick: [1, 1] },
+      balance: { xp: [0.1, 5], gold: [0.2, 8], magnet: [0.2, 8], eqQual: [0.2, 5], chestQual: [0.2, 5], classXp: [0.2, 5], reroll: [3, 3], classPick: [1, 1], gearPick: [1, 1] },
     },
     // 形(設計書 6.2): 方向ごとに 根(深さ1)→ 3本の枝
     // 枝 = 本線(chain)を lanes 本の一本道に並べる(深さ2 から外へ。横のつながりはない)
     //      + 行き止まり(leaf): 本線から横に1つだけ生えるノード。貴重なステータスはここに置く(つながりが1本だけ)
-    // tip: 本線の先端の1つ外側の特別なノード / crown: 方向の3本の枝の tip すべてに隣接する最奥のノード
+    // tip: 本線の先端の1つ外側の特別なノード / crown: 方向の枝の tip すべてに隣接する最奥のノード
+    // mid: { stat: [深さ...] } 本線の間(枝の真ん中)に置く特別なノード。同じ深さの本線ノードとつながる
     dirs: {
       life: { name: '生命', col: '#ff5d73', root: 'hp', branches: [
         { name: '活力', lanes: 2, chain: { hp: 9 }, leaf: { regen: 5 } },
@@ -401,16 +403,16 @@ const DATA = {
         { name: '広域', lanes: 2, chain: { area: 5, range: 5 }, leaf: { spd: 5 } },
       ] },
       balance: { name: '天秤', col: '#7ad7ff', root: 'magnet', crown: 'classPick', branches: [
-        { name: '成長', lanes: 1, chain: { xp: 4 }, leaf: { xp: 1, classXp: 5 }, tip: 'reroll' },
-        { name: '財宝', lanes: 2, chain: { gold: 8 }, leaf: { eqQual: 5 }, tip: 'reroll' },
-        { name: '探索', lanes: 2, chain: { magnet: 7 }, leaf: { chestQual: 5 }, tip: 'reroll' },
+        { name: '成長', lanes: 1, chain: { xp: 4 }, leaf: { xp: 1, classXp: 5 } },
+        { name: '財宝', lanes: 2, chain: { gold: 8 }, leaf: { eqQual: 5 }, mid: { reroll: [2, 4] }, tip: 'reroll' }, // リロール: 序盤・中盤・最奥
+        { name: '探索', lanes: 2, chain: { magnet: 7 }, leaf: { chestQual: 5 }, tip: 'gearPick' },
       ] },
     },
     // ノードに表示する1文字
     glyph: {
       hp: '体', regen: '癒', def: '守', dr: '減', sta: '持', staRegen: '息', iframe: '無',
       spd: '速', atk: '攻', area: '域', range: '射', cd: '刻', crit: '会', critDmg: '撃', wslot: '枠',
-      xp: '経', gold: '金', magnet: '引', eqQual: '装', chestQual: '宝', classXp: '級', reroll: '再', classPick: '選',
+      xp: '経', gold: '金', magnet: '引', eqQual: '装', chestQual: '宝', classXp: '級', reroll: '再', classPick: '選', gearPick: '武',
     },
   },
 
@@ -443,6 +445,8 @@ const DATA = {
     chestN: [0.7, 0.25, 0.05],
     // ラン終了時の報酬: 撃破ボス数 → 宝箱の数(最大 runEndMax)、クリアで +1
     runEndPerBoss: 0.67, runEndMax: 2,
+    // 3の倍数以外のレベルアップで、武器カードの代わりに装備カード(オプション1つ +1Lv)を出す確率
+    cardRate: 0.5,
   },
   // ---------- ショップ(ランが終わるたびに商品を入れ替える) ----------
   // perSlot: 部位ごとの商品数 / w: レアリティの重み(装備品質で上位に寄る)/ price: レアリティごとの価格

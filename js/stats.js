@@ -18,7 +18,7 @@ const TREE = (() => {
   const mk = (k, dir, depth, ang, o = {}) => {
     n[k] = (n[k] || 0) + 1;
     const id = k + '#' + n[k], r = R(depth) + (o.out || 0);
-    nodes[id] = { id, k, dir, depth, big: !!o.big, leaf: !!o.leaf, adj: [], x: Math.cos(ang) * r, y: Math.sin(ang) * r };
+    nodes[id] = { id, k, dir, depth, big: !!o.big, leaf: !!o.leaf, mid: !!o.mid, adj: [], x: Math.cos(ang) * r, y: Math.sin(ang) * r };
     return nodes[id];
   };
   const link = (a, b) => { a.adj.push(b.id); b.adj.push(a.id); };
@@ -40,7 +40,7 @@ const TREE = (() => {
     D.branches.forEach((B, bi) => {
       // 列: 行き止まり / 本線 / 行き止まり / 本線 / 行き止まり(本線 L 本なら 2L+1 列)
       const bc = c0 - secW * 0.45 + bw * (bi + 0.5), L = B.lanes || 1, cols = 2 * L + 1;
-      const colAng = c => bc + (c - L) * (bw * 0.8 / (cols - 1));
+      const colAng = c => bc + (c - L) * (bw * 0.7 / (cols - 1)); // 隣の枝と離すため、枝の幅の 7 割に収める
       // 本線: 深さ2 から外へ、レーンを交互に埋める
       const lanes = Array.from({ length: L }, () => []);
       interleave(B.chain).forEach((k, i) => {
@@ -48,13 +48,23 @@ const TREE = (() => {
         if (lanes[l].length) link(lanes[l][lanes[l].length - 1], nd); else link(root, nd);
         lanes[l].push(nd);
       });
+      // 真ん中の特別なノード(mid): 本線の間の列、同じ深さの本線ノードとつながる
+      const used = new Set();
+      for (const k in B.mid || {}) for (const d of B.mid[k]) {
+        const nd = mk(k, dk, d, colAng(L), { big: true, mid: true, out: 20 });
+        for (const ln of lanes) if (ln[d - 2]) link(ln[d - 2], nd);
+        used.add(L + ':' + d);
+      }
       // 行き止まり: 本線の横の空き(同じ深さ、少し外側)に、深さが偏らないよう均等に置く。つながるのは隣の本線ノード1つだけ
       const slots = [];
       lanes.forEach((ln, l) => ln.forEach(p => {
         for (const c of [2 * l + 1 + (l === 0 ? 1 : -1), 2 * l + 1 + (l === 0 ? -1 : 1)]) slots.push({ c, d: p.depth, p });
       }));
       const byD = {}; for (const s of slots) (byD[s.d] = byD[s.d] || []).push(s);
-      const depths = Object.keys(byD).map(Number).sort((a, b) => a - b), used = new Set(), leaves = interleave(B.leaf || {});
+      let depths = Object.keys(byD).map(Number).sort((a, b) => a - b);
+      const leaves = interleave(B.leaf || {}), free = d => byD[d].filter(x => !used.has(x.c + ':' + x.d)).length;
+      // 先端(tip)がある枝は、一番外の段に行き止まりを置かない(先端の大きいノードと重なるため)。空きが足りるときだけ
+      if (B.tip && depths.slice(0, -1).reduce((a, d) => a + free(d), 0) >= leaves.length) depths = depths.slice(0, -1);
       leaves.forEach((k, i) => {
         const want = depths[Math.min(depths.length - 1, Math.floor((i + 0.5) * depths.length / leaves.length))];
         const order = depths.slice().sort((a, b) => Math.abs(a - want) - Math.abs(b - want) || b - a);

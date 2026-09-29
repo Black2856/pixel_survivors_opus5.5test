@@ -350,6 +350,14 @@ const UI = (() => {
       rar = { common: 'common', uncommon: 'new', rare: 'rare', epic: 'epic', legendary: 'legend' }[it.rarity];
       body = it.opts.map(o => `<div class="opt">${optHTML(o)} <em>〜Lv${o.max}</em></div>`).join('') + (it.uq ? `<p class="uq">${DATA.uniques[it.uq].desc}</p>` : '');
       foot = `<div class="evohint">${c.sold ? `インベントリが満杯 → 売却 +${c.sold}G` : 'インベントリに追加'}</div>`;
+    } else if (c.type === 'eqopt') {
+      // 装備カード: 装備中のアイテムのオプション1つを +1Lv
+      const it = itemById(META.loadout[c.slot]), o = it.opts[c.i], lv = S.eqLv[c.slot][c.i], R = DATA.equip.rarity[it.rarity];
+      ic = icon('equip', it.type, 'big'); head = `<span style="color:${R.col}">${DATA.equip.slots[c.slot]}</span> Lv ${lv} → ${lv + 1}`;
+      name = `<small>${itemName(it)}</small>${DATA.stats[o.k].label}`;
+      rar = lv + 1 === o.max ? 'epic' : 'rare';
+      body = `<div class="diff eqd">${optVal({ k: o.k, v: optAt(o, lv) })} → <em>${optVal({ k: o.k, v: optAt(o, lv + 1) })}</em></div>`; // 名前はカード名にあるので値だけ
+      foot = `<div class="evohint">${'◆'.repeat(lv + 1)}${'◇'.repeat(o.max - lv - 1)} 最大Lv ${o.max}</div>`;
     } else if (c.type === 'evo') {
       const d = DATA.weapons[c.key];
       name = d.evo.name; ic = icon('weapon', c.key, 'big'); head = 'EVOLUTION!!'; rar = 'legend'; body = `<p>${d.name} が進化した!<br>${d.evo.desc}</p>`;
@@ -404,7 +412,7 @@ const UI = (() => {
     cardEl.classList.add('picked');
     applyChoice(c);
     AudioMan.select();
-    const col = c.type === 'weapon' ? DATA.weapons[c.key].col : c.type === 'cls' ? DATA.classes[P.cls].col : '#ffffff';
+    const col = c.type === 'weapon' ? DATA.weapons[c.key].col : c.type === 'cls' ? DATA.classes[P.cls].col : c.type === 'eqopt' ? '#9ff7ff' : '#ffffff';
     burst(P.x, P.y, 30, [col, '#ffffff'], { sp: 90, glow: true, up: 20 });
     addRing(P.x, P.y, 40, col, { life: 0.35 });
     setTimeout(close, 240);
@@ -616,7 +624,7 @@ const UI = (() => {
     $('title-best').innerHTML = [b.time ? `BEST ${fmtTime(b.time)} · ${b.kills} KILLS · LV ${b.level}` : '', arena].filter(Boolean).join('<br>');
     if (metaMigratedGold) { announce('+' + metaMigratedGold.toLocaleString() + ' G 返金', '永続強化は新しいツリーに移行しました'); metaMigratedGold = 0; }
   }
-  function levelUp(lv, list) { curLv = lv; openChoices(isClassLv(lv) ? 'class' : 'level', list, isClassLv(lv) ? 'CLASS UP!' : 'LEVEL UP!'); }
+  function levelUp(lv, list) { curLv = lv; openChoices(isClassLv(lv) ? 'class' : 'level', list, isClassLv(lv) ? 'CLASS UP!' : list[0].type === 'eqopt' ? 'GEAR UP!' : 'LEVEL UP!'); }
 
   // ---------- 設定パネル(ポーズ画面とタイトルの設定画面で共用。開く画面へ移動させる) ----------
   function syncSettings(host) {

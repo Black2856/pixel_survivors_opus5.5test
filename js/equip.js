@@ -86,19 +86,24 @@ function enhanceItem(it) {
 }
 
 // ---------- ラン中のオプション成長 ----------
-// ラン開始時は全オプションが Lv0。レベルアップのたびに、最大Lv に達していないオプションから完全ランダムに1つを +1Lv
+// ラン開始時は全オプションが Lv0。レベルアップの装備カードで選んだオプションが +1Lv
 function eqInitRun() {
   S.eqLv = {};
   for (const slot in DATA.equip.slots) { const it = itemById(META.loadout[slot]); if (it) S.eqLv[slot] = it.opts.map(() => 0); }
 }
-function eqGrow() {
-  const cand = [];
+// 装備カードの候補: 最大Lv に達していないオプション
+function eqCards() {
+  const out = [];
   for (const slot in S.eqLv) {
     const it = itemById(META.loadout[slot]);
-    it.opts.forEach((o, i) => { if (S.eqLv[slot][i] < o.max) cand.push([slot, i, o]); });
+    it.opts.forEach((o, i) => { if (S.eqLv[slot][i] < o.max) out.push({ type: 'eqopt', slot, i }); });
   }
-  if (!cand.length) return;
-  const [slot, i, o] = pick(cand);
+  return out;
+}
+// オプションの Lv ごとの値(乗算系は (1 - v)^Lv)
+const optAt = (o, lv) => (DATA.stats[o.k].kind === 'red' ? 1 - Math.pow(1 - o.v, lv) : o.v * lv);
+function eqLvUp(slot, i) {
+  const o = itemById(META.loadout[slot]).opts[i];
   S.eqLv[slot][i]++;
   recalc();
   addFloat(P.x, P.y - 30, `${DATA.stats[o.k].label} Lv${S.eqLv[slot][i]}`, '#9ff7ff', 0.9, -24);
@@ -176,6 +181,7 @@ function shopBuy(id) {
 // ---------- 表示用 ----------
 // オプション1行: 「攻撃力 +8.0% /Lv」。乗算系・% 系は % 表示
 function optVal(o) {
+  if (!o.v) return DATA.stats[o.k].kind !== 'flat' ? '0%' : '0' + (DATA.stats[o.k].unit || ''); // Lv0(装備カードの変化前)
   const d = DATA.stats[o.k], val = d.kind !== 'flat' ? (o.v * 100).toFixed(1) + '%' : String(o.v);
   return `${d.kind === 'red' ? '-' : '+'}${val}${d.unit || ''}`;
 }

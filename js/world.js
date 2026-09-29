@@ -182,7 +182,6 @@ function gainXP(v) {
   P.xp += v * P.xpMul;
   while (P.xp >= P.xpNext) {
     P.xp -= P.xpNext; P.level++; P.xpNext = xpFor(P.level); S.pendingLv++; S.lvQueue.push(P.level);
-    eqGrow(); // 装備のオプションが1つ +1Lv
   }
   S.hudDirty = true;
 }
@@ -1376,8 +1375,14 @@ function horde() {
 // 3の倍数の Lv = クラス強化 / それ以外 = 武器カード / 武器カードを取り切ったら微強化(メニューなし)
 // ============================================================
 const isClassLv = lv => lv % 3 === 0;
+// 3の倍数以外: 武器カードか装備カード(半々。進化できるときは武器、片方が尽きたらもう片方)。両方尽きたら空(微強化)
 function buildChoices(lv) {
   if (isClassLv(lv)) return clsChoices(3 + (P.stats.v.classPick || 0));
+  const n = 3 + (P.stats.v.gearPick || 0), wp = weaponCards(n), eq = eqCards();
+  const useEq = eq.length && (!wp.length || (wp[0].type !== 'evo' && Math.random() < DATA.equip.cardRate));
+  return useEq ? shuffle(eq).slice(0, n) : wp;
+}
+function weaponCards(n) {
   const pool = [], wc = Object.keys(P.weapons).length, evo = evolvable();
   for (const k in DATA.weapons) {
     const w = P.weapons[k];
@@ -1385,7 +1390,7 @@ function buildChoices(lv) {
     else if (w.lv < 5) pool.push({ type: 'weapon', key: k, w: 1.6 });
   }
   const out = evo.length ? [{ type: 'evo', key: evo[0] }] : []; // 進化できる武器があれば必ず候補に入れる
-  while (out.length < 3 && pool.length) {
+  while (out.length < n && pool.length) {
     let tot = pool.reduce((sum, c) => sum + c.w, 0), r = Math.random() * tot, i = 0;
     while ((r -= pool[i].w) > 0) i++;
     out.push(pool.splice(i, 1)[0]);
@@ -1396,6 +1401,7 @@ function applyChoice(c) {
   if (c.type === 'weapon') addWeapon(c.key);
   else if (c.type === 'evo') P.weapons[c.key].evo = true;
   else if (c.type === 'cls') clsApply(c);
+  else if (c.type === 'eqopt') eqLvUp(c.slot, c.i);
   else if (c.type === 'item') { /* 宝箱を開けた時点でインベントリに入っている */ }
   S.hudDirty = true;
 }

@@ -53,7 +53,7 @@ const MetaUI = (() => {
       <div class="eq-head" style="--rc:${R.col}">${icon(it, 'big')}<div><div class="rar">${R.name} ・ ${DATA.equip.slots[itemSlot(it)]}</div><div class="nm">${itemName(it)}</div></div></div>
       <div class="eq-opts">${it.opts.map(o => `<div class="eq-opt"><span>${optHTML(o)}</span><em>〜Lv${o.max}</em>${qualHTML(o.q)}</div>`).join('')}</div>
       ${it.uq ? `<div class="eq-uq">★ ${DATA.uniques[it.uq].desc}</div>` : ''}
-      <div class="dim eq-note">ラン開始時は全オプション Lv0。レベルアップのたびにどれか1つが +1Lv</div>
+      <div class="dim eq-note">ラン開始時は全オプション Lv0。レベルアップの装備カードで選んだオプションが +1Lv</div>
       <div class="eq-enh">強化 ${it.enh} / ${R.enh}</div>
       <div class="eq-btns">
         <button class="btn" data-act="equip">${eq ? '外す' : '装備する'}</button>
@@ -153,7 +153,7 @@ const MetaUI = (() => {
 
     for (const nd of nodes) {
       const st = treeOwned(nd.id) ? 'own' : treeOpen(nd) ? (META.gold >= treeCost(nd) ? 'open' : 'poor') : 'lock';
-      const r = nd.big ? 15 : 10.5;
+      const r = nd.big ? (nd.mid ? 13 : 15) : 10.5; // 本線の間の特別なノードは少し小さく(隣と重ならないように)
       // 行き止まり(貴重なステータス)はひし形
       const sh = nd.leaf ? `<rect class="sh" x="-9" y="-9" width="18" height="18" transform="rotate(45)"/>` : `<circle class="sh" r="${r}"/>`;
       svg += `<g class="nd ${st} ${nd.big ? 'big' : ''} ${nd.leaf ? 'leaf' : ''} ${trSel === nd.id ? 'sel' : ''}" data-id="${nd.id}" style="--dc:${T.dirs[nd.dir].col}" transform="translate(${nd.x.toFixed(1)} ${nd.y.toFixed(1)})">
