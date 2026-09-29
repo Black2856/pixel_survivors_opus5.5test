@@ -554,7 +554,7 @@ function killEnemy(e, o = {}) {
   if (DATA.enemies[e.type].split && !e.elite) for (let i = 0; i < 2; i++) spawnEnemy(DATA.enemies[e.type].split, { x: e.x + rand(-4, 4), y: e.y + rand(-4, 4) });
   if (e.elite || e.type === 'goblin') {
     hitstop(0.06); shake(6); shockAt(e.x, e.y, 1.2, 0.8); addFlash(e.x, e.y, 100, '#ffd23f', 0.4);
-    dropGem(e.x, e.y, 8 * lvK('xp')); // 旧: 通常の宝箱
+    dropItem('chest', e.x, e.y); // エリート・トレジャー(ゴブリン)も装備宝箱を落とす
     const n = e.type === 'goblin' ? 18 : 4;
     for (let i = 0; i < n; i++) dropItem('coin', e.x, e.y, e.type === 'goblin' ? 3 : 2);
     AudioMan.boom();

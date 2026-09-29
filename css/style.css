@@ -328,6 +328,7 @@ input[type=range] { width: 220px; accent-color: var(--gold); }
 :root { --ui: 1; }
 #hud > *, .screen > *, #announce, #banner, #tooltip { zoom: var(--ui); }
 #hud > #pstat { zoom: calc(var(--ui) * .75); } /* 左下のパネルは少し小さめ */
+#chest-screen > #chest-fx, #chest-screen > #chest-flash { zoom: 1; } /* 宝箱の演出は画面の座標で描くので拡大しない */
 /* 装備のステータス: 数値は黄色、/Lv は灰色 */
 .ov { color: var(--gold); }
 .olv { color: #8a8098; margin-left: 2px; }
