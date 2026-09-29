@@ -36,7 +36,7 @@ const views = [];
 for (const [host, sc] of [['big', 8], ['small', 3]]) {
   for (const it of items) {
     const cell = document.createElement('div'); cell.className = 'cell';
-    const c = document.createElement('canvas'); c.width = 22 * sc; c.height = 24 * sc;
+    const c = document.createElement('canvas'); c.width = 36 * sc; c.height = 24 * sc;
     const x = c.getContext('2d'); x.imageSmoothingEnabled = false;
     cell.append(c, Object.assign(document.createElement('div'), { textContent: it.label }));
     document.getElementById(host).append(cell);
@@ -46,11 +46,12 @@ for (const [host, sc] of [['big', 8], ['small', 3]]) {
 // 各モーションの全フレームを横に並べる(動きの確認用)
 for (const m in R.motions) {
   const fr = R.motions[m].frames, sc = 6;
-  const c = document.createElement('canvas'); c.width = fr.length * 20 * sc; c.height = 22 * sc;
+  const fw = R.base.w + 2;
+  const c = document.createElement('canvas'); c.width = fr.length * fw * sc; c.height = 22 * sc;
   const x = c.getContext('2d'); x.imageSmoothingEnabled = false;
   fr.forEach((f, i) => {
-    x.drawImage(f.sp.c, i * 20 * sc + sc, sc, f.sp.w * sc, f.sp.h * sc);
-    x.fillStyle = '#e8e4f0'; x.font = '12px sans-serif'; x.fillText(`${i} (${f.t}s)`, i * 20 * sc + 4, c.height - 4);
+    x.drawImage(f.sp.c, i * fw * sc + sc, sc, f.sp.w * sc, f.sp.h * sc);
+    x.fillStyle = '#e8e4f0'; x.font = '12px sans-serif'; x.fillText(`${i} (${f.t}s)`, i * fw * sc + 4, c.height - 4);
   });
   const cell = document.createElement('div'); cell.className = 'cell';
   cell.append(Object.assign(document.createElement('div'), { textContent: m }), c);

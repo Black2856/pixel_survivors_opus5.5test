@@ -39,9 +39,11 @@ const ART = (() => {
   // def.parts: { 名前: { x, y, v: { 絵の名前: rows }, hidden } }(v.base が既定の絵)/ def.order: 描く順(奥→手前)
   // def.motions: { 名前: { loop, frames: [{ t: 秒, p: { 部位: [dx, dy, 絵の名前] } }] } }
   // 重ねた後に mk() を通すので、アウトラインは全体のシルエットに1本だけ付く
+  // def.padX: 左右の余白(武器など体の外に伸びる部位用)。部位の座標は体の枠(w×h)基準のまま
   function rig(def) {
+    const px = def.padX || 0, W = def.w + px * 2;
     const build = p => {
-      const grid = Array.from({ length: def.h }, () => Array(def.w).fill('.'));
+      const grid = Array.from({ length: def.h }, () => Array(W).fill('.'));
       for (const name of def.order) {
         const part = def.parts[name], o = p[name];
         if (part.hidden && !o) continue;
@@ -49,8 +51,8 @@ const ART = (() => {
         const rows = part.v[vn || 'base'];
         rows.forEach((r, ry) => {
           for (let rx = 0; rx < r.length; rx++) {
-            const gx = part.x + dx + rx, gy = part.y + dy + ry;
-            if (r[rx] !== '.' && gx >= 0 && gy >= 0 && gx < def.w && gy < def.h) grid[gy][gx] = r[rx];
+            const gx = part.x + dx + rx + px, gy = part.y + dy + ry;
+            if (r[rx] !== '.' && gx >= 0 && gy >= 0 && gx < W && gy < def.h) grid[gy][gx] = r[rx];
           }
         });
       }
@@ -170,7 +172,7 @@ const ART = (() => {
   const UP = ['head', 'torso', 'backArm', 'frontArm', 'sheath']; // 上半身(呼吸・歩行で一緒に上下する部位)
   const up = (dx, dy, extra = {}) => Object.assign(Object.fromEntries(UP.map(k => [k, [dx, dy]])), extra);
   S.samurai = rig({
-    w: 16, h: 18, emit: 'eJn',
+    w: 16, h: 18, padX: 8, emit: 'eJn',
     pal: {
       a: '#1c1530', b: '#241c2e', c: '#f0c9a0', o: '#c99a78', d: '#151022', e: '#e8434f',
       f: '#2c3a6e', g: '#4a5fa8', h: '#e8e4d8', i: '#b0202e', j: '#d6ae5c', J: '#fff6c8',
@@ -188,6 +190,7 @@ const ART = (() => {
         base:  ['gf.', 'ff.', 'fff', '.cc'],
         grip:  ['ggf', 'fff', 'cc.'],
         slash: ['.ggff', '.fffcc'],
+        high:  ['..cc', '.ff.', 'gff.'],
       } },
       // 腰の刀: 柄(j)が前に突き出し、鍔(p)、鞘(k)は後ろ下へ
       sheath: { x: 1, y: 9, v: {
@@ -201,7 +204,11 @@ const ART = (() => {
         stepB:  ['llllllll', 'lllmllll', 'llmllmll', '.lll.ll.', '.lll.ll.', '.aaa.aa.'],
         crouch: ['llllllll', 'llmllmll', 'lll..lll', 'aaa..aaa'],
       } },
-      blade: { x: 15, y: 9, hidden: true, v: { base: ['n'] } },
+      // 抜いた刀(光る)。thrust = 前へ水平 / up = 振り抜いて斜め上。体の枠の外(padX)まで伸びる
+      blade: { x: 16, y: 10, hidden: true, v: {
+        thrust: ['pnnnnnnnn'],
+        up:     ['....nn', '...nn.', '..nn..', '.nn...', 'nn....', 'p.....'],
+      } },
     },
     motions: {
       // 待機: 呼吸で上半身が1ドット沈み、鉢巻きの結び目が揺れる
@@ -216,14 +223,15 @@ const ART = (() => {
         { t: 0.11, p: up(0, 1, { legs: [0, 0, 'stepB'], backArm: [1, 1] }) },
         { t: 0.11, p: up(0, 0, { head: [0, 0, 'b'] }) },
       ] },
-      // 居合(Q): 低く構えて柄に手をかける → 柄が光る → 踏み込んで抜刀 → 残心
+      // 居合(Q): 低く構えて柄に手をかける → 柄が光る → 踏み込んで抜刀(刀身が前へ) → 振り抜き(斜め上) → 納刀
       iai: { loop: false, frames: [
         { t: 0.1, p: up(0, 1, { legs: [0, 1, 'crouch'], frontArm: [0, 1, 'grip'] }) },
         { t: 0.25, p: up(0, 2, { legs: [0, 2, 'crouch'], frontArm: [0, 2, 'grip'], head: [0, 2, 'b'] }) },
         { t: 0.12, p: up(0, 2, { legs: [0, 2, 'crouch'], frontArm: [0, 2, 'grip'], sheath: [0, 2, 'glint'] }) },
-        { t: 0.1, p: up(1, 1, { legs: [0, 0, 'stepA'], frontArm: [0, 1, 'slash'], sheath: [0, 1, 'empty'], backArm: [0, 1], blade: [0, 0] }) },
-        { t: 0.3, p: up(1, 1, { legs: [0, 0, 'stepA'], frontArm: [0, 1, 'slash'], sheath: [0, 1, 'empty'], backArm: [0, 1], head: [1, 1, 'b'] }) },
-        { t: 0.25 },
+        { t: 0.1, p: up(1, 1, { legs: [0, 0, 'stepA'], frontArm: [0, 1, 'slash'], sheath: [0, 1, 'empty'], blade: [0, 0, 'thrust'] }) },
+        { t: 0.3, p: up(1, 1, { legs: [0, 0, 'stepA'], frontArm: [0, -2, 'high'], sheath: [0, 1, 'empty'], head: [1, 1, 'b'], blade: [-2, -10, 'up'] }) },
+        { t: 0.15, p: up(0, 0, { sheath: [0, 0, 'empty'] }) },
+        { t: 0.2, p: up(0, 0, { sheath: [0, 0, 'glint'] }) },
       ] },
     },
   });
