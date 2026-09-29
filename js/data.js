@@ -322,7 +322,7 @@ const DATA = {
       },
     },
     mage: {
-      name: 'メイジ', en: 'MAGE', weapon: 'bolt', col: '#7ad7ff', light: '#cfeeff',
+      name: 'メイジ', en: 'MAGE', weapon: 'bolt', col: '#7ad7ff', light: '#cfeeff', rig: 'mage',
       base: { hp: 90, sta: 90, staRegen: 24, spd: -0.05, area: 0.1, range: 0.1, cd: 0.05, crit: 0.05, critDmg: 1.0, magnet: 0.1, wslot: 4, reroll: 2 },
       // 元素循環: 通常攻撃・E の攻撃1回ごとに 炎 → 氷 → 雷
       //   炎: 与えたダメージの burnPct を burnDur 秒かけて / 氷: 凍傷 +1(上限 frostCap)/ 雷: 近く(chainR)の敵 chainN 体へ chainPct

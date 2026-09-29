@@ -24,10 +24,56 @@ function samuraiPose(L, U, crouch, lunge, arm, sheathV, headV) {
   return { p, hand };
 }
 
+// メイジの部位の配置(ART.S.mage と対応)。U: 上半身の沈み / o: 腕の上下・宝珠の位置と絵・帽子の絵・脚
+function magePose(U, arm, o = {}) {
+  const p = {
+    hat: [0, U, o.hatV || 'base'], head: [0, U], torso: [0, U], backArm: [0, U], legs: [0, 0, o.legs || 'base'],
+    frontArm: arm === 'base' ? [0, U] : [0, U + (o.armDy || 0), arm], orb: [o.ox || 0, U + (o.oy || 0), o.orbV || 'base'],
+  };
+  return { p, hand: null };
+}
+
+// rig: そのモーションを使えるクラスの部位(合わないクラスは待機・歩きのまま。rig.alias で代わりのモーションを指定できる)
 const MOTIONS = {
+  // メテオ(Q): 宝珠を頭上へ掲げて詠唱(0.5秒・のけぞる)→ 振り下ろして照準へ放つ → 戻る
+  mMeteor: {
+    rig: 'mage', dur: 0.85, cast: 0.5,
+    state(t) {
+      if (t < this.cast) {
+        const u = track([[0, 0], [0.12, 1, 'out'], [this.cast, 1]], t);
+        return Object.assign(magePose(t > 0.3 ? 0 : 1, u > 0.3 ? 'raise' : 'base', { armDy: -3, ox: -1, oy: Math.round(-2 - 6 * u), orbV: t > 0.2 && Math.floor(t * 16) % 2 ? 'big' : 'base', hatV: Math.floor(t * 10) % 2 ? 'b' : 'base' }),
+          { blade: false, lean: track([[0, 0], [this.cast, -0.1]], t), sy: track([[0, 1], [0.1, 0.94, 'out'], [this.cast, 1.05]], t) });
+      }
+      const r = t - this.cast;
+      return Object.assign(magePose(r < 0.1 ? 1 : 0, r < 0.25 ? 'forward' : 'base', { ox: r < 0.25 ? 3 : 0, oy: r < 0.25 ? -1 : 0, orbV: r < 0.12 ? 'big' : 'base', legs: r < 0.2 ? 'stepA' : 'base' }),
+        { blade: false, lean: track([[0, 0.14], [0.35, 0, 'out']], r), sy: track([[0, 0.94], [0.15, 1, 'out']], r) });
+    },
+  },
+  // アーケイン・バラージュ(E): 宝珠を前へ突き出して詠唱 → 連射(撃つたびに小さく反動)→ 戻る
+  mBarrage: {
+    rig: 'mage', windup: 0.3,
+    state(t, dur) {
+      const W = this.windup, end = W + dur;
+      if (t < W) return Object.assign(magePose(1, 'forward', { ox: 3, oy: -1, orbV: t > W * 0.5 ? 'big' : 'base' }), { blade: false, lean: -0.06 * t / W, sy: 1 - 0.03 * t / W });
+      if (t < end) {
+        const u = t - W, kick = Math.floor(u * 24) % 2; // 反動(1秒に12発)
+        return Object.assign(magePose(kick, 'forward', { ox: 3 - kick, oy: -1, orbV: 'big', hatV: kick ? 'b' : 'base', legs: 'stepA' }), { blade: false, lean: 0.04 - 0.03 * kick, sy: 1 });
+      }
+      return Object.assign(magePose(0, 'base'), { blade: false, lean: 0, sy: 1 });
+    },
+    duration: dur => MOTIONS.mBarrage.windup + dur + 0.2,
+  },
+  // ブリンク(Space): 縮んで消え、伸びて現れる
+  mBlink: {
+    rig: 'mage', dur: 0.25,
+    state(t) {
+      return Object.assign(magePose(0, 'base', { orbV: t < 0.12 ? 'big' : 'base', hatV: 'b' }),
+        { blade: false, lean: track([[0, 0], [0.06, -0.12, 'out'], [0.12, 0.16, 'out'], [0.25, 0]], t), sy: track([[0, 1], [0.06, 0.78, 'out'], [0.12, 1.14, 'out'], [0.25, 1]], t) });
+    },
+  },
   // 居合(Q): 構え(0.25 秒)→ 抜刀して振り上げ → 残心 → 血振り → 納刀
   iai: {
-    dur: 1.13, release: 0.25,
+    rig: 'samurai', dur: 1.13, release: 0.25,
     K: {
       crouch: [[0, 0], [0.07, 1, 'out'], [0.18, 2, 'out'], [0.25, 2], [0.31, 0, 'out']],
       lunge:  [[0, 0], [0.25, 0], [0.31, 2, 'out'], [0.68, 2], [0.98, 0]],
@@ -47,7 +93,7 @@ const MOTIONS = {
   },
   // 乱れ桜(E): 抜刀の構え(0.2秒)→ 刀を振り回して周囲を斬り続ける(dur 秒)→ 納刀。刀は1秒に約3周する
   ranbu: {
-    windup: 0.2,
+    rig: 'samurai', windup: 0.2,
     state(t, dur) {
       const W = this.windup, end = W + dur;
       if (t < W) { // 構え: 少し沈んで柄に手をかける

@@ -477,7 +477,9 @@ function render() {
   if (!P.dead) {
     // クラスの部位アニメーション: スキルのモーション中は補間した姿勢、それ以外は待機・歩きのフレーム。なければ旧プレイヤー
     const rig = ART.S[DATA.classes[P.cls].rig];
-    const ms = rig && P.anim && MOTIONS[P.anim.name] ? MOTIONS[P.anim.name].state(P.anim.t, P.anim.arg) : null;
+    const mn = rig && P.anim ? (rig.alias && rig.alias[P.anim.name]) || P.anim.name : null;
+    const M = mn && MOTIONS[mn] && MOTIONS[mn].rig === DATA.classes[P.cls].rig ? MOTIONS[mn] : null; // 他クラスのモーションは使わない
+    const ms = M ? M.state(P.anim.t, P.anim.arg) : null;
     const psp = ms ? rig.pose(ms.p) : rig ? ART.rigFrame(rig, P.moving ? 'walk' : 'idle', t) : ART.S.player;
     const py = P.y - (psp.h - ART.S.player.h) / 2; // 足元の位置を旧プレイヤーと揃える
     // 空蝉の分身(白いシルエットが明滅する)

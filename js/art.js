@@ -239,6 +239,58 @@ const ART = (() => {
     },
   });
 
+  // ---------- クラス: メイジ(16×18、部位アニメーション) ----------
+  // 右向き。先の折れたとんがり帽子・影の中の光る目・青いローブと金の縁取り・手元の宝珠(光る)
+  const MUP = ['hat', 'head', 'torso', 'backArm', 'frontArm', 'orb'];
+  const mup = (dx, dy, extra = {}) => Object.assign(Object.fromEntries(MUP.map(k => [k, [dx, dy]])), extra);
+  S.mage = rig({
+    w: 16, h: 18, padX: 8, emit: 'dD',
+    pal: {
+      b: '#3b2a7a', B: '#5a44a8', c: '#d6ae5c', d: '#9ff7ff', D: '#ffffff', e: '#140f24',
+      f: '#2b3f8f', g: '#4d6fd0', h: '#d6ae5c', i: '#f0c9a0', k: '#1c1530',
+    },
+    order: ['backArm', 'legs', 'torso', 'head', 'hat', 'frontArm', 'orb'],
+    parts: {
+      // 帽子: 先が後ろ(左)へ折れる。b = 先が揺れた絵
+      hat: { x: 1, y: 0, v: {
+        base: ['.bb..........', '..bbb........', '....bbb......', '.....bbbb....', '....bbBbbb...', '...ccccccccc.', 'bbbbbbbbbbbbb'],
+        b:    ['bb...........', '.bbb.........', '....bbb......', '.....bbbb....', '....bbBbbb...', '...ccccccccc.', 'bbbbbbbbbbbbb'],
+      } },
+      head: { x: 4, y: 7, v: { base: ['eeeeeee', 'eeeeded', '.eeeee.'] } }, // 影の中の目(光る)
+      torso: { x: 4, y: 10, v: { base: ['fgffhfff', 'fgffhfff', 'ffffhfff'] } },
+      backArm: { x: 3, y: 10, v: { base: ['gf', 'ff', 'ii'] } },
+      frontArm: { x: 10, y: 10, v: {
+        base:    ['fg.', 'ff.', '.ii'],
+        forward: ['.gfff', '.ffii'],
+        raise:   ['..ii', '.ff.', 'fg..'],
+      } },
+      // 宝珠(光る)。big = 詠唱中の大きい光
+      orb: { x: 12, y: 12, v: {
+        base: ['.d.', 'dDd', '.d.'],
+        big:  ['.dd.', 'dDDd', 'dDDd', '.dd.'],
+      } },
+      legs: { x: 3, y: 13, v: {
+        base:  ['.ffffhff..', '.fgffhfff.', 'ffgffhffff', 'hhhhhhhhhh', '.kk...kk..'],
+        stepA: ['.ffffhff..', '.fgffhfff.', 'ffgffhffff', 'hhhhhhhhhh', 'kk.....kk.'],
+        stepB: ['.ffffhff..', '.fgffhfff.', 'ffgffhffff', 'hhhhhhhhhh', '..kk.kk...'],
+      } },
+    },
+    motions: {
+      // 待機: 呼吸で上半身が沈み、宝珠がふわりと浮き沈みする。帽子の先が揺れる
+      idle: { loop: true, frames: [
+        { t: 0.45 }, { t: 0.45, p: mup(0, 0, { hat: [0, 0, 'b'], orb: [0, -1] }) },
+        { t: 0.45, p: mup(0, 1, { orb: [0, 0] }) }, { t: 0.45, p: mup(0, 1, { hat: [0, 1, 'b'], orb: [0, 1] }) },
+      ] },
+      walk: { loop: true, frames: [
+        { t: 0.12, p: mup(0, 1, { legs: [0, 0, 'stepA'], backArm: [-1, 1] }) },
+        { t: 0.12, p: mup(0, 0, { hat: [0, 0, 'b'] }) },
+        { t: 0.12, p: mup(0, 1, { legs: [0, 0, 'stepB'], backArm: [1, 1] }) },
+        { t: 0.12, p: mup(0, 0, { hat: [0, 0, 'b'] }) },
+      ] },
+    },
+  });
+  S.mage.alias = { ranbu: 'mBarrage', iai: 'mMeteor' }; // 他クラスの武器スキルを使ったときの代わりのモーション
+
   S.zombie = mk({ a: '#3d2f24', b: '#7fb069', c: '#ff4040', d: '#2b3a22', e: '#6b5a8e', f: '#3a3350', g: '#241c2e' }, [
     '...aaaa...',
     '..abbbba..',

@@ -106,6 +106,7 @@ WEAPON_SKILL.bolt = {
     skillCall(sk.name, '#b98bff'); AudioMan.click();
     if (hasSp('e', 'cd')) { P.orb = Object.assign(o, { t: 5, shotT: 0 }); burst(P.x, P.y, 20, ['#b98bff', '#ffffff'], { sp: 60, glow: true }); return; } // オーブ
     P.act = o;
+    playAnim('mBarrage', MOTIONS.mBarrage.duration(o.dur), o.dur);
     addRing(P.x, P.y, 20, '#b98bff', { w: 2, life: 0.4 });
   },
   update(a, dt) {
@@ -521,6 +522,7 @@ function meteorStart() {
   const R = q.r * (1 + cuV('q', 'area')) * (1 + n * q.crystalR) * P.area;
   const dmg = q.pow * (1 + cuV('q', 'pow') + (P.lvFx.qPow || 0)) * (1 + n * q.crystalPow) * pow;
   P.act = { slot: 'q', ph: 'cast', t: 0, x: t.x, y: t.y, n, R, dmg };
+  playAnim('mMeteor', MOTIONS.mMeteor.dur);
   if (t.x !== P.x) P.facing = t.x < P.x ? -1 : 1;
   setCd('q', q.cd * (1 - cuV('q', 'cd')) * P.cdMul);
   skillCall(q.name + (n ? ` ×${n}` : ''), '#ff8a3d'); AudioMan.click();
@@ -598,6 +600,7 @@ function mageBlink() {
   P.x += dx * p.blinkDist; P.y += dy * p.blinkDist;
   P.invT = Math.max(P.invT, p.blinkIfr); P.ifr = Math.max(P.ifr, p.blinkIfr);
   zones.push({ kind: 'residue', x: x0, y: y0, r: p.residueR * P.area, t: 0, dur: p.residueT, tick: 0 });
+  playAnim('mBlink', MOTIONS.mBlink.dur); P.anim.keep = true;
   for (let i = 1; i <= 4; i++) P.after = (P.after || []).concat([{ x: x0 + dx * p.blinkDist * i / 5, y: y0 + dy * p.blinkDist * i / 5, t: 0, f: P.facing }]).slice(-6);
   burst(x0, y0, 14, ['#9ff7ff', '#ffffff', '#7ad7ff'], { sp: 70, glow: true, life: 0.35 });
   burst(P.x, P.y, 10, ['#9ff7ff', '#ffffff'], { sp: 50, glow: true, life: 0.3 });
@@ -636,7 +639,7 @@ function clsUpdate(dt) {
     if (P.act.slot === 'q') rt.qUpdate(P.act, dt); else WEAPON_SKILL[P.mainW].update(P.act, dt);
   }
   // モーション(スキルが終わった後に歩き出したら途中で打ち切る)
-  if (P.anim) { P.anim.t += dt; if (P.anim.t >= P.anim.dur || (!P.act && P.moving)) P.anim = null; }
+  if (P.anim) { P.anim.t += dt; if (P.anim.t >= P.anim.dur || (!P.act && P.moving && !P.anim.keep)) P.anim = null; } // keep: 動いても最後まで(ブリンク)
 }
 const clsOnHurt = dmg => (clsRT() ? clsRT().onHurt(dmg) : dmg);
 // 元素(メイジの元素循環)。通常攻撃・E の攻撃1回ごとに次の属性を返す。元素を持たないクラスは null
