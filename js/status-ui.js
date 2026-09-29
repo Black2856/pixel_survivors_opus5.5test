@@ -61,7 +61,7 @@ const StatusUI = (() => {
   function skillTab(c) {
     const W = DATA.weapons[c.mainW], ws = c.wlv.evo ? W.evo.st : W.lv[c.wlv.lv - 1], m = c.wm;
     const dmg = ws.dmg * (1 + (m.dmg || 0)), itv = ws.cd * (1 - (m.cd || 0)) * c.cdMul / c.atkSpd;
-    const blocks = [{ key: '通常攻撃', name: c.wlv.evo ? W.evo.name : W.name, desc: (c.wlv.evo ? W.evo.desc : W.desc) + (c.wlv.evo ? '' : `。進化: ${W.evo.name}(${W.evo.desc})`), rows: [
+    const blocks = [{ key: '通常攻撃', name: c.wlv.evo ? W.evo.name : W.name, desc: c.wlv.evo ? [W.evo.desc] : [W.desc, `進化: ${W.evo.name}`, `  → ${W.evo.desc}`], rows: [
       ['威力', `${num(dmg)} → <b>${num(dmg * c.atkMul)}</b>`, '攻撃力を掛けた値'],
       ['攻撃間隔', `<b>${num(itv)}</b> 秒`, 'クールダウン・攻撃速度を適用'],
       ['攻撃回数', `${(ws.count || 1) + (c.st.v.shots || 0)}`],
@@ -75,7 +75,7 @@ const StatusUI = (() => {
   // スキルの詳細: 説明 + ラン中に取った強化(パスの Lv と特殊強化)
   let skBlocks = [];
   function skillDetail(c, b) {
-    let h = `<div class="sv-g">${b.key} ${b.name}</div><div class="sv-desc">${b.desc || ''}</div>`;
+    let h = `<div class="sv-g">${b.key} ${b.name}</div><ul class="sv-desc">${[].concat(b.desc || []).map(l => l.startsWith('  ') ? `<li class="sub">${l.trim()}</li>` : `<li>${l}</li>`).join('')}</ul>`;
     if (!b.cat) return h;
     const T = b.cat === 'e' ? DATA.weapons[c.mainW].skill && DATA.weapons[c.mainW].skill.tree : DATA.classes[c.cls].tree[b.cat];
     if (!T) return h;

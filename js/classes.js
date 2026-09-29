@@ -58,7 +58,11 @@ const WEAPON_SKILL = {
     info(c, dmg) {
       const sk = DATA.weapons.katana.skill, m = c.wm;
       const cd = sk.cd * (1 - c.cuV('e', 'cd')) * (1 - (m.cd || 0)) * c.cdMul, one = dmg * sk.pow * (1 + c.cuV('e', 'pow')) * (1 + (m.ePow || 0));
-      return { name: sk.name, cat: 'e', desc: `構え(${sk.windup}秒)→ ${sk.dur}秒間、周囲(半径 ${sk.radius})を連続で斬る。1回の威力は武器の威力 × ${Math.round(sk.pow * 100)}%。使っている間も動ける`, rows: [
+      return { name: sk.name, cat: 'e', desc: [
+        `構え(${sk.windup}秒)→ ${sk.dur}秒間、周囲(半径 ${sk.radius})を連続で斬る`,
+        `1回の威力: 武器の威力 × ${Math.round(sk.pow * 100)}%`,
+        '使っている間も動ける',
+      ], rows: [
         ['CD', `<b>${cd.toFixed(1)}</b> 秒`],
         ['斬る回数', `${sk.hits + Math.round(c.cuV('e', 'dur') / 0.15) + (m.eHits || 0)} 回 / ${(sk.dur + c.cuV('e', 'dur')).toFixed(2)} 秒`],
         ['1回の威力', `${Math.round(one)} → <b>${Math.round(one * c.atkMul)}</b>`, '武器の威力 × ' + Math.round(sk.pow * 100) + '%。攻撃力を掛けた値'],
@@ -93,7 +97,12 @@ const WEAPON_SKILL = {
 WEAPON_SKILL.bolt = {
   info(c, dmg) {
     const sk = DATA.weapons.bolt.skill, m = c.wm, dur = sk.dur + c.cuV('e', 'dur') + (m.eDur || 0), one = dmg * sk.pow * (1 + c.cuV('e', 'pow')) * (1 + (m.ePow || 0));
-    return { name: sk.name, cat: 'e', desc: `詠唱(${sk.windup}秒・動けない)→ ${sk.dur}秒間、照準方向へ毎秒 ${sk.rate}発の魔弾を連射する(1発 武器の威力 × ${Math.round(sk.pow * 100)}%)。連射中は移動速度 ×${sk.slow}。E の攻撃なので、クラスの「攻撃1回ごと」の効果が発射ごとに起きる`, rows: [
+    return { name: sk.name, cat: 'e', desc: [
+      `詠唱 ${sk.windup}秒(動けない)→ ${sk.dur}秒間、照準方向へ毎秒 ${sk.rate}発の魔弾を連射`,
+      `1発の威力: 武器の威力 × ${Math.round(sk.pow * 100)}%`,
+      `連射中は移動速度 ×${sk.slow}`,
+      'E の攻撃なので、クラスの「攻撃1回ごと」の効果が1発ごとに起きる',
+    ], rows: [
       ['CD', `<b>${(sk.cd * (1 - c.cuV('e', 'cd')) * (1 - (m.cd || 0)) * c.cdMul).toFixed(1)}</b> 秒`],
       ['連射', `${Math.round(dur * sk.rate)} 発 / ${dur.toFixed(1)} 秒`],
       ['1発の威力', `${Math.round(one)} → <b>${Math.round(one * c.atkMul)}</b>`, '武器の威力 × ' + Math.round(sk.pow * 100) + '%。攻撃力を掛けた値'],
@@ -306,21 +315,40 @@ const CLASS_RT = {
       const S2 = DATA.classes.samurai, q = S2.q, p = S2.params, k = 1 + c.cuV('q', 'pow') + (c.lvFx.qPow || 0);
       const zAtk = c.cuV('passive', 'kihaku', p.zanshinAtk) + (c.lvFx.zanshinAtk || 0), zT = p.zanshinT + c.cuV('passive', 'jizoku');
       return [
-        { key: '特性', name: '剣気', cat: 'trait', desc: `通常攻撃(メイン武器)の命中1体につき +${p.kiHit}(1回の攻撃で ${p.kiHitCap} まで)、ジャスト見切りで +${p.kiParry}。${p.kiFull} 以上の間は攻撃力が上がる。居合で全て消費し、威力に上乗せする`, rows: [
+        { key: '特性', name: '剣気', cat: 'trait', desc: [
+          `通常攻撃(メイン武器)の命中1体につき +${p.kiHit}(1回の攻撃で ${p.kiHitCap} まで)`,
+          `ジャスト見切りで +${p.kiParry}`,
+          `${p.kiFull} 以上の間は攻撃力アップ`,
+          '居合で全て消費し、威力に上乗せする',
+        ], rows: [
           ['最大値', `${p.kiMax + c.cuV('trait', 'zan')}`],
           ['獲得量', `+${Math.round((c.cuV('trait', 'ren') + (c.lvFx.kiGain || 0)) * 100)}%`],
           [`${p.kiFull} 以上の攻撃力`, `<b>+${Math.round(c.cuV('trait', 'juu', p.kiFullAtk) * 100)}%</b>`],
         ] },
-        { key: 'パッシブ', name: '残心', cat: 'passive', desc: '見切り(ガード)で攻撃を受けた後、一定時間 攻撃力が上がる。ガードで受けるたびに時間が戻る', rows: [
+        { key: 'パッシブ', name: '残心', cat: 'passive', desc: [
+          '見切り(ガード)で攻撃を受けた後、一定時間 攻撃力アップ',
+          'ガードで受けるたびに効果時間が戻る',
+        ], rows: [
           ['攻撃力', `<b>+${Math.round(zAtk * 100)}%</b>`],
           ['効果時間', `${zT} 秒`],
         ] },
-        { key: 'Q', name: q.name, cat: 'q', desc: `構え(${q.windup}秒)→ 照準方向へ ${q.dist} 突進し(無敵)、通過した敵をまとめて斬る。剣気を全て消費し、剣気1につき威力 +${q.kiPow}。武器に依存しない`, rows: [
+        { key: 'Q', name: q.name, cat: 'q', desc: [
+          `構え ${q.windup}秒 → 照準方向へ ${q.dist} 突進(無敵)`,
+          '通過した敵をまとめて斬る',
+          `剣気を全て消費し、剣気1につき威力 +${q.kiPow}`,
+          '威力は武器に依存しない',
+        ], rows: [
           ['CD', `<b>${(q.cd * (1 - c.cuV('q', 'cd')) * c.cdMul).toFixed(1)}</b> 秒`],
           ['威力', `${Math.round(q.pow * k)} → <b>${Math.round(q.pow * k * c.atkMul)}</b>`, `消費した剣気1につき +${(q.kiPow * k).toFixed(1)}(武器に依存しない)`],
           ['突進距離', `${Math.round(q.dist * (1 + c.cuV('q', 'reach')))}`],
         ] },
-        { key: 'Space', name: '見切り', desc: `長押しでガード(移動 ×${p.guardSlow})。構えてから ${p.parryWin}秒以内に受けるとジャスト見切り: スタミナを使わず周囲に反撃し、剣気 +${p.kiParry}・無敵 ${p.parryIfr}秒。それ以外は受けたダメージ分のスタミナで受け、0 になるとガードブレイク(${p.breakT}秒 ガード不可・被ダメ +${Math.round(p.breakDmg * 100)}%)`, rows: [
+        { key: 'Space', name: '見切り', desc: [
+          `長押しでガード(移動 ×${p.guardSlow})。構えた瞬間にスタミナ ${p.guardCost}`,
+          `構えてから ${p.parryWin}秒以内に受けるとジャスト見切り`,
+          `  → スタミナを使わず周囲に反撃・剣気 +${p.kiParry}・無敵 ${p.parryIfr}秒`,
+          'それ以外は受けたダメージ分のスタミナで受ける',
+          `スタミナ 0 でガードブレイク(${p.breakT}秒 ガード不可・被ダメ +${Math.round(p.breakDmg * 100)}%)`,
+        ], rows: [
           ['スタミナ消費', `${p.guardCost} + 受けたダメージ分`, '構えた瞬間に消費。ガード中の被弾はダメージ分'],
           ['ジャスト受付', `<b>${(p.parryWin + (c.lvFx.parryWin || 0)).toFixed(2)}</b> 秒`],
           ['反撃の威力', `${p.parryPow} → <b>${Math.round(p.parryPow * c.atkMul)}</b>`],
@@ -383,23 +411,39 @@ const CLASS_RT = {
     info(c) {
       const p = MG();
       return [
-        { key: '特性', name: '元素循環', cat: 'trait', desc: `通常攻撃・E の攻撃1回ごとに 炎 → 氷 → 雷。炎: 与えたダメージの ${Math.round(p.burnPct * 100)}% を ${p.burnDur}秒かけて / 氷: 凍傷 +1(1つにつき移動 -${Math.round(DATA.debuff.frostSlow * 100)}%)/ 雷: 近くの敵に ${Math.round(p.chainPct * 100)}% で連鎖。2属性を持つ敵に3つ目が当たると共鳴(爆発して魔力結晶 +1)`, rows: [
+        { key: '特性', name: '元素循環', cat: 'trait', desc: [
+          '通常攻撃・E の攻撃1回ごとに 炎 → 氷 → 雷 の順で属性が付く',
+          `炎: 与えたダメージの ${Math.round(p.burnPct * 100)}% を ${p.burnDur}秒かけて与える`,
+          `氷: 凍傷 +1(1つにつき移動速度 -${Math.round(DATA.debuff.frostSlow * 100)}%)`,
+          `雷: 近くの敵に ${Math.round(p.chainPct * 100)}% で連鎖`,
+          '共鳴: 2属性を持つ敵に3つ目が当たると爆発。魔力結晶 +1',
+        ], rows: [
           ['凍傷の上限', `${MG().frostCap + (c.run && cuLv('trait', 'el') ? DATA.classes.mage.elFrost[cuLv('trait', 'el') - 1] : 0)}`],
           ['連鎖', `${p.chainN + (c.run ? cuLv('trait', 'el') : 0)} 体`],
           ['共鳴の威力', `${Math.round(p.resoPow * (1 + c.cuV('trait', 'rpow') + (c.lvFx.resoPow || 0)))} → <b>${Math.round(p.resoPow * (1 + c.cuV('trait', 'rpow') + (c.lvFx.resoPow || 0)) * c.atkMul)}</b>`, '3属性目が当たると爆発。魔力結晶 +1'],
           ['共鳴の半径', `${Math.round(p.resoR * (1 + c.cuV('trait', 'rarea')) * (1 + c.st.v.area) * c.st.mul.area)}`],
           ['魔力結晶の上限', `${p.crystalMax + (c.lvFx.crystalMax || 0)}`],
         ] },
-        { key: 'パッシブ', name: '魔力循環', cat: 'passive', desc: '通常攻撃(メイン武器)が1回命中するごとに、E と Q のクールダウンが短くなる(1秒あたりの上限あり)', rows: [
+        { key: 'パッシブ', name: '魔力循環', cat: 'passive', desc: [
+          '通常攻撃(メイン武器)が1回命中するごとに、E と Q のクールダウンが短くなる',
+          '1秒あたりに短くなる量には上限がある',
+        ], rows: [
           ['1回の短縮', `<b>${(p.flowCut + c.cuV('passive', 'flow') + (c.lvFx.flowCut || 0)).toFixed(2)}</b> 秒`],
           ['1秒あたりの上限', `${(p.flowCap + c.cuV('passive', 'cap')).toFixed(1)} 秒`],
         ] },
-        { key: 'Q', name: 'メテオ', cat: 'q', desc: `詠唱(${DATA.classes.mage.q.windup}秒・動けない)→ 照準位置に隕石が落ちる(炎上を付与)。魔力結晶を全て消費し、1つにつき威力 +${Math.round(DATA.classes.mage.q.crystalPow * 100)}%・半径 +${Math.round(DATA.classes.mage.q.crystalR * 100)}%。武器に依存しない`, rows: [
+        { key: 'Q', name: 'メテオ', cat: 'q', desc: [
+          `詠唱 ${DATA.classes.mage.q.windup}秒(動けない)→ 照準位置に隕石が落ちる(炎上を付与)`,
+          `魔力結晶を全て消費し、1つにつき威力 +${Math.round(DATA.classes.mage.q.crystalPow * 100)}%・半径 +${Math.round(DATA.classes.mage.q.crystalR * 100)}%`,
+          '威力は武器に依存しない',
+        ], rows: [
           ['CD', `<b>${(DATA.classes.mage.q.cd * (1 - c.cuV('q', 'cd')) * c.cdMul).toFixed(1)}</b> 秒`],
           ['威力', `${Math.round(DATA.classes.mage.q.pow * (1 + c.cuV('q', 'pow') + (c.lvFx.qPow || 0)))} → <b>${Math.round(DATA.classes.mage.q.pow * (1 + c.cuV('q', 'pow') + (c.lvFx.qPow || 0)) * c.atkMul)}</b>`, '魔力結晶1つにつき 威力 +20%・半径 +10%(武器に依存しない)'],
           ['半径', `${Math.round(DATA.classes.mage.q.r * (1 + c.cuV('q', 'area')) * (1 + c.st.v.area) * c.st.mul.area)}`],
         ] },
-        { key: 'Space', name: 'ブリンク', desc: `移動方向へ ${p.blinkDist} 瞬間移動し、${p.blinkIfr}秒 無敵。出発地点に氷の残滓が ${p.residueT}秒残り、触れた敵に凍傷を付ける`, rows: [
+        { key: 'Space', name: 'ブリンク', desc: [
+          `移動方向へ ${p.blinkDist} 瞬間移動し、${p.blinkIfr}秒 無敵`,
+          `出発地点に氷の残滓が ${p.residueT}秒残る(触れた敵に凍傷)`,
+        ], rows: [
           ['スタミナ消費', `<b>${p.blinkCost - (c.lvFx.blinkCut || 0)}</b>`],
           ['距離 / 無敵', `${p.blinkDist} / ${p.blinkIfr} 秒`],
         ] },

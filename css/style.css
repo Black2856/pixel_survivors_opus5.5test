@@ -468,7 +468,9 @@ input[type=range] { width: 220px; accent-color: var(--gold); }
 .sv-sk { padding: 0 2px 2px; cursor: pointer; }
 .sv-sk:hover { background: rgba(255,255,255,.07); }
 .sv-sk .sv-g small { color: var(--dim); font-size: 10px; }
-.sv-desc { font-size: 13px; color: var(--txt); line-height: 1.6; padding: 2px 4px 6px; }
+.sv-desc { font-size: 13px; color: var(--txt); line-height: 1.5; padding: 2px 4px 8px 20px; margin: 0; display: flex; flex-direction: column; gap: 3px; }
+.sv-desc li::marker { color: var(--gold); }
+.sv-desc li.sub { list-style: none; color: var(--cyan); margin-left: 4px; }
 #sv-modal { position: fixed; inset: 0; z-index: 60; display: grid; place-items: center; background: rgba(5,3,10,.6); }
 #sv-modal.hidden { display: none; }
 #sv-modal .svm { zoom: var(--ui); position: relative; width: min(520px, 90vw); max-height: 80vh; overflow-y: auto; padding: 16px 18px; background: var(--panel); box-shadow: inset 0 0 0 3px var(--gold), 0 0 40px rgba(0,0,0,.6); font-size: 13px; animation: stIn .15s ease-out; }
