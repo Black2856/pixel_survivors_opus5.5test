@@ -200,7 +200,7 @@ const DATA = {
   },
 
   statLabels: {
-    cd: 'CD', dmg: '威力', count: '数', speed: '弾速', pierce: '貫通', strikes: '落雷数',
+    cd: '攻撃間隔', dmg: '威力', count: '数', speed: '弾速', pierce: '貫通', strikes: '落雷数',
     aoe: '範囲', radius: '半径', rot: '回転', tick: '間隔', burn: '燃焼/s', dur: '持続', pull: '吸引',
   },
 
