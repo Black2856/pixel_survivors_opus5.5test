@@ -91,24 +91,34 @@ const UI = (() => {
     px(x + 1, y + 1, cols[2]); px(x - 1, y - 1, cols[2]); px(x + 1, y - 1, cols[2]); px(x - 1, y + 1, cols[2]);
     px(x, y, '#ffffff');
   }
-  // 枠付きのバー(x0〜x1 が本体、tip で先が尖る)。fill(i, row) で中身の色を返す(null なら背景)
-  function bar(x0, x1, top, ih, tip, fill) {
-    const rows = ih + 4, bot = top + rows - 1, mid = top + (rows - 1) / 2;
+  // 枠付きのバー(x0〜x1 が本体)。fill(i, row) で中身の色を返す(null なら背景)
+  // 右端: 枠の上下が 45 度で閉じて尖る → 少し離してひし形の飾り → 縁取り付きの細い穂先
+  // 行数(ih + 4)は奇数にする(先端が1ドットで上下対称になる)
+  function bar(x0, x1, top, ih, spear, fill) {
+    const rows = ih + 4, bot = top + rows - 1, mid = top + (rows - 1) / 2, hr = (rows - 1) / 2;
     for (let x = x0 - 1; x <= x1; x++) {
       px(x, top, PC.out); px(x, bot, PC.out);
       if (x < x0) { for (let y = top + 1; y < bot; y++) px(x, y, PC.out); continue; }
       px(x, top + 1, PC.lt); px(x, bot - 1, PC.dk);
       for (let r = 0; r < ih; r++) px(x, top + 2 + r, fill(x - x0, r) || PC.bg);
     }
-    for (let i = 1; i <= tip; i++) { // 尖った先端
-      const half = (rows / 2) * (1 - i / (tip + 1)), y0 = Math.round(mid - half), y1 = Math.round(mid + half);
-      for (let y = y0; y <= y1; y++) px(x1 + i, y, y === y0 || y === y1 ? PC.out : y < mid ? PC.lt : PC.md);
+    for (let i = 1; i <= hr; i++) { // 尖った先端(枠の線が斜めに閉じる)
+      const x = x1 + i, y0 = top + i, y1 = bot - i;
+      for (let y = y0; y <= y1; y++) px(x, y, y === y0 || y === y1 ? PC.out : y === y0 + 1 ? PC.lt : y === y1 - 1 ? PC.dk : PC.bg);
     }
-    for (let i = 1; i <= 6; i++) px(x1 + tip + i, Math.round(mid), i < 3 ? PC.lt : PC.md); // 槍の穂先の線
-    const dx = x1 + 3, dy = Math.round(mid); // ひし形の飾り
+    const sx = x1 + hr + 1, ex = sx + spear; // 穂先の線(上下に縁取り)
+    for (let x = sx; x <= ex; x++) {
+      px(x, mid - 1, PC.out); px(x, mid + 1, PC.out);
+      px(x, mid, x === ex ? PC.hi : x > ex - 3 ? PC.md : PC.lt);
+    }
+    px(ex + 1, mid, PC.out);
+    const dx = sx + 3; // ひし形の飾り(穂先の線の上に重ねる)
     for (let yy = -3; yy <= 3; yy++) for (let xx = -3; xx <= 3; xx++) {
       const m = Math.abs(xx) + Math.abs(yy);
-      if (m === 3) px(dx + xx, dy + yy, PC.out); else if (m === 2) px(dx + xx, dy + yy, yy < 0 || xx < 0 ? PC.hi : PC.md); else if (m < 2) px(dx + xx, dy + yy, PC.dd);
+      if (m === 3) px(dx + xx, mid + yy, PC.out);
+      else if (m === 2) px(dx + xx, mid + yy, yy < 0 || (yy === 0 && xx < 0) ? PC.hi : PC.md);
+      else if (m === 1) px(dx + xx, mid + yy, yy < 0 || xx < 0 ? PC.lt : PC.dk);
+      else px(dx, mid, PC.dd);
     }
   }
   function pstat(dt) {
@@ -127,10 +137,10 @@ const UI = (() => {
 
     // HP バー: 被弾は白が遅れて減る / 回復は緑に光る / 30% 以下は点滅
     const hpW = 170 - 32 + 1, hpC = healT > 0 ? ['#c8ffd8', '#5dff8a', '#2a9a52'] : low && Math.floor(pt * 6) % 2 ? ['#ffc0b8', '#ff5a4a', '#b0302a'] : ['#ff8a78', '#d8473b', '#9a2a24'];
-    bar(32, 170, 15, 5, 8, (i, r) => i < k * hpW ? (r === 0 ? hpC[0] : r === 4 ? hpC[2] : hpC[1]) : i < hpLag * hpW ? '#e8e4f0' : null);
+    bar(32, 170, 15, 5, 12, (i, r) => i < k * hpW ? (r === 0 ? hpC[0] : r === 4 ? hpC[2] : hpC[1]) : i < hpLag * hpW ? '#e8e4f0' : null);
     // スタミナバー: 回復停止中は灰色の縞が流れる / ガードブレイク中は赤く点滅
     const sk = clamp(P.sta / P.maxSta, 0, 1), stW = 160 - 32 + 1, lock = P.staLockT > 0, brk = clsStaBroken();
-    bar(32, 160, 26, 3, 6, (i, r) => {
+    bar(32, 160, 26, 3, 9, (i, r) => {
       if (i >= sk * stW) return null;
       if (brk) return Math.floor(pt * 8) % 2 ? '#ff3b5c' : '#8a1a2a';
       if (lock) return (i + Math.floor(pt * 16)) % 6 < 3 ? '#7a8a98' : '#4a5866';
