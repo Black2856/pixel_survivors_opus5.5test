@@ -154,8 +154,8 @@ function hurtPlayer(dmg) {
   dmg = Math.max(1, Math.round((r - P.armor) * (1 - P.dr)));
   // シールドが先に受ける
   if (P.shield > 0) {
-    const a = Math.min(P.shield, dmg);
-    P.shield -= a; dmg -= a; S.hudDirty = true;
+    const a = Math.min(Math.ceil(P.shield), dmg); // 整数で受ける
+    P.shield = Math.max(0, P.shield - a); dmg -= a; S.hudDirty = true;
     addFloat(P.x, P.y - 10, String(a), '#7ab8ff', 1);
     burst(P.x, P.y, 8, ['#9fd8ff', '#4f8ff0', '#ffffff'], { sp: 60, glow: true, life: 0.3 });
     if (P.shield <= 0) { addRing(P.x, P.y, 20, '#4f8ff0', { w: 2, life: 0.3 }); AudioMan.hit(); } // 割れた

@@ -155,7 +155,7 @@ WEAPON_SKILL.bolt = {
 };
 // シールド: 被ダメージを HP より先に受ける(最大HP を超えない。時間では消えない)
 function gainShield(n) {
-  P.shield = Math.min(P.maxhp, Math.max(P.shield || 0, n));
+  P.shield = Math.min(P.maxhp, Math.max(P.shield || 0, Math.round(n))); // 整数(割れたときの表示が小数にならないように)
   addRing(P.x, P.y, 16, '#4f8ff0', { w: 2, life: 0.35 }); burst(P.x, P.y, 14, ['#9fd8ff', '#4f8ff0', '#ffffff'], { sp: 60, glow: true });
   S.hudDirty = true;
 }
