@@ -327,3 +327,7 @@ input[type=range] { width: 220px; accent-color: var(--gold); }
 /* ---------- UI サイズ(設定の --ui)。HUD の各部品とメニュー画面の中身を拡大縮小する ---------- */
 :root { --ui: 1; }
 #hud > *, .screen > *, #announce, #banner, #tooltip { zoom: var(--ui); }
+#hud > #pstat { zoom: calc(var(--ui) * .75); } /* 左下のパネルは少し小さめ */
+/* 装備のステータス: 数値は黄色、/Lv は灰色 */
+.ov { color: var(--gold); }
+.olv { color: #8a8098; margin-left: 2px; }

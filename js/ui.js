@@ -305,7 +305,7 @@ const UI = (() => {
       const it = c.item, R = DATA.equip.rarity[it.rarity];
       name = itemName(it); ic = icon('equip', it.type, 'big'); head = `<span style="color:${R.col}">${R.name}</span> ${DATA.equip.slots[itemSlot(it)]}`;
       rar = { common: 'common', uncommon: 'new', rare: 'rare', epic: 'epic', legendary: 'legend' }[it.rarity];
-      body = it.opts.map(o => `<div class="opt">${optText(o)} <em>〜Lv${o.max}</em></div>`).join('') + (it.uq ? `<p class="uq">${DATA.uniques[it.uq].desc}</p>` : '');
+      body = it.opts.map(o => `<div class="opt">${optHTML(o)} <em>〜Lv${o.max}</em></div>`).join('') + (it.uq ? `<p class="uq">${DATA.uniques[it.uq].desc}</p>` : '');
       foot = `<div class="evohint">${c.sold ? `インベントリが満杯 → 売却 +${c.sold}G` : 'インベントリに追加'}</div>`;
     } else if (c.type === 'evo') {
       const d = DATA.weapons[c.key];

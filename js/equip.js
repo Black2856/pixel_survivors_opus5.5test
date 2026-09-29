@@ -144,9 +144,11 @@ function gainClassXp() {
 }
 
 // ---------- 表示用 ----------
-// オプション1行: 「攻撃力 +8.0%/Lv」。乗算系・% 系は % 表示
-function optText(o) {
-  const d = DATA.stats[o.k], pct = d.kind !== 'flat';
-  const val = pct ? (o.v * 100).toFixed(1) + '%' : String(o.v);
-  return `${d.label} ${d.kind === 'red' ? '-' : '+'}${val}${d.unit || ''} /Lv`;
+// オプション1行: 「攻撃力 +8.0% /Lv」。乗算系・% 系は % 表示
+function optVal(o) {
+  const d = DATA.stats[o.k], val = d.kind !== 'flat' ? (o.v * 100).toFixed(1) + '%' : String(o.v);
+  return `${d.kind === 'red' ? '-' : '+'}${val}${d.unit || ''}`;
 }
+const optText = o => `${DATA.stats[o.k].label} ${optVal(o)} /Lv`;
+// HTML 用: 数値は黄色、/Lv は灰色
+const optHTML = o => `${DATA.stats[o.k].label} <span class="ov">${optVal(o)}</span><span class="olv">/Lv</span>`;

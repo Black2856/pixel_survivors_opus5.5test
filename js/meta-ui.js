@@ -50,7 +50,7 @@ const MetaUI = (() => {
     const R = DATA.equip.rarity[it.rarity], eq = isEquipped(it);
     box.innerHTML = `
       <div class="eq-head" style="--rc:${R.col}">${icon(it, 'big')}<div><div class="rar">${R.name} ・ ${DATA.equip.slots[itemSlot(it)]}</div><div class="nm">${itemName(it)}</div></div></div>
-      <div class="eq-opts">${it.opts.map(o => `<div class="eq-opt"><span>${optText(o)}</span><em>〜Lv${o.max}</em>${qualHTML(o.q)}</div>`).join('')}</div>
+      <div class="eq-opts">${it.opts.map(o => `<div class="eq-opt"><span>${optHTML(o)}</span><em>〜Lv${o.max}</em>${qualHTML(o.q)}</div>`).join('')}</div>
       ${it.uq ? `<div class="eq-uq">★ ${DATA.uniques[it.uq].desc}</div>` : ''}
       <div class="dim eq-note">ラン開始時は全オプション Lv0。レベルアップのたびにどれか1つが +1Lv</div>
       <div class="eq-enh">強化 ${it.enh} / ${R.enh}</div>
