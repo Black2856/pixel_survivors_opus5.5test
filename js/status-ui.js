@@ -61,7 +61,7 @@ const StatusUI = (() => {
   function skillTab(c) {
     const W = DATA.weapons[c.mainW], ws = c.wlv.evo ? W.evo.st : W.lv[c.wlv.lv - 1], m = c.wm;
     const dmg = ws.dmg * (1 + (m.dmg || 0)), itv = ws.cd * (1 - (m.cd || 0)) * c.cdMul / c.atkSpd;
-    const blocks = [{ key: '通常攻撃', name: W.name, rows: [
+    const blocks = [{ key: '通常攻撃', name: c.wlv.evo ? W.evo.name : W.name, desc: (c.wlv.evo ? W.evo.desc : W.desc) + (c.wlv.evo ? '' : `。進化: ${W.evo.name}(${W.evo.desc})`), rows: [
       ['威力', `${num(dmg)} → <b>${num(dmg * c.atkMul)}</b>`, '攻撃力を掛けた値'],
       ['攻撃間隔', `<b>${num(itv)}</b> 秒`, 'クールダウン・攻撃速度を適用'],
       ['攻撃回数', `${(ws.count || 1) + (c.st.v.shots || 0)}`],
@@ -69,7 +69,25 @@ const StatusUI = (() => {
     if (WEAPON_SKILL[c.mainW] && WEAPON_SKILL[c.mainW].info) blocks.push(Object.assign({ key: 'E' }, WEAPON_SKILL[c.mainW].info(c, dmg)));
     const rt = CLASS_RT[c.cls];
     if (rt && rt.info) blocks.push(...rt.info(c));
-    return blocks.map(b => `<div class="sv-g">${b.key} ${b.name}</div>` + b.rows.map(r => `<div class="sv-row"><span>${r[0]}</span><i>${r[1]}</i></div>${r[2] ? `<div class="sv-note">${r[2]}</div>` : ''}`).join('')).join('');
+    skBlocks = blocks;
+    return blocks.map((b, i) => `<div class="sv-sk" data-sk="${i}"><div class="sv-g">${b.key} ${b.name}</div>` + b.rows.map(r => `<div class="sv-row"><span>${r[0]}</span><i>${r[1]}</i></div>${r[2] ? `<div class="sv-note">${r[2]}</div>` : ''}`).join('') + '</div>').join('');
+  }
+  // スキルの詳細: 説明 + ラン中に取った強化(パスの Lv と特殊強化)
+  let skBlocks = [];
+  function skillDetail(c, b) {
+    let h = `<div class="sv-g">${b.key} ${b.name}</div><div class="sv-desc">${b.desc || ''}</div>`;
+    if (!b.cat) return h;
+    const T = b.cat === 'e' ? DATA.weapons[c.mainW].skill && DATA.weapons[c.mainW].skill.tree : DATA.classes[c.cls].tree[b.cat];
+    if (!T) return h;
+    const got = c.run ? Object.keys(T.paths).filter(p => cuLv(b.cat, p)) : [];
+    h += '<div class="sv-g">強化' + (c.run ? '' : '(ラン中に3の倍数のLv で選ぶ)') + '</div>';
+    h += Object.keys(T.paths).map(p => {
+      const d = T.paths[p], lv = c.run ? cuLv(b.cat, p) : 0;
+      return `<div class="sv-row ${lv ? '' : 'z'}"><span>${d.name} ${lv ? 'Lv' + lv : ''}</span><i>${lv ? d.desc[lv - 1] : d.desc[0] + ' …'}</i></div>`;
+    }).join('');
+    const sp = c.run && P.cs[b.cat];
+    h += sp ? `<div class="sv-note sp">★ ${T.paths[sp].sp.name}: ${T.paths[sp].sp.desc}</div>` : '';
+    return h;
   }
   function equipTab(c) {
     let h = '';
@@ -117,9 +135,15 @@ const StatusUI = (() => {
     const tabs = Object.keys(TABS).filter(t => run || t !== 'build');
     const body = tab === 'stat' ? statTab(c) : tab === 'skill' ? skillTab(c) : tab === 'equip' ? equipTab(c) : buildTab();
     el.innerHTML = head(c) + `<div class="seg sv-tabs">${tabs.map(t => `<button data-t="${t}" class="${t === tab ? 'on' : ''}">${TABS[t]}</button>`).join('')}</div>`
-      + `<div class="sv-body">${body}</div>` + (tab === 'stat' ? '<div class="sv-break"><div class="dim">行にマウスを乗せると内訳を表示します</div></div>' : '');
+      + `<div class="sv-body">${body}</div>`
+      + (tab === 'stat' ? '<div class="sv-break"><div class="dim">行にマウスを乗せると内訳を表示します</div></div>' : '')
+      + (tab === 'skill' ? '<div class="sv-break sk"><div class="dim">スキルにマウスを乗せると詳細を表示します</div></div>' : '');
     el.onclick = e => { const b = e.target.closest('[data-t]'); if (b) { tab = b.dataset.t; AudioMan.click(); render(el, run, cls); } };
-    el.onmouseover = e => { const r = e.target.closest('.sv-row[data-k]'); if (r) el.querySelector('.sv-break').innerHTML = breakdown(c, r.dataset.k); };
+    el.onmouseover = e => {
+      const r = e.target.closest('.sv-row[data-k]'), s = e.target.closest('.sv-sk');
+      if (r) el.querySelector('.sv-break').innerHTML = breakdown(c, r.dataset.k);
+      else if (s) { el.querySelector('.sv-break').innerHTML = skillDetail(c, skBlocks[+s.dataset.sk]); for (const x of el.querySelectorAll('.sv-sk')) x.classList.toggle('on', x === s); }
+    };
   }
 
   // ---------- ラン中の画面 ----------
