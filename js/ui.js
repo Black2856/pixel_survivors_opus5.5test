@@ -624,7 +624,7 @@ const UI = (() => {
     $('title-best').innerHTML = [b.time ? `BEST ${fmtTime(b.time)} · ${b.kills} KILLS · LV ${b.level}` : '', arena].filter(Boolean).join('<br>');
     if (metaMigratedGold) { announce('+' + metaMigratedGold.toLocaleString() + ' G 返金', '永続強化は新しいツリーに移行しました'); metaMigratedGold = 0; }
   }
-  function levelUp(lv, list) { curLv = lv; openChoices(isClassLv(lv) ? 'class' : 'level', list, isClassLv(lv) ? 'CLASS UP!' : list[0].type === 'eqopt' ? 'GEAR UP!' : 'LEVEL UP!'); }
+  function levelUp(lv, list) { curLv = lv; openChoices(isClassLv(lv) ? 'class' : 'level', list, isClassLv(lv) ? 'CLASS UP!' : 'LEVEL UP!'); }
 
   // ---------- 設定パネル(ポーズ画面とタイトルの設定画面で共用。開く画面へ移動させる) ----------
   function syncSettings(host) {

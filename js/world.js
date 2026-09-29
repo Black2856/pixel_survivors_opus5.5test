@@ -1375,27 +1375,29 @@ function horde() {
 // 3の倍数の Lv = クラス強化 / それ以外 = 武器カード / 武器カードを取り切ったら微強化(メニューなし)
 // ============================================================
 const isClassLv = lv => lv % 3 === 0;
-// 3の倍数以外: 武器カードか装備カード(半々。進化できるときは武器、片方が尽きたらもう片方)。両方尽きたら空(微強化)
+// 3の倍数以外: 武器カードと装備カードを混ぜる。1枚ごとに cardRate で装備カード(片方が尽きたらもう片方)
+// 進化できる武器があれば必ず1枚入れる。両方尽きたら空(微強化)
 function buildChoices(lv) {
   if (isClassLv(lv)) return clsChoices(3 + (P.stats.v.classPick || 0));
-  const n = 3 + (P.stats.v.gearPick || 0), wp = weaponCards(n), eq = eqCards();
-  const useEq = eq.length && (!wp.length || (wp[0].type !== 'evo' && Math.random() < DATA.equip.cardRate));
-  return useEq ? shuffle(eq).slice(0, n) : wp;
+  const n = 3 + (P.stats.v.gearPick || 0), wp = weaponPool(), eq = shuffle(eqCards()), evo = evolvable();
+  const out = evo.length ? [{ type: 'evo', key: evo[0] }] : [];
+  while (out.length < n && (wp.length || eq.length)) {
+    if (eq.length && (!wp.length || Math.random() < DATA.equip.cardRate)) { out.push(eq.pop()); continue; }
+    let r = Math.random() * wp.reduce((sum, c) => sum + c.w, 0), i = 0; // 武器は重み付きで引く
+    while ((r -= wp[i].w) > 0) i++;
+    out.push(wp.splice(i, 1)[0]);
+  }
+  return out;
 }
-function weaponCards(n) {
-  const pool = [], wc = Object.keys(P.weapons).length, evo = evolvable();
+// 武器カードの候補: 新しいサブ武器(武器枠に空きがあるとき)/ 所持武器の Lv +1
+function weaponPool() {
+  const pool = [], wc = Object.keys(P.weapons).length;
   for (const k in DATA.weapons) {
     const w = P.weapons[k];
     if (!w) { if (wc < S.weaponSlots) pool.push({ type: 'weapon', key: k, w: 1 }); } // サブ武器(メイン武器は所持済みなので Lv アップのみ)
     else if (w.lv < 5) pool.push({ type: 'weapon', key: k, w: 1.6 });
   }
-  const out = evo.length ? [{ type: 'evo', key: evo[0] }] : []; // 進化できる武器があれば必ず候補に入れる
-  while (out.length < n && pool.length) {
-    let tot = pool.reduce((sum, c) => sum + c.w, 0), r = Math.random() * tot, i = 0;
-    while ((r -= pool[i].w) > 0) i++;
-    out.push(pool.splice(i, 1)[0]);
-  }
-  return out;
+  return pool;
 }
 function applyChoice(c) {
   if (c.type === 'weapon') addWeapon(c.key);
