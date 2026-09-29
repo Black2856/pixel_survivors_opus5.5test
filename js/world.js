@@ -29,7 +29,7 @@ function initRun(mode = 'normal', stageNo = 1) {
     gold: 0, deathT: 0, victoryT: 0, hudDirty: true, won: false, hint: {}, decoy: null, bossKills: 0, loot: [],
   };
   P = {
-    cls: META.cls, mainW: META.classes[META.cls].weapon, micro: {}, x: 0, y: 0, hp: 0, maxhp: 100, level: 1, xp: 0, xpNext: xpFor(1), weapons: {},
+    cls: META.cls, mainW: META.classes[META.cls].weapon, micro: {}, lvFx: classLvFx(META.cls), wm: {}, x: 0, y: 0, hp: 0, maxhp: 100, level: 1, xp: 0, xpNext: xpFor(1), weapons: {},
     ifr: 0, facing: 1, animT: 0, moving: false, hurtT: 0, dead: false,
     slowT: 0, cdSlowT: 0, burnT: 0, burnDmg: 0, burnTick: 0,
   };
@@ -63,7 +63,17 @@ function dmgMul() {
   return (1 + P.atk + clsAtkBonus() + (P.uq.berserk ? 1 - P.hp / P.maxhp : 0)) * P.atkMul;
 }
 const critRate = () => P.crit;
-const wst = k => { const w = P.weapons[k]; return w.evo ? DATA.weapons[k].evo.st : DATA.weapons[k].lv[w.lv - 1]; };
+// 武器の現在のステータス。熟練(クラスLv の共通強化)の威力・範囲・攻撃速度を掛けたもの(Lv / 進化が変わるまでキャッシュ)
+const wst = k => {
+  const w = P.weapons[k], base = w.evo ? DATA.weapons[k].evo.st : DATA.weapons[k].lv[w.lv - 1], m = P.wm[k];
+  if (!m || (!m.dmg && !m.area && !m.spd)) return base;
+  if (w.stBase !== base) {
+    w.stBase = base;
+    w.st = Object.assign({}, base, { dmg: base.dmg * (1 + (m.dmg || 0)), cd: base.cd / (1 + (m.spd || 0)) });
+    for (const f of ['aoe', 'radius']) if (base[f]) w.st[f] = base[f] * (1 + (m.area || 0));
+  }
+  return w.st;
+};
 
 // ---------- 敵レベル ----------
 // 敵の強さの基本倍率(Lv成長は別)
@@ -179,7 +189,7 @@ function gainXP(v) {
 // ============================================================
 function addWeapon(k) {
   const w = P.weapons[k];
-  if (!w) P.weapons[k] = { lv: 1, cd: 0.3, evo: false, t: 0, q: [], tick: 0 };
+  if (!w) { P.weapons[k] = { lv: 1, cd: 0.3, evo: false, t: 0, q: [], tick: 0 }; P.wm[k] = weaponMastery(k); }
   else w.lv = Math.min(5, w.lv + 1);
   S.hudDirty = true;
 }
@@ -1369,11 +1379,11 @@ function applyChoice(c) {
   else if (c.type === 'item') { /* 宝箱を開けた時点でインベントリに入っている */ }
   S.hudDirty = true;
 }
-// 進化: 武器Lv5。メイン武器はクラスLv10 以上で解放
+// 進化: 武器Lv5。メイン武器は熟練(その武器を持つクラスの Lv10)で解放
 function evolvable() {
   return Object.keys(P.weapons).filter(k => {
     const w = P.weapons[k];
-    return w.lv >= 5 && !w.evo && (k !== P.mainW || META.classes[P.cls].lv >= 10);
+    return w.lv >= 5 && !w.evo && (k !== P.mainW || !!P.wm[k].evo);
   });
 }
 // 微強化: 武器カードを取り切った後のレベルアップ(ランダムに1つ、浮き文字で通知)

@@ -182,6 +182,20 @@ const DATA = {
         } },
       },
       evo: { name: '鬼神・村正', desc: '斬撃の後に斬撃波(50%)', st: { cd: 0.55, dmg: 52, count: 3, aoe: 70 } },
+      // 熟練(クラスLv の「共通」強化)。サムライの Lv で解放され、刀を使うどのクラスにも効く
+      // fx: dmg 威力 / area 範囲 / spd 攻撃速度 / evo 進化の解放 / eHits・ePow 武器スキルの回数・威力
+      mastery: {
+        4: { d: '刀: 威力 +10%', fx: { dmg: 0.1 } },
+        5: { d: '乱れ桜: 斬る回数 +2', fx: { eHits: 2 } },
+        7: { d: '刀: 範囲 +10%', fx: { area: 0.1 } },
+        9: { d: '刀: 攻撃速度 +10%', fx: { spd: 0.1 } },
+        10: { d: '進化「鬼神・村正」を解放', fx: { evo: 1 } },
+        12: { d: '刀: 威力 +10%', fx: { dmg: 0.1 } },
+        14: { d: '刀: 範囲 +10%', fx: { area: 0.1 } },
+        17: { d: '刀: 威力 +15%', fx: { dmg: 0.15 } },
+        19: { d: '刀: 攻撃速度 +10%', fx: { spd: 0.1 } },
+        20: { d: '乱れ桜: 威力 +30%', fx: { ePow: 0.3 } },
+      },
     },
   },
 
@@ -232,12 +246,23 @@ const DATA = {
 
   // ---------- クラス ----------
   // base: 基礎ステータス(共通基準 + クラス差。設計書 3.6)。crit / critDmg は割合(0.05 = 5%、1.0 = +100% = ×2)
-  // lvStats: クラスLv で得るステータス({ Lv: { stat: 値 } })。スキル系の強化はクラスの実装側で扱う
+  // lv: クラスLv の「専用」強化 { Lv: { d: 説明, st: ステータス, fx: クラスの実装が読む値 } }
+  //     「共通」強化は武器側(DATA.weapons[].mastery)。その武器を持つクラスの Lv で解放され、どのクラスが使っても効く
   classes: {
     samurai: {
       name: 'サムライ', en: 'SAMURAI', weapon: 'katana', col: '#ff5d73', light: '#ffe2c8', rig: 'samurai', // rig: 部位アニメーション(ART.S) / light: 足元の光
       base: { hp: 110, regen: 0.2, def: 1, sta: 100, staRegen: 20, atk: 0.1, range: -0.1, crit: 0.05, critDmg: 1.0, magnet: -0.1, wslot: 4, reroll: 2 },
-      lvStats: { 2: { hp: 10 }, 13: { hp: 15, sta: 20 } },
+      lv: {
+        2: { d: '最大HP +10', st: { hp: 10 } },
+        3: { d: '剣気獲得 +10%', fx: { kiGain: 0.1 } },
+        6: { d: 'ジャスト見切りの受付 +0.05秒', fx: { parryWin: 0.05 } },
+        8: { d: '残心: 攻撃力 +5%', fx: { zanshinAtk: 0.05 } },
+        11: { d: '居合: 威力 +20%', fx: { qPow: 0.2 } },
+        13: { d: '最大HP +15、スタミナ +20', st: { hp: 15, sta: 20 } },
+        15: { d: 'メイン武器の切り替えを解放', fx: { swap: 1 } },
+        16: { d: 'ラン開始時の剣気 +30', fx: { kiStart: 30 } },
+        18: { d: '居合: CD -15%', fx: { qCd: 0.15 } },
+      },
       // 剣気: 通常攻撃の命中 +kiHit(1回の攻撃で kiHitCap まで)、ジャスト見切り +kiParry。kiFull 以上の間は攻撃力 +kiFullAtk
       //       最大値は kiMax(残気で増える)
       // 見切り: 構えた瞬間にスタミナ guardCost を消費。ガード中は移動 ×guardSlow。押してから parryWin 秒以内の被弾でジャスト(反撃 基礎威力 parryPow・半径 parryR・無敵 parryIfr)
@@ -276,7 +301,11 @@ const DATA = {
     mage: {
       name: 'メイジ', en: 'MAGE', weapon: 'bolt', col: '#7ad7ff', light: '#cfeeff',
       base: { hp: 80, sta: 90, staRegen: 24, spd: -0.03, area: 0.1, range: 0.1, cd: 0.05, crit: 0.05, critDmg: 1.0, xp: 0.05, magnet: 0.15, wslot: 4, reroll: 2 },
-      lvStats: { 2: { hp: 10 }, 13: { hp: 15 } },
+      lv: {
+        2: { d: '最大HP +10', st: { hp: 10 } },
+        13: { d: '最大HP +15', st: { hp: 15 } },
+        15: { d: 'メイン武器の切り替えを解放', fx: { swap: 1 } },
+      },
     },
   },
   // クラスLv: need[i] = Lv(i+1) → Lv(i+2) に必要な経験値。獲得量 = 討伐数 × killK + 撃破ボス数 × bossK

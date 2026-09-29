@@ -42,6 +42,7 @@
       <div class="logo"><span class="l1">PIXEL</span><span class="l2">SURVIVORS</span><span class="l3">— NOCTURNE —</span></div>
       <div class="menu">
         <button id="btn-start" class="btn big">▶ START</button>
+        <button id="btn-class" class="btn">クラス</button>
         <button id="btn-equip" class="btn">装備</button>
         <button id="btn-settings" class="btn ghost">設定</button>
       </div>
@@ -54,8 +55,19 @@
   <!-- ステージ選択(ラン外) -->
   <div id="stage-screen" class="screen hidden">
     <h2 class="scr-title">SELECT STAGE</h2>
+    <button id="st-class" class="st-class"></button>
     <div id="stage-list"></div>
     <div class="menu row"><button id="st-back" class="btn">戻る (ESC)</button></div>
+  </div>
+
+  <!-- クラス画面(ラン外) -->
+  <div id="class-screen" class="screen hidden">
+    <h2 class="scr-title">CLASS</h2>
+    <div class="cl-wrap">
+      <div id="cl-list"></div>
+      <div id="cl-detail"></div>
+    </div>
+    <div class="menu row"><button id="cl-back" class="btn">戻る (ESC)</button></div>
   </div>
 
   <!-- 装備画面(ラン外) -->

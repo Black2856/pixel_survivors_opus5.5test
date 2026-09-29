@@ -5,7 +5,7 @@ const UI = (() => {
   const $ = id => document.getElementById(id);
   const el = (tag, cls, html) => { const e = document.createElement(tag); if (cls) e.className = cls; if (html !== undefined) e.innerHTML = html; return e; };
   const show = e => e.classList.remove('hidden'), hide = e => e.classList.add('hidden');
-  const screens = ['title-screen', 'stage-screen', 'equip-screen', 'choice-screen', 'chest-screen', 'pause-screen', 'settings-screen', 'result-screen'];
+  const screens = ['title-screen', 'stage-screen', 'class-screen', 'equip-screen', 'choice-screen', 'chest-screen', 'pause-screen', 'settings-screen', 'result-screen'];
   const only = id => screens.forEach(s => (s === id ? show : hide)($(s)));
 
   // ---------- アイコン(スプライト → dataURL) ----------
@@ -317,8 +317,8 @@ const UI = (() => {
   // 選択カード(レベルアップ: 武器カード / クラス強化カード)
   // ============================================================
   let mode = 'level', choices = [], chosen = false, curLv = 1;
-  // 進化の条件(メイン武器はクラスLv10 で解放)
-  const evoCond = k => 'Lv5' + (k === P.mainW ? ' + クラスLv10' + (META.classes[P.cls].lv >= 10 ? ' ✔' : '') : '');
+  // 進化の条件(メイン武器は、その武器を持つクラスの Lv10 で解放)
+  const evoCond = k => 'Lv5' + (k === P.mainW ? ` + ${DATA.classes[weaponOwner(k)].name}Lv10` + (P.wm[k].evo ? ' ✔' : '') : '');
   function statDiff(k, from, to) {
     const a = from ? (from.evo ? DATA.weapons[k].evo.st : DATA.weapons[k].lv[from.lv - 1]) : null, b = DATA.weapons[k].lv[to - 1];
     if (!a) return '';
@@ -679,5 +679,5 @@ const UI = (() => {
     } else if (state === 'chest' && (e.code === 'Space' || e.code === 'Enter')) chestAct();
   }
 
-  return { announce, banner, hud, bossBar, enemyLvUp, openChest, levelUp, beginPlay: close, only, title, pause, result, onKey, show, hide, $ };
+  return { announce, banner, hud, bossBar, enemyLvUp, openChest, levelUp, beginPlay: close, only, weaponIcon: k => icon('weapon', k), title, pause, result, onKey, show, hide, $ };
 })();

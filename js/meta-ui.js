@@ -1,4 +1,4 @@
-// meta-ui.js — ラン外の画面(ステージ選択 / 装備)
+// meta-ui.js — ラン外の画面(ステージ選択 / クラス / 装備)
 'use strict';
 
 const MetaUI = (() => {
@@ -74,6 +74,50 @@ const MetaUI = (() => {
     render();
   }
 
+  // ---------- クラス ----------
+  // 実装済みのクラス(ランタイムがあるもの)だけ選べる。Lv15 でメイン武器を他クラスのメイン武器に変更できる
+  let clSel = null, back = 'title';
+  const clsReady = k => !!CLASS_RT[k];
+  const portrait = k => { const r = ART.S[DATA.classes[k].rig]; return (r ? r.base : ART.S.player).c.toDataURL(); };
+  function classScreen(from = 'title') {
+    state = 'class'; back = from; clSel = META.cls;
+    UI.only('class-screen');
+    renderClass();
+  }
+  function renderClass() {
+    $('cl-list').innerHTML = Object.keys(DATA.classes).map(k => {
+      const c = DATA.classes[k], m = META.classes[k];
+      return `<button class="cl-card ${clSel === k ? 'sel' : ''} ${clsReady(k) ? '' : 'off'}" data-k="${k}" style="--cc:${c.col}">
+        <img src="${portrait(k)}" alt=""><span class="nm">${c.name}<small>${c.en}</small></span>
+        <span class="lv">${clsReady(k) ? 'Lv ' + m.lv : '準備中'}</span>${META.cls === k ? '<span class="use">使用中</span>' : ''}</button>`;
+    }).join('');
+    const k = clSel, c = DATA.classes[k], m = META.classes[k], need = DATA.classLevel.need, max = need.length + 1;
+    const xpP = m.lv >= max ? 100 : m.xp / need[m.lv - 1] * 100;
+    const rows = classLvTable(k).map(r => `<div class="cl-row ${m.lv >= r.lv ? 'got' : ''} ${m.lv + 1 === r.lv ? 'next' : ''}">
+      <b>Lv${r.lv}</b><span class="tag ${r.kind === '共通' ? 'wp' : ''}">${r.kind}</span><span>${r.d}</span><em>${m.lv >= r.lv ? '✔' : need[r.lv - 2].toLocaleString()}</em></div>`).join('');
+    const swap = classLvFx(k).swap, weps = [...new Set(Object.values(DATA.classes).map(x => x.weapon))];
+    const wepBtns = weps.map(w => `<button class="cl-wep ${m.weapon === w ? 'on' : ''}" data-w="${w}" ${swap || w === c.weapon ? '' : 'disabled'}>
+      ${UI.weaponIcon(w)}<span>${DATA.weapons[w].name}${w === c.weapon ? '<small>専用</small>' : ''}${DATA.weapons[w].skill ? '' : '<small class="dim">Eスキルなし</small>'}</span></button>`).join('');
+    $('cl-detail').innerHTML = `
+      <div class="cl-head" style="--cc:${c.col}"><span class="nm">${c.name}</span><span class="lv">Lv ${m.lv}${m.lv >= max ? ' MAX' : ''}</span></div>
+      <div class="cl-xp"><i style="width:${xpP.toFixed(1)}%"></i><span>${m.lv >= max ? 'MAX' : `${m.xp.toLocaleString()} / ${need[m.lv - 1].toLocaleString()} EXP`}</span></div>
+      <div class="dim cl-note">クラス経験値 = 討伐数 + 撃破ボス数 × ${DATA.classLevel.bossK}(ラン終了時)。<span class="tag">専用</span>このクラスだけ <span class="tag wp">共通</span>${DATA.weapons[c.weapon].name}を使うどのクラスにも効く</div>
+      <div class="cl-rows">${rows}</div>
+      <div class="cl-sub">メイン武器 ${swap ? '' : '<span class="dim">(Lv15 で切り替え解放)</span>'}</div>
+      <div class="cl-weps">${wepBtns}</div>
+      <button class="btn cl-go" ${clsReady(k) ? '' : 'disabled'}>${META.cls === k ? '使用中' : 'このクラスにする'}</button>`;
+  }
+  $('cl-list').onclick = e => { const b = e.target.closest('.cl-card'); if (!b) return; clSel = b.dataset.k; AudioMan.click(); renderClass(); };
+  $('cl-detail').onclick = e => {
+    const w = e.target.closest('.cl-wep');
+    if (w && !w.disabled) { META.classes[clSel].weapon = w.dataset.w; saveMeta(); AudioMan.select(); renderClass(); return; }
+    const g = e.target.closest('.cl-go');
+    if (g && !g.disabled && META.cls !== clSel) { META.cls = clSel; saveMeta(); AudioMan.select(); renderClass(); }
+  };
+  const closeClass = () => { if (back === 'stage') stageSelect(); else { state = 'title'; UI.title(); } };
+  $('cl-back').onclick = () => { AudioMan.click(); closeClass(); };
+  $('btn-class').onclick = () => { AudioMan.click(); classScreen(); };
+
   // ---------- ステージ選択 ----------
   // 通常モード(3ステージを周回) / ステージ単体(ボス2体) / 闘技場(ボスラッシュ)。クリアしたものに ★、カオス強化はクリアで解放
   const STAGE_ITEMS = () => [
@@ -84,6 +128,9 @@ const MetaUI = (() => {
   function stageSelect() {
     state = 'stage';
     UI.only('stage-screen');
+    const c = DATA.classes[META.cls], m = META.classes[META.cls];
+    $('st-class').style.setProperty('--cc', c.col);
+    $('st-class').innerHTML = `<img src="${portrait(META.cls)}" alt=""><span><b>${c.name}</b> Lv${m.lv} ・ ${DATA.weapons[m.weapon].name}</span><small>クラス変更 ▶</small>`;
     $('stage-list').innerHTML = STAGE_ITEMS().map(s => {
       const clear = META.stageClear[s.key];
       return `<button class="stg" data-mode="${s.mode}" data-n="${s.n}" style="--sc:${s.col}">
@@ -92,6 +139,7 @@ const MetaUI = (() => {
     }).join('');
   }
   $('stage-list').onclick = e => { const b = e.target.closest('.stg'); if (!b) return; AudioMan.click(); startRun(b.dataset.mode, +b.dataset.n); };
+  $('st-class').onclick = () => { AudioMan.click(); classScreen('stage'); };
   $('st-back').onclick = () => { AudioMan.click(); state = 'title'; UI.title(); };
 
   // ---------- 入力 ----------
@@ -119,7 +167,8 @@ const MetaUI = (() => {
   function onKey(e) {
     if (state === 'equip' && e.code === 'Escape') close();
     if (state === 'stage' && e.code === 'Escape') { state = 'title'; UI.title(); }
+    if (state === 'class' && e.code === 'Escape') closeClass();
   }
 
-  return { open, stageSelect, onKey };
+  return { open, stageSelect, classScreen, onKey };
 })();

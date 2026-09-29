@@ -31,6 +31,28 @@ function equippedOpts(lvOf) {
   return out;
 }
 
+// ---------- クラスLv の効果 ----------
+// 専用 = クラスの lv 表(そのクラスの Lv)/ 共通 = 武器の mastery 表(その武器を持つクラスの Lv)
+const classLvOf = cls => (META.classes[cls] || { lv: 1 }).lv;
+const weaponOwner = k => Object.keys(DATA.classes).find(c => DATA.classes[c].weapon === k);
+function sumLvFx(tbl, lv) {
+  const o = {};
+  for (const l in tbl || {}) if (lv >= +l) for (const k in tbl[l].fx || {}) o[k] = (o[k] || 0) + tbl[l].fx[k];
+  return o;
+}
+const classLvFx = cls => sumLvFx(DATA.classes[cls].lv, classLvOf(cls));
+const weaponMastery = k => { const o = weaponOwner(k); return o ? sumLvFx(DATA.weapons[k].mastery, classLvOf(o)) : {}; };
+// Lv ごとの解放内容(クラス画面用): 2〜最大Lv の { lv, kind: '専用' | '共通', d }
+function classLvTable(cls) {
+  const c = DATA.classes[cls], m = DATA.weapons[c.weapon] && DATA.weapons[c.weapon].mastery, out = [];
+  for (let l = 2; l <= DATA.classLevel.need.length + 1; l++) {
+    if (c.lv[l]) out.push({ lv: l, kind: '専用', d: c.lv[l].d });
+    else if (m && m[l]) out.push({ lv: l, kind: '共通', d: m[l].d });
+    else out.push({ lv: l, kind: '', d: '(準備中)' });
+  }
+  return out;
+}
+
 // eq: 装備オプションの Lv の扱い。'run' = ラン中の現在Lv / 'zero' = ラン開始時(全て0) / 'max' = 全て最大Lv
 function computeStats({ cls = META.cls, run = false, eq = run ? 'run' : 'zero' } = {}) {
   const by = {}, mul = {};
@@ -49,8 +71,8 @@ function computeStats({ cls = META.cls, run = false, eq = run ? 'run' : 'zero' }
 
   // クラス基礎 / クラスLv
   for (const k in c.base) add('class', k, c.base[k]);
-  const clv = (META.classes[cls] || { lv: 1 }).lv;
-  for (const l in c.lvStats) if (clv >= +l) for (const k in c.lvStats[l]) add('classLv', k, c.lvStats[l][k]);
+  const clv = classLvOf(cls);
+  for (const l in c.lv) if (clv >= +l) for (const k in c.lv[l].st || {}) add('classLv', k, c.lv[l].st[k]);
 
   // 永続ツリー
   const tc = treeCounts();

@@ -53,7 +53,8 @@ const WEAPON_SKILL = {
   katana: {
     start() {
       const sk = weaponSkill(), dur = sk.dur + cuV('e', 'dur');
-      P.act = { slot: 'e', ph: 'wind', t: 0, dur, hits: sk.hits + Math.round(cuV('e', 'dur') / 0.15), n: 0, hitT: 0, pow: clsESkillMul() };
+      const m = P.wm.katana || {}; // 熟練: 斬る回数・威力
+      P.act = { slot: 'e', ph: 'wind', t: 0, dur, hits: sk.hits + Math.round(cuV('e', 'dur') / 0.15) + (m.eHits || 0), n: 0, hitT: 0, pow: clsESkillMul() * (1 + (m.ePow || 0)) };
       playAnim('ranbu', MOTIONS.ranbu.duration(dur), dur);
       setCd('e', sk.cd * (1 - cuV('e', 'cd')) * P.cdMul);
       skillCall(sk.name, '#ffb7d5'); AudioMan.click();
@@ -97,13 +98,16 @@ function sakuraBurst(sk) {
   AudioMan.boom();
 }
 
+// 残心の攻撃力: 気迫の値(未取得なら基本値)+ クラスLv8
+const zanshinAtk = () => cuV('passive', 'kihaku', DATA.classes.samurai.params.zanshinAtk) + (P.lvFx.zanshinAtk || 0);
+
 // ---------- クラスごとの実装 ----------
 const CLASS_RT = {
   samurai: {
     skills: ['q'], // 実装済みのクラススキル(強化ツリーの need と対応)
     init() {
       const c = DATA.classes.samurai.params;
-      P.ki = 0; P.kiMax = c.kiMax; P.kiWin = 0; P.kiWinT = 0;
+      P.kiMax = c.kiMax; P.ki = Math.min(P.kiMax, P.lvFx.kiStart || 0); P.kiWin = 0; P.kiWinT = 0; // クラスLv16: 開始時の剣気
       P.guard = false; P.guardT = 0; P.breakT = 0; P.zanshinT = 0;
     },
     update(dt) {
@@ -136,7 +140,7 @@ const CLASS_RT = {
         return dmg * k;
       }
       P.zanshinT = c.zanshinT + cuV('passive', 'jizoku'); // 残心: 防御スキルで攻撃を受けた後、攻撃力アップ
-      if (P.guardT <= c.parryWin) { samuraiParry(); return null; }
+      if (P.guardT <= c.parryWin + (P.lvFx.parryWin || 0)) { samuraiParry(); return null; }
       staUse(Math.max(1, Math.round((dmg - P.armor) * (1 - P.dr))), DATA.player.staLock); // 受けるはずだったダメージ分
       burst(P.x, P.y - 4, 8, ['#9ff7ff', '#ffffff'], { sp: 60, glow: true, life: 0.25 });
       AudioMan.hit(); shake(2);
@@ -168,7 +172,7 @@ const CLASS_RT = {
     },
     atkBonus() {
       const c = DATA.classes.samurai.params;
-      return (kiHigh() ? cuV('trait', 'juu', c.kiFullAtk) : 0) + (P.zanshinT > 0 ? cuV('passive', 'kihaku', c.zanshinAtk) * zanshinK() : 0);
+      return (kiHigh() ? cuV('trait', 'juu', c.kiFullAtk) : 0) + (P.zanshinT > 0 ? zanshinAtk() * zanshinK() : 0);
     },
     // 居合・朧月(Q): 構え → 突進して通過した敵を斬る。剣気を全て消費し、消費量で威力が上がる
     qStart() {
@@ -214,7 +218,7 @@ const CLASS_RT = {
       const c = DATA.classes.samurai.params, out = [];
       if (P.zanshinT > 0) {
         const k = zanshinK(), mv = cuV('passive', 'migaru') * k;
-        out.push({ id: 'zanshin', glyph: '残', name: '残心' + (k > 1 ? '(背水)' : ''), fx: `攻撃力 +${Math.round(cuV('passive', 'kihaku', c.zanshinAtk) * k * 100)}%` + (mv ? ` 移動 +${Math.round(mv * 100)}%` : '') + (hasSp('passive', 'migaru') ? ' 被ダメ -25%' : ''), t: P.zanshinT, max: c.zanshinT + cuV('passive', 'jizoku'), kind: 'buff' });
+        out.push({ id: 'zanshin', glyph: '残', name: '残心' + (k > 1 ? '(背水)' : ''), fx: `攻撃力 +${Math.round(zanshinAtk() * k * 100)}%` + (mv ? ` 移動 +${Math.round(mv * 100)}%` : '') + (hasSp('passive', 'migaru') ? ' 被ダメ -25%' : ''), t: P.zanshinT, max: c.zanshinT + cuV('passive', 'jizoku'), kind: 'buff' });
       }
       if (kiHigh()) out.push({ id: 'kiHigh', glyph: '気', name: hasSp('trait', 'juu') ? '明鏡止水' : '剣気解放', fx: `攻撃力 +${Math.round(cuV('trait', 'juu', c.kiFullAtk) * 100)}%` + (hasSp('trait', 'juu') ? ' 攻撃速度 +25% 被ダメ -30%' : ''), kind: 'buff' });
       if (P.breakT > 0) out.push({ id: 'break', glyph: '崩', name: 'ガードブレイク', fx: `ガード不可 被ダメ +${Math.round(c.breakDmg * 100)}%`, t: P.breakT, max: c.breakT, kind: 'debuff' });
@@ -227,7 +231,7 @@ const CLASS_RT = {
 // 居合の斬撃: 通過した敵にまとめてダメージ(少し遅れて斬撃線が炸裂する)
 function iaiStrike(a) {
   const q = DATA.classes.samurai.q, full = a.ki >= DATA.classes.samurai.params.kiFull, ittou = hasSp('q', 'pow') && full;
-  const dmg = (q.pow + a.ki * q.kiPow) * (1 + cuV('q', 'pow')) * (a.back ? 0.6 : 1) * (ittou ? 1.5 : 1);
+  const dmg = (q.pow + a.ki * q.kiPow) * (1 + cuV('q', 'pow') + (P.lvFx.qPow || 0)) * (a.back ? 0.6 : 1) * (ittou ? 1.5 : 1);
   const x0 = a.x0, y0 = a.y0, x1 = P.x, y1 = P.y, hits = [...a.hits];
   slashes.push({ line: true, x: x0, y: y0, x1, y1, t: 0, life: 0.2, w: 2 }); // 突進の軌跡(細い線。直後の炸裂との差を出す)
   setTimeout(() => asMine(() => {
@@ -246,7 +250,7 @@ function iaiStrike(a) {
   }), 110);
   // CD(連環: 消費した剣気1につき 0.1秒短縮)
   if (!a.back) {
-    const base = q.cd * (1 - cuV('q', 'cd')) * P.cdMul;
+    const base = q.cd * (1 - cuV('q', 'cd') - (P.lvFx.qCd || 0)) * P.cdMul;
     setCd('q', hasSp('trait', 'zan') ? Math.max(3, base - a.ki * 0.1) : base);
   }
 }
@@ -258,7 +262,7 @@ const kiHigh = () => P.ki >= DATA.classes.samurai.params.kiFull;
 // 剣気を得る(練気で獲得量アップ。flat = 倍率をかけない)
 function kiAdd(n, flat) {
   const was = P.ki;
-  P.ki = Math.min(P.kiMax, P.ki + (flat ? n : n * (1 + cuV('trait', 'ren'))));
+  P.ki = Math.min(P.kiMax, P.ki + (flat ? n : n * (1 + cuV('trait', 'ren') + (P.lvFx.kiGain || 0))));
   const full = DATA.classes.samurai.params.kiFull;
   if ((was < full && P.ki >= full) || (was < P.kiMax && P.ki >= P.kiMax)) { // 100 に届いた瞬間 / 最大値に届いた瞬間
     AudioMan.levelup(); addRing(P.x, P.y, 30, '#ff3b5c', { w: 2, life: 0.4 });
