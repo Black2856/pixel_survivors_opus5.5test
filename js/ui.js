@@ -166,20 +166,23 @@ const UI = (() => {
     return out;
   }
   const chipMax = {}; // 残り時間の最大値(max がない状態は、出現したときの残り時間を最大とする)
+  let stList = [];
   function statusChips() {
-    const list = playerStatuses(), box = $('ps-status'), sig = list.map(s => s.id + s.name + s.fx).join('|');
+    const list = stList = playerStatuses(), box = $('ps-status'), sig = list.map(s => s.id).join('|');
     if (last.stSig !== sig) {
       last.stSig = sig;
-      box.innerHTML = list.map(s => `<div class="st ${s.kind}" data-id="${s.id}"><span class="gl">${s.glyph}</span><span class="tx"><b>${s.name}</b><small>${s.fx}</small></span><span class="sec"></span><i class="tb"></i></div>`).join('');
+      box.innerHTML = list.map(s => `<div class="st ${s.kind}" data-id="${s.id}" data-tip="s:${s.id}"><span class="gl">${s.glyph}</span></div>`).join('');
     }
     for (const s of list) {
       const el = box.querySelector(`[data-id="${s.id}"]`); if (!el) continue;
-      if (s.t === undefined) { el.querySelector('.sec').textContent = ''; el.querySelector('.tb').style.width = '100%'; delete chipMax[s.id]; continue; }
-      const mx = s.max || (chipMax[s.id] = Math.max(chipMax[s.id] || 0, s.t));
-      el.querySelector('.sec').textContent = s.t.toFixed(1);
-      el.querySelector('.tb').style.width = clamp(s.t / mx * 100, 0, 100).toFixed(1) + '%';
+      let p = 100;
+      if (s.t !== undefined) { const mx = s.max || (chipMax[s.id] = Math.max(chipMax[s.id] || 0, s.t)); p = clamp(s.t / mx * 100, 0, 100); }
+      else delete chipMax[s.id];
+      el.style.setProperty('--p', p.toFixed(1));
     }
     for (const id in chipMax) if (!list.some(s => s.id === id)) delete chipMax[id];
+    // 表示中のツールチップは毎フレーム更新(残り時間が進むため)
+    if (tipKey && tipKey.startsWith('s:')) showTip(tipEl, tipKey);
   }
   // E / Q のアイコン。構成が変わったときだけ作り直し、毎フレーム CD のスイープを更新する
   function skillIcons() {
@@ -284,18 +287,31 @@ const UI = (() => {
   }
 
   // ツールチップ
+  let tipKey = null, tipEl = null;
   document.addEventListener('pointerover', ev => {
     const t = ev.target.closest && ev.target.closest('[data-tip]');
-    const tip = $('tooltip');
-    if (!t) { hide(tip); return; }
-    const [kind, k] = t.dataset.tip.split(':');
+    if (!t) { hide($('tooltip')); tipKey = tipEl = null; return; }
+    showTip(t, t.dataset.tip);
+  });
+  function showTip(t, key) {
+    const tip = $('tooltip'), [kind, k] = key.split(':');
+    tipKey = key; tipEl = t;
     let html = '';
+    if (kind === 's') {
+      const s = stList.find(x => x.id === k);
+      if (!s) { hide(tip); tipKey = tipEl = null; return; }
+      html = `<b style="color:${s.kind === 'debuff' ? '#ff5d73' : '#9ff7ff'}">${s.name}</b><br>${s.fx}` + (s.t !== undefined ? `<br><span class="dim">残り ${s.t.toFixed(1)} 秒</span>` : '');
+    }
     if (kind === 'w') { const d = DATA.weapons[k], w = P.weapons[k]; html = `<b>${w && w.evo ? d.evo.name : d.name}</b><br>${w && w.evo ? d.evo.desc : d.desc}<br><span class="dim">進化: ${evoCond(k)}</span>`; }
     tip.innerHTML = html;
     const r = t.getBoundingClientRect();
-    tip.style.left = Math.min(innerWidth - 240, r.left) + 'px'; tip.style.top = (r.bottom + 8) + 'px';
+    // ツールチップ自体も UI サイズで拡大されるので、位置は拡大率で割る
+    const z = SET.ui;
+    tip.style.left = Math.min(innerWidth - 240 * z, r.left) / z + 'px';
+    // 画面の下半分では上に出す(左下の状態アイコンなど)
+    if (r.top > innerHeight / 2) { tip.style.top = ''; tip.style.bottom = (innerHeight - r.top + 8) / z + 'px'; } else { tip.style.bottom = ''; tip.style.top = (r.bottom + 8) / z + 'px'; }
     show(tip);
-  });
+  }
 
   // ============================================================
   // 選択カード(レベルアップ: 武器カード / クラス強化カード)
