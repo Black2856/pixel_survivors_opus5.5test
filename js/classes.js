@@ -39,7 +39,10 @@ function crowd(r, n) {
   forEachNear(P.x, P.y, r, e => { if (!e.prop && !e.dead) c += e.boss ? n : 1; });
   return c >= n;
 }
-function setCd(slot, sec) { P.sk[slot].cd = P.sk[slot].max = Math.max(1, sec); S.hudDirty = true; }
+function setCd(slot, sec) {
+  P.sk[slot].cd = P.sk[slot].max = Math.max(1, sec); S.hudDirty = true;
+  if (clsRT() && clsRT().onSkill) clsRT().onSkill(slot); // スキル使用(メイジの余韻など)
+}
 function playAnim(name, dur, arg) { P.anim = { name, t: 0, dur, arg }; } // arg: モーションに渡す値(乱れ桜の持続時間など)
 // スキル名を頭上に出す(カットイン)
 function skillCall(name, col) {
@@ -86,9 +89,9 @@ const WEAPON_SKILL = {
   },
 };
 function ranbuHit(sk) {
-  const R = sk.radius * P.area, dmg = wst(P.mainW).dmg * sk.pow * (1 + cuV('e', 'pow')) * P.act.pow, k0 = S.kills;
+  const R = sk.radius * P.area, dmg = wst(P.mainW).dmg * sk.pow * (1 + cuV('e', 'pow')) * P.act.pow, k0 = S.kills, el = clsNextEl(); // 1回の斬撃 = 1属性
   asMine(() => {
-    forEachNear(P.x, P.y, R, e => { if (!e.prop) hitEnemy(e, dmg, { src: 'ranbu', ang: Math.atan2(e.y - P.y, e.x - P.x), kb: 25, col: '#ffb7d5', noNum: Math.random() < 0.4 }); });
+    forEachNear(P.x, P.y, R, e => { if (!e.prop) hitEnemy(e, dmg, { src: 'ranbu', ang: Math.atan2(e.y - P.y, e.x - P.x), kb: 25, col: '#ffb7d5', noNum: Math.random() < 0.4, el }); });
     slashes.push({ x: P.x, y: P.y, a: rand(0, TAU), r: R * rand(0.8, 1.1), t: 0, life: 0.18, flip: Math.random() < 0.5 });
     burst(P.x + rand(-R, R) * 0.6, P.y + rand(-R, R) * 0.6, 6, ['#ffb7d5', '#ffffff'], { sp: 70, glow: true, life: 0.3 });
     shake(1.5);
@@ -252,6 +255,69 @@ const CLASS_RT = {
       ];
     },
   },
+
+  mage: {
+    skills: [], // Q(メテオ)はフェーズ5b で追加
+    init() {
+      P.crystal = 0; P.crystalMax = MG().crystalMax + (P.lvFx.crystalMax || 0);
+      P.elI = 0; P.flowWin = 0; P.flowT = 0; P.echoT = 0; P.ovf = 0; P.calmT = 0; P.blinkHeld = false;
+    },
+    update(dt) {
+      const p = MG();
+      P.flowT -= dt; if (P.flowT <= 0) { P.flowT = 1; P.flowWin = 0; } // 魔力循環の1秒ごとの上限
+      P.echoT -= dt; P.calmT += dt;
+      P.atkSpd = 1 + (P.echoT > 0 ? cuV('passive', 'echo') : 0);                                   // 余韻
+      P.shots = Math.round(P.stats.v.shots || 0) + (hasSp('passive', 'echo') && P.echoT > 0 ? 2 : 0); // 詠唱加速
+      if (hasSp('passive', 'cap') && P.calmT >= 3 && P.hp < P.maxhp) P.hp = Math.min(P.maxhp, P.hp + 2 * dt); // 瞑想
+      // ブリンク(Space を押した瞬間)
+      const held = (keys.Space || keys.TouchDef) && !P.act;
+      if (held && !P.blinkHeld) { if (P.sta >= p.blinkCost) mageBlink(); else addFloat(P.x, P.y - 16, 'STAMINA', '#6a7a88'); }
+      P.blinkHeld = held;
+      P.moveMul = 1;
+    },
+    onHurt(dmg) { P.calmT = 0; return dmg; },
+    // 通常攻撃の命中: E / Q の CD を短縮(1秒あたりの上限あり)。オーバーフロー: CD 0 で命中するとスキル威力を貯める
+    onMainHit() {
+      const p = MG(), cut = p.flowCut + cuV('passive', 'flow'), cap = p.flowCap + cuV('passive', 'cap');
+      if (hasSp('passive', 'flow') && (P.sk.e.cd <= 0 || P.sk.q.cd <= 0)) P.ovf = Math.min(0.5, P.ovf + 0.05);
+      const c = Math.min(cut, cap - P.flowWin);
+      if (c <= 0) return;
+      P.flowWin += c;
+      for (const k in P.sk) P.sk[k].cd = Math.max(0, P.sk[k].cd - c);
+    },
+    // 次の攻撃の属性(三重詠唱: 15% で全属性)
+    nextEl() {
+      if (hasSp('trait', 'el') && Math.random() < 0.15) return 'all';
+      return ELS[P.elI++ % 3];
+    },
+    onElement: (e, el, dealt) => mageAddEl(e, el, dealt),
+    onSkill() { P.echoT = 5; },
+    // オーバーフロー: 貯めたスキル威力を使う
+    eMul() { const k = 1 + P.ovf; P.ovf = 0; return k; },
+    atkBonus: () => 0,
+    res: () => ({ kind: 'crystal', label: '魔力結晶', v: P.crystal, max: P.crystalMax, seg: true, dk: '#1d4a7a' }),
+    statuses() {
+      const out = [], e = cuV('passive', 'echo'), sp = hasSp('passive', 'echo');
+      if (P.echoT > 0 && (e || sp)) out.push({ id: 'echo', glyph: '韻', name: sp ? '詠唱加速' : '余韻', fx: (e ? `攻撃速度 +${Math.round(e * 100)}%` : '') + (sp ? ' 弾数 +2' : ''), t: P.echoT, max: 5, kind: 'buff' });
+      if (P.ovf > 0) out.push({ id: 'ovf', glyph: '溢', name: 'オーバーフロー', fx: `次のスキルの威力 +${Math.round(P.ovf * 100)}%`, kind: 'buff' });
+      if (hasSp('passive', 'cap') && P.calmT >= 3) out.push({ id: 'calm', glyph: '瞑', name: '瞑想', fx: 'HP 2/s で回復', kind: 'buff' });
+      return out;
+    },
+    info(c) {
+      const p = MG();
+      return [
+        { key: '特性', name: '元素循環', rows: [
+          ['共鳴の威力', `${Math.round(p.resoPow * (1 + c.cuV('trait', 'rpow')))} → <b>${Math.round(p.resoPow * (1 + c.cuV('trait', 'rpow')) * c.atkMul)}</b>`, '3属性目が当たると爆発。魔力結晶 +1'],
+          ['共鳴の半径', `${Math.round(p.resoR * (1 + c.cuV('trait', 'rarea')) * (1 + c.st.v.area) * c.st.mul.area)}`],
+          ['魔力結晶の上限', `${p.crystalMax + (c.lvFx.crystalMax || 0)}`],
+        ] },
+        { key: 'Space', name: 'ブリンク', rows: [
+          ['スタミナ消費', `<b>${p.blinkCost}</b>`],
+          ['距離 / 無敵', `${p.blinkDist} / ${p.blinkIfr} 秒`],
+        ] },
+      ];
+    },
+  },
 };
 
 // 居合の斬撃: 通過した敵にまとめてダメージ(少し遅れて斬撃線が炸裂する)
@@ -313,6 +379,78 @@ function samuraiParry() {
   AudioMan.slash(); AudioMan.crit();
 }
 
+// ---------- メイジ: 元素循環・共鳴・魔力循環・ブリンク ----------
+const ELS = ['fire', 'ice', 'bolt'], EL_BIT = { fire: 1, ice: 2, bolt: 4 }, EL_COL = { fire: '#ff8a3d', ice: '#9ff7ff', bolt: '#ffe14a' };
+const MG = () => DATA.classes.mage.params;
+const mageFrostCap = () => MG().frostCap + (cuLv('trait', 'el') ? DATA.classes.mage.elFrost[cuLv('trait', 'el') - 1] : 0);
+const bitCount = b => (b & 1) + ((b >> 1) & 1) + ((b >> 2) & 1);
+// 属性の効果(dealt: 実際に与えたダメージ。攻撃力を掛けた後なので、追加ダメージは dmgMul で割って基礎値に戻す)
+function elEffect(e, el, dealt) {
+  const p = MG(), L = cuLv('trait', 'el');
+  if (el === 'fire') {
+    const perSec = dealt * p.burnPct * (1 + 0.1 * L) / p.burnDur / dmgMul();
+    e.burn = Math.max(e.burnT > 0 ? e.burn || 0 : 0, perSec); e.burnT = p.burnDur; e.burnSrc = 'elfire';
+  } else if (el === 'ice') {
+    e.frost = Math.max(e.frost || 0, Math.min(mageFrostCap(), (e.frost || 0) + 1)); e.frostT = 5;
+  } else if (el === 'bolt') {
+    const n = p.chainN + L, done = new Set([e]);
+    let cur = e;
+    for (let i = 0; i < n; i++) {
+      let best = null, bd = p.chainR * p.chainR;
+      forEachNear(cur.x, cur.y, p.chainR, o => { if (o.prop || o.dead || done.has(o)) return; const d = d2(cur.x, cur.y, o.x, o.y); if (d < bd) { bd = d; best = o; } });
+      if (!best) break;
+      bolts.push({ x0: cur.x, y0: cur.y, x1: best.x, y1: best.y, t: 0, life: 0.2, w: 1 });
+      hitEnemy(best, dealt * p.chainPct / dmgMul(), { src: 'chain', noNum: Math.random() < 0.5, col: EL_COL.bolt });
+      done.add(best); cur = best;
+    }
+  }
+}
+// 属性を付与して、3属性そろったら共鳴。depth: 連鎖共鳴の深さ(無限に続かないように)
+function mageAddEl(e, el, dealt, depth = 0) {
+  if (e.prop) return;
+  const list = el === 'all' ? ELS : [el];
+  for (const x of list) elEffect(e, x, dealt);
+  const bits = e.els || 0;
+  if (el === 'all' || (bitCount(bits) === 2 && !(bits & EL_BIT[el]))) mageResonate(e, depth);
+  else e.els = bits | EL_BIT[el];
+}
+function mageResonate(e, depth) {
+  const p = MG(), R = p.resoR * (1 + cuV('trait', 'rarea')) * P.area, dmg = p.resoPow * (1 + cuV('trait', 'rpow'));
+  e.els = 0;
+  const x = e.x, y = e.y, spread = hasSp('trait', 'rpow') && depth < 1;
+  asMine(() => {
+    forEachNear(x, y, R, o => {
+      if (o.prop) return;
+      hitEnemy(o, dmg, { src: 'reso', ang: Math.atan2(o.y - y, o.x - x), kb: 40, col: '#c78bff', noNum: o !== e });
+      if (spread && o !== e && !o.dead) mageAddEl(o, pick(ELS), 0, depth + 1); // 連鎖共鳴
+    });
+    addRing(x, y, R, '#c78bff', { w: 2, life: 0.3 }); addRing(x, y, R * 0.55, '#ffffff', { life: 0.2 });
+    addFlash(x, y, R * 2.4, '#c78bff', 0.3);
+    burst(x, y, 16, ['#ff8a3d', '#9ff7ff', '#ffe14a', '#ffffff'], { sp: 110, glow: true, life: 0.4 });
+    shake(1.5);
+  });
+  if (hasSp('trait', 'rarea')) zones.push({ kind: 'hole', x, y, r: R * 0.8, t: 0, dur: 2, tick: 0, dmg: 0, pull: 90 }); // 特異点
+  if (P.crystal < P.crystalMax) {
+    P.crystal++;
+    part(x, y, (P.x - x) * 2, (P.y - y) * 2, 0.5, '#9ff7ff', { glow: true, sz: 2, drag: 0 });
+    if (P.crystal === P.crystalMax) { AudioMan.levelup(); addRing(P.x, P.y, 26, '#7ad7ff', { w: 2, life: 0.4 }); }
+  }
+  AudioMan.boom();
+}
+function mageBlink() {
+  const p = MG(), d = P.dir && P.moving ? P.dir : [P.facing, 0], len = Math.hypot(d[0], d[1]) || 1;
+  const x0 = P.x, y0 = P.y, dx = d[0] / len, dy = d[1] / len;
+  staUse(p.blinkCost);
+  P.x += dx * p.blinkDist; P.y += dy * p.blinkDist;
+  P.invT = Math.max(P.invT, p.blinkIfr); P.ifr = Math.max(P.ifr, p.blinkIfr);
+  zones.push({ kind: 'residue', x: x0, y: y0, r: p.residueR * P.area, t: 0, dur: p.residueT, tick: 0 });
+  for (let i = 1; i <= 4; i++) P.after = (P.after || []).concat([{ x: x0 + dx * p.blinkDist * i / 5, y: y0 + dy * p.blinkDist * i / 5, t: 0, f: P.facing }]).slice(-6);
+  burst(x0, y0, 14, ['#9ff7ff', '#ffffff', '#7ad7ff'], { sp: 70, glow: true, life: 0.35 });
+  burst(P.x, P.y, 10, ['#9ff7ff', '#ffffff'], { sp: 50, glow: true, life: 0.3 });
+  addRing(P.x, P.y, 14, '#9ff7ff', { life: 0.2 });
+  AudioMan.dash();
+}
+
 // ---------- world.js から呼ぶ入口 ----------
 const clsRT = () => CLASS_RT[P.cls];
 function clsInit() {
@@ -346,6 +484,9 @@ function clsUpdate(dt) {
   if (P.anim) { P.anim.t += dt; if (P.anim.t >= P.anim.dur || (!P.act && P.moving)) P.anim = null; }
 }
 const clsOnHurt = dmg => (clsRT() ? clsRT().onHurt(dmg) : dmg);
+// 元素(メイジの元素循環)。通常攻撃・E の攻撃1回ごとに次の属性を返す。元素を持たないクラスは null
+const clsNextEl = () => (clsRT() && clsRT().nextEl ? clsRT().nextEl() : null);
+function clsOnElement(e, el, dealt) { if (clsRT() && clsRT().onElement) clsRT().onElement(e, el, dealt); }
 function clsOnMainHit(e) { if (clsRT()) clsRT().onMainHit(e); }
 function clsOnKill(e) { if (clsRT() && clsRT().onKill) clsRT().onKill(e); }
 

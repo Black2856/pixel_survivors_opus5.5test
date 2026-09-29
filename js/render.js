@@ -345,6 +345,10 @@ function render() {
       sx.globalAlpha = 0.8 * fade; pCircle(sx, zx, zy, Math.round(z.r), '#ffffff', 2); sx.globalAlpha = 1;
       gx.globalAlpha = 0.25 * fade; pCircle(gx, zx, zy, Math.round(z.r), '#bff4ff'); gx.globalAlpha = 1;
       addLight(z.x, z.y, z.r * 2.2, '#7ad7ff', 0.6 * fade);
+    } else if (z.kind === 'residue') {
+      sx.globalAlpha = 0.28 * fade; pDisc(sx, zx, zy, Math.round(z.r), '#bff4ff');
+      sx.globalAlpha = 0.7 * fade; pCircle(sx, zx, zy, Math.round(z.r), '#ffffff', 1); sx.globalAlpha = 1;
+      addLight(z.x, z.y, z.r * 2, '#7ad7ff', 0.5 * fade);
     } else if (z.kind === 'hole') {
       const R = Math.round(z.r * Math.min(1, z.t * 5) * (0.35 + 0.05 * Math.sin(t * 20)));
       pDisc(sx, zx, zy, R + 3, '#6a3aa0'); pDisc(sx, zx, zy, R, '#05020a');

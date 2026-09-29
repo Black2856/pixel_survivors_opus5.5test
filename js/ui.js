@@ -244,7 +244,8 @@ const UI = (() => {
       if (d >= 8.5 && d < 10.5 && res) { // ゲージ(上から時計回り)
         const u = ((a + Math.PI / 2) / TAU + 1) % 1;
         const on = u < frac, pulse = full && Math.floor(pt * 5) % 2;
-        px(x, y, on ? (pulse ? '#ffffff' : d >= 9.5 ? cc : '#a0122a') : '#241c3a');
+        if (res.seg && Math.abs(u * res.max - Math.round(u * res.max)) < 0.05) { px(x, y, '#0f0b1c'); continue; } // 区切り(魔力結晶など)
+        px(x, y, on ? (pulse ? '#ffffff' : d >= 9.5 ? cc : res.dk || '#a0122a') : '#241c3a');
         continue;
       }
       px(x, y, '#0f0b1c');

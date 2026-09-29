@@ -213,6 +213,7 @@ function aimAt(maxD) {
 // アーケインレイの旋回性能(rad/s)。以前の既定値 4 の 20%
 const ARCANE_TURN = 0.8;
 function fire(kind, x, y, ang, spd, o) {
+  if (o.src === P.mainW && o.el === undefined) o.el = clsNextEl(); // 通常攻撃の1発ごとに属性(メイジ)
   projs.push(Object.assign({ kind, x, y, vx: Math.cos(ang) * spd, vy: Math.sin(ang) * spd, ang, t: 0, life: 1.5, r: 3, pierce: 0, hit: new Set() }, o));
 }
 
@@ -394,13 +395,13 @@ function spawnHole(x, y, st, evo) {
 }
 
 function doSlash(a, st, evo, flip) {
-  const R = st.aoe * P.area;
+  const R = st.aoe * P.area, el = clsNextEl(); // 斬撃1回 = 1属性(メイジ)
   slashes.push({ x: P.x, y: P.y, a, r: R, t: 0, life: 0.2, flip, evo });
   forEachNear(P.x, P.y, R, e => {
     let diff = Math.atan2(e.y - P.y, e.x - P.x) - a;
     diff = Math.atan2(Math.sin(diff), Math.cos(diff));
     if (Math.abs(diff) > 1.05) return;
-    hitEnemy(e, st.dmg, { src: 'katana', ang: a, kb: 55, col: '#ff8a9a' });
+    hitEnemy(e, st.dmg, { src: 'katana', ang: a, kb: 55, col: '#ff8a9a', el });
   });
   // 鬼神・村正: 斬撃の後に飛ぶ斬撃波(威力50%・貫通)
   if (evo) setTimeout(() => { if (state === 'play') fire('wave', P.x, P.y, a, 170, { dmg: st.dmg * 0.5, pierce: 999, life: 0.55, src: 'katana', r: 9, col: '#ff5d73' }); }, 90);
@@ -436,7 +437,7 @@ function updProjs(dt) {
       if (p.hit.has(e.id)) return;
       p.hit.add(e.id);
       const ang = Math.atan2(p.vy, p.vx);
-      hitEnemy(e, p.dmg, { src: p.src, ang, kb: p.kind === 'axe' ? 50 : 22, col: p.col });
+      hitEnemy(e, p.dmg, { src: p.src, ang, kb: p.kind === 'axe' ? 50 : 22, col: p.col, el: p.el });
       if (p.burn) { e.burn = Math.max(e.burn || 0, p.burn); e.burnT = 3; }
       if (p.boom > 0) {
         p.boom--;
@@ -474,6 +475,12 @@ function updZones(dt) {
           e.frost = Math.min(10, (e.frost || 0) + 1); e.frostT = 5;
         });
       }
+    } else if (z.kind === 'residue') { // ブリンクの氷の残滓: 触れた敵に凍傷
+      if (Math.random() < dt * 20) part(z.x + rand(-z.r, z.r), z.y + rand(-z.r, z.r) * 0.6, 0, -10, 0.5, pick(['#bff4ff', '#ffffff']), { glow: true });
+      if (z.tick <= 0) {
+        z.tick = 0.3;
+        forEachNear(z.x, z.y, z.r, e => { if (!e.prop) { e.frost = Math.max(e.frost || 0, Math.min(mageFrostCap(), (e.frost || 0) + 1)); e.frostT = 5; } });
+      }
     } else if (z.kind === 'hole') {
       const R = z.r * Math.min(1, z.t * 5);
       forEachNear(z.x, z.y, R * 1.6, e => {
@@ -484,7 +491,7 @@ function updZones(dt) {
       });
       if (z.tick <= 0) {
         z.tick = 0.1;
-        forEachNear(z.x, z.y, R, e => { hitEnemy(e, z.dmg, { src: 'bhole', noNum: Math.random() < 0.75, col: '#c78bff' }); });
+        if (z.dmg) forEachNear(z.x, z.y, R, e => { hitEnemy(e, z.dmg, { src: 'bhole', noNum: Math.random() < 0.75, col: '#c78bff' }); }); // 特異点は引き寄せだけ
       }
       for (let k = 0; k < 3; k++) {
         const a = rand(0, TAU), r = R * rand(1, 1.6);
@@ -515,6 +522,7 @@ function hitEnemy(e, base, o = {}) {
   dmg = Math.max(1, Math.round(dmg * rand(0.9, 1.1)));
   e.hp -= dmg; e.flash = 0.08;
   if (o.src && o.src === P.mainW) clsOnMainHit(e); // 通常攻撃(メイン武器)の命中
+  if (o.el) clsOnElement(e, o.el, dmg);             // 属性(メイジの元素循環)
   S.totalDmg += dmg;
   if (o.src) S.dmgBy[o.src] = (S.dmgBy[o.src] || 0) + dmg;
   if (o.kb && o.ang !== undefined && !e.boss) {
@@ -619,7 +627,7 @@ function updEnemies(dt) {
     // 状態異常
     if (e.burnT > 0) {
       e.burnT -= dt; e.burnTick -= dt;
-      if (e.burnTick <= 0) { e.burnTick = 0.5; hitEnemy(e, e.burn * 0.5, { src: 'fire', noCrit: true, col: '#ff8a3d', noNum: Math.random() < 0.5 }); if (e.dead) continue; }
+      if (e.burnTick <= 0) { e.burnTick = 0.5; hitEnemy(e, e.burn * 0.5, { src: e.burnSrc || 'fire', noCrit: true, col: '#ff8a3d', noNum: Math.random() < 0.5 }); if (e.dead) continue; }
       if (Math.random() < dt * 12) part(e.x + rand(-3, 3), e.y + rand(-3, 3), 0, -20, 0.4, pick(['#ff6a2a', '#ffc34a']), { glow: true });
     }
     if (e.frostT > 0) { e.frostT -= dt; if (e.frostT <= 0) e.frost = 0; }
@@ -638,7 +646,7 @@ function updEnemies(dt) {
     if (e.stun > 0) { e.stun -= dt; continue; }
     if (e.boss) { bossAI(e, dt); }
     else {
-      const slow = (1 - 0.04 * e.frost) * (e.slowT > 0 ? 0.6 : 1);
+      const slow = Math.max(0.2, 1 - DATA.debuff.frostSlow * (e.frost || 0)) * (e.slowT > 0 ? 0.6 : 1); // 凍傷
       const sp = e.spd * slow;
       const dc = S.decoy && d2(e.x, e.y, S.decoy.x, S.decoy.y) < 200 * 200 ? S.decoy : P; // 空蝉の分身
       const a = Math.atan2(dc.y - e.y, dc.x - e.x);

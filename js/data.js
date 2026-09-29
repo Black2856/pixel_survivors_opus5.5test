@@ -35,7 +35,7 @@ const DATA = {
     cdragon: { name: 'カオスドラゴン CHAOS DRAGON', hp: 2000, spd: 20, dmg: 28, r: 16, music: 'boss3', col: '#ff4a8a', enrage: 0.4 },
   },
   // 状態異常(プレイヤー): 粘液・スロウタイムの移動速度倍率 / スロウタイムのCD回復倍率 / 炎上
-  debuff: { slow: 0.6, cdRate: 0.5, burnTick: 0.5, burnDur: 3 },
+  debuff: { slow: 0.6, cdRate: 0.5, burnTick: 0.5, burnDur: 3, frostSlow: 0.05 }, // frostSlow: 敵の凍傷1スタックあたりの減速
   // 敵の出血: 1スタックごとに毎秒 最大HP × bleedPct(ボス ×bleedBoss・エリート ×bleedElite)、bleedDur 秒
   bleed: { pct: 0.002, dur: 5, boss: 0.1, elite: 0.25 },
 
@@ -300,7 +300,32 @@ const DATA = {
     },
     mage: {
       name: 'メイジ', en: 'MAGE', weapon: 'bolt', col: '#7ad7ff', light: '#cfeeff',
-      base: { hp: 80, sta: 90, staRegen: 24, spd: -0.03, area: 0.1, range: 0.1, cd: 0.05, crit: 0.05, critDmg: 1.0, xp: 0.05, magnet: 0.15, wslot: 4, reroll: 2 },
+      base: { hp: 90, sta: 90, staRegen: 24, spd: -0.05, area: 0.1, range: 0.1, cd: 0.05, crit: 0.05, critDmg: 1.0, magnet: 0.1, wslot: 4, reroll: 2 },
+      // 元素循環: 通常攻撃・E の攻撃1回ごとに 炎 → 氷 → 雷
+      //   炎: 与えたダメージの burnPct を burnDur 秒かけて / 氷: 凍傷 +1(上限 frostCap)/ 雷: 近く(chainR)の敵 chainN 体へ chainPct
+      // 共鳴: 2属性を持つ敵に3属性目 → 爆発(基礎威力 resoPow・半径 resoR)して属性リセット。魔力結晶 +1(最大 crystalMax)
+      // 魔力循環: 通常攻撃の命中ごとに E / Q の CD -flowCut 秒(1秒あたり flowCap 秒まで)
+      // ブリンク: 移動方向へ blinkDist 瞬間移動、無敵 blinkIfr 秒、スタミナ blinkCost。出発地点に氷の残滓(residueT 秒・半径 residueR。触れた敵に凍傷)
+      params: {
+        burnPct: 0.2, burnDur: 3, frostCap: 5, chainPct: 0.3, chainN: 1, chainR: 60,
+        resoPow: 30, resoR: 30, crystalMax: 5,
+        flowCut: 0.05, flowCap: 0.5,
+        blinkDist: 70, blinkIfr: 0.15, blinkCost: 60, residueT: 1.5, residueR: 14,
+      },
+      // 属性強化の Lv ごとの値: 炎上 +10%/Lv(倍率)・凍傷上限 elFrost・連鎖 +1体/Lv
+      elFrost: [2, 4, 5],
+      tree: {
+        trait: { name: '元素循環', paths: {
+          el: { name: '属性強化', desc: ['炎上 +10%・凍傷上限 +2・連鎖 +1体', '炎上 +20%・凍傷上限 +4・連鎖 +2体', '炎上 +30%・凍傷上限 +5・連鎖 +3体'], v: [1, 2, 3], sp: { name: '三重詠唱', desc: '15% の確率で、1発が3属性すべてを持つ' } },
+          rpow: { name: '共鳴威力', desc: ['共鳴の威力 +25%', '共鳴の威力 +50%', '共鳴の威力 +75%'], v: [0.25, 0.5, 0.75], sp: { name: '連鎖共鳴', desc: '共鳴に巻き込まれた敵にも、ランダムな属性を1つ付与する' } },
+          rarea: { name: '共鳴範囲', desc: ['共鳴の半径 +15%', '共鳴の半径 +30%', '共鳴の半径 +45%'], v: [0.15, 0.3, 0.45], sp: { name: '特異点', desc: '共鳴した地点に、2秒間敵を引き寄せる渦を作る' } },
+        } },
+        passive: { name: '魔力循環', paths: {
+          flow: { name: '循環', desc: ['CD の短縮量 +0.01秒', 'CD の短縮量 +0.02秒', 'CD の短縮量 +0.03秒'], v: [0.01, 0.02, 0.03], sp: { name: 'オーバーフロー', desc: 'E か Q の CD が 0 の状態で命中すると、次のスキルの威力 +5%(最大 +50%)' } },
+          cap: { name: '容量', desc: ['1秒あたりの上限 +0.1秒', '1秒あたりの上限 +0.3秒', '1秒あたりの上限 +0.5秒'], v: [0.1, 0.3, 0.5], sp: { name: '瞑想', desc: '3秒間被弾しないと、HP 2/s で回復し続ける' } },
+          echo: { name: '余韻', desc: ['スキル使用後5秒、攻撃速度 +10%', 'スキル使用後5秒、攻撃速度 +20%', 'スキル使用後5秒、攻撃速度 +30%'], v: [0.1, 0.2, 0.3], sp: { name: '詠唱加速', desc: 'スキル使用後5秒、弾数 +2(近接武器では攻撃回数 +2)' } },
+        } },
+      },
       lv: {
         2: { d: '最大HP +10', st: { hp: 10 } },
         13: { d: '射程 +10%、魔力結晶の上限 +1', st: { range: 0.1 }, fx: { crystalMax: 1 } },
