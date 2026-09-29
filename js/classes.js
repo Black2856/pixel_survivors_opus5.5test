@@ -101,6 +101,7 @@ WEAPON_SKILL.bolt = {
       `詠唱 ${sk.windup}秒(動けない)→ ${sk.dur}秒間、照準方向へ毎秒 ${sk.rate}発の魔弾を連射`,
       `1発の威力: 武器の威力 × ${Math.round(sk.pow * 100)}%`,
       `連射中は移動速度 ×${sk.slow}`,
+      '魔弾は通常攻撃と同じ弾速・貫通(進化後は追尾も)',
       'E の攻撃なので、クラスの「攻撃1回ごと」の効果が1発ごとに起きる',
     ], rows: [
       ['CD', `<b>${(sk.cd * (1 - c.cuV('e', 'cd')) * (1 - (m.cd || 0)) * c.cdMul).toFixed(1)}</b> 秒`],
@@ -115,6 +116,7 @@ WEAPON_SKILL.bolt = {
     skillCall(sk.name, '#b98bff'); AudioMan.click();
     if (hasSp('e', 'cd')) { P.orb = Object.assign(o, { t: 5, shotT: 0 }); burst(P.x, P.y, 20, ['#b98bff', '#ffffff'], { sp: 60, glow: true }); return; } // オーブ
     P.act = o;
+    if (hasSp('e', 'dur')) gainShield(P.maxhp * sk.shield); // 魔力障壁
     playAnim('mBarrage', MOTIONS.mBarrage.duration(o.dur), o.dur);
     addRing(P.x, P.y, 20, '#b98bff', { w: 2, life: 0.4 });
   },
@@ -126,7 +128,7 @@ WEAPON_SKILL.bolt = {
       if (a.t >= sk.windup) { a.ph = 'fire'; a.t0 = a.t; }
       return;
     }
-    P.moveMul *= sk.slow;
+    if (!hasSp('e', 'dur')) P.moveMul *= sk.slow; // 魔力障壁: 移動速度ペナルティなし
     a.shotT -= dt;
     while (a.shotT <= 0) { a.shotT += 1 / sk.rate; barrageShot(a, P.x, P.y, aimDir(220)); }
     if (a.t - a.t0 >= a.dur) {
@@ -151,11 +153,16 @@ WEAPON_SKILL.bolt = {
     if (o.t <= 0) P.orb = null;
   },
 };
-// バラージュの1発(弾幕: 3発に分かれて各 -40%)。E の攻撃なので1発ごとに属性が変わる
+// シールド: 被ダメージを HP より先に受ける(最大HP を超えない。時間では消えない)
+function gainShield(n) {
+  P.shield = Math.min(P.maxhp, Math.max(P.shield || 0, n));
+  addRing(P.x, P.y, 16, '#4f8ff0', { w: 2, life: 0.35 }); burst(P.x, P.y, 14, ['#9fd8ff', '#4f8ff0', '#ffffff'], { sp: 60, glow: true });
+  S.hudDirty = true;
+}
+// バラージュの1発: 通常攻撃(メイン武器)と同じ弾速・貫通・追尾。E の攻撃なので1発ごとに属性が変わる
 function barrageShot(a, x, y, ang) {
-  const sk = DATA.weapons.bolt.skill, dmg = wst(P.mainW).dmg * sk.pow * (1 + cuV('e', 'pow')) * a.pow, split = hasSp('e', 'dur'), el = clsNextEl();
-  const n = split ? 3 : 1, spread = rand(-0.12, 0.12);
-  for (let i = 0; i < n; i++) fire('bolt', x, y, ang + spread + (i - (n - 1) / 2) * 0.16, sk.speed, { dmg: split ? dmg * 0.6 : dmg, pierce: 0, life: 1.1, src: 'barrage', col: '#b98bff', r: 3, el, focus: hasSp('e', 'pow') ? a.id : 0 });
+  const sk = DATA.weapons.bolt.skill, w = P.weapons[P.mainW], st = wst(P.mainW), dmg = st.dmg * sk.pow * (1 + cuV('e', 'pow')) * a.pow, el = clsNextEl();
+  fire('bolt', x, y, ang + rand(-0.12, 0.12), st.speed || 200, { dmg, pierce: st.pierce || 0, life: 1.3, src: 'barrage', col: '#b98bff', r: 3, el, home: w.evo, homing: w.evo ? ARCANE_TURN : 0, focus: hasSp('e', 'pow') ? a.id : 0 });
   if (Math.random() < 0.5) part(x + Math.cos(ang) * 6, y + Math.sin(ang) * 6, Math.cos(ang) * 60, Math.sin(ang) * 60, 0.2, '#ffffff', { glow: true });
   AudioMan.shoot();
 }
@@ -368,7 +375,7 @@ const CLASS_RT = {
       P.flowT -= dt; if (P.flowT <= 0) { P.flowT = 1; P.flowWin = 0; } // 魔力循環の1秒ごとの上限
       P.echoT -= dt; P.calmT += dt;
       P.atkSpd = 1 + (P.echoT > 0 ? cuV('passive', 'echo') : 0);                                   // 余韻
-      P.shots = Math.round(P.stats.v.shots || 0) + (hasSp('passive', 'echo') && P.echoT > 0 ? 2 : 0); // 詠唱加速
+      P.shots = Math.round(P.stats.v.shots || 0) + (hasSp('passive', 'echo') && P.echoT > 0 ? 1 : 0); // 詠唱加速
       if (hasSp('passive', 'cap') && P.calmT >= 3 && P.hp < P.maxhp) P.hp = Math.min(P.maxhp, P.hp + 2 * dt); // 瞑想
       // ブリンク(Space を押した瞬間)
       const held = (keys.Space || keys.TouchDef) && !P.act;
@@ -403,7 +410,7 @@ const CLASS_RT = {
     res: () => ({ kind: 'crystal', label: '魔力結晶', v: P.crystal, max: P.crystalMax, seg: true, dk: '#1d4a7a' }),
     statuses() {
       const out = [], e = cuV('passive', 'echo'), sp = hasSp('passive', 'echo');
-      if (P.echoT > 0 && (e || sp)) out.push({ id: 'echo', glyph: '韻', name: sp ? '詠唱加速' : '余韻', fx: (e ? `攻撃速度 +${Math.round(e * 100)}%` : '') + (sp ? ' 弾数 +2' : ''), t: P.echoT, max: 5, kind: 'buff' });
+      if (P.echoT > 0 && (e || sp)) out.push({ id: 'echo', glyph: '韻', name: sp ? '詠唱加速' : '余韻', fx: (e ? `攻撃速度 +${Math.round(e * 100)}%` : '') + (sp ? ' 弾数 +1' : ''), t: P.echoT, max: 5, kind: 'buff' });
       if (P.ovf > 0) out.push({ id: 'ovf', glyph: '溢', name: 'オーバーフロー', fx: `次のスキルの威力 +${Math.round(P.ovf * 100)}%`, kind: 'buff' });
       if (hasSp('passive', 'cap') && P.calmT >= 3) out.push({ id: 'calm', glyph: '瞑', name: '瞑想', fx: 'HP 2/s で回復', kind: 'buff' });
       return out;
@@ -561,7 +568,7 @@ function mageResonate(e, depth) {
     burst(x, y, 16, ['#ff8a3d', '#9ff7ff', '#ffe14a', '#ffffff'], { sp: 110, glow: true, life: 0.4 });
     shake(1.5);
   });
-  if (hasSp('trait', 'rarea')) zones.push({ kind: 'hole', x, y, r: R * 0.8, t: 0, dur: 2, tick: 0, dmg: 0, pull: 90 }); // 特異点
+  if (hasSp('trait', 'rarea')) zones.push({ kind: 'hole', x, y, r: R * 0.8, t: 0, dur: 1, tick: 0, dmg: 0, pull: 90 }); // 特異点
   if (P.crystal < P.crystalMax) {
     P.crystal++;
     part(x, y, (P.x - x) * 2, (P.y - y) * 2, 0.5, '#9ff7ff', { glow: true, sz: 2, drag: 0 });
@@ -638,13 +645,13 @@ function meteorImpact(m) {
   const R = m.R;
   if (hasSp('q', 'pow')) for (let i = 0; i < 5; i++) { // メテオスウォーム
     const a = rand(0, TAU), r = rand(R * 0.5, R * 1.3);
-    P.meteors.push({ x: m.x + Math.cos(a) * r, y: m.y + Math.sin(a) * r, t: 0, fall: 0.25, delay: 0.08 * (i + 1), R: 24 * P.area, dmg: 80, big: 0.6 });
+    P.meteors.push({ x: m.x + Math.cos(a) * r, y: m.y + Math.sin(a) * r, t: 0, fall: 0.25, delay: 0.08 * (i + 1), R: 24 * P.area, dmg: 50, big: 0.6 });
   }
   if (hasSp('q', 'cd')) for (let i = 0; i < 6; i++) setTimeout(() => { // 審判
     if (state !== 'play') return;
     const a = rand(0, TAU), r = rand(0, R), x = m.x + Math.cos(a) * r, y = m.y + Math.sin(a) * r;
     asMine(() => {
-      forEachNear(x, y, 24 * P.area, e => { if (!e.prop) hitEnemy(e, 60, { src: 'meteor', col: '#fff27a' }); });
+      forEachNear(x, y, 24 * P.area, e => { if (!e.prop) hitEnemy(e, 50, { src: 'meteor', col: '#fff27a' }); });
       bolts.push({ x0: x + rand(-20, 20), y0: cam.y - 10, x1: x, y1: y, t: 0, life: 0.22, w: 2 });
       addFlash(x, y, 60, '#fff27a', 0.25); addRing(x, y, 24 * P.area, '#fff27a', { life: 0.3 });
     });

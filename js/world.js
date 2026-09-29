@@ -31,7 +31,7 @@ function initRun(mode = 'normal', stageNo = 1) {
   P = {
     cls: META.cls, mainW: META.classes[META.cls].weapon, micro: {}, lvFx: classLvFx(META.cls), wm: {}, x: 0, y: 0, hp: 0, maxhp: 100, level: 1, xp: 0, xpNext: xpFor(1), weapons: {},
     ifr: 0, facing: 1, animT: 0, moving: false, hurtT: 0, dead: false,
-    slowT: 0, cdSlowT: 0, burnT: 0, burnDmg: 0, burnTick: 0,
+    slowT: 0, cdSlowT: 0, burnT: 0, burnDmg: 0, burnTick: 0, shield: 0,
   };
   enemies = []; projs = []; eprojs = []; gems = []; drops = []; props = []; hazards = [];
   parts = []; floats = []; rings = []; zones = []; slashes = []; bolts = []; warns = []; flashes = [];
@@ -152,6 +152,15 @@ function hurtPlayer(dmg) {
   const r = clsOnHurt(dmg); // ガードなどでクラスが受けきった場合は null
   if (r === null) { S.hudDirty = true; return; }
   dmg = Math.max(1, Math.round((r - P.armor) * (1 - P.dr)));
+  // シールドが先に受ける
+  if (P.shield > 0) {
+    const a = Math.min(P.shield, dmg);
+    P.shield -= a; dmg -= a; S.hudDirty = true;
+    addFloat(P.x, P.y - 10, String(a), '#7ab8ff', 1);
+    burst(P.x, P.y, 8, ['#9fd8ff', '#4f8ff0', '#ffffff'], { sp: 60, glow: true, life: 0.3 });
+    if (P.shield <= 0) { addRing(P.x, P.y, 20, '#4f8ff0', { w: 2, life: 0.3 }); AudioMan.hit(); } // 割れた
+    if (dmg <= 0) { P.ifr = P.iframe; AudioMan.hit(); return; }
+  }
   P.hp -= dmg; P.ifr = P.iframe; P.hurtT = 0.12;
   if (P.uq.adversity) P.sta = Math.min(P.maxSta, P.sta + dmg);
   breakCombo();
@@ -239,12 +248,6 @@ function updWeapons(dt) {
             const o = { dmg: st.dmg, pierce: st.pierce, life: 1.5, src: k, home: w.evo, homing: w.evo ? ARCANE_TURN : 0, col: w.evo ? '#ff9bf5' : '#7ad7ff', r: 3 };
             fire('bolt', P.x, P.y, a, st.speed, o);
           }
-          // アーケインレイ: 5発ごとに貫通無限の大魔弾(威力 ×300%)
-          if (w.evo && Math.floor(((w.shotN || 0) + n) / 5) > Math.floor((w.shotN || 0) / 5)) {
-            fire('bolt', P.x, P.y, base, st.speed * 1.2, { dmg: st.dmg * 3, pierce: 999, life: 2, src: k, col: '#ff9bf5', r: 7, big: true });
-            addFlash(P.x, P.y, 50, '#ff9bf5', 0.25); shake(2);
-          }
-          w.shotN = (w.shotN || 0) + n;
           burst(P.x + Math.cos(base) * 6, P.y + Math.sin(base) * 6, 4, ['#7ad7ff', '#ffffff'], { sp: 40, glow: true, life: 0.25 });
           AudioMan.shoot();
         }

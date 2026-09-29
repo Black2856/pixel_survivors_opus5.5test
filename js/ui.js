@@ -162,6 +162,7 @@ const UI = (() => {
     if (P.slowT > 0 && P.cdSlowT <= 0) out.push({ id: 'slow', glyph: '鈍', name: '鈍足', fx: `移動速度 -${Math.round((1 - d.slow) * 100)}%`, t: P.slowT, kind: 'debuff' });
     if (P.cdSlowT > 0) out.push({ id: 'cdslow', glyph: '遅', name: 'スロウタイム', fx: `移動 -${Math.round((1 - d.slow) * 100)}% CD回復 -${Math.round((1 - d.cdRate) * 100)}%`, t: P.cdSlowT, kind: 'debuff' });
     if (P.burnT > 0) out.push({ id: 'burn', glyph: '炎', name: '炎上', fx: `毎${d.burnTick}秒 ${Math.round(P.burnDmg)} ダメージ`, t: P.burnT, max: d.burnDur, kind: 'debuff' });
+    if (P.shield > 0) out.push({ id: 'shield', glyph: '盾', name: 'シールド', fx: `${Math.ceil(P.shield)} のダメージを先に受ける`, kind: 'buff' });
     if (P.uq.phoenix && !P.revived) out.push({ id: 'phoenix', glyph: '鳳', name: '不死鳥の加護', fx: '一度だけ蘇生', kind: 'buff' });
     return out;
   }
@@ -215,7 +216,17 @@ const UI = (() => {
 
     // HP バー: 被弾は白が遅れて減る / 回復は緑に光る / 30% 以下は点滅
     const hpC = healT > 0 ? ['#c8ffd8', '#5dff8a', '#2a9a52'] : low && Math.floor(pt * 6) % 2 ? ['#ffc0b8', '#ff5a4a', '#b0302a'] : ['#ff8a78', '#d8473b', '#9a2a24'];
-    bar(32, 170, 15, 5, 12, (i, r, L) => i < k * L ? (r === 0 ? hpC[0] : r === 4 ? hpC[2] : hpC[1]) : i < hpLag * L ? '#e8e4f0' : null);
+    // シールド: HP ゲージの左から重ねる青いゲージ(上が濃く下が薄い)。走査線と流れる格子のテクノロジー風の光
+    const sh = clamp((P.shield || 0) / P.maxhp, 0, 1), SHC = ['#1c3fb8', '#2f63e0', '#4f8ff0', '#7ab8ff', '#b0dcff'];
+    bar(32, 170, 15, 5, 12, (i, r, L) => {
+      if (sh > 0 && i < sh * L) {
+        const scan = Math.abs(i - ((pt * 60) % (L + 24) - 12)) < 1.5;         // 左から右へ流れる走査線
+        const grid = (i + r * 3 + Math.floor(pt * 12)) % 9 === 0;              // 斜めに流れる格子の点
+        const edge = i >= sh * L - 1 && Math.floor(pt * 8) % 2;                // 右端が明滅
+        return scan || edge ? '#e8f8ff' : grid ? '#9fe8ff' : SHC[r];
+      }
+      return i < k * L ? (r === 0 ? hpC[0] : r === 4 ? hpC[2] : hpC[1]) : i < hpLag * L ? '#e8e4f0' : null;
+    });
     // スタミナバー: 回復停止中は灰色の縞が流れる / ガードブレイク中は赤く点滅
     const sk = clamp(P.sta / P.maxSta, 0, 1), lock = P.staLockT > 0, brk = clsStaBroken();
     bar(32, 160, 27, 3, 9, (i, r, L) => {
