@@ -93,18 +93,24 @@ const UI = (() => {
   // 右端: 枠の上下が 45 度で閉じて尖る → 少し離してひし形の飾り → 縁取り付きの細い穂先
   // 行数(ih + 4)は奇数にする(先端が1ドットで上下対称になる)
   // ゲージの長さ L は、本体に先端の内側(枠が閉じていく部分)を足した列数。fill(i, r, L) で i < 割合 × L を塗る
-  function bar(x0, x1, top, ih, spear, fill) {
+  // over(i, r, L): 中身の上に半透明で重ねる色 [[色, 不透明度], ...](シールドなど)
+  function bar(x0, x1, top, ih, spear, fill, over) {
+    const lay = (x, y, i, r, L) => { const o = over && over(i, r, L); if (o) for (const [c, a] of o) { pc.globalAlpha = a; px(x, y, c); } pc.globalAlpha = 1; };
     const rows = ih + 4, bot = top + rows - 1, mid = top + (rows - 1) / 2, hr = (rows - 1) / 2;
     const L = (x1 - x0 + 1) + (ih - 1) / 2;
     for (let x = x0 - 1; x <= x1; x++) {
       px(x, top, PC.out); px(x, bot, PC.out);
       if (x < x0) { for (let y = top + 1; y < bot; y++) px(x, y, PC.out); continue; }
       px(x, top + 1, PC.lt); px(x, bot - 1, PC.dk);
-      for (let r = 0; r < ih; r++) px(x, top + 2 + r, fill(x - x0, r, L) || PC.bg);
+      for (let r = 0; r < ih; r++) { px(x, top + 2 + r, fill(x - x0, r, L) || PC.bg); lay(x, top + 2 + r, x - x0, r, L); }
     }
     for (let i = 1; i <= hr; i++) { // 尖った先端(枠の線が斜めに閉じる)。内側もゲージとして塗る
       const x = x1 + i, y0 = top + i, y1 = bot - i;
-      for (let y = y0; y <= y1; y++) px(x, y, y === y0 || y === y1 ? PC.out : y === y0 + 1 ? PC.lt : y === y1 - 1 ? PC.dk : fill(x - x0, y - top - 2, L) || PC.bg);
+      for (let y = y0; y <= y1; y++) {
+        const edge = y === y0 || y === y1 || y === y0 + 1 || y === y1 - 1;
+        px(x, y, y === y0 || y === y1 ? PC.out : y === y0 + 1 ? PC.lt : y === y1 - 1 ? PC.dk : fill(x - x0, y - top - 2, L) || PC.bg);
+        if (!edge) lay(x, y, x - x0, y - top - 2, L);
+      }
     }
     const sx = x1 + hr + 1, ex = sx + spear; // 穂先の線(上下に縁取り)
     for (let x = sx; x <= ex; x++) {
@@ -126,7 +132,7 @@ const UI = (() => {
     0: '.##.#..##..##..##..##..#.##.', 1: '.#..##...#...#...#...#..###.', 2: '.##.#..#...#..#..#..#...####',
     3: '###....#...#.##....#...####.', 4: '#..##..##..#####...#...#...#', 5: '#####...###....#...##..#.##.',
     6: '.##.#...#...###.#..##..#.##.', 7: '####...#..#...#..#...#...#..', 8: '.##.#..##..#.##.#..##..#.##.',
-    9: '.##.#..##..#.###...#...#.##.', '/': '...#...#..#...#..#..#...#...',
+    9: '.##.#..##..#.###...#...#.##.', '/': '...#...#..#...#..#..#...#...', '+': '.....#...#..###..#...#......',
   };
   const digCache = new Map();
   // parts: [[文字列, 色], ...] を1枚に並べる(1文字 5 ドット送り)
@@ -152,8 +158,8 @@ const UI = (() => {
     return cv;
   }
   // 「現在値/最大値」を右端 right・下端 bottom(ドット座標)に揃えて描く。数字の下端 = ゲージの色の一番下の行
-  function gaugeNum(cur, max, right, bottom) {
-    const img = digImg([[String(cur), '#ffffff'], ['/' + max, '#b9c6de']]);
+  function gaugeNum(cur, max, right, bottom, shield = 0) {
+    const img = digImg([[String(cur), '#ffffff'], ...(shield > 0 ? [['+' + shield, '#7ab8ff']] : []), ['/' + max, '#b9c6de']]); // シールドは青で「+量」
     pc.drawImage(img, right - (img.width - 2), bottom - 7);
   }
   // 状態の札: クラスの状態 + ボス由来の状態異常 + 装備の効果。種類が変わったときだけ作り直し、毎フレーム残り時間を更新する
@@ -217,16 +223,19 @@ const UI = (() => {
     // HP バー: 被弾は白が遅れて減る / 回復は緑に光る / 30% 以下は点滅
     const hpC = healT > 0 ? ['#c8ffd8', '#5dff8a', '#2a9a52'] : low && Math.floor(pt * 6) % 2 ? ['#ffc0b8', '#ff5a4a', '#b0302a'] : ['#ff8a78', '#d8473b', '#9a2a24'];
     // シールド: HP ゲージの左から重ねる青いゲージ(上が濃く下が薄い)。走査線と流れる格子のテクノロジー風の光
-    const sh = clamp((P.shield || 0) / P.maxhp, 0, 1), SHC = ['#1c3fb8', '#2f63e0', '#4f8ff0', '#7ab8ff', '#b0dcff'];
-    bar(32, 170, 15, 5, 12, (i, r, L) => {
-      if (sh > 0 && i < sh * L) {
-        const scan = Math.abs(i - ((pt * 60) % (L + 24) - 12)) < 1.5;         // 左から右へ流れる走査線
-        const grid = (i + r * 3 + Math.floor(pt * 12)) % 9 === 0;              // 斜めに流れる格子の点
-        const edge = i >= sh * L - 1 && Math.floor(pt * 8) % 2;                // 右端が明滅
-        return scan || edge ? '#e8f8ff' : grid ? '#9fe8ff' : SHC[r];
-      }
-      return i < k * L ? (r === 0 ? hpC[0] : r === 4 ? hpC[2] : hpC[1]) : i < hpLag * L ? '#e8e4f0' : null;
-    });
+    // 下の行ほど透明にして、下の HP が透けて見えるようにする
+    const sh = clamp((P.shield || 0) / P.maxhp, 0, 1), SHC = ['#1c3fb8', '#2f63e0', '#3f7ff0', '#5a9cff', '#7ab8ff'], SHA = [0.95, 0.8, 0.62, 0.45, 0.3];
+    const scanX = (pt * 50) % (170 + 40) - 20; // 左から右へ流れる走査線の中心
+    bar(32, 170, 15, 5, 12, (i, r, L) => i < k * L ? (r === 0 ? hpC[0] : r === 4 ? hpC[2] : hpC[1]) : i < hpLag * L ? '#e8e4f0' : null,
+      (i, r, L) => {
+        if (!(sh > 0 && i < sh * L)) return null;
+        const out = [[SHC[r], SHA[r]]];
+        const g = Math.max(0, 1 - Math.abs(i - scanX) / 10); // 走査線: 中心から左右へなだらかに消える光
+        if (g > 0) out.push(['#cfefff', g * g * 0.85 * (0.5 + SHA[r] * 0.5)]);
+        if ((i + r * 3 + Math.floor(pt * 12)) % 9 === 0) out.push(['#9fe8ff', 0.55 * SHA[r] + 0.2]); // 斜めに流れる格子の点
+        if (i >= sh * L - 1) out.push(['#e8f8ff', 0.4 + 0.4 * Math.sin(pt * 12)]);                   // 右端がゆっくり明滅
+        return out;
+      });
     // スタミナバー: 回復停止中は灰色の縞が流れる / ガードブレイク中は赤く点滅
     const sk = clamp(P.sta / P.maxSta, 0, 1), lock = P.staLockT > 0, brk = clsStaBroken();
     bar(32, 160, 27, 3, 9, (i, r, L) => {
@@ -236,7 +245,7 @@ const UI = (() => {
       return r === 0 ? '#c8fff0' : '#4fc8a0';
     });
     // 数値: 数字の下端をゲージの色の一番下の行に揃える(4×7 ドットで、上に少しはみ出す)
-    gaugeNum(Math.ceil(Math.max(0, P.hp)), P.maxhp, 166, 21);
+    gaugeNum(Math.ceil(Math.max(0, P.hp)), P.maxhp, 166, 21, Math.ceil(P.shield || 0));
     gaugeNum(Math.floor(P.sta), Math.round(P.maxSta), 156, 31);
 
     // 円環: 銀の帯 + 回り続ける光 + 内側にクラスリソースのゲージ

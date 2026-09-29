@@ -75,7 +75,7 @@ const DATA = {
       ],
       evo: { name: 'アーケインレイ', desc: '魔弾が敵をわずかに追尾する', st: { cd: 0.8, dmg: 30, count: 5, speed: 210, pierce: 2 } },
       // 武器スキル(E)アーケイン・バラージュ: 詠唱 windup 秒(動けない)→ dur 秒間、照準方向へ毎秒 rate 発(各 武器の威力 × pow)。連射中は移動 ×slow
-      // 魔弾は通常攻撃と同じ弾速・貫通(進化後は追尾も)/ radius: 自動発動の判定距離 / shield: 魔力障壁のシールド(最大HP の割合)
+      // 魔弾は通常攻撃と同じ弾数・弾速・貫通(進化後は追尾も)/ radius: 自動発動の判定距離 / shield: 魔力障壁のシールド(最大HP の割合)
       skill: {
         name: 'アーケイン・バラージュ', cd: 30, windup: 0.3, dur: 3, rate: 12, pow: 0.5, slow: 0.6, radius: 90, shield: 0.2,
         tree: { name: 'バラージュ', paths: {
