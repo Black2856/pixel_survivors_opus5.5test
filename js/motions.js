@@ -33,6 +33,18 @@ function magePose(U, arm, o = {}) {
   return { p, hand: null };
 }
 
+// アーチャーの部位の配置(ART.S.hunter と対応)。長弓はモーション中は部位ではなく drawPose で角度付きで描く
+const ARCHER_HAND = { base: [11, 10.5], aim: [13.5, 8.5], sky: [11.5, 5.5] };
+function archerPose(U, arm, o = {}) {
+  const armDy = arm === 'sky' ? -3 : 0;
+  const p = {
+    cape: [0, U, o.capeV || 'base'], quiver: [0, U], head: [0, U], torso: [0, U], backArm: [0, U], legs: [0, 0, o.legs || 'base'],
+    frontArm: arm === 'base' ? [0, U] : [0, U + armDy, arm],
+  };
+  const h = ARCHER_HAND[arm];
+  return { p, hand: [h[0], h[1] + U + (arm === 'base' ? 0 : armDy)] };
+}
+
 // rig: そのモーションを使えるクラスの部位(合わないクラスは待機・歩きのまま。rig.alias で代わりのモーションを指定できる)
 const MOTIONS = {
   // メテオ(Q): 宝珠を頭上へ掲げて詠唱(0.5秒・のけぞる)→ 振り下ろして照準へ放つ → 戻る
@@ -69,6 +81,34 @@ const MOTIONS = {
     state(t) {
       return Object.assign(magePose(0, 'base', { orbV: t < 0.12 ? 'big' : 'base', hatV: 'b' }),
         { blade: false, lean: track([[0, 0], [0.06, -0.12, 'out'], [0.12, 0.16, 'out'], [0.25, 0]], t), sy: track([[0, 1], [0.06, 0.78, 'out'], [0.12, 1.14, 'out'], [0.25, 1]], t) });
+    },
+  },
+  // アローレイン(E): 斜め上へ引き絞る(0.3秒・のけぞる)→ 放って反動 → 戻る
+  aRain: {
+    rig: 'hunter', dur: 0.6, cast: 0.3,
+    state(t) {
+      const c = this.cast;
+      if (t < c) { const u = t / c; return Object.assign(archerPose(t > 0.15 ? 1 : 0, 'aim', { capeV: 'b' }), { bow: true, bowAng: -0.9, pull: 3 * u, arrow: true, glow: u > 0.5, blade: false, lean: -0.1 * u, sy: 1 - 0.03 * u }); }
+      const r = t - c;
+      return Object.assign(archerPose(0, r < 0.15 ? 'aim' : 'base', { legs: r < 0.1 ? 'stepA' : 'base' }), { bow: true, bowAng: r < 0.15 ? -0.9 : 0.3, pull: 0, arrow: false, blade: false, lean: track([[0, 0.12], [0.3, 0, 'out']], r), sy: track([[0, 0.95], [0.15, 1, 'out']], r) });
+    },
+  },
+  // 一斉射撃(Q): 長弓を天へ構えて光を集める(0.4秒)→ 空へ一斉に放つ → 戻る
+  aVolley: {
+    rig: 'hunter', dur: 0.75, cast: 0.4,
+    state(t) {
+      const c = this.cast;
+      if (t < c) { const u = t / c; return Object.assign(archerPose(u < 0.3 ? 1 : 0, 'sky', { capeV: Math.floor(t * 10) % 2 ? 'b' : 'base' }), { bow: true, bowAng: -1.45, pull: 3 * u, arrow: true, glow: true, blade: false, lean: -0.12 * u, sy: 1 + 0.04 * u }); }
+      const r = t - c;
+      return Object.assign(archerPose(r < 0.1 ? 1 : 0, r < 0.2 ? 'sky' : 'base'), { bow: true, bowAng: r < 0.2 ? -1.45 : 0.3, pull: 0, arrow: false, blade: false, lean: track([[0, 0.06], [0.35, 0, 'out']], r), sy: track([[0, 0.93], [0.15, 1, 'out']], r) });
+    },
+  },
+  // バックステップ(Space): 小さく跳ねて後ろへ → 着地で沈む
+  aStep: {
+    rig: 'hunter', dur: 0.3,
+    state(t) {
+      return Object.assign(archerPose(t > 0.2 ? 1 : 0, 'base', { capeV: 'b', legs: t < 0.15 ? 'stepB' : 'base' }), { bow: true, bowAng: 0.3, pull: 0, arrow: false, blade: false,
+        lean: track([[0, 0], [0.06, 0.16, 'out'], [0.18, -0.08], [0.3, 0]], t), sy: track([[0, 1], [0.05, 0.86, 'out'], [0.14, 1.1, 'out'], [0.22, 0.92], [0.3, 1]], t) });
     },
   },
   // 居合(Q): 構え(0.25 秒)→ 抜刀して振り上げ → 残心 → 血振り → 納刀

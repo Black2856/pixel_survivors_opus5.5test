@@ -79,7 +79,7 @@ const MetaUI = (() => {
   // 実装済みのクラス(ランタイムがあるもの)だけ選べる。Lv15 でメイン武器を他クラスのメイン武器に変更できる
   let clSel = null, back = 'title';
   const clsReady = k => !!CLASS_RT[k];
-  const portrait = k => { const r = ART.S[DATA.classes[k].rig]; return (r ? r.base : ART.S.player).c.toDataURL(); };
+  const portrait = k => { const r = ART.S[DATA.classes[k].rig]; return (r ? ART.rigFrame(r, 'idle', 0) : ART.S.player).c.toDataURL(); }; // 待機の1フレーム目(持ち物も描かれる)
   function classScreen(from = 'title') {
     state = 'class'; back = from; clSel = META.cls;
     UI.only('class-screen');

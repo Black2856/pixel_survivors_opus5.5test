@@ -214,6 +214,18 @@ function spriteOf(e) {
 // スキルのモーション中の描画(motions.js の状態): 姿勢を足元基準で前傾・伸縮し、武器を任意の角度で1ドットずつ描く
 // 武器を振った軌跡には、直近 0.07 秒の角度の範囲に光の弧(スミア)を残す
 const BLADE_LEN = 11;
+// 長弓: 手の位置 (hx, hy) を中心に、狙う向き ang へ弓を構える。pull = 弦を引いた量、arrow = つがえた矢、glow = 光を集めている
+function drawBow(hx, hy, ang, pull, arrow, glow) {
+  const sx = GFX.sctx, gx = GFX.gctx, R = 6, fw = [Math.cos(ang), Math.sin(ang)], pd = [-fw[1], fw[0]];
+  const pt = (s, f) => [Math.round(hx + pd[0] * s + fw[0] * f), Math.round(hy + pd[1] * s + fw[1] * f)];
+  const dot = (p, c, g) => { sx.fillStyle = c; sx.fillRect(p[0], p[1], 1, 1); if (g) { gx.fillStyle = g; gx.fillRect(p[0], p[1], 1, 1); } };
+  // 木(前へふくらむ弧)
+  for (let s = -R; s <= R; s += 0.5) dot(pt(s, 2 * (1 - (s / R) * (s / R))), s === 0 ? '#6b4a2c' : '#a0703a');
+  // 弦: 上端 → 引いた位置 → 下端
+  for (let i = 0; i <= 10; i++) { const u = i / 10; dot(pt(-R + R * u, -pull * u), '#e8e4d8'); dot(pt(R - R * u, -pull * u), '#e8e4d8'); }
+  if (arrow) for (let i = 0; i <= 9; i++) dot(pt(0, -pull + i), i === 9 ? '#ffffff' : i < 2 ? '#7dff9a' : '#d9c9a0', glow ? '#b8ff9a' : i === 9 ? '#e4ffd8' : null);
+  if (glow) addLight(hx + fw[0] * 6 + cam.x, hy + fw[1] * 6 + cam.y, 30, '#b8ff9a', 0.8);
+}
 function drawPose(rig, sp, ms, x, y, flip, white) {
   const sx = GFX.sctx, gx = GFX.gctx, sg = flip ? -1 : 1;
   const fx = Math.round(x - cam.x), fy = Math.round(y - cam.y + sp.h / 2 - 1), ax = sp.w / 2, ay = sp.h - 1;
@@ -221,6 +233,7 @@ function drawPose(rig, sp, ms, x, y, flip, white) {
   sx.setTransform(sg, 0, -ms.lean * sg, ms.sy, fx, fy); sx.drawImage(img, -ax, -ay); sx.setTransform(1, 0, 0, 1, 0, 0);
   if (sp.e) { gx.globalAlpha = 0.9; gx.setTransform(sg, 0, -ms.lean * sg, ms.sy, fx, fy); gx.drawImage(white ? img : sp.e, -ax, -ay); gx.setTransform(1, 0, 0, 1, 0, 0); gx.globalAlpha = 1; }
   const hist = P.anim.hist || (P.anim.hist = []);
+  if (ms.bow && ms.hand) { const rx = 1 + rig.padX + ms.hand[0] - ax, ry = 1 + ms.hand[1] - ay; drawBow(fx + sg * (rx - ms.lean * ry), fy + ms.sy * ry, flip ? Math.PI - ms.bowAng : ms.bowAng, ms.pull || 0, ms.arrow, ms.glow); }
   if (!ms.blade || !ms.hand) { hist.length = 0; return; }
   const rx = 1 + rig.padX + ms.hand[0] - ax, ry = 1 + ms.hand[1] - ay;
   const hx = fx + sg * (rx - ms.lean * ry), hy = fy + ms.sy * ry;
@@ -345,6 +358,22 @@ function render() {
       sx.globalAlpha = 0.8 * fade; pCircle(sx, zx, zy, Math.round(z.r), '#ffffff', 2); sx.globalAlpha = 1;
       gx.globalAlpha = 0.25 * fade; pCircle(gx, zx, zy, Math.round(z.r), '#bff4ff'); gx.globalAlpha = 1;
       addLight(z.x, z.y, z.r * 2.2, '#7ad7ff', 0.6 * fade);
+    } else if (z.kind === 'rain') {
+      const on = z.t >= z.delay ? 1 : z.t / z.delay;
+      sx.globalAlpha = 0.22 * fade * on; pDisc(sx, zx, zy, Math.round(z.r), '#0c1a10'); // 影の円
+      sx.globalAlpha = 0.6 * fade * on; pCircle(sx, zx, zy, Math.round(z.r), '#b8ff9a', 1); sx.globalAlpha = 1;
+      for (const ar of z.arrows) { // 落ちてくる矢(0.07秒)→ 刺さった矢(薄れて消える)
+        const ax = Math.round(ar.x - cam.x), ay = Math.round(ar.y - cam.y);
+        if (ar.t < 0.07) {
+          const top = ay - Math.round(26 * (1 - ar.t / 0.07));
+          for (let yy = top - 5; yy <= top; yy++) { sx.fillStyle = yy === top ? '#ffffff' : '#e4ffd8'; sx.fillRect(ax, yy, 1, 1); gx.fillStyle = '#b8ff9a'; gx.fillRect(ax, yy, 1, 1); }
+        } else {
+          sx.globalAlpha = 1 - ar.t / 0.5;
+          sx.fillStyle = '#d9c9a0'; sx.fillRect(ax, ay - 3, 1, 3); sx.fillStyle = '#7dff9a'; sx.fillRect(ax - 1, ay - 4, 1, 1); sx.fillRect(ax + 1, ay - 4, 1, 1);
+          sx.globalAlpha = 1;
+        }
+      }
+      addLight(z.x, z.y, z.r * 2, '#b8ff9a', 0.35 * fade * on);
     } else if (z.kind === 'residue') {
       sx.globalAlpha = 0.28 * fade; pDisc(sx, zx, zy, Math.round(z.r), '#bff4ff');
       sx.globalAlpha = 0.7 * fade; pCircle(sx, zx, zy, Math.round(z.r), '#ffffff', 1); sx.globalAlpha = 1;
@@ -453,6 +482,15 @@ function render() {
     }
     drawSp(sp, e.x, e.y + yo, { flip, scale: sc, sy, sxk, alpha, white: e.flash > 0, emitA: e.ghost ? 0.25 : e.flash > 0 ? 0.5 : undefined });
     // 状態異常の色味
+    if (e.mark > 0 && S.time < e.markT) { // アーチャーの印: 頭上に緑のドット(10個で1段)。弱点露出中は赤く明滅
+      const weak = S.time < (e.weakT || 0), n = Math.min(e.mark, 30), top = Math.round(e.y + yo - cam.y - sp.h * sc / 2) - 3;
+      for (let i = 0; i < n; i++) {
+        const row = Math.floor(i / 10), col = i % 10, cnt = Math.min(10, n - row * 10);
+        const x = Math.round(e.x - cam.x - cnt + 1 + col * 2), y = top - row * 2;
+        sx.fillStyle = gx.fillStyle = weak ? (Math.floor(t * 10) % 2 ? '#ff5d73' : '#ffd0d8') : '#7dff9a';
+        sx.fillRect(x, y, 1, 1); gx.fillRect(x, y, 1, 1);
+      }
+    }
     if (e.frost > 0 || e.stun > 0) {
       const ice = ART.variant(sp, flip ? 'iceFlip' : 'ice'), ix = Math.round(e.x - cam.x - sp.w * sc / 2), iy = Math.round(e.y + yo - cam.y - sp.h * sc / 2);
       sx.globalAlpha = e.stun > 0 ? 0.6 : Math.min(0.4, e.frost * 0.04); sx.drawImage(ice, ix, iy, sp.w * sc, sp.h * sc);
@@ -523,6 +561,17 @@ function render() {
   for (const p of projs) {
     if (!onScreen(p.x, p.y)) continue;
     switch (p.kind) {
+      case 'arrow': case 'volley': { // 矢: 進む向きに沿って 6 ドット(先端・矢柄・矢羽)
+        const a = Math.atan2(p.vy, p.vx), cx = p.x - cam.x, cy = p.y - cam.y, vol = p.kind === 'volley';
+        for (let i = 0; i < 6; i++) {
+          const x = Math.round(cx - Math.cos(a) * i), y = Math.round(cy - Math.sin(a) * i);
+          sx.fillStyle = i === 0 ? '#ffffff' : i >= 4 ? (vol ? '#7dff9a' : '#7dff9a') : vol ? '#d8ffd0' : p.dbl ? '#ffe14a' : '#d9c9a0';
+          sx.fillRect(x, y, 1, 1);
+          if (vol || i === 0) { gx.fillStyle = vol ? '#b8ffb0' : p.col; gx.fillRect(x, y, 1, 1); }
+        }
+        addLight(p.x, p.y, vol ? 26 : 16, vol ? '#b8ffb0' : p.col, 0.6);
+        break;
+      }
       case 'bolt':
         drawSp(p.home ? ART.S.boltEvo : ART.S.bolt, p.x, p.y); addLight(p.x, p.y, 22, p.col, 0.7); break;
       case 'wisp': drawSp(ART.S.wisp, p.x, p.y + Math.sin(p.t * 20)); addLight(p.x, p.y, 24, '#9dffcf', 0.7); break;

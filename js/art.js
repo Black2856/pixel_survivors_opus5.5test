@@ -289,7 +289,60 @@ const ART = (() => {
       ] },
     },
   });
-  S.mage.alias = { ranbu: 'mBarrage', iai: 'mMeteor' }; // 他クラスの武器スキルを使ったときの代わりのモーション
+  S.mage.alias = { ranbu: 'mBarrage', iai: 'mMeteor', aRain: 'mMeteor', aVolley: 'mMeteor', aStep: 'mBlink' }; // 他クラスの武器スキルを使ったときの代わりのモーション
+
+  // ---------- クラス: アーチャー(16×18、部位アニメーション) ----------
+  // 右向き。緑のフード(影の中で緑の目が光る)・背中のマントと矢筒・手に長弓
+  // スキルのモーション中は長弓を部位ではなく、任意の角度で描く(render.js の drawPose)。敵の弓兵(S.archer)と区別して S.hunter
+  const AUP = ['head', 'torso', 'backArm', 'frontArm', 'quiver', 'bow', 'cape'];
+  const aup = (dx, dy, extra = {}) => Object.assign(Object.fromEntries(AUP.map(k => [k, [dx, dy]])), extra);
+  S.hunter = rig({
+    w: 16, h: 18, padX: 8, emit: 'E',
+    pal: {
+      h: '#2f7a3a', H: '#4fae5a', e: '#0f1a12', E: '#9dffb0', f: '#3d6a2a', F: '#5a8f3a', b: '#6b4a2c',
+      g: '#1f4a2a', k: '#6b4a2c', w: '#e8e4d8', r: '#e8434f', c: '#f0c9a0', l: '#3a2e24', a: '#1c1530', o: '#a0703a', s: '#e8e4d8',
+    },
+    order: ['cape', 'quiver', 'backArm', 'legs', 'torso', 'head', 'bow', 'frontArm'],
+    parts: {
+      cape: { x: 2, y: 7, v: {
+        base: ['.gg', 'ggg', 'ggg', 'ggg', 'ggg', '.gg', '..g'],
+        b:    ['..g', '.gg', 'ggg', 'ggg', 'ggg', 'gg.', 'g..'],
+      } },
+      quiver: { x: 3, y: 4, v: { base: ['wr', 'kk', 'kk', 'kk', 'kk', '.k'] } },
+      head: { x: 4, y: 0, v: {
+        base: ['...hhh..', '..hHhhh.', '.hHhhhhh', 'hhhheeee', 'hhheEeeE', '.hhheeee', '..hhhhh.'],
+      } },
+      torso: { x: 5, y: 7, v: { base: ['fFffff', 'fFffff', 'fFffff', 'bbbbbb', 'ffffff'] } },
+      backArm: { x: 4, y: 8, v: { base: ['f', 'f', 'c'] } },
+      frontArm: { x: 10, y: 8, v: {
+        base: ['ff', 'ff', 'cc'],
+        aim:  ['ffcc'],
+        sky:  ['.cc', 'ff.', 'f..'],
+      } },
+      // 待機・歩きで持っている長弓(縦)。s = 弦、o = 木
+      bow: { x: 12, y: 5, hidden: true, v: { base: ['so.', 's.o', 's.o', 's.o', 's.o', 's.o', 's.o', 's.o', 'so.'] } },
+      legs: { x: 5, y: 12, v: {
+        base:  ['llllll', 'llllll', 'll..ll', 'll..ll', 'll..ll', 'aa..aa'],
+        stepA: ['llllll', 'llllll', 'll...l', 'l....l', 'l....l', 'a....a'],
+        stepB: ['llllll', 'llllll', '.ll.l.', '.ll.l.', '.ll.l.', '.aa.a.'],
+      } },
+    },
+    motions: {
+      // 待機: 呼吸で上半身が沈み、マントが揺れる
+      idle: { loop: true, frames: [
+        { t: 0.45, p: aup(0, 0) }, { t: 0.45, p: aup(0, 0, { cape: [0, 0, 'b'] }) },
+        { t: 0.45, p: aup(0, 1) }, { t: 0.45, p: aup(0, 1, { cape: [0, 1, 'b'] }) },
+      ] },
+      walk: { loop: true, frames: [
+        { t: 0.11, p: aup(0, 1, { legs: [0, 0, 'stepA'], backArm: [-1, 1], cape: [-1, 1, 'b'] }) },
+        { t: 0.11, p: aup(0, 0) },
+        { t: 0.11, p: aup(0, 1, { legs: [0, 0, 'stepB'], backArm: [1, 1], cape: [0, 1, 'b'] }) },
+        { t: 0.11, p: aup(0, 0, { cape: [0, 0, 'b'] }) },
+      ] },
+    },
+  });
+  // 他クラスの武器スキルを使ったときの代わりのモーション
+  S.hunter.alias = { ranbu: 'aRain', mBarrage: 'aRain', iai: 'aVolley', mMeteor: 'aVolley', mBlink: 'aStep' };
 
   S.zombie = mk({ a: '#3d2f24', b: '#7fb069', c: '#ff4040', d: '#2b3a22', e: '#6b5a8e', f: '#3a3350', g: '#241c2e' }, [
     '...aaaa...',
@@ -638,6 +691,7 @@ const ART = (() => {
   I.blizzard = mk({ a: '#bff4ff', b: '#ffffff', c: '#5ab4e0' }, ['....a....', '.a..a..a.', '..a.b.a..', '...cbc...', 'aabbbbbaa', '...cbc...', '..a.b.a..', '.a..a..a.', '....a....']);
   I.bhole = mk({ a: '#c78bff', b: '#1a0a2a', c: '#6a3aa0' }, ['...aaa...', '.aacccaa.', '.acbbbca.', 'acbbbbbca', 'acbbbbbca', 'acbbbbbca', '.acbbbca.', '.aacccaa.', '...aaa...']);
   I.katana = mk({ a: '#e8f0ff', b: '#ff5d73', c: '#3a2a2a', d: '#ffd23f' }, ['........a', '.......aa', '......aa.', '.....aa..', '....aa...', '...aa....', '.dd......', '.bd......', 'bc.......']);
+  I.longbow = mk({ o: '#a0703a', s: '#e8e4d8', d: '#d9c9a0', t: '#e8f4ff', g: '#7dff9a' }, ['...oo....', '..o.s....', '.o..s....', '.o..s..t.', 'gddddddtt', '.o..s..t.', '.o..s....', '..o.s....', '...oo....']);
   I.gold = S.coin[0];
   // 装備の種類(9×9)。指輪は宝石の色だけ変える
   const ringIc = gem => mk({ a: '#d6ae5c', b: '#fff3a0', c: gem, d: '#ffffff' }, ['...ccc...', '..cdcc...', '...ccc...', '..aabaa..', '.a.....a.', 'a.......a', 'a.......a', '.a.....a.', '..aaaaa..']);

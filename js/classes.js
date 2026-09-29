@@ -163,15 +163,60 @@ function gainShield(n) {
 function barrageShot(a, x, y, ang) {
   const sk = DATA.weapons.bolt.skill, w = P.weapons[P.mainW], st = wst(P.mainW), dmg = st.dmg * sk.pow * (1 + cuV('e', 'pow')) * a.pow, el = clsNextEl();
   const n = Math.ceil(((st.count || 1) + P.shots) * sk.countMul), base = ang + rand(-0.12, 0.12); // 弾数は通常攻撃の半分(切り上げ)
-  for (let i = 0; i < n; i++) fire('bolt', x, y, base + (i - (n - 1) / 2) * 0.13, st.speed || 200, { dmg, pierce: st.pierce || 0, life: 1.3, src: 'barrage', col: '#b98bff', r: 3, el, home: w.evo, homing: w.evo ? ARCANE_TURN : 0, focus: hasSp('e', 'pow') ? a.id : 0 });
+  for (let i = 0; i < n; i++) fire('bolt', x, y, base + (i - (n - 1) / 2) * 0.13, st.speed || 200, { dmg, pierce: st.pierce || 0, life: 1.3, src: 'barrage', col: '#b98bff', r: 3, el, eHit: true, home: w.evo, homing: w.evo ? ARCANE_TURN : 0, focus: hasSp('e', 'pow') ? a.id : 0 });
   if (Math.random() < 0.5) part(x + Math.cos(ang) * 6, y + Math.sin(ang) * 6, Math.cos(ang) * 60, Math.sin(ang) * 60, 0.2, '#ffffff', { glow: true });
   AudioMan.shoot();
 }
 
+// アローレイン(長弓の E): 構え → 空へ放つ → 照準位置に矢の雨(雨はその場に残り、放った後は動ける)
+// 雨そのものは zones の 'rain'(world.js の updZones で矢を降らせる)
+WEAPON_SKILL.longbow = {
+  info(c, dmg) {
+    const sk = DATA.weapons.longbow.skill, m = c.wm, heavy = c.hasSp('e', 'pow'), dur = sk.dur + (m.eDur || 0);
+    const one = dmg * sk.pow * (1 + c.cuV('e', 'pow')) * (1 + (m.ePow || 0)) * (heavy ? 0.7 : 1);
+    return { name: sk.name, cat: 'e', desc: [
+      `構え ${sk.windup}秒(動けない)→ 照準位置の半径 ${sk.radius} に ${sk.dur}秒間、矢が降り注ぐ`,
+      `${sk.every}秒ごとに1本、範囲内のランダムな位置へ(1本 武器の威力 × ${Math.round(sk.pow * 100)}%)`,
+      '放った後は自由に動ける(雨はその場に残る)',
+      'E の攻撃なので、クラスの「攻撃1回ごと」の効果が1本ごとに起きる',
+    ], rows: [
+      ['CD', `<b>${(sk.cd * (1 - c.cuV('e', 'cd')) * (1 - (m.cd || 0)) * c.cdMul).toFixed(1)}</b> 秒`],
+      ['矢の数', `${Math.round(dur / (sk.every * (heavy ? 0.5 : 1)))} 本 / ${dur.toFixed(1)} 秒`],
+      ['1本の威力', `${Math.round(one)} → <b>${Math.round(one * c.atkMul)}</b>`, '武器の威力 × ' + Math.round(sk.pow * 100) + '%。攻撃力を掛けた値'],
+    ] };
+  },
+  start() {
+    const sk = weaponSkill(), m = P.wm.longbow || {}, R = sk.range * P.range;
+    let t = mouseAimPt() || nearestEnemy(P.x, P.y, R) || { x: P.x + P.facing * 60, y: P.y };
+    const dd = Math.sqrt(d2(P.x, P.y, t.x, t.y));
+    if (dd > R) t = { x: P.x + (t.x - P.x) * R / dd, y: P.y + (t.y - P.y) * R / dd };
+    if (t.x !== P.x) P.facing = t.x < P.x ? -1 : 1;
+    P.act = { slot: 'e', ph: 'wind', t: 0, x: t.x, y: t.y, pow: clsESkillMul() * (1 + (m.ePow || 0)) };
+    setCd('e', sk.cd * (1 - cuV('e', 'cd')) * (1 - (m.cd || 0)) * P.cdMul);
+    playAnim('aRain', MOTIONS.aRain.dur);
+    skillCall(sk.name, '#b8ff9a'); AudioMan.click();
+  },
+  update(a, dt) {
+    const sk = weaponSkill(), m = P.wm.longbow || {};
+    P.moveMul = 0;
+    if (a.t < sk.windup) { if (Math.random() < dt * 30) part(P.x + rand(-8, 8), P.y + 6, rand(-20, 20), -10, 0.4, pick(['#b8ff9a', '#e4ffd8']), { glow: true }); return; }
+    const heavy = hasSp('e', 'pow'), delay = 0.25; // 放ってから降り始めるまで
+    zones.push({ kind: 'rain', x: a.x, y: a.y, r: sk.radius * (1 + cuV('e', 'area')) * P.area, t: 0, delay, dur: delay + sk.dur + (m.eDur || 0), tick: 0, acc: 0,
+      every: sk.every * (heavy ? 0.5 : 1), dmg: wst(P.mainW).dmg * sk.pow * (1 + cuV('e', 'pow')) * a.pow * (heavy ? 0.7 : 1),
+      hitR: sk.hitR * P.area, follow: hasSp('e', 'cd'), pin: hasSp('e', 'area'), arrows: [] });
+    asMine(() => { // 空へ放つ光の矢
+      for (let i = 0; i < 10; i++) part(P.x + P.facing * 4, P.y - 10, rand(-30, 30) + P.facing * 20, -rand(200, 320), 0.35, pick(['#e4ffd8', '#b8ff9a', '#ffffff']), { glow: true, drag: 0 });
+      addRing(P.x, P.y, 18, '#b8ff9a', { w: 2, life: 0.3 }); shake(2);
+    });
+    AudioMan.shoot();
+    P.act = null;
+  },
+};
+
 function ranbuHit(sk) {
   const R = sk.radius * P.area, dmg = wst(P.mainW).dmg * sk.pow * (1 + cuV('e', 'pow')) * P.act.pow, k0 = S.kills, el = clsNextEl(); // 1回の斬撃 = 1属性
   asMine(() => {
-    forEachNear(P.x, P.y, R, e => { if (!e.prop) hitEnemy(e, dmg, { src: 'ranbu', ang: Math.atan2(e.y - P.y, e.x - P.x), kb: 25, col: '#ffb7d5', noNum: Math.random() < 0.4, el }); });
+    forEachNear(P.x, P.y, R, e => { if (!e.prop) hitEnemy(e, dmg, { src: 'ranbu', ang: Math.atan2(e.y - P.y, e.x - P.x), kb: 25, col: '#ffb7d5', noNum: Math.random() < 0.4, el, eHit: true }); });
     slashes.push({ x: P.x, y: P.y, a: rand(0, TAU), r: R * rand(0.8, 1.1), t: 0, life: 0.18, flip: Math.random() < 0.5 });
     burst(P.x + rand(-R, R) * 0.6, P.y + rand(-R, R) * 0.6, 6, ['#ffb7d5', '#ffffff'], { sp: 70, glow: true, life: 0.3 });
     shake(1.5);
@@ -182,7 +227,7 @@ function ranbuHit(sk) {
 function sakuraBurst(sk) {
   const R = sk.burstR * P.area, dmg = wst(P.mainW).dmg * sk.burst * (1 + cuV('e', 'pow')) * P.act.pow;
   asMine(() => {
-    forEachNear(P.x, P.y, R, e => { if (!e.prop) hitEnemy(e, dmg, { src: 'ranbu', ang: Math.atan2(e.y - P.y, e.x - P.x), kb: 120, col: '#ff8ac0' }); });
+    forEachNear(P.x, P.y, R, e => { if (!e.prop) hitEnemy(e, dmg, { src: 'ranbu', ang: Math.atan2(e.y - P.y, e.x - P.x), kb: 120, col: '#ff8ac0', eHit: true }); });
     addRing(P.x, P.y, R, '#ffb7d5', { w: 3, life: 0.5 }); addRing(P.x, P.y, R * 0.6, '#ffffff', { w: 2, life: 0.35 });
     addFlash(P.x, P.y, R * 2, '#ffb7d5', 0.5); shockAt(P.x, P.y, 1.6, 0.9);
     burst(P.x, P.y, 70, ['#ffb7d5', '#ff8ac0', '#ffffff'], { sp: 170, glow: true, life: 0.8, drag: 1.5 });
@@ -458,6 +503,122 @@ const CLASS_RT = {
       ];
     },
   },
+
+  archer: {
+    skills: ['q'],
+    init() { P.focus = 0; P.dash = null; P.backHeld = false; },
+    update(dt) {
+      const p = AR(), max = focusMax();
+      // 集中: 止まっている間(E / Q の予備動作中も)に溜まり、動くとゆっくり下がる
+      const still = !P.moving || (P.act && P.act.ph === 'wind');
+      if (still) P.focus = Math.min(max, (P.focus || 0) + dt / p.focusStep * (1 + cuV('passive', 'calm')));
+      else P.focus = Math.max(0, (P.focus || 0) - dt * p.focusDecay * (1 - cuV('passive', 'hold')));
+      const f = focusN();
+      P.atkSpd = 1 + f * p.focusAtkSpd;
+      P.shots = Math.round(P.stats.v.shots || 0) + (hasSp('passive', 'eye') && f >= max ? 1 : 0); // 連射
+      // バックステップ中の移動 → 着地で集中 +1
+      if (P.dash) {
+        P.x += P.dash.vx * dt; P.y += P.dash.vy * dt; P.dash.t -= dt;
+        if (Math.random() < 0.5) P.after = (P.after || []).concat([{ x: P.x, y: P.y, t: 0.1, f: P.facing }]).slice(-3);
+        if (P.dash.t <= 0) { P.dash = null; P.focus = Math.min(max, P.focus + p.backFocus); burst(P.x, P.y + 6, 8, ['#8a8098', '#6a6078'], { sp: 40, up: 10, life: 0.3 }); }
+      }
+      const held = (keys.Space || keys.TouchDef) && !P.act;
+      if (held && !P.backHeld && !P.dash) { if (P.sta >= backCost()) archerBackstep(); else addFloat(P.x, P.y - 16, 'STAMINA', '#6a7a88'); }
+      P.backHeld = held;
+      P.moveMul = P.dash ? 0 : 1;
+    },
+    onHurt(dmg) {
+      const k = hasSp('passive', 'calm') && focusN() >= focusMax() ? 0.8 : 1; // 不動
+      P.focus = Math.max(0, (P.focus || 0) - AR().focusHurt);
+      return dmg * k;
+    },
+    onMainHit: e => addMark(e, 1),
+    onEHit: e => addMark(e, 1),
+    // 印を持つ敵が受けるダメージ / 弱点露出・集中によるクリティカル
+    dmgTaken: e => (markOn(e) ? 1 + e.mark * (AR().markPct + (P.lvFx.markPct || 0)) : 1),
+    critBonus: e => focusN() * (AR().focusCrit + cuV('passive', 'eye')) + (weakOn(e) ? AR().weakCrit : 0),
+    critDmgBonus: e => (hasSp('trait', 'deep') && weakOn(e) ? 0.3 : 0), // 急所
+    onKill(e) {
+      if (!markOn(e)) return;
+      const p = AR();
+      if (hasSp('trait', 'carve') && e.mark >= markMax()) asMine(() => { // 烙印
+        forEachNear(e.x, e.y, p.brandR * P.area, o => { if (!o.prop && o !== e) hitEnemy(o, p.brandPow, { src: 'brand', ang: Math.atan2(o.y - e.y, o.x - e.x), kb: 40, col: '#7dff9a' }); });
+        addRing(e.x, e.y, p.brandR * P.area, '#7dff9a', { w: 2, life: 0.3 }); addFlash(e.x, e.y, 60, '#7dff9a', 0.25);
+        burst(e.x, e.y, 14, ['#7dff9a', '#ffffff'], { sp: 90, glow: true, life: 0.35 });
+      });
+      const k = cuV('trait', 'spread');
+      if (k) { // 伝播: 近くの敵へ印を移す
+        const n = Math.floor(e.mark * k);
+        let best = null, bd = p.spreadR * p.spreadR;
+        forEachNear(e.x, e.y, p.spreadR, o => { if (o === e || o.dead || o.prop) return; const d = d2(o.x, o.y, e.x, e.y); if (d < bd) { bd = d; best = o; } });
+        if (best && n > 0) { addMark(best, n); bolts.push({ x0: e.x, y0: e.y, x1: best.x, y1: best.y, t: 0, life: 0.15, w: 1 }); }
+      }
+      if (hasSp('trait', 'spread')) P.sk.q.cd = Math.max(0, P.sk.q.cd - 1); // 狩りの連鎖
+    },
+    atkBonus: () => 0,
+    qStart() {
+      const q = DATA.classes.archer.q;
+      P.act = { slot: 'q', ph: 'wind', t: 0 };
+      playAnim('aVolley', MOTIONS.aVolley.dur);
+      slowmo(0.5, 0.2);
+      skillCall(q.name, '#7dff9a'); AudioMan.click();
+    },
+    qUpdate(a, dt) {
+      const q = DATA.classes.archer.q;
+      P.moveMul = 0;
+      if (a.t < q.windup) { // 長弓に光が集まる
+        asMine(() => { if (Math.random() < dt * 60) { const r = rand(0, TAU); part(P.x + Math.cos(r) * 22, P.y - 14 + Math.sin(r) * 22, -Math.cos(r) * 60, -Math.sin(r) * 60, 0.35, pick(['#b8ff9a', '#ffffff']), { glow: true, drag: 0 }); } });
+        return;
+      }
+      archerVolley();
+      P.act = null;
+    },
+    res: () => ({ kind: 'focus', label: '集中', v: focusN(), max: focusMax(), seg: true, dk: '#1f6a3a' }),
+    staBroken: () => false,
+    statuses() {
+      const p = AR(), f = focusN(), out = [];
+      if (f > 0) out.push({ id: 'focus', glyph: '集', name: `集中 ${f}段`, fx: `攻撃速度 +${Math.round(f * p.focusAtkSpd * 100)}% クリティカル率 +${(f * (p.focusCrit + cuV('passive', 'eye')) * 100).toFixed(1)}%` + (hasSp('passive', 'calm') && f >= focusMax() ? ' 被ダメ -20%' : '') + (hasSp('passive', 'eye') && f >= focusMax() ? ' 弾数 +1' : ''), kind: 'buff' });
+      return out;
+    },
+    qInfo: () => ({ name: DATA.classes.archer.q.name, glyph: '射' }),
+    info(c) {
+      const p = AR(), q = DATA.classes.archer.q, k = 1 + c.cuV('q', 'pow') + (c.lvFx.qPow || 0);
+      return [
+        { key: '特性', name: '狩人の印', cat: 'trait', desc: [
+          '通常攻撃・E が命中すると、その敵に印 +1',
+          `印1つにつき、その敵が受けるダメージ +${Math.round((p.markPct + (c.lvFx.markPct || 0)) * 100)}%`,
+          `印が ${p.markMax} 以上で弱点露出: ${p.weakT}秒間 その敵へのクリティカル率 +${Math.round(p.weakCrit * 100)}%`,
+          `印は ${p.markT}秒 刻まれないと消える。一斉射撃で消費する`,
+        ], rows: [
+          ['印の上限', `${p.markMax + c.cuV('trait', 'carve')}`],
+          ['印の持続', `${p.markT + c.cuV('trait', 'deep')} 秒`],
+        ] },
+        { key: 'パッシブ', name: '集中', cat: 'passive', desc: [
+          `止まっている間、${p.focusStep}秒ごとに +1段(E / Q の予備動作中も)`,
+          `移動すると1秒ごとに ${p.focusDecay}段 下がる。被弾すると ${p.focusHurt}段 下がる`,
+          `1段につき 攻撃速度 +${Math.round(p.focusAtkSpd * 100)}%・クリティカル率 +${Math.round(p.focusCrit * 100)}%`,
+        ], rows: [
+          ['最大段', `${p.focusMax + (c.lvFx.focusMax || 0)}`],
+          ['最大時の攻撃速度', `<b>+${Math.round((p.focusMax + (c.lvFx.focusMax || 0)) * p.focusAtkSpd * 100)}%</b>`],
+        ] },
+        { key: 'Q', name: q.name, cat: 'q', desc: [
+          `構え ${q.windup}秒(動けない)→ 画面内の印を持つ全ての敵へ、印1つにつき1本の追尾する矢`,
+          '印は放った時点で消費する',
+          `印を持つ敵がいなければ、最寄りの ${q.none}体へ1本ずつ(最大 ${q.max}本)`,
+          '威力は武器に依存しない',
+        ], rows: [
+          ['CD', `<b>${(q.cd * (1 - c.cuV('q', 'cd')) * c.cdMul).toFixed(1)}</b> 秒`],
+          ['1本の威力', `${Math.round(q.pow * k)} → <b>${Math.round(q.pow * k * c.atkMul)}</b>`],
+        ] },
+        { key: 'Space', name: 'バックステップ', desc: [
+          `移動方向と逆へ ${p.backDist} 跳ぶ(止まっているときは向きと逆)。${p.backIfr}秒 無敵`,
+          `着地すると集中 +${p.backFocus}段`,
+        ], rows: [
+          ['スタミナ消費', `<b>${p.backCost - (c.lvFx.backCut || 0)}</b>`],
+        ] },
+      ];
+    },
+  },
 };
 
 // 居合の斬撃: 通過した敵にまとめてダメージ(少し遅れて斬撃線が炸裂する)
@@ -676,11 +837,69 @@ function mageBlink() {
   AudioMan.dash();
 }
 
+// ---------- アーチャー: 狩人の印・集中・一斉射撃・バックステップ ----------
+const AR = () => DATA.classes.archer.params;
+const markMax = () => AR().markMax + cuV('trait', 'carve');
+const markOn = e => e.mark > 0 && S.time < e.markT;
+const weakOn = e => S.time < (e.weakT || 0);
+// 印を刻む。上限(基本の markMax)に届いたら弱点露出
+function addMark(e, n) {
+  if (e.prop || e.dead) return;
+  const p = AR();
+  if (!markOn(e)) e.mark = 0;
+  e.mark = Math.min(markMax(), e.mark + n);
+  e.markT = S.time + p.markT + cuV('trait', 'deep');
+  if (e.mark >= p.markMax && !weakOn(e)) {
+    e.weakT = S.time + p.weakT;
+    addRing(e.x, e.y, e.r + 8, '#ff5d73', { w: 1, life: 0.35 }); part(e.x, e.y - e.r - 4, 0, -20, 0.5, '#ff5d73', { glow: true, sz: 2 });
+  }
+}
+const focusMax = () => AR().focusMax + (P.lvFx.focusMax || 0);
+const focusN = () => Math.floor(P.focus || 0);
+const backCost = () => AR().backCost - (P.lvFx.backCut || 0);
+function archerBackstep() {
+  const p = AR(), d = P.moving && P.dir ? [-P.dir[0], -P.dir[1]] : [-P.facing, 0], len = Math.hypot(d[0], d[1]) || 1;
+  staUse(backCost());
+  P.dash = { vx: d[0] / len * p.backDist / p.backTime, vy: d[1] / len * p.backDist / p.backTime, t: p.backTime };
+  P.invT = Math.max(P.invT, p.backIfr);
+  if (hasSp('passive', 'hold')) P.focus = Math.min(focusMax(), (P.focus || 0) + 2); // 狩りの構え
+  playAnim('aStep', MOTIONS.aStep.dur); P.anim.keep = true;
+  burst(P.x, P.y + 6, 10, ['#8a8098', '#b8ff9a'], { sp: 50, up: 10, life: 0.35 });
+  AudioMan.dash();
+}
+// 一斉射撃: 画面内の印を持つ敵へ、印1つにつき1本(追尾)。印は放った時点で消費する
+function archerVolley() {
+  const q = DATA.classes.archer.q, pow = q.pow * (1 + cuV('q', 'pow') + (P.lvFx.qPow || 0));
+  const vis = enemies.filter(e => !e.dead && !e.prop && onScreen(e.x, e.y));
+  const marked = vis.filter(markOn).sort((a, b) => b.mark - a.mark);
+  const shots = [];
+  for (const e of marked) { for (let i = 0; i < e.mark; i++) shots.push(e); e.mark = 0; }
+  const others = vis.filter(e => !marked.includes(e)).sort((a, b) => d2(a.x, a.y, P.x, P.y) - d2(b.x, b.y, P.x, P.y));
+  const extra = (marked.length ? 0 : q.none) + cuV('q', 'num');
+  for (let i = 0; i < extra && others.length; i++) shots.push(others[i % others.length]);
+  const sure = hasSp('q', 'num'), boom = hasSp('q', 'pow'), storm = hasSp('q', 'cd');
+  asMine(() => {
+    shots.slice(0, q.max).forEach(tg => {
+      const a = -Math.PI / 2 + rand(-0.9, 0.9);
+      fire('volley', P.x, P.y - 10, a, q.speed * rand(0.8, 1.25), { dmg: pow, pierce: 0, life: 3, src: 'volley', r: 3, col: '#b8ffb0', target: tg, home: true, homing: 7, forceCrit: sure,
+        onHit: e => {
+          if (storm && !e.dead) addMark(e, 5); // 印の嵐
+          if (boom) { forEachNear(e.x, e.y, q.meteorR * P.area, o => { if (!o.prop && o !== e) hitEnemy(o, q.meteorPow, { src: 'volley', noNum: true, col: '#b8ffb0' }); }); addFlash(e.x, e.y, 30, '#b8ffb0', 0.15); } // 流星
+        } });
+    });
+    addRing(P.x, P.y - 8, 30, '#b8ff9a', { w: 2, life: 0.4 }); addFlash(P.x, P.y, 90, '#b8ff9a', 0.3);
+    burst(P.x, P.y - 10, 30, ['#e4ffd8', '#b8ff9a', '#ffffff'], { sp: 120, up: 60, glow: true, life: 0.5 });
+    shake(4); screenFlash(0.15 * SET.fxA, '#b8ff9a');
+  });
+  setCd('q', q.cd * (1 - cuV('q', 'cd')) * P.cdMul);
+  AudioMan.shoot(); AudioMan.crit();
+}
+
 // ---------- world.js から呼ぶ入口 ----------
 const clsRT = () => CLASS_RT[P.cls];
 function clsInit() {
   P.sta = P.maxSta; P.staLockT = 0; P.moveMul = 1; P.invT = 0; P.atkSpd = 1; P.cu = {}; P.cs = {};
-  P.sk = { q: { cd: 0, max: 1 }, e: { cd: 0, max: 1 } }; P.act = null; P.anim = null; P.orb = null;
+  P.sk = { q: { cd: 0, max: 1 }, e: { cd: 0, max: 1 } }; P.act = null; P.anim = null; P.orb = null; P.dash = null;
   if (clsRT()) clsRT().init();
 }
 function clsUpdate(dt) {
@@ -714,6 +933,11 @@ const clsOnHurt = dmg => (clsRT() ? clsRT().onHurt(dmg) : dmg);
 const clsNextEl = () => (clsRT() && clsRT().nextEl ? clsRT().nextEl() : null);
 function clsOnElement(e, el, dealt) { if (clsRT() && clsRT().onElement) clsRT().onElement(e, el, dealt); }
 function clsOnMainHit(e) { if (clsRT()) clsRT().onMainHit(e); }
+function clsOnEHit(e) { if (clsRT() && clsRT().onEHit) clsRT().onEHit(e); } // 武器スキル(E)の命中
+// 敵ごとの補正(アーチャーの印・弱点露出・集中など)
+const clsDmgTaken = e => (clsRT() && clsRT().dmgTaken ? clsRT().dmgTaken(e) : 1);
+const clsCritBonus = e => (clsRT() && clsRT().critBonus ? clsRT().critBonus(e) : 0);
+const clsCritDmgBonus = e => (clsRT() && clsRT().critDmgBonus ? clsRT().critDmgBonus(e) : 0);
 function clsOnKill(e) { if (clsRT() && clsRT().onKill) clsRT().onKill(e); }
 
 // ---------- 強化ツリーのカード ----------

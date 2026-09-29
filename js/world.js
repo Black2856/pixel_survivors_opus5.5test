@@ -378,6 +378,20 @@ function updWeapons(dt) {
         }
         break;
 
+      case 'longbow':
+        // 照準方向へ貫通する矢。本数が多いときは同じ方向へ時間差で撃つ
+        if (w.cd <= 0) {
+          if (!mouseAimPt() && !nearestEnemy(P.x, P.y, 220 * P.range)) { w.cd = 0.1; break; }
+          w.cd = st.cd * P.cdMul;
+          for (let i = 0; i < n; i++) w.q.push({ t: i * 0.1 });
+        }
+        for (let i = w.q.length - 1; i >= 0; i--) {
+          const s = w.q[i];
+          s.t -= dt;
+          if (s.t <= 0) { w.q.splice(i, 1); shootArrow(k, st, w.evo); }
+        }
+        break;
+
       case 'katana':
         if (w.cd <= 0) {
           w.cd = st.cd * P.cdMul;
@@ -429,6 +443,13 @@ function spawnHole(x, y, st, evo) {
   AudioMan.hole(); shockAt(x, y, 0.8, 0.5);
 }
 
+// 長弓の矢(天弓: 同じ敵に二重ヒット。2回目は貫通を1消費)
+function shootArrow(k, st, evo) {
+  const a = aimAt(220 * P.range);
+  fire('arrow', P.x, P.y - 2, a, st.speed, { dmg: st.dmg, pierce: st.pierce, life: 0.9 * P.range, src: k, r: 3, col: evo ? '#ffe14a' : '#e4ffd8', dbl: evo });
+  part(P.x + Math.cos(a) * 8, P.y - 2 + Math.sin(a) * 8, Math.cos(a) * 40, Math.sin(a) * 40, 0.2, '#e4ffd8', { glow: true });
+  AudioMan.shoot();
+}
 function doSlash(a, st, evo, flip) {
   const R = st.aoe * P.area, el = clsNextEl(); // 斬撃1回 = 1属性(メイジ)
   slashes.push({ x: P.x, y: P.y, a, r: R, t: 0, life: 0.2, flip, evo });
@@ -450,7 +471,7 @@ function updProjs(dt) {
     const p = projs[i];
     p.t += dt;
     if (p.homing || p.home) {
-      const tg = nearestEnemy(p.x, p.y, 120, null);
+      const tg = p.target && !p.target.dead ? p.target : nearestEnemy(p.x, p.y, 120, null); // target: 一斉射撃の狙った敵
       if (tg && !p.hit.has(tg)) {
         const want = Math.atan2(tg.y - p.y, tg.x - p.x);
         let cur = Math.atan2(p.vy, p.vx), diff = Math.atan2(Math.sin(want - cur), Math.cos(want - cur));
@@ -474,7 +495,9 @@ function updProjs(dt) {
       const ang = Math.atan2(p.vy, p.vx);
       let dmg = p.dmg;
       if (p.focus) { if (e.fcId !== p.focus) { e.fcId = p.focus; e.fcN = 0; } dmg *= 1 + Math.min(0.5, 0.05 * e.fcN++); } // 集中砲火
-      hitEnemy(e, dmg, { src: p.src, ang, kb: p.kind === 'axe' ? 50 : 22, col: p.col, el: p.el });
+      hitEnemy(e, dmg, { src: p.src, ang, kb: p.kind === 'axe' ? 50 : 22, col: p.col, el: p.el, eHit: p.eHit, forceCrit: p.forceCrit });
+      if (p.onHit) p.onHit(e);
+      if (p.dbl && p.pierce > 0 && !e.dead) { hitEnemy(e, dmg, { src: p.src, col: p.col, el: p.el, eHit: p.eHit, noNum: true }); p.pierce--; } // 天弓: 二重ヒット(貫通を1消費)
       if (p.burn) { e.burn = Math.max(e.burn || 0, p.burn); e.burnT = 3; }
       if (p.boom > 0) {
         p.boom--;
@@ -512,6 +535,27 @@ function updZones(dt) {
           e.frost = z.maxFrost ? Math.max(e.frost || 0, mageFrostCap()) : Math.min(10, (e.frost || 0) + 1); e.frostT = 5; // maxFrost: 絶対零度
         });
       }
+    } else if (z.kind === 'rain') { // アローレイン: 範囲のランダムな位置へ矢が刺さる
+      if (z.follow) { z.x = P.x; z.y = P.y; }
+      for (const ar of z.arrows) ar.t += dt;
+      z.arrows = z.arrows.filter(ar => ar.t < 0.5);
+      if (z.t >= z.delay && z.t < z.dur) {
+        if (z.pin) forEachNear(z.x, z.y, z.r, e => { e.pinUntil = S.time + 0.15; });
+        z.acc += dt;
+        while (z.acc >= z.every) {
+          z.acc -= z.every;
+          const a = rand(0, TAU), rr = Math.sqrt(Math.random()) * z.r, x = z.x + Math.cos(a) * rr, y = z.y + Math.sin(a) * rr, el = clsNextEl();
+          z.arrows.push({ x, y, t: 0 });
+          setTimeout(() => { // 落ちてから当たる
+            if (state !== 'play') return;
+            asMine(() => {
+              forEachNear(x, y, z.hitR, e => { hitEnemy(e, z.dmg, { src: 'arrowrain', col: '#b8ff9a', el, eHit: true, noNum: Math.random() < 0.5 }); });
+              part(x, y, rand(-20, 20), -rand(10, 30), 0.3, pick(['#b8ff9a', '#e4ffd8', '#8a8098']), { glow: true });
+            });
+          }, 70);
+        }
+      }
+      if (z.t + dt >= z.dur && !z.done) { z.done = true; asMine(() => { addFlash(z.x, z.y, z.r * 2.4, '#b8ff9a', 0.3); addRing(z.x, z.y, z.r, '#e4ffd8', { w: 2, life: 0.35 }); }); }
     } else if (z.kind === 'residue') { // ブリンクの氷の残滓: 触れた敵に凍傷
       if (Math.random() < dt * 20) part(z.x + rand(-z.r, z.r), z.y + rand(-z.r, z.r) * 0.6, 0, -10, 0.5, pick(['#bff4ff', '#ffffff']), { glow: true });
       if (z.tick <= 0) {
@@ -552,13 +596,14 @@ function updZones(dt) {
 function hitEnemy(e, base, o = {}) {
   if (e.dead) return 0;
   if (e.prop) { killEnemy(e, o); return 0; }
-  let dmg = base * dmgMul();
+  let dmg = base * dmgMul() * clsDmgTaken(e); // 印などで敵が受けるダメージが増える
   if (e.frost > 0 && P.weapons.blizzard && P.weapons.blizzard.evo) dmg *= 1 + 0.01 * e.frost;
-  const crit = !o.noCrit && Math.random() < critRate();
-  if (crit) dmg *= P.critMul; else if (P.uq.exec) dmg *= 0.8; // 処刑人の
+  const crit = o.forceCrit || (!o.noCrit && Math.random() < critRate() + clsCritBonus(e));
+  if (crit) dmg *= P.critMul + clsCritDmgBonus(e); else if (P.uq.exec) dmg *= 0.8; // 処刑人の
   dmg = Math.max(1, Math.round(dmg * rand(0.9, 1.1)));
   e.hp -= dmg; e.flash = 0.08;
   if (o.src && o.src === P.mainW) clsOnMainHit(e); // 通常攻撃(メイン武器)の命中
+  if (o.eHit) clsOnEHit(e);                        // 武器スキル(E)の命中
   if (o.el) clsOnElement(e, o.el, dmg);             // 属性(メイジの元素循環)
   S.totalDmg += dmg;
   if (o.src) S.dmgBy[o.src] = (S.dmgBy[o.src] || 0) + dmg;
@@ -683,7 +728,7 @@ function updEnemies(dt) {
     if (e.stun > 0) { e.stun -= dt; continue; }
     if (e.boss) { bossAI(e, dt); }
     else {
-      const slow = Math.max(0.2, 1 - DATA.debuff.frostSlow * (e.frost || 0)) * (e.slowT > 0 ? 0.6 : 1); // 凍傷
+      const slow = Math.max(0.2, 1 - DATA.debuff.frostSlow * (e.frost || 0)) * (e.slowT > 0 ? 0.6 : 1) * (S.time < (e.pinUntil || 0) ? 0.4 : 1); // 凍傷 / 縫い止め
       const sp = e.spd * slow;
       const dc = S.decoy && d2(e.x, e.y, S.decoy.x, S.decoy.y) < 200 * 200 ? S.decoy : P; // 空蝉の分身
       const a = Math.atan2(dc.y - e.y, dc.x - e.x);
