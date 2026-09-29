@@ -564,6 +564,10 @@ function render() {
     switch (p.kind) {
       case 'arrow': case 'volley': { // 矢: 進む向きに沿って 6 ドット(先端・矢柄・矢羽)
         const a = Math.atan2(p.vy, p.vx), cx = p.x - cam.x, cy = p.y - cam.y, vol = p.kind === 'volley';
+        if (vol) for (let i = 6; i < 18; i++) { // 一斉射撃の矢: 後ろに光の筋
+          gx.globalAlpha = 1 - (i - 6) / 12; gx.fillStyle = '#b8ffb0'; gx.fillRect(Math.round(cx - Math.cos(a) * i), Math.round(cy - Math.sin(a) * i), 1, 1);
+        }
+        gx.globalAlpha = 1;
         for (let i = 0; i < 6; i++) {
           const x = Math.round(cx - Math.cos(a) * i), y = Math.round(cy - Math.sin(a) * i);
           sx.fillStyle = i === 0 ? '#ffffff' : i >= 4 ? (vol ? '#7dff9a' : '#7dff9a') : vol ? '#d8ffd0' : p.dbl ? '#ffe14a' : '#d9c9a0';

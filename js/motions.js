@@ -93,14 +93,14 @@ const MOTIONS = {
       return Object.assign(archerPose(0, r < 0.15 ? 'aim' : 'base', { legs: r < 0.1 ? 'stepA' : 'base' }), { bow: true, bowAng: r < 0.15 ? -0.9 : 0.3, pull: 0, arrow: false, blade: false, lean: track([[0, 0.12], [0.3, 0, 'out']], r), sy: track([[0, 0.95], [0.15, 1, 'out']], r) });
     },
   },
-  // 一斉射撃(Q): 長弓を天へ構えて光を集める(0.4秒)→ 空へ一斉に放つ → 戻る
+  // 一斉射撃(Q): 長弓を前へ構えて光を集める(0.4秒)→ 一斉に放って反動 → 戻る
   aVolley: {
     rig: 'hunter', dur: 0.75, cast: 0.4,
     state(t) {
       const c = this.cast;
-      if (t < c) { const u = t / c; return Object.assign(archerPose(u < 0.3 ? 1 : 0, 'sky', { capeV: Math.floor(t * 10) % 2 ? 'b' : 'base' }), { bow: true, bowAng: -1.45, pull: 3 * u, arrow: true, glow: true, blade: false, lean: -0.12 * u, sy: 1 + 0.04 * u }); }
+      if (t < c) { const u = t / c; return Object.assign(archerPose(u < 0.3 ? 1 : 0, 'aim', { capeV: Math.floor(t * 10) % 2 ? 'b' : 'base' }), { bow: true, bowAng: 0, pull: 3 * u, arrow: true, glow: true, blade: false, lean: -0.12 * u, sy: 1 - 0.03 * u }); }
       const r = t - c;
-      return Object.assign(archerPose(r < 0.1 ? 1 : 0, r < 0.2 ? 'sky' : 'base'), { bow: true, bowAng: r < 0.2 ? -1.45 : 0.3, pull: 0, arrow: false, blade: false, lean: track([[0, 0.06], [0.35, 0, 'out']], r), sy: track([[0, 0.93], [0.15, 1, 'out']], r) });
+      return Object.assign(archerPose(r < 0.1 ? 1 : 0, r < 0.2 ? 'aim' : 'base', { legs: r < 0.12 ? 'stepA' : 'base' }), { bow: true, bowAng: r < 0.2 ? 0 : 0.3, pull: 0, arrow: false, blade: false, lean: track([[0, 0.06], [0.35, 0, 'out']], r), sy: track([[0, 0.93], [0.15, 1, 'out']], r) });
     },
   },
   // バックステップ(Space): 小さく跳ねて後ろへ → 着地で沈む

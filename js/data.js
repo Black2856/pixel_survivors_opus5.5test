@@ -224,12 +224,12 @@ const DATA = {
       name: '長弓', desc: '照準方向へ貫通する矢を放つ(本数が多いときは時間差で連射)', col: '#b8ff9a',
       lv: [
         { cd: 1.2,  dmg: 14, count: 1, speed: 260, pierce: 1 },
-        { cd: 1.1,  dmg: 18, count: 1, speed: 270, pierce: 1 },
-        { cd: 1.05, dmg: 22, count: 2, speed: 280, pierce: 2 },
-        { cd: 1.0,  dmg: 26, count: 2, speed: 290, pierce: 2 },
-        { cd: 0.95, dmg: 32, count: 3, speed: 300, pierce: 3 },
+        { cd: 1.1,  dmg: 18, count: 1, speed: 270, pierce: 2 },
+        { cd: 1.05, dmg: 22, count: 2, speed: 280, pierce: 3 },
+        { cd: 1.0,  dmg: 26, count: 2, speed: 290, pierce: 4 },
+        { cd: 0.95, dmg: 32, count: 3, speed: 300, pierce: 5 },
       ],
-      evo: { name: '天弓', desc: '矢が同じ敵に二度当たる(2回目は貫通を1消費する)', st: { cd: 0.9, dmg: 38, count: 3, speed: 320, pierce: 4 } },
+      evo: { name: '天弓', desc: '矢が同じ敵に二度当たる(2回目は貫通を1消費する)', st: { cd: 0.9, dmg: 38, count: 3, speed: 320, pierce: 6 } },
       // 武器スキル(E)アローレイン: 構え windup 秒(動けない)→ 照準位置の半径 radius に dur 秒間矢が降り、every 秒ごとに範囲内の敵全員へ
       // 武器の威力 × pow(見た目の矢は1回に arrows 本)/ range: 照準の最大距離
       skill: {
@@ -428,9 +428,10 @@ const DATA = {
         focusMax: 5, focusStep: 0.5, focusDecay: 1, focusAtkSpd: 0.04, focusCrit: 0.02, focusHurt: 2,
         backDist: 80, backTime: 0.15, backIfr: 0.25, backCost: 100, backFocus: 1,
       },
-      // 一斉射撃(Q): 構え windup 秒(動けない)→ 画面内の印を持つ敵へ、印1つにつき1本の追尾する矢(基礎威力 pow)
-      //   印を持つ敵がいなければ最寄り none 体へ1本ずつ。最大 max 本。流星: 着弾で爆発(meteorPow・半径 meteorR)
-      q: { name: '一斉射撃', cd: 35, windup: 0.4, pow: 25, none: 10, max: 100, speed: 170, meteorPow: 10, meteorR: 16 },
+      // 一斉射撃(Q): 構え windup 秒(動けない)→ 画面内の印を持つ敵1体につき1本、その敵へまっすぐ高速の矢(貫通無限・基礎威力 pow)
+      //   矢が当たった敵は、印1つにつき markPow の追加ダメージを interval 秒おきに連続で受ける(印は消費)
+      //   印を持つ敵がいなければ最寄り none 体へ1本ずつ。最大 max 本。流星: 当たるたびに爆発(meteorPow・半径 meteorR)
+      q: { name: '一斉射撃', cd: 35, windup: 0.4, pow: 100, markPow: 25, interval: 0.05, none: 10, max: 100, speed: 600, meteorPow: 10, meteorR: 16 },
       tree: {
         trait: { name: '狩人の印', paths: {
           deep:   { name: '深手', desc: ['印の持続 +2秒', '印の持続 +4秒', '印の持続 +7秒'], v: [2, 4, 7], sp: { name: '急所', desc: '弱点露出中の敵へのクリティカルダメージ +30%' } },
@@ -443,9 +444,9 @@ const DATA = {
           eye:  { name: '鋭眼', desc: ['集中1段のクリティカル率 +0.5% 追加', '集中1段のクリティカル率 +1% 追加', '集中1段のクリティカル率 +1.5% 追加'], v: [0.005, 0.01, 0.015], sp: { name: '連射', desc: '集中が最大の間、弾数 +1(近接武器では攻撃回数 +1)' } },
         } },
         q: { name: '一斉射撃', need: 'q', paths: {
-          pow: { name: '威力', desc: ['一斉射撃の威力 +30%', '一斉射撃の威力 +60%', '一斉射撃の威力 +100%'], v: [0.3, 0.6, 1.0], sp: { name: '流星', desc: '矢が着弾すると小さく爆発する(基礎威力 10、半径 16)' } },
-          cd:  { name: '迅速', desc: ['一斉射撃のCD -10%', '一斉射撃のCD -20%', '一斉射撃のCD -30%'], v: [0.1, 0.2, 0.3], sp: { name: '印の嵐', desc: '矢が当たった敵に、印 +5 を刻み直す' } },
-          num: { name: '本数', desc: ['印の無い敵にも追加で +2本', '印の無い敵にも追加で +4本', '印の無い敵にも追加で +6本'], v: [2, 4, 6], sp: { name: '必中', desc: '一斉射撃の矢は必ずクリティカルになる' } },
+          pow: { name: '威力', desc: ['一斉射撃の威力 +30%(矢・追加ダメージ)', '一斉射撃の威力 +60%(矢・追加ダメージ)', '一斉射撃の威力 +100%(矢・追加ダメージ)'], v: [0.3, 0.6, 1.0], sp: { name: '流星', desc: '矢が敵に当たるたびに小さく爆発する(基礎威力 10、半径 16)' } },
+          cd:  { name: '迅速', desc: ['一斉射撃のCD -10%', '一斉射撃のCD -20%', '一斉射撃のCD -30%'], v: [0.1, 0.2, 0.3], sp: { name: '印の嵐', desc: '追加ダメージの後、その敵に印 +5 を刻み直す' } },
+          num: { name: '本数', desc: ['印の無い敵にも追加で +2本', '印の無い敵にも追加で +4本', '印の無い敵にも追加で +6本'], v: [2, 4, 6], sp: { name: '必中', desc: '一斉射撃の矢と追加ダメージは必ずクリティカルになる' } },
         } },
       },
     },

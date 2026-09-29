@@ -602,13 +602,15 @@ const CLASS_RT = {
           ['最大時の攻撃速度', `<b>+${Math.round((p.focusMax + (c.lvFx.focusMax || 0)) * p.focusAtkSpd * 100)}%</b>`],
         ] },
         { key: 'Q', name: q.name, cat: 'q', desc: [
-          `構え ${q.windup}秒(動けない)→ 画面内の印を持つ全ての敵へ、印1つにつき1本の追尾する矢`,
-          '印は放った時点で消費する',
+          `構え ${q.windup}秒(動けない)→ 画面内の印を持つ敵1体につき1本、その敵へまっすぐ高速の矢(貫通無限)`,
+          `矢が当たった敵は、印1つにつき ${q.markPow} の追加ダメージを連続で受ける(印は消費)`,
+          '  → 途中で貫いた敵も、印を持っていれば同じく受ける',
           `印を持つ敵がいなければ、最寄りの ${q.none}体へ1本ずつ(最大 ${q.max}本)`,
           '威力は武器に依存しない',
         ], rows: [
           ['CD', `<b>${(q.cd * (1 - c.cuV('q', 'cd')) * c.cdMul).toFixed(1)}</b> 秒`],
-          ['1本の威力', `${Math.round(q.pow * k)} → <b>${Math.round(q.pow * k * c.atkMul)}</b>`],
+          ['矢の威力', `${Math.round(q.pow * k)} → <b>${Math.round(q.pow * k * c.atkMul)}</b>`],
+          ['印1つの追加', `${Math.round(q.markPow * k)} → <b>${Math.round(q.markPow * k * c.atkMul)}</b>`],
         ] },
         { key: 'Space', name: 'バックステップ', desc: [
           `移動方向と逆へ ${p.backDist} 跳ぶ(止まっているときは向きと逆)。${p.backIfr}秒 無敵`,
@@ -867,29 +869,38 @@ function archerBackstep() {
   burst(P.x, P.y + 6, 10, ['#8a8098', '#b8ff9a'], { sp: 50, up: 10, life: 0.35 });
   AudioMan.dash();
 }
-// 一斉射撃: 画面内の印を持つ敵へ、印1つにつき1本(追尾)。印は放った時点で消費する
+// 一斉射撃: 画面内の印を持つ敵1体につき1本、その敵へまっすぐ高速の矢(貫通無限)
+// 矢が当たった敵は、印1つにつき追加ダメージを連続で受ける(印は消費)。途中で貫いた敵も同じ
 function archerVolley() {
-  const q = DATA.classes.archer.q, pow = q.pow * (1 + cuV('q', 'pow') + (P.lvFx.qPow || 0));
+  const q = DATA.classes.archer.q, k = 1 + cuV('q', 'pow') + (P.lvFx.qPow || 0);
   const vis = enemies.filter(e => !e.dead && !e.prop && onScreen(e.x, e.y));
   const marked = vis.filter(markOn).sort((a, b) => b.mark - a.mark);
-  const shots = [];
-  for (const e of marked) { for (let i = 0; i < e.mark; i++) shots.push(e); e.mark = 0; }
-  const others = vis.filter(e => !marked.includes(e)).sort((a, b) => d2(a.x, a.y, P.x, P.y) - d2(b.x, b.y, P.x, P.y));
+  const others = vis.filter(e => !markOn(e)).sort((a, b) => d2(a.x, a.y, P.x, P.y) - d2(b.x, b.y, P.x, P.y));
+  const shots = marked.slice();
   const extra = (marked.length ? 0 : q.none) + cuV('q', 'num');
   for (let i = 0; i < extra && others.length; i++) shots.push(others[i % others.length]);
   const sure = hasSp('q', 'num'), boom = hasSp('q', 'pow'), storm = hasSp('q', 'cd');
+  const onHit = e => {
+    if (boom) asMine(() => { // 流星
+      forEachNear(e.x, e.y, q.meteorR * P.area, o => { if (!o.prop && o !== e) hitEnemy(o, q.meteorPow * k, { src: 'volley', noNum: true, col: '#b8ffb0' }); });
+      addFlash(e.x, e.y, 30, '#b8ffb0', 0.15);
+    });
+    if (!markOn(e)) return;
+    const n = e.mark; e.mark = 0; // 印を消費して、1つにつき追加ダメージを連続で
+    for (let i = 0; i < n; i++) setTimeout(() => {
+      if (state !== 'play' || e.dead) return;
+      asMine(() => { hitEnemy(e, q.markPow * k, { src: 'volley', col: '#b8ffb0', forceCrit: sure, noNum: i % 2 === 1 }); part(e.x + rand(-4, 4), e.y + rand(-4, 4), rand(-30, 30), rand(-30, 10), 0.25, pick(['#b8ffb0', '#ffffff']), { glow: true }); });
+      if (i === n - 1 && storm && !e.dead) addMark(e, 5); // 印の嵐
+    }, 60 + i * q.interval * 1000);
+  };
   asMine(() => {
     shots.slice(0, q.max).forEach(tg => {
-      const a = -Math.PI / 2 + rand(-0.9, 0.9);
-      fire('volley', P.x, P.y - 10, a, q.speed * rand(0.8, 1.25), { dmg: pow, pierce: 0, life: 3, src: 'volley', r: 3, col: '#b8ffb0', target: tg, home: true, homing: 7, forceCrit: sure,
-        onHit: e => {
-          if (storm && !e.dead) addMark(e, 5); // 印の嵐
-          if (boom) { forEachNear(e.x, e.y, q.meteorR * P.area, o => { if (!o.prop && o !== e) hitEnemy(o, q.meteorPow, { src: 'volley', noNum: true, col: '#b8ffb0' }); }); addFlash(e.x, e.y, 30, '#b8ffb0', 0.15); } // 流星
-        } });
+      const a = Math.atan2(tg.y - P.y, tg.x - P.x);
+      fire('volley', P.x, P.y - 4, a, q.speed, { dmg: q.pow * k, pierce: 999, life: 1.2, src: 'volley', r: 4, col: '#b8ffb0', forceCrit: sure, onHit });
     });
-    addRing(P.x, P.y - 8, 30, '#b8ff9a', { w: 2, life: 0.4 }); addFlash(P.x, P.y, 90, '#b8ff9a', 0.3);
-    burst(P.x, P.y - 10, 30, ['#e4ffd8', '#b8ff9a', '#ffffff'], { sp: 120, up: 60, glow: true, life: 0.5 });
-    shake(4); screenFlash(0.15 * SET.fxA, '#b8ff9a');
+    addRing(P.x, P.y - 4, 30, '#b8ff9a', { w: 2, life: 0.4 }); addFlash(P.x, P.y, 90, '#b8ff9a', 0.3);
+    burst(P.x, P.y - 4, 30, ['#e4ffd8', '#b8ff9a', '#ffffff'], { sp: 150, glow: true, life: 0.4 });
+    shockAt(P.x, P.y, 1, 1.2); shake(4); screenFlash(0.15 * SET.fxA, '#b8ff9a');
   });
   setCd('q', q.cd * (1 - cuV('q', 'cd')) * P.cdMul);
   AudioMan.shoot(); AudioMan.crit();
