@@ -63,7 +63,10 @@ const ART = (() => {
       const md = def.motions[m];
       motions[m] = { loop: md.loop, dur: md.frames.reduce((a, f) => a + f.t, 0), frames: md.frames.map(f => ({ t: f.t, sp: build(f.p || {}) })) };
     }
-    return { motions, base: build({}) };
+    // pose(p): 任意の姿勢をその場で組み立てる(補間アニメーション用。同じ姿勢はキャッシュを使う)
+    const poseCache = new Map();
+    const pose = p => { const k = JSON.stringify(p); let sp = poseCache.get(k); if (!sp) poseCache.set(k, sp = build(p)); return sp; };
+    return { motions, pose, padX: px, base: build({}) };
   }
   // 経過時間 time でのフレームを返す(loop でなければ最後のフレームで止まる)
   function rigFrame(r, motion, time) {
