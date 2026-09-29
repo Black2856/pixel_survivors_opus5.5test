@@ -37,7 +37,10 @@ const classLvOf = cls => (META.classes[cls] || { lv: 1 }).lv;
 const weaponOwner = k => Object.keys(DATA.classes).find(c => DATA.classes[c].weapon === k);
 function sumLvFx(tbl, lv) {
   const o = {};
-  for (const l in tbl || {}) if (lv >= +l) for (const k in tbl[l].fx || {}) o[k] = (o[k] || 0) + tbl[l].fx[k];
+  for (const l in tbl || {}) if (lv >= +l) for (const k in tbl[l].fx || {}) {
+    const v = tbl[l].fx[k];
+    o[k] = k === 'cd' ? 1 - (1 - (o[k] || 0)) * (1 - v) : (o[k] || 0) + v; // クールダウンは乗算で重ねる
+  }
   return o;
 }
 const classLvFx = cls => sumLvFx(DATA.classes[cls].lv, classLvOf(cls));

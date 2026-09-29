@@ -56,7 +56,7 @@ const WEAPON_SKILL = {
       const m = P.wm.katana || {}; // 熟練: 斬る回数・威力
       P.act = { slot: 'e', ph: 'wind', t: 0, dur, hits: sk.hits + Math.round(cuV('e', 'dur') / 0.15) + (m.eHits || 0), n: 0, hitT: 0, pow: clsESkillMul() * (1 + (m.ePow || 0)) };
       playAnim('ranbu', MOTIONS.ranbu.duration(dur), dur);
-      setCd('e', sk.cd * (1 - cuV('e', 'cd')) * P.cdMul);
+      setCd('e', sk.cd * (1 - cuV('e', 'cd')) * (1 - (m.cd || 0)) * P.cdMul); // 熟練のクールダウンは武器スキルにも効く
       skillCall(sk.name, '#ffb7d5'); AudioMan.click();
       burst(P.x, P.y, 12, ['#ffb7d5', '#ffffff'], { sp: 40, up: 20, glow: true });
     },

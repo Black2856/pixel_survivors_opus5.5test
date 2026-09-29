@@ -63,14 +63,13 @@ function dmgMul() {
   return (1 + P.atk + clsAtkBonus() + (P.uq.berserk ? 1 - P.hp / P.maxhp : 0)) * P.atkMul;
 }
 const critRate = () => P.crit;
-// 武器の現在のステータス。熟練(クラスLv の共通強化)の威力・範囲を掛けたもの(Lv / 進化が変わるまでキャッシュ)
-// 熟練の攻撃速度は通常攻撃の扱いなので、メイン武器のときだけ updWeapons で掛ける
+// 武器の現在のステータス。熟練(クラスLv の共通強化)の威力・範囲・クールダウンを掛けたもの(Lv / 進化が変わるまでキャッシュ)
 const wst = k => {
   const w = P.weapons[k], base = w.evo ? DATA.weapons[k].evo.st : DATA.weapons[k].lv[w.lv - 1], m = P.wm[k];
-  if (!m || (!m.dmg && !m.area)) return base;
+  if (!m || (!m.dmg && !m.area && !m.cd)) return base;
   if (w.stBase !== base) {
     w.stBase = base;
-    w.st = Object.assign({}, base, { dmg: base.dmg * (1 + (m.dmg || 0)) });
+    w.st = Object.assign({}, base, { dmg: base.dmg * (1 + (m.dmg || 0)), cd: base.cd * (1 - (m.cd || 0)) });
     for (const f of ['aoe', 'radius']) if (base[f]) w.st[f] = base[f] * (1 + (m.area || 0));
   }
   return w.st;
@@ -223,7 +222,7 @@ function updWeapons(dt) {
   for (const k in P.weapons) {
     const w = P.weapons[k], st = wst(k);
     w.t += dt;
-    w.cd -= k === P.mainW ? cdt * (P.atkSpd + (P.wm[k].spd || 0)) : cdt;
+    w.cd -= k === P.mainW ? cdt * P.atkSpd : cdt;
     const n = (st.count || 1) + P.shots; // 弾数(千手の など)
     switch (k) {
       case 'bolt':
