@@ -272,3 +272,14 @@ input[type=range] { width: 220px; accent-color: var(--gold); }
   #timer { font-size: 16px; }
   #counters { font-size: 9px; }
 }
+
+/* ---------- リザルト: クラス経験値と獲得した装備 ---------- */
+#result-cls { margin-top: 14px; font-size: 16px; text-align: center; }
+#result-cls em { color: var(--gold); font-style: normal; animation: flick .5s ease-in-out infinite; }
+#result-loot { margin-top: 8px; display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; max-width: 760px; }
+#result-loot .dim { width: 100%; text-align: center; }
+.loot { display: inline-flex; align-items: center; gap: 4px; padding: 3px 8px 3px 4px; background: var(--panel); box-shadow: inset 0 0 0 2px var(--rc); color: var(--rc); font-size: 13px; }
+.loot .icon { width: 18px; image-rendering: pixelated; }
+.card .uq { color: #ffb347; font-size: 12px; margin-top: 4px; }
+.card .opt { font-size: 12px; line-height: 1.5; white-space: nowrap; color: var(--txt); } /* 装備カードのオプション1行 */
+.card .opt em { color: var(--green); font-style: normal; font-size: 11px; }

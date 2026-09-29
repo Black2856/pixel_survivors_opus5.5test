@@ -15,6 +15,7 @@ const UI = (() => {
     if (iconCache[k]) return iconCache[k];
     let sp;
     if (type === 'heal') sp = ART.S.meat;
+    else if (type === 'equip') sp = ART.S.eqIcons[key];
     else if (type === 'gold') sp = ART.S.coin[0];
     else sp = ART.S.icons[key] || ART.S.orb;
     return (iconCache[k] = sp.c.toDataURL());
@@ -299,6 +300,13 @@ const UI = (() => {
       const tag = `<span class="cls-cat" style="--cc:${CAT[1]}">${CAT[0]}</span>`; // 見出しの行に並べるカテゴリの札
       if (c.sp) { name = d.sp.name; head = tag + 'SPECIAL'; rar = 'legend'; body = `<p>${d.sp.desc}</p>`; foot = `<div class="evohint">${C.name} / ${d.name} の派生(1つだけ)</div>`; }
       else { head = tag + `Lv ${lv} → ${lv + 1}`; name = `<small>${C.name}</small>${d.name}`; rar = lv + 1 === 3 ? 'epic' : 'rare'; body = `<p>${d.desc[lv]}</p>`; foot = `<div class="evohint">${'◆'.repeat(lv + 1)}${'◇'.repeat(2 - lv)}</div>`; }
+    } else if (c.type === 'item') {
+      // 装備: 種類のアイコン / レアリティ / オプション一覧(ラン開始時は Lv0 → レベルアップで伸びる)/ 固有効果
+      const it = c.item, R = DATA.equip.rarity[it.rarity];
+      name = itemName(it); ic = icon('equip', it.type, 'big'); head = `<span style="color:${R.col}">${R.name}</span> ${DATA.equip.slots[itemSlot(it)]}`;
+      rar = { common: 'common', uncommon: 'new', rare: 'rare', epic: 'epic', legendary: 'legend' }[it.rarity];
+      body = it.opts.map(o => `<div class="opt">${optText(o)} <em>〜Lv${o.max}</em></div>`).join('') + (it.uq ? `<p class="uq">${DATA.uniques[it.uq].desc}</p>` : '');
+      foot = `<div class="evohint">${c.sold ? `インベントリが満杯 → 売却 +${c.sold}G` : 'インベントリに追加'}</div>`;
     } else if (c.type === 'evo') {
       const d = DATA.weapons[c.key];
       name = d.evo.name; ic = icon('weapon', c.key, 'big'); head = 'EVOLUTION!!'; rar = 'legend'; body = `<p>${d.name} が進化した!<br>${d.evo.desc}</p>`;
@@ -374,6 +382,7 @@ const UI = (() => {
     rare:    { label: 'GREAT!!',        cols: ['#6ee7ff', '#ffd23f', '#ffffff'], coins: 110, conf: 140 },
     jackpot: { label: 'JACKPOT!!!',     cols: ['#ff3b5c', '#ffd23f', '#5dff8a', '#6ee7ff', '#b06ef0'], coins: 220, conf: 260 },
     evo:     { label: 'EVOLUTION!!!!',  cols: ['#ff6ec7', '#b06ef0', '#6ee7ff', '#ffd23f', '#ffffff'], coins: 180, conf: 300 },
+    legend:  { label: 'LEGENDARY!!!!',  cols: ['#ffb347', '#ffd23f', '#ff6a2a', '#ffffff', '#ff6ec7'], coins: 240, conf: 320 },
   };
   let chest = null;
   const fxc = $('chest-fx'), fx = fxc.getContext('2d');
@@ -440,8 +449,9 @@ const UI = (() => {
 
   function openChest(rewards) {
     state = 'chest';
-    const evo = rewards.some(r => r.type === 'evo');
-    const tierKey = evo ? 'evo' : rewards.length >= 5 ? 'jackpot' : rewards.length >= 3 ? 'rare' : 'normal';
+    // 段階は中身の一番良いレアリティで決める
+    const best = Math.max(...rewards.map(r => r.type === 'item' ? RARITY_KEYS.indexOf(r.item.rarity) : 0));
+    const tierKey = best >= 4 ? 'legend' : best === 3 ? 'jackpot' : best === 2 ? 'rare' : 'normal';
     chest = { rewards, phase: 'idle', tierKey, tier: TIERS[tierKey], skip: false, done: false };
     const cs = $('chest-screen');
     cs.className = 'screen tier-' + tierKey;
@@ -508,8 +518,8 @@ const UI = (() => {
     $('chest-rewards').appendChild(card);
     const iconBox = card.querySelector('.card-icon');
     const finalIcon = iconBox.innerHTML;
-    const pool = Object.keys(DATA.weapons).map(k => icon('weapon', k, 'big'));
-    const spins = r.type === 'evo' ? 12 : 7;
+    const pool = Object.keys(DATA.equip.types).map(k => icon('equip', k, 'big'));
+    const big = r.type === 'item' && r.item.rarity === 'legendary', spins = big ? 12 : 7;
     let n = 0;
     const step = () => {
       if (!chest) return;
@@ -518,11 +528,11 @@ const UI = (() => {
         applyChoice(r);
         card.classList.remove('rolling'); card.classList.add('landed');
         const rc = card.getBoundingClientRect(), cx = rc.left + rc.width / 2, cy = rc.top + rc.height / 2;
-        const cols = r.type === 'evo' ? TIERS.evo.cols : rar === 'epic' ? ['#ffd23f', '#ffffff'] : rar === 'new' ? ['#6ee7ff', '#ffffff'] : ['#b8a8ff', '#ffffff'];
-        fxBurst(cx, cy, r.type === 'evo' ? 160 : 60, 'spark', cols, { sp: r.type === 'evo' ? 900 : 550, g: 200, drag: 2, life: 1 });
+        const cols = big ? TIERS.legend.cols : rar === 'epic' ? ['#ffd23f', '#ffffff'] : rar === 'new' ? ['#6ee7ff', '#ffffff'] : ['#b8a8ff', '#ffffff'];
+        fxBurst(cx, cy, big ? 160 : 60, 'spark', cols, { sp: big ? 900 : 550, g: 200, drag: 2, life: 1 });
         fxBurst(cx, cy, 30, 'conf', cols, { sp: 700, g: 600, drag: 1.5 });
-        if (r.type === 'evo') {
-          AudioMan.evolve(); shakeScreen($('chest-screen'), 'quake-big'); screenFlash(1, '#ff6ec7'); shockAt(P.x, P.y, 3, 0.5);
+        if (big) {
+          AudioMan.evolve(); shakeScreen($('chest-screen'), 'quake-big'); screenFlash(1, '#ffb347'); shockAt(P.x, P.y, 3, 0.5);
           const fl = $('chest-flash'); fl.classList.remove('go'); void fl.offsetWidth; fl.classList.add('go');
         } else AudioMan.land(rar === 'epic' ? 2 : rar === 'new' ? 1 : 0);
         setTimeout(() => revealNext(i + 1), chest.skip ? 60 : 150);
@@ -588,7 +598,7 @@ const UI = (() => {
   $('vol-music').oninput = e => AudioMan.setVol('music', e.target.value / 100);
   $('vol-sfx').oninput = e => { AudioMan.setVol('sfx', e.target.value / 100); AudioMan.click(); };
 
-  function result(win, earned) {
+  function result(win, earned, loot, cxp) {
     only('result-screen');
     hide($('hud'));
     const arena = S.mode === 'arena';
@@ -599,6 +609,11 @@ const UI = (() => {
     $('result-stats').innerHTML = rows.filter(Boolean).map(([a, b]) => `<div class="rs"><span>${a}</span><b>${b}</b></div>`).join('');
     const tot = Object.values(S.dmgBy).reduce((a, b) => a + b, 0) || 1;
     const list = Object.entries(S.dmgBy).filter(([k]) => DATA.weapons[k]).sort((a, b) => b[1] - a[1]);
+    // 獲得した装備(ボスの宝箱 + ラン終了時の報酬)とクラス経験値
+    const cl = DATA.classes[P.cls], lvUp = cxp.lv > cxp.lv0;
+    $('result-cls').innerHTML = `<b style="color:${cl.col}">${cl.name}</b> クラス経験値 +${cxp.xp}` + (lvUp ? ` <em>Lv ${cxp.lv0} → ${cxp.lv}!</em>` : ` <span class="dim">Lv ${cxp.lv}</span>`);
+    $('result-loot').innerHTML = (loot.chests ? `<div class="dim">ラン終了の報酬: 宝箱 ×${loot.chests}</div>` : '') +
+      (S.loot.length ? S.loot.map(it => `<span class="loot" style="--rc:${DATA.equip.rarity[it.rarity].col}">${icon('equip', it.type)}${itemName(it)}</span>`).join('') : '<div class="dim">装備の入手なし</div>');
     $('result-dmg').innerHTML = list.map(([k, v]) => `<div class="dm">${icon('weapon', k)}<div class="dm-bar"><i style="width:${(v / tot * 100).toFixed(1)}%;background:${DATA.weapons[k].col}"></i></div><span>${Math.round(v).toLocaleString()}</span></div>`).join('');
   }
 

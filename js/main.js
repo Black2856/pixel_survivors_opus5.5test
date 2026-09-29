@@ -30,10 +30,11 @@ function endRun(win) {
     META.best.kills = Math.max(META.best.kills, S.kills);
     META.best.level = Math.max(META.best.level, P.level);
   }
+  const loot = runEndLoot(win), cxp = gainClassXp(); // 装備の報酬(インベントリへ)とクラス経験値
   saveMeta();
   state = win ? 'victory' : 'over';
   if (!win) AudioMan.stopMusic(1.5);
-  UI.result(win, earned);
+  UI.result(win, earned, loot, cxp);
 }
 function startEndless() {
   // 勝利後もそのまま続行(ゴールドはリザルト時に精算済みなのでリセット)

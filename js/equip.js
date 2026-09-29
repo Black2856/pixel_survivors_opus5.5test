@@ -101,6 +101,45 @@ function eqGrow() {
   addFloat(P.x, P.y - 30, `${DATA.stats[o.k].label} Lv${S.eqLv[slot][i]}`, '#9ff7ff', 0.9, -24);
 }
 
+// ---------- 宝箱・ラン終了時の報酬 ----------
+// 宝箱に入る装備の数: 1 / 2 / 3 個(宝箱品質で多い側へ寄る)
+function chestCount(q = 0) {
+  const [p1, p2, p3] = DATA.equip.chestN, a = p1 / (1 + q), c = Math.min(0.9, p3 * (1 + q)), r = Math.random();
+  return r < c ? 3 : r < c + Math.max(0, 1 - a - c) ? 2 : 1;
+}
+// 装備宝箱の中身を生成してインベントリへ入れる(死んでも失われない)。カード用のリストを返す
+function openEquipChest() {
+  const st = P.stats.v, out = [];
+  for (let i = chestCount(st.chestQual || 0); i > 0; i--) {
+    const it = genItem({ stats: st });
+    const sold = invAdd(it);
+    S.loot.push(it);
+    out.push({ type: 'item', item: it, sold });
+  }
+  return out;
+}
+// ラン終了時: 撃破ボス数に応じて宝箱 0〜2個(クリアで +1)
+function runEndLoot(win) {
+  const n = Math.min(DATA.equip.runEndMax, Math.floor(S.bossKills * DATA.equip.runEndPerBoss + 1e-9)) + (win ? 1 : 0);
+  const got = [];
+  for (let c = 0; c < n; c++) for (let i = chestCount(P.stats.v.chestQual || 0); i > 0; i--) {
+    const it = genItem({ stats: P.stats.v });
+    invAdd(it); S.loot.push(it); got.push(it);
+  }
+  return { chests: n, items: got };
+}
+// クラス経験値: 討伐数 × killK + 撃破ボス数 × bossK(クラス経験値% で増える)。上がった Lv を返す
+function gainClassXp() {
+  const cl = DATA.classLevel, c = META.classes[P.cls];
+  const xp = Math.round((S.kills * cl.killK + S.bossKills * cl.bossK) * (1 + (P.stats.v.classXp || 0)));
+  const lv0 = c.lv;
+  c.xp += xp;
+  while (c.lv <= cl.need.length && c.xp >= cl.need[c.lv - 1]) { c.xp -= cl.need[c.lv - 1]; c.lv++; }
+  if (c.lv > cl.need.length) c.xp = 0; // 最大 Lv
+  saveMeta();
+  return { xp, lv0, lv: c.lv };
+}
+
 // ---------- 表示用 ----------
 // オプション1行: 「攻撃力 +8.0%/Lv」。乗算系・% 系は % 表示
 function optText(o) {

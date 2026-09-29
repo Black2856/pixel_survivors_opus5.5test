@@ -18,7 +18,7 @@ function initRun(mode = 'normal') {
     freeze: 0, ts: 1, tsBack: 0, schedIdx: 0, spawnT: 0, spawnCfg: null,
     eliteT: 95, goblinT: 70, propT: 2, elv: 1, elvT: 0, boss: null, pendingLv: 0, lvFx: 0,
     rerolls: 0, weaponSlots: 4, lvQueue: [],
-    gold: 0, deathT: 0, victoryT: 0, hudDirty: true, won: false, hint: {}, decoy: null,
+    gold: 0, deathT: 0, victoryT: 0, hudDirty: true, won: false, hint: {}, decoy: null, bossKills: 0, loot: [],
   };
   P = {
     cls: META.cls, mainW: META.classes[META.cls].weapon, micro: {}, x: 0, y: 0, hp: 0, maxhp: 100, level: 1, xp: 0, xpNext: xpFor(1), weapons: {},
@@ -1074,10 +1074,12 @@ function onBossDeath(e) {
   addFlash(e.x, e.y, 260, '#ffd23f', 1.2);
   AudioMan.boom(); AudioMan.chest();
   eprojs = []; warns = []; hazards = [];
+  S.bossKills++;
   if (S.mode === 'arena') return arenaBossDown(e);
   for (let i = 0; i < 14; i++) dropGem(e.x + rand(-30, 30), e.y + rand(-30, 30), 20 * S.stage);
   for (let i = 0; i < 25; i++) dropItem('coin', e.x, e.y, 3 * S.stage);
   dropItem('meat', e.x + 14, e.y); dropItem('magnet', e.x - 14, e.y);
+  dropItem('chest', e.x, e.y - 14); // 装備宝箱
   if (e.final) {
     if (S.loop === 1 && !S.won) { S.won = true; S.victoryT = 2.4; AudioMan.stopMusic(1.5); return; }
     S.loop++; S.schedIdx = 0; S.loopStart = S.time; setStage(1);
@@ -1239,6 +1241,7 @@ function updDrops(dt) {
         UI.announce('BOOM!!', '');
         break;
       }
+      case 'chest': UI.openChest(openEquipChest()); break;
     }
   }
 }
@@ -1305,6 +1308,7 @@ function arenaBossDown(e) {
   for (let i = 0; i < n; i++) dropGem(e.x + rand(-30, 30), e.y + rand(-30, 30), xp / n);
   for (let i = 0; i < 25; i++) dropItem('coin', e.x, e.y, 2 + A.idx);
   dropItem('meat', e.x + 14, e.y); dropItem('magnet', e.x - 14, e.y);
+  dropItem('chest', e.x, e.y - 14); // 装備宝箱
   A.idx++;
   if (A.idx >= cfg.order.length) { S.won = true; S.victoryT = 3.2; AudioMan.stopMusic(1.5); UI.announce('ARENA CLEAR!!', '全ボス撃破'); return; }
   A.restT = cfg.rest; A.warned = false;
@@ -1353,6 +1357,7 @@ function applyChoice(c) {
   if (c.type === 'weapon') addWeapon(c.key);
   else if (c.type === 'evo') P.weapons[c.key].evo = true;
   else if (c.type === 'cls') clsApply(c);
+  else if (c.type === 'item') { /* 宝箱を開けた時点でインベントリに入っている */ }
   S.hudDirty = true;
 }
 // 進化: 武器Lv5。メイン武器はクラスLv10 以上で解放
