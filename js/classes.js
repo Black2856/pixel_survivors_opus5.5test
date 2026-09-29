@@ -88,6 +88,68 @@ const WEAPON_SKILL = {
     },
   },
 };
+// アーケイン・バラージュ(マジックボルトの E): 詠唱 → 照準方向へ連射(移動は遅くなる)
+// オーブ(迅速の特殊強化)では、代わりに周りを回るオーブが5秒間連射し、自分は自由に動ける
+WEAPON_SKILL.bolt = {
+  info(c, dmg) {
+    const sk = DATA.weapons.bolt.skill, m = c.wm, dur = sk.dur + c.cuV('e', 'dur') + (m.eDur || 0), one = dmg * sk.pow * (1 + c.cuV('e', 'pow')) * (1 + (m.ePow || 0));
+    return { name: sk.name, rows: [
+      ['CD', `<b>${(sk.cd * (1 - c.cuV('e', 'cd')) * (1 - (m.cd || 0)) * c.cdMul).toFixed(1)}</b> 秒`],
+      ['連射', `${Math.round(dur * sk.rate)} 発 / ${dur.toFixed(1)} 秒`],
+      ['1発の威力', `${Math.round(one)} → <b>${Math.round(one * c.atkMul)}</b>`, '武器の威力 × ' + Math.round(sk.pow * 100) + '%。攻撃力を掛けた値'],
+    ] };
+  },
+  start() {
+    const sk = weaponSkill(), m = P.wm.bolt || {};
+    const o = { slot: 'e', ph: 'wind', t: 0, dur: sk.dur + cuV('e', 'dur') + (m.eDur || 0), pow: clsESkillMul() * (1 + (m.ePow || 0)), shotT: 0, id: (S.actId = (S.actId || 0) + 1) };
+    setCd('e', sk.cd * (1 - cuV('e', 'cd')) * (1 - (m.cd || 0)) * P.cdMul);
+    skillCall(sk.name, '#b98bff'); AudioMan.click();
+    if (hasSp('e', 'cd')) { P.orb = Object.assign(o, { t: 5, shotT: 0 }); burst(P.x, P.y, 20, ['#b98bff', '#ffffff'], { sp: 60, glow: true }); return; } // オーブ
+    P.act = o;
+    addRing(P.x, P.y, 20, '#b98bff', { w: 2, life: 0.4 });
+  },
+  update(a, dt) {
+    const sk = weaponSkill();
+    if (a.ph === 'wind') { // 詠唱: 足元に魔法陣
+      P.moveMul = 0;
+      if (Math.random() < dt * 40) { const r = rand(0, TAU); part(P.x + Math.cos(r) * 14, P.y + 5 + Math.sin(r) * 6, 0, -20, 0.4, pick(['#b98bff', '#ffffff']), { glow: true }); }
+      if (a.t >= sk.windup) { a.ph = 'fire'; a.t0 = a.t; }
+      return;
+    }
+    P.moveMul *= sk.slow;
+    a.shotT -= dt;
+    while (a.shotT <= 0) { a.shotT += 1 / sk.rate; barrageShot(a, P.x, P.y, aimDir(220)); }
+    if (a.t - a.t0 >= a.dur) {
+      P.act = null;
+      asMine(() => { addRing(P.x, P.y, 28, '#b98bff', { w: 2, life: 0.35 }); burst(P.x, P.y, 16, ['#b98bff', '#ffffff'], { sp: 80, glow: true }); });
+    }
+  },
+  // スキルの実行とは別に毎フレーム(オーブ)
+  tick(dt) {
+    const o = P.orb;
+    if (!o) return;
+    o.t -= dt;
+    const sk = DATA.weapons.bolt.skill, spin = S.time * 5;
+    const pos = i => ({ x: P.x + Math.cos(spin + i * TAU / 3) * 20, y: P.y - 3 + Math.sin(spin + i * TAU / 3) * 12 });
+    for (let i = 0; i < 3; i++) { const q = pos(i); part(q.x, q.y, 0, 0, 0.15, pick(['#b98bff', '#ffffff']), { glow: true, sz: 2, drag: 0 }); }
+    o.shotT -= dt;
+    while (o.shotT <= 0) {
+      o.shotT += 1 / sk.rate;
+      const q = pos(o.n = ((o.n || 0) + 1) % 3), tg = nearestEnemy(q.x, q.y, 200);
+      if (tg) barrageShot(o, q.x, q.y, Math.atan2(tg.y - q.y, tg.x - q.x));
+    }
+    if (o.t <= 0) P.orb = null;
+  },
+};
+// バラージュの1発(弾幕: 3発に分かれて各 -40%)。E の攻撃なので1発ごとに属性が変わる
+function barrageShot(a, x, y, ang) {
+  const sk = DATA.weapons.bolt.skill, dmg = wst(P.mainW).dmg * sk.pow * (1 + cuV('e', 'pow')) * a.pow, split = hasSp('e', 'dur'), el = clsNextEl();
+  const n = split ? 3 : 1, spread = rand(-0.12, 0.12);
+  for (let i = 0; i < n; i++) fire('bolt', x, y, ang + spread + (i - (n - 1) / 2) * 0.16, sk.speed, { dmg: split ? dmg * 0.6 : dmg, pierce: 0, life: 1.1, src: 'barrage', col: '#b98bff', r: 3, el, focus: hasSp('e', 'pow') ? a.id : 0 });
+  if (Math.random() < 0.5) part(x + Math.cos(ang) * 6, y + Math.sin(ang) * 6, Math.cos(ang) * 60, Math.sin(ang) * 60, 0.2, '#ffffff', { glow: true });
+  AudioMan.shoot();
+}
+
 function ranbuHit(sk) {
   const R = sk.radius * P.area, dmg = wst(P.mainW).dmg * sk.pow * (1 + cuV('e', 'pow')) * P.act.pow, k0 = S.kills, el = clsNextEl(); // 1回の斬撃 = 1属性
   asMine(() => {
@@ -257,10 +319,10 @@ const CLASS_RT = {
   },
 
   mage: {
-    skills: [], // Q(メテオ)はフェーズ5b で追加
+    skills: ['q'],
     init() {
       P.crystal = 0; P.crystalMax = MG().crystalMax + (P.lvFx.crystalMax || 0);
-      P.elI = 0; P.flowWin = 0; P.flowT = 0; P.echoT = 0; P.ovf = 0; P.calmT = 0; P.blinkHeld = false;
+      P.elI = 0; P.flowWin = 0; P.flowT = 0; P.echoT = 0; P.ovf = 0; P.calmT = 0; P.blinkHeld = false; P.meteors = [];
     },
     update(dt) {
       const p = MG();
@@ -271,14 +333,18 @@ const CLASS_RT = {
       if (hasSp('passive', 'cap') && P.calmT >= 3 && P.hp < P.maxhp) P.hp = Math.min(P.maxhp, P.hp + 2 * dt); // 瞑想
       // ブリンク(Space を押した瞬間)
       const held = (keys.Space || keys.TouchDef) && !P.act;
-      if (held && !P.blinkHeld) { if (P.sta >= p.blinkCost) mageBlink(); else addFloat(P.x, P.y - 16, 'STAMINA', '#6a7a88'); }
+      if (held && !P.blinkHeld) { if (P.sta >= blinkCost()) mageBlink(); else addFloat(P.x, P.y - 16, 'STAMINA', '#6a7a88'); }
       P.blinkHeld = held;
       P.moveMul = 1;
+      updMeteors(dt);
     },
+    qStart: meteorStart,
+    qUpdate: meteorUpdate,
+    qInfo: () => ({ name: DATA.classes.mage.q.name, glyph: '隕' }),
     onHurt(dmg) { P.calmT = 0; return dmg; },
     // 通常攻撃の命中: E / Q の CD を短縮(1秒あたりの上限あり)。オーバーフロー: CD 0 で命中するとスキル威力を貯める
     onMainHit() {
-      const p = MG(), cut = p.flowCut + cuV('passive', 'flow'), cap = p.flowCap + cuV('passive', 'cap');
+      const p = MG(), cut = p.flowCut + cuV('passive', 'flow') + (P.lvFx.flowCut || 0), cap = p.flowCap + cuV('passive', 'cap');
       if (hasSp('passive', 'flow') && (P.sk.e.cd <= 0 || P.sk.q.cd <= 0)) P.ovf = Math.min(0.5, P.ovf + 0.05);
       const c = Math.min(cut, cap - P.flowWin);
       if (c <= 0) return;
@@ -307,12 +373,17 @@ const CLASS_RT = {
       const p = MG();
       return [
         { key: '特性', name: '元素循環', rows: [
-          ['共鳴の威力', `${Math.round(p.resoPow * (1 + c.cuV('trait', 'rpow')))} → <b>${Math.round(p.resoPow * (1 + c.cuV('trait', 'rpow')) * c.atkMul)}</b>`, '3属性目が当たると爆発。魔力結晶 +1'],
+          ['共鳴の威力', `${Math.round(p.resoPow * (1 + c.cuV('trait', 'rpow') + (c.lvFx.resoPow || 0)))} → <b>${Math.round(p.resoPow * (1 + c.cuV('trait', 'rpow') + (c.lvFx.resoPow || 0)) * c.atkMul)}</b>`, '3属性目が当たると爆発。魔力結晶 +1'],
           ['共鳴の半径', `${Math.round(p.resoR * (1 + c.cuV('trait', 'rarea')) * (1 + c.st.v.area) * c.st.mul.area)}`],
           ['魔力結晶の上限', `${p.crystalMax + (c.lvFx.crystalMax || 0)}`],
         ] },
+        { key: 'Q', name: 'メテオ', rows: [
+          ['CD', `<b>${(DATA.classes.mage.q.cd * (1 - c.cuV('q', 'cd')) * c.cdMul).toFixed(1)}</b> 秒`],
+          ['威力', `${Math.round(DATA.classes.mage.q.pow * (1 + c.cuV('q', 'pow') + (c.lvFx.qPow || 0)))} → <b>${Math.round(DATA.classes.mage.q.pow * (1 + c.cuV('q', 'pow') + (c.lvFx.qPow || 0)) * c.atkMul)}</b>`, '魔力結晶1つにつき 威力 +20%・半径 +10%(武器に依存しない)'],
+          ['半径', `${Math.round(DATA.classes.mage.q.r * (1 + c.cuV('q', 'area')) * (1 + c.st.v.area) * c.st.mul.area)}`],
+        ] },
         { key: 'Space', name: 'ブリンク', rows: [
-          ['スタミナ消費', `<b>${p.blinkCost}</b>`],
+          ['スタミナ消費', `<b>${p.blinkCost - (c.lvFx.blinkCut || 0)}</b>`],
           ['距離 / 無敵', `${p.blinkDist} / ${p.blinkIfr} 秒`],
         ] },
       ];
@@ -415,7 +486,7 @@ function mageAddEl(e, el, dealt, depth = 0) {
   else e.els = bits | EL_BIT[el];
 }
 function mageResonate(e, depth) {
-  const p = MG(), R = p.resoR * (1 + cuV('trait', 'rarea')) * P.area, dmg = p.resoPow * (1 + cuV('trait', 'rpow'));
+  const p = MG(), R = p.resoR * (1 + cuV('trait', 'rarea')) * P.area, dmg = p.resoPow * (1 + cuV('trait', 'rpow') + (P.lvFx.resoPow || 0));
   e.els = 0;
   const x = e.x, y = e.y, spread = hasSp('trait', 'rpow') && depth < 1;
   asMine(() => {
@@ -437,10 +508,93 @@ function mageResonate(e, depth) {
   }
   AudioMan.boom();
 }
+const blinkCost = () => MG().blinkCost - (P.lvFx.blinkCut || 0);
+// ---------- メテオ(Q) ----------
+// 詠唱中は P.act、落下と着弾は P.meteors(着弾前に動ける)
+function meteorStart() {
+  const q = DATA.classes.mage.q;
+  let t = mouseAimPt() || nearestEnemy(P.x, P.y, q.range) || { x: P.x + P.facing * 60, y: P.y };
+  const dd = Math.sqrt(d2(P.x, P.y, t.x, t.y));
+  if (dd > q.range) t = { x: P.x + (t.x - P.x) * q.range / dd, y: P.y + (t.y - P.y) * q.range / dd };
+  const n = P.crystal, pow = CLASS_RT.mage.eMul(); // オーバーフローもメテオに乗る
+  P.crystal = 0;
+  const R = q.r * (1 + cuV('q', 'area')) * (1 + n * q.crystalR) * P.area;
+  const dmg = q.pow * (1 + cuV('q', 'pow') + (P.lvFx.qPow || 0)) * (1 + n * q.crystalPow) * pow;
+  P.act = { slot: 'q', ph: 'cast', t: 0, x: t.x, y: t.y, n, R, dmg };
+  if (t.x !== P.x) P.facing = t.x < P.x ? -1 : 1;
+  setCd('q', q.cd * (1 - cuV('q', 'cd')) * P.cdMul);
+  skillCall(q.name + (n ? ` ×${n}` : ''), '#ff8a3d'); AudioMan.click();
+  for (let i = 0; i < n * 4; i++) part(P.x + rand(-24, 24), P.y + rand(-24, 24), 0, 0, 0.5, '#9ff7ff', { glow: true, sz: 2, drag: 0 }); // 結晶が手元に集まる
+}
+function meteorUpdate(a, dt) {
+  const q = DATA.classes.mage.q, u = Math.min(1, a.t / q.windup);
+  P.moveMul = 0;
+  // 魔法陣: 照準位置に広がる円と、周りを回る光
+  asMine(() => {
+    if (Math.random() < dt * 30) addRing(a.x, a.y, a.R * u, '#ff8a3d', { r0: a.R * u - 1, life: 0.08, w: 2 });
+    for (let i = 0; i < 2; i++) { const r = S.time * 4 + i * Math.PI; part(a.x + Math.cos(r) * a.R * u, a.y + Math.sin(r) * a.R * u * 0.9, 0, -10, 0.3, pick(['#ffc34a', '#ff8a3d']), { glow: true, sz: 2 }); }
+    if (Math.random() < dt * 30) part(P.x + rand(-6, 6), P.y - 10 + rand(-4, 4), 0, -20, 0.3, pick(['#9ff7ff', '#ffc34a']), { glow: true });
+  });
+  if (a.t < q.windup) return;
+  P.meteors = (P.meteors || []).concat([{ x: a.x, y: a.y, t: 0, fall: q.fall, R: a.R, dmg: a.dmg, big: 1 + a.n * 0.2, main: true }]);
+  P.act = null;
+}
+// 落下中の隕石: 空から尾を引いて落ち、着弾で爆発
+function updMeteors(dt) {
+  if (!P.meteors || !P.meteors.length) return;
+  for (let i = P.meteors.length - 1; i >= 0; i--) {
+    const m = P.meteors[i];
+    if (m.delay > 0) { m.delay -= dt; continue; }
+    m.t += dt;
+    const u = Math.min(1, m.t / m.fall), mx = m.x - 70 * (1 - u), my = m.y - 190 * (1 - u);
+    asMine(() => {
+      for (let k = 0; k < (m.main ? 6 : 2); k++) part(mx + rand(-3, 3) * m.big, my + rand(-3, 3) * m.big, rand(-20, 20), rand(-40, -10), 0.45, pick(['#ffc34a', '#ff6a2a', '#fff6c8', '#6a4040']), { glow: true, sz: m.main ? 3 : 2 });
+      if (m.main && Math.random() < dt * 30) addRing(m.x, m.y, m.R, '#ff3b1a', { r0: m.R - 1, life: 0.06 });
+    });
+    if (u < 1) continue;
+    P.meteors.splice(i, 1);
+    meteorImpact(m);
+  }
+}
+function meteorImpact(m) {
+  asMine(() => {
+    forEachNear(m.x, m.y, m.R, e => {
+      if (e.prop) { killEnemy(e); return; }
+      const dealt = hitEnemy(e, m.dmg, { src: 'meteor', ang: Math.atan2(e.y - m.y, e.x - m.x), kb: m.main ? 150 : 60, col: '#ff8a3d' });
+      if (dealt && !e.dead) elEffect(e, 'fire', dealt); // 炎上
+    });
+    addFlash(m.x, m.y, m.R * 3, '#ff8a3d', m.main ? 0.5 : 0.25);
+    addRing(m.x, m.y, m.R, '#ffc34a', { w: 3, life: 0.4 }); addRing(m.x, m.y, m.R * 1.4, '#ff6a2a', { w: 2, life: 0.55 });
+    burst(m.x, m.y, m.main ? 80 : 20, ['#ff6a2a', '#ffc34a', '#fff6c8', '#ffffff'], { sp: m.main ? 230 : 120, glow: true, life: 0.7, drag: 2 });
+    if (m.main) {
+      burst(m.x, m.y, 30, ['#4a3a3a', '#6a5a5a', '#2a2020'], { sp: 150, up: 60, g: 200, life: 0.9 }); // 破片
+      shockAt(m.x, m.y, 2.2, 1); shake(12); hitstop(0.08); screenFlash(0.35 * SET.fxA, '#ff8a3d');
+    } else shake(3);
+  });
+  AudioMan.boom();
+  if (!m.main) return;
+  const R = m.R;
+  if (hasSp('q', 'pow')) for (let i = 0; i < 5; i++) { // メテオスウォーム
+    const a = rand(0, TAU), r = rand(R * 0.5, R * 1.3);
+    P.meteors.push({ x: m.x + Math.cos(a) * r, y: m.y + Math.sin(a) * r, t: 0, fall: 0.25, delay: 0.08 * (i + 1), R: 24 * P.area, dmg: 80, big: 0.6 });
+  }
+  if (hasSp('q', 'cd')) for (let i = 0; i < 6; i++) setTimeout(() => { // 審判
+    if (state !== 'play') return;
+    const a = rand(0, TAU), r = rand(0, R), x = m.x + Math.cos(a) * r, y = m.y + Math.sin(a) * r;
+    asMine(() => {
+      forEachNear(x, y, 24 * P.area, e => { if (!e.prop) hitEnemy(e, 60, { src: 'meteor', col: '#fff27a' }); });
+      bolts.push({ x0: x + rand(-20, 20), y0: cam.y - 10, x1: x, y1: y, t: 0, life: 0.22, w: 2 });
+      addFlash(x, y, 60, '#fff27a', 0.25); addRing(x, y, 24 * P.area, '#fff27a', { life: 0.3 });
+    });
+    AudioMan.zap();
+  }, 250 + i * 110);
+  if (hasSp('q', 'area')) zones.push({ kind: 'blizz', x: m.x, y: m.y, r: R, r0: R, t: 0, dur: 4, tick: 0, dmg: 0, maxFrost: true }); // 絶対零度
+}
+
 function mageBlink() {
   const p = MG(), d = P.dir && P.moving ? P.dir : [P.facing, 0], len = Math.hypot(d[0], d[1]) || 1;
   const x0 = P.x, y0 = P.y, dx = d[0] / len, dy = d[1] / len;
-  staUse(p.blinkCost);
+  staUse(blinkCost());
   P.x += dx * p.blinkDist; P.y += dy * p.blinkDist;
   P.invT = Math.max(P.invT, p.blinkIfr); P.ifr = Math.max(P.ifr, p.blinkIfr);
   zones.push({ kind: 'residue', x: x0, y: y0, r: p.residueR * P.area, t: 0, dur: p.residueT, tick: 0 });
@@ -455,7 +609,7 @@ function mageBlink() {
 const clsRT = () => CLASS_RT[P.cls];
 function clsInit() {
   P.sta = P.maxSta; P.staLockT = 0; P.moveMul = 1; P.invT = 0; P.atkSpd = 1; P.cu = {}; P.cs = {};
-  P.sk = { q: { cd: 0, max: 1 }, e: { cd: 0, max: 1 } }; P.act = null; P.anim = null;
+  P.sk = { q: { cd: 0, max: 1 }, e: { cd: 0, max: 1 } }; P.act = null; P.anim = null; P.orb = null;
   if (clsRT()) clsRT().init();
 }
 function clsUpdate(dt) {
@@ -466,6 +620,7 @@ function clsUpdate(dt) {
   if (S.decoy && (S.decoy.t -= dt) <= 0) S.decoy = null;
   const rt = clsRT();
   if (rt) rt.update(dt);
+  if (WEAPON_SKILL[P.mainW] && WEAPON_SKILL[P.mainW].tick) WEAPON_SKILL[P.mainW].tick(dt);
   // スキルの発動(実行中は他のスキルを使えない)。自動発動は周りに敵が集まっているときだけ(ガード中は使わない)
   if (!P.act && rt) {
     const ws = weaponSkill(), auto = !P.guard;

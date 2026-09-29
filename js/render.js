@@ -521,7 +521,9 @@ function render() {
   for (const p of projs) {
     if (!onScreen(p.x, p.y)) continue;
     switch (p.kind) {
-      case 'bolt': drawSp(p.home ? ART.S.boltEvo : ART.S.bolt, p.x, p.y); addLight(p.x, p.y, 22, p.col, 0.7); break;
+      case 'bolt':
+        if (p.big) { drawSp(ART.S.boltEvo, p.x, p.y, { scale: 2.5 }); addLight(p.x, p.y, 60, p.col, 1); break; } // アーケインレイの大魔弾
+        drawSp(p.home ? ART.S.boltEvo : ART.S.bolt, p.x, p.y); addLight(p.x, p.y, 22, p.col, 0.7); break;
       case 'wisp': drawSp(ART.S.wisp, p.x, p.y + Math.sin(p.t * 20)); addLight(p.x, p.y, 24, '#9dffcf', 0.7); break;
       case 'fire': drawSp(ART.S.fire, p.x, p.y); addLight(p.x, p.y, 30, '#ff8a3d', 0.8); break;
       case 'axe': drawRot('axe', p.ang, p.x, p.y, { scale: p.big ? 2 : 1 }); break;

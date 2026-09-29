@@ -66,11 +66,14 @@ const critRate = () => P.crit;
 // 武器の現在のステータス。熟練(クラスLv の共通強化)の威力・範囲・クールダウンを掛けたもの(Lv / 進化が変わるまでキャッシュ)
 const wst = k => {
   const w = P.weapons[k], base = w.evo ? DATA.weapons[k].evo.st : DATA.weapons[k].lv[w.lv - 1], m = P.wm[k];
-  if (!m || (!m.dmg && !m.area && !m.cd)) return base;
+  if (!m || (!m.dmg && !m.area && !m.cd && !m.count && !m.pierce && !m.speed)) return base;
   if (w.stBase !== base) {
     w.stBase = base;
     w.st = Object.assign({}, base, { dmg: base.dmg * (1 + (m.dmg || 0)), cd: base.cd * (1 - (m.cd || 0)) });
     for (const f of ['aoe', 'radius']) if (base[f]) w.st[f] = base[f] * (1 + (m.area || 0));
+    if (base.count) w.st.count = base.count + (m.count || 0);
+    if (base.pierce !== undefined) w.st.pierce = base.pierce + (m.pierce || 0);
+    if (base.speed) w.st.speed = base.speed * (1 + (m.speed || 0));
   }
   return w.st;
 };
@@ -237,6 +240,12 @@ function updWeapons(dt) {
             const o = { dmg: st.dmg, pierce: st.pierce, life: 1.5, src: k, home: w.evo, homing: w.evo ? ARCANE_TURN : 0, col: w.evo ? '#ff9bf5' : '#7ad7ff', r: 3 };
             fire('bolt', P.x, P.y, a, st.speed, o);
           }
+          // アーケインレイ: 5発ごとに貫通無限の大魔弾(威力 ×300%)
+          if (w.evo && Math.floor(((w.shotN || 0) + n) / 5) > Math.floor((w.shotN || 0) / 5)) {
+            fire('bolt', P.x, P.y, base, st.speed * 1.2, { dmg: st.dmg * 3, pierce: 999, life: 2, src: k, col: '#ff9bf5', r: 7, big: true });
+            addFlash(P.x, P.y, 50, '#ff9bf5', 0.25); shake(2);
+          }
+          w.shotN = (w.shotN || 0) + n;
           burst(P.x + Math.cos(base) * 6, P.y + Math.sin(base) * 6, 4, ['#7ad7ff', '#ffffff'], { sp: 40, glow: true, life: 0.25 });
           AudioMan.shoot();
         }
@@ -437,7 +446,9 @@ function updProjs(dt) {
       if (p.hit.has(e.id)) return;
       p.hit.add(e.id);
       const ang = Math.atan2(p.vy, p.vx);
-      hitEnemy(e, p.dmg, { src: p.src, ang, kb: p.kind === 'axe' ? 50 : 22, col: p.col, el: p.el });
+      let dmg = p.dmg;
+      if (p.focus) { if (e.fcId !== p.focus) { e.fcId = p.focus; e.fcN = 0; } dmg *= 1 + Math.min(0.5, 0.05 * e.fcN++); } // 集中砲火
+      hitEnemy(e, dmg, { src: p.src, ang, kb: p.kind === 'axe' ? 50 : 22, col: p.col, el: p.el });
       if (p.burn) { e.burn = Math.max(e.burn || 0, p.burn); e.burnT = 3; }
       if (p.boom > 0) {
         p.boom--;
@@ -471,8 +482,8 @@ function updZones(dt) {
       if (z.tick <= 0) {
         z.tick = 0.25;
         forEachNear(z.x, z.y, z.r, e => {
-          hitEnemy(e, z.dmg, { src: 'blizzard', noNum: Math.random() < 0.6, col: '#bff4ff' });
-          e.frost = Math.min(10, (e.frost || 0) + 1); e.frostT = 5;
+          if (z.dmg) hitEnemy(e, z.dmg, { src: 'blizzard', noNum: Math.random() < 0.6, col: '#bff4ff' });
+          e.frost = z.maxFrost ? Math.max(e.frost || 0, mageFrostCap()) : Math.min(10, (e.frost || 0) + 1); e.frostT = 5; // maxFrost: 絶対零度
         });
       }
     } else if (z.kind === 'residue') { // ブリンクの氷の残滓: 触れた敵に凍傷
