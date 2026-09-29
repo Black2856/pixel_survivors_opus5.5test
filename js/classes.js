@@ -877,16 +877,18 @@ function archerVolley() {
   const marked = vis.filter(markOn).sort((a, b) => b.mark - a.mark);
   const others = vis.filter(e => !markOn(e)).sort((a, b) => d2(a.x, a.y, P.x, P.y) - d2(b.x, b.y, P.x, P.y));
   const shots = marked.slice();
-  const extra = (marked.length ? 0 : q.none) + cuV('q', 'num');
-  for (let i = 0; i < extra && others.length; i++) shots.push(others[i % others.length]);
-  const sure = hasSp('q', 'num'), boom = hasSp('q', 'pow'), storm = hasSp('q', 'cd');
+  if (!marked.length) shots.push(...others.slice(0, q.none)); // 印を持つ敵がいなければ最寄りへ
+  const keep = cuV('q', 'keep'), sure = hasSp('q', 'keep'), boom = hasSp('q', 'pow'), storm = hasSp('q', 'cd');
   const onHit = e => {
     if (boom) asMine(() => { // 流星
       forEachNear(e.x, e.y, q.meteorR * P.area, o => { if (!o.prop && o !== e) hitEnemy(o, q.meteorPow * k, { src: 'volley', noNum: true, col: '#b8ffb0' }); });
       addFlash(e.x, e.y, 30, '#b8ffb0', 0.15);
     });
     if (!markOn(e)) return;
-    const n = e.mark; e.mark = 0; // 印を消費して、1つにつき追加ダメージを連続で
+    // 印を消費して、1つにつき追加ダメージを連続で。残印: 確率で印を消費せず、もう1回(上限は印の3倍)
+    let n = 0;
+    for (let left = e.mark; left > 0 && n < e.mark * 3; n++) if (Math.random() >= keep) left--;
+    e.mark = 0;
     for (let i = 0; i < n; i++) setTimeout(() => {
       if (state !== 'play' || e.dead) return;
       asMine(() => { hitEnemy(e, q.markPow * k, { src: 'volley', col: '#b8ffb0', forceCrit: sure, noNum: i % 2 === 1 }); part(e.x + rand(-4, 4), e.y + rand(-4, 4), rand(-30, 30), rand(-30, 10), 0.25, pick(['#b8ffb0', '#ffffff']), { glow: true }); });
