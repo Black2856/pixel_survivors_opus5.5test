@@ -403,8 +403,8 @@ const DATA = {
         { name: '広域', lanes: 2, chain: { area: 5, range: 5 }, leaf: { spd: 5 } },
       ] },
       balance: { name: '天秤', col: '#7ad7ff', root: 'magnet', branches: [
-        { name: '成長', lanes: 1, chain: { xp: 4 }, leaf: { classXp: 5 }, tip: 'gearPick' },
-        { name: '財宝', lanes: 2, chain: { gold: 8 }, leaf: { eqQual: 5 }, mid: { reroll: [2, 4] }, tip: 'reroll' }, // リロール: 序盤・中盤・最奥
+        { name: '成長', lanes: 1, chain: { xp: 4, classXp: 1 }, leaf: { classXp: 4 }, tip: 'gearPick' }, // 本線5段 → 先端は深さ7
+        { name: '財宝', lanes: 2, chain: { gold: 8, eqQual: 2 }, leaf: { eqQual: 3 }, mid: { reroll: [2, 4] }, tip: 'reroll' }, // リロール: 序盤・中盤・最奥(深さ7)
         { name: '探索', lanes: 2, chain: { magnet: 7, chestQual: 3 }, leaf: { chestQual: 2 }, tip: 'classPick' }, // 本線を5段にして先端(深さ7)にクラス強化選択枠
       ] },
     },
