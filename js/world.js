@@ -329,7 +329,7 @@ function updWeapons(dt) {
         for (let i = w.q.length - 1; i >= 0; i--) {
           const s = w.q[i];
           s.t -= dt;
-          if (s.t <= 0) { w.q.splice(i, 1); w.slashN = (w.slashN || 0) + 1; doSlash(aimAt(st.aoe * P.area + 20), st, w.evo, s.flip, w.evo && w.slashN % 3 === 0); }
+          if (s.t <= 0) { w.q.splice(i, 1); doSlash(aimAt(st.aoe * P.area + 20), st, w.evo, s.flip); }
         }
         break;
     }
@@ -372,16 +372,14 @@ function spawnHole(x, y, st, evo) {
   AudioMan.hole(); shockAt(x, y, 0.8, 0.5);
 }
 
-// big: 鬼神・村正の大一閃(3回目の斬撃ごと。威力 200%・範囲 1.5倍)
-function doSlash(a, st, evo, flip, big) {
-  const R = st.aoe * P.area * (big ? 1.5 : 1);
-  slashes.push({ x: P.x, y: P.y, a, r: R, t: 0, life: big ? 0.3 : 0.2, flip, evo });
-  if (big) { hitstop(0.03); shake(3); addFlash(P.x, P.y, 60, '#ff3b5c', 0.25); }
+function doSlash(a, st, evo, flip) {
+  const R = st.aoe * P.area;
+  slashes.push({ x: P.x, y: P.y, a, r: R, t: 0, life: 0.2, flip, evo });
   forEachNear(P.x, P.y, R, e => {
     let diff = Math.atan2(e.y - P.y, e.x - P.x) - a;
     diff = Math.atan2(Math.sin(diff), Math.cos(diff));
     if (Math.abs(diff) > 1.05) return;
-    hitEnemy(e, st.dmg * (big ? 2 : 1), { src: 'katana', ang: a, kb: big ? 90 : 55, col: '#ff8a9a' });
+    hitEnemy(e, st.dmg, { src: 'katana', ang: a, kb: 55, col: '#ff8a9a' });
   });
   // 鬼神・村正: 斬撃の後に飛ぶ斬撃波(威力50%・貫通)
   if (evo) setTimeout(() => { if (state === 'play') fire('wave', P.x, P.y, a, 170, { dmg: st.dmg * 0.5, pierce: 999, life: 0.55, src: 'katana', r: 9, col: '#ff5d73' }); }, 90);

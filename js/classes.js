@@ -53,7 +53,7 @@ const WEAPON_SKILL = {
   katana: {
     start() {
       const sk = weaponSkill(), dur = sk.dur + cuV('e', 'dur');
-      P.act = { slot: 'e', ph: 'wind', t: 0, dur, hits: sk.hits + Math.round(cuV('e', 'dur') / 0.15), n: 0, hitT: 0 };
+      P.act = { slot: 'e', ph: 'wind', t: 0, dur, hits: sk.hits + Math.round(cuV('e', 'dur') / 0.15), n: 0, hitT: 0, pow: clsESkillMul() };
       playAnim('ranbu', MOTIONS.ranbu.duration(dur), dur);
       setCd('e', sk.cd * (1 - cuV('e', 'cd')) * P.cdMul);
       skillCall(sk.name, '#ffb7d5'); AudioMan.click();
@@ -75,7 +75,7 @@ const WEAPON_SKILL = {
   },
 };
 function ranbuHit(sk) {
-  const R = sk.radius * P.area, dmg = wst(P.mainW).dmg * sk.pow * (1 + cuV('e', 'pow')), k0 = S.kills;
+  const R = sk.radius * P.area, dmg = wst(P.mainW).dmg * sk.pow * (1 + cuV('e', 'pow')) * P.act.pow, k0 = S.kills;
   asMine(() => {
     forEachNear(P.x, P.y, R, e => { if (!e.prop) hitEnemy(e, dmg, { src: 'ranbu', ang: Math.atan2(e.y - P.y, e.x - P.x), kb: 25, col: '#ffb7d5', noNum: Math.random() < 0.4 }); });
     slashes.push({ x: P.x, y: P.y, a: rand(0, TAU), r: R * rand(0.8, 1.1), t: 0, life: 0.18, flip: Math.random() < 0.5 });
@@ -86,7 +86,7 @@ function ranbuHit(sk) {
   if (hasSp('e', 'cd')) P.sk.e.cd = Math.max(0, P.sk.e.cd - (S.kills - k0)); // 剣の舞: 撃破1体ごとに CD -1秒
 }
 function sakuraBurst(sk) {
-  const R = sk.burstR * P.area, dmg = wst(P.mainW).dmg * sk.burst * (1 + cuV('e', 'pow'));
+  const R = sk.burstR * P.area, dmg = wst(P.mainW).dmg * sk.burst * (1 + cuV('e', 'pow')) * P.act.pow;
   asMine(() => {
     forEachNear(P.x, P.y, R, e => { if (!e.prop) hitEnemy(e, dmg, { src: 'ranbu', ang: Math.atan2(e.y - P.y, e.x - P.x), kb: 120, col: '#ff8ac0' }); });
     addRing(P.x, P.y, R, '#ffb7d5', { w: 3, life: 0.5 }); addRing(P.x, P.y, R * 0.6, '#ffffff', { w: 2, life: 0.35 });
@@ -156,8 +156,15 @@ const CLASS_RT = {
       P.kiWin += c.kiHit; kiAdd(c.kiHit);
     },
     onKill() {
-      if (hasSp('trait', 'ren')) kiAdd(3, true);                               // 無尽
       if (hasSp('passive', 'jizoku') && P.zanshinT > 0) P.zanshinT = DATA.classes.samurai.params.zanshinT + cuV('passive', 'jizoku'); // 常在戦場
+    },
+    // 無尽: E スキルでも剣気を全て消費し、剣気 × 0.5% だけ威力アップ
+    eMul() {
+      if (!hasSp('trait', 'ren') || P.ki <= 0) return 1;
+      const k = 1 + P.ki * 0.005;
+      addFloat(P.x, P.y - 34, `剣気 ${Math.floor(P.ki)} 解放`, '#ff5d73', 1, -20);
+      P.ki = 0;
+      return k;
     },
     atkBonus() {
       const c = DATA.classes.samurai.params;
@@ -275,7 +282,8 @@ function clsInit() {
 function clsUpdate(dt) {
   updStamina(dt);
   P.invT -= dt;
-  for (const k in P.sk) P.sk[k].cd = Math.max(0, P.sk[k].cd - dt);
+  const cdt = dt * (P.cdSlowT > 0 ? DATA.debuff.cdRate : 1); // スロウタイム中は武器と同じく CD の回復が遅い
+  for (const k in P.sk) P.sk[k].cd = Math.max(0, P.sk[k].cd - cdt);
   if (S.decoy && (S.decoy.t -= dt) <= 0) S.decoy = null;
   const rt = clsRT();
   if (rt) rt.update(dt);
@@ -324,6 +332,8 @@ function clsApply(c) {
   recalc();
 }
 const clsAtkBonus = () => (clsRT() ? clsRT().atkBonus() : 0);
+// E スキルの威力倍率(クラスの特殊強化など。武器スキルからは「クラスの倍率」としてだけ参照する)
+const clsESkillMul = () => (clsRT() && clsRT().eMul ? clsRT().eMul() : 1);
 const clsRes = () => (clsRT() && clsRT().res ? clsRT().res() : null);
 const clsStaBroken = () => !!(clsRT() && clsRT().staBroken && clsRT().staBroken());
 // HUD 用: E / Q のアイコン情報
