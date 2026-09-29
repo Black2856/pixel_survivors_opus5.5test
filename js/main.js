@@ -61,6 +61,7 @@ function demoWorld() {
 }
 
 function onKey(e) {
+  if (StatusUI.modalOpen()) { if (e.code === 'Escape' || e.code === 'Tab') { if (e.preventDefault) e.preventDefault(); StatusUI.closeModal(); } return; } // 詳細のモーダルを先に閉じる
   if (e.code === 'KeyM') AudioMan.toggleMute();
   if (e.code === 'Escape') { if (state === 'play') pauseGame(); else if (state === 'pause') resumeGame(); else if (state === 'settings') { state = 'title'; UI.title(); } }
   if (state === 'title' && (e.code === 'Enter' || e.code === 'Space')) MetaUI.stageSelect();

@@ -70,7 +70,7 @@ const StatusUI = (() => {
     const rt = CLASS_RT[c.cls];
     if (rt && rt.info) blocks.push(...rt.info(c));
     skBlocks = blocks;
-    return blocks.map((b, i) => `<div class="sv-sk" data-sk="${i}"><div class="sv-g">${b.key} ${b.name}</div>` + b.rows.map(r => `<div class="sv-row"><span>${r[0]}</span><i>${r[1]}</i></div>${r[2] ? `<div class="sv-note">${r[2]}</div>` : ''}`).join('') + '</div>').join('');
+    return '<div class="sv-note">スキルをクリックすると詳細を表示します</div>' + blocks.map((b, i) => `<div class="sv-sk" data-sk="${i}"><div class="sv-g">${b.key} ${b.name} <small>ⓘ</small></div>` + b.rows.map(r => `<div class="sv-row"><span>${r[0]}</span><i>${r[1]}</i></div>${r[2] ? `<div class="sv-note">${r[2]}</div>` : ''}`).join('') + '</div>').join('');
   }
   // スキルの詳細: 説明 + ラン中に取った強化(パスの Lv と特殊強化)
   let skBlocks = [];
@@ -136,15 +136,27 @@ const StatusUI = (() => {
     const body = tab === 'stat' ? statTab(c) : tab === 'skill' ? skillTab(c) : tab === 'equip' ? equipTab(c) : buildTab();
     el.innerHTML = head(c) + `<div class="seg sv-tabs">${tabs.map(t => `<button data-t="${t}" class="${t === tab ? 'on' : ''}">${TABS[t]}</button>`).join('')}</div>`
       + `<div class="sv-body">${body}</div>`
-      + (tab === 'stat' ? '<div class="sv-break"><div class="dim">行にマウスを乗せると内訳を表示します</div></div>' : '')
-      + (tab === 'skill' ? '<div class="sv-break sk"><div class="dim">スキルにマウスを乗せると詳細を表示します</div></div>' : '');
-    el.onclick = e => { const b = e.target.closest('[data-t]'); if (b) { tab = b.dataset.t; AudioMan.click(); render(el, run, cls); } };
+      + (tab === 'stat' ? '<div class="sv-break"><div class="dim">行にマウスを乗せると内訳を表示します</div></div>' : '');
+    el.onclick = e => {
+      const b = e.target.closest('[data-t]'), s = e.target.closest('.sv-sk');
+      if (b) { tab = b.dataset.t; AudioMan.click(); render(el, run, cls); }
+      else if (s) { AudioMan.click(); openModal(skillDetail(c, skBlocks[+s.dataset.sk])); } // スキルの詳細はモーダルで
+    };
     el.onmouseover = e => {
-      const r = e.target.closest('.sv-row[data-k]'), s = e.target.closest('.sv-sk');
+      const r = e.target.closest('.sv-row[data-k]');
       if (r) el.querySelector('.sv-break').innerHTML = breakdown(c, r.dataset.k);
-      else if (s) { el.querySelector('.sv-break').innerHTML = skillDetail(c, skBlocks[+s.dataset.sk]); for (const x of el.querySelectorAll('.sv-sk')) x.classList.toggle('on', x === s); }
     };
   }
+
+  // ---------- 詳細のモーダル(× / 外側のクリック / Esc で閉じる) ----------
+  const modal = document.createElement('div');
+  modal.id = 'sv-modal'; modal.className = 'hidden';
+  modal.innerHTML = '<div class="svm"><button class="svm-x">×</button><div class="svm-body"></div></div>';
+  document.body.appendChild(modal);
+  function openModal(html) { modal.querySelector('.svm-body').innerHTML = html; modal.classList.remove('hidden'); }
+  function closeModal() { modal.classList.add('hidden'); }
+  const modalOpen = () => !modal.classList.contains('hidden');
+  modal.onclick = e => { if (e.target === modal || e.target.closest('.svm-x')) { AudioMan.click(); closeModal(); } };
 
   // ---------- ラン中の画面 ----------
   function open() {
@@ -155,6 +167,7 @@ const StatusUI = (() => {
     render($('status-panel'), true);
   }
   function close() {
+    closeModal();
     state = back;
     if (back === 'pause') UI.pause(true); else { UI.only(null); AudioMan.resumeMusic(); }
   }
@@ -165,5 +178,5 @@ const StatusUI = (() => {
     if (e.preventDefault) e.preventDefault();
     if (state === 'status') close(); else if (e.code === 'Tab') open();
   }
-  return { render, open, close, onKey };
+  return { render, open, close, onKey, modalOpen, closeModal };
 })();
