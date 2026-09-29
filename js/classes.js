@@ -26,10 +26,15 @@ const CLASS_RT = {
       const c = DATA.classes.samurai.params;
       P.kiWinT -= dt; if (P.kiWinT <= 0) P.kiWin = 0;
       P.zanshinT -= dt; P.breakT -= dt;
-      // 見切り(Space 長押しでガード)。ガードブレイク中は構えられない
-      const want = (keys.Space || keys.TouchDef) && P.breakT <= 0 && P.sta > 0;
-      if (want && !P.guard) { P.guard = true; P.guardT = 0; AudioMan.click(); }
-      if (!want && P.guard) P.guard = false;
+      // 見切り(Space 長押しでガード)。構えた瞬間にスタミナ guardCost を消費する(連打でジャストを狙いやすくしないため)
+      // 押し直すまで再び構えない / スタミナ不足・ガードブレイク中は構えられない
+      const held = keys.Space || keys.TouchDef;
+      if (held && !P.guard && !P.guardHeld && P.breakT <= 0) {
+        if (P.sta >= c.guardCost) { staUse(c.guardCost); P.guard = true; P.guardT = 0; AudioMan.click(); }
+        else { addFloat(P.x, P.y - 16, 'STAMINA', '#6a7a88'); }
+      }
+      P.guardHeld = held;
+      if (!held && P.guard) P.guard = false;
       if (P.guard) P.guardT += dt;
       P.moveMul = P.guard ? c.guardSlow : 1;
     },

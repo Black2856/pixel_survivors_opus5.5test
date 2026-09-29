@@ -252,12 +252,12 @@ const DATA = {
       base: { hp: 110, regen: 0.3, def: 1, sta: 100, staRegen: 20, atk: 0.1, range: -0.1, crit: 0.08, critDmg: 1.2, magnet: -0.1, wslot: 4, reroll: 2 },
       lvStats: { 2: { hp: 10 }, 13: { hp: 15, sta: 20 } },
       // 剣気: 通常攻撃の命中 +kiHit(0.15秒で kiHitCap まで)、ジャスト見切り +kiParry、満タンで攻撃力 +kiFullAtk
-      // 見切り: ガード中は移動 ×guardSlow。押してから parryWin 秒以内の被弾でジャスト(反撃 基礎威力 parryPow・半径 parryR・無敵 parryIfr)
+      // 見切り: 構えた瞬間にスタミナ guardCost を消費。ガード中は移動 ×guardSlow。押してから parryWin 秒以内の被弾でジャスト(反撃 基礎威力 parryPow・半径 parryR・無敵 parryIfr)
       //         スタミナ 0 でガードブレイク(breakT 秒ガード不可・被ダメ +breakDmg)
       // 残心: 防御スキルで攻撃を受けた後 zanshinT 秒、攻撃力 +zanshinAtk
       params: {
         kiMax: 100, kiHit: 2, kiHitCap: 10, kiParry: 30, kiFullAtk: 0.2,
-        guardSlow: 0.5, parryWin: 0.25, parryPow: 60, parryR: 40, parryIfr: 0.5, breakT: 2, breakDmg: 0.2,
+        guardCost: 15, guardSlow: 0.5, parryWin: 0.25, parryPow: 60, parryR: 40, parryIfr: 0.5, breakT: 2, breakDmg: 0.2,
         zanshinT: 3, zanshinAtk: 0.15,
       },
     },

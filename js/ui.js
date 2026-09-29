@@ -73,41 +73,101 @@ const UI = (() => {
   }
 
   // ---------- 左下のステータスパネル ----------
-  let hpLag = 1, lastHp = 0, healT = 0;
+  // 銀の円環(4つの光る星)から、先の尖った HP / スタミナのバーが伸びる。ドット単位で描いて --px 倍に拡大する
+  const PW = 196, PH = 48, CX = 22, CY = 24;
+  const PC = { out: '#0c0913', hi: '#f2f6ff', lt: '#c9d4ea', md: '#8793b0', dk: '#5b6784', dd: '#3e4763', bg: '#141024' };
+  const pcv = $('ps-cv'), pc = pcv.getContext('2d');
+  pcv.width = PW; pcv.height = PH;
+  let hpLag = 1, lastHp = 0, healT = 0, pt = 0;
+  const px = (x, y, c) => { pc.fillStyle = c; pc.fillRect(x, y, 1, 1); };
+  // 4方向に伸びる光の星(len: 腕の長さ)
+  function star(x, y, len, cols) {
+    pc.globalAlpha = 0.18; pc.fillStyle = cols[2];
+    pc.beginPath(); pc.arc(x + 0.5, y + 0.5, len + 1, 0, TAU); pc.fill(); pc.globalAlpha = 1;
+    for (let i = len; i >= 1; i--) {
+      const c = cols[Math.min(cols.length - 1, Math.floor(i / len * (cols.length - 1)))];
+      px(x + i, y, c); px(x - i, y, c); px(x, y + i, c); px(x, y - i, c);
+    }
+    px(x + 1, y + 1, cols[2]); px(x - 1, y - 1, cols[2]); px(x + 1, y - 1, cols[2]); px(x - 1, y + 1, cols[2]);
+    px(x, y, '#ffffff');
+  }
+  // 枠付きのバー(x0〜x1 が本体、tip で先が尖る)。fill(i, row) で中身の色を返す(null なら背景)
+  function bar(x0, x1, top, ih, tip, fill) {
+    const rows = ih + 4, bot = top + rows - 1, mid = top + (rows - 1) / 2;
+    for (let x = x0 - 1; x <= x1; x++) {
+      px(x, top, PC.out); px(x, bot, PC.out);
+      if (x < x0) { for (let y = top + 1; y < bot; y++) px(x, y, PC.out); continue; }
+      px(x, top + 1, PC.lt); px(x, bot - 1, PC.dk);
+      for (let r = 0; r < ih; r++) px(x, top + 2 + r, fill(x - x0, r) || PC.bg);
+    }
+    for (let i = 1; i <= tip; i++) { // 尖った先端
+      const half = (rows / 2) * (1 - i / (tip + 1)), y0 = Math.round(mid - half), y1 = Math.round(mid + half);
+      for (let y = y0; y <= y1; y++) px(x1 + i, y, y === y0 || y === y1 ? PC.out : y < mid ? PC.lt : PC.md);
+    }
+    for (let i = 1; i <= 6; i++) px(x1 + tip + i, Math.round(mid), i < 3 ? PC.lt : PC.md); // 槍の穂先の線
+    const dx = x1 + 3, dy = Math.round(mid); // ひし形の飾り
+    for (let yy = -3; yy <= 3; yy++) for (let xx = -3; xx <= 3; xx++) {
+      const m = Math.abs(xx) + Math.abs(yy);
+      if (m === 3) px(dx + xx, dy + yy, PC.out); else if (m === 2) px(dx + xx, dy + yy, yy < 0 || xx < 0 ? PC.hi : PC.md); else if (m < 2) px(dx + xx, dy + yy, PC.dd);
+    }
+  }
   function pstat(dt) {
     const c = DATA.classes[P.cls], box = $('pstat');
-    if (last.cls !== P.cls) {
-      last.cls = P.cls; box.style.setProperty('--cc', c.col);
-      $('ps-cls').textContent = c.en;
-      const r = clsRes();
-      $('ps-res').innerHTML = r ? `<div class="ps-ki"><i></i></div><span class="ps-res-lbl"></span>` : '';
-      hpLag = 1; lastHp = P.hp;
-    }
-    set('ps-clv', 'Lv ' + META.classes[P.cls].lv);
-    // HP: 被弾は白いバーが遅れて減る / 回復は一瞬光る / 30% 以下は点滅
-    const k = clamp(P.hp / P.maxhp, 0, 1);
+    pt += dt;
+    if (last.cls !== P.cls) { last.cls = P.cls; box.style.setProperty('--cc', c.col); hpLag = 1; lastHp = P.hp; }
+    if (last.px !== GFX.PX) { last.px = GFX.PX; box.style.setProperty('--px', GFX.PX + 'px'); pcv.style.width = PW * GFX.PX + 'px'; pcv.style.height = PH * GFX.PX + 'px'; }
+    set('ps-name', `<b>${c.en}</b> Lv${META.classes[P.cls].lv}`, 'innerHTML');
+    set('ps-hp-n', `${Math.ceil(Math.max(0, P.hp))}<small>/${P.maxhp}</small>`, 'innerHTML');
+    const k = clamp(P.hp / P.maxhp, 0, 1), low = k < 0.3;
     hpLag = Math.max(k, hpLag - dt * 0.5);
     if (P.hp > lastHp + 0.5) healT = 0.3;
     lastHp = P.hp; healT -= dt;
-    $('ps-hp').style.width = (k * 100).toFixed(1) + '%';
-    $('ps-hp-lag').style.width = (hpLag * 100).toFixed(1) + '%';
-    set('ps-hp-n', Math.ceil(Math.max(0, P.hp)) + ' / ' + P.maxhp);
-    const hb = $('ps-hp').parentNode;
-    hb.classList.toggle('heal', healT > 0); hb.classList.toggle('low', k < 0.3);
-    box.classList.toggle('danger', k < 0.3);
-    // スタミナ: 回復停止中は灰色の斜線 / ガードブレイク中は赤
-    $('ps-sta').style.width = (clamp(P.sta / P.maxSta, 0, 1) * 100).toFixed(1) + '%';
-    const sb = $('ps-sta-box');
-    sb.classList.toggle('lock', P.staLockT > 0); sb.classList.toggle('break', clsStaBroken());
-    // クラスリソース
-    const r = clsRes();
-    if (r) {
-      const full = r.v >= r.max, g = $('ps-res').firstChild, lbl = $('ps-res').lastChild;
-      g.firstChild.style.width = (r.v / r.max * 100).toFixed(1) + '%';
-      g.classList.toggle('full', full); lbl.classList.toggle('full', full);
-      const txt = r.label + (full ? ' 満' : ' ' + Math.floor(r.v));
-      if (lbl.textContent !== txt) lbl.textContent = txt;
+    box.classList.toggle('danger', low);
+    pc.clearRect(0, 0, PW, PH);
+
+    // HP バー: 被弾は白が遅れて減る / 回復は緑に光る / 30% 以下は点滅
+    const hpW = 170 - 32 + 1, hpC = healT > 0 ? ['#c8ffd8', '#5dff8a', '#2a9a52'] : low && Math.floor(pt * 6) % 2 ? ['#ffc0b8', '#ff5a4a', '#b0302a'] : ['#ff8a78', '#d8473b', '#9a2a24'];
+    bar(32, 170, 15, 5, 8, (i, r) => i < k * hpW ? (r === 0 ? hpC[0] : r === 4 ? hpC[2] : hpC[1]) : i < hpLag * hpW ? '#e8e4f0' : null);
+    // スタミナバー: 回復停止中は灰色の縞が流れる / ガードブレイク中は赤く点滅
+    const sk = clamp(P.sta / P.maxSta, 0, 1), stW = 160 - 32 + 1, lock = P.staLockT > 0, brk = clsStaBroken();
+    bar(32, 160, 26, 3, 6, (i, r) => {
+      if (i >= sk * stW) return null;
+      if (brk) return Math.floor(pt * 8) % 2 ? '#ff3b5c' : '#8a1a2a';
+      if (lock) return (i + Math.floor(pt * 16)) % 6 < 3 ? '#7a8a98' : '#4a5866';
+      return r === 0 ? '#c8fff0' : '#4fc8a0';
+    });
+
+    // 円環: 銀の帯 + 回り続ける光 + 内側にクラスリソースのゲージ
+    const res = clsRes(), full = res && res.v >= res.max, frac = res ? res.v / res.max : 0;
+    const glintA = pt * 1.4, cc = c.col;
+    for (let y = CY - 16; y <= CY + 16; y++) for (let x = CX - 16; x <= CX + 16; x++) {
+      const dx = x + 0.5 - CX, dy = y + 0.5 - CY, d = Math.hypot(dx, dy);
+      if (d >= 15.5) continue;
+      const a = Math.atan2(dy, dx);
+      if (d >= 11.5) { // 帯
+        let col = d >= 14.6 ? PC.out : d >= 13.7 ? PC.dk : d >= 12.8 ? PC.lt : d >= 12 ? PC.md : PC.dd;
+        if (col === PC.lt && Math.abs(Math.atan2(Math.sin(a + 2.3), Math.cos(a + 2.3))) < 0.9) col = PC.hi;
+        if (d >= 12 && d < 14.6 && Math.abs(Math.atan2(Math.sin(a - glintA), Math.cos(a - glintA))) < 0.16) col = '#ffffff';
+        px(x, y, col); continue;
+      }
+      if (d >= 8.5 && d < 10.5 && res) { // ゲージ(上から時計回り)
+        const u = ((a + Math.PI / 2) / TAU + 1) % 1;
+        const on = u < frac, pulse = full && Math.floor(pt * 5) % 2;
+        px(x, y, on ? (pulse ? '#ffffff' : d >= 9.5 ? cc : '#a0122a') : '#241c3a');
+        continue;
+      }
+      px(x, y, '#0f0b1c');
     }
+    if (res) { // 中央の数値(満タンは金色)
+      const g = ART.text(String(Math.floor(res.v)), full ? '#ffd23f' : '#ffffff');
+      pc.drawImage(g, Math.round(CX - g.width / 2), Math.round(CY - g.height / 2));
+    }
+    // 4つの光る星(瞬く)。HP 30% 以下は赤くなる
+    const sc = low ? ['#ffffff', '#ffd0d8', '#ff5d73', '#a0122a'] : ['#ffffff', '#dff2ff', '#9fd8ff', '#4a7ad8'];
+    const tw = i => Math.sin(pt * 3 + i * 1.7) * 0.5 + 0.5;
+    star(CX, CY - 17, 3 + Math.round(tw(0) * 2), sc); star(CX, CY + 17, 3 + Math.round(tw(1) * 2), sc);
+    star(CX - 17, CY, 2 + Math.round(tw(2)), sc); star(CX + 16, CY, 2 + Math.round(tw(3)), sc);
+
     // プレイヤーがパネルの裏に入ったら薄くする
     const pr = box.getBoundingClientRect(), cr = cvsEl.getBoundingClientRect();
     const sx = cr.left + (P.x - cam.x) * GFX.PX, sy = cr.top + (P.y - cam.y) * GFX.PX;
