@@ -250,7 +250,7 @@ function iaiStrike(a) {
   }), 110);
   // CD(連環: 消費した剣気1につき 0.1秒短縮)
   if (!a.back) {
-    const base = q.cd * (1 - cuV('q', 'cd') - (P.lvFx.qCd || 0)) * P.cdMul;
+    const base = q.cd * (1 - cuV('q', 'cd')) * P.cdMul;
     setCd('q', hasSp('trait', 'zan') ? Math.max(3, base - a.ki * 0.1) : base);
   }
 }
