@@ -377,8 +377,8 @@ function render() {
     let sp = ART.S[d.kind];
     if (d.kind === 'coin') sp = ART.S.coin[Math.floor(d.t * 6) % 2];
     shadow(d.x, d.y + sp.h / 2, sp.w * 0.8);
-    if (d.kind === 'chest' || d.kind === 'orb') {
-      const col = d.kind === 'orb' ? '#b06ef0' : '#ffd23f';
+    if (d.kind === 'chest') { // 装備宝箱(フェーズ3で再びドロップさせる)
+      const col = '#ffd23f';
       gx.globalAlpha = 0.5 + 0.3 * Math.sin(t * 5);
       pCircle(gx, d.x - cam.x, d.y - cam.y, 9 + Math.round(Math.sin(t * 5)), col, 2);
       gx.globalAlpha = 1;

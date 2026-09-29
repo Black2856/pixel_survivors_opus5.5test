@@ -61,11 +61,8 @@ function computeStats({ cls = META.cls, run = false, eq = run ? 'run' : 'zero' }
     : eq === 'max' ? (slot, i, o) => o.max : () => 0;
   for (const o of equippedOpts(lvOf)) addN('equip', o.k, o.v, o.lv);
 
-  // ラン中の強化・微強化
-  if (run && P) {
-    runStatContribs(add, mul);
-    for (const k in P.micro) add('micro', k, P.micro[k]);
-  }
+  // 微強化(hpPct は最大HP の倍率)
+  if (run && P) for (const k in P.micro) { if (k === 'hpPct') mul.hp *= 1 + P.micro[k]; else add('micro', k, P.micro[k]); }
 
   const v = {};
   for (const k in by) {
@@ -73,26 +70,6 @@ function computeStats({ cls = META.cls, run = false, eq = run ? 'run' : 'zero' }
     v[k] = DATA.stats[k].kind === 'red' ? 1 - vals.reduce((p, x) => p * (1 - x), 1) : vals.reduce((a, b) => a + b, 0);
   }
   return { v, by, mul };
-}
-
-// ラン中の強化(旧パッシブ・アーティファクト)。フェーズ2でクラス強化に置き換える
-function runStatContribs(add, mul) {
-  const pv = P.passives, af = P.art, n = k => pv[k] || 0;
-  add('run', 'spd', 0.08 * n('boots'));
-  add('run', 'atk', 0.1 * n('power'));
-  add('run', 'hp', 20 * n('heart'));
-  add('run', 'magnet', 0.3 * n('magnet'));
-  for (let i = 0; i < n('tome'); i++) add('run', 'cd', 0.07);
-  add('run', 'crit', 0.06 * n('lens'));
-  add('run', 'area', 0.1 * n('area'));
-  add('run', 'regen', 0.5 * n('regen'));
-  add('run', 'def', n('armor'));
-  add('run', 'iframe', 0.1 * n('armor'));
-  if (af.clock) add('run', 'cd', 0.15);
-  if (af.critdmg) add('run', 'critDmg', 0.5);
-  if (af.aegis) { mul.hp *= 2; mul.spd *= 0.7; }
-  if (af.pact) mul.xp *= 1.5;
-  if (af.greed) mul.gold *= 1.5;
 }
 
 // computeStats の結果をプレイヤーの実数値に反映する

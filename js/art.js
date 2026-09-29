@@ -586,17 +586,6 @@ const ART = (() => {
   I.blizzard = mk({ a: '#bff4ff', b: '#ffffff', c: '#5ab4e0' }, ['....a....', '.a..a..a.', '..a.b.a..', '...cbc...', 'aabbbbbaa', '...cbc...', '..a.b.a..', '.a..a..a.', '....a....']);
   I.bhole = mk({ a: '#c78bff', b: '#1a0a2a', c: '#6a3aa0' }, ['...aaa...', '.aacccaa.', '.acbbbca.', 'acbbbbbca', 'acbbbbbca', 'acbbbbbca', '.acbbbca.', '.aacccaa.', '...aaa...']);
   I.katana = mk({ a: '#e8f0ff', b: '#ff5d73', c: '#3a2a2a', d: '#ffd23f' }, ['........a', '.......aa', '......aa.', '.....aa..', '....aa...', '...aa....', '.dd......', '.bd......', 'bc.......']);
-  I.boots = mk({ a: '#8a5a2a', b: '#c48a4a', c: '#ffd23f' }, ['..aaa....', '..abb....', '..abb....', '..abb....', '..abbb...', '.aabbbba.', 'abbbbbbba', 'cccccccca']);
-  I.power = mk({ a: '#ff3b5c', b: '#ff8aa0', c: '#ffffff', d: '#8a1a2a' }, ['....a....', '...aba...', '..abcba..', '.abbcbba.', 'dabbbbbad', '.dabbbad.', '..dabad..', '...dad...', '....d....']);
-  I.heart = mk({ a: '#e8434f', b: '#ff8a8a', c: '#ffffff' }, ['.aa...aa.', 'abca.abba', 'abbaaabba', 'abbbbbbba', '.abbbbba.', '..abbba..', '...aba...', '....a....']);
-  I.magnet = mk({ a: '#e8434f', b: '#dcdcdc', c: '#ff8a8a' }, ['..aaaaa..', '.aaccaaa.', 'aac...caa', 'aa.....aa', 'aa.....aa', 'aa.....aa', 'bb.....bb', 'bb.....bb']);
-  I.tome = mk({ a: '#3a2a6a', b: '#6a5ab0', c: '#ffd23f', d: '#e8e0c0' }, ['.aaaaaaa.', 'abbbbbbba', 'abbbcbbba', 'abbcccbba', 'abbbcbbba', 'abbbbbbba', 'aaaaaaaaa', 'addddddda', '.aaaaaaa.']);
-  I.lens = mk({ a: '#2a8a3a', b: '#5ddf6a', c: '#b0ffb0', d: '#6a4a2a' }, ['..bb.bb..', '.bccbccb.', '.bcbbbcb.', '..bbabb..', '.bcbabcb.', '.bccbccb.', '..bb.bb..', '....d....', '....d....']);
-  I.area = mk({ a: '#3a8ad0', b: '#8ad0ff', c: '#ffffff' }, ['...aaa...', '..abbba..', '.abbcbba.', 'abbcccbba', 'abcccccba', 'abbcccbba', '.abbcbba.', '..abbba..', '...aaa...']);
-  I.regen = mk({ a: '#d6ae5c', b: '#fff3a0', c: '#5dff8a' }, ['...ccc...', '..c.c.c..', '...ccc...', '..aaaaa..', '.a.....a.', 'a.......a', 'a.......a', '.a.....a.', '..aaaaa..']);
-  I.armor = mk({ a: '#5a6a80', b: '#9fb8d0', c: '#e8f4ff' }, ['aaaaaaaaa', 'abbbcbbba', 'abbbcbbba', 'abcccccba', 'abbbcbbba', '.abbcbba.', '.abbbbba.', '..abbba..', '...aaa...']);
-  I.cloak = mk({ a: '#1f7a6a', b: '#4fd6b8', c: '#b8fff0', d: '#ffd23f' }, ['..aaaa...', '.abbbba..', '.adbbda..', 'abbbbbba.', 'abbbbbbba', 'abcbbbbba', 'abbcbbba.', '.abbcba..', '..aaaa...']);
-  I.artifact = S.orb;
   I.gold = S.coin[0];
   S.icons = I;
 

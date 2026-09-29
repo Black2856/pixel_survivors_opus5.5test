@@ -14,10 +14,7 @@ const UI = (() => {
     const k = type + ':' + key;
     if (iconCache[k]) return iconCache[k];
     let sp;
-    if (type === 'artifact') {
-      const col = DATA.artifacts[key].col;
-      sp = ART.mk({ a: '#1a1024', b: col, c: '#ffffff' }, ['..aaa..', '.abbba.', 'abbcbba', 'abcccba', 'abbcbba', '.abbba.', '..aaa..']);
-    } else if (type === 'heal') sp = ART.S.meat;
+    if (type === 'heal') sp = ART.S.meat;
     else if (type === 'gold') sp = ART.S.coin[0];
     else sp = ART.S.icons[key] || ART.S.orb;
     return (iconCache[k] = sp.c.toDataURL());
@@ -223,7 +220,7 @@ const UI = (() => {
     box.classList.toggle('behind', sx > pr.left - 20 && sx < pr.right + 20 && sy > pr.top - 30 && sy < pr.bottom + 10);
   }
   function slots() {
-    const w = $('wslots'), p = $('pslots'), a = $('aslots');
+    const w = $('wslots');
     let h = '';
     for (let i = 0; i < S.weaponSlots; i++) {
       const k = Object.keys(P.weapons)[i];
@@ -231,13 +228,7 @@ const UI = (() => {
       const wp = P.weapons[k];
       h += `<div class="slot ${wp.evo ? 'evo' : ''} ${k === P.mainW ? 'main' : ''}" data-tip="w:${k}">${icon('weapon', k)}<span class="pips">${wp.evo ? '★' : '▮'.repeat(wp.lv)}</span></div>`;
     }
-    w.innerHTML = h; h = '';
-    for (let i = 0; i < S.passiveSlots; i++) {
-      const k = Object.keys(P.passives)[i];
-      h += k ? `<div class="slot small" data-tip="p:${k}">${icon('passive', k)}<span class="pips">${P.passives[k]}</span></div>` : '<div class="slot small empty"></div>';
-    }
-    p.innerHTML = h;
-    a.innerHTML = Object.keys(P.art).map(k => `<div class="slot tiny" data-tip="a:${k}">${icon('artifact', k)}</div>`).join('');
+    w.innerHTML = h;
   }
   const fmtBig = n => n >= 1e6 ? (n / 1e6).toFixed(2) + 'M' : n >= 1e4 ? (n / 1e3).toFixed(1) + 'K' : Math.round(n).toLocaleString();
   function enemyLvUp() { const e = $('elv'); e.classList.remove('up'); void e.offsetWidth; e.classList.add('up'); }
@@ -255,9 +246,7 @@ const UI = (() => {
     if (!t) { hide(tip); return; }
     const [kind, k] = t.dataset.tip.split(':');
     let html = '';
-    if (kind === 'w') { const d = DATA.weapons[k], w = P.weapons[k]; html = `<b>${w && w.evo ? d.evo.name : d.name}</b><br>${w && w.evo ? d.evo.desc : d.desc}<br><span class="dim">進化条件: ${DATA.passives[d.evo.need].name}</span>`; }
-    if (kind === 'p') { const d = DATA.passives[k]; html = `<b>${d.name}</b><br>${d.desc}`; }
-    if (kind === 'a') { const d = DATA.artifacts[k]; html = `<b>${d.name}</b><br>${d.desc}`; }
+    if (kind === 'w') { const d = DATA.weapons[k], w = P.weapons[k]; html = `<b>${w && w.evo ? d.evo.name : d.name}</b><br>${w && w.evo ? d.evo.desc : d.desc}<br><span class="dim">進化: ${evoCond(k)}</span>`; }
     tip.innerHTML = html;
     const r = t.getBoundingClientRect();
     tip.style.left = Math.min(innerWidth - 240, r.left) + 'px'; tip.style.top = (r.bottom + 8) + 'px';
@@ -265,9 +254,11 @@ const UI = (() => {
   });
 
   // ============================================================
-  // 選択カード(レベルアップ / 開始武器 / アーティファクト)
+  // 選択カード(レベルアップ: 武器カード / クラス強化カード)
   // ============================================================
-  let mode = 'level', choices = [], chosen = false;
+  let mode = 'level', choices = [], chosen = false, curLv = 1;
+  // 進化の条件(メイン武器はクラスLv10 で解放)
+  const evoCond = k => 'Lv5' + (k === P.mainW ? ' + クラスLv10' + (META.classes[P.cls].lv >= 10 ? ' ✔' : '') : '');
   function statDiff(k, from, to) {
     const a = from ? (from.evo ? DATA.weapons[k].evo.st : DATA.weapons[k].lv[from.lv - 1]) : null, b = DATA.weapons[k].lv[to - 1];
     if (!a) return '';
@@ -281,21 +272,17 @@ const UI = (() => {
       head = w ? `Lv ${w.lv} → ${w.lv + 1}` : 'NEW!';
       rar = w ? (w.lv + 1 === 5 ? 'epic' : 'rare') : 'new';
       body = w ? statDiff(c.key, w, w.lv + 1) : `<p>${d.desc}</p>`;
-      foot = `<div class="evohint">進化 ${icon('passive', d.evo.need, 'mini')} ${DATA.passives[d.evo.need].name}${P.passives[d.evo.need] ? ' ✔' : ''}</div>`;
-    } else if (c.type === 'passive') {
-      const d = DATA.passives[c.key], lv = P.passives[c.key] || 0;
-      name = d.name; ic = icon('passive', c.key, 'big'); head = lv ? `Lv ${lv} → ${lv + 1}` : 'NEW!'; rar = lv ? 'common' : 'new';
-      body = `<p>${d.desc}</p>`;
-      const evoW = Object.keys(DATA.weapons).filter(k => DATA.weapons[k].evo.need === c.key);
-      foot = `<div class="evohint">進化素材 ${evoW.map(k => icon('weapon', k, 'mini')).join('')}</div>`;
-    } else if (c.type === 'artifact') {
-      const d = DATA.artifacts[c.key];
-      name = d.name; ic = icon('artifact', c.key, 'big'); head = 'ARTIFACT'; rar = 'legend'; body = `<p>${d.desc}</p>`;
+      foot = `<div class="evohint">進化 ${evoCond(c.key)}${c.key === P.mainW ? ' (メイン)' : ''}</div>`;
+    } else if (c.type === 'cls') {
+      // クラス強化: カテゴリ名 / パス名 / 次のLvの効果。特殊強化は性質が変わる派生
+      const C = DATA.classes[P.cls].tree[c.cat], d = C.paths[c.path], lv = cuLv(c.cat, c.path);
+      ic = `<div class="cls-ic" style="--cc:${DATA.classes[P.cls].col}">${c.sp ? '★' : '◆'}</div>`;
+      if (c.sp) { name = d.sp.name; head = 'SPECIAL'; rar = 'legend'; body = `<p>${d.sp.desc}</p>`; foot = `<div class="evohint">${C.name} / ${d.name} の派生(1つだけ)</div>`; }
+      else { name = d.name; head = `${C.name} Lv ${lv} → ${lv + 1}`; rar = lv + 1 === 3 ? 'epic' : 'rare'; body = `<p>${d.desc[lv]}</p>`; foot = `<div class="evohint">${'◆'.repeat(lv + 1)}${'◇'.repeat(2 - lv)}</div>`; }
     } else if (c.type === 'evo') {
       const d = DATA.weapons[c.key];
       name = d.evo.name; ic = icon('weapon', c.key, 'big'); head = 'EVOLUTION!!'; rar = 'legend'; body = `<p>${d.name} が進化した!<br>${d.evo.desc}</p>`;
-    } else if (c.type === 'heal') { name = '回復の肉'; ic = icon('heal', 0, 'big'); head = 'HEAL'; body = '<p>HP を 40 回復</p>'; }
-    else if (c.type === 'gold') { name = '金貨袋'; ic = icon('gold', 0, 'big'); head = 'GOLD'; body = `<p>ゴールド +${c.amt || 25}</p>`; }
+    }
     return { html: `<div class="card-head">${head}</div><div class="card-icon">${ic}</div><div class="card-name">${name}</div><div class="card-body">${body}</div>${foot}`, rar };
   }
 
@@ -325,16 +312,16 @@ const UI = (() => {
     rb.disabled = !canReroll();
     rb.onclick = reroll;
     btns.appendChild(rb);
-    const sb = el('button', 'btn ghost', mode === 'artifact' ? 'スキップ (+50G)' : 'スキップ (+10G)');
-    sb.onclick = () => { if (chosen) return; chosen = true; addGold(mode === 'artifact' ? 50 : 10); close(); };
+    const sb = el('button', 'btn ghost', 'スキップ (+10G)');
+    sb.onclick = () => { if (chosen) return; chosen = true; addGold(10); close(); };
     btns.appendChild(sb);
   }
   // アーティファクトは未所持が3つ以下だと引き直しても同じ候補になるので不可
-  const canReroll = () => S.rerolls > 0 && !chosen && (mode !== 'artifact' || Object.keys(DATA.artifacts).filter(k => !P.art[k]).length > 3);
+  const canReroll = () => S.rerolls > 0 && !chosen;
   function reroll() {
     if (!canReroll()) return;
     S.rerolls--;
-    choices = mode === 'artifact' ? buildArtifactChoices() : buildChoices();
+    choices = buildChoices(curLv);
     AudioMan.select();
     renderCards();
   }
@@ -346,7 +333,7 @@ const UI = (() => {
     cardEl.classList.add('picked');
     applyChoice(c);
     AudioMan.select();
-    const col = c.type === 'artifact' ? DATA.artifacts[c.key].col : c.type === 'weapon' ? DATA.weapons[c.key].col : '#ffffff';
+    const col = c.type === 'weapon' ? DATA.weapons[c.key].col : c.type === 'cls' ? DATA.classes[P.cls].col : '#ffffff';
     burst(P.x, P.y, 30, [col, '#ffffff'], { sp: 90, glow: true, up: 20 });
     addRing(P.x, P.y, 40, col, { life: 0.35 });
     setTimeout(close, 240);
@@ -501,7 +488,7 @@ const UI = (() => {
     $('chest-rewards').appendChild(card);
     const iconBox = card.querySelector('.card-icon');
     const finalIcon = iconBox.innerHTML;
-    const pool = Object.keys(DATA.weapons).map(k => icon('weapon', k, 'big')).concat(Object.keys(DATA.passives).map(k => icon('passive', k, 'big')));
+    const pool = Object.keys(DATA.weapons).map(k => icon('weapon', k, 'big'));
     const spins = r.type === 'evo' ? 12 : 7;
     let n = 0;
     const step = () => {
@@ -554,11 +541,7 @@ const UI = (() => {
     $('title-best').innerHTML = [b.time ? `BEST ${fmtTime(b.time)} · ${b.kills} KILLS · LV ${b.level}` : '', arena].filter(Boolean).join('<br>');
     if (metaMigratedGold) { announce('+' + metaMigratedGold.toLocaleString() + ' G 返金', '永続強化は新しいツリーに移行しました'); metaMigratedGold = 0; }
   }
-  function levelUp() { openChoices('level', buildChoices(), 'LEVEL UP!'); }
-  function openArtifact(list) {
-    if (!list.length) { addGold(100); announce('+100 G', ''); return; }
-    openChoices('artifact', list, 'ARTIFACT');
-  }
+  function levelUp(lv, list) { curLv = lv; openChoices(isClassLv(lv) ? 'class' : 'level', list, isClassLv(lv) ? 'CLASS UP!' : 'LEVEL UP!'); }
 
   // ---------- 設定パネル(ポーズ画面とタイトルの設定画面で共用。開く画面へ移動させる) ----------
   function syncSettings(host) {
@@ -577,7 +560,7 @@ const UI = (() => {
     if (on) {
       only('pause-screen');
       syncSettings('pause-screen');
-      $('pause-build').innerHTML = Object.keys(P.weapons).map(k => icon('weapon', k)).join('') + Object.keys(P.passives).map(k => icon('passive', k)).join('');
+      $('pause-build').innerHTML = Object.keys(P.weapons).map(k => icon('weapon', k)).join('');
     } else only(null);
   }
   $('vol-music').oninput = e => AudioMan.setVol('music', e.target.value / 100);
@@ -614,5 +597,5 @@ const UI = (() => {
     } else if (state === 'chest' && (e.code === 'Space' || e.code === 'Enter')) chestAct();
   }
 
-  return { announce, banner, hud, bossBar, enemyLvUp, openChest, openArtifact, levelUp, beginPlay: close, title, pause, result, onKey, show, hide, $ };
+  return { announce, banner, hud, bossBar, enemyLvUp, openChest, levelUp, beginPlay: close, title, pause, result, onKey, show, hide, $ };
 })();

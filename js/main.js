@@ -98,7 +98,11 @@ function update(rdt) {
       for (let i = 0; i < 40; i++) part(P.x + rand(-8, 8), P.y + rand(-2, 6), rand(-15, 15), -rand(60, 160), rand(0.5, 1), pick(['#ffd23f', '#fff6c8', '#ff8c42']), { glow: true, drag: 1.5 });
     }
     S.lvFx -= rdt;
-    if (S.lvFx <= 0) { S.pendingLv--; UI.levelUp(); }
+    if (S.lvFx <= 0) {
+      S.pendingLv--;
+      const lv = S.lvQueue.shift() || P.level, list = buildChoices(lv);
+      if (list.length) UI.levelUp(lv, list); else microBuff();
+    }
   }
   if (P.dead) { S.deathT -= rdt; if (S.deathT <= 0) endRun(false); }
   if (S.victoryT > 0) { S.victoryT -= rdt; if (S.victoryT <= 0) { AudioMan.playMusic('title'); endRun(true); } }

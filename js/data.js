@@ -60,7 +60,7 @@ const DATA = {
   ],
 
   // ---------- 武器 ----------
-  // evo: Lv5 + 指定パッシブ所持の状態で宝箱を開けると進化
+  // evo: 武器Lv5 で進化カードが出る(メイン武器はクラスLv10 で解放)
   weapons: {
     bolt: {
       name: 'マジックボルト', desc: '最も近い敵へ魔法弾を放つ', col: '#7ad7ff',
@@ -71,7 +71,7 @@ const DATA = {
         { cd: 0.85, dmg: 22, count: 3, speed: 185, pierce: 1 },
         { cd: 0.72, dmg: 30, count: 4, speed: 200, pierce: 2 },
       ],
-      evo: { need: 'tome', name: 'アーケインレイ', desc: '追尾する魔弾の奔流', st: { cd: 0.6, dmg: 34, count: 5, speed: 210, pierce: 2 } },
+      evo: { name: 'アーケインレイ', desc: '追尾する魔弾の奔流', st: { cd: 0.6, dmg: 34, count: 5, speed: 210, pierce: 2 } },
     },
     blade: {
       name: 'オービットブレード', desc: '周囲を回転する刃', col: '#d8e4ff',
@@ -82,7 +82,7 @@ const DATA = {
         { count: 4, dmg: 18, radius: 28, rot: 3.6 },
         { count: 6, dmg: 24, radius: 32, rot: 4.0 },
       ],
-      evo: { need: 'area', name: 'ホーリーサークル', desc: '二重の聖刃が逆回転する', st: { count: 7, dmg: 30, radius: 34, rot: 4.4 } },
+      evo: { name: 'ホーリーサークル', desc: '二重の聖刃が逆回転する', st: { count: 7, dmg: 30, radius: 34, rot: 4.4 } },
     },
     thunder: {
       name: 'サンダー', desc: 'ランダムな敵に落雷', col: '#fff27a',
@@ -93,7 +93,7 @@ const DATA = {
         { cd: 2.8, strikes: 2, dmg: 48, aoe: 24 },
         { cd: 2.6, strikes: 3, dmg: 60, aoe: 27 },
       ],
-      evo: { need: 'lens', name: 'ジャッジメント', desc: '落雷が敵から敵へ連鎖する', st: { cd: 2.3, strikes: 3, dmg: 72, aoe: 30 } },
+      evo: { name: 'ジャッジメント', desc: '落雷が敵から敵へ連鎖する', st: { cd: 2.3, strikes: 3, dmg: 72, aoe: 30 } },
     },
     aura: {
       name: 'ホーリーオーラ', desc: '周囲の敵に継続ダメージ', col: '#ffe38a',
@@ -104,7 +104,7 @@ const DATA = {
         { radius: 37, dmg: 18, tick: 0.4 },
         { radius: 43, dmg: 24, tick: 0.33 },
       ],
-      evo: { need: 'armor', name: 'サンクチュアリ', desc: '命中1回につきHP 0.4 回復(1判定で最大5回分)', st: { radius: 60, dmg: 25, tick: 0.28 } },
+      evo: { name: 'サンクチュアリ', desc: '命中1回につきHP 0.4 回復(1判定で最大5回分)', st: { radius: 60, dmg: 25, tick: 0.28 } },
     },
     axe: {
       name: 'スローイングアックス', desc: '放物線を描く重い斧', col: '#ffb070',
@@ -115,7 +115,7 @@ const DATA = {
         { cd: 1.3, count: 3, dmg: 38 },
         { cd: 1.1, count: 4, dmg: 50 },
       ],
-      evo: { need: 'power', name: 'ギガントアックス', desc: '巨大化した斧が大地を割る', st: { cd: 1.0, count: 5, dmg: 72 } },
+      evo: { name: 'ギガントアックス', desc: '巨大化した斧が大地を割る', st: { cd: 1.0, count: 5, dmg: 72 } },
     },
     wisp: {
       name: 'スピリットウィスプ', desc: '敵を追尾する精霊', col: '#9dffcf',
@@ -126,7 +126,7 @@ const DATA = {
         { cd: 1.5, count: 3, dmg: 25, pierce: 5 },
         { cd: 1.2, count: 4, dmg: 32, pierce: 6 },
       ],
-      evo: { need: 'magnet', name: 'ソウルイーター', desc: '敵を倒すたび(武器問わず)その場から魂を召喚', st: { cd: 0.9, count: 6, dmg: 40, pierce: 10 } },
+      evo: { name: 'ソウルイーター', desc: '敵を倒すたび(武器問わず)その場から魂を召喚', st: { cd: 0.9, count: 6, dmg: 40, pierce: 10 } },
     },
     fire: {
       name: 'ファイアー', desc: '貫通する火炎弾。燃焼を付与', col: '#ff8a3d',
@@ -137,7 +137,7 @@ const DATA = {
         { cd: 1.4, dmg: 18, count: 2, burn: 11 },
         { cd: 1.2, dmg: 24, count: 3, burn: 15 },
       ],
-      evo: { need: 'regen', name: 'インフェルノ', desc: '着弾毎に爆炎が広がる', st: { cd: 1.0, dmg: 30, count: 4, burn: 22 } },
+      evo: { name: 'インフェルノ', desc: '着弾毎に爆炎が広がる', st: { cd: 1.0, dmg: 30, count: 4, burn: 22 } },
     },
     blizzard: {
       name: 'ブリザード', desc: '吹雪で切り刻み凍傷(減速)を付与', col: '#bff4ff',
@@ -148,7 +148,7 @@ const DATA = {
         { cd: 3.4, dmg: 12, radius: 35, dur: 3.2 },
         { cd: 3.0, dmg: 16, radius: 40, dur: 3.5 },
       ],
-      evo: { need: 'boots', name: 'アブソリュートゼロ', desc: '凍傷1スタックごとに被ダメージ+1%。吹雪が毎秒+10%拡大', st: { cd: 2.6, dmg: 20, radius: 48, dur: 4.0 } },
+      evo: { name: 'アブソリュートゼロ', desc: '凍傷1スタックごとに被ダメージ+1%。吹雪が毎秒+10%拡大', st: { cd: 2.6, dmg: 20, radius: 48, dur: 4.0 } },
     },
     bhole: {
       name: 'ブラックホール', desc: '敵を吸い込む特異点を生成', col: '#c78bff',
@@ -159,7 +159,7 @@ const DATA = {
         { cd: 4.8, dmg: 10, dur: 1.6, radius: 40, pull: 100 },
         { cd: 4.2, dmg: 13, dur: 2.0, radius: 43, pull: 110 },
       ],
-      evo: { need: 'cloak', name: 'ビッグクランチ', desc: '消滅時に超新星爆発を起こす', st: { cd: 4.0, dmg: 16, dur: 2.6, radius: 55, pull: 130 } },
+      evo: { name: 'ビッグクランチ', desc: '消滅時に超新星爆発を起こす', st: { cd: 4.0, dmg: 16, dur: 2.6, radius: 55, pull: 130 } },
     },
     katana: {
       name: '刀', desc: '最も近い敵へ素早い斬撃', col: '#ff5d73',
@@ -170,45 +170,13 @@ const DATA = {
         { cd: 0.8,  dmg: 32, count: 2, aoe: 52 },
         { cd: 0.7,  dmg: 40, count: 3, aoe: 58 },
       ],
-      evo: { need: 'heart', name: '鬼神・村正', desc: '斬撃の後に斬撃波(50%)。ダッシュで通過した敵を一閃(200%)', st: { cd: 0.55, dmg: 52, count: 3, aoe: 70 } },
+      evo: { name: '鬼神・村正', desc: '斬撃の後に斬撃波(50%)。3回目の斬撃ごとに大一閃(200%・範囲 1.5倍)', st: { cd: 0.55, dmg: 52, count: 3, aoe: 70 } },
     },
   },
 
   statLabels: {
     cd: 'CD', dmg: '威力', count: '数', speed: '弾速', pierce: '貫通', strikes: '落雷数',
     aoe: '範囲', radius: '半径', rot: '回転', tick: '間隔', burn: '燃焼/s', dur: '持続', pull: '吸引',
-  },
-
-  // ---------- パッシブ ----------
-  passives: {
-    boots:  { name: 'ラピッドブーツ',   desc: '移動速度 +8%',        max: 5 },
-    power:  { name: 'パワークリスタル', desc: '攻撃力 +10%',         max: 5 },
-    heart:  { name: 'いのちの器',       desc: '最大HP +20',          max: 5 },
-    magnet: { name: 'マグネット',       desc: '吸引範囲 +30%',       max: 5 },
-    tome:   { name: '古の魔導書',       desc: 'クールダウン -7%',    max: 5 },
-    lens:   { name: '幸運のクローバー', desc: 'クリティカル率 +6%',  max: 5 },
-    area:   { name: '拡がりの宝珠',     desc: '攻撃範囲 +10%',       max: 5 },
-    regen:  { name: '再生の指輪',       desc: '毎秒HP +0.5 回復',    max: 5 },
-    armor:  { name: '鉄の守り',         desc: '被ダメージ -1、無敵時間 +10%',       max: 5 },
-    cloak:  { name: '疾風のマント',     desc: 'ダッシュ距離 +20%',   max: 5 },
-  },
-
-  // ---------- アーティファクト(ボス撃破報酬) ----------
-  artifacts: {
-    wslot:  { name: '拡張ホルスター',   desc: '武器の装備枠 +1', col: '#ffd23f' },
-    pslot:  { name: '秘伝の腰袋',       desc: 'パッシブの装備枠 +1', col: '#7cfc8a' },
-    frenzy: { name: '狂戦士の血晶',     desc: '失ったHP 1% につき攻撃力 +1%', col: '#ff3b5c' },
-    clock:  { name: '狂気の懐中時計',   desc: 'クールダウン -15%。敵の出現数と速度 +15%', col: '#ffb347' },
-    critdmg:{ name: '処刑人の刻印',     desc: 'クリティカル倍率 +50%。非クリティカル -20%', col: '#ff6ec7' },
-    pact:   { name: '悪魔の契約書',     desc: '獲得経験値 +50%。敵のステータス +20%', col: '#b06ef0' },
-    aegis:  { name: '不動の重鎧',       desc: '最大HP 2倍。移動速度 -30%', col: '#9fb8d0' },
-    mirror: { name: '双面の魔鏡',       desc: 'ボルト/ファイアーが背後にも発射(対象武器の威力 -25%)', col: '#6ee7ff' },
-    fang:   { name: '吸血の牙',         desc: '敵撃破時 10% で HP 1 回復', col: '#d0304a' },
-    gale:   { name: '疾風の羽根',       desc: 'ダッシュの消費量 -50%、回復速度 -50%', col: '#b8fff0' },
-    greed:  { name: '黄金の杯',         desc: '獲得ゴールド x1.5。宝箱の報酬 +1', col: '#ffcc33' },
-    bleed:  { name: '渇血の棘',         desc: '刀/アックス/ブレードが出血を付与(5秒)。1スタックにつき被ダメージ +2%、最大スタックは対象武器1つにつき +10。対象外の武器はダメージ -30%', col: '#a0122a' },
-    element:{ name: '元素の冠',         desc: 'ボルト/サンダー/ファイアー/ブリザードのダメージ +25%・サイズ +25%。対象外の武器はダメージ -30%', col: '#7ad7ff' },
-    annihil:{ name: '光闇の天秤',       desc: 'オーラが「光輝」、ブラックホールが「暗黒」を付与。両方揃うと対消滅し、オーラ+ブラックホールの合計ダメージを範囲に与える', col: '#f0e0ff' },
   },
 
   // ---------- ステータス定義 ----------
@@ -243,6 +211,14 @@ const DATA = {
     eqMaxVal:  { label: '装備最大値',           kind: 'pct',  group: 'special' },
   },
 
+  // ---------- 微強化(武器カードを取り切った後のレベルアップ。メニューなしでランダムに1つ) ----------
+  // hpPct は最大HP の倍率(%)。他は DATA.stats と同じ単位
+  micro: [
+    { k: 'atk', v: 0.01, label: '攻撃力 +1%' }, { k: 'hpPct', v: 0.01, label: '最大HP +1%' },
+    { k: 'spd', v: 0.005, label: '移動速度 +0.5%' }, { k: 'cd', v: 0.005, label: 'クールダウン -0.5%' },
+    { k: 'area', v: 0.01, label: '範囲 +1%' }, { k: 'range', v: 0.01, label: '射程 +1%' },
+  ],
+
   // ---------- クラス ----------
   // base: 基礎ステータス(共通基準 + クラス差。設計書 3.6)。crit / critDmg は割合(0.05 = 5%、1.0 = +100% = ×2)
   // lvStats: クラスLv で得るステータス({ Lv: { stat: 値 } })。スキル系の強化はクラスの実装側で扱う
@@ -259,6 +235,31 @@ const DATA = {
         kiMax: 100, kiHit: 2, kiHitCap: 10, kiParry: 30, kiFullAtk: 0.2,
         guardCost: 15, guardSlow: 0.5, parryWin: 0.25, parryPow: 60, parryR: 40, parryIfr: 0.5, breakT: 2, breakDmg: 0.2,
         zanshinT: 3, zanshinAtk: 0.15,
+      },
+      // ラン中の強化ツリー(3の倍数のLv で選ぶ)。カテゴリ → 強化パス(Lv1〜3、v が各Lvの値)→ 特殊強化(sp)
+      // need: そのスキルが実装済みの場合だけ候補に出す(CLASS_RT の skills に含まれるもの)
+      // 特殊強化は各パスが Lv3 で候補に出る。1カテゴリにつき1つだけ取れる
+      tree: {
+        trait: { name: '剣気', paths: {
+          ren: { name: '練気', desc: ['剣気獲得 +20%', '剣気獲得 +40%', '剣気獲得 +60%'], v: [0.2, 0.4, 0.6], sp: { name: '無尽', desc: '敵を倒すと剣気 +3' } },
+          juu: { name: '充溢', desc: ['満タン時の攻撃力 20% → 30%', '満タン時の攻撃力 40%', '満タン時の攻撃力 50%'], v: [0.3, 0.4, 0.5], sp: { name: '明鏡止水', desc: '剣気が満タンの間、被ダメージ -30%・攻撃速度 +25%' } },
+          zan: { name: '残気', need: 'q', desc: ['居合の後、消費した剣気の 20% を戻す', '35% を戻す', '50% を戻す'], v: [0.2, 0.35, 0.5], sp: { name: '連環', desc: '居合のCDが、消費した剣気1につき 0.2秒短くなる' } },
+        } },
+        passive: { name: '残心', paths: {
+          kihaku: { name: '気迫', desc: ['残心の攻撃力 15% → 20%', '残心の攻撃力 25%', '残心の攻撃力 30%'], v: [0.2, 0.25, 0.3], sp: { name: '背水', desc: 'HP 50% 以下で、残心の効果が2倍' } },
+          jizoku: { name: '持続', desc: ['残心の効果時間 +1秒', '+2秒', '+3秒'], v: [1, 2, 3], sp: { name: '常在戦場', desc: '残心中に敵を倒すと、効果時間がリセットされる' } },
+          migaru: { name: '身軽', desc: ['残心中の移動速度 +10%', '+20%', '+30%'], v: [0.1, 0.2, 0.3], sp: { name: '不動', desc: '残心中の被ダメージ -25%' } },
+        } },
+        q: { name: '居合・朧月', need: 'q', paths: {
+          pow: { name: '威力', desc: ['居合の威力 +20%', '+40%', '+60%'], v: [0.2, 0.4, 0.6], sp: { name: '一刀両断', desc: '剣気100で使うと威力 ×1.5、斬った敵に出血10スタック' } },
+          cd:  { name: '迅速', desc: ['居合のCD -10%', '-20%', '-30%'], v: [0.1, 0.2, 0.3], sp: { name: '燕返し', desc: '到達後、元の位置へ戻りながらもう一度斬る(60%)' } },
+          reach: { name: '間合', desc: ['突進距離・幅 +20%', '+40%', '+60%'], v: [0.2, 0.4, 0.6], sp: { name: '空蝉', desc: '開始地点に分身を残し、2秒間敵の攻撃を引きつける' } },
+        } },
+        e: { name: '乱れ桜', need: 'e', paths: {
+          pow: { name: '威力', desc: ['乱れ桜の威力 +20%', '+40%', '+60%'], v: [0.2, 0.4, 0.6], sp: { name: '桜吹雪', desc: '終了時に花びらが爆散する(武器の威力 × 800%)' } },
+          cd:  { name: '迅速', desc: ['乱れ桜のCD -10%', '-20%', '-30%'], v: [0.1, 0.2, 0.3], sp: { name: '剣の舞', desc: '使っている間、敵を1体倒すごとにCD -1秒' } },
+          dur: { name: '持続', desc: ['持続 +0.3秒(+2回)', '+0.6秒', '+0.9秒'], v: [0.3, 0.6, 0.9], sp: { name: '千本桜', desc: '使っている間、移動速度 +50%・無敵' } },
+        } },
       },
     },
     mage: {
