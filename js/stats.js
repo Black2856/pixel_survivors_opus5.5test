@@ -8,10 +8,80 @@ const STAT_SRC_LABEL = {
   unique: '固有効果', run: 'ラン中の強化', micro: '微強化',
 };
 
-// 永続ツリーのノードID は "stat#番号"。取得済みノード数を stat ごとに数える
+// ---------- 永続ツリーのグラフ ----------
+// ノード: { id: "stat#番号", k: stat, dir, depth, x, y, adj: [id...], big: 特別なノード }
+// 番号は stat ごとの生成順なので、データを変えない限り同じ ID になる(セーブは ID の配列)
+// 深さ d のリング半径(内側ほど混むので、深さ2 から大きく離す)
+const TREE_R = d => (d === 1 ? 56 : 80 + d * 40);
+const TREE = (() => {
+  const T = DATA.tree, nodes = {}, n = {}, R = TREE_R;
+  const mk = (k, dir, depth, ang, big) => {
+    n[k] = (n[k] || 0) + 1;
+    const id = k + '#' + n[k];
+    nodes[id] = { id, k, dir, depth, big: !!big, adj: [], x: Math.cos(ang) * R(depth), y: Math.sin(ang) * R(depth) };
+    return nodes[id];
+  };
+  const link = (a, b) => { a.adj.push(b.id); b.adj.push(a.id); };
+  // 同じステータスが続かないよう、残り数の割合が一番大きいものから順に並べる
+  const interleave = cnt => {
+    const left = Object.assign({}, cnt), tot = Object.values(cnt).reduce((a, b) => a + b, 0), out = [];
+    for (let i = 0; i < tot; i++) {
+      const k = Object.keys(left).filter(x => left[x] > 0 && x !== out[i - 1]).sort((a, b) => left[b] / cnt[b] - left[a] / cnt[a] || left[b] - left[a])[0]
+        || Object.keys(left).find(x => left[x] > 0);
+      out.push(k); left[k]--;
+    }
+    return out;
+  };
+  const dirKeys = Object.keys(T.dirs);
+  dirKeys.forEach((dk, di) => {
+    const D = T.dirs[dk], c0 = -Math.PI / 2 + di * Math.PI * 2 / dirKeys.length, secW = Math.PI * 2 / dirKeys.length;
+    const root = mk(D.root, dk, 1, c0);
+    const bw = secW * 0.9 / D.branches.length, tips = []; // 方向の間に少し隙間を空ける
+    D.branches.forEach((B, bi) => {
+      const bc = c0 - secW * 0.45 + bw * (bi + 0.5), seq = interleave(B.nodes), lanes = Math.ceil(seq.length / B.rows);
+      const grid = [];
+      seq.forEach((k, i) => {
+        const row = Math.floor(i / lanes), lane = i % lanes, inRow = Math.min(lanes, seq.length - row * lanes);
+        const ang = lanes > 1 ? bc + (lane - (inRow - 1) / 2) * (bw * 0.7 / (lanes - 1)) : bc;
+        const nd = mk(k, dk, row + 2, ang);
+        (grid[row] = grid[row] || []).push(nd);
+      });
+      // 隣接: 根 ↔ 1段目、同じ段の隣、1つ内側の段の近い位置
+      for (const nd of grid[0]) link(root, nd);
+      grid.forEach((row, r) => {
+        row.forEach((nd, i) => {
+          if (i > 0) link(row[i - 1], nd);
+          if (r > 0) {
+            const prev = grid[r - 1], j = Math.round(i * (prev.length - 1) / Math.max(1, row.length - 1));
+            link(prev[row.length === 1 ? Math.floor((prev.length - 1) / 2) : j], nd);
+          }
+        });
+      });
+      if (B.tip) {
+        const last = grid[grid.length - 1], tip = mk(B.tip, dk, grid.length + 2, bc, true);
+        for (const nd of last) link(nd, tip);
+        tips.push(tip);
+      }
+    });
+    if (D.crown) { const cr = mk(D.crown, dk, Math.max(...tips.map(t => t.depth)) + 1, c0, true); for (const t of tips) link(t, cr); }
+  });
+  return nodes;
+})();
+const treeCost = nd => DATA.tree.costBase * Math.pow(2, nd.depth);
+const treeOwned = id => META.tree.includes(id);
+// 取れるノード: 深さ1(根)か、取得済みのノードに隣接している
+const treeOpen = nd => !treeOwned(nd.id) && (nd.depth === 1 || nd.adj.some(treeOwned));
+function treeBuy(id) {
+  const nd = TREE[id];
+  if (!nd || !treeOpen(nd) || META.gold < treeCost(nd)) return false;
+  META.gold -= treeCost(nd); META.tree.push(id); saveMeta();
+  return true;
+}
+
+// 取得済みノード数を stat ごとに数える(今のツリーにない ID は無視)
 function treeCounts() {
   const c = {};
-  for (const id of META.tree) { const k = id.split('#')[0]; c[k] = (c[k] || 0) + 1; }
+  for (const id of META.tree) { const nd = TREE[id]; if (nd) c[nd.k] = (c[nd.k] || 0) + 1; }
   return c;
 }
 function treeNodeValue(stat) {

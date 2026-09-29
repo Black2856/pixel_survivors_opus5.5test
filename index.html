@@ -43,6 +43,7 @@
       <div class="menu">
         <button id="btn-start" class="btn big">▶ START</button>
         <button id="btn-class" class="btn">クラス</button>
+        <button id="btn-tree" class="btn">強化ツリー</button>
         <button id="btn-equip" class="btn">装備</button>
         <button id="btn-settings" class="btn ghost">設定</button>
       </div>
@@ -68,6 +69,20 @@
       <div id="cl-detail"></div>
     </div>
     <div class="menu row"><button id="cl-back" class="btn">戻る (ESC)</button></div>
+  </div>
+
+  <!-- 永続強化ツリー(ラン外) -->
+  <div id="tree-screen" class="screen hidden">
+    <h2 class="scr-title">SKILL TREE</h2>
+    <div id="tr-gold" class="gold-chip"></div>
+    <div class="tr-wrap">
+      <svg id="tr-svg" viewBox="-378 -378 756 756"></svg>
+      <div class="tr-side">
+        <div id="tr-info"></div>
+        <div id="tr-sum"></div>
+      </div>
+    </div>
+    <div class="menu row"><button id="tr-back" class="btn">戻る (ESC)</button></div>
   </div>
 
   <!-- 装備画面(ラン外) -->

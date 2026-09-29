@@ -323,6 +323,31 @@ const DATA = {
       skill:   { spd: [0.1, 5], atk: [0.2, 10], area: [0.1, 5], range: [0.1, 5], cd: [0.1, 4], crit: [0.05, 5], critDmg: [0.2, 5], wslot: [1, 1] },
       balance: { xp: [0.1, 5], gold: [0.2, 8], magnet: [0.2, 8], eqQual: [0.2, 5], chestQual: [0.2, 5], classXp: [0.2, 5], reroll: [3, 3], classPick: [1, 1] },
     },
+    // 形(設計書 6.2): 方向ごとに 根(深さ1)→ 3本の枝。枝のノードは rows 段(深さ2〜)に交互に並べ、tip は枝の先端の1つ外側
+    // crown: 方向の3本の枝の tip すべてに隣接する最奥のノード
+    dirs: {
+      life: { name: '生命', col: '#ff5d73', root: 'hp', branches: [
+        { name: '活力', rows: 5, nodes: { hp: 9, regen: 5 } },
+        { name: '守護', rows: 5, nodes: { def: 4, dr: 5 }, tip: 'iframe' },
+        { name: '持久', rows: 5, nodes: { sta: 10, staRegen: 5 } },
+      ] },
+      skill: { name: '技巧', col: '#ffd23f', root: 'atk', branches: [
+        { name: '剛撃', rows: 5, nodes: { atk: 9, critDmg: 5 } },
+        { name: '精妙', rows: 5, nodes: { crit: 5, cd: 4 }, tip: 'wslot' },
+        { name: '広域', rows: 5, nodes: { area: 5, range: 5, spd: 5 } },
+      ] },
+      balance: { name: '天秤', col: '#7ad7ff', root: 'magnet', crown: 'classPick', branches: [
+        { name: '成長', rows: 4, nodes: { xp: 5, classXp: 5 }, tip: 'reroll' },
+        { name: '財宝', rows: 4, nodes: { gold: 8, eqQual: 5 }, tip: 'reroll' },
+        { name: '探索', rows: 4, nodes: { magnet: 7, chestQual: 5 }, tip: 'reroll' },
+      ] },
+    },
+    // ノードに表示する1文字
+    glyph: {
+      hp: '体', regen: '癒', def: '守', dr: '減', sta: '持', staRegen: '息', iframe: '無',
+      spd: '速', atk: '攻', area: '域', range: '射', cd: '刻', crit: '会', critDmg: '撃', wslot: '枠',
+      xp: '経', gold: '金', magnet: '引', eqQual: '装', chestQual: '宝', classXp: '級', reroll: '再', classPick: '選',
+    },
   },
 
   // ---------- 装備 ----------

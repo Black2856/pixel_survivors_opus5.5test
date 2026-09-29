@@ -1,4 +1,4 @@
-// meta-ui.js — ラン外の画面(ステージ選択 / クラス / 装備)
+// meta-ui.js — ラン外の画面(ステージ選択 / クラス / 強化ツリー / 装備)
 'use strict';
 
 const MetaUI = (() => {
@@ -118,6 +118,70 @@ const MetaUI = (() => {
   $('cl-back').onclick = () => { AudioMan.click(); closeClass(); };
   $('btn-class').onclick = () => { AudioMan.click(); classScreen(); };
 
+  // ---------- 永続強化ツリー ----------
+  // 円形のツリー。取得済みに隣接するノードが取れる(深さ1 は最初から)。費用 = 50 × 2^深さ。リセットなし
+  let trSel = null;
+  const nodeName = nd => `${DATA.stats[nd.k].label} ${optVal({ k: nd.k, v: treeNodeValue(nd.k) })}`;
+  function treeScreen() {
+    state = 'tree'; trSel = null;
+    UI.only('tree-screen');
+    renderTree();
+  }
+  function renderTree() {
+    $('tr-gold').textContent = '● ' + META.gold.toLocaleString() + ' G';
+    const T = DATA.tree, nodes = Object.values(TREE);
+    let svg = '';
+    // リング(深さの目安)と方向の名前
+    for (let d = 1; d <= 7; d++) svg += `<circle class="ring" r="${TREE_R(d)}"/>`;
+    Object.keys(T.dirs).forEach((dk, di) => {
+      const a = -Math.PI / 2 + di * Math.PI * 2 / 3, D = T.dirs[dk];
+      svg += `<text class="dirname" x="${Math.cos(a) * 104}" y="${Math.sin(a) * 104 + 5}" fill="${D.col}">${D.name}</text>`;
+    });
+    // 線(両端の状態で明るさを変える)
+    const seen = new Set();
+    for (const nd of nodes) for (const id of nd.adj) {
+      const key = nd.id < id ? nd.id + '|' + id : id + '|' + nd.id;
+      if (seen.has(key)) continue; seen.add(key);
+      const o = TREE[id], lit = treeOwned(nd.id) && treeOwned(id), half = treeOwned(nd.id) || treeOwned(id);
+      svg += `<line class="${lit ? 'lit' : half ? 'half' : ''}" style="--dc:${T.dirs[nd.dir].col}" x1="${nd.x.toFixed(1)}" y1="${nd.y.toFixed(1)}" x2="${o.x.toFixed(1)}" y2="${o.y.toFixed(1)}"/>`;
+    }
+    // 根どうしをつなぐ中心
+
+    for (const nd of nodes) {
+      const st = treeOwned(nd.id) ? 'own' : treeOpen(nd) ? (META.gold >= treeCost(nd) ? 'open' : 'poor') : 'lock';
+      const r = nd.big ? 15 : 10.5;
+      svg += `<g class="nd ${st} ${nd.big ? 'big' : ''} ${trSel === nd.id ? 'sel' : ''}" data-id="${nd.id}" style="--dc:${T.dirs[nd.dir].col}" transform="translate(${nd.x.toFixed(1)} ${nd.y.toFixed(1)})">
+        <circle r="${r}"/><text y="${nd.big ? 5.5 : 4.5}">${T.glyph[nd.k]}</text></g>`;
+    }
+    $('tr-svg').innerHTML = svg;
+    treeInfo();
+    // 合計(ツリーから得ているステータス)
+    const tc = treeCounts(), total = Object.values(TREE).length;
+    $('tr-sum').innerHTML = `<div class="tr-h">取得 ${META.tree.length} / ${total}</div>` + (Object.keys(tc).length
+      ? Object.keys(tc).map(k => `<div class="tr-s"><span>${DATA.stats[k].label}</span><b>${optVal({ k, v: DATA.stats[k].kind === 'red' ? 1 - Math.pow(1 - treeNodeValue(k), tc[k]) : treeNodeValue(k) * tc[k] })}</b></div>`).join('')
+      : '<div class="dim">まだ何も取得していません</div>');
+  }
+  function treeInfo() {
+    const box = $('tr-info'), nd = trSel && TREE[trSel];
+    if (!nd) { box.innerHTML = '<div class="dim">ノードを選ぶと詳細が表示されます。中心に近いノードから、取得済みのノードの隣へ広げていきます</div>'; return; }
+    const D = DATA.tree.dirs[nd.dir], own = treeOwned(nd.id), open = treeOpen(nd), cost = treeCost(nd);
+    box.innerHTML = `<div class="tr-nm" style="color:${D.col}">${DATA.tree.glyph[nd.k]} ${nodeName(nd)}</div>
+      <div class="dim">${D.name} ・ 深さ ${nd.depth}${nd.big ? ' ・ 特別なノード' : ''}</div>
+      <button class="btn tr-buy" ${!own && open && META.gold >= cost ? '' : 'disabled'}>${own ? '取得済み' : !open ? '隣のノードを先に取得' : `取得 ● ${cost.toLocaleString()}`}</button>`;
+  }
+  $('tr-svg').onclick = e => {
+    const g = e.target.closest('.nd'); if (!g) return;
+    trSel = g.dataset.id; AudioMan.click(); renderTree();
+  };
+  // 取得済みでないノードをダブルクリックでも取得できる
+  $('tr-svg').ondblclick = e => { const g = e.target.closest('.nd'); if (g && treeBuy(g.dataset.id)) { AudioMan.levelup(); renderTree(); } };
+  $('tr-info').onclick = e => {
+    if (!e.target.closest('.tr-buy') || !trSel) return;
+    if (treeBuy(trSel)) { AudioMan.levelup(); UI.announce('強化!', nodeName(TREE[trSel])); renderTree(); }
+  };
+  $('tr-back').onclick = () => { AudioMan.click(); state = 'title'; UI.title(); };
+  $('btn-tree').onclick = () => { AudioMan.click(); treeScreen(); };
+
   // ---------- ステージ選択 ----------
   // 通常モード(3ステージを周回) / ステージ単体(ボス2体) / 闘技場(ボスラッシュ)。クリアしたものに ★、カオス強化はクリアで解放
   const STAGE_ITEMS = () => [
@@ -168,7 +232,8 @@ const MetaUI = (() => {
     if (state === 'equip' && e.code === 'Escape') close();
     if (state === 'stage' && e.code === 'Escape') { state = 'title'; UI.title(); }
     if (state === 'class' && e.code === 'Escape') closeClass();
+    if (state === 'tree' && e.code === 'Escape') { state = 'title'; UI.title(); }
   }
 
-  return { open, stageSelect, classScreen, onKey };
+  return { open, stageSelect, classScreen, treeScreen, onKey };
 })();
