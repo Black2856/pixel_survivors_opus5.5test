@@ -384,7 +384,7 @@ const DATA = {
     stats: {
       life:    { hp: [20, 10], regen: [1, 5], def: [1, 4], dr: [0.1, 5], sta: [30, 10], staRegen: [2, 5], iframe: [0.1, 1] },
       skill:   { spd: [0.1, 5], atk: [0.2, 10], area: [0.1, 5], range: [0.1, 5], cd: [0.1, 4], crit: [0.05, 5], critDmg: [0.2, 5], wslot: [1, 1] },
-      balance: { xp: [0.1, 5], gold: [0.2, 8], magnet: [0.2, 8], eqQual: [0.2, 5], chestQual: [0.2, 5], classXp: [0.2, 5], reroll: [3, 3], classPick: [1, 1], gearPick: [1, 1] },
+      balance: { xp: [0.1, 4], gold: [0.2, 8], magnet: [0.2, 8], eqQual: [0.2, 5], chestQual: [0.2, 5], classXp: [0.2, 5], reroll: [3, 3], classPick: [1, 1], gearPick: [1, 1] },
     },
     // 形(設計書 6.2): 方向ごとに 根(深さ1)→ 3本の枝
     // 枝 = 本線(chain)を lanes 本の一本道に並べる(深さ2 から外へ。横のつながりはない)
@@ -403,9 +403,9 @@ const DATA = {
         { name: '広域', lanes: 2, chain: { area: 5, range: 5 }, leaf: { spd: 5 } },
       ] },
       balance: { name: '天秤', col: '#7ad7ff', root: 'magnet', branches: [
-        { name: '成長', lanes: 1, chain: { xp: 4 }, leaf: { xp: 1, classXp: 5 }, tip: 'gearPick' },
-        { name: '財宝', lanes: 2, chain: { gold: 8 }, leaf: { eqQual: 5 }, mid: { reroll: [2, 4] }, tip: 'reroll', crown: 'classPick' }, // リロール: 序盤・中盤・最奥 → クラス強化選択枠
-        { name: '探索', lanes: 2, chain: { magnet: 7 }, leaf: { chestQual: 5 } },
+        { name: '成長', lanes: 1, chain: { xp: 4 }, leaf: { classXp: 5 }, tip: 'gearPick' },
+        { name: '財宝', lanes: 2, chain: { gold: 8 }, leaf: { eqQual: 5 }, mid: { reroll: [2, 4] }, tip: 'reroll' }, // リロール: 序盤・中盤・最奥
+        { name: '探索', lanes: 2, chain: { magnet: 7, chestQual: 3 }, leaf: { chestQual: 2 }, tip: 'classPick' }, // 本線を5段にして先端(深さ7)にクラス強化選択枠
       ] },
     },
     // ノードに表示する1文字
