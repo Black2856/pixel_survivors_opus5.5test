@@ -247,7 +247,7 @@ const DATA = {
   // lvStats: クラスLv で得るステータス({ Lv: { stat: 値 } })。スキル系の強化はクラスの実装側で扱う
   classes: {
     samurai: {
-      name: 'サムライ', weapon: 'katana', col: '#ff5d73',
+      name: 'サムライ', weapon: 'katana', col: '#ff5d73', rig: 'samurai', // rig: 部位アニメーション(ART.S)
       base: { hp: 110, regen: 0.3, def: 1, sta: 100, staRegen: 20, atk: 0.1, range: -0.1, crit: 0.08, critDmg: 1.2, magnet: -0.1, wslot: 4, reroll: 2 },
       lvStats: { 2: { hp: 10 }, 13: { hp: 15, sta: 20 } },
     },

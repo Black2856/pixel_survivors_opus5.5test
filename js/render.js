@@ -431,17 +431,22 @@ function render() {
 
   // ---- プレイヤー ----
   if (!P.dead) {
+    // クラスの部位アニメーションがあればそのフレーム、なければ旧プレイヤー(拡大縮小で揺らす)
+    const rig = ART.S[DATA.classes[P.cls].rig];
+    const psp = rig ? ART.rigFrame(rig, P.moving ? 'walk' : 'idle', t) : ART.S.player;
+    const py = P.y - (psp.h - ART.S.player.h) / 2; // 足元の位置を旧プレイヤーと揃える
     if (P.after) for (const a of P.after) {
+      const ax = Math.round(a.x - cam.x - psp.w / 2), ay = Math.round(a.y - (P.y - py) - cam.y - psp.h / 2);
       sx.globalAlpha = 0.4 * (1 - a.t / 0.25);
-      sx.drawImage(ART.variant(ART.S.player, a.f < 0 ? 'whiteFlip' : 'white'), Math.round(a.x - cam.x - ART.S.player.w / 2), Math.round(a.y - cam.y - ART.S.player.h / 2));
+      sx.drawImage(ART.variant(psp, a.f < 0 ? 'whiteFlip' : 'white'), ax, ay);
       gx.globalAlpha = 0.5 * (1 - a.t / 0.25);
-      gx.drawImage(ART.variant(ART.S.player, a.f < 0 ? 'whiteFlip' : 'white'), Math.round(a.x - cam.x - ART.S.player.w / 2), Math.round(a.y - cam.y - ART.S.player.h / 2));
+      gx.drawImage(ART.variant(psp, a.f < 0 ? 'whiteFlip' : 'white'), ax, ay);
       sx.globalAlpha = gx.globalAlpha = 1;
     }
     shadow(P.x, P.y + 7, 9);
-    const step = P.moving ? Math.sin(P.animT * 14) : Math.sin(P.animT * 3) * 0.5;
+    const step = rig ? 0 : P.moving ? Math.sin(P.animT * 14) : Math.sin(P.animT * 3) * 0.5;
     const blink = P.ifr > 0 && Math.floor(t * 20) % 2 === 0;
-    if (!blink || P.dashT > 0) drawSp(ART.S.player, P.x, P.y - Math.abs(step) * (P.moving ? 1.5 : 0.5), { flip: P.facing < 0, white: P.hurtT > 0, sy: 1 + step * 0.05, sxk: 1 - step * 0.03 });
+    if (!blink || P.dashT > 0) drawSp(psp, P.x, py - Math.abs(step) * (P.moving ? 1.5 : 0.5), { flip: P.facing < 0, white: P.hurtT > 0, sy: 1 + step * 0.05, sxk: 1 - step * 0.03 });
     // HP・ダッシュゲージ
     const bx = Math.round(P.x - cam.x - 7), by = Math.round(P.y - cam.y + 10);
     sx.fillStyle = '#0c0913'; sx.fillRect(bx - 1, by - 1, 16, 4);

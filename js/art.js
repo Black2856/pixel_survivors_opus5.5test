@@ -34,6 +34,43 @@ const ART = (() => {
     return { c, e, w: c.width, h: c.height };
   }
 
+  // ---------- 部位アニメーション(着せ替え式) ----------
+  // 部位ごとのドット絵を、フレームごとに「位置のずらし(1ドット単位)」と「絵の差し替え」で重ねる。回転はしない
+  // def.parts: { 名前: { x, y, v: { 絵の名前: rows }, hidden } }(v.base が既定の絵)/ def.order: 描く順(奥→手前)
+  // def.motions: { 名前: { loop, frames: [{ t: 秒, p: { 部位: [dx, dy, 絵の名前] } }] } }
+  // 重ねた後に mk() を通すので、アウトラインは全体のシルエットに1本だけ付く
+  function rig(def) {
+    const build = p => {
+      const grid = Array.from({ length: def.h }, () => Array(def.w).fill('.'));
+      for (const name of def.order) {
+        const part = def.parts[name], o = p[name];
+        if (part.hidden && !o) continue;
+        const [dx, dy, vn] = o || [0, 0];
+        const rows = part.v[vn || 'base'];
+        rows.forEach((r, ry) => {
+          for (let rx = 0; rx < r.length; rx++) {
+            const gx = part.x + dx + rx, gy = part.y + dy + ry;
+            if (r[rx] !== '.' && gx >= 0 && gy >= 0 && gx < def.w && gy < def.h) grid[gy][gx] = r[rx];
+          }
+        });
+      }
+      return mk(def.pal, grid.map(r => r.join('')), { emit: def.emit });
+    };
+    const motions = {};
+    for (const m in def.motions) {
+      const md = def.motions[m];
+      motions[m] = { loop: md.loop, dur: md.frames.reduce((a, f) => a + f.t, 0), frames: md.frames.map(f => ({ t: f.t, sp: build(f.p || {}) })) };
+    }
+    return { motions, base: build({}) };
+  }
+  // 経過時間 time でのフレームを返す(loop でなければ最後のフレームで止まる)
+  function rigFrame(r, motion, time) {
+    const m = r.motions[motion];
+    let tt = m.loop ? time % m.dur : Math.min(time, m.dur - 1e-6);
+    for (const f of m.frames) { if (tt < f.t) return f.sp; tt -= f.t; }
+    return m.frames[m.frames.length - 1].sp;
+  }
+
   // 白シルエット(被弾フラッシュ用)
   function silhouette(src, col = '#fff') {
     const c = canvas(src.width, src.height), x = c.getContext('2d');
@@ -127,6 +164,69 @@ const ART = (() => {
     '..ffff.ffff.',
     '...hh...hh..',
   ], { emit: 'd' });
+
+  // ---------- クラス: サムライ(16×18、部位アニメーション) ----------
+  // 右向き。髷・赤い鉢巻き(光る)・藍の道着・赤い帯・腰の刀・袴
+  const UP = ['head', 'torso', 'backArm', 'frontArm', 'sheath']; // 上半身(呼吸・歩行で一緒に上下する部位)
+  const up = (dx, dy, extra = {}) => Object.assign(Object.fromEntries(UP.map(k => [k, [dx, dy]])), extra);
+  S.samurai = rig({
+    w: 16, h: 18, emit: 'eJn',
+    pal: {
+      a: '#1c1530', b: '#241c2e', c: '#f0c9a0', o: '#c99a78', d: '#151022', e: '#e8434f',
+      f: '#2c3a6e', g: '#4a5fa8', h: '#e8e4d8', i: '#b0202e', j: '#d6ae5c', J: '#fff6c8',
+      k: '#6b4a2c', p: '#8a6a2a', l: '#1e2240', m: '#2e3462', n: '#eaf4ff',
+    },
+    order: ['backArm', 'legs', 'torso', 'sheath', 'head', 'frontArm', 'blade'],
+    parts: {
+      head: { x: 3, y: 0, v: {
+        base: ['.....bb..', '....bbbb.', '...bbbbbb', '.eeeeeeee', 'ee.bbccdc', '...bcccco', '....cccc.'],
+        b:    ['.....bb..', '....bbbb.', 'e..bbbbbb', '.eeeeeeee', '...bbccdc', '...bcccco', '....cccc.'],
+      } },
+      torso: { x: 4, y: 7, v: { base: ['gfffhhhf', 'gffhhfgf', 'ffffhfgf', 'iiiiiiii', 'ffffffff'] } },
+      backArm: { x: 3, y: 8, v: { base: ['fg', 'ff', 'ff', 'cc'] } },
+      frontArm: { x: 10, y: 8, v: {
+        base:  ['gf.', 'ff.', 'fff', '.cc'],
+        grip:  ['ggf', 'fff', 'cc.'],
+        slash: ['.ggff', '.fffcc'],
+      } },
+      // 腰の刀: 柄(j)が前に突き出し、鍔(p)、鞘(k)は後ろ下へ
+      sheath: { x: 1, y: 9, v: {
+        base:  ['..........jj', '........pjj.', '....kkkk....', 'kkkk........'],
+        glint: ['..........JJ', '........pJJ.', '....kkkk....', 'kkkk........'],
+        empty: ['............', '............', '....kkkk....', 'kkkk........'],
+      } },
+      legs: { x: 4, y: 12, v: {
+        base:   ['llllllll', 'lllmllll', 'llmllmll', 'lll..lll', 'lll..lll', 'aaa..aaa'],
+        stepA:  ['llllllll', 'lllmllll', 'llmllmll', 'lll...ll', 'll....ll', 'aa....aa'],
+        stepB:  ['llllllll', 'lllmllll', 'llmllmll', '.lll.ll.', '.lll.ll.', '.aaa.aa.'],
+        crouch: ['llllllll', 'llmllmll', 'lll..lll', 'aaa..aaa'],
+      } },
+      blade: { x: 15, y: 9, hidden: true, v: { base: ['n'] } },
+    },
+    motions: {
+      // 待機: 呼吸で上半身が1ドット沈み、鉢巻きの結び目が揺れる
+      idle: { loop: true, frames: [
+        { t: 0.4 }, { t: 0.4, p: up(0, 0, { head: [0, 0, 'b'] }) },
+        { t: 0.4, p: up(0, 1, { head: [0, 1, 'b'] }) }, { t: 0.4, p: up(0, 1) },
+      ] },
+      // 歩き: 足を踏み出すフレームで上半身が沈む。奥の腕を振る
+      walk: { loop: true, frames: [
+        { t: 0.11, p: up(0, 1, { legs: [0, 0, 'stepA'], backArm: [-1, 1] }) },
+        { t: 0.11, p: up(0, 0, { head: [0, 0, 'b'] }) },
+        { t: 0.11, p: up(0, 1, { legs: [0, 0, 'stepB'], backArm: [1, 1] }) },
+        { t: 0.11, p: up(0, 0, { head: [0, 0, 'b'] }) },
+      ] },
+      // 居合(Q): 低く構えて柄に手をかける → 柄が光る → 踏み込んで抜刀 → 残心
+      iai: { loop: false, frames: [
+        { t: 0.1, p: up(0, 1, { legs: [0, 1, 'crouch'], frontArm: [0, 1, 'grip'] }) },
+        { t: 0.25, p: up(0, 2, { legs: [0, 2, 'crouch'], frontArm: [0, 2, 'grip'], head: [0, 2, 'b'] }) },
+        { t: 0.12, p: up(0, 2, { legs: [0, 2, 'crouch'], frontArm: [0, 2, 'grip'], sheath: [0, 2, 'glint'] }) },
+        { t: 0.1, p: up(1, 1, { legs: [0, 0, 'stepA'], frontArm: [0, 1, 'slash'], sheath: [0, 1, 'empty'], backArm: [0, 1], blade: [0, 0] }) },
+        { t: 0.3, p: up(1, 1, { legs: [0, 0, 'stepA'], frontArm: [0, 1, 'slash'], sheath: [0, 1, 'empty'], backArm: [0, 1], head: [1, 1, 'b'] }) },
+        { t: 0.25 },
+      ] },
+    },
+  });
 
   S.zombie = mk({ a: '#3d2f24', b: '#7fb069', c: '#ff4040', d: '#2b3a22', e: '#6b5a8e', f: '#3a3350', g: '#241c2e' }, [
     '...aaaa...',
@@ -515,5 +615,5 @@ const ART = (() => {
     return m[col] || (m[col] = silhouette(src, col));
   }
 
-  return { S, ROT, mk, text, light, variant, canvas, tint };
+  return { S, ROT, mk, rig, rigFrame, text, light, variant, canvas, tint };
 })();
