@@ -17,19 +17,20 @@ function initRun(mode = 'normal') {
     combo: 0, comboT: 0, bestCombo: 0, gemStreak: 0, gemStreakT: 0,
     freeze: 0, ts: 1, tsBack: 0, schedIdx: 0, spawnT: 0, spawnCfg: null,
     eliteT: 95, goblinT: 70, propT: 2, elv: 1, elvT: 0, boss: null, pendingLv: 0, lvFx: 0,
-    rerolls: 2 + metaLv('reroll'), weaponSlots: 4 + metaLv('weapon'), passiveSlots: 4 + metaLv('passive'),
+    rerolls: 0, weaponSlots: 4, passiveSlots: 4,
     gold: 0, deathT: 0, victoryT: 0, hudDirty: true, won: false, hint: {},
   };
   P = {
-    x: 0, y: 0, hp: 0, maxhp: 100, level: 1, xp: 0, xpNext: xpFor(1), weapons: {}, passives: {}, art: {},
+    cls: META.cls, micro: {}, x: 0, y: 0, hp: 0, maxhp: 100, level: 1, xp: 0, xpNext: xpFor(1), weapons: {}, passives: {}, art: {},
     ifr: 0, facing: 1, animT: 0, moving: false, dashT: 0, dashG: 1, dashDir: [1, 0], hurtT: 0, dead: false,
     slowT: 0, cdSlowT: 0, burnT: 0, burnDmg: 0, burnTick: 0,
   };
   enemies = []; projs = []; eprojs = []; gems = []; drops = []; props = []; hazards = [];
   parts = []; floats = []; rings = []; zones = []; slashes = []; bolts = []; warns = []; flashes = [];
-  recalc();
+  const st = recalc();
   P.hp = P.maxhp;
-  if (mode === 'arena') { S.stage = 4; S.elv = arenaElv(0); S.arena = { idx: 0, restT: 3, warned: false }; }
+  S.rerolls = st.v.reroll; S.weaponSlots = st.v.wslot;
+  if (mode === 'arena') { S.stage = 4; S.elv = DATA.arena.elv[0]; S.arena = { idx: 0, restT: 3, warned: false }; }
 }
 // 現在地から n レベル上がるのに必要な経験値(倍率適用前)
 function xpForLevels(n) {
@@ -38,27 +39,18 @@ function xpForLevels(n) {
   return v;
 }
 
+// ステータスの再計算(stats.js)。ダッシュは旧仕様のまま(フェーズ2で防御スキルに置き換える)
 function recalc() {
-  const pv = P.passives, af = P.art;
-  P.speed = DATA.player.speed * (1 + 0.08 * (pv.boots || 0)) * (1 + 0.03 * metaLv('swift')) * (af.aegis ? 0.7 : 1);
-  P.maxhp = Math.round((DATA.player.hp + 20 * (pv.heart || 0) + 5 * metaLv('vital')) * (af.aegis ? 2 : 1));
-  P.hp = Math.min(P.hp, P.maxhp);
-  P.magnet = DATA.player.magnet * (1 + 0.3 * (pv.magnet || 0));
-  P.cdMul = Math.pow(0.93, pv.tome || 0) * (1 - 0.02 * metaLv('haste')) * (af.clock ? 0.85 : 1);
-  P.regen = 0.5 * (pv.regen || 0);
-  P.area = (1 + 0.1 * (pv.area || 0)) * (1 + 0.03 * metaLv('reach'));
-  P.armor = pv.armor || 0;
-  P.iframe = DATA.player.iframe * (1 + 0.1 * (pv.armor || 0));
+  const st = applyStats(), pv = P.passives, af = P.art;
   P.dashMul = 1 + 0.2 * (pv.cloak || 0);
   // ダッシュはゲージ制(満タン=1)。疾風の羽根: 消費量 -50%・回復速度 -50%
   P.dashCost = af.gale ? 0.5 : 1;
   P.dashRegen = (af.gale ? 0.5 : 1) / DATA.player.dashCd;
-  P.xpMul = (1 + 0.04 * metaLv('growth')) * (af.pact ? 1.5 : 1);
-  P.goldMul = (1 + 0.1 * metaLv('greed')) * (af.greed ? 1.5 : 1) * (1 + 0.5 * metaLv('chaos'));
   S.hudDirty = true;
+  return st;
 }
 function dmgMul() {
-  let m = 1 + 0.1 * (P.passives.power || 0) + 0.03 * metaLv('might');
+  let m = 1 + P.atk;
   if (P.art.frenzy) m += 1 - P.hp / P.maxhp;
   return m;
 }
@@ -72,28 +64,21 @@ function srcMul(src) {
   return m;
 }
 const elemSize = k => (P.art.element && ELEM_W.includes(k) ? 1.25 : 1);
-const critRate = () => 0.05 + 0.06 * (P.passives.lens || 0) + 0.02 * metaLv('crit');
+const critRate = () => P.crit;
 const wst = k => { const w = P.weapons[k]; return w.evo ? DATA.weapons[k].evo.st : DATA.weapons[k].lv[w.lv - 1]; };
 
 // ---------- 敵レベル ----------
-// 基本倍率(悪魔の契約書) × Lv成長。HPのみ混沌 1Lv につき +20%
+// 基本倍率(悪魔の契約書) × Lv成長
 const enemyBase = () => (P.art.pact ? 1.2 : 1);
-const enemyHpBase = () => enemyBase() * (1 + 0.2 * metaLv('chaos'));
 const lvK = (kind, lv = S.elv) => 1 + DATA.enemyLevel[kind] * (lv - 1);
+// HP倍率 = 線形 + 指数(Lv1 = 1)。雑魚とボスで共通
+const hpK = (lv = S.elv) => DATA.enemyLevel.hpLin * (lv - 1) + Math.pow(DATA.enemyLevel.hpExp, lv - 1);
 const enemyDmgK = () => enemyBase() * lvK('dmg');
 function updEnemyLevel(dt) {
   if (S.boss || S.mode === 'arena') return; // ボス出現中は停止(闘技場はラウンドごとに固定)
-  S.elvT += dt * (1 + 0.2 * metaLv('chaos')); // 混沌: Lv上昇速度 +20%/Lv
+  S.elvT += dt;
   if (S.elvT >= DATA.enemyLevel.interval) { S.elvT -= DATA.enemyLevel.interval; S.elv++; UI.enemyLvUp(); }
 }
-// 闘技場の敵Lv: 基準値の Lv1 からの上昇分に混沌の上昇速度(+20%/Lv)を掛ける
-const arenaElv = i => 1 + Math.round((DATA.arena.elv[i] - 1) * (1 + 0.2 * metaLv('chaos')));
-// 周回開始時の処理(混沌: 敵Lv +5/Lv)
-function onLoopStart() {
-  const add = 5 * metaLv('chaos');
-  if (add) { S.elv += add; UI.enemyLvUp(); }
-}
-
 function heal(n, silent) {
   const before = P.hp;
   P.hp = Math.min(P.maxhp, P.hp + n);
@@ -167,7 +152,7 @@ function breakCombo() {
 
 function hurtPlayer(dmg) {
   if (P.ifr > 0 || P.dashT > 0 || P.dead || state !== 'play') return;
-  dmg = Math.max(1, Math.round(dmg - P.armor));
+  dmg = Math.max(1, Math.round((dmg - P.armor) * (1 - P.dr)));
   P.hp -= dmg; P.ifr = P.iframe; P.hurtT = 0.12;
   breakCombo();
   GFX.fx.hurt = 1; GFX.fx.aberr = Math.max(GFX.fx.aberr, 0.9);
@@ -553,7 +538,7 @@ function hitEnemy(e, base, o = {}) {
   if (e.bleed > 0) dmg *= 1 + 0.02 * e.bleed;
   if (e.frost > 0 && P.weapons.blizzard && P.weapons.blizzard.evo) dmg *= 1 + 0.01 * e.frost;
   const crit = !o.noCrit && Math.random() < critRate();
-  if (crit) dmg *= P.art.critdmg ? 2.5 : 2; else if (P.art.critdmg) dmg *= 0.8;
+  if (crit) dmg *= P.critMul; else if (P.art.critdmg) dmg *= 0.8;
   if (P.art.bleed && BLEED_W.includes(o.src)) {
     const max = 10 * BLEED_W.filter(k => P.weapons[k]).length;
     e.bleed = Math.min(max, (e.bleed || 0) + 1); e.bleedT = 5;
@@ -635,7 +620,7 @@ function spawnEnemy(type, o = {}) {
     x = P.x + Math.cos(a) * R; y = P.y + Math.sin(a) * R;
   }
   const EL = DATA.enemyLevel, base = enemyBase();
-  const hpk = enemyHpBase() * lvK('hp') * (o.elite ? EL.elite : 1);
+  const hpk = base * hpK() * (o.elite ? EL.elite : 1);
   const spk = base * Math.min(EL.spdMax, lvK('spd')) * (P.art.clock ? 1.15 : 1) * (o.elite ? 1.1 : 1);
   const e = {
     id: nextId++, type, x, y, hp: d.hp * hpk, maxhp: d.hp * hpk, spd: d.spd * spk * rand(0.9, 1.1), dmg: d.dmg * enemyDmgK(),
@@ -732,7 +717,7 @@ function spawnBoss(key, final) {
   UI.banner('⚠ WARNING ⚠', b.name);
   shake(8); screenFlash(0.3, '#ff3b5c');
   const a = rand(0, TAU), R = Math.hypot(GFX.VW, GFX.VH) / 2 + 30;
-  const hp = b.hp * enemyHpBase() * lvK('boss');
+  const hp = b.hp * enemyBase() * hpK();
   const e = {
     id: nextId++, type: key, boss: key, name: b.name, final: !!final, enrage: b.enrage ?? 0.5, x: P.x + Math.cos(a) * R, y: P.y + Math.sin(a) * R,
     hp, maxhp: hp, spd: b.spd * Math.min(DATA.enemyLevel.spdMax, lvK('spd')), dmg: b.dmg * enemyDmgK(), r: b.r, col: b.col, xp: 0, kbRes: 1,
@@ -1138,7 +1123,7 @@ function onBossDeath(e) {
   dropItem('chest', e.x, e.y - 14); dropItem('orb', e.x, e.y + 16);
   if (e.final) {
     if (S.loop === 1 && !S.won) { S.won = true; S.victoryT = 2.4; AudioMan.stopMusic(1.5); return; }
-    S.loop++; S.schedIdx = 0; S.loopStart = S.time; setStage(1); onLoopStart();
+    S.loop++; S.schedIdx = 0; S.loopStart = S.time; setStage(1);
     UI.announce('LOOP ' + S.loop, '敵はさらに強くなる…');
     AudioMan.playMusic('field1');
     return;
@@ -1353,7 +1338,7 @@ function updArena(dt) {
   A.restT -= dt;
   if (!A.warned && A.restT <= 2.5) { A.warned = true; UI.announce('ROUND ' + (A.idx + 1) + ' / ' + cfg.order.length, '次の挑戦者が入場する…'); AudioMan.warning(); }
   if (A.restT > 0) return;
-  S.elv = arenaElv(A.idx); UI.enemyLvUp();
+  S.elv = DATA.arena.elv[A.idx]; UI.enemyLvUp();
   const e = spawnBoss(cfg.order[A.idx], A.idx === cfg.order.length - 1);
   // 闘技場の中、プレイヤーと中心を挟んだ反対側から入場
   const a = Math.hypot(P.x, P.y) > 30 ? Math.atan2(-P.y, -P.x) : rand(0, TAU), R = cfg.r * 0.6;

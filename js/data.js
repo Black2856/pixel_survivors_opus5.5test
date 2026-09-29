@@ -20,17 +20,18 @@ const DATA = {
   },
 
   // ---------- 敵レベル(時間経過で上昇・ボス出現中は停止・周回してもリセットしない) ----------
-  // 各値は Lv が 1 上がるごとの増加率(Lv1 = 基本値)
-  enemyLevel: { interval: 30, hp: 0.2, dmg: 0.02, spd: 0.005, spdMax: 1.5, xp: 0.04, boss: 0.08, elite: 14 },
+  // dmg/spd/xp: Lv が 1 上がるごとの増加率(Lv1 = 基本値)
+  // HP倍率 = hpLin × (Lv-1) + hpExp^(Lv-1)。雑魚・ボスで共通
+  enemyLevel: { interval: 30, hpLin: 0.2, hpExp: 1.03, dmg: 0.03, spd: 0.005, spdMax: 1.5, xp: 0.04, elite: 14 },
 
-  // enrage: 激昂する残りHP割合(省略時 0.5)
+  // hp: 基礎HP(1500〜2000。Lv倍率は雑魚と共通) / enrage: 激昂する残りHP割合(省略時 0.5)
   bosses: {
-    king:    { name: '腐肉の王 ROT KING',          hp: 1600, spd: 14, dmg: 22, r: 13, music: 'boss1', col: '#8fce5e' },
-    gslime:  { name: '巨大スライム GIANT SLIME',   hp: 1700, spd: 16, dmg: 20, r: 14, music: 'boss1', col: '#4fd6a8' },
-    wyrm:    { name: '白骨竜 BONE WYRM',           hp: 3400, spd: 19, dmg: 22, r: 14, music: 'boss2', col: '#efe9d4' },
-    golem:   { name: 'ゴーレム GOLEM',             hp: 3800, spd: 12, dmg: 24, r: 15, music: 'boss2', col: '#6ee7ff' },
-    reaper:  { name: '死神 THE REAPER',            hp: 6000, spd: 22, dmg: 28, r: 12, music: 'boss3', col: '#c29bff', enrage: 0.3 },
-    cdragon: { name: 'カオスドラゴン CHAOS DRAGON', hp: 6400, spd: 20, dmg: 28, r: 16, music: 'boss3', col: '#ff4a8a', enrage: 0.4 },
+    king:    { name: '腐肉の王 ROT KING',          hp: 1500, spd: 14, dmg: 22, r: 13, music: 'boss1', col: '#8fce5e' },
+    gslime:  { name: '巨大スライム GIANT SLIME',   hp: 1500, spd: 16, dmg: 20, r: 14, music: 'boss1', col: '#4fd6a8' },
+    wyrm:    { name: '白骨竜 BONE WYRM',           hp: 1700, spd: 19, dmg: 22, r: 14, music: 'boss2', col: '#efe9d4' },
+    golem:   { name: 'ゴーレム GOLEM',             hp: 1900, spd: 12, dmg: 24, r: 15, music: 'boss2', col: '#6ee7ff' },
+    reaper:  { name: '死神 THE REAPER',            hp: 1800, spd: 22, dmg: 28, r: 12, music: 'boss3', col: '#c29bff', enrage: 0.3 },
+    cdragon: { name: 'カオスドラゴン CHAOS DRAGON', hp: 2000, spd: 20, dmg: 28, r: 16, music: 'boss3', col: '#ff4a8a', enrage: 0.4 },
   },
   // 状態異常(プレイヤー): 粘液・スロウタイムの移動速度倍率 / スロウタイムのCD回復倍率 / 炎上
   debuff: { slow: 0.6, cdRate: 0.5, burnTick: 0.5, burnDur: 3 },
@@ -209,20 +210,94 @@ const DATA = {
     annihil:{ name: '光闇の天秤',       desc: 'オーラが「光輝」、ブラックホールが「暗黒」を付与。両方揃うと対消滅し、オーラ+ブラックホールの合計ダメージを範囲に与える', col: '#f0e0ff' },
   },
 
-  // ---------- 永続強化(ゴールドで購入) ----------
-  meta: {
-    might:   { name: '剛力',   desc: '攻撃力 +4%',        costs: [100, 200, 600, 2400, 12000] },
-    vital:   { name: '頑健',   desc: '最大HP +5',         costs: [60, 120, 360, 1440, 7200] },
-    swift:   { name: '俊足',   desc: '移動速度 +3%',      costs: [80, 160, 480, 1920, 9600] },
-    haste:   { name: '詠唱',   desc: 'クールダウン -2%',  costs: [125, 250, 750, 3000, 15000] },
-    growth:  { name: '成長',   desc: '獲得経験値 +4%',    costs: [100, 200, 600, 2400, 12000] },
-    greed:   { name: '強欲',   desc: '獲得ゴールド +10%', costs: [60, 120, 360, 1440, 7200] },
-    reroll:  { name: '天運',   desc: 'リロール回数 +1',   costs: [100, 200, 600, 2400, 12000] },
-    reach:   { name: '広域',   desc: '攻撃範囲 +3%',      costs: [90, 180, 540, 2160, 10800] },
-    crit:    { name: '会心',   desc: 'クリティカル率 +2%', costs: [120, 240, 720, 2880, 14400] },
-    weapon:  { name: '武器庫', desc: '武器の装備枠 +1',   costs: [5000] },
-    passive: { name: '道具箱', desc: 'パッシブの装備枠 +1', costs: [5000] },
-    chaos:   { name: '混沌',   desc: '獲得ゴールド +50%・敵の基礎HP+20%・敵のLvの上昇速度 +20%・周回時に敵Lv+5', costs: [1000, 2500, 5000, 7500, 10000] },
+  // ---------- ステータス定義 ----------
+  // kind: flat=加算 / pct=加算の割合(0.1 = +10%) / red=乗算で重ねる軽減(合計 = 1 - Π(1 - x))
+  // group: ステータス画面の分類(life=生命 / skill=技巧 / balance=天秤 / special=特殊)
+  stats: {
+    hp:        { label: 'HP',                   kind: 'flat', group: 'life' },
+    regen:     { label: 'HP回復速度',           kind: 'flat', group: 'life', unit: '/s' },
+    def:       { label: '防御力',               kind: 'flat', group: 'life' },
+    dr:        { label: 'ダメージ軽減',         kind: 'red',  group: 'life' },
+    sta:       { label: 'スタミナ',             kind: 'flat', group: 'life' },
+    staRegen:  { label: 'スタミナ回復速度',     kind: 'flat', group: 'life', unit: '/s' },
+    iframe:    { label: '無敵時間',             kind: 'pct',  group: 'life' },
+    spd:       { label: '移動速度',             kind: 'pct',  group: 'skill' },
+    atk:       { label: '攻撃力',               kind: 'pct',  group: 'skill' },
+    area:      { label: '範囲',                 kind: 'pct',  group: 'skill' },
+    range:     { label: '射程',                 kind: 'pct',  group: 'skill' },
+    cd:        { label: 'クールダウン',         kind: 'red',  group: 'skill' },
+    crit:      { label: 'クリティカル率',       kind: 'pct',  group: 'skill' },
+    critDmg:   { label: 'クリティカルダメージ', kind: 'pct',  group: 'skill' },
+    wslot:     { label: '武器枠',               kind: 'flat', group: 'skill' },
+    xp:        { label: '経験値',               kind: 'pct',  group: 'balance' },
+    gold:      { label: '獲得ゴールド',         kind: 'pct',  group: 'balance' },
+    magnet:    { label: '吸引範囲',             kind: 'pct',  group: 'balance' },
+    eqQual:    { label: '装備品質',             kind: 'pct',  group: 'balance' },
+    chestQual: { label: '宝箱品質',             kind: 'pct',  group: 'balance' },
+    classXp:   { label: 'クラス経験値',         kind: 'pct',  group: 'balance' },
+    reroll:    { label: 'リロール回数',         kind: 'flat', group: 'balance' },
+    classPick: { label: 'クラス強化選択枠',     kind: 'flat', group: 'balance' },
+    shots:     { label: '弾数',                 kind: 'flat', group: 'special' },
+    eqMaxLv:   { label: '装備最大Lv',           kind: 'flat', group: 'special' },
+    eqMaxVal:  { label: '装備最大値',           kind: 'pct',  group: 'special' },
+  },
+
+  // ---------- クラス ----------
+  // base: 基礎ステータス(共通基準 + クラス差。設計書 3.6)。crit / critDmg は割合(0.05 = 5%、1.0 = +100% = ×2)
+  // lvStats: クラスLv で得るステータス({ Lv: { stat: 値 } })。スキル系の強化はクラスの実装側で扱う
+  classes: {
+    samurai: {
+      name: 'サムライ', weapon: 'katana', col: '#ff5d73',
+      base: { hp: 110, regen: 0.3, def: 1, sta: 100, staRegen: 20, atk: 0.1, range: -0.1, crit: 0.08, critDmg: 1.2, magnet: -0.1, wslot: 4, reroll: 2 },
+      lvStats: { 2: { hp: 10 }, 13: { hp: 15, sta: 20 } },
+    },
+    mage: {
+      name: 'メイジ', weapon: 'bolt', col: '#7ad7ff',
+      base: { hp: 80, sta: 90, staRegen: 24, spd: -0.03, area: 0.1, range: 0.1, cd: 0.05, crit: 0.05, critDmg: 1.0, xp: 0.05, magnet: 0.15, wslot: 4, reroll: 2 },
+      lvStats: { 2: { hp: 10 }, 13: { hp: 15 } },
+    },
+  },
+  // クラスLv: need[i] = Lv(i+1) → Lv(i+2) に必要な経験値。獲得量 = 討伐数 × killK + 撃破ボス数 × bossK
+  classLevel: {
+    need: [100, 150, 200, 300, 400, 500, 650, 800, 1000, 1250, 1500, 1750, 2000, 2500, 3000, 4000, 5000, 7500, 10000],
+    killK: 0.3, bossK: 100,
+  },
+
+  // ---------- 永続強化ツリー(db.xlsx「ステータス」L〜O列) ----------
+  // stats: 方向ごとに { stat: [最大値, ノード数] }(1ノード = 最大値 / ノード数)。費用 = costBase × 2^深さ
+  tree: {
+    costBase: 50,
+    stats: {
+      life:    { hp: [20, 10], regen: [1, 5], def: [1, 4], dr: [0.1, 5], sta: [30, 10], staRegen: [2, 5], iframe: [0.1, 1] },
+      skill:   { spd: [0.1, 5], atk: [0.2, 10], area: [0.1, 5], range: [0.1, 5], cd: [0.1, 4], crit: [0.05, 5], critDmg: [0.2, 5], wslot: [1, 1] },
+      balance: { xp: [0.1, 5], gold: [0.2, 8], magnet: [0.2, 8], eqQual: [0.2, 5], chestQual: [0.2, 5], classXp: [0.2, 5], reroll: [3, 3], classPick: [1, 1] },
+    },
+  },
+
+  // ---------- 装備 ----------
+  // types: 種類ごとの部位と、付くオプションのロール範囲 [最小, 最大](1Lv あたり。% 系は割合)
+  equip: {
+    slots: { weapon: '武器', armor: '防具', ring: '指輪' },
+    types: {
+      sword:    { slot: 'weapon', name: '剣',         opts: { hp: [3, 6], atk: [0.06, 0.10], area: [0.03, 0.06], range: [0.03, 0.06], cd: [0.03, 0.06], crit: [0.02, 0.04], critDmg: [0.03, 0.06] } },
+      staff:    { slot: 'weapon', name: '杖',         opts: { spd: [0.02, 0.04], atk: [0.03, 0.06], area: [0.04, 0.08], range: [0.04, 0.08], cd: [0.04, 0.08], crit: [0.03, 0.06], critDmg: [0.05, 0.10] } },
+      bow:      { slot: 'weapon', name: '弓',         opts: { sta: [4, 8], atk: [0.04, 0.08], area: [0.02, 0.04], range: [0.02, 0.04], cd: [0.02, 0.04], crit: [0.04, 0.08], critDmg: [0.07, 0.14] } },
+      heavy:    { slot: 'armor',  name: '重鎧',       opts: { hp: [6, 12], regen: [0.6, 1.2], def: [1.2, 2.4], dr: [0.05, 0.10], sta: [4, 8], staRegen: [1, 3], spd: [0.02, 0.04], area: [0.01, 0.03], range: [0.01, 0.03] } },
+      light:    { slot: 'armor',  name: '軽鎧',       opts: { hp: [5, 10], regen: [0.5, 1], def: [1, 2], dr: [0.04, 0.08], sta: [5, 10], staRegen: [2, 4], spd: [0.03, 0.06], crit: [0.01, 0.02], critDmg: [0.03, 0.06] } },
+      robe:     { slot: 'armor',  name: 'ローブ',     opts: { hp: [4, 8], regen: [0.4, 0.8], def: [0.8, 1.6], dr: [0.03, 0.06], sta: [7, 14], staRegen: [3, 6], spd: [0.04, 0.08], atk: [0.02, 0.04], cd: [0.02, 0.04] } },
+      ruby:     { slot: 'ring',   name: 'ルビー',     opts: { regen: [0.3, 0.6], staRegen: [1, 2], atk: [0.03, 0.06], range: [0.02, 0.04], xp: [0.05, 0.10], gold: [0.05, 0.10], magnet: [0.05, 0.10] } },
+      sapphire: { slot: 'ring',   name: 'サファイア', opts: { def: [0.5, 1], dr: [0.02, 0.04], spd: [0.02, 0.04], crit: [0.02, 0.04], critDmg: [0.03, 0.06], xp: [0.05, 0.10], gold: [0.05, 0.10], magnet: [0.05, 0.10] } },
+      emerald:  { slot: 'ring',   name: 'エメラルド', opts: { hp: [3, 6], sta: [4, 8], area: [0.02, 0.04], cd: [0.02, 0.04], xp: [0.05, 0.10], gold: [0.05, 0.10], magnet: [0.05, 0.10] } },
+    },
+    // n: オプション数 / w: ドロップの重み / enh: 強化の上限回数 / cost: 強化1回目の費用(以降 ×1.5)
+    rarity: {
+      common:    { name: 'コモン',         n: 1, w: 50, enh: 1, cost: 100,  col: '#c8c8d0' },
+      uncommon:  { name: 'アンコモン',     n: 2, w: 30, enh: 2, cost: 200,  col: '#5dff8a' },
+      rare:      { name: 'レア',           n: 3, w: 14, enh: 3, cost: 400,  col: '#5ab8ff' },
+      epic:      { name: 'エピック',       n: 4, w: 5,  enh: 4, cost: 800,  col: '#c78bff' },
+      legendary: { name: 'レジェンダリー', n: 4, w: 1,  enh: 5, cost: 1600, col: '#ffb347' },
+    },
+    maxLv: [3, 5], // オプションの最大Lv のロール範囲
   },
 
   // ---------- ステージ ----------

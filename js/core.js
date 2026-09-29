@@ -16,7 +16,7 @@ function hexRgb(h) { const n = parseInt(h.slice(1), 16); return [(n >> 16) / 255
 // ============================================================
 // 状態
 // ============================================================
-let state = 'title'; // title | play | levelup | chest | pause | over | victory | shop
+let state = 'title'; // title | play | levelup | chest | pause | over | victory | settings
 let S = null, P = null;
 let enemies = [], projs = [], eprojs = [], gems = [], drops = [], props = [];
 let parts = [], floats = [], rings = [], zones = [], slashes = [], bolts = [], warns = [], flashes = [];
@@ -24,16 +24,39 @@ let hazards = []; // ボスが設置する床・フィールド(粘液 / 衝撃�
 let nextId = 1;
 const cam = { x: 0, y: 0, shake: 0, sx: 0, sy: 0 };
 
-// ---------- 永続データ(ゴールド・永続強化・記録) ----------
+// ---------- 永続データ(v2: ゴールド・永続ツリー・クラス・装備・記録) ----------
+// v1(旧・永続強化)のセーブは、購入済みの強化を全額ゴールドに返金して v2 へ移行する。移行前のデータは別キーに残す
+const META_KEY = 'ps55_meta';
+const V1_COSTS = {
+  might: [100, 200, 600, 2400, 12000], vital: [60, 120, 360, 1440, 7200], swift: [80, 160, 480, 1920, 9600],
+  haste: [125, 250, 750, 3000, 15000], growth: [100, 200, 600, 2400, 12000], greed: [60, 120, 360, 1440, 7200],
+  reroll: [100, 200, 600, 2400, 12000], reach: [90, 180, 540, 2160, 10800], crit: [120, 240, 720, 2880, 14400],
+  weapon: [5000], passive: [5000], chaos: [1000, 2500, 5000, 7500, 10000],
+};
+let metaMigratedGold = 0; // v1 からの移行で返金した額(タイトルで1回だけ通知する)
 const META = (() => {
-  const def = { gold: 0, up: {}, best: { time: 0, kills: 0, level: 0 }, runs: 0 };
-  let m;
-  try { m = Object.assign(def, JSON.parse(localStorage.getItem('ps55_meta') || '{}')); } catch (e) { m = def; }
-  for (const k in m.up) if (!DATA.meta[k]) delete m.up[k]; // 廃止された項目(不死鳥など)
+  const m = {
+    ver: 2, gold: 0, cls: 'samurai', classes: {}, tree: [], inventory: [], nextItemId: 1,
+    loadout: { weapon: null, armor: null, ring: null }, stageClear: {}, best: { time: 0, kills: 0, level: 0 }, runs: 0,
+  };
+  let raw = null;
+  try { raw = JSON.parse(localStorage.getItem(META_KEY) || 'null'); } catch (e) { /* 壊れたデータは初期値で続行 */ }
+  if (raw && raw.ver === 2) Object.assign(m, raw);
+  else if (raw) {
+    try { localStorage.setItem(META_KEY + '_v1_backup', JSON.stringify(raw)); } catch (e) { /* 保存不可でも続行 */ }
+    let back = 0;
+    for (const k in raw.up || {}) { const c = V1_COSTS[k] || []; for (let i = 0; i < raw.up[k]; i++) back += c[i] || 0; }
+    m.gold = (raw.gold || 0) + back;
+    if (raw.best) m.best = raw.best;
+    m.runs = raw.runs || 0;
+    metaMigratedGold = back;
+  }
+  for (const k in DATA.classes) m.classes[k] = Object.assign({ lv: 1, xp: 0, weapon: DATA.classes[k].weapon }, m.classes[k]);
+  if (!DATA.classes[m.cls]) m.cls = 'samurai';
   return m;
 })();
-function saveMeta() { try { localStorage.setItem('ps55_meta', JSON.stringify(META)); } catch (e) { /* 保存不可でも続行 */ } }
-const metaLv = k => META.up[k] || 0;
+function saveMeta() { try { localStorage.setItem(META_KEY, JSON.stringify(META)); } catch (e) { /* 保存不可でも続行 */ } }
+if (metaMigratedGold || !localStorage.getItem(META_KEY)) saveMeta();
 
 // ---------- 設定(グラフィック品質 / 自分の攻撃の濃さ) ----------
 // gfx: high=全演出 / mid=ブルーム弱・歪みや粒状ノイズなし・パーティクル60% / low=ブルームなし・パーティクル35%
@@ -47,16 +70,6 @@ const SET = (() => {
 })();
 function saveSet() { try { localStorage.setItem('ps55_set', JSON.stringify(SET)); } catch (e) { /* 保存不可でも続行 */ } }
 const gq = () => GFX_Q[SET.gfx];
-const metaMax = k => DATA.meta[k].costs.length;
-const metaCost = k => DATA.meta[k].costs[metaLv(k)];
-// 購入済みの永続強化をすべて返金してリセット
-function metaRefund() {
-  let back = 0;
-  for (const k in META.up) { const c = DATA.meta[k] ? DATA.meta[k].costs : []; for (let i = 0; i < META.up[k]; i++) back += c[i] || 0; }
-  META.gold += back; META.up = {};
-  saveMeta();
-  return back;
-}
 
 // ============================================================
 // 入力

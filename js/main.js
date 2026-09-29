@@ -37,7 +37,7 @@ function endRun(win) {
 }
 function startEndless() {
   // 勝利後もそのまま続行(ゴールドはリザルト時に精算済みなのでリセット)
-  S.gold = 0; S.loop = 2; S.schedIdx = 0; S.loopStart = S.time; setStage(1); onLoopStart();
+  S.gold = 0; S.loop = 2; S.schedIdx = 0; S.loopStart = S.time; setStage(1);
   UI.show(UI.$('hud')); UI.pause(false);
   state = 'play';
   UI.announce('ENDLESS MODE', 'LOOP 2 — 敵はさらに強くなる');

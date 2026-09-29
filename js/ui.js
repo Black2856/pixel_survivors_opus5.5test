@@ -5,7 +5,7 @@ const UI = (() => {
   const $ = id => document.getElementById(id);
   const el = (tag, cls, html) => { const e = document.createElement(tag); if (cls) e.className = cls; if (html !== undefined) e.innerHTML = html; return e; };
   const show = e => e.classList.remove('hidden'), hide = e => e.classList.add('hidden');
-  const screens = ['title-screen', 'shop-screen', 'choice-screen', 'chest-screen', 'pause-screen', 'settings-screen', 'result-screen'];
+  const screens = ['title-screen', 'choice-screen', 'chest-screen', 'pause-screen', 'settings-screen', 'result-screen'];
   const only = id => screens.forEach(s => (s === id ? show : hide)($(s)));
 
   // ---------- アイコン(スプライト → dataURL) ----------
@@ -402,27 +402,7 @@ const UI = (() => {
     $('title-gold').textContent = '● ' + META.gold.toLocaleString() + ' G';
     const b = META.best, arena = b.arenaTime ? `ARENA ${fmtTime(b.arenaTime)}` : b.arenaRound ? `ARENA ROUND ${b.arenaRound}/${DATA.arena.order.length}` : '';
     $('title-best').innerHTML = [b.time ? `BEST ${fmtTime(b.time)} · ${b.kills} KILLS · LV ${b.level}` : '', arena].filter(Boolean).join('<br>');
-  }
-  function shop() {
-    state = 'shop';
-    only('shop-screen');
-    renderShop();
-  }
-  function renderShop() {
-    $('shop-gold').textContent = '● ' + META.gold.toLocaleString() + ' G';
-    const box = $('shop-list');
-    box.innerHTML = '';
-    for (const k in DATA.meta) {
-      const m = DATA.meta[k], lv = metaLv(k), mx = metaMax(k), max = lv >= mx, cost = metaCost(k);
-      const b = el('button', 'shop-item' + (max ? ' max' : ''), `<div class="si-name">${m.name}</div><div class="si-desc">${m.desc}</div><div class="si-pips">${'◆'.repeat(lv)}${'◇'.repeat(mx - lv)}</div><div class="si-cost">${max ? 'MAX' : '● ' + cost}</div>`);
-      b.disabled = max || META.gold < cost;
-      b.onclick = () => {
-        if (META.gold < cost || max) return;
-        META.gold -= cost; META.up[k] = lv + 1; saveMeta();
-        AudioMan.levelup(); renderShop();
-      };
-      box.appendChild(b);
-    }
+    if (metaMigratedGold) { announce('+' + metaMigratedGold.toLocaleString() + ' G 返金', '永続強化は新しいツリーに移行しました'); metaMigratedGold = 0; }
   }
   function startPick() { openChoices('start', startChoices(), '最初の武器を選べ'); }
   function levelUp() { openChoices('level', buildChoices(), 'LEVEL UP!'); }
@@ -471,23 +451,6 @@ const UI = (() => {
   // ボタン
   $('btn-start').onclick = () => startRun();
   $('btn-arena').onclick = () => startRun('arena');
-  $('btn-shop').onclick = () => { AudioMan.click(); shop(); };
-  // リセットは2回押しで確定(誤操作防止)
-  let resetArm = null;
-  $('btn-shop-reset').onclick = () => {
-    const b = $('btn-shop-reset');
-    if (!resetArm) {
-      b.textContent = '本当にリセット? もう一度押す'; b.classList.add('warn');
-      resetArm = setTimeout(() => { resetArm = null; b.textContent = 'リセット(全額返金)'; b.classList.remove('warn'); }, 3000);
-      return;
-    }
-    clearTimeout(resetArm); resetArm = null;
-    const back = metaRefund();
-    b.textContent = 'リセット(全額返金)'; b.classList.remove('warn');
-    AudioMan.coinRain(12); announce('+' + back.toLocaleString() + ' G 返金', '永続強化をリセットしました');
-    renderShop();
-  };
-  $('btn-shop-back').onclick = () => { AudioMan.click(); state = 'title'; title(); };
   $('btn-resume').onclick = () => resumeGame();
   $('btn-quit').onclick = () => endRun(false);
   $('btn-retry').onclick = () => startRun(S.mode);
@@ -502,5 +465,5 @@ const UI = (() => {
     } else if (state === 'chest' && (e.code === 'Space' || e.code === 'Enter')) chestAct();
   }
 
-  return { announce, banner, hud, bossBar, enemyLvUp, openChest, openArtifact, levelUp, startPick, title, shop, pause, result, onKey, show, hide, $ };
+  return { announce, banner, hud, bossBar, enemyLvUp, openChest, openArtifact, levelUp, startPick, title, pause, result, onKey, show, hide, $ };
 })();

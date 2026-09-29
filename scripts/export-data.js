@@ -12,7 +12,8 @@ const D = ctx.DATA;
 
 const FORMULA = {
   xpFor: l => Math.floor(4 + l * 2.6 + Math.pow(l, 1.72)),              // world.js xpFor
-  lvK: (kind, lv) => 1 + D.enemyLevel[kind] * (lv - 1),                 // world.js lvK(混沌なし)
+  lvK: (kind, lv) => 1 + D.enemyLevel[kind] * (lv - 1),                 // world.js lvK
+  hpK: lv => D.enemyLevel.hpLin * (lv - 1) + Math.pow(D.enemyLevel.hpExp, lv - 1), // world.js hpK(雑魚・ボス共通)
 };
 
 const outDir = path.join(root, 'balance');
@@ -52,9 +53,6 @@ write('weapons.csv', ['ID', '名称', '段階', ...statKeys.map(k => D.statLabel
 write('passives.csv', ['ID', '名称', '最大Lv', '効果(1Lvあたり)', '進化対象武器'],
   Object.entries(D.passives).map(([k, p]) => [k, p.name, p.max, p.desc, Object.keys(D.weapons).filter(w => D.weapons[w].evo.need === k).join(' ')]));
 write('artifacts.csv', ['ID', '名称', '効果'], Object.entries(D.artifacts).map(([k, a]) => [k, a.name, a.desc]));
-const maxMeta = Math.max(...Object.values(D.meta).map(m => m.costs.length));
-write('meta.csv', ['ID', '名称', '効果(1Lvあたり)', '最大Lv', ...Array.from({ length: maxMeta }, (_, i) => `Lv${i + 1}費用`), '累計費用'],
-  Object.entries(D.meta).map(([k, m]) => [k, m.name, m.desc, m.costs.length, ...Array.from({ length: maxMeta }, (_, i) => m.costs[i] ?? ''), m.costs.reduce((a, b) => a + b, 0)]));
 
 // ---------- 敵(Lv別) ----------
 // 敵Lvは interval 秒ごとに +1(ボス出現中は停止)。目安時刻はボス停止時間を含まない
@@ -63,18 +61,18 @@ const spdK = lv => Math.min(EL.spdMax, FORMULA.lvK('spd', lv));
 write('enemies.csv', ['ID', 'HP', '速度', '攻撃力', '経験値', '半径', 'AI', '特殊', ...lvs.map(l => `HP@Lv${l}`), ...lvs.map(l => `攻撃@Lv${l}`), `エリートHP@Lv${lvs.at(-1)}`],
   Object.entries(D.enemies).map(([k, e]) => [k, e.hp, e.spd, e.dmg, e.xp, e.r, e.ai,
     [e.split && '分裂→' + e.split, e.shot && `射撃(CD${e.shot.cd}s/弾速${e.shot.spd}/威力${e.shot.dmg})`, e.ghost && 'すり抜け', e.kbRes && 'ノックバック耐性' + e.kbRes].filter(Boolean).join(' / '),
-    ...lvs.map(l => Math.round(e.hp * FORMULA.lvK('hp', l))), ...lvs.map(l => r2(e.dmg * FORMULA.lvK('dmg', l))), Math.round(e.hp * FORMULA.lvK('hp', lvs.at(-1)) * EL.elite)]));
+    ...lvs.map(l => Math.round(e.hp * FORMULA.hpK(l))), ...lvs.map(l => r2(e.dmg * FORMULA.lvK('dmg', l))), Math.round(e.hp * FORMULA.hpK(lvs.at(-1)) * EL.elite)]));
 
-write('enemy_level.csv', ['敵Lv', '到達目安(ボス時間除く)', 'HP倍率', '攻撃倍率', '速度倍率', '経験値倍率', 'ボスHP倍率'],
+write('enemy_level.csv', ['敵Lv', '到達目安(ボス時間除く)', 'HP倍率', '攻撃倍率', '速度倍率', '経験値倍率'],
   Array.from({ length: 40 }, (_, i) => { const l = i + 1, t = (l - 1) * EL.interval;
-    return [l, `${(t / 60) | 0}:${String(t % 60).padStart(2, '0')}`, r2(FORMULA.lvK('hp', l)), r2(FORMULA.lvK('dmg', l)), r2(spdK(l)), r2(FORMULA.lvK('xp', l)), r2(FORMULA.lvK('boss', l))]; }));
+    return [l, `${(t / 60) | 0}:${String(t % 60).padStart(2, '0')}`, r2(FORMULA.hpK(l)), r2(FORMULA.lvK('dmg', l)), r2(spdK(l)), r2(FORMULA.lvK('xp', l))]; }));
 
 // ボス出現時の Lv 目安: 出現時刻までの経過から、それ以前のボス戦分は停止しないものとして概算
 const bossAt = Object.fromEntries(D.schedule.filter(s => s.boss).flatMap(s => s.boss.map(k => [k, s.t])));
 const lvAt = t => 1 + Math.floor(t / EL.interval);
 write('bosses.csv', ['ID', '名称', '基本HP', '出現(秒)', '出現時Lv目安', '出現時HP目安', '速度', '攻撃力', '半径', 'BGM'],
   Object.entries(D.bosses).map(([k, b]) => { const t = bossAt[k]; const l = t !== undefined ? lvAt(t) : '';
-    return [k, b.name, b.hp, t ?? '', l, l ? Math.round(b.hp * FORMULA.lvK('boss', l)) : '', b.spd, b.dmg, b.r, b.music]; }));
+    return [k, b.name, b.hp, t ?? '', l, l ? Math.round(b.hp * FORMULA.hpK(l)) : '', b.spd, b.dmg, b.r, b.music]; }));
 
 // ---------- 出現スケジュール ----------
 write('schedule.csv', ['時刻(秒)', '時刻', '種別', '出現敵', '出現間隔(秒)', '毎秒出現数', '最大同時数'],
