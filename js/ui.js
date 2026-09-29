@@ -169,7 +169,7 @@ const UI = (() => {
     if (P.cdSlowT > 0) out.push({ id: 'cdslow', glyph: '遅', name: 'スロウタイム', fx: `移動 -${Math.round((1 - d.slow) * 100)}% CD回復 -${Math.round((1 - d.cdRate) * 100)}%`, t: P.cdSlowT, kind: 'debuff' });
     if (P.burnT > 0) out.push({ id: 'burn', glyph: '炎', name: '炎上', fx: `毎${d.burnTick}秒 ${Math.round(P.burnDmg)} ダメージ`, t: P.burnT, max: d.burnDur, kind: 'debuff' });
     if (P.shield >= 1) out.push({ id: 'shield', glyph: '盾', name: 'シールド', fx: `${Math.floor(P.shield)} のダメージを先に受ける`, kind: 'buff' });
-    if (P.oShield >= 1) out.push({ id: 'oshield', glyph: '聖', name: '聖盾', fx: `${Math.floor(P.oShield)} のダメージを先に受ける(超過回復から。得た分ごとに10秒で消える)`, t: P.oChunks[0].t, max: 10, kind: 'buff' });
+    if (P.oShield >= 1) out.push({ id: 'oshield', glyph: '守', name: '一時シールド', fx: `${Math.floor(P.oShield)} のダメージを先に受ける(得た分ごとに時間で消える)`, t: Math.min(...P.oChunks.map(c => c.t)), max: Math.max(...P.oChunks.map(c => c.dur)), kind: 'buff' });
     if (P.uq.phoenix && !P.revived) out.push({ id: 'phoenix', glyph: '鳳', name: '不死鳥の加護', fx: '一度だけ蘇生', kind: 'buff' });
     return out;
   }

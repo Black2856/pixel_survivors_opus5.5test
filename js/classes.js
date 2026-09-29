@@ -172,8 +172,8 @@ function barrageShot(a, x, y, ang) {
 // 雨そのものは zones の 'rain'(world.js の updZones で矢を降らせる)
 WEAPON_SKILL.longbow = {
   info(c, dmg) {
-    const sk = DATA.weapons.longbow.skill, m = c.wm, heavy = c.hasSp('e', 'pow'), dur = sk.dur + (m.eDur || 0);
-    const one = dmg * sk.pow * (1 + c.cuV('e', 'pow')) * (1 + (m.ePow || 0)) * (heavy ? 0.7 : 1);
+    const sk = DATA.weapons.longbow.skill, m = c.wm, heavy = c.hasSp('e', 'pow'), dur = (sk.dur + (m.eDur || 0)) * (c.hasSp('e', 'cd') ? 1.5 : 1);
+    const one = dmg * sk.pow * (1 + c.cuV('e', 'pow')) * (1 + (m.ePow || 0)) * (heavy ? 0.6 : 1);
     return { name: sk.name, cat: 'e', desc: [
       `構え ${sk.windup}秒(動けない)→ 照準位置の半径 ${sk.radius} に ${sk.dur}秒間、矢が降り注ぐ`,
       `${sk.every}秒ごとに、範囲内の敵全員へ 武器の威力 × ${Math.round(sk.pow * 100)}%`,
@@ -201,9 +201,10 @@ WEAPON_SKILL.longbow = {
     P.moveMul = 0;
     if (a.t < sk.windup) { if (Math.random() < dt * 30) part(P.x + rand(-8, 8), P.y + 6, rand(-20, 20), -10, 0.4, pick(['#b8ff9a', '#e4ffd8']), { glow: true }); return; }
     const heavy = hasSp('e', 'pow'), delay = 0.25; // 放ってから降り始めるまで
-    zones.push({ kind: 'rain', x: a.x, y: a.y, r: sk.radius * (1 + cuV('e', 'area')) * P.area, t: 0, delay, dur: delay + sk.dur + (m.eDur || 0), tick: 0, acc: 0,
-      every: sk.every * (heavy ? 0.5 : 1), dmg: wst(P.mainW).dmg * sk.pow * (1 + cuV('e', 'pow')) * a.pow * (heavy ? 0.7 : 1),
-      nArrows: sk.arrows, follow: hasSp('e', 'cd'), pin: hasSp('e', 'area'), arrows: [] });
+    const follow = hasSp('e', 'cd'); // 追従: ついてくる + 持続 +50%
+    zones.push({ kind: 'rain', x: a.x, y: a.y, r: sk.radius * (1 + cuV('e', 'area')) * P.area, t: 0, delay, dur: delay + (sk.dur + (m.eDur || 0)) * (follow ? 1.5 : 1), tick: 0, acc: 0,
+      every: sk.every * (heavy ? 0.5 : 1), dmg: wst(P.mainW).dmg * sk.pow * (1 + cuV('e', 'pow')) * a.pow * (heavy ? 0.6 : 1),
+      nArrows: sk.arrows, follow, fire: hasSp('e', 'area') ? sk.fire : 0, fireT: sk.fireT, arrows: [] });
     asMine(() => { // 空へ放つ光の矢
       for (let i = 0; i < 10; i++) part(P.x + P.facing * 4, P.y - 10, rand(-30, 30) + P.facing * 20, -rand(200, 320), 0.35, pick(['#e4ffd8', '#b8ff9a', '#ffffff']), { glow: true, drag: 0 });
       addRing(P.x, P.y, 18, '#b8ff9a', { w: 2, life: 0.3 }); shake(2);
@@ -541,11 +542,10 @@ const CLASS_RT = {
     onKill(e) {
       if (!markOn(e)) return;
       const p = AR();
-      if (hasSp('trait', 'carve') && e.mark >= markMax()) asMine(() => { // 烙印
-        forEachNear(e.x, e.y, p.brandR * P.area, o => { if (!o.prop && o !== e) hitEnemy(o, p.brandPow, { src: 'brand', ang: Math.atan2(o.y - e.y, o.x - e.x), kb: 40, col: '#7dff9a' }); });
-        addRing(e.x, e.y, p.brandR * P.area, '#7dff9a', { w: 2, life: 0.3 }); addFlash(e.x, e.y, 60, '#7dff9a', 0.25);
-        burst(e.x, e.y, 14, ['#7dff9a', '#ffffff'], { sp: 90, glow: true, life: 0.35 });
-      });
+      if (hasSp('trait', 'carve')) { // 守印: 倒した敵の印の数だけシールド(5秒)
+        timedShield(e.mark, p.guardT);
+        part(e.x, e.y, (P.x - e.x) * 3, (P.y - e.y) * 3, 0.3, '#7ab8ff', { glow: true, sz: 2, drag: 0 });
+      }
       const k = cuV('trait', 'spread');
       if (k) { // 伝播: 近くの敵へ印を移す
         const n = Math.floor(e.mark * k);
@@ -553,7 +553,7 @@ const CLASS_RT = {
         forEachNear(e.x, e.y, p.spreadR, o => { if (o === e || o.dead || o.prop) return; const d = d2(o.x, o.y, e.x, e.y); if (d < bd) { bd = d; best = o; } });
         if (best && n > 0) { addMark(best, n); bolts.push({ x0: e.x, y0: e.y, x1: best.x, y1: best.y, t: 0, life: 0.15, w: 1 }); }
       }
-      if (hasSp('trait', 'spread')) P.sk.q.cd = Math.max(0, P.sk.q.cd - 1); // 狩りの連鎖
+      if (hasSp('trait', 'spread')) P.sk.q.cd = Math.max(0, P.sk.q.cd - p.chainCd); // 狩りの連鎖
     },
     atkBonus: () => 0,
     qStart() {
@@ -605,7 +605,7 @@ const CLASS_RT = {
           `構え ${q.windup}秒(動けない)→ 画面内の印を持つ敵1体につき1本、その敵へまっすぐ高速の矢(貫通無限)`,
           `矢が当たった敵は、印1つにつき ${q.markPow} の追加ダメージを連続で受ける(印は消費)`,
           '  → 途中で貫いた敵も、印を持っていれば同じく受ける',
-          `印を持つ敵がいなければ、最寄りの ${q.none}体へ1本ずつ(最大 ${q.max}本)`,
+          `さらに無条件で、最寄りの ${q.none}体へも1本ずつ(最大 ${q.max}本)`,
           '威力は武器に依存しない',
         ], rows: [
           ['CD', `<b>${(q.cd * (1 - c.cuV('q', 'cd')) * c.cdMul).toFixed(1)}</b> 秒`],
@@ -877,7 +877,7 @@ function archerVolley() {
   const marked = vis.filter(markOn).sort((a, b) => b.mark - a.mark);
   const others = vis.filter(e => !markOn(e)).sort((a, b) => d2(a.x, a.y, P.x, P.y) - d2(b.x, b.y, P.x, P.y));
   const shots = marked.slice();
-  if (!marked.length) shots.push(...others.slice(0, q.none)); // 印を持つ敵がいなければ最寄りへ
+  shots.push(...others.slice(0, q.none)); // 無条件で、最寄りの敵(印を持つ敵とは別)へも1本ずつ
   const keep = cuV('q', 'keep'), sure = hasSp('q', 'keep'), boom = hasSp('q', 'pow'), storm = hasSp('q', 'cd');
   const onHit = e => {
     if (boom) asMine(() => { // 流星

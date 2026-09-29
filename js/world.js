@@ -149,22 +149,24 @@ function breakCombo() {
   S.combo = 0; S.comboT = 0;
 }
 
-// シールド: P.shield(魔力障壁など。時間では消えない)+ P.oShield(聖盾の。得た分ごとに10秒で消える)。合計は最大HP まで
-// P.oChunks = [{ v, t }](古い順)。自然回復のように少しずつ得る分は、1秒以内なら同じかたまりにまとめる
+// シールド: P.shield(魔力障壁など。時間では消えない)+ P.oShield(時間で消える。聖盾の 10秒・守印 5秒など)。合計は最大HP まで
+// P.oChunks = [{ v, t, dur }](得た順)。少しずつ得る分は、同じ長さで1秒以内なら同じかたまりにまとめる
 const shieldTotal = () => (P.shield || 0) + (P.oShield || 0);
-function overheal(n) {
-  if (!P.uq.aegis || n <= 0) return;
-  const v = Math.min(n * 0.2, P.maxhp - shieldTotal()), last = P.oChunks[P.oChunks.length - 1];
+function timedShield(n, dur) {
+  const v = Math.min(n, P.maxhp - shieldTotal()), last = P.oChunks[P.oChunks.length - 1];
   if (v <= 0) return;
-  if (last && last.t > 9) last.v += v; else P.oChunks.push({ v, t: 10 });
+  if (last && last.dur === dur && last.t > dur - 1) last.v += v; else P.oChunks.push({ v, t: dur, dur });
   P.oShield += v; S.hudDirty = true;
 }
+// 最大HP を超えた回復量(聖盾の: 20% を10秒のシールドに)
+function overheal(n) { if (P.uq.aegis && n > 0) timedShield(n * 0.2, 10); }
 function updOverShield(dt) {
   if (!P.oChunks.length) return;
   for (const c of P.oChunks) c.t -= dt;
-  while (P.oChunks.length && P.oChunks[0].t <= 0) { P.oShield = Math.max(0, P.oShield - P.oChunks[0].v); P.oChunks.shift(); S.hudDirty = true; }
+  for (const c of P.oChunks) if (c.t <= 0) { P.oShield = Math.max(0, P.oShield - c.v); S.hudDirty = true; }
+  P.oChunks = P.oChunks.filter(c => c.t > 0);
 }
-// 聖盾のシールドを a だけ削る(古いかたまりから)
+// 時間で消えるシールドを a だけ削る(古いかたまりから)
 function takeOverShield(a) {
   P.oShield = Math.max(0, P.oShield - a);
   while (a > 0 && P.oChunks.length) { const c = P.oChunks[0], k = Math.min(c.v, a); c.v -= k; a -= k; if (c.v <= 1e-9) P.oChunks.shift(); }
@@ -540,7 +542,6 @@ function updZones(dt) {
       for (const ar of z.arrows) ar.t += dt;
       z.arrows = z.arrows.filter(ar => ar.t < 0.5); // t < 0 は降り始める前(少しずつずらして降らせる)
       if (z.t >= z.delay && z.t < z.dur) {
-        if (z.pin) forEachNear(z.x, z.y, z.r, e => { e.pinUntil = S.time + 0.15; });
         z.acc += dt;
         while (z.acc >= z.every) { // every 秒ごとに、範囲内の敵全員へ(見た目の矢はランダムな位置に nArrows 本)
           z.acc -= z.every;
@@ -550,7 +551,8 @@ function updZones(dt) {
             if (state !== 'play') return;
             asMine(() => {
               forEachNear(x0, y0, z.r, e => {
-                hitEnemy(e, z.dmg, { src: 'arrowrain', col: '#b8ff9a', el, eHit: true, noNum: Math.random() < 0.5 });
+                const dealt = hitEnemy(e, z.dmg, { src: 'arrowrain', col: z.fire ? '#ff8a3d' : '#b8ff9a', el, eHit: true, noNum: Math.random() < 0.5 });
+                if (z.fire && dealt && !e.dead) { e.burn = Math.max(e.burnT > 0 ? e.burn || 0 : 0, dealt * z.fire / z.fireT / dmgMul()); e.burnT = z.fireT; e.burnSrc = 'arrowrain'; } // 炎の矢
                 if (Math.random() < 0.4) part(e.x, e.y, rand(-20, 20), -rand(10, 30), 0.3, pick(['#b8ff9a', '#e4ffd8', '#8a8098']), { glow: true });
               });
             });
@@ -730,7 +732,7 @@ function updEnemies(dt) {
     if (e.stun > 0) { e.stun -= dt; continue; }
     if (e.boss) { bossAI(e, dt); }
     else {
-      const slow = Math.max(0.2, 1 - DATA.debuff.frostSlow * (e.frost || 0)) * (e.slowT > 0 ? 0.6 : 1) * (S.time < (e.pinUntil || 0) ? 0.4 : 1); // 凍傷 / 縫い止め
+      const slow = Math.max(0.2, 1 - DATA.debuff.frostSlow * (e.frost || 0)) * (e.slowT > 0 ? 0.6 : 1); // 凍傷
       const sp = e.spd * slow;
       const dc = S.decoy && d2(e.x, e.y, S.decoy.x, S.decoy.y) < 200 * 200 ? S.decoy : P; // 空蝉の分身
       const a = Math.atan2(dc.y - e.y, dc.x - e.x);

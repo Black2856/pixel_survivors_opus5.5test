@@ -231,13 +231,13 @@ const DATA = {
       ],
       evo: { name: '天弓', desc: '矢が同じ敵に二度当たる(2回目は貫通を1消費する)', st: { cd: 0.9, dmg: 38, count: 3, speed: 320, pierce: 6 } },
       // 武器スキル(E)アローレイン: 構え windup 秒(動けない)→ 照準位置の半径 radius に dur 秒間矢が降り、every 秒ごとに範囲内の敵全員へ
-      // 武器の威力 × pow(見た目の矢は1回に arrows 本)/ range: 照準の最大距離
+      // 武器の威力 × pow(見た目の矢は1回に arrows 本)/ range: 照準の最大距離 / fire: 炎の矢の炎上(与えたダメージの割合を fireT 秒で)
       skill: {
-        name: 'アローレイン', cd: 25, windup: 0.3, dur: 2.5, every: 0.25, pow: 0.8, arrows: 3, radius: 60, range: 200,
+        name: 'アローレイン', cd: 25, windup: 0.3, dur: 2.5, every: 0.25, pow: 1.2, arrows: 3, radius: 60, range: 200, fire: 0.4, fireT: 3,
         tree: { name: 'アローレイン', paths: {
-          pow:  { name: '威力', desc: ['アローレインの威力 +30%', 'アローレインの威力 +60%', 'アローレインの威力 +100%'], v: [0.3, 0.6, 1.0], sp: { name: '豪雨', desc: '攻撃の間隔が半分になる(各 威力 -30%)' } },
-          cd:   { name: '迅速', desc: ['アローレインのCD -10%', 'アローレインのCD -20%', 'アローレインのCD -30%'], v: [0.1, 0.2, 0.3], sp: { name: '追従', desc: '雨の範囲がプレイヤーについてくる' } },
-          area: { name: '範囲', desc: ['アローレインの半径 +20%', 'アローレインの半径 +40%', 'アローレインの半径 +60%'], v: [0.2, 0.4, 0.6], sp: { name: '縫い止め', desc: '雨の中の敵の移動速度 -60%' } },
+          pow:  { name: '威力', desc: ['アローレインの威力 +30%', 'アローレインの威力 +60%', 'アローレインの威力 +100%'], v: [0.3, 0.6, 1.0], sp: { name: '豪雨', desc: '攻撃の間隔が半分になる(各 威力 -40%)' } },
+          cd:   { name: '迅速', desc: ['アローレインのCD -10%', 'アローレインのCD -20%', 'アローレインのCD -30%'], v: [0.1, 0.2, 0.3], sp: { name: '追従', desc: '雨の範囲がプレイヤーについてくる。持続 +50%' } },
+          area: { name: '範囲', desc: ['アローレインの半径 +20%', 'アローレインの半径 +40%', 'アローレインの半径 +60%'], v: [0.2, 0.4, 0.6], sp: { name: '炎の矢', desc: '矢が炎を纏い、与えたダメージの 40% を炎上で追加する' } },
         } },
       },
       // 熟練(アーチャーの Lv で解放。長弓を使うどのクラスにも効く)
@@ -409,7 +409,7 @@ const DATA = {
       base: { hp: 90, sta: 100, staRegen: 25, spd: 0.1, area: -0.1, range: 0.2, crit: 0.1, critDmg: 1.0, wslot: 4, reroll: 2 },
       lv: {
         2: { d: '最大HP +10', st: { hp: 10 } },
-        3: { d: '狩人の印: 印1つの被ダメ +1%', fx: { markPct: 0.01 } },
+        3: { d: '狩人の印: 印1つの被ダメ +0.5%', fx: { markPct: 0.005 } },
         6: { d: 'バックステップ: スタミナ消費 -10', fx: { backCut: 10 } },
         8: { d: '集中: 最大段 +1', fx: { focusMax: 1 } },
         11: { d: '一斉射撃: 威力 +20%', fx: { qPow: 0.2 } },
@@ -424,19 +424,19 @@ const DATA = {
       //   1段につき 攻撃速度 +focusAtkSpd・クリティカル率 +focusCrit
       // バックステップ: 移動と逆へ backDist を backTime 秒で跳ぶ(無敵 backIfr 秒、スタミナ backCost)。着地で集中 +backFocus
       params: {
-        markMax: 10, markPct: 0.01, markT: 3, weakT: 3, weakCrit: 0.15, spreadR: 60, brandPow: 40, brandR: 30,
+        markMax: 10, markPct: 0.01, markT: 3, weakT: 3, weakCrit: 0.15, spreadR: 60, guardT: 5, chainCd: 0.5,
         focusMax: 5, focusStep: 0.5, focusDecay: 1, focusAtkSpd: 0.04, focusCrit: 0.02, focusHurt: 2,
         backDist: 80, backTime: 0.15, backIfr: 0.25, backCost: 100, backFocus: 1,
       },
       // 一斉射撃(Q): 構え windup 秒(動けない)→ 画面内の印を持つ敵1体につき1本、その敵へまっすぐ高速の矢(貫通無限・基礎威力 pow)
       //   矢が当たった敵は、印1つにつき markPow の追加ダメージを interval 秒おきに連続で受ける(印は消費)
-      //   印を持つ敵がいなければ最寄り none 体へ1本ずつ。最大 max 本。流星: 当たるたびに爆発(meteorPow・半径 meteorR)
+      //   さらに無条件で、最寄り none 体(印を持つ敵とは別)へも1本ずつ。最大 max 本。流星: 当たるたびに爆発(meteorPow・半径 meteorR)
       q: { name: '一斉射撃', cd: 35, windup: 0.4, pow: 100, markPow: 25, interval: 0.05, none: 10, max: 100, speed: 600, meteorPow: 10, meteorR: 16 },
       tree: {
         trait: { name: '狩人の印', paths: {
           deep:   { name: '深手', desc: ['印の持続 +2秒', '印の持続 +4秒', '印の持続 +7秒'], v: [2, 4, 7], sp: { name: '急所', desc: '弱点露出中の敵へのクリティカルダメージ +30%' } },
-          carve:  { name: '刻印', desc: ['印の上限 +3', '印の上限 +6', '印の上限 +10'], v: [3, 6, 10], sp: { name: '烙印', desc: '印が上限の敵を倒すと爆発する(基礎威力 40、半径 30)' } },
-          spread: { name: '伝播', desc: ['印を持つ敵を倒すと、印の 25% を近くの敵に移す', '印を持つ敵を倒すと、印の 50% を近くの敵に移す', '印を持つ敵を倒すと、印を全て近くの敵に移す'], v: [0.25, 0.5, 1.0], sp: { name: '狩りの連鎖', desc: '印を持つ敵を倒すと、一斉射撃の CD -1秒' } },
+          carve:  { name: '刻印', desc: ['印の上限 +3', '印の上限 +6', '印の上限 +10'], v: [3, 6, 10], sp: { name: '守印', desc: '印を持つ敵を倒すと、その印の数だけシールドを得る(5秒)' } },
+          spread: { name: '伝播', desc: ['印を持つ敵を倒すと、印の 20% を近くの敵に移す', '印を持つ敵を倒すと、印の 40% を近くの敵に移す', '印を持つ敵を倒すと、印の 75% を近くの敵に移す'], v: [0.2, 0.4, 0.75], sp: { name: '狩りの連鎖', desc: '印を持つ敵を倒すと、一斉射撃の CD -0.5秒' } },
         } },
         passive: { name: '集中', paths: {
           calm: { name: '静心', desc: ['集中の溜まる速さ +20%', '集中の溜まる速さ +40%', '集中の溜まる速さ +60%'], v: [0.2, 0.4, 0.6], sp: { name: '不動', desc: '集中が最大の間、被ダメージ -20%' } },
