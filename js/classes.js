@@ -812,7 +812,7 @@ const CLASS_RT = {
       return null;
     },
     onMainHit() {},
-    onSkill: () => holyGain(P.maxhp * KN().skillGain), // E / Q を使うとシールド(聖盾の審判は消費した後に得る)
+    onSkill: slot => { if (slot === 'e') holyGain(P.maxhp * KN().skillGain); }, // E を使うとシールド(Q は構えの前に qStart で得る)
     onShieldBreak: () => knightBreak(),
     shieldCap: () => knCap(),
     shieldGain: () => (hasSp('trait', 'hold') ? 1 + KN().sanctGain : 1), // 不滅の盾: 獲得量 +25%
@@ -820,6 +820,7 @@ const CLASS_RT = {
     qStart() {
       const q = DATA.classes.knight.q, a = aimDir(q.r * 1.5);
       if (Math.cos(a) !== 0) P.facing = Math.cos(a) < 0 ? -1 : 1;
+      holyGain(P.maxhp * KN().skillGain); // 発動前にシールドを得る(そのまま審判で消費する)
       P.act = { slot: 'q', ph: 'wind', t: 0, a };
       playAnim('kVerdict', MOTIONS.kVerdict.dur);
       slowmo(0.5, 0.2);
@@ -849,7 +850,7 @@ const CLASS_RT = {
       return [
         { key: '特性', name: '聖盾', cat: 'trait', desc: [
           `大盾で受けたダメージの ${Math.round(p.convert * 100)}% がシールドになる`,
-          `E か Q を使うと、最大HP の ${Math.round(p.skillGain * 100)}% のシールドを得る`,
+          `E か Q を使うと、発動前に最大HP の ${Math.round(p.skillGain * 100)}% のシールドを得る(Q はそのまま消費に含まれる)`,
           `1秒に今のシールドの ${Math.round(p.decay * 100)}% ずつ減る(聖盾でシールドを得てから ${p.decayWait}秒は減らない)`,
           '堅守: シールドの量に比例して攻撃力アップ(全ての攻撃)',
           '  → 魔力障壁などほかのシールドも同じ扱い',
