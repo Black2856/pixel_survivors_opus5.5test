@@ -129,8 +129,45 @@ const MetaUI = (() => {
   function treeScreen() {
     state = 'tree'; trSel = null;
     UI.only('tree-screen');
+    trView = { s: 1, cx: 0, cy: 0 }; applyTrView();
     renderTree();
   }
+  // 拡大・移動: viewBox を動かす(s = 倍率 1〜3、cx / cy = 見ている中心)
+  const TR_HALF = 378;
+  let trView = { s: 1, cx: 0, cy: 0 }, trDrag = null, trMoved = false;
+  function applyTrView() {
+    const v = trView, lim = TR_HALF * (1 - 1 / v.s), size = TR_HALF * 2 / v.s;
+    v.cx = clamp(v.cx, -lim, lim); v.cy = clamp(v.cy, -lim, lim);
+    $('tr-svg').setAttribute('viewBox', `${(v.cx - size / 2).toFixed(1)} ${(v.cy - size / 2).toFixed(1)} ${size.toFixed(1)} ${size.toFixed(1)}`);
+  }
+  // 画面上の点(ux, uy: 0〜1)を動かさずに倍率を変える
+  function zoomTr(k, ux = 0.5, uy = 0.5) {
+    const v = trView, size = TR_HALF * 2 / v.s, px = v.cx - size / 2 + ux * size, py = v.cy - size / 2 + uy * size;
+    v.s = clamp(v.s * k, 1, 3);
+    const ns = TR_HALF * 2 / v.s;
+    v.cx = px - ux * ns + ns / 2; v.cy = py - uy * ns + ns / 2;
+    applyTrView();
+  }
+  $('tr-svg').addEventListener('wheel', e => {
+    e.preventDefault();
+    const b = $('tr-svg').getBoundingClientRect();
+    zoomTr(e.deltaY < 0 ? 1.15 : 1 / 1.15, (e.clientX - b.left) / b.width, (e.clientY - b.top) / b.height);
+  }, { passive: false });
+  $('tr-svg').addEventListener('pointerdown', e => { trDrag = { x: e.clientX, y: e.clientY, cx: trView.cx, cy: trView.cy }; trMoved = false; });
+  addEventListener('pointermove', e => {
+    if (!trDrag) return;
+    const dx = e.clientX - trDrag.x, dy = e.clientY - trDrag.y;
+    if (!trMoved && Math.hypot(dx, dy) < 5) return; // 少し動いただけならクリック扱い
+    trMoved = true; $('tr-svg').classList.add('drag');
+    const k = TR_HALF * 2 / trView.s / $('tr-svg').getBoundingClientRect().width;
+    trView.cx = trDrag.cx - dx * k; trView.cy = trDrag.cy - dy * k; applyTrView();
+  });
+  addEventListener('pointerup', () => { trDrag = null; $('tr-svg').classList.remove('drag'); });
+  document.querySelector('.tr-zoom').onclick = e => {
+    const z = e.target.closest('button'); if (!z) return;
+    AudioMan.click();
+    if (z.dataset.z === 'reset') { trView = { s: 1, cx: 0, cy: 0 }; applyTrView(); } else zoomTr(z.dataset.z === 'in' ? 1.3 : 1 / 1.3);
+  };
   function renderTree() {
     $('tr-gold').textContent = '● ' + META.gold.toLocaleString() + ' G';
     const T = DATA.tree, nodes = Object.values(TREE);
@@ -176,6 +213,7 @@ const MetaUI = (() => {
       <button class="btn tr-buy" ${!own && open && META.gold >= cost ? '' : 'disabled'}>${own ? '取得済み' : !open ? '隣のノードを先に取得' : `取得 ● ${cost.toLocaleString()}`}</button>`;
   }
   $('tr-svg').onclick = e => {
+    if (trMoved) { trMoved = false; return; } // ドラッグで移動した後はクリックにしない
     const g = e.target.closest('.nd'); if (!g) return;
     trSel = g.dataset.id; AudioMan.click(); renderTree();
   };
