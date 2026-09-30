@@ -140,7 +140,7 @@
 | サムライ | 刀 | 先行して実装 | `classes/samurai.md` |
 | メイジ | マジックボルト | 先行して実装 | `classes/mage.md` |
 | アーチャー | 長弓 | 実装済み(調整前) | `classes/archer.md` |
-| ナイト | 騎士剣 | 設計中(Q&A 回答待ち) | `classes/knight.md` |
+| ナイト | 騎士剣 | 実装済み(調整前) | `classes/knight.md` |
 
 ### 3.6 基礎ステータス(共通基準とクラス差)
 

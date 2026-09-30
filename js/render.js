@@ -331,14 +331,14 @@ function render() {
         addLight((s.x + s.x1) / 2, (s.y + s.y1) / 2, 90, '#ff5d73', 1 - k);
         continue;
       }
-      const k = s.t / s.life, R = s.r, span = s.full ? TAU : 1.9, n = s.full ? 64 : 26; // full: 全周の斬撃(見切りの反撃など)
+      const k = s.t / s.life, R = s.r, span = s.full ? TAU : s.span || 1.9, n = s.full ? 64 : 26; // full: 全周の斬撃(見切りの反撃など)
       for (let i = 0; i < n; i++) {
         const u = i / (n - 1);
         if (u > k * 1.6) break;
         const a = s.a + (s.flip ? -1 : 1) * (u - 0.5) * span, th = Math.sin(u * Math.PI) * 3 * (1 - k);
         for (let r = R * 0.55; r < R * 0.55 + th + 1; r++) {
           const px = Math.round(s.x + Math.cos(a) * r * (0.7 + 0.3 * k) - cam.x), py = Math.round(s.y + Math.sin(a) * r * (0.7 + 0.3 * k) - cam.y);
-          const col = r > R * 0.55 + th - 1 ? '#ffffff' : s.evo ? '#ff3b5c' : '#ff8a9a';
+          const col = r > R * 0.55 + th - 1 ? '#ffffff' : s.col || (s.evo ? '#ff3b5c' : '#ff8a9a');
           sx.fillStyle = col; sx.fillRect(px, py, 1, 1);
           gx.fillStyle = col; gx.fillRect(px, py, 1, 1);
         }
@@ -358,6 +358,13 @@ function render() {
       sx.globalAlpha = 0.8 * fade; pCircle(sx, zx, zy, Math.round(z.r), '#ffffff', 2); sx.globalAlpha = 1;
       gx.globalAlpha = 0.25 * fade; pCircle(gx, zx, zy, Math.round(z.r), '#bff4ff'); gx.globalAlpha = 1;
       addLight(z.x, z.y, z.r * 2.2, '#7ad7ff', 0.6 * fade);
+    } else if (z.kind === 'crack') {
+      sx.globalAlpha = 0.35 * fade; pDisc(sx, zx, zy, Math.round(z.r * 0.8), '#1a1008'); sx.globalAlpha = 1;
+      for (let i = 0; i < 5; i++) { // 放射状の割れ目(光る)
+        const a = i * 1.26 + 0.4;
+        for (let d = 2; d < z.r * 0.8; d += 1) { const x = Math.round(zx + Math.cos(a + Math.sin(d * 0.5) * 0.2) * d), y = Math.round(zy + Math.sin(a + Math.sin(d * 0.5) * 0.2) * d * 0.6); gx.globalAlpha = 0.7 * fade; gx.fillStyle = '#ffb347'; gx.fillRect(x, y, 1, 1); }
+      }
+      gx.globalAlpha = 1;
     } else if (z.kind === 'rain') {
       const on = z.t >= z.delay ? 1 : z.t / z.delay;
       sx.globalAlpha = 0.22 * fade * on; pDisc(sx, zx, zy, Math.round(z.r), '#0c1a10'); // 影の円
@@ -519,7 +526,7 @@ function render() {
     const mn = rig && P.anim ? (rig.alias && rig.alias[P.anim.name]) || P.anim.name : null;
     const M = mn && MOTIONS[mn] && MOTIONS[mn].rig === DATA.classes[P.cls].rig ? MOTIONS[mn] : null; // 他クラスのモーションは使わない
     const ms = M ? M.state(P.anim.t, P.anim.arg) : null;
-    const psp = ms ? rig.pose(ms.p) : rig ? ART.rigFrame(rig, P.moving ? 'walk' : 'idle', t) : ART.S.player;
+    const psp = ms ? rig.pose(ms.p) : rig && P.guard && rig.guard ? rig.pose(rig.guard) : rig ? ART.rigFrame(rig, P.moving ? 'walk' : 'idle', t) : ART.S.player; // guard: 構えの姿勢(ナイト)
     const py = P.y - (psp.h - ART.S.player.h) / 2; // 足元の位置を旧プレイヤーと揃える
     // 空蝉の分身(白いシルエットが明滅する)
     if (S.decoy && rig) drawSp(rig.base, S.decoy.x, S.decoy.y - (rig.base.h - ART.S.player.h) / 2, { white: true, alpha: 0.35 + 0.25 * Math.sin(t * 20), flip: P.facing < 0, emit: false });
@@ -537,7 +544,14 @@ function render() {
     if (ms) { if (!blink || P.invT > 0) drawPose(rig, psp, ms, P.x, py, P.facing < 0, P.hurtT > 0); }
     else if (!blink || P.invT > 0) drawSp(psp, P.x, py - Math.abs(step) * (P.moving ? 1.5 : 0.5), { flip: P.facing < 0, white: P.hurtT > 0, sy: 1 + step * 0.05, sxk: 1 - step * 0.03 });
     // ガード(見切り): 正面に光る弧。ジャスト受付中は白く明るい
-    if (P.guard) {
+    if (P.guard && P.cls === 'knight') { // 大盾: 全方向を守る金の輪(ゆっくり回る光)
+      const cx = P.x - cam.x, cy = P.y - cam.y - 2, R = 13;
+      for (let a = 0; a < TAU; a += 0.08) {
+        const x = Math.round(cx + Math.cos(a) * R), y = Math.round(cy + Math.sin(a) * R * 0.85), lit = Math.abs(Math.sin(a * 2 - t * 4)) > 0.8;
+        sx.fillStyle = gx.fillStyle = lit ? '#ffffff' : '#f2c84b'; gx.globalAlpha = lit ? 0.9 : 0.45; sx.fillRect(x, y, 1, 1); gx.fillRect(x, y, 1, 1);
+      }
+      gx.globalAlpha = 1;
+    } else if (P.guard) {
       const just = P.guardT <= DATA.classes.samurai.params.parryWin, col = just ? '#ffffff' : '#9ff7ff';
       const a0 = P.facing < 0 ? Math.PI : 0, R = 11, cx = P.x - cam.x, cy = P.y - cam.y - 2;
       sx.fillStyle = gx.fillStyle = col;

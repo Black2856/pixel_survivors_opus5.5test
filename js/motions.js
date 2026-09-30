@@ -45,6 +45,17 @@ function archerPose(U, arm, o = {}) {
   return { p, hand: [h[0], h[1] + U + (arm === 'base' ? 0 : armDy)] };
 }
 
+// ナイトの部位の配置(ART.S.knight と対応)。騎士剣はモーション中は drawPose の刀身として角度付きで描く
+const KNIGHT_HAND = { base: [3.5, 10.5], up: [4.5, 6.5] };
+function knightPose(U, arm, o = {}) {
+  const p = {
+    helm: [0, U], torso: [0, U], backArm: [0, U + (arm === 'up' ? -3 : 0)], legs: [0, 0, o.legs || 'base'],
+    shield: [(o.sx || 0), U + (o.sy || 0), o.shieldV || 'base'],
+  };
+  const h = KNIGHT_HAND[arm];
+  return { p, hand: [h[0], h[1] + U] };
+}
+
 // rig: そのモーションを使えるクラスの部位(合わないクラスは待機・歩きのまま。rig.alias で代わりのモーションを指定できる)
 const MOTIONS = {
   // メテオ(Q): 宝珠を頭上へ掲げて詠唱(0.5秒・のけぞる)→ 振り下ろして照準へ放つ → 戻る
@@ -109,6 +120,26 @@ const MOTIONS = {
     state(t) {
       return Object.assign(archerPose(t > 0.2 ? 1 : 0, 'base', { capeV: 'b', legs: t < 0.15 ? 'stepB' : 'base' }), { bow: true, bowAng: 0.3, pull: 0, arrow: false, blade: false,
         lean: track([[0, 0], [0.06, 0.16, 'out'], [0.18, -0.08], [0.3, 0]], t), sy: track([[0, 1], [0.05, 0.86, 'out'], [0.14, 1.1, 'out'], [0.22, 0.92], [0.3, 1]], t) });
+    },
+  },
+  // グランドスラム(E): 剣を頭上へ振りかぶる(0.3秒・のけぞる)→ 地面へ叩きつける → 戻る
+  kSlam: {
+    rig: 'knight', dur: 0.7, cast: 0.3,
+    state(t) {
+      const c = this.cast;
+      if (t < c) { const u = t / c; return Object.assign(knightPose(0, 'up'), { blade: true, ang: -1.6 - 1.0 * u, lean: -0.1 * u, sy: 1 + 0.03 * u }); }
+      const r = t - c;
+      return Object.assign(knightPose(r < 0.2 ? 2 : 0, 'base', { legs: r < 0.25 ? 'stepA' : 'base' }), { blade: true, ang: track([[0, -2.6], [0.06, 0.9, 'out'], [0.4, 0.9]], r), lean: track([[0, 0.2], [0.4, 0, 'out']], r), sy: track([[0, 0.88], [0.2, 1, 'out']], r) });
+    },
+  },
+  // 聖盾の審判(Q): 大盾を高く掲げて光を集める(0.4秒)→ 地面に叩きつける → 戻る
+  kVerdict: {
+    rig: 'knight', dur: 0.8, cast: 0.4,
+    state(t) {
+      const c = this.cast;
+      if (t < c) { const u = t / c; return Object.assign(knightPose(0, 'base', { shieldV: 'guard', sx: -2, sy: -Math.round(6 * u) }), { blade: false, lean: -0.08 * u, sy: 1 + 0.04 * u }); }
+      const r = t - c;
+      return Object.assign(knightPose(r < 0.2 ? 2 : 0, 'base', { shieldV: 'guard', sx: 2, sy: r < 0.2 ? 2 : 0, legs: 'stepA' }), { blade: false, lean: track([[0, 0.18], [0.4, 0, 'out']], r), sy: track([[0, 0.86], [0.2, 1, 'out']], r) });
     },
   },
   // 居合(Q): 構え(0.25 秒)→ 抜刀して振り上げ → 残心 → 血振り → 納刀

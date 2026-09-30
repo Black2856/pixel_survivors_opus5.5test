@@ -289,7 +289,7 @@ const ART = (() => {
       ] },
     },
   });
-  S.mage.alias = { ranbu: 'mBarrage', iai: 'mMeteor', aRain: 'mMeteor', aVolley: 'mMeteor', aStep: 'mBlink' }; // 他クラスの武器スキルを使ったときの代わりのモーション
+  S.mage.alias = { ranbu: 'mBarrage', iai: 'mMeteor', aRain: 'mMeteor', aVolley: 'mMeteor', aStep: 'mBlink', kSlam: 'mMeteor', kVerdict: 'mMeteor' }; // 他クラスの武器スキルを使ったときの代わりのモーション
 
   // ---------- クラス: アーチャー(16×18、部位アニメーション) ----------
   // 右向き。緑のフード(影の中で緑の目が光る)・背中のマントと矢筒・手に長弓
@@ -342,7 +342,51 @@ const ART = (() => {
     },
   });
   // 他クラスの武器スキルを使ったときの代わりのモーション
-  S.hunter.alias = { ranbu: 'aRain', mBarrage: 'aRain', iai: 'aVolley', mMeteor: 'aVolley', mBlink: 'aStep' };
+  S.hunter.alias = { ranbu: 'aRain', mBarrage: 'aRain', iai: 'aVolley', mMeteor: 'aVolley', mBlink: 'aStep', kSlam: 'aRain', kVerdict: 'aVolley' };
+
+  // ---------- クラス: ナイト(16×18、部位アニメーション) ----------
+  // 右向き(左半身が手前)。面頬の兜(隙間の目が光る)・銀の板金鎧・青い陣羽織に金の十字・手前の腕に凧形の大盾・奥の手に騎士剣
+  // スキルのモーション中は騎士剣を角度付きで描く(drawPose の刀身と同じ)
+  const KUP = ['helm', 'torso', 'backArm', 'sword', 'shield'];
+  const kup = (dx, dy, extra = {}) => Object.assign(Object.fromEntries(KUP.map(k => [k, [dx, dy]])), extra);
+  S.knight = rig({
+    w: 16, h: 18, padX: 8, emit: 'EG',
+    pal: {
+      m: '#9eabc4', M: '#d6dff0', d: '#5e6a86', e: '#151022', E: '#ffffff', t: '#2c4aa0', g: '#f2c84b', G: '#fff1a0',
+      s: '#3a5ab8', k: '#6b4a2c', l: '#8793b0', a: '#3e4763', w: '#dfe8f5',
+    },
+    order: ['sword', 'backArm', 'legs', 'torso', 'helm', 'shield'],
+    parts: {
+      helm: { x: 4, y: 0, v: {
+        base: ['...gg...', '..mmmm..', '.mMmmmmm', '.mmmeEeE', '.mmmmmmm', '..mdmmm.', '...ddd..'],
+      } },
+      torso: { x: 4, y: 7, v: { base: ['mttgtttm', 'mtgggttm', 'mttgtttm', 'kkkkkkkk', 'dttttttd'] } },
+      backArm: { x: 3, y: 8, v: { base: ['m', 'm', 'k'] } },
+      // 待機・歩きで持っている騎士剣(背中側に立てる)
+      sword: { x: 1, y: 2, hidden: true, v: { base: ['.w.', '.w.', '.w.', '.w.', '.w.', '.w.', 'gkg'] } },
+      // 凧形の大盾。guard / up は紋章が光る
+      shield: { x: 10, y: 8, v: {
+        base:  ['dddddd', 'dsgssd', 'dgggsd', 'dsgssd', 'dsssd.', '.dssd.', '..dd..'],
+        guard: ['dddddd', 'dsGssd', 'dGGGsd', 'dsGssd', 'dsssd.', '.dssd.', '..dd..'],
+      } },
+      legs: { x: 4, y: 12, v: {
+        base:  ['llllllll', 'lll..lll', 'lll..lll', 'll....ll', 'll....ll', 'aa....aa'],
+        stepA: ['llllllll', 'lll..lll', 'll....ll', 'll.....l', 'l......l', 'a......a'],
+        stepB: ['llllllll', 'lll..lll', '.ll..ll.', '.ll..ll.', '.ll..ll.', '.aa..aa.'],
+      } },
+    },
+    motions: {
+      // 待機: 重い呼吸(ゆっくり)
+      idle: { loop: true, frames: [{ t: 0.6, p: kup(0, 0) }, { t: 0.6, p: kup(0, 1) }] },
+      // 歩き: 重い足取り
+      walk: { loop: true, frames: [
+        { t: 0.15, p: kup(0, 1, { legs: [0, 0, 'stepA'] }) }, { t: 0.15, p: kup(0, 0) },
+        { t: 0.15, p: kup(0, 1, { legs: [0, 0, 'stepB'] }) }, { t: 0.15, p: kup(0, 0) },
+      ] },
+    },
+  });
+  S.knight.guard = kup(0, 1, { shield: [1, -2, 'guard'], legs: [0, 0, 'stepB'] }); // 大盾を構えた姿勢
+  S.knight.alias = { ranbu: 'kSlam', mBarrage: 'kSlam', aRain: 'kSlam', iai: 'kVerdict', mMeteor: 'kVerdict', aVolley: 'kVerdict' };
 
   S.zombie = mk({ a: '#3d2f24', b: '#7fb069', c: '#ff4040', d: '#2b3a22', e: '#6b5a8e', f: '#3a3350', g: '#241c2e' }, [
     '...aaaa...',
@@ -692,6 +736,7 @@ const ART = (() => {
   I.bhole = mk({ a: '#c78bff', b: '#1a0a2a', c: '#6a3aa0' }, ['...aaa...', '.aacccaa.', '.acbbbca.', 'acbbbbbca', 'acbbbbbca', 'acbbbbbca', '.acbbbca.', '.aacccaa.', '...aaa...']);
   I.katana = mk({ a: '#e8f0ff', b: '#ff5d73', c: '#3a2a2a', d: '#ffd23f' }, ['........a', '.......aa', '......aa.', '.....aa..', '....aa...', '...aa....', '.dd......', '.bd......', 'bc.......']);
   I.longbow = mk({ o: '#a0703a', s: '#e8e4d8', d: '#d9c9a0', t: '#e8f4ff', g: '#7dff9a' }, ['...oo....', '..o.s....', '.o..s....', '.o..s..t.', 'gddddddtt', '.o..s..t.', '.o..s....', '..o.s....', '...oo....']);
+  I.longsword = mk({ w: '#dfe8f5', M: '#ffffff', g: '#f2c84b', k: '#6b4a2c' }, ['....w....', '...wMw...', '...wMw...', '...wMw...', '...wMw...', '...wMw...', '.ggggggg.', '....k....', '...kgk...']);
   I.gold = S.coin[0];
   // 装備の種類(9×9)。指輪は宝石の色だけ変える
   const ringIc = gem => mk({ a: '#d6ae5c', b: '#fff3a0', c: gem, d: '#ffffff' }, ['...ccc...', '..cdcc...', '...ccc...', '..aabaa..', '.a.....a.', 'a.......a', 'a.......a', '.a.....a.', '..aaaaa..']);

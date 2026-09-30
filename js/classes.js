@@ -155,7 +155,7 @@ WEAPON_SKILL.bolt = {
 };
 // シールド: 被ダメージを HP より先に受ける(最大HP を超えない。時間では消えない)
 function gainShield(n) {
-  P.shield = Math.min(P.maxhp, Math.max(P.shield || 0, Math.round(n))); // 整数(割れたときの表示が小数にならないように)
+  P.shield = Math.min(Math.max(0, shieldCap() - (P.oShield || 0)), Math.max(P.shield || 0, Math.round(n))); // 整数(割れたときの表示が小数にならないように)。上限はクラスが決める
   addRing(P.x, P.y, 16, '#4f8ff0', { w: 2, life: 0.35 }); burst(P.x, P.y, 14, ['#9fd8ff', '#4f8ff0', '#ffffff'], { sp: 60, glow: true });
   S.hudDirty = true;
 }
@@ -213,6 +213,62 @@ WEAPON_SKILL.longbow = {
     P.act = null;
   },
 };
+
+// グランドスラム(騎士剣の E): シールドを得る → 構え → 前方へ衝撃波が数段走る(威力は 武器の威力 + 今のシールド)
+WEAPON_SKILL.longsword = {
+  info(c, dmg) {
+    const sk = DATA.weapons.longsword.skill, m = c.wm, one = dmg * sk.pow * (1 + c.cuV('e', 'pow')) * (1 + (m.ePow || 0));
+    return { name: sk.name, cat: 'e', desc: [
+      `使うと、シールドを最大HP の ${Math.round(sk.shield * 100)}% 得る(${sk.shieldT}秒)`,
+      `構え ${sk.windup}秒(動けない)→ 剣を叩きつけ、前方へ衝撃波が ${sk.steps}段 走る`,
+      `1段の威力: (武器の威力 + 今のシールド) × ${Math.round(sk.pow * 100)}%`,
+    ], rows: [
+      ['CD', `<b>${(sk.cd * (1 - c.cuV('e', 'cd')) * (1 - (m.cd || 0)) * c.cdMul).toFixed(1)}</b> 秒`],
+      ['段数', `${sk.steps + (m.eSteps || 0)} 段`],
+      ['1段の威力(シールド 0)', `${Math.round(one)} → <b>${Math.round(one * c.atkMul)}</b>`, 'シールドがあると、その値が武器の威力に足される'],
+    ] };
+  },
+  start() {
+    const sk = weaponSkill(), m = P.wm.longsword || {};
+    timedShield(P.maxhp * sk.shield * (1 + cuV('e', 'guard')), sk.shieldT);
+    const a = aimDir(120);
+    if (Math.cos(a) !== 0) P.facing = Math.cos(a) < 0 ? -1 : 1;
+    P.act = { slot: 'e', ph: 'wind', t: 0, a, pow: clsESkillMul() * (1 + (m.ePow || 0)) };
+    setCd('e', sk.cd * (1 - cuV('e', 'cd')) * (1 - (m.cd || 0)) * P.cdMul);
+    playAnim('kSlam', MOTIONS.kSlam.dur);
+    skillCall(sk.name, '#ffe9a0'); AudioMan.click();
+  },
+  update(a, dt) {
+    const sk = weaponSkill();
+    P.moveMul = 0;
+    if (a.t < sk.windup) return;
+    const x0 = P.x, y0 = P.y;
+    slamWaves(a, x0, y0, 1);
+    if (hasSp('e', 'cd')) setTimeout(() => { if (state === 'play') slamWaves(a, x0, y0, 0.6); }, 1500); // 余震
+    P.act = null;
+  },
+};
+// 衝撃波を段ごとに時間差で前へ走らせる(1段 = 1回の E の攻撃)
+function slamWaves(a, x0, y0, k) {
+  const sk = DATA.weapons.longsword.skill, m = P.wm.longsword || {}, n = sk.steps + (m.eSteps || 0), fly = hasSp('e', 'guard'), crack = hasSp('e', 'pow');
+  for (let i = 0; i < n; i++) setTimeout(() => {
+    if (state !== 'play') return;
+    const d = sk.stepD * (i + 1) * P.area, x = x0 + Math.cos(a.a) * d, y = y0 + Math.sin(a.a) * d, R = sk.waveR * P.area, el = clsNextEl();
+    const dmg = (wst(P.mainW).dmg + shieldTotal()) * sk.pow * (1 + cuV('e', 'pow')) * a.pow * k;
+    asMine(() => {
+      forEachNear(x, y, R, e => {
+        if (e.prop) { killEnemy(e); return; }
+        hitEnemy(e, dmg, { src: 'slam', ang: a.a, kb: fly ? 220 : 70, col: '#ffe9a0', el, eHit: true });
+        if (fly && !e.dead) e.stun = Math.max(e.stun || 0, 1.5); // 吹き飛ばし
+      });
+      addRing(x, y, R, '#ffe9a0', { w: 2, life: 0.3 }); addFlash(x, y, R * 2.4, '#fff1d0', 0.25);
+      burst(x, y, 18, ['#8a7a60', '#5a4a3a', '#ffe9a0', '#ffffff'], { sp: 110, up: 50, g: 180, life: 0.6 }); // 岩の破片と土煙
+      shockAt(x, y, 1, 1); shake(4 + i);
+      if (crack) zones.push({ kind: 'crack', x, y, r: R, t: 0, dur: 5, tick: 0.5, dmg: wst(P.mainW).dmg * 0.5 }); // 地割れ
+    });
+    AudioMan.boom();
+  }, i * sk.gap * 1000);
+}
 
 function ranbuHit(sk) {
   const R = sk.radius * P.area, dmg = wst(P.mainW).dmg * sk.pow * (1 + cuV('e', 'pow')) * P.act.pow, k0 = S.kills, el = clsNextEl(); // 1回の斬撃 = 1属性
@@ -621,6 +677,124 @@ const CLASS_RT = {
       ];
     },
   },
+
+  knight: {
+    skills: ['q'],
+    init() { P.guard = false; P.guardHeld = false; P.guardT = 0; P.breakT = 0; P.knHitWin = 0; P.knHitT = 0; P.knGuardHit = -99; P.knBreakCd = 0; },
+    update(dt) {
+      const p = KN();
+      P.breakT -= dt; P.knHitT -= dt;
+      if (P.knHitT <= 0) { P.knHitT = 1; P.knHitWin = 0; }
+      // 大盾(Space 長押し)。構えた瞬間にスタミナ guardCost。押し直すまで再び構えない
+      const held = (keys.Space || keys.TouchDef) && !P.act;
+      if (held && !P.guard && !P.guardHeld && P.breakT <= 0) {
+        if (P.sta >= p.guardCost) { staUse(p.guardCost); P.guard = true; P.guardT = 0; AudioMan.click(); }
+        else addFloat(P.x, P.y - 16, 'STAMINA', '#6a7a88');
+      }
+      P.guardHeld = held;
+      if (!held && P.guard) P.guard = false;
+      if (P.guard) P.guardT += dt;
+      P.moveMul = P.guard ? p.guardSlow : 1;
+      // シールド: decayWait 秒 ガードで受けていないと減っていく / 上限を超えた分は削る
+      if (S.time - P.knGuardHit > p.decayWait && P.shield > 0) P.shield = Math.max(0, P.shield - knCap() * p.decay * dt);
+      const over = shieldTotal() - knCap();
+      if (over > 0) P.shield = Math.max(0, P.shield - over);
+      if (hasSp('trait', 'hold') && shieldTotal() >= 1) heal(p.sanct * dt, true); // 聖域
+    },
+    // 被弾: 大盾を構えていれば全方向で受け止める(HP は減らない)。受けたダメージはシールドに変わる
+    onHurt(dmg) {
+      const p = KN();
+      if (P.breakT > 0 || !P.guard) return dmg;
+      const blocked = Math.max(1, Math.round((dmg - P.armor) * (1 - P.dr)));
+      staUse(blocked * Math.max(0, p.pay - (P.lvFx.payCut || 0)), DATA.player.staLock);
+      knGain(blocked * cuV('trait', 'convert', p.convert));
+      P.knGuardHit = S.time;
+      if (hasSp('trait', 'convert')) { // 反射: 近くの敵に返す
+        let best = null, bd = p.reflectR * p.reflectR;
+        forEachNear(P.x, P.y, p.reflectR, e => { if (e.prop || e.dead) return; const d = d2(e.x, e.y, P.x, P.y); if (d < bd) { bd = d; best = e; } });
+        if (best) asMine(() => { hitEnemy(best, blocked * p.reflect, { src: 'reflect', ang: Math.atan2(best.y - P.y, best.x - P.x), kb: 80, col: '#f2c84b' }); bolts.push({ x0: P.x, y0: P.y, x1: best.x, y1: best.y, t: 0, life: 0.15, w: 1 }); });
+      }
+      burst(P.x, P.y - 4, 10, ['#f2c84b', '#ffffff'], { sp: 70, glow: true, life: 0.25 });
+      addRing(P.x, P.y, 14, '#f2c84b', { life: 0.2 });
+      AudioMan.hit(); shake(2);
+      if (P.sta <= 0) { // ガードブレイク
+        P.guard = false; P.breakT = p.breakT;
+        UI.announce('GUARD BREAK', ''); AudioMan.hurt(); shake(6);
+        addRing(P.x, P.y, 26, '#ff3b5c', { w: 2, life: 0.4 });
+      }
+      P.ifr = P.iframe * 0.5;
+      return null;
+    },
+    // 通常攻撃の命中: シールド +1(1秒に hitCap まで)
+    onMainHit() { const p = KN(); if (P.knHitWin < p.hitCap) { P.knHitWin += p.hitGain; knGain(p.hitGain); } },
+    onShieldBreak: () => knightBreak(),
+    shieldCap: () => knCap(),
+    atkBonus: () => knHoldAtk(),
+    qStart() {
+      const q = DATA.classes.knight.q, a = aimDir(q.r * 1.5);
+      if (Math.cos(a) !== 0) P.facing = Math.cos(a) < 0 ? -1 : 1;
+      P.act = { slot: 'q', ph: 'wind', t: 0, a };
+      playAnim('kVerdict', MOTIONS.kVerdict.dur);
+      slowmo(0.5, 0.2);
+      skillCall(q.name, '#f2c84b'); AudioMan.click();
+    },
+    qUpdate(a, dt) {
+      const q = DATA.classes.knight.q;
+      P.moveMul = 0;
+      if (a.t < q.windup) { // 大盾に光が集まる
+        asMine(() => { if (Math.random() < dt * 50) { const r = rand(0, TAU); part(P.x + Math.cos(r) * 24, P.y - 16 + Math.sin(r) * 24, -Math.cos(r) * 70, -Math.sin(r) * 70, 0.35, pick(['#f2c84b', '#ffffff']), { glow: true, drag: 0 }); } });
+        return;
+      }
+      knightVerdict(a);
+      P.act = null;
+    },
+    res: () => ({ kind: 'shield', label: 'シールド', v: Math.floor(shieldTotal()), max: Math.max(1, Math.round(knCap())), dk: '#6a5a1a' }),
+    staBroken: () => P.breakT > 0,
+    statuses() {
+      const out = [], k = knHoldAtk();
+      if (k > 0.005) out.push({ id: 'hold', glyph: '堅', name: '堅守', fx: `攻撃力 +${Math.round(k * 100)}%(シールドの量に比例)` + (hasSp('trait', 'hold') ? ' HP 1/s 回復' : ''), kind: 'buff' });
+      if (P.breakT > 0) out.push({ id: 'break', glyph: '崩', name: 'ガードブレイク', fx: 'ガード不可', t: P.breakT, max: KN().breakT, kind: 'debuff' });
+      return out;
+    },
+    qInfo: () => ({ name: DATA.classes.knight.q.name, glyph: '審' }),
+    info(c) {
+      const p = KN(), q = DATA.classes.knight.q, k = 1 + c.cuV('q', 'pow') + (c.lvFx.qPow || 0), capP = p.capPct + c.cuV('trait', 'cap') + (c.lvFx.capPct || 0);
+      return [
+        { key: '特性', name: '聖盾', cat: 'trait', desc: [
+          `大盾で受けたダメージの ${Math.round(p.convert * 100)}% がシールドになる`,
+          `通常攻撃の命中で +${p.hitGain}(1秒に ${p.hitCap} まで)`,
+          `${p.decayWait}秒 大盾で受けていないと、1秒に上限の ${Math.round(p.decay * 100)}% ずつ減る`,
+          '堅守: シールドの量に比例して攻撃力アップ',
+          '  → 魔力障壁などほかのシールドも同じ扱い',
+        ], rows: [
+          ['シールドの上限', `最大HP の ${Math.round(capP * 100)}%`],
+          ['堅守(上限のとき)', `<b>+${Math.round(c.cuV('trait', 'hold', p.holdAtk) * 100)}%</b>`],
+        ] },
+        { key: 'パッシブ', name: '不屈', cat: 'passive', desc: [
+          'シールドが割れた瞬間、周りに衝撃波を放って敵を押し返す',
+          `割れた直後 ${p.breakIfr}秒 無敵(${p.breakCd}秒に1回まで)`,
+        ], rows: [
+          ['衝撃波の威力', `${Math.round(p.breakPow * (1 + c.cuV('passive', 'shock') + (c.lvFx.breakPow || 0)))} → <b>${Math.round(p.breakPow * (1 + c.cuV('passive', 'shock') + (c.lvFx.breakPow || 0)) * c.atkMul)}</b>`],
+        ] },
+        { key: 'Q', name: q.name, cat: 'q', desc: [
+          `構え ${q.windup}秒(動けない)→ シールドを全て消費し、前方の扇形に光の衝撃`,
+          `威力: ${q.pow} + 消費したシールド × ${q.perShield}`,
+          `当たった敵を押し返し、${q.stun}秒 スタン`,
+          '威力は武器に依存しない',
+        ], rows: [
+          ['CD', `<b>${(q.cd * (1 - c.cuV('q', 'cd')) * c.cdMul).toFixed(1)}</b> 秒`],
+          ['基礎威力(シールド 0)', `${Math.round(q.pow * k)} → <b>${Math.round(q.pow * k * c.atkMul)}</b>`],
+        ] },
+        { key: 'Space', name: '大盾', desc: [
+          '長押しで大盾を構え、全方向の攻撃を受け止める(HP は減らない)',
+          `構えた瞬間にスタミナ ${p.guardCost}。受けたダメージの ${Math.round((p.pay - (c.lvFx.payCut || 0)) * 100)}% をスタミナで払う`,
+          `構えている間は移動速度 ×${p.guardSlow}。スタミナ 0 でガードブレイク(${p.breakT}秒)`,
+        ], rows: [
+          ['スタミナの払い', `<b>${Math.round((p.pay - (c.lvFx.payCut || 0)) * 100)}%</b>`],
+        ] },
+      ];
+    },
+  },
 };
 
 // 居合の斬撃: 通過した敵にまとめてダメージ(少し遅れて斬撃線が炸裂する)
@@ -908,6 +1082,72 @@ function archerVolley() {
   AudioMan.shoot(); AudioMan.crit();
 }
 
+// ---------- ナイト: 聖盾・不屈・大盾・聖盾の審判 ----------
+const KN = () => DATA.classes.knight.params;
+const knCap = () => P.maxhp * (KN().capPct + cuV('trait', 'cap') + (P.lvFx.capPct || 0));
+// 自分のシールド(時間では消えない。上限まで)
+function knGain(n) {
+  if (!(n > 0)) return;
+  P.shield = Math.min(Math.max(0, knCap() - (P.oShield || 0)), (P.shield || 0) + n);
+  S.hudDirty = true;
+}
+// 堅守: シールドの量(上限に対する割合)に比例して攻撃力アップ。鉄壁: 上限の間 1.5倍
+function knHoldAtk() {
+  const cap = knCap(), f = cap > 0 ? Math.min(1, shieldTotal() / cap) : 0;
+  let k = cuV('trait', 'hold', KN().holdAtk) * f;
+  if (hasSp('trait', 'cap') && f >= 0.999) k *= 1.5;
+  return k;
+}
+// 不屈: シールドが割れた瞬間の衝撃波と立て直し
+function knightBreak() {
+  const p = KN();
+  if (S.time < (P.knBreakCd || 0)) return;
+  P.knBreakCd = S.time + p.breakCd;
+  const pow = p.breakPow * (1 + cuV('passive', 'shock') + (P.lvFx.breakPow || 0)), R = p.breakR * P.area;
+  const wave = () => asMine(() => {
+    forEachNear(P.x, P.y, R, e => { if (!e.prop) hitEnemy(e, pow, { src: 'knbreak', ang: Math.atan2(e.y - P.y, e.x - P.x), kb: 150, col: '#f2c84b' }); });
+    addRing(P.x, P.y, R, '#f2c84b', { w: 3, life: 0.35 }); addRing(P.x, P.y, R * 0.6, '#ffffff', { w: 2, life: 0.25 });
+    addFlash(P.x, P.y, R * 2.4, '#fff1d0', 0.35); shockAt(P.x, P.y, 1.4, 1); shake(6);
+    burst(P.x, P.y, 30, ['#f2c84b', '#fff1d0', '#ffffff'], { sp: 150, glow: true, life: 0.45 });
+  });
+  wave();
+  if (hasSp('passive', 'shock')) setTimeout(() => { if (state === 'play') wave(); }, 400); // 復讐
+  const inv = p.breakIfr + cuV('passive', 'rise');
+  P.invT = Math.max(P.invT, inv); P.ifr = Math.max(P.ifr, inv);
+  const v = cuV('passive', 'vigor');
+  if (v) P.sta = Math.min(P.maxSta, P.sta + v);
+  if (hasSp('passive', 'vigor')) heal(P.maxhp * 0.1); // 不死身
+  if (hasSp('passive', 'rise')) setTimeout(() => { if (state === 'play') knGain(knCap() * p.rebuild); }, 3000); // 再構築
+  addFloat(P.x, P.y - 18, '不屈!', '#f2c84b', 1.2);
+  AudioMan.boom();
+}
+// 聖盾の審判: シールドを全て消費して、前方の扇形(全周)に光の衝撃
+function knightVerdict(a) {
+  const q = DATA.classes.knight.q, used = Math.floor(shieldTotal());
+  P.shield = 0; P.oShield = 0; P.oChunks = []; S.hudDirty = true; // 消費(割れた扱いにはしない)
+  const pow = (q.pow + used * q.perShield) * (1 + cuV('q', 'pow') + (P.lvFx.qPow || 0));
+  const R = q.r * (1 + cuV('q', 'area')) * P.area, full = hasSp('q', 'area'), holy = hasSp('q', 'pow');
+  asMine(() => {
+    forEachNear(P.x, P.y, R, e => {
+      let diff = Math.atan2(e.y - P.y, e.x - P.x) - a.a;
+      diff = Math.atan2(Math.sin(diff), Math.cos(diff));
+      if (!full && Math.abs(diff) > q.arc / 2) return;
+      if (e.prop) { killEnemy(e); return; }
+      const dealt = hitEnemy(e, pow, { src: 'verdict', ang: Math.atan2(e.y - P.y, e.x - P.x), kb: 170, col: '#fff1d0' });
+      if (!e.dead) e.stun = Math.max(e.stun || 0, q.stun);
+      if (holy && dealt && !e.dead) addBurn(e, dealt * 0.3 / 3 / dmgMul(), 3, 'verdict'); // 聖炎
+    });
+    slashes.push({ x: P.x, y: P.y, a: a.a, r: R, t: 0, life: 0.35, col: '#fff1d0', span: q.arc * 1.2, full });
+    addRing(P.x, P.y, R, '#f2c84b', { w: 3, life: 0.45 }); addRing(P.x, P.y, R * 0.55, '#ffffff', { w: 2, life: 0.3 });
+    addFlash(P.x + Math.cos(a.a) * R * 0.5, P.y + Math.sin(a.a) * R * 0.5, R * 2.5, '#fff1d0', 0.5);
+    burst(P.x, P.y, 40 + Math.min(40, used), ['#f2c84b', '#fff1d0', '#ffffff'], { sp: 200, glow: true, life: 0.55 });
+    shockAt(P.x, P.y, 1.8 + Math.min(1, used / 60), 1); shake(10); hitstop(0.08); screenFlash(0.3 * SET.fxA, '#fff1d0');
+  });
+  if (hasSp('q', 'cd')) knGain(used * q.echo); // 残響
+  setCd('q', q.cd * (1 - cuV('q', 'cd')) * P.cdMul);
+  AudioMan.boom(); AudioMan.crit();
+}
+
 // ---------- world.js から呼ぶ入口 ----------
 const clsRT = () => CLASS_RT[P.cls];
 function clsInit() {
@@ -948,6 +1188,8 @@ function clsOnElement(e, el, dealt) { if (clsRT() && clsRT().onElement) clsRT().
 function clsOnMainHit(e) { if (clsRT()) clsRT().onMainHit(e); }
 function clsOnEHit(e) { if (clsRT() && clsRT().onEHit) clsRT().onEHit(e); } // 武器スキル(E)の命中
 // 敵ごとの補正(アーチャーの印・弱点露出・集中など)
+const clsShieldCap = () => (clsRT() && clsRT().shieldCap ? clsRT().shieldCap() : P.maxhp);  // シールドの上限
+function clsOnShieldBreak() { if (clsRT() && clsRT().onShieldBreak) clsRT().onShieldBreak(); } // シールドが割れた
 const clsDmgTaken = e => (clsRT() && clsRT().dmgTaken ? clsRT().dmgTaken(e) : 1);
 const clsCritBonus = e => (clsRT() && clsRT().critBonus ? clsRT().critBonus(e) : 0);
 const clsCritDmgBonus = e => (clsRT() && clsRT().critDmgBonus ? clsRT().critDmgBonus(e) : 0);

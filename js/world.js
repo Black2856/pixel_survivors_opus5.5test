@@ -152,8 +152,10 @@ function breakCombo() {
 // シールド: P.shield(魔力障壁など。時間では消えない)+ P.oShield(時間で消える。聖盾の 10秒・守印 5秒など)。合計は最大HP まで
 // P.oChunks = [{ v, t, dur }](得た順)。少しずつ得る分は、同じ長さで1秒以内なら同じかたまりにまとめる
 const shieldTotal = () => (P.shield || 0) + (P.oShield || 0);
+// シールドの上限: クラスが決める(ナイトは最大HP の 50% など)。無ければ最大HP
+const shieldCap = () => (typeof clsShieldCap === 'function' ? clsShieldCap() : P.maxhp);
 function timedShield(n, dur) {
-  const v = Math.min(n, P.maxhp - shieldTotal()), last = P.oChunks[P.oChunks.length - 1];
+  const v = Math.min(n, shieldCap() - shieldTotal()), last = P.oChunks[P.oChunks.length - 1];
   if (v <= 0) return;
   if (last && last.dur === dur && last.t > dur - 1) last.v += v; else P.oChunks.push({ v, t: dur, dur });
   P.oShield += v; S.hudDirty = true;
@@ -184,7 +186,7 @@ function hurtPlayer(dmg) {
     dmg -= a; S.hudDirty = true;
     addFloat(P.x, P.y - 10, String(a), '#7ab8ff', 1);
     burst(P.x, P.y, 8, ['#9fd8ff', '#4f8ff0', '#ffffff'], { sp: 60, glow: true, life: 0.3 });
-    if (shieldTotal() < 1) { P.shield = P.oShield = 0; P.oChunks = []; addRing(P.x, P.y, 20, '#4f8ff0', { w: 2, life: 0.3 }); AudioMan.hit(); } // 割れた
+    if (shieldTotal() < 1) { P.shield = P.oShield = 0; P.oChunks = []; addRing(P.x, P.y, 20, '#4f8ff0', { w: 2, life: 0.3 }); AudioMan.hit(); clsOnShieldBreak(); } // 割れた
     if (dmg <= 0) { P.ifr = P.iframe; AudioMan.hit(); return; }
   }
   P.hp -= dmg; P.ifr = P.iframe; P.hurtT = 0.12;
@@ -394,6 +396,23 @@ function updWeapons(dt) {
         }
         break;
 
+      case 'longsword':
+        // 正面を大きく薙ぎ払う(回数が多いときは往復で時間差)。聖剣: 0.3秒後に同じ範囲をもう一度(50%)
+        if (w.cd <= 0) {
+          w.cd = st.cd * P.cdMul;
+          for (let i = 0; i < n; i++) w.q.push({ t: i * 0.14, flip: i % 2 });
+        }
+        for (let i = w.q.length - 1; i >= 0; i--) {
+          const s = w.q[i];
+          s.t -= dt;
+          if (s.t > 0) continue;
+          w.q.splice(i, 1);
+          const a = aimAt(st.aoe * P.area + 20);
+          sweep(a, st, s.flip, { src: k, col: '#ffe9a0', colEvo: '#fff3a0', arc: 1.35, kb: 90, evo: w.evo });
+          if (w.evo) setTimeout(() => { if (state === 'play') sweep(a, { dmg: st.dmg * 0.5, aoe: st.aoe }, !s.flip, { src: k, col: '#fff3a0', arc: 1.35, kb: 30, echo: true }); }, 300);
+        }
+        break;
+
       case 'katana':
         if (w.cd <= 0) {
           w.cd = st.cd * P.cdMul;
@@ -461,6 +480,21 @@ function shootArrow(k, st, evo) {
   fire('arrow', P.x, P.y - 2, a, st.speed, { dmg: st.dmg, pierce: st.pierce, life: 0.9 * P.range, src: k, r: 3, col: evo ? '#ffe14a' : '#e4ffd8', dbl: evo });
   part(P.x + Math.cos(a) * 8, P.y - 2 + Math.sin(a) * 8, Math.cos(a) * 40, Math.sin(a) * 40, 0.2, '#e4ffd8', { glow: true });
   AudioMan.shoot();
+}
+// 騎士剣の薙ぎ払い(扇形)。o.arc: 半分の角度 / o.evo: 聖剣(当てるたびに 5秒のシールド +1。1回の攻撃につき1まで)
+function sweep(a, st, flip, o) {
+  const R = st.aoe * P.area, el = clsNextEl();
+  slashes.push({ x: P.x, y: P.y, a, r: R, t: 0, life: o.echo ? 0.25 : 0.22, flip, col: o.col, span: o.arc * 1.8 });
+  let got = false;
+  forEachNear(P.x, P.y, R, e => {
+    let diff = Math.atan2(e.y - P.y, e.x - P.x) - a;
+    diff = Math.atan2(Math.sin(diff), Math.cos(diff));
+    if (Math.abs(diff) > o.arc) return;
+    hitEnemy(e, st.dmg, { src: o.src, ang: a, kb: o.kb, col: o.col, el });
+    got = true;
+  });
+  if (got && o.evo) timedShield(1, 5); // 聖剣
+  AudioMan.slash();
 }
 function doSlash(a, st, evo, flip) {
   const R = st.aoe * P.area, el = clsNextEl(); // 斬撃1回 = 1属性(メイジ)
@@ -547,6 +581,12 @@ function updZones(dt) {
           e.frost = z.maxFrost ? Math.max(e.frost || 0, mageFrostCap()) : Math.min(10, (e.frost || 0) + 1); e.frostT = 5; // maxFrost: 絶対零度
         });
       }
+    } else if (z.kind === 'crack') { // 地割れ(グランドスラムの特殊強化)
+      if (z.tick <= 0) {
+        z.tick = 0.5;
+        asMine(() => forEachNear(z.x, z.y, z.r, e => { if (!e.prop) hitEnemy(e, z.dmg, { src: 'slam', noNum: Math.random() < 0.6, col: '#ffb347', eHit: true }); }));
+      }
+      if (Math.random() < dt * 10) part(z.x + rand(-z.r, z.r) * 0.7, z.y + rand(-z.r, z.r) * 0.4, 0, -15, 0.5, pick(['#ffb347', '#8a5a2a']), { glow: true });
     } else if (z.kind === 'rain') { // アローレイン: 範囲のランダムな位置へ矢が刺さる
       if (z.follow) { z.x = P.x; z.y = P.y; }
       for (const ar of z.arrows) ar.t += dt;
