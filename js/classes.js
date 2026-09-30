@@ -1132,8 +1132,9 @@ function knightBreak() {
 function knightVerdict(a) {
   const q = DATA.classes.knight.q, used = Math.floor(shieldTotal());
   P.shield = 0; P.oShield = 0; P.oChunks = []; S.hudDirty = true; // 消費(割れた扱いにはしない)
-  const pow = (q.pow + used * q.perShield) * (1 + cuV('q', 'pow') + (P.lvFx.qPow || 0));
-  const R = q.r * (1 + cuV('q', 'area')) * P.area, full = hasSp('q', 'area'), holy = hasSp('q', 'pow');
+  const full = hasSp('q', 'area'), holy = hasSp('q', 'pow');
+  const pow = (q.pow + used * q.perShield * (full ? 1.5 : 1)) * (1 + cuV('q', 'pow') + (P.lvFx.qPow || 0)); // 全周: シールド分 +50%
+  const R = q.r * (1 + cuV('q', 'area')) * P.area;
   asMine(() => {
     forEachNear(P.x, P.y, R, e => {
       let diff = Math.atan2(e.y - P.y, e.x - P.x) - a.a;
