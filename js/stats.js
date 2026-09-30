@@ -2,10 +2,10 @@
 // ゲーム内の計算とステータス画面の内訳は、どちらも computeStats() の結果を使う
 'use strict';
 
-const STAT_SRC = ['class', 'classLv', 'tree', 'equip', 'unique', 'run', 'micro'];
+const STAT_SRC = ['class', 'classLv', 'tree', 'equip', 'unique', 'chaos', 'run', 'micro'];
 const STAT_SRC_LABEL = {
   class: 'クラス基礎', classLv: 'クラスLv', tree: '永続ツリー', equip: '装備',
-  unique: '固有効果', run: 'ラン中の強化', micro: '微強化',
+  unique: '固有効果', chaos: 'カオス強化', run: 'ラン中の強化', micro: '微強化',
 };
 
 // ---------- 永続ツリーのグラフ ----------
@@ -116,6 +116,12 @@ function equippedOpts(lvOf) {
   return out;
 }
 
+// ---------- カオス強化 ----------
+// lv: { 項目のキー: Lv } → 合計ポイント / 報酬の行
+const chaosPoints = lv => DATA.chaos.mods.reduce((a, m) => a + (lv[m.k] || 0) * m.pt, 0);
+const chaosReward = pt => DATA.chaos.rewards.filter(r => pt >= r.pt).pop() || null;
+const chaosDesc = (m, lv) => m.desc.replace('{v}', (lv || 1) * m.per);
+
 // ---------- クラスLv の効果 ----------
 // 専用 = クラスの lv 表(そのクラスの Lv)/ 共通 = 武器の mastery 表(その武器を持つクラスの Lv)
 const classLvOf = cls => (META.classes[cls] || { lv: 1 }).lv;
@@ -181,6 +187,9 @@ function computeStats({ cls = META.cls, run = false, eq = run ? 'run' : 'zero' }
     for (const k in U.stat || {}) add('unique', k, U.stat[k]);
     for (const k in U.mul || {}) mul[k] *= U.mul[k];
   }
+
+  // カオス強化の報酬(そのランの合計ポイントに応じて)
+  if (run && S && S.chaosReward) for (const k in S.chaosReward) if (k !== 'pt') add('chaos', k, S.chaosReward[k]);
 
   // 微強化(hpPct は最大HP の倍率)
   if (run && P) for (const k in P.micro) { if (k === 'hpPct') mul.hp *= 1 + P.micro[k]; else add('micro', k, P.micro[k]); }

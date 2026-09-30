@@ -229,12 +229,45 @@ const MetaUI = (() => {
     $('st-class').innerHTML = `<img src="${portrait(META.cls)}" alt=""><span><b>${c.name}</b> Lv${m.lv} ・ ${DATA.weapons[m.weapon].name}</span><small>クラス変更 ▶</small>`;
     $('stage-list').innerHTML = STAGE_ITEMS().map(s => {
       const clear = META.stageClear[s.key];
+      const pt = clear ? chaosPoints(META.chaos[s.key] || {}) : 0;
       return `<button class="stg" data-mode="${s.mode}" data-n="${s.n}" style="--sc:${s.col}">
         <span class="nm">${s.name}${clear ? ' <b class="clr">★ CLEAR</b>' : ''}</span><span class="sub">${s.sub}</span>
-        <span class="chaos ${clear ? 'on' : ''}">${clear ? 'カオス強化: 解放済み(内容は今後追加)' : 'カオス強化: クリアで解放'}</span></button>`;
+        <span class="chaos ${clear ? 'on' : ''}">${clear ? `カオス強化: <b>${pt} pt</b> <span class="cz-btn" data-chaos="${s.key}">設定 ▶</span>` : 'カオス強化: クリアで解放'}</span></button>`;
     }).join('');
   }
-  $('stage-list').onclick = e => { const b = e.target.closest('.stg'); if (!b) return; AudioMan.click(); startRun(b.dataset.mode, +b.dataset.n); };
+  $('stage-list').onclick = e => {
+    const c = e.target.closest('[data-chaos]');
+    if (c) { AudioMan.click(); chaosPanel(c.dataset.chaos); return; } // カオス強化の設定(出撃はしない)
+    const b = e.target.closest('.stg'); if (!b) return; AudioMan.click(); startRun(b.dataset.mode, +b.dataset.n);
+  };
+  // ---------- カオス強化の設定 ----------
+  // 項目ごとに Lv を上げ下げ。合計ポイントと、その報酬(そのランの間だけ効く)を表示する
+  let czKey = null;
+  const rewardText = r => r ? [`装備ロール上限 +${Math.round(r.eqMaxVal * 100)}%`, r.eqMaxLv ? `装備Lv上限 +${r.eqMaxLv}` : '', `装備品質 +${Math.round(r.eqQual * 100)}%`, `宝箱品質 +${Math.round(r.chestQual * 100)}%`, `獲得ゴールド +${Math.round(r.gold * 100)}%`].filter(Boolean).join(' ・ ') : 'なし(5 pt から)';
+  function chaosPanel(key) {
+    czKey = key; const lv = META.chaos[key] || (META.chaos[key] = {});
+    const pt = chaosPoints(lv), r = chaosReward(pt), next = DATA.chaos.rewards.find(x => x.pt > pt);
+    const item = STAGE_ITEMS().find(s => s.key === key);
+    $('chaos-panel').innerHTML = `<div class="cz">
+      <div class="cz-head"><b>カオス強化</b> ${item ? item.name : ''}<button class="cz-x" data-cz="close">×</button></div>
+      <div class="cz-list">${DATA.chaos.mods.map(m => { const l = lv[m.k] || 0; return `<div class="cz-row ${l ? 'on' : ''}">
+        <span class="nm">${m.name}<small>${chaosDesc(m, Math.max(1, l))}${m.max > 1 ? ` (1Lv ${m.per}${m.k === 'bossLv' || m.k === 'startLv' ? '' : '%'})` : ''}</small></span>
+        <span class="pt">${m.pt} pt/Lv</span>
+        <button data-cz="-" data-k="${m.k}" ${l ? '' : 'disabled'}>−</button><b>${l} / ${m.max}</b><button data-cz="+" data-k="${m.k}" ${l < m.max ? '' : 'disabled'}>+</button></div>`; }).join('')}</div>
+      <div class="cz-sum"><div>合計 <b>${pt} pt</b></div><div class="rw">報酬: ${rewardText(r)}</div>${next ? `<div class="dim">次(${next.pt} pt): ${rewardText(next)}</div>` : ''}</div>
+      <div class="dim cz-note">報酬はこのモード・ステージのランの間だけ効く。敵が強くなる分、装備とゴールドが増える</div>
+    </div>`;
+    UI.show($('chaos-panel'));
+  }
+  $('chaos-panel').onclick = e => {
+    if (e.target === $('chaos-panel')) { closeChaos(); return; }
+    const b = e.target.closest('[data-cz]'); if (!b || b.disabled) return;
+    if (b.dataset.cz === 'close') { closeChaos(); return; }
+    const lv = META.chaos[czKey], m = DATA.chaos.mods.find(x => x.k === b.dataset.k);
+    lv[m.k] = clamp((lv[m.k] || 0) + (b.dataset.cz === '+' ? 1 : -1), 0, m.max);
+    saveMeta(); AudioMan.click(); chaosPanel(czKey);
+  };
+  function closeChaos() { UI.hide($('chaos-panel')); czKey = null; stageSelect(); }
   $('st-class').onclick = () => { AudioMan.click(); classScreen('stage'); };
   $('st-back').onclick = () => { AudioMan.click(); state = 'title'; UI.title(); };
 
@@ -262,7 +295,7 @@ const MetaUI = (() => {
   };
   function onKey(e) {
     if (state === 'equip' && e.code === 'Escape') close();
-    if (state === 'stage' && e.code === 'Escape') { state = 'title'; UI.title(); }
+    if (state === 'stage' && e.code === 'Escape') { if (czKey) closeChaos(); else { state = 'title'; UI.title(); } }
     if (state === 'class' && e.code === 'Escape') closeClass();
     if (state === 'tree' && e.code === 'Escape') { state = 'title'; UI.title(); }
     if (state === 'shop' && e.code === 'Escape') { state = 'title'; UI.title(); }

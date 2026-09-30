@@ -37,7 +37,7 @@ let metaMigratedGold = 0; // v1 からの移行で返金した額(タイトル�
 const META = (() => {
   const m = {
     ver: 2, gold: 0, cls: 'samurai', classes: {}, tree: [], inventory: [], nextItemId: 1,
-    loadout: { weapon: null, armor: null, ring: null }, stageClear: {}, best: { time: 0, kills: 0, level: 0 }, runs: 0,
+    loadout: { weapon: null, armor: null, ring: null }, stageClear: {}, chaos: {}, best: { time: 0, kills: 0, level: 0 }, runs: 0,
   };
   let raw = null;
   try { raw = JSON.parse(localStorage.getItem(META_KEY) || 'null'); } catch (e) { /* 壊れたデータは初期値で続行 */ }

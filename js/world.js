@@ -11,6 +11,25 @@ const xpFor = l => Math.floor(4 + l * 2.6 + Math.pow(l, 1.72));
 // ============================================================
 // ラン初期化 / ステータス
 // ============================================================
+// ---------- カオス強化の効果(ラン開始時に S.chaos から計算) ----------
+// area: 敵の攻撃範囲の倍率 / rate: 敵の攻撃頻度の倍率 / debuff: デバフの時間の倍率 / その他は Lv
+let CHAOS = { area: 1, rate: 1, debuff: 1, lvSpeed: 1, spawn: 1, loot: 0, bossLv: 0, rage: false, twin: false };
+function setupChaos(lv) {
+  const L = k => lv[k] || 0, per = k => DATA.chaos.mods.find(m => m.k === k).per / 100;
+  CHAOS = {
+    area: 1 + L('area') * per('area'), rate: 1 + L('rate') * per('rate'), debuff: 1 + L('debuff') * per('debuff'),
+    lvSpeed: 1 + L('lvSpeed') * per('lvSpeed'), spawn: 1 + L('spawn') * per('spawn'), loot: L('loot') * per('loot'),
+    bossLv: L('bossLv'), startLv: L('startLv'), rage: !!L('rage'), twin: !!L('twin'),
+  };
+}
+// 敵の攻撃の予告(攻撃範囲の倍率で広げる。当たり判定の hitCircle / hitLine と揃える)
+function pushWarn(w) {
+  if (w.r) w.r *= CHAOS.area;
+  if (w.w) w.w *= CHAOS.area;
+  if (w.len) w.len *= CHAOS.area;
+  warns.push(w);
+}
+
 // ステージ単体モードの出現スケジュール: そのステージの敵の波を 0 秒から並べ直し、180秒と360秒にボス
 function stageSchedule(n) {
   const R = DATA.stageRuns[n - 1];
@@ -44,6 +63,13 @@ function initRun(mode = 'normal', stageNo = 1) {
   S.stageNo = stageNo; S.sched = mode === 'stage' ? stageSchedule(stageNo) : DATA.schedule;
   if (mode === 'arena') { S.stage = 4; S.elv = DATA.arena.elv[0]; S.arena = { idx: 0, restT: 3, warned: false }; }
   if (mode === 'stage') { const R = DATA.stageRuns[stageNo - 1]; S.stage = R.stage; S.elv = R.elv; }
+  // カオス強化: クリア済みのモード・ステージだけ。設定は META.chaos[キー]
+  const ck = mode === 'stage' ? 'stage' + stageNo : mode;
+  S.chaos = META.stageClear[ck] && META.chaos && META.chaos[ck] ? Object.assign({}, META.chaos[ck]) : {};
+  S.chaosPt = chaosPoints(S.chaos); S.chaosReward = chaosReward(S.chaosPt);
+  setupChaos(S.chaos);
+  S.elv += CHAOS.startLv;
+  recalc(); // 報酬をステータスへ
 }
 // 現在地から n レベル上がるのに必要な経験値(倍率適用前)
 function xpForLevels(n) {
@@ -87,7 +113,7 @@ const hpK = (lv = S.elv) => DATA.enemyLevel.hpLin * (lv - 1) + Math.pow(DATA.ene
 const enemyDmgK = () => enemyBase() * lvK('dmg');
 function updEnemyLevel(dt) {
   if (S.boss || S.mode === 'arena') return; // ボス出現中は停止(闘技場はラウンドごとに固定)
-  S.elvT += dt;
+  S.elvT += dt * CHAOS.lvSpeed; // カオス: 敵Lv の上昇速度
   if (S.elvT >= DATA.enemyLevel.interval) { S.elvT -= DATA.enemyLevel.interval; S.elv++; UI.enemyLvUp(); }
 }
 function heal(n, silent) {
@@ -142,7 +168,7 @@ function updDebuffs(dt) {
 function burnPlayer(dmg) {
   if (P.invT > 0 || P.dead) return;
   if (P.burnT <= 0) { P.burnTick = DATA.debuff.burnTick; P.burnDmg = 0; }
-  P.burnT = DATA.debuff.burnDur; P.burnDmg = Math.max(P.burnDmg, dmg);
+  P.burnT = DATA.debuff.burnDur * CHAOS.debuff; P.burnDmg = Math.max(P.burnDmg, dmg); // カオス: デバフの時間
 }
 function breakCombo() {
   if (S.combo >= 10) addFloat(P.x, P.y - 18, 'x' + S.combo, '#8a8098');
@@ -802,11 +828,11 @@ function updEnemies(dt) {
         const dd = Math.sqrt(d2(e.x, e.y, P.x, P.y));
         const k = dd > 95 ? 1 : dd < 70 ? -1 : 0;
         mx *= k; my *= k;
-        e.shotT -= dt;
+        e.shotT -= dt * CHAOS.rate; // カオス: 攻撃頻度
         if (e.shotT <= 0 && dd < 180) {
           const s = DATA.enemies.archer.shot;
           e.shotT = s.cd;
-          eprojs.push({ kind: 'arrow', x: e.x, y: e.y, vx: Math.cos(a) * s.spd, vy: Math.sin(a) * s.spd, dmg: s.dmg * enemyDmgK(), life: 4, t: 0, r: 2 });
+          eprojs.push({ kind: 'arrow', x: e.x, y: e.y, vx: Math.cos(a) * s.spd, vy: Math.sin(a) * s.spd, dmg: s.dmg * enemyDmgK(), life: 4, t: 0, r: 2 * CHAOS.area });
         }
         e.aim = e.shotT < 0.4;
       } else if (e.ai === 'flee') {
@@ -841,7 +867,7 @@ function updEnemies(dt) {
 // ============================================================
 // ボス
 // ============================================================
-function spawnBoss(key, final) {
+function spawnBoss(key, final, companion) {
   const b = DATA.bosses[key];
   AudioMan.roar(); AudioMan.warning(); AudioMan.playMusic(b.music);
   UI.banner('⚠ WARNING ⚠', b.name);
@@ -857,14 +883,23 @@ function spawnBoss(key, final) {
       q: [], act: null, wind: 0, cd: 2.5, hop: 1, spinCd: 4, beamCd: 8, vortexCd: 5, throw: 3, clock: 7,
     },
   };
+  if (CHAOS.rage) e.enrage = 2; // カオス: 常に激怒(最初のフレームで激昂する)
   enemies.push(e);
   S.boss = e;
   UI.bossBar(e);
+  S.bosses = [e];
+  if (CHAOS.twin && !companion) { // カオス: もう1体(このステージ以外のボスからランダム)
+    const here = new Set(S.sched ? S.sched.filter(x => x.boss).flatMap(x => x.boss) : []);
+    const pool = Object.keys(DATA.bosses).filter(k => k !== key && !here.has(k));
+    const k2 = pick(pool.length ? pool : Object.keys(DATA.bosses).filter(k => k !== key));
+    const e2 = spawnBoss(k2, false, true);
+    S.bosses = [e, e2]; S.boss = e; UI.bossBar(e);
+  }
   return e;
 }
 
 function eball(x, y, a, spd, dmg, kind = 'ball') {
-  eprojs.push({ kind, x, y, vx: Math.cos(a) * spd, vy: Math.sin(a) * spd, dmg: dmg * enemyDmgK(), life: 7, t: 0, r: kind === 'scythe' ? 4 : 3 });
+  eprojs.push({ kind, x, y, vx: Math.cos(a) * spd, vy: Math.sin(a) * spd, dmg: dmg * enemyDmgK(), life: 7, t: 0, r: (kind === 'scythe' ? 4 : 3) * CHAOS.area });
 }
 // 放物線で飛ぶ弾(着弾まで当たり判定なし。着地で onLand)
 function lob(kind, x, y, tx, ty, T, H, onLand) {
@@ -876,7 +911,9 @@ function boomerang(e, a) {
 }
 function addHazard(kind, x, y, o) {
   if (kind === 'goo' && hazards.length > 40) hazards.splice(hazards.findIndex(h => h.kind === 'goo'), 1);
-  hazards.push(Object.assign({ kind, x, y, t: 0, r: 10, dur: 6 }, o));
+  const h = Object.assign({ kind, x, y, t: 0, r: 10, dur: 6 }, o);
+  h.r *= CHAOS.area; if (h.max) h.max *= CHAOS.area; // カオス: 攻撃範囲
+  hazards.push(h);
 }
 
 // ---------- ボス共通 ----------
@@ -889,8 +926,8 @@ function segD2(px, py, x0, y0, x1, y1) {
   const vx = x1 - x0, vy = y1 - y0, k = clamp(((px - x0) * vx + (py - y0) * vy) / (vx * vx + vy * vy || 1), 0, 1);
   return d2(px, py, x0 + vx * k, y0 + vy * k);
 }
-const hitCircle = (x, y, r, dmg) => { if (d2(x, y, P.x, P.y) < (r + 3) * (r + 3)) hurtPlayer(dmg); };
-const hitLine = (x, y, a, len, w, dmg) => { if (segD2(P.x, P.y, x, y, x + Math.cos(a) * len, y + Math.sin(a) * len) < Math.pow(w / 2 + 3, 2)) hurtPlayer(dmg); };
+const hitCircle = (x, y, r, dmg) => { r *= CHAOS.area; if (d2(x, y, P.x, P.y) < (r + 3) * (r + 3)) hurtPlayer(dmg); };
+const hitLine = (x, y, a, len, w, dmg) => { len *= CHAOS.area; w *= CHAOS.area; if (segD2(P.x, P.y, x, y, x + Math.cos(a) * len, y + Math.sin(a) * len) < Math.pow(w / 2 + 3, 2)) hurtPlayer(dmg); };
 const angDiff = (a, b) => Math.atan2(Math.sin(a - b), Math.cos(a - b));
 // 予備動作(停止して点滅 → fn)
 function windup(e, t, fn) { e.ai.wind = t; e.ai.fire = fn; }
@@ -916,10 +953,10 @@ function bossAI(e, dt) {
     case 'king':
       if (ai.ph === 'chase') {
         e.x += Math.cos(a) * e.spd * slow * dt; e.y += Math.sin(a) * e.spd * slow * dt;
-        ai.atk -= dt;
-        if (ai.atk <= 0) { ai.ph = 'tele'; ai.pt = 0.8; ai.dir = a; warns.push({ kind: 'line', x: e.x, y: e.y, a, len: 260, w: e.r * 2, t: 0, life: 0.8 }); }
-        ai.slam -= dt;
-        if (ai.enraged && ai.slam <= 0 && ai.ph === 'chase') { ai.ph = 'slamTele'; ai.pt = 1; warns.push({ kind: 'circle', x: e.x, y: e.y, r: 70, t: 0, life: 1 }); }
+        ai.atk -= dt * CHAOS.rate;
+        if (ai.atk <= 0) { ai.ph = 'tele'; ai.pt = 0.8; ai.dir = a; pushWarn({ kind: 'line', x: e.x, y: e.y, a, len: 260, w: e.r * 2, t: 0, life: 0.8 }); }
+        ai.slam -= dt * CHAOS.rate;
+        if (ai.enraged && ai.slam <= 0 && ai.ph === 'chase') { ai.ph = 'slamTele'; ai.pt = 1; pushWarn({ kind: 'circle', x: e.x, y: e.y, r: 70, t: 0, life: 1 }); }
       } else if (ai.ph === 'tele') {
         ai.pt -= dt; e.flash = Math.sin(ai.pt * 40) > 0 ? 0.05 : 0;
         if (ai.pt <= 0) { ai.ph = 'charge'; ai.pt = 0.8; AudioMan.roar(); }
@@ -932,13 +969,13 @@ function bossAI(e, dt) {
         ai.pt -= dt;
         if (ai.pt <= 0) {
           ai.ph = 'chase'; ai.slam = 7;
-          if (dist < 70) hurtPlayer(e.dmg * 1.2);
+          if (dist < 70 * CHAOS.area) hurtPlayer(e.dmg * 1.2);
           for (let i = 0; i < 14; i++) eball(e.x, e.y, TAU / 14 * i, 55, 12);
           shockAt(e.x, e.y, 1.8, 0.8); shake(10); AudioMan.boom();
           burst(e.x, e.y, 50, ['#7fae4e', '#b8d86a', '#3a1a14'], { sp: 150, g: 200 });
         }
       }
-      ai.sum -= dt;
+      ai.sum -= dt * CHAOS.rate;
       if (ai.sum <= 0) {
         ai.sum = 9;
         for (let i = 0; i < 5; i++) spawnEnemy('zombie', { x: e.x + rand(-25, 25), y: e.y + rand(-25, 25) });
@@ -950,31 +987,31 @@ function bossAI(e, dt) {
       const want = 110, dir = dist > want ? a : a + Math.PI, k = Math.abs(dist - want) > 20 ? 1 : 0.2;
       e.x += (Math.cos(dir) * e.spd * k + Math.cos(a + Math.PI / 2) * 22) * slow * dt;
       e.y += (Math.sin(dir) * e.spd * k + Math.sin(a + Math.PI / 2) * 22) * slow * dt;
-      ai.ring -= dt;
+      ai.ring -= dt * CHAOS.rate;
       if (ai.ring <= 0) {
         ai.ring = ai.enraged ? 3.4 : 4.6;
         const off = rand(0, 0.4);
         for (let i = 0; i < 18; i++) eball(e.x, e.y, TAU / 18 * i + off, 52, 13);
         AudioMan.boom(); shake(4); burst(e.x, e.y, 16, ['#efe9d4', '#6ee7ff'], { sp: 90, glow: true });
       }
-      ai.aim -= dt;
+      ai.aim -= dt * CHAOS.rate;
       if (ai.aim <= 0) { ai.aim = 2.2; for (let i = -1; i <= 1; i++) eball(e.x, e.y, a + i * 0.22, 78, 13); AudioMan.shoot(); }
       if (ai.enraged) {
-        ai.spiral -= dt;
+        ai.spiral -= dt * CHAOS.rate;
         if (ai.spiral <= 0) { ai.spiral = 0.12; ai.spA += 0.5; eball(e.x, e.y, ai.spA, 60, 11); eball(e.x, e.y, ai.spA + Math.PI, 60, 11); }
       }
-      ai.sum -= dt;
+      ai.sum -= dt * CHAOS.rate;
       if (ai.sum <= 0) { ai.sum = 11; for (let i = 0; i < 4; i++) spawnEnemy('bat', { x: e.x + rand(-20, 20), y: e.y + rand(-20, 20) }); }
       break;
     }
 
     case 'reaper':
       if (!ai.tpTo) { e.x += Math.cos(a) * e.spd * slow * dt; e.y += Math.sin(a) * e.spd * slow * dt; }
-      ai.tp -= dt;
+      ai.tp -= dt * CHAOS.rate;
       if (ai.tp <= 0 && !ai.tpTo) {
         const ta = rand(0, TAU), tr = rand(60, 90);
         ai.tpTo = { x: P.x + Math.cos(ta) * tr, y: P.y + Math.sin(ta) * tr, t: 0.55 };
-        warns.push({ kind: 'circle', x: ai.tpTo.x, y: ai.tpTo.y, r: 20, t: 0, life: 0.55 });
+        pushWarn({ kind: 'circle', x: ai.tpTo.x, y: ai.tpTo.y, r: 20, t: 0, life: 0.55 });
       }
       if (ai.tpTo) {
         ai.tpTo.t -= dt;
@@ -988,28 +1025,28 @@ function bossAI(e, dt) {
           for (let i = 0; i < 8; i++) eball(e.x, e.y, TAU / 8 * i, 45, 14, 'scythe');
         }
       }
-      ai.spiral -= dt;
+      ai.spiral -= dt * CHAOS.rate;
       if (ai.spiral <= 0 && ai.spN <= 0) { ai.spiral = ai.enraged ? 2.4 : 4; ai.spN = ai.enraged ? 22 : 14; }
       if (ai.spN > 0) {
         ai.spGap -= dt;
         if (ai.spGap <= 0) { ai.spGap = 0.07; ai.spN--; ai.spA += 0.55; eball(e.x, e.y, ai.spA, 63, 16, 'scythe'); }
       }
       // 鎌投げ: 投げた大鎌が減速して死神のもとへ戻ってくる
-      ai.throw -= dt;
+      ai.throw -= dt * CHAOS.rate;
       if (ai.throw <= 0 && !ai.tpTo) {
         ai.throw = ai.enraged ? 3.4 : 5.5;
         if (ai.enraged) { boomerang(e, a - 0.35); boomerang(e, a + 0.35); } else boomerang(e, a);
         AudioMan.slash(); burst(e.x, e.y, 10, ['#c29bff', '#ffffff'], { sp: 60, glow: true });
       }
       // スロウタイム: 周囲に時の歪みを展開(範囲内は移動速度・CD回復が低下)
-      ai.clock -= dt;
+      ai.clock -= dt * CHAOS.rate;
       if (ai.clock <= 0 && !ai.tpTo) {
         ai.clock = ai.enraged ? 9 : 14;
         addHazard('clock', e.x, e.y, { owner: e, r: 80, dur: 5 });
         AudioMan.charge(0.5); shockAt(e.x, e.y, 1.2, 0.6); screenFlash(0.15, '#c29bff');
         if (!S.hint.clock) { S.hint.clock = true; UI.announce('スロウタイム', '範囲内は移動速度とクールダウンが低下'); }
       }
-      ai.sum -= dt;
+      ai.sum -= dt * CHAOS.rate;
       if (ai.enraged && ai.sum <= 0) { ai.sum = 6; for (let i = 0; i < 4; i++) spawnEnemy('ghost', { x: e.x + rand(-30, 30), y: e.y + rand(-30, 30) }); }
       break;
 
@@ -1038,7 +1075,7 @@ function gslimeAI(e, ai, dt, a, dist, slow) {
     return;
   }
   // 跳ねながら接近。着地点に粘液を残す
-  ai.hop -= dt;
+  ai.hop -= dt * CHAOS.rate;
   const air = ai.hop < 0.5;
   e.jz = air ? Math.sin(ai.hop / 0.5 * Math.PI) * 7 : 0;
   e.air = e.jz > 3;
@@ -1047,7 +1084,7 @@ function gslimeAI(e, ai, dt, a, dist, slow) {
     ai.hop = ai.enraged ? 1.0 : 1.3; e.sq = 0.75;
     if (ai.enraged || Math.random() < 0.4) addHazard('goo', e.x, e.y + 4, { r: 14, dur: 6 });
   }
-  ai.cd -= dt; ai.sum -= dt;
+  ai.cd -= dt * CHAOS.rate; ai.sum -= dt * CHAOS.rate;
   if (ai.cd > 0 || air) return;
   ai.cd = ai.enraged ? 2.2 : 3.2;
   if (ai.sum <= 0) { // スライム召喚
@@ -1057,7 +1094,7 @@ function gslimeAI(e, ai, dt, a, dist, slow) {
     burst(e.x, e.y, 30, ['#4fd6a8', '#d8fff2'], { sp: 110 }); AudioMan.splat();
   } else if (dist < 150 && Math.random() < 0.45) { // ストンプ: 高く跳んでプレイヤーの位置へ落下
     ai.act = 'stomp'; ai.st = { t: 0, T: 1.3, x0: e.x, y0: e.y, tx: P.x, ty: P.y };
-    warns.push({ kind: 'circle', x: P.x, y: P.y, r: 40, t: 0, life: 1.3 });
+    pushWarn({ kind: 'circle', x: P.x, y: P.y, r: 40, t: 0, life: 1.3 });
     AudioMan.dash();
   } else { // 粘液弾: プレイヤー周辺へ放物線で撒き、着弾点に粘液床
     e.sq = 1.3;
@@ -1065,7 +1102,7 @@ function gslimeAI(e, ai, dt, a, dist, slow) {
       const n = ai.enraged ? 8 : 5;
       for (let i = 0; i < n; i++) {
         const tx = P.x + (i ? rand(-55, 55) : 0), ty = P.y + (i ? rand(-45, 45) : 0), T = 0.9 + i * 0.06;
-        warns.push({ kind: 'circle', x: tx, y: ty, r: 14, t: 0, life: T });
+        pushWarn({ kind: 'circle', x: tx, y: ty, r: 14, t: 0, life: T });
         lob('glob', e.x, e.y - 6, tx, ty, T, 40, p => {
           hitCircle(p.x, p.y, 14, e.dmg * 0.7);
           addHazard('goo', p.x, p.y, { r: 17, dur: 7 });
@@ -1093,18 +1130,18 @@ function golemAI(e, ai, dt, a, dist, slow) {
     return;
   }
   e.x += Math.cos(a) * e.spd * slow * dt; e.y += Math.sin(a) * e.spd * slow * dt;
-  ai.cd -= dt; ai.spinCd -= dt;
+  ai.cd -= dt * CHAOS.rate; ai.spinCd -= dt * CHAOS.rate;
   if (ai.cd > 0) return;
   ai.cd = ai.enraged ? 1.8 : 2.6;
   const r = Math.random();
   if (dist > 95) { if (r < 0.75) golemThrow(e, ai); else ai.cd = 0.8; }
   else if (ai.spinCd <= 0 && r < 0.35) { // 両腕を回し続けながら追ってくる
     ai.spinCd = 10;
-    warns.push({ kind: 'circle', x: e.x, y: e.y, r: 34, t: 0, life: 0.6 });
+    pushWarn({ kind: 'circle', x: e.x, y: e.y, r: 34, t: 0, life: 0.6 });
     windup(e, 0.6, () => { ai.act = 'spin'; ai.pt = ai.enraged ? 4.5 : 3.5; ai.spinA = a; AudioMan.roar(); });
   } else if (r < 0.7) { // 範囲叩きつけ
     const tx = e.x + Math.cos(a) * Math.min(dist, 38), ty = e.y + Math.sin(a) * Math.min(dist, 38);
-    warns.push({ kind: 'circle', x: tx, y: ty, r: 30, t: 0, life: 0.85 });
+    pushWarn({ kind: 'circle', x: tx, y: ty, r: 30, t: 0, life: 0.85 });
     windup(e, 0.85, () => {
       hitCircle(tx, ty, 30, e.dmg * 1.2);
       if (ai.enraged) for (let i = 0; i < 6; i++) eball(tx, ty, TAU / 6 * i + rand(0, 1), 60, 12, 'rbit');
@@ -1112,7 +1149,7 @@ function golemAI(e, ai, dt, a, dist, slow) {
       shockAt(tx, ty, 1.2, 0.8); shake(7); AudioMan.boom();
     });
   } else { // ストンプ: 周囲に範囲ダメージ + 外へ広がる衝撃波
-    warns.push({ kind: 'circle', x: e.x, y: e.y, r: 58, t: 0, life: 1 });
+    pushWarn({ kind: 'circle', x: e.x, y: e.y, r: 58, t: 0, life: 1 });
     windup(e, 1, () => {
       hitCircle(e.x, e.y, 58, e.dmg * 1.3);
       addHazard('quake', e.x, e.y, { r: 58, spd: 100, max: 170, dur: 9, dmg: e.dmg * 0.8 });
@@ -1129,7 +1166,7 @@ function golemThrow(e, ai) {
     const n = ai.enraged ? 3 : 1;
     for (let i = 0; i < n; i++) later(ai, i * 0.35, () => {
       const tx = P.x + (i ? rand(-45, 45) : 0), ty = P.y + (i ? rand(-40, 40) : 0), T = 1.1;
-      warns.push({ kind: 'circle', x: tx, y: ty, r: 24, t: 0, life: T });
+      pushWarn({ kind: 'circle', x: tx, y: ty, r: 24, t: 0, life: T });
       lob('rock', e.x, e.y - 16, tx, ty, T, 70, p => {
         hitCircle(p.x, p.y, 24, e.dmg * 1.1);
         for (let k = 0; k < 8; k++) eball(p.x, p.y, TAU / 8 * k + rand(0, 0.4), 62, 12, 'rbit');
@@ -1148,7 +1185,7 @@ function dragonAI(e, ai, dt, a, dist, slow) {
   if (ai.act === 'breath') { // ゆっくりプレイヤーを追う扇状の炎。当たると炎上
     ai.pt -= dt;
     ai.ba += clamp(angDiff(a, ai.ba), -0.9 * dt, 0.9 * dt);
-    const L = 125, H = 0.32, mx = e.x + Math.cos(ai.ba) * 10, my = e.y + Math.sin(ai.ba) * 10;
+    const L = 125 * CHAOS.area, H = 0.32, mx = e.x + Math.cos(ai.ba) * 10, my = e.y + Math.sin(ai.ba) * 10;
     for (let i = 0; i < 4; i++) {
       const aa = ai.ba + rand(-H, H), sp = rand(120, 170);
       part(mx, my, Math.cos(aa) * sp, Math.sin(aa) * sp, rand(0.55, 0.8), pick(['#ff6a2a', '#ffc34a', '#ff4a8a', '#fff6c8']), { glow: true, drag: 0.6, sz: pick([1, 2, 2]) });
@@ -1177,7 +1214,7 @@ function dragonAI(e, ai, dt, a, dist, slow) {
     for (let c = 0; c < 2; c++) later(ai, c * 0.14, () => {
       const ca = Math.atan2(P.y - e.y, P.x - e.x);
       slashes.push({ x: e.x, y: e.y, a: ai.la, r: 70, t: 0, life: 0.22, flip: c % 2, evo: true, enemy: true });
-      if (d2(e.x, e.y, P.x, P.y) < 47 * 47 && Math.abs(angDiff(ca, ai.la)) < 1.1) hurtPlayer(e.dmg * 1.1);
+      if (d2(e.x, e.y, P.x, P.y) < Math.pow(47 * CHAOS.area, 2) && Math.abs(angDiff(ca, ai.la)) < 1.1) hurtPlayer(e.dmg * 1.1);
       AudioMan.slash();
     });
     return;
@@ -1186,20 +1223,20 @@ function dragonAI(e, ai, dt, a, dist, slow) {
   const want = 95, dir = dist > want ? a : a + Math.PI, k = Math.abs(dist - want) > 20 ? 1 : 0.2;
   e.x += (Math.cos(dir) * e.spd * k + Math.cos(a + Math.PI / 2) * 18) * slow * dt;
   e.y += (Math.sin(dir) * e.spd * k + Math.sin(a + Math.PI / 2) * 18) * slow * dt;
-  ai.cd -= dt; ai.beamCd -= dt; ai.vortexCd -= dt;
+  ai.cd -= dt * CHAOS.rate; ai.beamCd -= dt * CHAOS.rate; ai.vortexCd -= dt * CHAOS.rate;
   if (ai.cd > 0) return;
   ai.cd = 99; // 行動終了時に再設定
   if (ai.beamCd <= 0) {
     ai.beamCd = ai.enraged ? 11 : 15;
     ai.b0 = a + Math.PI; ai.dir = Math.random() < 0.5 ? 1 : -1; ai.chg = true;
-    warns.push({ kind: 'line', x: e.x, y: e.y, a: ai.b0, len: BEAM_LEN, w: 10, t: 0, life: 1.3 });
+    pushWarn({ kind: 'line', x: e.x, y: e.y, a: ai.b0, len: BEAM_LEN, w: 10, t: 0, life: 1.3 });
     AudioMan.warning(); AudioMan.charge(1.3);
     if (!S.hint.beam) { S.hint.beam = true; UI.announce('全周ビーム!!', 'ダッシュの無敵ですり抜けろ'); }
     windup(e, 1.3, () => { ai.act = 'beam'; ai.pt = 0; ai.T = ai.enraged ? 2 : 2.4; AudioMan.zap(); shockAt(e.x, e.y, 1, 1); });
   } else if (ai.vortexCd <= 0) { // 渦: プレイヤーの足元に吸引する範囲を召喚(ダメージなし)
     ai.vortexCd = ai.enraged ? 9 : 13;
     const tx = P.x, ty = P.y, T = 0.8;
-    warns.push({ kind: 'circle', x: tx, y: ty, r: 100, t: 0, life: T });
+    pushWarn({ kind: 'circle', x: tx, y: ty, r: 100, t: 0, life: T });
     AudioMan.charge(T);
     later(ai, T, () => {
       addHazard('vortex', tx, ty, { r: 100, dur: 4.5, pull: ai.enraged ? 42 : 34 });
@@ -1208,18 +1245,18 @@ function dragonAI(e, ai, dt, a, dist, slow) {
     });
     endAct();
   } else if (dist < LUNGE_RANGE && (dist < 60 || Math.random() < 0.35)) { // 近距離は必ず、中距離は確率で飛びつき
-    warns.push({ kind: 'line', x: e.x, y: e.y, a, len: LUNGE_RANGE + 20, w: 34, t: 0, life: 0.4 });
+    pushWarn({ kind: 'line', x: e.x, y: e.y, a, len: LUNGE_RANGE + 20, w: 34, t: 0, life: 0.4 });
     windup(e, 0.4, () => {
       ai.act = 'lunge'; ai.la = Math.atan2(P.y - e.y, P.x - e.x);
       ai.pt = clamp((Math.sqrt(d2(e.x, e.y, P.x, P.y)) - 14) / LUNGE_SPD, 0.08, (LUNGE_RANGE + 20) / LUNGE_SPD); // プレイヤーの手前まで踏み込む
     });
   } else if (dist < 130 && Math.random() < 0.55) { // 予兆はボスからプレイヤーへ向きを追随
-    warns.push({ kind: 'line', x: e.x, y: e.y, a, len: 125, w: 30, t: 0, life: 0.6, track: w => { w.x = e.x; w.y = e.y; w.a = Math.atan2(P.y - e.y, P.x - e.x); } });
+    pushWarn({ kind: 'line', x: e.x, y: e.y, a, len: 125, w: 30, t: 0, life: 0.6, track: w => { w.x = e.x; w.y = e.y; w.a = Math.atan2(P.y - e.y, P.x - e.x); } });
     windup(e, 0.6, () => { ai.act = 'breath'; ai.pt = 2.6; ai.ba = Math.atan2(P.y - e.y, P.x - e.x); AudioMan.roar(); });
   } else { // グランドクロス: プレイヤーの位置に十字の光柱(激昂時は続けてX字)
     const tx = P.x, ty = P.y, L = 120, W = 16, T = 1.2;
     const arms = off => [off, off + Math.PI / 2].map(aa => ({ x: tx - Math.cos(aa) * L, y: ty - Math.sin(aa) * L, a: aa }));
-    const mark = off => arms(off).forEach(r => warns.push({ kind: 'line', x: r.x, y: r.y, a: r.a, len: L * 2, w: W, t: 0, life: T }));
+    const mark = off => arms(off).forEach(r => pushWarn({ kind: 'line', x: r.x, y: r.y, a: r.a, len: L * 2, w: W, t: 0, life: T }));
     const blast = off => {
       for (const r of arms(off)) {
         hitLine(r.x, r.y, r.a, L * 2, W, e.dmg * 1.3);
@@ -1236,6 +1273,17 @@ function dragonAI(e, ai, dt, a, dist, slow) {
 }
 
 function onBossDeath(e) {
+  // 2体のボス(カオス: 双王): 両方倒すまで次へ進まない
+  const rest = (S.bosses || []).filter(b => b !== e && !b.dead);
+  if (rest.length) {
+    S.bosses = rest; S.boss = rest[0]; UI.bossBar(rest[0]); S.bossKills++; S.twinFinal = S.twinFinal || e.final;
+    burst(e.x, e.y, 90, [e.col, '#ffd23f', '#ffffff'], { sp: 180, glow: true, life: 1.2 }); addFlash(e.x, e.y, 200, '#ffd23f', 0.8); shake(10); AudioMan.boom();
+    dropItem('chest', e.x, e.y - 14);
+    UI.announce('1体 撃破!', 'もう1体を倒せ');
+    return;
+  }
+  if (S.twinFinal) { e.final = true; S.twinFinal = false; }
+  S.bosses = [];
   S.boss = null;
   UI.bossBar(null);
   hitstop(0.18); slowmo(0.2, 2); screenFlash(0.9); shake(16);
@@ -1248,6 +1296,7 @@ function onBossDeath(e) {
   eprojs = []; warns = []; hazards = [];
   S.bossKills++;
   if (S.mode === 'arena') return arenaBossDown(e);
+  if (CHAOS.bossLv) { S.elv += CHAOS.bossLv; UI.enemyLvUp(); } // カオス: ボスを倒すたびに敵Lv アップ
   for (let i = 0; i < 14; i++) dropGem(e.x + rand(-30, 30), e.y + rand(-30, 30), 20 * S.stage);
   for (let i = 0; i < 25; i++) dropItem('coin', e.x, e.y, 3 * S.stage);
   dropItem('meat', e.x + 14, e.y); dropItem('magnet', e.x - 14, e.y);
@@ -1313,7 +1362,7 @@ function updHazards(dt) {
     if (h.owner) { if (h.owner.dead) h.t = h.dur; else { h.x = h.owner.x; h.y = h.owner.y; } }
     const dd = d2(h.x, h.y, P.x, P.y);
     if (h.kind === 'goo') {
-      if (dd < h.r * h.r && h.t > 0.1) P.slowT = Math.max(P.slowT, 0.15);
+      if (dd < h.r * h.r && h.t > 0.1) P.slowT = Math.max(P.slowT, 0.15 * CHAOS.debuff);
       if (Math.random() < dt * h.r * 0.15) part(h.x + rand(-h.r, h.r) * 0.7, h.y + rand(-h.r, h.r) * 0.7, 0, -6, 0.5, '#8affd8', { drag: 1 });
     } else if (h.kind === 'quake') {
       h.r += h.spd * dt;
@@ -1322,7 +1371,7 @@ function updHazards(dt) {
       if (h.r >= h.max) h.t = h.dur;
     } else if (h.kind === 'clock') {
       const R = h.r * Math.min(1, h.t * 4);
-      if (dd < R * R) { P.slowT = Math.max(P.slowT, 0.15); P.cdSlowT = Math.max(P.cdSlowT, 0.15); }
+      if (dd < R * R) { P.slowT = Math.max(P.slowT, 0.15 * CHAOS.debuff); P.cdSlowT = Math.max(P.cdSlowT, 0.15 * CHAOS.debuff); }
     } else if (h.kind === 'vortex') { // 中心へ引き寄せる(移動速度より弱いので歩いて脱出できる)
       const R = h.r * Math.min(1, h.t * 4), d = Math.sqrt(dd);
       if (d < R && d > 2 && !P.dead && state === 'play') {
@@ -1344,6 +1393,7 @@ function dropGem(x, y, v) {
   gems.push({ x, y, v, tier: gemTier(v), t: rand(0, 3), home: false, sp: 0, z: 0, vz: -rand(40, 70), vx: rand(-20, 20), vy: rand(-20, 20) });
 }
 function dropItem(kind, x, y, val = 0) {
+  if (CHAOS.loot && kind !== 'chest' && Math.random() < CHAOS.loot) return; // カオス: アイテムの出現率(装備宝箱は除く)
   drops.push({ kind, x, y, val, t: 0, z: 0, vz: -rand(60, 110), vx: rand(-35, 35), vy: rand(-25, 25), home: false, sp: 0 });
 }
 function addGold(v) {
@@ -1433,11 +1483,11 @@ function updSpawner(dt) {
   }
   const cfg = S.spawnCfg;
   if (!cfg) return;
-  const rate = (1 + (S.loop - 1) * 0.3) * (P.uq.clock ? 1.15 : 1) * (S.boss ? 0.6 : 1); // 狂時の: 出現数 +15%
+  const rate = (1 + (S.loop - 1) * 0.3) * (P.uq.clock ? 1.15 : 1) * (S.boss ? 0.6 : 1) * CHAOS.spawn; // 狂時の: 出現数 +15% / カオス: 出現率
   S.spawnT -= dt;
   while (S.spawnT <= 0) {
     S.spawnT += cfg.interval / rate;
-    if (enemies.length < cfg.max * (P.uq.clock ? 1.15 : 1)) {
+    if (enemies.length < cfg.max * (P.uq.clock ? 1.15 : 1) * CHAOS.spawn) {
       // 時々小集団で出現
       if (Math.random() < 0.12) {
         const t = pick(cfg.types), a = rand(0, TAU), R = Math.hypot(GFX.VW, GFX.VH) / 2 + 16;

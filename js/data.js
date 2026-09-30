@@ -651,6 +651,40 @@ const DATA = {
       amb: [0.6, 0.52, 0.5], tint: [1.06, 0.98, 0.94], motes: { col: '#ffcf8a', rise: true }, tiles: true },
   ],
 
+  // ---------- カオス強化(db.xlsx「カオス強化」)----------
+  // クリア済みのモード・ステージごとに、出撃前に各項目の Lv を選ぶ。合計ポイント = Σ(Lv × pt)
+  // 合計ポイントに応じた報酬(rewards: pt 以上で一番上の行)が、そのランの間だけ「カオス強化」としてステータスに入る
+  // per: Lv 1 あたりの効果量(desc の {v} に入る)。名前は仮
+  chaos: {
+    mods: [
+      { k: 'lvSpeed', name: '加速する夜',   max: 5, pt: 2,  per: 20, desc: '敵Lv の上昇速度 +{v}%' },
+      { k: 'bossLv',  name: '復讐の連鎖',   max: 5, pt: 1,  per: 1,  desc: 'ボスを倒すたびに敵Lv +{v}' },
+      { k: 'startLv', name: '深い闇',       max: 4, pt: 1,  per: 1,  desc: '開始時の敵Lv +{v}' },
+      { k: 'spawn',   name: '群れの目覚め', max: 5, pt: 1,  per: 5,  desc: '敵の出現率 +{v}%' },
+      { k: 'area',    name: '膨れる殺意',   max: 5, pt: 1,  per: 10, desc: '敵の攻撃範囲 +{v}%' },
+      { k: 'rate',    name: '狂騒',         max: 3, pt: 2,  per: 10, desc: '敵の攻撃頻度 +{v}%' },
+      { k: 'loot',    name: '枯れた大地',   max: 5, pt: 1,  per: 10, desc: 'アイテムの出現率 -{v}%' },
+      { k: 'debuff',  name: '蝕む呪い',     max: 5, pt: 1,  per: 10, desc: 'デバフの効果時間 +{v}%' },
+      { k: 'rage',    name: '血の夜明け',   max: 1, pt: 5,  per: 1,  desc: 'ボスは常に激怒する' },
+      { k: 'twin',    name: '双王',         max: 1, pt: 10, per: 1,  desc: 'ボスが2体同時に出現する(もう1体は別のボス)' },
+    ],
+    // eqMaxVal: 装備ロール上限 / eqMaxLv: 装備Lv上限 / eqQual: 装備品質 / chestQual: 宝箱品質 / gold: 獲得ゴールド
+    rewards: [
+      { pt: 5,  eqMaxVal: 0.05, eqMaxLv: 0, eqQual: 0.1, chestQual: 0.05, gold: 0.2 },
+      { pt: 10, eqMaxVal: 0.10, eqMaxLv: 0, eqQual: 0.2, chestQual: 0.10, gold: 0.4 },
+      { pt: 15, eqMaxVal: 0.15, eqMaxLv: 0, eqQual: 0.3, chestQual: 0.15, gold: 0.6 },
+      { pt: 20, eqMaxVal: 0.20, eqMaxLv: 1, eqQual: 0.4, chestQual: 0.20, gold: 0.8 },
+      { pt: 25, eqMaxVal: 0.25, eqMaxLv: 1, eqQual: 0.5, chestQual: 0.25, gold: 1.0 },
+      { pt: 30, eqMaxVal: 0.30, eqMaxLv: 1, eqQual: 0.6, chestQual: 0.30, gold: 1.2 },
+      { pt: 35, eqMaxVal: 0.35, eqMaxLv: 1, eqQual: 0.7, chestQual: 0.35, gold: 1.4 },
+      { pt: 40, eqMaxVal: 0.40, eqMaxLv: 2, eqQual: 0.8, chestQual: 0.40, gold: 1.6 },
+      { pt: 45, eqMaxVal: 0.45, eqMaxLv: 2, eqQual: 0.9, chestQual: 0.45, gold: 1.8 },
+      { pt: 50, eqMaxVal: 0.50, eqMaxLv: 2, eqQual: 1.0, chestQual: 0.50, gold: 2.0 },
+      { pt: 55, eqMaxVal: 0.50, eqMaxLv: 2, eqQual: 1.2, chestQual: 0.75, gold: 2.5 },
+      { pt: 60, eqMaxVal: 0.50, eqMaxLv: 2, eqQual: 1.5, chestQual: 1.00, gold: 3.0 },
+    ],
+  },
+
   // ---------- ステージ単体モード ----------
   // stage: 対応するステージ / from, to: 通常モードの出現スケジュールから使う区間(秒)/ elv: 開始時の敵Lv
   // bosses: 1体目(180秒)・2体目(360秒)。2体目を倒したらクリア
