@@ -116,6 +116,12 @@ function equippedOpts(lvOf) {
   return out;
 }
 
+// 装備の入手に使う値(品質は倍率も掛けた実際の値: (1 + 合計) × 倍率 - 1)
+const lootStats = s => ({
+  eqQual: (1 + (s.v.eqQual || 0)) * (s.mul.eqQual || 1) - 1, chestQual: (1 + (s.v.chestQual || 0)) * (s.mul.chestQual || 1) - 1,
+  eqMaxVal: s.v.eqMaxVal || 0, eqMaxLv: s.v.eqMaxLv || 0,
+});
+
 // ---------- カオス強化 ----------
 // lv: { 項目のキー: Lv } → 合計ポイント / 報酬の行
 const chaosPoints = lv => DATA.chaos.mods.reduce((a, m) => a + (lv[m.k] || 0) * m.pt, 0);

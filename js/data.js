@@ -633,7 +633,7 @@ const DATA = {
     pact:      { slot: 'ring',   epi: '背徳の',   desc: '獲得経験値 +25%。敵の基礎ステータス +10%', stat: { xp: 0.25 } },
     golden:    { slot: 'ring',   epi: '黄金の',   desc: '獲得ゴールド ×1.25', mul: { gold: 1.25 } },
     eye:       { slot: 'ring',   epi: '天眼の',   desc: '100% を超えたクリティカル率を、クリティカルダメージに加算する' },
-    craft:     { slot: 'ring',   epi: '神匠の',   desc: '装備品質 +25%、宝箱品質 +25%', stat: { eqQual: 0.25, chestQual: 0.25 } },
+    craft:     { slot: 'ring',   epi: '神匠の',   desc: '装備品質 ×1.15、宝箱品質 ×1.15', mul: { eqQual: 1.15, chestQual: 1.15 } },
     fate:      { slot: 'ring',   epi: '運命の',   desc: 'リロール回数 +2', stat: { reroll: 2 } },
   },
 

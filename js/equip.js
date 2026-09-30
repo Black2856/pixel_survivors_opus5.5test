@@ -117,8 +117,8 @@ function chestCount(q = 0) {
 }
 // 装備宝箱の中身を生成してインベントリへ入れる(死んでも失われない)。カード用のリストを返す
 function openEquipChest() {
-  const st = P.stats.v, out = [];
-  for (let i = chestCount(st.chestQual || 0); i > 0; i--) {
+  const st = lootStats(P.stats), out = [];
+  for (let i = chestCount(st.chestQual); i > 0; i--) {
     const it = genItem({ stats: st });
     const sold = invAdd(it);
     S.loot.push(it);
@@ -130,8 +130,9 @@ function openEquipChest() {
 function runEndLoot(win) {
   const n = Math.min(DATA.equip.runEndMax, Math.floor(S.bossKills * DATA.equip.runEndPerBoss + 1e-9)) + (win ? 1 : 0);
   const got = [];
-  for (let c = 0; c < n; c++) for (let i = chestCount(P.stats.v.chestQual || 0); i > 0; i--) {
-    const it = genItem({ stats: P.stats.v });
+  const st = lootStats(P.stats);
+  for (let c = 0; c < n; c++) for (let i = chestCount(st.chestQual); i > 0; i--) {
+    const it = genItem({ stats: st });
     invAdd(it); S.loot.push(it); got.push(it);
   }
   return { chests: n, items: got };
@@ -158,7 +159,7 @@ function shopRarity(qual) {
 }
 function shopStock() {
   if (META.shop) return META.shop;
-  const st = computeStats({}).v, items = [];
+  const st = lootStats(computeStats({})), items = [];
   for (const slot in DATA.equip.slots) for (let i = 0; i < DATA.shop.perSlot; i++) {
     const it = genItem({ stats: st, slot, rarity: shopRarity(st.eqQual || 0) });
     it.isNew = false;
