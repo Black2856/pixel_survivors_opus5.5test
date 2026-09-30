@@ -785,7 +785,7 @@ const CLASS_RT = {
         { key: 'Q', name: q.name, cat: 'q', desc: [
           `構え ${q.windup}秒(動けない)→ シールドを全て消費し、前方の扇形に光の衝撃`,
           `威力: ${q.pow} + 消費したシールド × ${q.perShield}`,
-          `当たった敵を押し返し、${q.stun}秒 スタン`,
+          `当たった敵を押し返し、${q.stun} + 消費したシールド × ${q.stunPer}秒 スタン`,
           '威力は武器に依存しない',
         ], rows: [
           ['CD', `<b>${(q.cd * (1 - c.cuV('q', 'cd')) * c.cdMul).toFixed(1)}</b> 秒`],
@@ -1141,7 +1141,7 @@ function knightVerdict(a) {
       if (!full && Math.abs(diff) > q.arc / 2) return;
       if (e.prop) { killEnemy(e); return; }
       const dealt = hitEnemy(e, pow, { src: 'verdict', ang: Math.atan2(e.y - P.y, e.x - P.x), kb: 170, col: '#fff1d0' });
-      if (!e.dead) e.stun = Math.max(e.stun || 0, q.stun);
+      if (!e.dead) e.stun = Math.max(e.stun || 0, q.stun + used * q.stunPer); // 消費したシールドが多いほど長い
       if (holy && dealt && !e.dead) addBurn(e, dealt * 0.3 / 3 / dmgMul(), 3, 'verdict'); // 聖炎
     });
     slashes.push({ x: P.x, y: P.y, a: a.a, r: R, t: 0, life: 0.35, col: '#fff1d0', span: q.arc * 1.2, full });
