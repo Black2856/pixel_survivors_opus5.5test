@@ -509,7 +509,7 @@ function shootArrow(k, st, evo) {
 }
 // 騎士剣の薙ぎ払い(扇形)。o.arc: 半分の角度 / o.evo: 聖剣(当てるたびに 5秒のシールド +1。1回の攻撃につき1まで)
 function sweep(a, st, flip, o) {
-  const R = st.aoe * P.area, el = clsNextEl();
+  const R = st.aoe * P.area, el = o.src === P.mainW ? clsNextEl() : undefined;
   slashes.push({ x: P.x, y: P.y, a, r: R, t: 0, life: o.echo ? 0.25 : 0.22, flip, col: o.col, span: o.arc * 1.8 });
   let got = false;
   forEachNear(P.x, P.y, R, e => {
@@ -523,7 +523,7 @@ function sweep(a, st, flip, o) {
   AudioMan.slash();
 }
 function doSlash(a, st, evo, flip) {
-  const R = st.aoe * P.area, el = clsNextEl(); // 斬撃1回 = 1属性(メイジ)
+  const R = st.aoe * P.area, el = P.mainW === 'katana' ? clsNextEl() : undefined; // 斬撃1回 = 1属性(メイジ。メイン武器のときだけ)
   slashes.push({ x: P.x, y: P.y, a, r: R, t: 0, life: 0.2, flip, evo });
   forEachNear(P.x, P.y, R, e => {
     let diff = Math.atan2(e.y - P.y, e.x - P.x) - a;

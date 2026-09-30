@@ -427,9 +427,9 @@ const CLASS_RT = {
       const zAtk = c.cuV('passive', 'kihaku', p.zanshinAtk) + (c.lvFx.zanshinAtk || 0), zT = p.zanshinT + c.cuV('passive', 'jizoku');
       return [
         { key: '特性', name: '剣気', cat: 'trait', desc: [
-          `通常攻撃(メイン武器)の命中1体につき +${p.kiHit}(1回の攻撃で ${p.kiHitCap} まで)`,
+          `メイン武器の通常攻撃の命中1体につき +${p.kiHit}(1回の攻撃で ${p.kiHitCap} まで)`,
           `ジャスト見切りで +${p.kiParry}`,
-          `${p.kiFull} 以上の間は攻撃力アップ`,
+          `${p.kiFull} 以上の間は攻撃力アップ(全ての攻撃)`,
           '居合で全て消費し、威力に上乗せする',
         ], rows: [
           ['最大値', `${p.kiMax + c.cuV('trait', 'zan')}`],
@@ -437,7 +437,7 @@ const CLASS_RT = {
           [`${p.kiFull} 以上の攻撃力`, `<b>+${Math.round(c.cuV('trait', 'juu', p.kiFullAtk) * 100)}%</b>`],
         ] },
         { key: 'パッシブ', name: '残心', cat: 'passive', desc: [
-          '見切り(ガード)で攻撃を受けた後、一定時間 攻撃力アップ',
+          '見切り(ガード)で攻撃を受けた後、一定時間 攻撃力アップ(全ての攻撃)',
           'ガードで受けるたびに効果時間が戻る',
         ], rows: [
           ['攻撃力', `<b>+${Math.round(zAtk * 100)}%</b>`],
@@ -523,7 +523,7 @@ const CLASS_RT = {
       const p = MG();
       return [
         { key: '特性', name: '元素循環', cat: 'trait', desc: [
-          '通常攻撃・E の攻撃1回ごとに 炎 → 氷 → 雷 の順で属性が付く',
+          'メイン武器の通常攻撃・E の攻撃1回ごとに 炎 → 氷 → 雷 の順で属性が付く(サブ武器には付かない)',
           `炎: 与えたダメージの ${Math.round(p.burnPct * 100)}% を ${p.burnDur}秒かけて与える`,
           `氷: 凍傷 +1(1つにつき移動速度 -${Math.round(DATA.debuff.frostSlow * 100)}%)`,
           `雷: 近くの敵に ${Math.round(p.chainPct * 100)}% で連鎖`,
@@ -536,7 +536,7 @@ const CLASS_RT = {
           ['魔力結晶の上限', `${p.crystalMax + (c.lvFx.crystalMax || 0)}`],
         ] },
         { key: 'パッシブ', name: '魔力循環', cat: 'passive', desc: [
-          '通常攻撃(メイン武器)が1回命中するごとに、E と Q のクールダウンが短くなる',
+          'メイン武器の通常攻撃が1回命中するごとに、E と Q のクールダウンが短くなる',
           '1秒あたりに短くなる量には上限がある',
         ], rows: [
           ['1回の短縮', `<b>${(p.flowCut + c.cuV('passive', 'flow') + (c.lvFx.flowCut || 0)).toFixed(2)}</b> 秒`],
@@ -642,7 +642,7 @@ const CLASS_RT = {
       const p = AR(), q = DATA.classes.archer.q, k = 1 + c.cuV('q', 'pow') + (c.lvFx.qPow || 0);
       return [
         { key: '特性', name: '狩人の印', cat: 'trait', desc: [
-          '通常攻撃・E が命中すると、その敵に印 +1',
+          'メイン武器の通常攻撃・E が命中すると、その敵に印 +1(サブ武器では付かない)',
           `印1つにつき、その敵が受けるダメージ +${Math.round((p.markPct + (c.lvFx.markPct || 0)) * 100)}%`,
           `印が ${p.markMax} 以上で弱点露出: ${p.weakT}秒間 その敵へのクリティカル率 +${Math.round(p.weakCrit * 100)}%`,
           `印は ${p.markT}秒 刻まれないと消える。一斉射撃で消費する`,
@@ -653,7 +653,7 @@ const CLASS_RT = {
         { key: 'パッシブ', name: '集中', cat: 'passive', desc: [
           `止まっている間、${p.focusStep}秒ごとに +1段(E / Q の予備動作中も)`,
           `移動すると1秒ごとに ${p.focusDecay}段 下がる。被弾すると ${p.focusHurt}段 下がる`,
-          `1段につき 攻撃速度 +${Math.round(p.focusAtkSpd * 100)}%・クリティカル率 +${Math.round(p.focusCrit * 100)}%`,
+          `1段につき 攻撃速度 +${Math.round(p.focusAtkSpd * 100)}%(メイン武器の通常攻撃)・クリティカル率 +${Math.round(p.focusCrit * 100)}%(全ての攻撃)`,
         ], rows: [
           ['最大段', `${p.focusMax + (c.lvFx.focusMax || 0)}`],
           ['最大時の攻撃速度', `<b>+${Math.round((p.focusMax + (c.lvFx.focusMax || 0)) * p.focusAtkSpd * 100)}%</b>`],
@@ -768,9 +768,9 @@ const CLASS_RT = {
       return [
         { key: '特性', name: '聖盾', cat: 'trait', desc: [
           `大盾で受けたダメージの ${Math.round(p.convert * 100)}% がシールドになる`,
-          `通常攻撃の命中で +${p.hitGain}(1秒に ${p.hitCap} まで)`,
+          `メイン武器の通常攻撃の命中で +${p.hitGain}(1秒に ${p.hitCap} まで)`,
           `1秒に今のシールドの ${Math.round(p.decay * 100)}% ずつ減る(大盾を構えている間と、やめてから ${p.decayWait}秒は減らない)`,
-          '堅守: シールドの量に比例して攻撃力アップ',
+          '堅守: シールドの量に比例して攻撃力アップ(全ての攻撃)',
           '  → 魔力障壁などほかのシールドも同じ扱い',
         ], rows: [
           ['シールドの上限', `最大HP の ${Math.round(capP * 100)}%`],
