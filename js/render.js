@@ -324,6 +324,28 @@ function render() {
   const drawSlashes = enemy => {
     for (const s of slashes) {
       if (!!s.enemy !== enemy) continue;
+      if (s.fan) { // 聖盾の審判: 攻撃範囲そのままの扇形(span = TAU で全周)が広がる
+        const k = easeOutCubic(Math.min(1, s.t / (s.life * 0.45))), fade = 1 - s.t / s.life, R = s.r * (0.3 + 0.7 * k), h = s.span / 2;
+        const cx = s.x - cam.x, cy = s.y - cam.y, full = s.span >= TAU - 0.01;
+        sx.globalAlpha = 0.3 * fade; sx.fillStyle = s.col; // 範囲の塗り
+        sx.beginPath(); if (!full) sx.moveTo(cx, cy); sx.arc(cx, cy, R, s.a - h, s.a + h); sx.closePath(); sx.fill();
+        sx.globalAlpha = gx.globalAlpha = fade;
+        const n = Math.ceil(R * s.span); // 外周の光の弧(外側ほど白く)
+        for (let i = 0; i <= n; i++) {
+          const a = s.a - h + s.span * i / n, c = Math.cos(a), sn = Math.sin(a);
+          for (let t = 0; t < 3; t++) {
+            const col = t === 0 ? '#ffffff' : s.col, px = Math.round(cx + c * (R - t)), py = Math.round(cy + sn * (R - t));
+            sx.fillStyle = col; sx.fillRect(px, py, 1, 1); gx.fillStyle = col; gx.fillRect(px, py, 1, 1);
+          }
+        }
+        if (!full) for (const e of [-1, 1]) { // 扇の両端
+          const x1 = cx + Math.cos(s.a + e * h) * R, y1 = cy + Math.sin(s.a + e * h) * R;
+          pLine(sx, cx, cy, x1, y1, s.col, 1); pLine(gx, cx, cy, x1, y1, s.col, 1);
+        }
+        sx.globalAlpha = gx.globalAlpha = 1;
+        addLight(s.x + (full ? 0 : Math.cos(s.a) * s.r * 0.5), s.y + (full ? 0 : Math.sin(s.a) * s.r * 0.5), s.r * 1.2, s.col, 0.8 * fade);
+        continue;
+      }
       if (s.line) { // 一閃 / グランドクロス: 経路に走る鋭い光
         const k = easeOutCubic(s.t / s.life), w = Math.max(1, Math.round((s.w || 4) * (1 - k)));
         pLine(gx, s.x - cam.x, s.y - cam.y, s.x1 - cam.x, s.y1 - cam.y, '#ff3b5c', w + 2);

@@ -1145,11 +1145,17 @@ function knightVerdict(a) {
       if (!e.dead) e.stun = Math.max(e.stun || 0, q.stun + used * q.stunPer); // 消費したシールドが多いほど長い
       if (holy && dealt && !e.dead) addBurn(e, dealt * 0.3 / 3 / dmgMul(), 3, 'verdict'); // 聖炎
     });
-    slashes.push({ x: P.x, y: P.y, a: a.a, r: R, t: 0, life: 0.35, col: '#fff1d0', span: q.arc * 1.2, full });
-    addRing(P.x, P.y, R, '#f2c84b', { w: 3, life: 0.45 }); addRing(P.x, P.y, R * 0.55, '#ffffff', { w: 2, life: 0.3 });
-    addFlash(P.x + Math.cos(a.a) * R * 0.5, P.y + Math.sin(a.a) * R * 0.5, R * 2.5, '#fff1d0', 0.5);
-    burst(P.x, P.y, 40 + Math.min(40, used), ['#f2c84b', '#fff1d0', '#ffffff'], { sp: 200, glow: true, life: 0.55 });
-    shockAt(P.x, P.y, 1.8 + Math.min(1, used / 60), 1); shake(10); hitstop(0.08); screenFlash(0.3 * SET.fxA, '#fff1d0');
+    // 見た目は攻撃判定と同じ形(扇形。全周のときだけ円)
+    slashes.push({ x: P.x, y: P.y, a: a.a, r: R, t: 0, life: 0.4, col: '#f2c84b', fan: true, span: full ? TAU : q.arc });
+    if (full) { addRing(P.x, P.y, R, '#f2c84b', { w: 3, life: 0.45 }); addRing(P.x, P.y, R * 0.55, '#ffffff', { w: 2, life: 0.3 }); }
+    const cx = full ? P.x : P.x + Math.cos(a.a) * R * 0.5, cy = full ? P.y : P.y + Math.sin(a.a) * R * 0.5;
+    addFlash(cx, cy, full ? R * 2.5 : R * 1.6, '#fff1d0', 0.5);
+    const n = 40 + Math.min(40, used), cols = ['#f2c84b', '#fff1d0', '#ffffff'];
+    for (let i = 0; i < n; i++) { // 光の粒は範囲の方向へだけ飛ぶ
+      const d = full ? rand(0, TAU) : a.a + rand(-q.arc / 2, q.arc / 2), s = rand(0.3, 1) * R * 2.4;
+      part(P.x, P.y, Math.cos(d) * s, Math.sin(d) * s, rand(0.25, 0.5), pick(cols), { glow: true });
+    }
+    shockAt(cx, cy, full ? 1.8 + Math.min(1, used / 60) : 1.1 + Math.min(0.6, used / 100), 1); shake(10); hitstop(0.08); screenFlash(0.3 * SET.fxA, '#fff1d0');
   });
   if (hasSp('q', 'cd')) knGain(used * q.echo); // 残響
   setCd('q', q.cd * (1 - cuV('q', 'cd')) * P.cdMul);
