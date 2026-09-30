@@ -974,11 +974,12 @@ const CLASS_RT = {
         ].concat(kin ? [['火の輪の威力', `${kin} → <b>${Math.round(kin * c.atkMul)}</b>`]] : []) },
         { key: 'Q', name: q.name, cat: 'q', desc: [
           `構え ${q.windup}秒(動けない)→ 画面内の炎上中の敵全員の炎上を、まとめて爆発させる`,
-          '各敵に、残っていた炎上ダメージ × 爆発の倍率 をすぐに与える(炎上は消費する)',
+          `各敵に、基礎威力 ${q.base} + 残っていた炎上ダメージ × 爆発の倍率 をすぐに与える(炎上は消費する)`,
           `その敵の周り(半径 ${q.r})に 基礎威力 ${q.pow} + 炎上スタック数 × ${q.perStack} の爆風`,
           '炎上中の敵がいなくても使える(自分の周りに爆風だけ)。威力は武器に依存しない',
         ], rows: [
           ['CD', `<b>${(q.cd * (1 - c.cuV('q', 'cd')) * c.cdMul).toFixed(1)}</b> 秒`],
+          ['爆発の基礎威力', `${Math.round(q.base * k)} → <b>${Math.round(q.base * k * c.atkMul)}</b>`],
           ['爆発の倍率', `<b>${Math.round(c.cuV('q', 'pow', q.mul) * k * 100)}%</b>`, '残っていた炎上ダメージに掛ける'],
           ['爆風の基礎威力', `${Math.round(q.pow * k)} → <b>${Math.round(q.pow * k * c.atkMul)}</b>`, `炎上1スタックにつき +${Math.round(q.perStack * k)}`],
         ] },
@@ -1437,7 +1438,7 @@ function pyroInferno() {
     burning.forEach((e, i) => {
       const left = burnLeft(e), n = e.burns.length;
       e.burns = []; e.burnT = 0; // 炎上を消費
-      hitEnemy(e, left * mul, { src: 'inferno', col: '#ffc34a' });
+      hitEnemy(e, q.base * k + left * mul, { src: 'inferno', col: '#ffc34a' });
       if (e.dead && cremate) pySpread(e, left);                          // 火葬
       else if (!e.dead && rekindle) addBurn(e, left * q.rekindle / 3, 3, 'inferno'); // 残火
       blast(e.x, e.y, (q.pow + n * q.perStack) * k, e);

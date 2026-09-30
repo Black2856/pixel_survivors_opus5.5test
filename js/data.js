@@ -579,10 +579,10 @@ const DATA = {
         wearT: 4, ignite: 0.15, critIgnite: 1.5, extendT: 0.5, extendMax: 3, kindleR: 60, kindleBurn: 0.5, drain: 0.03, hellBurn: 0.5,
         wallR: 45, wallBurn: 15, wallIfr: 0.3, wallCost: 35,
       },
-      // 煉獄(Q): 構え windup 秒 → 画面内の炎上中の敵全員の炎上を爆発させる。残っていた炎上ダメージ × mul をすぐに与え、
+      // 煉獄(Q): 構え windup 秒 → 画面内の炎上中の敵全員の炎上を爆発させる。基礎威力 base + 残っていた炎上ダメージ × mul をすぐに与え、
       //   その敵の周り(半径 r)に 基礎威力 pow + 炎上スタック数 × perStack の爆風。炎上は消費する
       //   残火: 消費した炎上の rekindle を付け直す / 大火: 爆風の bigfire を 3秒の炎上に
-      q: { name: '煉獄', cd: 25, windup: 0.5, mul: 1.5, r: 30, pow: 40, perStack: 8, rekindle: 0.3, bigfire: 0.5 },
+      q: { name: '煉獄', cd: 25, windup: 0.5, base: 80, mul: 1.5, r: 30, pow: 40, perStack: 8, rekindle: 0.3, bigfire: 0.5 },
       tree: {
         trait: { name: '業火', paths: {
           stack:  { name: '火勢', desc: ['火勢の最大スタック +3', '火勢の最大スタック +6', '火勢の最大スタック +10'], v: [3, 6, 10], sp: { name: '白炎', desc: '炎上が 10スタック以上の敵へのクリティカル率 +20%(炎上ダメージもクリティカルする)' } },
