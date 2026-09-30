@@ -503,7 +503,7 @@ const DATA = {
       // 不屈: シールドが割れると衝撃波(breakPow・半径 breakR)と無敵 breakIfr 秒(breakCd 秒に1回)
       // 大盾: 構えた瞬間にスタミナ guardCost。受けたダメージの pay をスタミナで払う。移動 ×guardSlow。スタミナ 0 で breakT 秒 ガード不可
       params: {
-        capPct: 0.5, convert: 0.2, hitGain: 1, hitCap: 5, decayWait: 3, decay: 0.05, holdAtk: 0.3, ironAt: 0.5, sanctGain: 0.25, sanctDecay: 0.3,
+        capPct: 0.5, convert: 0.2, hitGain: 1, hitCap: 5, decayWait: 3, decay: 0.05, holdAtk: 0.25, ironAt: 0.5, sanctGain: 0.25, sanctDecay: 0.3,
         breakPow: 75, breakR: 50, breakIfr: 0.5, breakCd: 3, rebuild: 0.3, reflect: 3, reflectR: 70,
         guardCost: 15, pay: 0.75, guardSlow: 0.5, breakT: 2,
       },
@@ -514,7 +514,7 @@ const DATA = {
         trait: { name: '聖盾', paths: {
           convert: { name: '変換', desc: ['ガードで得るシールド 20% → 25%', 'ガードで得るシールド 30%', 'ガードで得るシールド 40%'], v: [0.25, 0.3, 0.4], sp: { name: '反射', desc: 'ガードで受けたダメージの 300% を、近くの敵に返す' } },
           cap:     { name: '容量', desc: ['シールドの上限 +10%(最大HP 比)', 'シールドの上限 +20%(最大HP 比)', 'シールドの上限 +30%(最大HP 比)'], v: [0.1, 0.2, 0.3], sp: { name: '盾撃', desc: 'シールドが上限の 50% 以上の間、堅守の攻撃力アップが 1.5倍' } },
-          hold:    { name: '堅守', desc: ['堅守の攻撃力 30% → 35%', '堅守の攻撃力 40%', '堅守の攻撃力 50%'], v: [0.35, 0.4, 0.5], sp: { name: '不滅の盾', desc: 'シールドの獲得量 +25%、シールドの減る量 -30%' } },
+          hold:    { name: '堅守', desc: ['堅守の攻撃力 25% → 32.5%', '堅守の攻撃力 40%', '堅守の攻撃力 50%'], v: [0.325, 0.4, 0.5], sp: { name: '不滅の盾', desc: 'シールドの獲得量 +25%、シールドの減る量 -30%' } },
         } },
         passive: { name: '不屈', paths: {
           shock:  { name: '衝撃', desc: ['割れたときの衝撃波の威力 +30%', '割れたときの衝撃波の威力 +60%', '割れたときの衝撃波の威力 +100%'], v: [0.3, 0.6, 1.0], sp: { name: '復讐', desc: '衝撃波が 0.4秒後にもう一度起きる' } },
