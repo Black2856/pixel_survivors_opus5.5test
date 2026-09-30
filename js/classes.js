@@ -265,7 +265,7 @@ function slamWaves(a, x0, y0, k) {
       addRing(x, y, R, '#ffe9a0', { w: 2, life: 0.3 }); addFlash(x, y, R * 2.4, '#fff1d0', 0.25);
       burst(x, y, 18, ['#8a7a60', '#5a4a3a', '#ffe9a0', '#ffffff'], { sp: 110, up: 50, g: 180, life: 0.6 }); // 岩の破片と土煙
       shockAt(x, y, 1, 1); shake(4 + i);
-      if (crack) zones.push({ kind: 'crack', x, y, r: R, t: 0, dur: 5, tick: 0.5, dmg: wst(P.mainW).dmg * 0.5 }); // 地割れ
+      if (crack) zones.push({ kind: 'crack', x, y, r: R, t: 0, dur: 5, tick: 0.5, dmg: wst(P.mainW).dmg * 0.8 }); // 地割れ
     });
     AudioMan.boom();
   }, i * sk.gap * 1000);

@@ -423,7 +423,7 @@ function updWeapons(dt) {
         break;
 
       case 'longsword':
-        // 正面を大きく薙ぎ払う(回数が多いときは往復で時間差)。聖剣: 0.3秒後に同じ範囲をもう一度(50%)
+        // 正面を大きく薙ぎ払う(回数が多いときは往復で時間差)。聖剣: 当たった敵に光の剣が上から降る(50%)
         if (w.cd <= 0) {
           w.cd = st.cd * P.cdMul;
           for (let i = 0; i < n; i++) w.q.push({ t: i * 0.14, flip: i % 2 });
@@ -434,8 +434,8 @@ function updWeapons(dt) {
           if (s.t > 0) continue;
           w.q.splice(i, 1);
           const a = aimAt(st.aoe * P.area + 20);
-          sweep(a, st, s.flip, { src: k, col: '#ffe9a0', colEvo: '#fff3a0', arc: 1.35, kb: 90, evo: w.evo });
-          if (w.evo) setTimeout(() => { if (state === 'play') sweep(a, { dmg: st.dmg * 0.5, aoe: st.aoe }, !s.flip, { src: k, col: '#fff3a0', arc: 1.35, kb: 30, echo: true }); }, 300);
+          const hits = sweep(a, st, s.flip, { src: k, col: '#ffe9a0', colEvo: '#fff3a0', arc: 1.35, kb: 90, evo: w.evo });
+          if (w.evo) hits.slice(0, 8).forEach((e, j) => skyBlade(e, st.dmg * 0.5, k, 0.08 + j * 0.035)); // 聖剣: 光の剣が上から追撃
         }
         break;
 
@@ -512,16 +512,31 @@ function shootArrow(k, st, evo) {
 function sweep(a, st, flip, o) {
   const R = st.aoe * P.area, el = o.src === P.mainW ? clsNextEl() : undefined;
   slashes.push({ x: P.x, y: P.y, a, r: R, t: 0, life: o.echo ? 0.25 : 0.22, flip, col: o.col, span: o.arc * 1.8 });
-  let got = false;
+  const hits = [];
   forEachNear(P.x, P.y, R, e => {
     let diff = Math.atan2(e.y - P.y, e.x - P.x) - a;
     diff = Math.atan2(Math.sin(diff), Math.cos(diff));
     if (Math.abs(diff) > o.arc) return;
     hitEnemy(e, st.dmg, { src: o.src, ang: a, kb: o.kb, col: o.col, el });
-    got = true;
+    if (!e.prop) hits.push(e);
   });
-  if (got && o.evo) timedShield(1, 5); // 聖剣
+  if (hits.length && o.evo) timedShield(1, 5); // 聖剣
   AudioMan.slash();
+  return hits;
+}
+// 聖剣: 当たった敵へ、光の剣が上から降って追撃する(見た目は S.skyBlades、render.js で描く)
+const SKY_FALL = 0.16;
+function skyBlade(e, dmg, src, delay) {
+  (S.skyBlades || (S.skyBlades = [])).push({ e, x: e.x, y: e.y, t0: S.time + delay });
+  setTimeout(() => {
+    if (state !== 'play' || e.dead) return;
+    asMine(() => {
+      hitEnemy(e, dmg, { src, col: '#fff3a0', kb: 20, ang: Math.atan2(e.y - P.y, e.x - P.x), noNum: Math.random() < 0.3 });
+      addFlash(e.x, e.y - 2, 34, '#fff1d0', 0.2); addRing(e.x, e.y + 2, 9, '#ffe9a0', { life: 0.25 });
+      burst(e.x, e.y - 2, 8, ['#ffffff', '#fff3a0', '#f2c84b'], { sp: 70, up: 20, glow: true, life: 0.3 });
+    });
+    AudioMan.hit();
+  }, (delay + SKY_FALL) * 1000);
 }
 function doSlash(a, st, evo, flip) {
   const R = st.aoe * P.area, el = P.mainW === 'katana' ? clsNextEl() : undefined; // 斬撃1回 = 1属性(メイジ。メイン武器のときだけ)

@@ -288,13 +288,13 @@ const DATA = {
         { cd: 1.1,  dmg: 40, count: 2, aoe: 55 },
         { cd: 1.0,  dmg: 50, count: 3, aoe: 60 },
       ],
-      evo: { name: '聖剣', desc: '薙ぎ払いの跡に光の刃が残り、0.3秒後にもう一度斬る(50%)。当てるたびに 5秒のシールド +1', st: { cd: 0.95, dmg: 60, count: 3, aoe: 70 } },
+      evo: { name: '聖剣', desc: '薙ぎ払いが当たった敵に、光の剣が上から降って追撃する(50%)。当てるたびに 5秒のシールド +1', st: { cd: 0.95, dmg: 60, count: 3, aoe: 70 } },
       // 武器スキル(E)グランドスラム: シールドを最大HP の shield 分(shieldT 秒)得る → 構え windup 秒(動けない)
       //   → 前方へ衝撃波が steps 段(各 武器の威力 × pow + 今のシールド、半径 waveR、段の間隔 gap 秒・距離 stepD)
       skill: {
-        name: 'グランドスラム', cd: 22, windup: 0.3, steps: 3, pow: 3.5, waveR: 22, stepD: 28, gap: 0.12, shield: 0.1, shieldT: 12, radius: 70,
+        name: 'グランドスラム', cd: 22, windup: 0.3, steps: 3, pow: 2.5, waveR: 22, stepD: 28, gap: 0.12, shield: 0.1, shieldT: 12, radius: 70,
         tree: { name: 'グランドスラム', paths: {
-          pow:   { name: '威力', desc: ['グランドスラムの威力 +30%', 'グランドスラムの威力 +60%', 'グランドスラムの威力 +100%'], v: [0.3, 0.6, 1.0], sp: { name: '地割れ', desc: '衝撃波の跡に 5秒間、割れ目が残る(武器の威力 × 50% / 0.5秒)' } },
+          pow:   { name: '威力', desc: ['グランドスラムの威力 +30%', 'グランドスラムの威力 +60%', 'グランドスラムの威力 +100%'], v: [0.3, 0.6, 1.0], sp: { name: '地割れ', desc: '衝撃波の跡に 5秒間、割れ目が残る(武器の威力 × 80% / 0.5秒)' } },
           cd:    { name: '迅速', desc: ['グランドスラムのCD -10%', 'グランドスラムのCD -20%', 'グランドスラムのCD -30%'], v: [0.1, 0.2, 0.3], sp: { name: '余震', desc: '1.5秒後に、同じ衝撃波がもう一度走る(威力 60%)' } },
           guard: { name: '堅陣', desc: ['グランドスラムで得るシールド +50%', 'グランドスラムで得るシールド +100%', 'グランドスラムで得るシールド +200%'], v: [0.5, 1.0, 2.0], sp: { name: '吹き飛ばし', desc: '当たった敵を大きく吹き飛ばし、1.5秒スタンさせる' } },
         } },
@@ -528,17 +528,17 @@ const DATA = {
       // 不屈: シールドが割れると衝撃波(breakPow・半径 breakR)と無敵 breakIfr 秒(breakCd 秒に1回)
       // 大盾: 構えた瞬間にスタミナ guardCost。受けたダメージの pay をスタミナで払う。移動 ×guardSlow。スタミナ 0 で breakT 秒 ガード不可
       params: {
-        capPct: 0.5, convert: 0.2, hitGain: 1, hitCap: 5, decayWait: 3, decay: 0.05, holdAtk: 0.25, ironAt: 0.5, sanctGain: 0.25, sanctDecay: 0.3,
+        capPct: 0.15, convert: 0.2, hitGain: 1, hitCap: 5, decayWait: 3, decay: 0.05, holdAtk: 0.25, ironAt: 0.3, sanctGain: 0.25, sanctDecay: 0.3,
         breakPow: 75, breakR: 50, breakIfr: 0.5, breakCd: 3, rebuild: 0.3, reflect: 3, reflectR: 70,
         guardCost: 15, pay: 0.75, guardSlow: 0.5, breakT: 2,
       },
       // 聖盾の審判(Q): 構え windup 秒 → シールドを全て消費し、前方の扇形(半径 r・角度 arc)に 基礎威力 pow + 消費シールド × perShield
       //   スタンは stun + 消費シールド × stunPer 秒
-      q: { name: '聖盾の審判', cd: 30, windup: 0.4, pow: 120, perShield: 5, r: 90, arc: 2.1, stun: 2, stunPer: 0.01, echo: 0.3 },
+      q: { name: '聖盾の審判', cd: 30, windup: 0.4, pow: 150, perShield: 10, r: 90, arc: 2.1, stun: 2, stunPer: 0.01, echo: 0.3 },
       tree: {
         trait: { name: '聖盾', paths: {
           convert: { name: '変換', desc: ['ガードで得るシールド 20% → 25%', 'ガードで得るシールド 30%', 'ガードで得るシールド 40%'], v: [0.25, 0.3, 0.4], sp: { name: '反射', desc: 'ガードで受けたダメージの 300% を、近くの敵に返す' } },
-          cap:     { name: '容量', desc: ['シールドの上限 +10%(最大HP 比)', 'シールドの上限 +20%(最大HP 比)', 'シールドの上限 +30%(最大HP 比)'], v: [0.1, 0.2, 0.3], sp: { name: '盾撃', desc: 'シールドが上限の 50% 以上の間、堅守の攻撃力アップが 1.5倍' } },
+          cap:     { name: '容量', desc: ['シールドの上限 +6%(最大HP 比)', 'シールドの上限 +12%(最大HP 比)', 'シールドの上限 +20%(最大HP 比)'], v: [0.06, 0.12, 0.2], sp: { name: '盾撃', desc: 'シールドが上限の 30% 以上の間、堅守の攻撃力アップが 1.5倍' } },
           hold:    { name: '堅守', desc: ['堅守の攻撃力 25% → 32.5%', '堅守の攻撃力 40%', '堅守の攻撃力 50%'], v: [0.325, 0.4, 0.5], sp: { name: '不滅の盾', desc: 'シールドの獲得量 +25%、シールドの減る量 -30%' } },
         } },
         passive: { name: '不屈', paths: {

@@ -626,6 +626,30 @@ function render() {
     addLight(b.x, b.y, 16, bw.evo ? '#ffc93a' : '#d8e4ff', 0.6);
   }
   drawSlashes(false);
+  // 聖剣: 上から降ってくる光の剣(落ちる → 刺さって光りながら消える)
+  if (S.skyBlades && S.skyBlades.length) {
+    S.skyBlades = S.skyBlades.filter(b => S.time - b.t0 < SKY_FALL + 0.3);
+    for (const b of S.skyBlades) {
+      const u = (S.time - b.t0) / SKY_FALL;
+      if (u < 0) continue;
+      if (b.e && !b.e.dead) { b.x = b.e.x; b.y = b.e.y; }
+      const x = Math.round(b.x - cam.x), ground = Math.round(b.y - cam.y) + 2;
+      const tip = u < 1 ? ground - Math.round(56 * (1 - u) * (1 - u)) : ground, fade = u < 1 ? 1 : 1 - (u - 1) * SKY_FALL / 0.3;
+      sx.globalAlpha = gx.globalAlpha = Math.max(0, fade);
+      for (let yy = tip - 15; yy <= tip - 2; yy++) { // 刀身(芯は白、縁は金)。下の 2 ドットは切っ先
+        sx.fillStyle = '#ffffff'; sx.fillRect(x, yy, 1, 1);
+        sx.fillStyle = '#ffe9a0'; sx.fillRect(x - 1, yy, 1, 1); sx.fillRect(x + 1, yy, 1, 1);
+      }
+      sx.fillStyle = '#ffffff'; sx.fillRect(x, tip - 1, 1, 2);
+      gx.globalAlpha = 0.45 * Math.max(0, fade); gx.fillStyle = '#fff3a0'; gx.fillRect(x, tip - 15, 1, 16);
+      sx.globalAlpha = Math.max(0, fade);
+      sx.fillStyle = '#b8862a'; sx.fillRect(x - 3, tip - 16, 7, 2); sx.fillStyle = '#f2c84b'; sx.fillRect(x - 3, tip - 16, 7, 1); // 鍔
+      sx.fillStyle = '#6b4a2c'; sx.fillRect(x, tip - 20, 1, 4); sx.fillStyle = '#f2c84b'; sx.fillRect(x, tip - 21, 1, 1); // 柄と柄頭
+      if (u < 1) { gx.globalAlpha = 0.3; gx.fillStyle = '#fff3a0'; gx.fillRect(x, tip - 34, 1, 14); } // 落ちる軌跡
+      sx.globalAlpha = gx.globalAlpha = 1;
+      addLight(b.x, b.y - 8, 40, '#fff1d0', 0.8 * Math.max(0, fade));
+    }
+  }
   for (const p of projs) {
     if (!onScreen(p.x, p.y)) continue;
     switch (p.kind) {
