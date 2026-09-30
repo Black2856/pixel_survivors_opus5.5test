@@ -283,12 +283,12 @@ function fire(kind, x, y, ang, spd, o) {
 }
 
 function updWeapons(dt) {
-  // クールダウン(P.cdMul)は全ての武器と E / Q に、攻撃速度(P.atkSpd)は通常攻撃(メイン武器)にだけ効く
+  // クールダウン(P.cdMul)は全ての武器と E / Q に、攻撃速度(P.atkSpd)は全ての武器の通常攻撃にだけ効く(E / Q には効かない)
   const cdt = dt * (P.cdSlowT > 0 ? DATA.debuff.cdRate : 1); // スロウタイム中はCD回復が遅い
   for (const k in P.weapons) {
     const w = P.weapons[k], st = wst(k);
     w.t += dt;
-    w.cd -= k === P.mainW ? cdt * P.atkSpd : cdt;
+    w.cd -= cdt * P.atkSpd;
     const n = (st.count || 1) + P.shots; // 弾数(千手の など)
     switch (k) {
       case 'bolt':

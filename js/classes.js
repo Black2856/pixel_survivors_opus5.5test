@@ -653,7 +653,7 @@ const CLASS_RT = {
         { key: 'パッシブ', name: '集中', cat: 'passive', desc: [
           `止まっている間、${p.focusStep}秒ごとに +1段(E / Q の予備動作中も)`,
           `移動すると1秒ごとに ${p.focusDecay}段 下がる。被弾すると ${p.focusHurt}段 下がる`,
-          `1段につき 攻撃速度 +${Math.round(p.focusAtkSpd * 100)}%(メイン武器の通常攻撃)・クリティカル率 +${Math.round(p.focusCrit * 100)}%(全ての攻撃)`,
+          `1段につき 攻撃速度 +${Math.round(p.focusAtkSpd * 100)}%(全武器)・クリティカル率 +${Math.round(p.focusCrit * 100)}%(全ての攻撃)`,
         ], rows: [
           ['最大段', `${p.focusMax + (c.lvFx.focusMax || 0)}`],
           ['最大時の攻撃速度', `<b>+${Math.round((p.focusMax + (c.lvFx.focusMax || 0)) * p.focusAtkSpd * 100)}%</b>`],
