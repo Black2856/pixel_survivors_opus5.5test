@@ -596,16 +596,24 @@ function render() {
       }
       gx.globalAlpha = 1;
     }
-    if (P.flame) { // 火炎放射: 扇形の炎(外側ほど薄い。ゆらぐ)
-      const f = P.flame, cx = P.x - cam.x, cy = P.y - cam.y - 4, h = f.arc / 2, fl = 0.9 + 0.1 * Math.sin(t * 40);
-      const layers = f.blue ? [['#2b5fd0', 1, 0.3], ['#7ad7ff', 0.75, 0.35], ['#ffffff', 0.4, 0.45]] : [['#b8261a', 1, 0.3], ['#ff6a2a', 0.78, 0.35], ['#ffc34a', 0.5, 0.45], ['#fff6c8', 0.25, 0.5]];
-      for (const [col, k, al] of layers) {
-        const R = f.len * k * fl * Math.min(1, f.t * 6);
-        sx.globalAlpha = al; gx.globalAlpha = al * 0.8; sx.fillStyle = gx.fillStyle = col;
-        for (const g of [sx, gx]) { g.beginPath(); g.moveTo(cx, cy); g.arc(cx, cy, R, f.a - h * k, f.a + h * k); g.closePath(); g.fill(); }
+    if (S.flamePuffs && S.flamePuffs.length) { // 火炎放射: 炎の塊。進むほど膨らみ、白 → 黄 → 橙 → 赤 → 煙(古いものから描いて、芯が上に来る)
+      const PAL = [[0.05, '#fff6c8', '#dff8ff'], [0.2, '#ffc34a', '#7ad7ff'], [0.4, '#ff9a2a', '#4aa8f0'], [0.62, '#e8501a', '#2f6fd8'], [0.82, '#9a1e14', '#1f3f9a'], [1, '#3a2a2a', '#2a2a3a']];
+      for (const f of S.flamePuffs) {
+        const u = f.t / f.life, r = Math.max(1, Math.round(f.r0 + (f.r1 - f.r0) * Math.pow(u, 0.7) * (0.9 + 0.2 * Math.sin(t * 30 + f.seed * 9))));
+        let col = PAL[PAL.length - 1];
+        for (const c of PAL) if (u < c[0]) { col = c; break; }
+        const smoke = u >= 0.82, x = f.x - cam.x, y = f.y - cam.y;
+        sx.globalAlpha = smoke ? 0.35 * (1 - u) / 0.18 : 0.6;
+        pDisc(sx, x, y, r, f.blue ? col[2] : col[1]);
+        if (!smoke && u > 0.2) { gx.globalAlpha = 0.18 * (1 - u); pDisc(gx, x, y, Math.max(1, r - 1), f.blue ? col[2] : col[1]); }
       }
       sx.globalAlpha = gx.globalAlpha = 1;
-      addLight(P.x + Math.cos(f.a) * f.len * 0.5, P.y + Math.sin(f.a) * f.len * 0.5, f.len * 1.6, f.blue ? '#7ad7ff' : '#ff8a3d', 1);
+    }
+    if (P.flame) { // 杖先の噴き出し口と、炎に照らされた地面
+      const f = P.flame, nx = P.x + Math.cos(f.a) * 9 - cam.x, ny = P.y - 6 + Math.sin(f.a) * 6 - cam.y;
+      gx.globalAlpha = 0.5; pDisc(gx, nx, ny, 2 + Math.round(Math.random()), f.blue ? '#bff4ff' : '#ffc34a'); gx.globalAlpha = 1;
+      pDisc(sx, nx, ny, 2, '#ffffff');
+      addLight(P.x + Math.cos(f.a) * f.len * 0.5, P.y + Math.sin(f.a) * f.len * 0.5, f.len * 1.8, f.blue ? '#7ad7ff' : '#ff8a3d', 0.9 + 0.1 * Math.sin(t * 25));
     }
     addLight(P.x, P.y, 105, DATA.classes[P.cls].light || '#ffe2b8', 0.95);
   }

@@ -294,6 +294,18 @@ WEAPON_SKILL.fire = {
     playAnim('pFlame', MOTIONS.pFlame.duration(dur), dur);
     skillCall(sk.name, '#ff8a3d'); AudioMan.click();
   },
+  // 炎の塊の移動(放射が終わっても消えるまで動かす)
+  tick(dt) {
+    const fp = S.flamePuffs;
+    if (!fp || !fp.length) return;
+    for (const f of fp) {
+      f.t += dt;
+      const k = Math.exp(-2.2 * dt); f.vx *= k; f.vy *= k; // 空気で減速
+      f.vy -= 40 * dt * (f.t / f.life);                     // 熱で昇る
+      f.x += f.vx * dt; f.y += f.vy * dt;
+    }
+    S.flamePuffs = fp.filter(f => f.t < f.life);
+  },
   update(a, dt) {
     const sk = weaponSkill(), blue = hasSp('e', 'pow'), L = sk.len * (1 + cuV('e', 'len')) * P.area;
     a.a = aimDir(L * 1.5);
@@ -306,11 +318,7 @@ WEAPON_SKILL.fire = {
     }
     P.moveMul *= sk.slow;
     P.flame = { a: a.a, len: L, arc: sk.arc, blue, t: a.t - a.t0 };
-    const cols = blue ? ['#7ad7ff', '#bff4ff', '#ffffff'] : ['#ff6a2a', '#ffc34a', '#fff6c8', '#b8261a'];
-    for (let i = 0; i < 6; i++) { // 炎の帯(先へ行くほど広がる)
-      const d = a.a + rand(-sk.arc / 2, sk.arc / 2) * 0.8, s = rand(0.8, 1.2) * L * 3;
-      part(P.x + Math.cos(a.a) * 8, P.y - 4 + Math.sin(a.a) * 8, Math.cos(d) * s, Math.sin(d) * s, rand(0.2, 0.35), pick(cols), { glow: true, drag: 3, sz: pick([1, 2]) });
-    }
+    flamePuffs(a.a, L, sk.arc, blue, dt);
     a.acc += dt;
     while (a.acc >= sk.every) { a.acc -= sk.every; flameTick(a, L, blue); }
     if (a.t - a.t0 >= a.dur) {
@@ -323,6 +331,16 @@ WEAPON_SKILL.fire = {
     }
   },
 };
+// 火炎放射の見た目: 杖先から炎の塊を噴き出す(描画は render.js)。先端の速さは長さ L に届くように
+function flamePuffs(ang, L, arc, blue, dt) {
+  const fp = S.flamePuffs || (S.flamePuffs = []), n = Math.round(dt * 110 * gq().parts) || 1;
+  const nx = P.x + Math.cos(ang) * 9, ny = P.y - 6 + Math.sin(ang) * 6;
+  for (let i = 0; i < n && fp.length < 260; i++) {
+    const d = ang + rand(-arc / 2, arc / 2) * rand(0.3, 1), life = rand(0.32, 0.45), sp = L / life * rand(1.25, 1.55);
+    fp.push({ x: nx + rand(-1, 1), y: ny + rand(-1, 1), vx: Math.cos(d) * sp, vy: Math.sin(d) * sp, t: 0, life, r0: rand(1, 2), r1: rand(6, 10) * P.area, blue, seed: Math.random() });
+  }
+  if (Math.random() < dt * 25) part(nx, ny, Math.cos(ang) * L * 2 + rand(-40, 40), Math.sin(ang) * L * 2 + rand(-40, 40), rand(0.3, 0.5), blue ? '#ffffff' : pick(['#ffc34a', '#fff6c8']), { glow: true, drag: 2 }); // 火の粉
+}
 // 火炎放射の1回: 扇形の中の敵へダメージと炎上(1回 = 1回の E の攻撃)
 function flameTick(a, L, blue) {
   const sk = DATA.weapons.fire.skill, st = wst(P.mainW), dmg = st.dmg * sk.pow * (1 + cuV('e', 'pow')) * a.pow, burn = (st.burn || 0) * sk.burn * (blue ? 2 : 1), el = clsNextEl();
@@ -903,10 +921,7 @@ const CLASS_RT = {
     onKill(e) {
       const left = burnLeft(e), p = PY();
       if (left > 0) pySpread(e, left);
-      if (P.pyT > 0) {
-        if (left > 0 && hasSp('passive', 'wear') && P.pyExt < p.extendMax) { P.pyT += p.extendT; P.pyExt += p.extendT; } // 燎原
-        if (hasSp('passive', 'kindle')) heal(P.maxhp * p.killHeal, true); // 業火
-      }
+      if (P.pyT > 0 && left > 0 && hasSp('passive', 'wear') && P.pyExt < p.extendMax) { P.pyT += p.extendT; P.pyExt += p.extendT; } // 燎原
     },
     atkBonus: () => 0,
     qStart() {

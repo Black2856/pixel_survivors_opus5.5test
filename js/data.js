@@ -558,7 +558,7 @@ const DATA = {
       base: { hp: 90, regen: 1, sta: 100, staRegen: 20, atk: 0.05, area: 0.1, cd: 0.05, crit: 0.05, critDmg: 1.0, wslot: 4, reroll: 2 },
       lv: {
         2: { d: '最大HP +10', st: { hp: 10 } },
-        3: { d: '業火: 1スタックの炎上ダメージ +1%', fx: { stackPct: 0.01 } },
+        3: { d: '業火: 1スタックの炎上ダメージ +0.5%', fx: { stackPct: 0.005 } },
         6: { d: '炎壁: スタミナ 35 → 30', fx: { wallCut: 5 } },
         8: { d: '焔纏い: 付与量 +5%', fx: { ignite: 0.05 } },
         11: { d: '煉獄: 威力 +20%', fx: { qPow: 0.2 } },
@@ -572,11 +572,11 @@ const DATA = {
       //   白炎: whiteAt スタック以上の敵へのクリティカル率 +whiteCrit(炎上もクリティカルする)/ 連鎖爆発: 半径 chainR / 燻り: 切れたら最後の炎上の emberPct を 3秒
       // 焔纏い: E / Q を使うと wearT 秒 纏う。全武器の命中(通常攻撃・E)で与えたダメージの ignite を 3秒の炎上に
       //   爆ぜる炎: クリティカルで ×critIgnite / 燎原: 炎上中の敵を倒すと +extendT 秒(1回の纏いで extendMax まで)
-      //   点火: 纏った瞬間、半径 kindleR に火の輪(炎上は火の輪の kindleBurn を 3秒)/ 業火(特殊): 纏っている間 今のHP の drain/s を消費、撃破で最大HP の killHeal 回復、炎上ダメージ +hellBurn
+      //   点火: 纏った瞬間、半径 kindleR に火の輪(炎上は火の輪の kindleBurn を 3秒)/ 業火(特殊): 纏っている間 今のHP の drain/s を消費、炎上ダメージ +hellBurn
       // 炎壁: 周り(wallR)の敵を押し返して炎上(wallBurn/s を 3秒)。無敵 wallIfr 秒、スタミナ wallCost
       params: {
-        stackPct: 0.03, stackMax: 10, spreadPct: 0.5, spreadR: 40, spreadN: 2, whiteAt: 10, whiteCrit: 0.2, chainR: 30, emberPct: 0.3,
-        wearT: 4, ignite: 0.15, critIgnite: 1.5, extendT: 0.5, extendMax: 3, kindleR: 60, kindleBurn: 0.5, drain: 0.03, killHeal: 0.02, hellBurn: 0.5,
+        stackPct: 0.025, stackMax: 10, spreadPct: 0.25, spreadR: 40, spreadN: 2, whiteAt: 10, whiteCrit: 0.2, chainR: 25, emberPct: 0.3,
+        wearT: 4, ignite: 0.15, critIgnite: 1.5, extendT: 0.5, extendMax: 3, kindleR: 60, kindleBurn: 0.5, drain: 0.03, hellBurn: 0.5,
         wallR: 45, wallBurn: 15, wallIfr: 0.3, wallCost: 35,
       },
       // 煉獄(Q): 構え windup 秒 → 画面内の炎上中の敵全員の炎上を爆発させる。残っていた炎上ダメージ × mul をすぐに与え、
@@ -586,13 +586,13 @@ const DATA = {
       tree: {
         trait: { name: '業火', paths: {
           stack:  { name: '火勢', desc: ['火勢の最大スタック +3', '火勢の最大スタック +6', '火勢の最大スタック +10'], v: [3, 6, 10], sp: { name: '白炎', desc: '炎上が 10スタック以上の敵へのクリティカル率 +20%(炎上ダメージもクリティカルする)' } },
-          spread: { name: '延焼', desc: ['燃え移る量 50% → 60%', '燃え移る量 75%', '燃え移る量 100%'], v: [0.6, 0.75, 1.0], sp: { name: '連鎖爆発', desc: '延焼のとき、倒れた場所で爆発する(残っていた炎上ダメージの 100%、半径 30)' } },
+          spread: { name: '延焼', desc: ['燃え移る量 25% → 35%', '燃え移る量 45%', '燃え移る量 60%'], v: [0.35, 0.45, 0.6], sp: { name: '連鎖爆発', desc: '延焼のとき、倒れた場所で爆発する(残っていた炎上ダメージの 100%、半径 25)' } },
           dur:    { name: '持続', desc: ['炎上の持続 +0.5秒', '炎上の持続 +1秒', '炎上の持続 +1.5秒'], v: [0.5, 1.0, 1.5], sp: { name: '燻り', desc: '炎上が切れた敵に、残り火(最後の炎上の 30%)が 3秒続く' } },
         } },
         passive: { name: '焔纏い', paths: {
           ignite: { name: '付与', desc: ['焔纏いの付与量 15% → 20%', '焔纏いの付与量 25%', '焔纏いの付与量 30%'], v: [0.2, 0.25, 0.3], sp: { name: '爆ぜる炎', desc: 'クリティカルしたときは付与量が 1.5倍' } },
           wear:   { name: '持続', desc: ['纏う時間 4秒 → 5秒', '纏う時間 6秒', '纏う時間 7.5秒'], v: [5, 6, 7.5], sp: { name: '燎原', desc: '纏っている間に炎上中の敵を倒すと、纏う時間 +0.5秒(1回の纏いで最大 +3秒)' } },
-          kindle: { name: '点火', desc: ['纏った瞬間、周りに火の輪(基礎威力 30、炎上を付与)', '火の輪の基礎威力 60', '火の輪の基礎威力 100'], v: [30, 60, 100], sp: { name: '業火', desc: '纏っている間、1秒に今のHP の 3% を消費する。敵を倒すと HP を 2% 回復する。炎上ダメージ +50%' } },
+          kindle: { name: '点火', desc: ['纏った瞬間、周りに火の輪(基礎威力 30、炎上を付与)', '火の輪の基礎威力 60', '火の輪の基礎威力 100'], v: [30, 60, 100], sp: { name: '業火', desc: '纏っている間、1秒に今のHP の 3% を消費する。炎上ダメージ +50%' } },
         } },
         q: { name: '煉獄', need: 'q', paths: {
           pow:  { name: '威力', desc: ['煉獄の爆発の倍率 150% → 180%', '煉獄の爆発の倍率 210%', '煉獄の爆発の倍率 250%'], v: [1.8, 2.1, 2.5], sp: { name: '火葬', desc: '爆発で倒れた敵も延焼する' } },
