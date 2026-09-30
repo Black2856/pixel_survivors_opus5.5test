@@ -155,7 +155,7 @@ const shieldTotal = () => (P.shield || 0) + (P.oShield || 0);
 // シールドの上限: クラスが決める(ナイトは最大HP の 50% など)。無ければ最大HP
 const shieldCap = () => (typeof clsShieldCap === 'function' ? clsShieldCap() : P.maxhp);
 function timedShield(n, dur) {
-  const v = Math.min(n, shieldCap() - shieldTotal()), last = P.oChunks[P.oChunks.length - 1];
+  const v = Math.min(n * clsShieldGain(), shieldCap() - shieldTotal()), last = P.oChunks[P.oChunks.length - 1];
   if (v <= 0) return;
   if (last && last.dur === dur && last.t > dur - 1) last.v += v; else P.oChunks.push({ v, t: dur, dur });
   P.oShield += v; S.hudDirty = true;

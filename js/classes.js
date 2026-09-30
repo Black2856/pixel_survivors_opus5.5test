@@ -155,6 +155,7 @@ WEAPON_SKILL.bolt = {
 };
 // シールド: 被ダメージを HP より先に受ける(最大HP を超えない。時間では消えない)
 function gainShield(n) {
+  n *= clsShieldGain();
   P.shield = Math.min(Math.max(0, shieldCap() - (P.oShield || 0)), Math.max(P.shield || 0, Math.round(n))); // 整数(割れたときの表示が小数にならないように)。上限はクラスが決める
   addRing(P.x, P.y, 16, '#4f8ff0', { w: 2, life: 0.35 }); burst(P.x, P.y, 14, ['#9fd8ff', '#4f8ff0', '#ffffff'], { sp: 60, glow: true });
   S.hudDirty = true;
@@ -695,11 +696,15 @@ const CLASS_RT = {
       if (!held && P.guard) P.guard = false;
       if (P.guard) P.guardT += dt;
       P.moveMul = P.guard ? p.guardSlow : 1;
-      // シールド: decayWait 秒 ガードで受けていないと減っていく / 上限を超えた分は削る
-      if (S.time - P.knGuardHit > p.decayWait && P.shield > 0) P.shield = Math.max(0, P.shield - knCap() * p.decay * dt);
+      // シールド: 1秒に今の量の decay ずつ減る(大盾を構えている間と、やめてから decayWait 秒は減らない)/ 上限を超えた分は削る
+      if (P.guard) P.knGuardHit = S.time;
+      if (S.time - P.knGuardHit > p.decayWait && P.shield > 0) {
+        const k = p.decay * (hasSp('trait', 'hold') ? 1 - p.sanctDecay : 1); // 聖域: 減る量 -30%
+        P.shield *= Math.exp(-k * dt);
+        if (P.shield < 0.5) P.shield = 0;
+      }
       const over = shieldTotal() - knCap();
       if (over > 0) P.shield = Math.max(0, P.shield - over);
-      if (hasSp('trait', 'hold') && shieldTotal() >= 1) heal(p.sanct * dt, true); // 聖域
     },
     // 被弾: 大盾を構えていれば全方向で受け止める(HP は減らない)。受けたダメージはシールドに変わる
     onHurt(dmg) {
@@ -729,6 +734,7 @@ const CLASS_RT = {
     onMainHit() { const p = KN(); if (P.knHitWin < p.hitCap) { P.knHitWin += p.hitGain; knGain(p.hitGain); } },
     onShieldBreak: () => knightBreak(),
     shieldCap: () => knCap(),
+    shieldGain: () => (hasSp('trait', 'hold') ? 1 + KN().sanctGain : 1), // 聖域: 獲得量 +25%
     atkBonus: () => knHoldAtk(),
     qStart() {
       const q = DATA.classes.knight.q, a = aimDir(q.r * 1.5);
@@ -752,7 +758,7 @@ const CLASS_RT = {
     staBroken: () => P.breakT > 0,
     statuses() {
       const out = [], k = knHoldAtk();
-      if (k > 0.005) out.push({ id: 'hold', glyph: '堅', name: '堅守', fx: `攻撃力 +${Math.round(k * 100)}%(シールドの量に比例)` + (hasSp('trait', 'hold') ? ' HP 1/s 回復' : ''), kind: 'buff' });
+      if (k > 0.005) out.push({ id: 'hold', glyph: '堅', name: '堅守', fx: `攻撃力 +${Math.round(k * 100)}%(シールドの量に比例)`, kind: 'buff' });
       if (P.breakT > 0) out.push({ id: 'break', glyph: '崩', name: 'ガードブレイク', fx: 'ガード不可', t: P.breakT, max: KN().breakT, kind: 'debuff' });
       return out;
     },
@@ -763,7 +769,7 @@ const CLASS_RT = {
         { key: '特性', name: '聖盾', cat: 'trait', desc: [
           `大盾で受けたダメージの ${Math.round(p.convert * 100)}% がシールドになる`,
           `通常攻撃の命中で +${p.hitGain}(1秒に ${p.hitCap} まで)`,
-          `${p.decayWait}秒 大盾で受けていないと、1秒に上限の ${Math.round(p.decay * 100)}% ずつ減る`,
+          `1秒に今のシールドの ${Math.round(p.decay * 100)}% ずつ減る(大盾を構えている間と、やめてから ${p.decayWait}秒は減らない)`,
           '堅守: シールドの量に比例して攻撃力アップ',
           '  → 魔力障壁などほかのシールドも同じ扱い',
         ], rows: [
@@ -1088,14 +1094,15 @@ const knCap = () => P.maxhp * (KN().capPct + cuV('trait', 'cap') + (P.lvFx.capPc
 // 自分のシールド(時間では消えない。上限まで)
 function knGain(n) {
   if (!(n > 0)) return;
+  n *= clsShieldGain();
   P.shield = Math.min(Math.max(0, knCap() - (P.oShield || 0)), (P.shield || 0) + n);
   S.hudDirty = true;
 }
-// 堅守: シールドの量(上限に対する割合)に比例して攻撃力アップ。鉄壁: 上限の間 1.5倍
+// 堅守: シールドの量(上限に対する割合)に比例して攻撃力アップ。鉄壁: 上限の 50% 以上で 1.5倍
 function knHoldAtk() {
   const cap = knCap(), f = cap > 0 ? Math.min(1, shieldTotal() / cap) : 0;
   let k = cuV('trait', 'hold', KN().holdAtk) * f;
-  if (hasSp('trait', 'cap') && f >= 0.999) k *= 1.5;
+  if (hasSp('trait', 'cap') && f >= KN().ironAt) k *= 1.5;
   return k;
 }
 // 不屈: シールドが割れた瞬間の衝撃波と立て直し
@@ -1188,6 +1195,7 @@ function clsOnElement(e, el, dealt) { if (clsRT() && clsRT().onElement) clsRT().
 function clsOnMainHit(e) { if (clsRT()) clsRT().onMainHit(e); }
 function clsOnEHit(e) { if (clsRT() && clsRT().onEHit) clsRT().onEHit(e); } // 武器スキル(E)の命中
 // 敵ごとの補正(アーチャーの印・弱点露出・集中など)
+const clsShieldGain = () => (clsRT() && clsRT().shieldGain ? clsRT().shieldGain() : 1); // シールドの獲得量の倍率
 const clsShieldCap = () => (clsRT() && clsRT().shieldCap ? clsRT().shieldCap() : P.maxhp);  // シールドの上限
 function clsOnShieldBreak() { if (clsRT() && clsRT().onShieldBreak) clsRT().onShieldBreak(); } // シールドが割れた
 const clsDmgTaken = e => (clsRT() && clsRT().dmgTaken ? clsRT().dmgTaken(e) : 1);
