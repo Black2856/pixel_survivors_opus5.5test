@@ -494,7 +494,7 @@ input[type=range] { width: 220px; accent-color: var(--gold); }
 .cz-btn:hover { background: #8a2a5a; }
 #chaos-panel { position: fixed; inset: 0; z-index: 55; display: grid; place-items: center; background: rgba(5,3,10,.65); }
 #chaos-panel.hidden { display: none; }
-.cz { zoom: var(--ui); width: min(640px, 94vw); max-height: 86vh; overflow-y: auto; padding: 14px 18px; background: var(--panel); box-shadow: inset 0 0 0 3px #ff5d73, 0 0 40px rgba(255,59,92,.25); display: flex; flex-direction: column; gap: 10px; }
+.cz { zoom: var(--ui); width: min(900px, 96vw); max-height: 86vh; overflow-y: auto; padding: 14px 18px; background: var(--panel); box-shadow: inset 0 0 0 3px #ff5d73, 0 0 40px rgba(255,59,92,.25); display: flex; flex-direction: column; gap: 10px; }
 .cz-head { display: flex; align-items: center; gap: 10px; font-size: 14px; }
 .cz-head b { color: #ff5d73; font-size: 18px; font-weight: normal; }
 .cz-x { margin-left: auto; font-size: 18px; color: var(--dim); background: none; }
@@ -507,7 +507,16 @@ input[type=range] { width: 220px; accent-color: var(--gold); }
 .cz-row b { text-align: center; font-size: 14px; font-weight: normal; }
 .cz-row button { height: 24px; background: var(--ink); box-shadow: inset 0 0 0 2px #3a3060; color: #fff; }
 .cz-row button:disabled { opacity: .3; }
-.cz-sum { padding: 8px 10px; background: rgba(90,26,58,.35); font-size: 13px; display: flex; flex-direction: column; gap: 3px; }
-.cz-sum b { color: #ff5d73; font-weight: normal; }
-.cz-sum .rw { color: var(--gold); }
+.cz-body { display: grid; grid-template-columns: 1fr 250px; gap: 12px; align-items: start; }
+.cz-sum { position: sticky; top: 0; padding: 10px 12px; background: rgba(90,26,58,.35); box-shadow: inset 0 0 0 1px #5a1a3a; font-size: 13px; display: flex; flex-direction: column; gap: 6px; }
+.cz-pt { display: flex; align-items: baseline; gap: 8px; }
+.cz-pt b { font: 26px 'Press Start 2P'; color: #ff5d73; font-weight: normal; }
+.cz-pt small { color: var(--dim); }
+.cz-h { color: var(--gold); border-bottom: 1px solid #5a1a3a; padding-bottom: 2px; }
+.cz-h.dim { color: var(--dim); }
+.cz-rws { display: flex; flex-direction: column; gap: 1px; }
+.cz-rw { display: flex; justify-content: space-between; }
+.cz-rw b { font-weight: normal; color: var(--dim); }
+.cz-rws.now .cz-rw b { color: var(--gold); }
+@media (max-width: 760px) { .cz-body { grid-template-columns: 1fr; } }
 .cz-note { font-size: 11px; }

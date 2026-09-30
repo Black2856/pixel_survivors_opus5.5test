@@ -243,19 +243,25 @@ const MetaUI = (() => {
   // ---------- カオス強化の設定 ----------
   // 項目ごとに Lv を上げ下げ。合計ポイントと、その報酬(そのランの間だけ効く)を表示する
   let czKey = null;
-  const rewardText = r => r ? [`装備ロール上限 +${Math.round(r.eqMaxVal * 100)}%`, r.eqMaxLv ? `装備Lv上限 +${r.eqMaxLv}` : '', `装備品質 +${Math.round(r.eqQual * 100)}%`, `宝箱品質 +${Math.round(r.chestQual * 100)}%`, `獲得ゴールド +${Math.round(r.gold * 100)}%`].filter(Boolean).join(' ・ ') : 'なし(5 pt から)';
+  // 報酬の一覧(右の欄に1行ずつ)
+  const rewardRows = r => (r ? [['装備ロール上限', `+${Math.round(r.eqMaxVal * 100)}%`], ['装備Lv上限', r.eqMaxLv ? `+${r.eqMaxLv}` : '—'], ['装備品質', `+${Math.round(r.eqQual * 100)}%`], ['宝箱品質', `+${Math.round(r.chestQual * 100)}%`], ['獲得ゴールド', `+${Math.round(r.gold * 100)}%`]]
+    .map(([a, b]) => `<div class="cz-rw"><span>${a}</span><b>${b}</b></div>`).join('') : '<div class="dim">なし(5 pt から)</div>');
   function chaosPanel(key) {
     czKey = key; const lv = META.chaos[key] || (META.chaos[key] = {});
     const pt = chaosPoints(lv), r = chaosReward(pt), next = DATA.chaos.rewards.find(x => x.pt > pt);
     const item = STAGE_ITEMS().find(s => s.key === key);
     $('chaos-panel').innerHTML = `<div class="cz">
       <div class="cz-head"><b>カオス強化</b> ${item ? item.name : ''}<button class="cz-x" data-cz="close">×</button></div>
-      <div class="cz-list">${DATA.chaos.mods.map(m => { const l = lv[m.k] || 0; return `<div class="cz-row ${l ? 'on' : ''}">
+      <div class="cz-body"><div class="cz-list">${DATA.chaos.mods.map(m => { const l = lv[m.k] || 0; return `<div class="cz-row ${l ? 'on' : ''}">
         <span class="nm">${m.name}<small>${chaosDesc(m, Math.max(1, l))}${m.max > 1 ? ` (1Lv ${m.per}${m.k === 'bossLv' || m.k === 'startLv' ? '' : '%'})` : ''}</small></span>
         <span class="pt">${m.pt} pt/Lv</span>
         <button data-cz="-" data-k="${m.k}" ${l ? '' : 'disabled'}>−</button><b>${l} / ${m.max}</b><button data-cz="+" data-k="${m.k}" ${l < m.max ? '' : 'disabled'}>+</button></div>`; }).join('')}</div>
-      <div class="cz-sum"><div>合計 <b>${pt} pt</b></div><div class="rw">報酬: ${rewardText(r)}</div>${next ? `<div class="dim">次(${next.pt} pt): ${rewardText(next)}</div>` : ''}</div>
-      <div class="dim cz-note">報酬はこのモード・ステージのランの間だけ効く。敵が強くなる分、装備とゴールドが増える</div>
+      <div class="cz-sum">
+        <div class="cz-pt">合計<b>${pt}</b><small>pt</small></div>
+        <div class="cz-h">報酬${r ? `(${r.pt} pt)` : ''}</div><div class="cz-rws now">${rewardRows(r)}</div>
+        ${next ? `<div class="cz-h dim">次の報酬(${next.pt} pt)</div><div class="cz-rws">${rewardRows(next)}</div>` : '<div class="cz-h dim">報酬は最大</div>'}
+        <div class="dim cz-note">報酬はこのモード・ステージのランの間だけ効く。敵が強くなる分、装備とゴールドが増える</div>
+      </div></div>
     </div>`;
     UI.show($('chaos-panel'));
   }
