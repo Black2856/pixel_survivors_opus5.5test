@@ -699,7 +699,7 @@ const CLASS_RT = {
       // シールド: 1秒に今の量の decay ずつ減る(大盾を構えている間と、やめてから decayWait 秒は減らない)/ 上限を超えた分は削る
       if (P.guard) P.knGuardHit = S.time;
       if (S.time - P.knGuardHit > p.decayWait && P.shield > 0) {
-        const k = p.decay * (hasSp('trait', 'hold') ? 1 - p.sanctDecay : 1); // 聖域: 減る量 -30%
+        const k = p.decay * (hasSp('trait', 'hold') ? 1 - p.sanctDecay : 1); // 不滅の盾: 減る量 -30%
         P.shield *= Math.exp(-k * dt);
         if (P.shield < 0.5) P.shield = 0;
       }
@@ -734,7 +734,7 @@ const CLASS_RT = {
     onMainHit() { const p = KN(); if (P.knHitWin < p.hitCap) { P.knHitWin += p.hitGain; knGain(p.hitGain); } },
     onShieldBreak: () => knightBreak(),
     shieldCap: () => knCap(),
-    shieldGain: () => (hasSp('trait', 'hold') ? 1 + KN().sanctGain : 1), // 聖域: 獲得量 +25%
+    shieldGain: () => (hasSp('trait', 'hold') ? 1 + KN().sanctGain : 1), // 不滅の盾: 獲得量 +25%
     atkBonus: () => knHoldAtk(),
     qStart() {
       const q = DATA.classes.knight.q, a = aimDir(q.r * 1.5);
@@ -1098,7 +1098,7 @@ function knGain(n) {
   P.shield = Math.min(Math.max(0, knCap() - (P.oShield || 0)), (P.shield || 0) + n);
   S.hudDirty = true;
 }
-// 堅守: シールドの量(上限に対する割合)に比例して攻撃力アップ。鉄壁: 上限の 50% 以上で 1.5倍
+// 堅守: シールドの量(上限に対する割合)に比例して攻撃力アップ。盾撃: 上限の 50% 以上で 1.5倍
 function knHoldAtk() {
   const cap = knCap(), f = cap > 0 ? Math.min(1, shieldTotal() / cap) : 0;
   let k = cuV('trait', 'hold', KN().holdAtk) * f;
