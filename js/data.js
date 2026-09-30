@@ -522,13 +522,13 @@ const DATA = {
         16: { d: '攻撃力 +10%', st: { atk: 0.1 } },
         18: { d: 'クールダウン -5%', st: { cd: 0.05 } },
       },
-      // 聖盾: シールドの上限 capPct(最大HP 比)。ガードで受けたダメージの convert がシールドに、通常攻撃の命中で +hitGain(1秒に hitCap まで)
-      //   1秒に今のシールドの decay ずつ減る(大盾を構えている間と、やめてから decayWait 秒は減らない)。堅守: シールド量 / 上限 × holdAtk だけ攻撃力アップ
+      // 聖盾: シールドの上限 capPct(最大HP 比)。ガードで受けたダメージの convert がシールドに、E / Q を使うと最大HP の skillGain(変換パスで増える)
+      //   1秒に今のシールドの decay ずつ減る(聖盾でシールドを得てから decayWait 秒は減らない)。堅守: シールド量 / 上限 × holdAtk だけ攻撃力アップ
       //   盾撃: シールドが上限の ironAt 以上で堅守 ×1.5 / 不滅の盾: 獲得量 +sanctGain・減る量 -sanctDecay
       // 不屈: シールドが割れると衝撃波(breakPow・半径 breakR)と無敵 breakIfr 秒(breakCd 秒に1回)
       // 大盾: 構えた瞬間にスタミナ guardCost。受けたダメージの pay をスタミナで払う。移動 ×guardSlow。スタミナ 0 で breakT 秒 ガード不可
       params: {
-        capPct: 0.15, convert: 0.2, hitGain: 1, hitCap: 5, decayWait: 3, decay: 0.05, holdAtk: 0.25, ironAt: 0.3, sanctGain: 0.25, sanctDecay: 0.3,
+        capPct: 0.2, convert: 0.2, skillGain: 0.1, decayWait: 1, decay: 0.05, holdAtk: 0.25, ironAt: 0.3, sanctGain: 0.25, sanctDecay: 0.3,
         breakPow: 75, breakR: 50, breakIfr: 0.5, breakCd: 3, rebuild: 0.3, reflect: 3, reflectR: 70,
         guardCost: 15, pay: 0.75, guardSlow: 0.5, breakT: 2,
       },
@@ -537,8 +537,8 @@ const DATA = {
       q: { name: '聖盾の審判', cd: 30, windup: 0.4, pow: 150, perShield: 10, r: 90, arc: 2.1, stun: 2, stunPer: 0.01, echo: 0.3 },
       tree: {
         trait: { name: '聖盾', paths: {
-          convert: { name: '変換', desc: ['ガードで得るシールド 20% → 25%', 'ガードで得るシールド 30%', 'ガードで得るシールド 40%'], v: [0.25, 0.3, 0.4], sp: { name: '反射', desc: 'ガードで受けたダメージの 300% を、近くの敵に返す' } },
-          cap:     { name: '容量', desc: ['シールドの上限 +6%(最大HP 比)', 'シールドの上限 +12%(最大HP 比)', 'シールドの上限 +20%(最大HP 比)'], v: [0.06, 0.12, 0.2], sp: { name: '盾撃', desc: 'シールドが上限の 30% 以上の間、堅守の攻撃力アップが 1.5倍' } },
+          convert: { name: '変換', desc: ['聖盾で得るシールド量 +30%', '聖盾で得るシールド量 +60%', '聖盾で得るシールド量 +100%'], v: [0.3, 0.6, 1.0], sp: { name: '反射', desc: 'ガードで受けたダメージの 300% を、近くの敵に返す' } },
+          cap:     { name: '容量', desc: ['シールドの上限 +8%(最大HP 比)', 'シールドの上限 +16%(最大HP 比)', 'シールドの上限 +25%(最大HP 比)'], v: [0.08, 0.16, 0.25], sp: { name: '盾撃', desc: 'シールドが上限の 30% 以上の間、堅守の攻撃力アップが 1.5倍' } },
           hold:    { name: '堅守', desc: ['堅守の攻撃力 25% → 32.5%', '堅守の攻撃力 40%', '堅守の攻撃力 50%'], v: [0.325, 0.4, 0.5], sp: { name: '不滅の盾', desc: 'シールドの獲得量 +25%、シールドの減る量 -30%' } },
         } },
         passive: { name: '不屈', paths: {

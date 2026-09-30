@@ -765,11 +765,10 @@ const CLASS_RT = {
 
   knight: {
     skills: ['q'],
-    init() { P.guard = false; P.guardHeld = false; P.guardT = 0; P.breakT = 0; P.knHitWin = 0; P.knHitT = 0; P.knGuardHit = -99; P.knBreakCd = 0; },
+    init() { P.guard = false; P.guardHeld = false; P.guardT = 0; P.breakT = 0; P.knGainT = -99; P.knBreakCd = 0; },
     update(dt) {
       const p = KN();
-      P.breakT -= dt; P.knHitT -= dt;
-      if (P.knHitT <= 0) { P.knHitT = 1; P.knHitWin = 0; }
+      P.breakT -= dt;
       // 大盾(Space 長押し)。構えた瞬間にスタミナ guardCost。押し直すまで再び構えない
       const held = (keys.Space || keys.TouchDef) && !P.act;
       if (held && !P.guard && !P.guardHeld && P.breakT <= 0) {
@@ -780,9 +779,8 @@ const CLASS_RT = {
       if (!held && P.guard) P.guard = false;
       if (P.guard) P.guardT += dt;
       P.moveMul = P.guard ? p.guardSlow : 1;
-      // シールド: 1秒に今の量の decay ずつ減る(大盾を構えている間と、やめてから decayWait 秒は減らない)/ 上限を超えた分は削る
-      if (P.guard) P.knGuardHit = S.time;
-      if (S.time - P.knGuardHit > p.decayWait && P.shield > 0) {
+      // シールド: 1秒に今の量の decay ずつ減る(聖盾でシールドを得てから decayWait 秒は減らない)/ 上限を超えた分は削る
+      if (S.time - P.knGainT > p.decayWait && P.shield > 0) {
         const k = p.decay * (hasSp('trait', 'hold') ? 1 - p.sanctDecay : 1); // 不滅の盾: 減る量 -30%
         P.shield *= Math.exp(-k * dt);
         if (P.shield < 0.5) P.shield = 0;
@@ -796,8 +794,7 @@ const CLASS_RT = {
       if (P.breakT > 0 || !P.guard) return dmg;
       const blocked = Math.max(1, Math.round((dmg - P.armor) * (1 - P.dr)));
       staUse(blocked * Math.max(0, p.pay - (P.lvFx.payCut || 0)), DATA.player.staLock);
-      knGain(blocked * cuV('trait', 'convert', p.convert));
-      P.knGuardHit = S.time;
+      holyGain(blocked * p.convert);
       if (hasSp('trait', 'convert')) { // 反射: 近くの敵に返す
         let best = null, bd = p.reflectR * p.reflectR;
         forEachNear(P.x, P.y, p.reflectR, e => { if (e.prop || e.dead) return; const d = d2(e.x, e.y, P.x, P.y); if (d < bd) { bd = d; best = e; } });
@@ -814,8 +811,8 @@ const CLASS_RT = {
       P.ifr = P.iframe * 0.5;
       return null;
     },
-    // 通常攻撃の命中: シールド +1(1秒に hitCap まで)
-    onMainHit() { const p = KN(); if (P.knHitWin < p.hitCap) { P.knHitWin += p.hitGain; knGain(p.hitGain); } },
+    onMainHit() {},
+    onSkill: () => holyGain(P.maxhp * KN().skillGain), // E / Q を使うとシールド(聖盾の審判は消費した後に得る)
     onShieldBreak: () => knightBreak(),
     shieldCap: () => knCap(),
     shieldGain: () => (hasSp('trait', 'hold') ? 1 + KN().sanctGain : 1), // 不滅の盾: 獲得量 +25%
@@ -852,8 +849,8 @@ const CLASS_RT = {
       return [
         { key: '特性', name: '聖盾', cat: 'trait', desc: [
           `大盾で受けたダメージの ${Math.round(p.convert * 100)}% がシールドになる`,
-          `メイン武器の通常攻撃の命中で +${p.hitGain}(1秒に ${p.hitCap} まで)`,
-          `1秒に今のシールドの ${Math.round(p.decay * 100)}% ずつ減る(大盾を構えている間と、やめてから ${p.decayWait}秒は減らない)`,
+          `E か Q を使うと、最大HP の ${Math.round(p.skillGain * 100)}% のシールドを得る`,
+          `1秒に今のシールドの ${Math.round(p.decay * 100)}% ずつ減る(聖盾でシールドを得てから ${p.decayWait}秒は減らない)`,
           '堅守: シールドの量に比例して攻撃力アップ(全ての攻撃)',
           '  → 魔力障壁などほかのシールドも同じ扱い',
         ], rows: [
@@ -1283,6 +1280,12 @@ function archerVolley() {
 const KN = () => DATA.classes.knight.params;
 const knCap = () => P.maxhp * (KN().capPct + cuV('trait', 'cap') + (P.lvFx.capPct || 0));
 // 自分のシールド(時間では消えない。上限まで)
+// 聖盾で得るシールド(大盾で受けた分・E / Q)。変換パスで増え、得てから decayWait 秒は減らない
+function holyGain(n) {
+  if (!(n > 0)) return;
+  knGain(n * (1 + cuV('trait', 'convert')));
+  P.knGainT = S.time;
+}
 function knGain(n) {
   if (!(n > 0)) return;
   n *= clsShieldGain();
