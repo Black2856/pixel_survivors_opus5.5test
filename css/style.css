@@ -362,8 +362,8 @@ input[type=range] { width: 220px; accent-color: var(--gold); }
 .cl-card.sel { box-shadow: inset 4px 0 0 0 var(--cc), inset 0 0 0 3px var(--cc); }
 .cl-card.off { opacity: .55; }
 .cl-card img { grid-row: 1 / 3; width: 64px; height: 48px; object-fit: contain; image-rendering: pixelated; }
-.cl-card .nm { font-size: 18px; color: var(--cc); }
-.cl-card .nm small { font: 8px 'Press Start 2P'; color: var(--dim); margin-left: 8px; }
+.cl-card .nm { font-size: 18px; color: var(--cc); white-space: nowrap; }
+.cl-card .nm small { display: block; margin-top: 3px; font: 8px 'Press Start 2P'; color: var(--dim); } /* 英語名は名前の下の行(長い名前でもカードの高さを揃える) */
 .cl-card .lv { font: 10px 'Press Start 2P'; color: var(--txt); }
 .cl-card .use { position: absolute; right: 8px; top: 6px; font-size: 11px; color: var(--gold); }
 #cl-detail { padding: 14px 16px; background: var(--panel); box-shadow: inset 0 0 0 3px var(--line); display: flex; flex-direction: column; gap: 8px; min-height: 0; }
