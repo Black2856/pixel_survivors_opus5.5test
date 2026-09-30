@@ -222,11 +222,11 @@ WEAPON_SKILL.longsword = {
     return { name: sk.name, cat: 'e', desc: [
       `使うと、シールドを最大HP の ${Math.round(sk.shield * 100)}% 得る(${sk.shieldT}秒)`,
       `構え ${sk.windup}秒(動けない)→ 剣を叩きつけ、前方へ衝撃波が ${sk.steps}段 走る`,
-      `1段の威力: (武器の威力 + 今のシールド) × ${Math.round(sk.pow * 100)}%`,
+      `1段の威力: 武器の威力 × ${Math.round(sk.pow * 100)}% + 今のシールド`,
     ], rows: [
       ['CD', `<b>${(sk.cd * (1 - c.cuV('e', 'cd')) * (1 - (m.cd || 0)) * c.cdMul).toFixed(1)}</b> 秒`],
       ['段数', `${sk.steps + (m.eSteps || 0)} 段`],
-      ['1段の威力(シールド 0)', `${Math.round(one)} → <b>${Math.round(one * c.atkMul)}</b>`, 'シールドがあると、その値が武器の威力に足される'],
+      ['1段の威力(シールド 0)', `${Math.round(one)} → <b>${Math.round(one * c.atkMul)}</b>`, 'シールドがあると、その値がそのまま足される'],
     ] };
   },
   start() {
@@ -255,7 +255,7 @@ function slamWaves(a, x0, y0, k) {
   for (let i = 0; i < n; i++) setTimeout(() => {
     if (state !== 'play') return;
     const d = sk.stepD * (i + 1) * P.area, x = x0 + Math.cos(a.a) * d, y = y0 + Math.sin(a.a) * d, R = sk.waveR * P.area, el = clsNextEl();
-    const dmg = (wst(P.mainW).dmg + shieldTotal()) * sk.pow * (1 + cuV('e', 'pow')) * a.pow * k;
+    const dmg = (wst(P.mainW).dmg * sk.pow * (1 + cuV('e', 'pow')) * a.pow + shieldTotal()) * k; // シールドはそのまま足す
     asMine(() => {
       forEachNear(x, y, R, e => {
         if (e.prop) { killEnemy(e); return; }

@@ -265,7 +265,7 @@ const DATA = {
       ],
       evo: { name: '聖剣', desc: '薙ぎ払いの跡に光の刃が残り、0.3秒後にもう一度斬る(50%)。当てるたびに 5秒のシールド +1', st: { cd: 0.95, dmg: 60, count: 3, aoe: 70 } },
       // 武器スキル(E)グランドスラム: シールドを最大HP の shield 分(shieldT 秒)得る → 構え windup 秒(動けない)
-      //   → 前方へ衝撃波が steps 段(各 (武器の威力 + 今のシールド) × pow、半径 waveR、段の間隔 gap 秒・距離 stepD)
+      //   → 前方へ衝撃波が steps 段(各 武器の威力 × pow + 今のシールド、半径 waveR、段の間隔 gap 秒・距離 stepD)
       skill: {
         name: 'グランドスラム', cd: 22, windup: 0.3, steps: 3, pow: 3.5, waveR: 22, stepD: 28, gap: 0.12, shield: 0.1, shieldT: 12, radius: 70,
         tree: { name: 'グランドスラム', paths: {
@@ -509,7 +509,7 @@ const DATA = {
       },
       // 聖盾の審判(Q): 構え windup 秒 → シールドを全て消費し、前方の扇形(半径 r・角度 arc)に 基礎威力 pow + 消費シールド × perShield
       //   スタンは stun + 消費シールド × stunPer 秒
-      q: { name: '聖盾の審判', cd: 30, windup: 0.4, pow: 120, perShield: 4, r: 90, arc: 2.1, stun: 2, stunPer: 0.01, echo: 0.3 },
+      q: { name: '聖盾の審判', cd: 30, windup: 0.4, pow: 120, perShield: 5, r: 90, arc: 2.1, stun: 2, stunPer: 0.01, echo: 0.3 },
       tree: {
         trait: { name: '聖盾', paths: {
           convert: { name: '変換', desc: ['ガードで得るシールド 20% → 25%', 'ガードで得るシールド 30%', 'ガードで得るシールド 40%'], v: [0.25, 0.3, 0.4], sp: { name: '反射', desc: 'ガードで受けたダメージの 300% を、近くの敵に返す' } },
