@@ -57,6 +57,15 @@ function knightPose(U, arm, o = {}) {
 }
 
 // rig: そのモーションを使えるクラスの部位(合わないクラスは待機・歩きのまま。rig.alias で代わりのモーションを指定できる)
+// パイロマンサーの部位の配置(ART.S.pyro と対応)。U: 上半身の沈み / o: 腕の上下・杖の位置と絵・脚
+function pyroPose(U, arm, o = {}) {
+  const p = {
+    hood: [0, U], torso: [0, U], backArm: [0, U], legs: [0, 0, o.legs || 'base'],
+    frontArm: arm === 'base' ? [0, U] : [0, U + (o.armDy || 0), arm], staff: [o.sx || 0, U + (o.sy || 0), o.staffV || 'base'],
+  };
+  return { p, hand: null };
+}
+
 const MOTIONS = {
   // メテオ(Q): 宝珠を頭上へ掲げて詠唱(0.5秒・のけぞる)→ 振り下ろして照準へ放つ → 戻る
   mMeteor: {
@@ -140,6 +149,42 @@ const MOTIONS = {
       if (t < c) { const u = t / c; return Object.assign(knightPose(0, 'base', { shieldV: 'guard', sx: -2, sy: -Math.round(6 * u) }), { blade: false, lean: -0.08 * u, sy: 1 + 0.04 * u }); }
       const r = t - c;
       return Object.assign(knightPose(r < 0.2 ? 2 : 0, 'base', { shieldV: 'guard', sx: 2, sy: r < 0.2 ? 2 : 0, legs: 'stepA' }), { blade: false, lean: track([[0, 0.18], [0.4, 0, 'out']], r), sy: track([[0, 0.86], [0.2, 1, 'out']], r) });
+    },
+  },
+  // 火炎放射(E): 杖を前へ突き出して構える → 吹き続ける(炎が揺れて小さく反動)→ 戻る
+  pFlame: {
+    rig: 'pyro', windup: 0.2,
+    state(t, dur) {
+      const W = this.windup, end = W + dur;
+      if (t < W) return Object.assign(pyroPose(1, 'forward', { sx: 2, sy: 1, staffV: 'big' }), { blade: false, lean: -0.06 * t / W, sy: 1 - 0.03 * t / W });
+      if (t < end) {
+        const kick = Math.floor((t - W) * 20) % 2;
+        return Object.assign(pyroPose(kick, 'forward', { sx: 3 - kick, sy: 1, staffV: kick ? 'big' : 'b', legs: 'stepA' }), { blade: false, lean: 0.05 - 0.03 * kick, sy: 1 });
+      }
+      return Object.assign(pyroPose(0, 'base'), { blade: false, lean: 0, sy: 1 });
+    },
+    duration: dur => MOTIONS.pFlame.windup + dur + 0.2,
+  },
+  // 煉獄(Q): 杖を頭上へ掲げて炎を集める(0.5秒・のけぞる)→ 振り下ろす → 戻る
+  pInferno: {
+    rig: 'pyro', dur: 0.85, cast: 0.5,
+    state(t) {
+      if (t < this.cast) {
+        const u = track([[0, 0], [0.15, 1, 'out'], [this.cast, 1]], t);
+        return Object.assign(pyroPose(t > 0.3 ? 0 : 1, u > 0.3 ? 'raise' : 'base', { armDy: -3, sx: 0, sy: Math.round(-3 * u), staffV: Math.floor(t * 16) % 2 ? 'big' : 'b' }),
+          { blade: false, lean: track([[0, 0], [this.cast, -0.1]], t), sy: track([[0, 1], [0.1, 0.94, 'out'], [this.cast, 1.05]], t) });
+      }
+      const r = t - this.cast;
+      return Object.assign(pyroPose(r < 0.12 ? 2 : 0, r < 0.25 ? 'forward' : 'base', { sx: r < 0.25 ? 3 : 0, sy: r < 0.25 ? 2 : 0, staffV: r < 0.15 ? 'big' : 'base', legs: r < 0.2 ? 'stepA' : 'base' }),
+        { blade: false, lean: track([[0, 0.16], [0.35, 0, 'out']], r), sy: track([[0, 0.9], [0.15, 1, 'out']], r) });
+    },
+  },
+  // 炎壁(Space): 杖を地面に突いて沈む → 戻る
+  pWall: {
+    rig: 'pyro', dur: 0.3,
+    state(t) {
+      return Object.assign(pyroPose(t < 0.15 ? 2 : 0, 'base', { sy: t < 0.15 ? 3 : 0, staffV: t < 0.2 ? 'big' : 'base', legs: t < 0.15 ? 'stepB' : 'base' }),
+        { blade: false, lean: 0, sy: track([[0, 1], [0.05, 0.86, 'out'], [0.2, 1.04], [0.3, 1]], t) });
     },
   },
   // 居合(Q): 構え(0.25 秒)→ 抜刀して振り上げ → 残心 → 血振り → 納刀

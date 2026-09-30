@@ -404,6 +404,18 @@ function render() {
         }
       }
       addLight(z.x, z.y, z.r * 2, '#b8ff9a', 0.35 * fade * on);
+    } else if (z.kind === 'vortex') { // 火炎旋風: 回る炎の輪
+      const col = z.blue ? '#7ad7ff' : '#ff6a2a', hi = z.blue ? '#ffffff' : '#ffc34a';
+      sx.globalAlpha = 0.25 * fade; pDisc(sx, zx, zy, Math.round(z.r), col);
+      for (let i = 0; i < 3; i++) {
+        const R = z.r * (0.4 + 0.3 * i), a0 = t * (6 - i) + i;
+        for (let a = 0; a < 2.2; a += 0.12) {
+          const x = Math.round(zx + Math.cos(a0 + a) * R), y = Math.round(zy + Math.sin(a0 + a) * R * 0.6);
+          sx.globalAlpha = gx.globalAlpha = fade * (1 - a / 2.4); sx.fillStyle = gx.fillStyle = a < 0.3 ? '#ffffff' : hi; sx.fillRect(x, y, 1, 1); gx.fillRect(x, y, 1, 1);
+        }
+      }
+      sx.globalAlpha = gx.globalAlpha = 1;
+      addLight(z.x, z.y, z.r * 2.5, col, 0.8 * fade);
     } else if (z.kind === 'residue') {
       sx.globalAlpha = 0.28 * fade; pDisc(sx, zx, zy, Math.round(z.r), '#bff4ff');
       sx.globalAlpha = 0.7 * fade; pCircle(sx, zx, zy, Math.round(z.r), '#ffffff', 1); sx.globalAlpha = 1;
@@ -583,6 +595,17 @@ function render() {
         sx.fillRect(x, y, 1, 1); gx.fillRect(x, y, 1, 1);
       }
       gx.globalAlpha = 1;
+    }
+    if (P.flame) { // 火炎放射: 扇形の炎(外側ほど薄い。ゆらぐ)
+      const f = P.flame, cx = P.x - cam.x, cy = P.y - cam.y - 4, h = f.arc / 2, fl = 0.9 + 0.1 * Math.sin(t * 40);
+      const layers = f.blue ? [['#2b5fd0', 1, 0.3], ['#7ad7ff', 0.75, 0.35], ['#ffffff', 0.4, 0.45]] : [['#b8261a', 1, 0.3], ['#ff6a2a', 0.78, 0.35], ['#ffc34a', 0.5, 0.45], ['#fff6c8', 0.25, 0.5]];
+      for (const [col, k, al] of layers) {
+        const R = f.len * k * fl * Math.min(1, f.t * 6);
+        sx.globalAlpha = al; gx.globalAlpha = al * 0.8; sx.fillStyle = gx.fillStyle = col;
+        for (const g of [sx, gx]) { g.beginPath(); g.moveTo(cx, cy); g.arc(cx, cy, R, f.a - h * k, f.a + h * k); g.closePath(); g.fill(); }
+      }
+      sx.globalAlpha = gx.globalAlpha = 1;
+      addLight(P.x + Math.cos(f.a) * f.len * 0.5, P.y + Math.sin(f.a) * f.len * 0.5, f.len * 1.6, f.blue ? '#7ad7ff' : '#ff8a3d', 1);
     }
     addLight(P.x, P.y, 105, DATA.classes[P.cls].light || '#ffe2b8', 0.95);
   }

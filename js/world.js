@@ -372,10 +372,10 @@ function updWeapons(dt) {
       case 'fire':
         if (w.cd <= 0) {
           w.cd = st.cd * P.cdMul;
-          const base = aimAt(160);
+          const base = aimAt(160), ar = 1 + ((P.wm[k] || {}).area || 0); // 熟練の範囲: 火炎弾の大きさと爆炎の半径
           for (let i = 0; i < n; i++) {
             const a = base + (i - (n - 1) / 2) * 0.22;
-            const o = { dmg: st.dmg, pierce: 999, life: 0.95, src: k, burn: st.burn, r: 4, boom: w.evo ? 6 : 0, col: '#ff8a3d' };
+            const o = { dmg: st.dmg, pierce: 999, life: 0.95, src: k, burn: st.burn, r: 4 * ar, boom: w.evo ? 6 : 0, boomR: 16 * ar, col: '#ff8a3d' };
             fire('fire', P.x, P.y, a, 135, o);
           }
           AudioMan.fire();
@@ -495,6 +495,7 @@ function spawnHole(x, y, st, evo) {
 // 0.5秒ごとに、残っている炎上の合計を出どころごとにまとめて与える。1体あたり最大 40 個
 function addBurn(e, perSec, dur = DATA.debuff.burnDur, src = 'fire') {
   if (!(perSec > 0) || e.dead || e.prop) return;
+  dur += clsBurnDur(); // クラスの持続の追加(パイロマンサー)
   const b = e.burns || (e.burns = []);
   b.push({ v: perSec, t: dur, src });
   if (b.length > 40) b.shift();
@@ -574,9 +575,10 @@ function updProjs(dt) {
       if (p.boom > 0) {
         p.boom--;
         const bx = e.x, by = e.y;
-        forEachNear(bx, by, 16 * P.area, e2 => { if (e2 !== e) hitEnemy(e2, p.dmg * 0.6, { src: p.src, noNum: true, col: '#ff8a3d' }); });
+        const BR = (p.boomR || 16) * P.area;
+        forEachNear(bx, by, BR, e2 => { if (e2 !== e) hitEnemy(e2, p.dmg * 0.6, { src: p.src, noNum: true, col: '#ff8a3d' }); });
         burst(bx, by, 12, ['#ff6a2a', '#ffc34a', '#fff6c8'], { sp: 70, glow: true });
-        addFlash(bx, by, 40, '#ff8a3d', 0.2); addRing(bx, by, 16 * P.area, '#ffc34a', { life: 0.2 });
+        addFlash(bx, by, 40, '#ff8a3d', 0.2); addRing(bx, by, BR, '#ffc34a', { life: 0.2 });
       }
       if (p.pierce-- <= 0) {
         dead = true;
@@ -636,6 +638,22 @@ function updZones(dt) {
         }
       }
       if (z.t + dt >= z.dur && !z.done) { z.done = true; asMine(() => { addFlash(z.x, z.y, z.r * 2.4, '#b8ff9a', 0.3); addRing(z.x, z.y, z.r, '#e4ffd8', { w: 2, life: 0.35 }); }); }
+    } else if (z.kind === 'vortex') { // 火炎旋風: 周りの敵を引き寄せながら焼く
+      forEachNear(z.x, z.y, z.r * 2, e => {
+        if (e.boss || e.prop) return;
+        const a = Math.atan2(z.y - e.y, z.x - e.x), dd = Math.sqrt(d2(z.x, z.y, e.x, e.y));
+        const k = Math.min(dd, z.pull * dt * (1 - (e.kbRes || 0) * 0.6));
+        e.x += Math.cos(a) * k; e.y += Math.sin(a) * k;
+      });
+      if (z.tick <= 0) {
+        z.tick = z.every;
+        asMine(() => forEachNear(z.x, z.y, z.r, e => { if (!e.prop) hitEnemy(e, z.dmg, { src: 'flamer', noNum: Math.random() < 0.6, col: z.blue ? '#7ad7ff' : '#ff8a3d', eHit: true }); }));
+      }
+      const cols = z.blue ? ['#7ad7ff', '#bff4ff', '#ffffff'] : ['#ff6a2a', '#ffc34a', '#fff6c8'];
+      for (let k = 0; k < 3; k++) {
+        const a = z.t * 9 + k * TAU / 3 + rand(-0.3, 0.3), r = z.r * rand(0.3, 1);
+        part(z.x + Math.cos(a) * r, z.y + Math.sin(a) * r * 0.6, -Math.sin(a) * 60, -rand(30, 70), 0.4, pick(cols), { glow: true, drag: 1 });
+      }
     } else if (z.kind === 'residue') { // ブリンクの氷の残滓: 触れた敵に凍傷
       if (Math.random() < dt * 20) part(z.x + rand(-z.r, z.r), z.y + rand(-z.r, z.r) * 0.6, 0, -10, 0.5, pick(['#bff4ff', '#ffffff']), { glow: true });
       if (z.tick <= 0) {
@@ -685,6 +703,7 @@ function hitEnemy(e, base, o = {}) {
   if (o.src && o.src === P.mainW) clsOnMainHit(e); // 通常攻撃(メイン武器)の命中
   if (o.eHit) clsOnEHit(e);                        // 武器スキル(E)の命中
   if (o.el) clsOnElement(e, o.el, dmg);             // 属性(メイジの元素循環)
+  if (!o.dot && (o.eHit || (o.src && P.weapons[o.src]))) clsOnWeaponHit(e, dmg, crit); // 武器の命中(炎上などの継続ダメージは除く)
   S.totalDmg += dmg;
   if (o.src) S.dmgBy[o.src] = (S.dmgBy[o.src] || 0) + dmg;
   if (o.kb && o.ang !== undefined && !e.boss) {
@@ -793,12 +812,13 @@ function updEnemies(dt) {
       for (const b of bs) b.t -= dt;
       if (e.burnTick <= 0) {
         e.burnTick = DATA.debuff.burnTick;
-        const by = {};
+        const by = {}, k = clsBurnMul(e), crit = clsBurnCrit(e); // クラスの補正(パイロマンサーの火勢・白炎など)
         for (const b of bs) if (b.t > -DATA.debuff.burnTick) by[b.src] = (by[b.src] || 0) + b.v * DATA.debuff.burnTick;
-        for (const src in by) { hitEnemy(e, by[src], { src, noCrit: true, col: '#ff8a3d', noNum: Math.random() < 0.5 }); if (e.dead) break; }
+        for (const src in by) { hitEnemy(e, by[src] * k, { src, noCrit: !crit, dot: true, col: '#ff8a3d', noNum: Math.random() < 0.5 }); if (e.dead) break; }
         if (e.dead) continue;
       }
       e.burns = bs.filter(b => b.t > 0);
+      if (!e.burns.length && bs.length) clsOnBurnOut(e, bs.reduce((a, b) => a + b.v, 0), bs.every(b => b.src === 'ember')); // 全部切れた
       if (Math.random() < dt * (8 + 2 * Math.min(10, e.burns.length))) part(e.x + rand(-3, 3), e.y + rand(-3, 3), 0, -20, 0.4, pick(['#ff6a2a', '#ffc34a']), { glow: true }); // 積むほど火の粉が増える
     }
     if (e.frostT > 0) { e.frostT -= dt; if (e.frostT <= 0) e.frost = 0; }

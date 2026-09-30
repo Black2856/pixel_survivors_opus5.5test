@@ -289,7 +289,7 @@ const ART = (() => {
       ] },
     },
   });
-  S.mage.alias = { ranbu: 'mBarrage', iai: 'mMeteor', aRain: 'mMeteor', aVolley: 'mMeteor', aStep: 'mBlink', kSlam: 'mMeteor', kVerdict: 'mMeteor' }; // 他クラスの武器スキルを使ったときの代わりのモーション
+  S.mage.alias = { ranbu: 'mBarrage', iai: 'mMeteor', aRain: 'mMeteor', aVolley: 'mMeteor', aStep: 'mBlink', kSlam: 'mMeteor', kVerdict: 'mMeteor', pFlame: 'mBarrage', pInferno: 'mMeteor', pWall: 'mBlink' }; // 他クラスの武器スキルを使ったときの代わりのモーション
 
   // ---------- クラス: アーチャー(16×18、部位アニメーション) ----------
   // 右向き。緑のフード(影の中で緑の目が光る)・背中のマントと矢筒・手に長弓
@@ -342,7 +342,7 @@ const ART = (() => {
     },
   });
   // 他クラスの武器スキルを使ったときの代わりのモーション
-  S.hunter.alias = { ranbu: 'aRain', mBarrage: 'aRain', iai: 'aVolley', mMeteor: 'aVolley', mBlink: 'aStep', kSlam: 'aRain', kVerdict: 'aVolley' };
+  S.hunter.alias = { ranbu: 'aRain', mBarrage: 'aRain', iai: 'aVolley', mMeteor: 'aVolley', mBlink: 'aStep', kSlam: 'aRain', kVerdict: 'aVolley', pFlame: 'aRain', pInferno: 'aVolley', pWall: 'aStep' };
 
   // ---------- クラス: ナイト(16×18、部位アニメーション) ----------
   // 右向き(左半身が手前)。面頬の兜(隙間の目が光る)・銀の板金鎧・青い陣羽織に金の十字・手前の腕に凧形の大盾・奥の手に騎士剣
@@ -386,7 +386,58 @@ const ART = (() => {
     },
   });
   S.knight.guard = kup(0, 1, { shield: [1, -2, 'guard'], legs: [0, 0, 'stepB'] }); // 大盾を構えた姿勢
-  S.knight.alias = { ranbu: 'kSlam', mBarrage: 'kSlam', aRain: 'kSlam', iai: 'kVerdict', mMeteor: 'kVerdict', aVolley: 'kVerdict' };
+  S.knight.alias = { ranbu: 'kSlam', mBarrage: 'kSlam', aRain: 'kSlam', iai: 'kVerdict', mMeteor: 'kVerdict', aVolley: 'kVerdict', pFlame: 'kSlam', pInferno: 'kVerdict' };
+
+  // ---------- クラス: パイロマンサー(16×18、部位アニメーション) ----------
+  // 右向き。深紅のフード(影の中で橙の目が光る)・焦げ茶の帯・裾が燃えさしのようにちらつくローブ・先端に炎を宿した黒い杖
+  const PUP = ['hood', 'torso', 'backArm', 'frontArm', 'staff'];
+  const pup = (dx, dy, extra = {}) => Object.assign(Object.fromEntries(PUP.map(k => [k, [dx, dy]])), extra);
+  S.pyro = rig({
+    w: 16, h: 18, padX: 8, emit: 'EfFo',
+    pal: {
+      r: '#6a1a14', R: '#9a2a1a', n: '#3a2418', e: '#140a08', E: '#ffb347', k: '#2a1a14', K: '#5a3a2a',
+      f: '#ff6a2a', F: '#fff1a0', i: '#f0c9a0', o: '#ff8a3d', a: '#1c1010',
+    },
+    order: ['backArm', 'legs', 'torso', 'hood', 'staff', 'frontArm'],
+    parts: {
+      hood: { x: 4, y: 0, v: {
+        base: ['...rr...', '..rRrr..', '.rRrrrr.', 'rrreeeee', 'rrreEeeE', '.rreeeee', '..rrrrr.'],
+      } },
+      torso: { x: 4, y: 7, v: { base: ['rRrrrrrr', 'rRrnnrrr', 'nnnnnnnn', 'rRrrrrrr'] } },
+      backArm: { x: 3, y: 8, v: { base: ['r', 'r', 'i'] } },
+      frontArm: { x: 10, y: 8, v: {
+        base:    ['rr', 'rr', 'ii'],
+        forward: ['rrrii'],
+        raise:   ['..ii', '.rr.', 'rr..'],
+      } },
+      // 杖(先端の炎が光る)。b = 炎が揺れた絵 / big = 大きく燃えた絵
+      staff: { x: 11, y: 3, v: {
+        base: ['.f.', 'fFf', '.K.', '.k.', '.k.', '.k.', '.k.', '.k.', '.k.', '.k.', '.k.', '.k.', '.k.', '.k.'],
+        b:    ['f..', 'fFf', '.K.', '.k.', '.k.', '.k.', '.k.', '.k.', '.k.', '.k.', '.k.', '.k.', '.k.', '.k.'],
+        big:  ['.f.', 'fff', 'fFf', 'fKf', '.k.', '.k.', '.k.', '.k.', '.k.', '.k.', '.k.', '.k.', '.k.', '.k.'],
+      } },
+      legs: { x: 3, y: 11, v: {
+        base:  ['.rrrrrrr..', '.rRrrrrrr.', 'rrRrrrrrrr', 'rrrrrrrrrr', 'ororrorror', '.aa...aa..'],
+        stepA: ['.rrrrrrr..', '.rRrrrrrr.', 'rrRrrrrrrr', 'rrrrrrrrrr', 'roroorroro', 'aa.....aa.'],
+        stepB: ['.rrrrrrr..', '.rRrrrrrr.', 'rrRrrrrrrr', 'rrrrrrrrrr', 'ororrorror', '..aa.aa...'],
+      } },
+    },
+    motions: {
+      // 待機: 呼吸で上半身が沈み、杖先の炎が揺れる
+      idle: { loop: true, frames: [
+        { t: 0.3, p: pup(0, 0) }, { t: 0.3, p: pup(0, 0, { staff: [0, 0, 'b'] }) },
+        { t: 0.3, p: pup(0, 1) }, { t: 0.3, p: pup(0, 1, { staff: [0, 1, 'b'] }) },
+      ] },
+      walk: { loop: true, frames: [
+        { t: 0.12, p: pup(0, 1, { legs: [0, 0, 'stepA'], backArm: [-1, 1] }) },
+        { t: 0.12, p: pup(0, 0, { staff: [0, 0, 'b'] }) },
+        { t: 0.12, p: pup(0, 1, { legs: [0, 0, 'stepB'], backArm: [1, 1] }) },
+        { t: 0.12, p: pup(0, 0, { staff: [0, 0, 'b'] }) },
+      ] },
+    },
+  });
+  // 他クラスの武器スキルを使ったときの代わりのモーション
+  S.pyro.alias = { ranbu: 'pFlame', mBarrage: 'pFlame', aRain: 'pFlame', kSlam: 'pFlame', iai: 'pInferno', mMeteor: 'pInferno', aVolley: 'pInferno', kVerdict: 'pInferno', mBlink: 'pWall', aStep: 'pWall' };
 
   S.zombie = mk({ a: '#3d2f24', b: '#7fb069', c: '#ff4040', d: '#2b3a22', e: '#6b5a8e', f: '#3a3350', g: '#241c2e' }, [
     '...aaaa...',

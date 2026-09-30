@@ -271,6 +271,72 @@ function slamWaves(a, x0, y0, k) {
   }, i * sk.gap * 1000);
 }
 
+// 火炎放射(ファイアーの E): 構え → 照準方向へ扇形に炎を吹き続ける(移動は遅くなる)。火炎旋風: 終わりに先端へ炎の竜巻
+WEAPON_SKILL.fire = {
+  info(c, dmg) {
+    const sk = DATA.weapons.fire.skill, m = c.wm, dur = sk.dur + (c.hasSp('e', 'cd') ? 1 : 0) + (m.eDur || 0), one = dmg * sk.pow * (1 + c.cuV('e', 'pow')) * (1 + (m.ePow || 0));
+    return { name: sk.name, cat: 'e', desc: [
+      `構え ${sk.windup}秒(動けない)→ ${sk.dur}秒間、照準方向へ扇形に炎を吹き続ける`,
+      `${sk.every}秒ごとに、範囲内の敵へ 武器の威力 × ${Math.round(sk.pow * 100)}% と炎上(武器の燃焼/s × ${Math.round(sk.burn * 100)}% を 3秒)`,
+      `放射中は移動速度 ×${sk.slow}`,
+      'E の攻撃なので、クラスの「攻撃1回ごと」の効果が1回ごとに起きる',
+    ], rows: [
+      ['CD', `<b>${(sk.cd * (1 - c.cuV('e', 'cd')) * (1 - (m.cd || 0)) * c.cdMul).toFixed(1)}</b> 秒`],
+      ['放射', `${Math.round(dur / sk.every)} 回 / ${dur.toFixed(1)} 秒`],
+      ['長さ', `${Math.round(sk.len * (1 + c.cuV('e', 'len')) * (1 + c.st.v.area) * c.st.mul.area)}`],
+      ['1回の威力', `${Math.round(one)} → <b>${Math.round(one * c.atkMul)}</b>`, '武器の威力 × ' + Math.round(sk.pow * 100) + '%。攻撃力を掛けた値'],
+    ] };
+  },
+  start() {
+    const sk = weaponSkill(), m = P.wm.fire || {}, dur = sk.dur + (hasSp('e', 'cd') ? 1 : 0) + (m.eDur || 0); // 持続放射
+    P.act = { slot: 'e', ph: 'wind', t: 0, dur, acc: 0, a: aimDir(sk.len * 1.5), pow: clsESkillMul() * (1 + (m.ePow || 0)) };
+    setCd('e', sk.cd * (1 - cuV('e', 'cd')) * (1 - (m.cd || 0)) * P.cdMul);
+    playAnim('pFlame', MOTIONS.pFlame.duration(dur), dur);
+    skillCall(sk.name, '#ff8a3d'); AudioMan.click();
+  },
+  update(a, dt) {
+    const sk = weaponSkill(), blue = hasSp('e', 'pow'), L = sk.len * (1 + cuV('e', 'len')) * P.area;
+    a.a = aimDir(L * 1.5);
+    if (Math.cos(a.a) !== 0) P.facing = Math.cos(a.a) < 0 ? -1 : 1;
+    if (a.ph === 'wind') { // 構え: 杖先に火が集まる
+      P.moveMul = 0;
+      if (Math.random() < dt * 40) part(P.x + P.facing * 10 + rand(-6, 6), P.y - 8 + rand(-6, 6), -P.facing * 20, -10, 0.3, pick(['#ff6a2a', '#ffc34a']), { glow: true });
+      if (a.t >= sk.windup) { a.ph = 'fire'; a.t0 = a.t; }
+      return;
+    }
+    P.moveMul *= sk.slow;
+    P.flame = { a: a.a, len: L, arc: sk.arc, blue, t: a.t - a.t0 };
+    const cols = blue ? ['#7ad7ff', '#bff4ff', '#ffffff'] : ['#ff6a2a', '#ffc34a', '#fff6c8', '#b8261a'];
+    for (let i = 0; i < 6; i++) { // 炎の帯(先へ行くほど広がる)
+      const d = a.a + rand(-sk.arc / 2, sk.arc / 2) * 0.8, s = rand(0.8, 1.2) * L * 3;
+      part(P.x + Math.cos(a.a) * 8, P.y - 4 + Math.sin(a.a) * 8, Math.cos(d) * s, Math.sin(d) * s, rand(0.2, 0.35), pick(cols), { glow: true, drag: 3, sz: pick([1, 2]) });
+    }
+    a.acc += dt;
+    while (a.acc >= sk.every) { a.acc -= sk.every; flameTick(a, L, blue); }
+    if (a.t - a.t0 >= a.dur) {
+      P.flame = null; P.act = null;
+      if (hasSp('e', 'len')) { // 火炎旋風
+        const st = wst(P.mainW);
+        zones.push({ kind: 'vortex', x: P.x + Math.cos(a.a) * L, y: P.y + Math.sin(a.a) * L, r: sk.vortexR * P.area, t: 0, dur: sk.vortexT, tick: 0, every: sk.vortexEvery,
+          dmg: st.dmg * sk.vortexPow * (1 + cuV('e', 'pow')) * a.pow, pull: sk.pull, blue });
+      }
+    }
+  },
+};
+// 火炎放射の1回: 扇形の中の敵へダメージと炎上(1回 = 1回の E の攻撃)
+function flameTick(a, L, blue) {
+  const sk = DATA.weapons.fire.skill, st = wst(P.mainW), dmg = st.dmg * sk.pow * (1 + cuV('e', 'pow')) * a.pow, burn = (st.burn || 0) * sk.burn * (blue ? 2 : 1), el = clsNextEl();
+  asMine(() => forEachNear(P.x, P.y, L, e => {
+    let diff = Math.atan2(e.y - P.y, e.x - P.x) - a.a;
+    diff = Math.atan2(Math.sin(diff), Math.cos(diff));
+    if (Math.abs(diff) > sk.arc / 2) return;
+    if (e.prop) { killEnemy(e); return; }
+    hitEnemy(e, dmg, { src: 'flamer', ang: a.a, kb: 6, col: blue ? '#7ad7ff' : '#ff8a3d', el, eHit: true, noNum: Math.random() < 0.6 });
+    if (!e.dead) addBurn(e, burn, 3, 'flamer');
+  }));
+  if (Math.random() < 0.3) AudioMan.fire();
+}
+
 function ranbuHit(sk) {
   const R = sk.radius * P.area, dmg = wst(P.mainW).dmg * sk.pow * (1 + cuV('e', 'pow')) * P.act.pow, k0 = S.kills, el = clsNextEl(); // 1回の斬撃 = 1属性
   asMine(() => {
@@ -801,6 +867,115 @@ const CLASS_RT = {
       ];
     },
   },
+
+  pyro: {
+    skills: ['q'],
+    init() { P.pyT = 0; P.pyExt = 0; P.wallHeld = false; P.flame = null; },
+    update(dt) {
+      const p = PY();
+      if (P.pyT > 0) {
+        P.pyT = Math.max(0, P.pyT - dt);
+        if (hasSp('passive', 'kindle')) { P.hp -= P.hp * p.drain * dt; S.hudDirty = true; } // 業火: 今のHP を消費する(0 にはならない)
+        if (Math.random() < dt * 30) part(P.x + rand(-6, 6), P.y + rand(-4, 6), rand(-8, 8), -rand(20, 40), 0.45, pick(['#ff6a2a', '#ffc34a', '#b8261a']), { glow: true }); // 纏った炎
+      }
+      // 炎壁(Space): 押した瞬間に1回
+      const held = (keys.Space || keys.TouchDef) && !P.act;
+      if (held && !P.wallHeld) { if (P.sta >= wallCost()) pyroWall(); else addFloat(P.x, P.y - 16, 'STAMINA', '#6a7a88'); }
+      P.wallHeld = held;
+      P.moveMul = 1;
+    },
+    onHurt: dmg => dmg,
+    onMainHit() {},
+    onSkill: () => pyWear(), // E / Q を使うと纏う
+    // 焔纏い: 全武器の命中(通常攻撃・E)で炎上を付ける
+    onWeaponHit(e, dmg, crit) {
+      if (P.pyT <= 0 || e.dead) return;
+      const k = pyIgnite() * (crit && hasSp('passive', 'ignite') ? PY().critIgnite : 1); // 爆ぜる炎
+      addBurn(e, dmg * k / 3 / dmgMul(), 3, 'ignite');
+    },
+    // 業火: 火勢(スタック数に比例)・業火(特殊): 纏っている間 +50%
+    burnMul: e => 1 + Math.min((e.burns || []).length, pyStackMax()) * pyStackPct() + (P.pyT > 0 && hasSp('passive', 'kindle') ? PY().hellBurn : 0),
+    burnCrit: e => pyWhite(e),
+    burnDur: () => cuV('trait', 'dur'),
+    critBonus: e => (pyWhite(e) ? PY().whiteCrit : 0), // 白炎
+    // 燻り: 炎上が切れた敵に残り火(残り火が切れても次は出ない)
+    onBurnOut(e, perSec, onlyEmber) { if (hasSp('trait', 'dur') && !onlyEmber) addBurn(e, perSec * PY().emberPct, 3, 'ember'); },
+    onKill(e) {
+      const left = burnLeft(e), p = PY();
+      if (left > 0) pySpread(e, left);
+      if (P.pyT > 0) {
+        if (left > 0 && hasSp('passive', 'wear') && P.pyExt < p.extendMax) { P.pyT += p.extendT; P.pyExt += p.extendT; } // 燎原
+        if (hasSp('passive', 'kindle')) heal(P.maxhp * p.killHeal, true); // 業火
+      }
+    },
+    atkBonus: () => 0,
+    qStart() {
+      const q = DATA.classes.pyro.q;
+      P.act = { slot: 'q', ph: 'wind', t: 0 };
+      playAnim('pInferno', MOTIONS.pInferno.dur);
+      slowmo(0.5, 0.2);
+      skillCall(q.name, '#ff6a2a'); AudioMan.click();
+    },
+    qUpdate(a, dt) {
+      const q = DATA.classes.pyro.q;
+      P.moveMul = 0;
+      if (a.t < q.windup) { // 燃えている敵から火の粉が杖へ吸い込まれる
+        asMine(() => {
+          if (Math.random() < dt * 60) { const r = rand(0, TAU); part(P.x + Math.cos(r) * 26, P.y - 16 + Math.sin(r) * 26, -Math.cos(r) * 80, -Math.sin(r) * 80, 0.3, pick(['#ff6a2a', '#ffc34a', '#ffffff']), { glow: true, drag: 0 }); }
+          for (const e of enemies) if (!e.dead && e.burnT > 0 && Math.random() < dt * 6 && onScreen(e.x, e.y)) part(e.x, e.y, (P.x - e.x) * 2, (P.y - 16 - e.y) * 2, 0.45, pick(['#ff6a2a', '#ffc34a']), { glow: true, drag: 0 });
+        });
+        return;
+      }
+      pyroInferno();
+      P.act = null;
+    },
+    res: () => ({ kind: 'wear', label: '焔纏い', v: P.pyT, max: Math.max(P.pyT, wearDur()), dk: '#7a2a10' }),
+    staBroken: () => false,
+    statuses() {
+      const out = [];
+      if (P.pyT > 0) out.push({ id: 'wear', glyph: '焔', name: '焔纏い', fx: `全武器の命中で炎上(与えたダメージの ${Math.round(pyIgnite() * 100)}%)` + (hasSp('passive', 'kindle') ? ' 炎上ダメージ +50% HP 3%/s 消費' : ''), t: P.pyT, max: Math.max(P.pyT, wearDur()), kind: 'buff' });
+      return out;
+    },
+    qInfo: () => ({ name: DATA.classes.pyro.q.name, glyph: '煉' }),
+    info(c) {
+      const p = PY(), q = DATA.classes.pyro.q, k = 1 + (c.lvFx.qPow || 0), kin = c.cuV('passive', 'kindle');
+      return [
+        { key: '特性', name: '業火', cat: 'trait', desc: [
+          `火勢: 敵の炎上 1スタックにつき、その敵の炎上ダメージ +${Math.round((p.stackPct + (c.lvFx.stackPct || 0)) * 100)}%`,
+          `延焼: 炎上中の敵が倒れると、残っていた炎上ダメージを周りの ${p.spreadN}体へ燃え移らせる`,
+          '対象はすべての炎上(武器・スキル・装備の出どころを問わない)',
+        ], rows: [
+          ['火勢の最大スタック', `${p.stackMax + c.cuV('trait', 'stack')}`],
+          ['燃え移る量', `<b>${Math.round(c.cuV('trait', 'spread', p.spreadPct) * 100)}%</b>`],
+          ['炎上の持続', `+${c.cuV('trait', 'dur')} 秒`],
+        ] },
+        { key: 'パッシブ', name: '焔纏い', cat: 'passive', desc: [
+          'E か Q を使うと、焔を纏う(使うたびに時間が戻る)',
+          '纏っている間、全武器の攻撃(通常攻撃・E)が命中すると、与えたダメージの一部を 3秒の炎上で付ける',
+          '  → サブ武器も対象。炎上そのもの・Q・爆風からは付かない',
+        ].concat(kin ? [`纏った瞬間、周り(半径 ${p.kindleR})に火の輪`] : []), rows: [
+          ['纏う時間', `<b>${c.cuV('passive', 'wear', p.wearT)}</b> 秒`],
+          ['付与量', `<b>${Math.round((c.cuV('passive', 'ignite', p.ignite) + (c.lvFx.ignite || 0)) * 100)}%</b>`],
+        ].concat(kin ? [['火の輪の威力', `${kin} → <b>${Math.round(kin * c.atkMul)}</b>`]] : []) },
+        { key: 'Q', name: q.name, cat: 'q', desc: [
+          `構え ${q.windup}秒(動けない)→ 画面内の炎上中の敵全員の炎上を、まとめて爆発させる`,
+          '各敵に、残っていた炎上ダメージ × 爆発の倍率 をすぐに与える(炎上は消費する)',
+          `その敵の周り(半径 ${q.r})に 基礎威力 ${q.pow} + 炎上スタック数 × ${q.perStack} の爆風`,
+          '炎上中の敵がいなくても使える(自分の周りに爆風だけ)。威力は武器に依存しない',
+        ], rows: [
+          ['CD', `<b>${(q.cd * (1 - c.cuV('q', 'cd')) * c.cdMul).toFixed(1)}</b> 秒`],
+          ['爆発の倍率', `<b>${Math.round(c.cuV('q', 'pow', q.mul) * k * 100)}%</b>`, '残っていた炎上ダメージに掛ける'],
+          ['爆風の基礎威力', `${Math.round(q.pow * k)} → <b>${Math.round(q.pow * k * c.atkMul)}</b>`, `炎上1スタックにつき +${Math.round(q.perStack * k)}`],
+        ] },
+        { key: 'Space', name: '炎壁', desc: [
+          `その場で炎を噴き出し、周り(半径 ${p.wallR})の敵を押し返して炎上させる(${p.wallBurn}/s を 3秒)`,
+          `使った瞬間から ${p.wallIfr}秒 無敵`,
+        ], rows: [
+          ['スタミナ消費', `<b>${p.wallCost - (c.lvFx.wallCut || 0)}</b>`],
+        ] },
+      ];
+    },
+  },
 };
 
 // 居合の斬撃: 通過した敵にまとめてダメージ(少し遅れて斬撃線が炸裂する)
@@ -1162,11 +1337,113 @@ function knightVerdict(a) {
   AudioMan.boom(); AudioMan.crit();
 }
 
+// ---------- パイロマンサー: 業火・焔纏い・煉獄・炎壁 ----------
+const PY = () => DATA.classes.pyro.params;
+const pyStackMax = () => PY().stackMax + cuV('trait', 'stack');
+const pyStackPct = () => PY().stackPct + (P.lvFx.stackPct || 0);
+const pyWhite = e => hasSp('trait', 'stack') && (e.burns || []).length >= PY().whiteAt; // 白炎
+const pyIgnite = () => cuV('passive', 'ignite', PY().ignite) + (P.lvFx.ignite || 0);
+const wearDur = () => cuV('passive', 'wear', PY().wearT);
+const wallCost = () => PY().wallCost - (P.lvFx.wallCut || 0);
+// 残っていた炎上ダメージ(各炎上の 1秒のダメージ × 残り秒の合計。攻撃力を掛ける前の値)
+const burnLeft = e => (e.burns || []).reduce((a, b) => a + b.v * Math.max(0, b.t), 0);
+// 焔纏い: 纏う(点火: 纏った瞬間に火の輪)
+function pyWear() {
+  const p = PY();
+  P.pyT = wearDur(); P.pyExt = 0; S.hudDirty = true;
+  const pow = cuV('passive', 'kindle');
+  asMine(() => {
+    if (pow) {
+      const R = p.kindleR * P.area;
+      forEachNear(P.x, P.y, R, e => {
+        if (e.prop) return;
+        const dealt = hitEnemy(e, pow, { src: 'kindle', ang: Math.atan2(e.y - P.y, e.x - P.x), kb: 60, col: '#ff8a3d' });
+        if (dealt && !e.dead) addBurn(e, dealt * p.kindleBurn / 3 / dmgMul(), 3, 'kindle');
+      });
+      addRing(P.x, P.y, R, '#ff6a2a', { w: 3, life: 0.4 }); addRing(P.x, P.y, R * 0.6, '#ffc34a', { w: 2, life: 0.3 });
+      addFlash(P.x, P.y, R * 2, '#ff8a3d', 0.3); shockAt(P.x, P.y, 1, 1);
+    }
+    burst(P.x, P.y, 18, ['#ff6a2a', '#ffc34a', '#ffffff'], { sp: 70, up: 30, glow: true, life: 0.45 });
+  });
+}
+// 延焼: 残っていた炎上ダメージを周りの敵へ燃え移らせる。連鎖爆発: 倒れた場所で爆発(少し遅れて。連鎖しても深く再帰しない)
+function pySpread(e, left) {
+  const p = PY(), k = cuV('trait', 'spread', p.spreadPct), R = p.spreadR * P.area;
+  const near = [];
+  forEachNear(e.x, e.y, R, o => { if (o !== e && !o.dead && !o.prop) near.push(o); });
+  near.sort((a, b) => d2(a.x, a.y, e.x, e.y) - d2(b.x, b.y, e.x, e.y));
+  for (const o of near.slice(0, p.spreadN)) {
+    addBurn(o, left * k / 3, 3, 'spread');
+    for (let i = 0; i < 4; i++) { const u = i / 4; part(e.x + (o.x - e.x) * u, e.y + (o.y - e.y) * u, 0, -15, 0.35, pick(['#ff6a2a', '#ffc34a']), { glow: true }); }
+  }
+  if (hasSp('trait', 'spread')) {
+    const x = e.x, y = e.y, CR = p.chainR * P.area;
+    setTimeout(() => {
+      if (state !== 'play') return;
+      asMine(() => {
+        forEachNear(x, y, CR, o => { if (!o.prop) hitEnemy(o, left, { src: 'spread', ang: Math.atan2(o.y - y, o.x - x), kb: 40, col: '#ff8a3d', noNum: Math.random() < 0.5 }); });
+        addFlash(x, y, CR * 2.4, '#ff8a3d', 0.25); addRing(x, y, CR, '#ffc34a', { w: 2, life: 0.25 });
+        burst(x, y, 14, ['#ff6a2a', '#ffc34a', '#fff6c8'], { sp: 90, glow: true, life: 0.35 });
+      });
+      AudioMan.boom();
+    }, 80);
+  }
+}
+// 炎壁: 周りの敵を押し返して炎上させる。少しの間 無敵
+function pyroWall() {
+  const p = PY(), R = p.wallR * P.area;
+  staUse(wallCost());
+  P.invT = Math.max(P.invT, p.wallIfr); P.ifr = Math.max(P.ifr, p.wallIfr);
+  asMine(() => {
+    forEachNear(P.x, P.y, R, e => {
+      if (e.prop || e.dead) return;
+      const a = Math.atan2(e.y - P.y, e.x - P.x);
+      if (!e.boss) { const k = 150 * (1 - (e.kbRes || 0)); e.kx += Math.cos(a) * k; e.ky += Math.sin(a) * k; }
+      addBurn(e, p.wallBurn, 3, 'wall');
+    });
+    addRing(P.x, P.y, R, '#ff6a2a', { w: 3, life: 0.35 }); addRing(P.x, P.y, R * 0.55, '#ffc34a', { w: 2, life: 0.25 });
+    for (let i = 0; i < 36; i++) { const a = i / 36 * TAU; part(P.x + Math.cos(a) * 6, P.y + Math.sin(a) * 6, Math.cos(a) * R * 2.6, Math.sin(a) * R * 2.6 - 20, rand(0.25, 0.4), pick(['#ff6a2a', '#ffc34a', '#b8261a']), { glow: true }); }
+    addFlash(P.x, P.y, R * 2, '#ff8a3d', 0.25); shake(3);
+  });
+  playAnim('pWall', MOTIONS.pWall.dur); P.anim.keep = true;
+  AudioMan.dash();
+}
+// 煉獄: 画面内の炎上中の敵全員の炎上を爆発させる
+function pyroInferno() {
+  const q = DATA.classes.pyro.q, k = 1 + (P.lvFx.qPow || 0), mul = cuV('q', 'pow', q.mul) * k, R = q.r * (1 + cuV('q', 'area')) * P.area;
+  const cremate = hasSp('q', 'pow'), rekindle = hasSp('q', 'cd'), big = hasSp('q', 'area');
+  const burning = enemies.filter(e => !e.dead && !e.prop && onScreen(e.x, e.y) && (e.burns || []).length);
+  const blast = (x, y, pow, self) => forEachNear(x, y, R, o => {
+    if (o === self || o.prop || o.dead) return;
+    const d = hitEnemy(o, pow, { src: 'inferno', ang: Math.atan2(o.y - y, o.x - x), kb: 50, col: '#ff8a3d', noNum: Math.random() < 0.5 });
+    if (big && d && !o.dead) addBurn(o, d * q.bigfire / 3 / dmgMul(), 3, 'inferno'); // 大火
+  });
+  asMine(() => {
+    burning.forEach((e, i) => {
+      const left = burnLeft(e), n = e.burns.length;
+      e.burns = []; e.burnT = 0; // 炎上を消費
+      hitEnemy(e, left * mul, { src: 'inferno', col: '#ffc34a' });
+      if (e.dead && cremate) pySpread(e, left);                          // 火葬
+      else if (!e.dead && rekindle) addBurn(e, left * q.rekindle / 3, 3, 'inferno'); // 残火
+      blast(e.x, e.y, (q.pow + n * q.perStack) * k, e);
+      if (i < 40) { // 火柱
+        for (let j = 0; j < 10; j++) part(e.x + rand(-4, 4), e.y + rand(-2, 2), rand(-10, 10), -rand(80, 180), rand(0.3, 0.55), pick(['#ff6a2a', '#ffc34a', '#fff6c8', '#ffffff']), { glow: true, drag: 1.5, sz: pick([1, 2]) });
+        addFlash(e.x, e.y, R * 2.2, '#ff8a3d', 0.35); addRing(e.x, e.y, R, '#ffc34a', { w: 2, life: 0.3 });
+      }
+    });
+    if (!burning.length) { blast(P.x, P.y, q.pow * k, null); addRing(P.x, P.y, R, '#ff6a2a', { w: 3, life: 0.4 }); addFlash(P.x, P.y, R * 2.5, '#ff8a3d', 0.35); }
+    burst(P.x, P.y, 40, ['#ff6a2a', '#ffc34a', '#ffffff'], { sp: 160, glow: true, life: 0.5 });
+    shockAt(P.x, P.y, 1.6, 1); shake(10); hitstop(0.08); screenFlash(0.35 * SET.fxA, '#ff6a2a');
+  });
+  setCd('q', q.cd * (1 - cuV('q', 'cd')) * P.cdMul);
+  AudioMan.boom(); AudioMan.crit();
+}
+
 // ---------- world.js から呼ぶ入口 ----------
 const clsRT = () => CLASS_RT[P.cls];
 function clsInit() {
   P.sta = P.maxSta; P.staLockT = 0; P.moveMul = 1; P.invT = 0; P.atkSpd = 1; P.cu = {}; P.cs = {};
-  P.sk = { q: { cd: 0, max: 1 }, e: { cd: 0, max: 1 } }; P.act = null; P.anim = null; P.orb = null; P.dash = null;
+  P.sk = { q: { cd: 0, max: 1 }, e: { cd: 0, max: 1 } }; P.act = null; P.anim = null; P.orb = null; P.dash = null; P.flame = null;
   if (clsRT()) clsRT().init();
 }
 function clsUpdate(dt) {
@@ -1209,6 +1486,13 @@ const clsDmgTaken = e => (clsRT() && clsRT().dmgTaken ? clsRT().dmgTaken(e) : 1)
 const clsCritBonus = e => (clsRT() && clsRT().critBonus ? clsRT().critBonus(e) : 0);
 const clsCritDmgBonus = e => (clsRT() && clsRT().critDmgBonus ? clsRT().critDmgBonus(e) : 0);
 function clsOnKill(e) { if (clsRT() && clsRT().onKill) clsRT().onKill(e); }
+// 武器の命中(全武器の通常攻撃・E。炎上などの継続ダメージは除く)
+function clsOnWeaponHit(e, dmg, crit) { if (clsRT() && clsRT().onWeaponHit) clsRT().onWeaponHit(e, dmg, crit); }
+// 炎上(共通の仕組み)へのクラスの補正: ダメージ倍率・クリティカルするか・持続の追加・切れたとき
+const clsBurnMul = e => (clsRT() && clsRT().burnMul ? clsRT().burnMul(e) : 1);
+const clsBurnCrit = e => !!(clsRT() && clsRT().burnCrit && clsRT().burnCrit(e));
+const clsBurnDur = () => (clsRT() && clsRT().burnDur ? clsRT().burnDur() : 0);
+function clsOnBurnOut(e, perSec, onlyEmber) { if (clsRT() && clsRT().onBurnOut) clsRT().onBurnOut(e, perSec, onlyEmber); }
 
 // ---------- 強化ツリーのカード ----------
 // 候補: クラスのツリー + メイン武器の E のツリー。Lv3 未満のパス + Lv3 に達したパスの特殊強化(カテゴリで未取得のとき)
