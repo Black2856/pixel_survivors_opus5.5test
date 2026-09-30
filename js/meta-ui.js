@@ -89,7 +89,7 @@ const MetaUI = (() => {
     $('cl-list').innerHTML = Object.keys(DATA.classes).map(k => {
       const c = DATA.classes[k], m = META.classes[k];
       return `<button class="cl-card ${clSel === k ? 'sel' : ''} ${clsReady(k) ? '' : 'off'}" data-k="${k}" style="--cc:${c.col}">
-        <img src="${portrait(k)}" alt=""><span class="nm">${c.name}<small>${c.en}</small></span>
+        <span class="en">${c.en}</span><img src="${portrait(k)}" alt=""><span class="nm">${c.name}</span>
         <span class="lv">${clsReady(k) ? 'Lv ' + m.lv : '準備中'}</span>${META.cls === k ? '<span class="use">使用中</span>' : ''}</button>`;
     }).join('');
     const k = clSel, c = DATA.classes[k], m = META.classes[k], need = DATA.classLevel.need, max = need.length + 1;

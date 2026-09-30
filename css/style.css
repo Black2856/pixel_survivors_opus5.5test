@@ -358,12 +358,15 @@ input[type=range] { width: 220px; accent-color: var(--gold); }
 /* ---------- クラス画面 ---------- */
 .cl-wrap { display: grid; grid-template-columns: 240px 1fr 300px; gap: 16px; width: min(1300px, 98vw); height: min(560px, 66vh); }
 #cl-list { display: flex; flex-direction: column; gap: 10px; }
-.cl-card { position: relative; display: grid; grid-template-columns: 64px 1fr; grid-template-rows: auto auto; column-gap: 10px; align-items: center; padding: 10px; text-align: left; background: var(--panel); box-shadow: inset 4px 0 0 0 var(--cc), inset 0 0 0 2px #3a3060; }
+.cl-card { position: relative; overflow: hidden; display: grid; grid-template-columns: 64px 1fr; grid-template-rows: auto auto; column-gap: 10px; align-items: center; padding: 10px; text-align: left; background: var(--panel); box-shadow: inset 4px 0 0 0 var(--cc), inset 0 0 0 2px #3a3060; }
 .cl-card.sel { box-shadow: inset 4px 0 0 0 var(--cc), inset 0 0 0 3px var(--cc); }
 .cl-card.off { opacity: .55; }
 .cl-card img { grid-row: 1 / 3; width: 64px; height: 48px; object-fit: contain; image-rendering: pixelated; }
-.cl-card .nm { font-size: 18px; color: var(--cc); white-space: nowrap; }
-.cl-card .nm small { display: block; margin-top: 3px; font: 8px 'Press Start 2P'; color: var(--dim); } /* 英語名は名前の下の行(長い名前でもカードの高さを揃える) */
+.cl-card .nm { position: relative; font-size: 18px; color: var(--cc); white-space: nowrap; }
+.cl-card img, .cl-card .lv { position: relative; }
+/* 英語名: カードの背景に大きく薄く敷く透かし文字(右下へはみ出した分は切る) */
+.cl-card .en { position: absolute; right: -6px; bottom: -7px; font: 30px 'Press Start 2P'; letter-spacing: -2px; white-space: nowrap; color: var(--cc); opacity: .07; pointer-events: none; }
+.cl-card.sel .en { opacity: .13; }
 .cl-card .lv { font: 10px 'Press Start 2P'; color: var(--txt); }
 .cl-card .use { position: absolute; right: 8px; top: 6px; font-size: 11px; color: var(--gold); }
 #cl-detail { padding: 14px 16px; background: var(--panel); box-shadow: inset 0 0 0 3px var(--line); display: flex; flex-direction: column; gap: 8px; min-height: 0; }
