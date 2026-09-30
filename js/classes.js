@@ -1143,7 +1143,7 @@ function knightVerdict(a) {
       if (e.prop) { killEnemy(e); return; }
       const dealt = hitEnemy(e, pow, { src: 'verdict', ang: Math.atan2(e.y - P.y, e.x - P.x), kb: 170, col: '#fff1d0' });
       if (!e.dead) e.stun = Math.max(e.stun || 0, q.stun + used * q.stunPer); // 消費したシールドが多いほど長い
-      if (holy && dealt && !e.dead) addBurn(e, dealt * 0.3 / 3 / dmgMul(), 3, 'verdict'); // 聖炎
+      if (holy && dealt && !e.dead) addBurn(e, dealt * 0.5 / 3 / dmgMul(), 3, 'verdict'); // 聖炎
     });
     // 見た目は攻撃判定と同じ形(扇形。全周のときだけ円)
     slashes.push({ x: P.x, y: P.y, a: a.a, r: R, t: 0, life: 0.4, col: '#f2c84b', fan: true, span: full ? TAU : q.arc });
