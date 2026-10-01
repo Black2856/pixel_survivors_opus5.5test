@@ -388,12 +388,30 @@ input[type=range] { width: 220px; accent-color: var(--gold); }
 .cl-row.got em { color: var(--green); }
 .cl-row.next { box-shadow: inset 0 0 0 1px var(--gold); color: #fff; }
 .cl-sub { font-size: 13px; color: var(--gold); }
-.cl-weps { display: flex; gap: 8px; flex-wrap: wrap; }
-.cl-wep { display: flex; align-items: center; gap: 6px; padding: 6px 10px; background: var(--ink); box-shadow: inset 0 0 0 2px #3a3060; font-size: 13px; }
-.cl-wep.on { box-shadow: inset 0 0 0 2px var(--gold); color: var(--gold); }
-.cl-wep:disabled { opacity: .4; }
-.cl-wep small { display: block; font-size: 10px; color: var(--pink, #ffb7d5); }
-.cl-wep img { width: 24px; image-rendering: pixelated; }
+.cl-wsel { display: flex; align-items: center; gap: 8px; padding: 6px 10px; background: var(--ink); box-shadow: inset 0 0 0 2px var(--gold); color: var(--gold); font-size: 14px; text-align: left; }
+.cl-wsel:hover { box-shadow: inset 0 0 0 2px #fff; }
+.cl-wsel img { width: 24px; image-rendering: pixelated; }
+.cl-wsel small { margin-left: 6px; font-size: 10px; color: var(--pink, #ffb7d5); }
+.cl-wsel em { margin-left: auto; font: 9px 'Press Start 2P'; font-style: normal; color: var(--txt); }
+/* メイン武器のモーダル(見た目はステータスの詳細モーダルと同じ枠) */
+#wp-modal { position: fixed; inset: 0; z-index: 60; display: grid; place-items: center; background: rgba(5,3,10,.6); }
+#wp-modal.hidden { display: none; }
+#wp-modal .svm { zoom: var(--ui); position: relative; width: min(560px, 92vw); max-height: 82vh; overflow-y: auto; padding: 16px 18px; background: var(--panel); box-shadow: inset 0 0 0 3px var(--gold), 0 0 40px rgba(0,0,0,.6); font-size: 13px; animation: stIn .15s ease-out; }
+#wp-modal .svm-x { position: absolute; right: 8px; top: 6px; font-size: 18px; color: var(--dim); background: none; }
+#wp-modal .svm-x:hover { color: #fff; }
+.wp-h { font-size: 16px; color: var(--gold); margin-bottom: 6px; }
+.wp-note { margin-bottom: 8px; }
+.wp-list { display: flex; flex-direction: column; gap: 6px; }
+.wp-card { display: flex; align-items: center; gap: 10px; padding: 8px 10px; text-align: left; background: var(--ink); box-shadow: inset 4px 0 0 0 var(--cc), inset 0 0 0 2px #3a3060; }
+.wp-card:hover:not(:disabled) { box-shadow: inset 4px 0 0 0 var(--cc), inset 0 0 0 2px #fff; }
+.wp-card.on { box-shadow: inset 4px 0 0 0 var(--cc), inset 0 0 0 2px var(--gold); }
+.wp-card:disabled { opacity: .4; }
+.wp-card img { width: 32px; image-rendering: pixelated; flex: none; }
+.wp-b { display: flex; flex-direction: column; gap: 2px; }
+.wp-nm { font-size: 15px; color: var(--cc); }
+.wp-nm small { margin-left: 8px; font-size: 10px; color: var(--pink, #ffb7d5); }
+.wp-nm small.use { color: var(--gold); }
+.wp-e { font-size: 12px; color: var(--txt); }
 .cl-go { align-self: flex-end; }
 .st-class { display: flex; align-items: center; gap: 10px; padding: 6px 14px; background: var(--panel); box-shadow: inset 4px 0 0 0 var(--cc), inset 0 0 0 2px #3a3060; font-size: 14px; }
 .st-class img { width: 32px; image-rendering: pixelated; }

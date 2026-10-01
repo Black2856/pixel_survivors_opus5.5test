@@ -96,25 +96,49 @@ const MetaUI = (() => {
     const xpP = m.lv >= max ? 100 : m.xp / need[m.lv - 1] * 100;
     const rows = classLvTable(k).map(r => `<div class="cl-row ${m.lv >= r.lv ? 'got' : ''} ${m.lv + 1 === r.lv ? 'next' : ''}">
       <b>Lv${r.lv}</b><span class="tag ${r.kind === '共通' ? 'wp' : ''}">${r.kind}</span><span>${r.d}</span><em>${m.lv >= r.lv ? '✔' : need[r.lv - 2].toLocaleString()}</em></div>`).join('');
-    const swap = classLvFx(k).swap, weps = [...new Set(Object.values(DATA.classes).map(x => x.weapon))];
-    const wepBtns = weps.map(w => `<button class="cl-wep ${m.weapon === w ? 'on' : ''}" data-w="${w}" ${swap || w === c.weapon ? '' : 'disabled'}>
-      ${UI.weaponIcon(w)}<span>${DATA.weapons[w].name}${w === c.weapon ? '<small>専用</small>' : ''}${DATA.weapons[w].skill ? '' : '<small class="dim">Eスキルなし</small>'}</span></button>`).join('');
+    const swap = classLvFx(k).swap, cw = m.weapon || c.weapon;
     $('cl-detail').innerHTML = `
       <div class="cl-head" style="--cc:${c.col}"><span class="nm">${c.name}</span><span class="lv">Lv ${m.lv}${m.lv >= max ? ' MAX' : ''}</span></div>
       <div class="cl-xp"><i style="width:${xpP.toFixed(1)}%"></i><span>${m.lv >= max ? 'MAX' : `${m.xp.toLocaleString()} / ${need[m.lv - 1].toLocaleString()} EXP`}</span></div>
       <div class="dim cl-note">クラス経験値 = 討伐数 + 撃破ボス数 × ${DATA.classLevel.bossK}(ラン終了時)。<span class="tag">専用</span>このクラスだけ <span class="tag wp">共通</span>${DATA.weapons[c.weapon].name}を使うどのクラスにも効く</div>
       <div class="cl-rows">${rows}</div>
       <div class="cl-sub">メイン武器 ${swap ? '' : '<span class="dim">(Lv15 で切り替え解放)</span>'}</div>
-      <div class="cl-weps">${wepBtns}</div>
+      <button class="cl-wsel">${UI.weaponIcon(cw)}<span>${DATA.weapons[cw].name}${cw === c.weapon ? '<small>専用</small>' : ''}</span><em>${swap ? '変更 ▸' : '一覧 ▸'}</em></button>
       <button class="btn cl-go" ${clsReady(k) ? '' : 'disabled'}>${META.cls === k ? '使用中' : 'このクラスにする'}</button>`;
     statusPanel('cl-status', k);
   }
   // MetaUI は StatusUI より先に読み込まれるので、実行時に参照する
   const statusPanel = (id, cls) => { if (typeof StatusUI !== 'undefined') StatusUI.render($(id), false, cls); };
   $('cl-list').onclick = e => { const b = e.target.closest('.cl-card'); if (!b) return; clSel = b.dataset.k; AudioMan.click(); renderClass(); };
+  // メイン武器の切り替え(モーダル)。Lv15 まではクラス専用の武器だけ選べる(一覧は見られる)
+  const wpModal = document.createElement('div');
+  wpModal.id = 'wp-modal'; wpModal.className = 'hidden';
+  wpModal.innerHTML = '<div class="svm"><button class="svm-x">×</button><div class="svm-body"></div></div>';
+  document.body.appendChild(wpModal);
+  const wpOpen = () => !wpModal.classList.contains('hidden');
+  const closeWp = () => wpModal.classList.add('hidden');
+  function openWp() {
+    const k = clSel, c = DATA.classes[k], m = META.classes[k], swap = classLvFx(k).swap, cw = m.weapon || c.weapon;
+    const weps = [...new Set(Object.values(DATA.classes).map(x => x.weapon))];
+    const owner = w => Object.values(DATA.classes).find(x => x.weapon === w);
+    wpModal.querySelector('.svm-body').innerHTML = `<div class="wp-h">メイン武器を選ぶ <span class="dim">— ${c.name}</span></div>
+      ${swap ? '' : '<div class="dim wp-note">Lv15 で切り替えが解放されます(今はクラス専用の武器だけ)</div>'}
+      <div class="wp-list">${weps.map(w => {
+        const d = DATA.weapons[w], o = owner(w), ok = swap || w === c.weapon;
+        return `<button class="wp-card ${cw === w ? 'on' : ''}" data-w="${w}" ${ok ? '' : 'disabled'} style="--cc:${o ? o.col : '#fff'}">
+          ${UI.weaponIcon(w)}<div class="wp-b"><div class="wp-nm">${d.name}${w === c.weapon ? '<small>専用</small>' : ''}${cw === w ? '<small class="use">使用中</small>' : ''}</div>
+          <div class="dim">${d.desc}</div>
+          <div class="wp-e">${d.skill ? `E: ${d.skill.name}` : '<span class="dim">E スキルなし</span>'}${o ? `<span class="dim"> ・ ${o.name}の武器(熟練は${o.name}の Lv)</span>` : ''}</div></div></button>`;
+      }).join('')}</div>`;
+    wpModal.classList.remove('hidden');
+  }
+  wpModal.onclick = e => {
+    if (e.target === wpModal || e.target.closest('.svm-x')) { AudioMan.click(); closeWp(); return; }
+    const b = e.target.closest('.wp-card');
+    if (b && !b.disabled) { META.classes[clSel].weapon = b.dataset.w; saveMeta(); AudioMan.select(); closeWp(); renderClass(); }
+  };
   $('cl-detail').onclick = e => {
-    const w = e.target.closest('.cl-wep');
-    if (w && !w.disabled) { META.classes[clSel].weapon = w.dataset.w; saveMeta(); AudioMan.select(); renderClass(); return; }
+    if (e.target.closest('.cl-wsel')) { AudioMan.click(); openWp(); return; }
     const g = e.target.closest('.cl-go');
     if (g && !g.disabled && META.cls !== clSel) { META.cls = clSel; saveMeta(); AudioMan.select(); renderClass(); }
   };
@@ -340,7 +364,7 @@ const MetaUI = (() => {
   function onKey(e) {
     if (state === 'equip' && e.code === 'Escape') close();
     if (state === 'stage' && e.code === 'Escape') { if (czKey) closeChaos(); else { state = 'title'; UI.title(); } }
-    if (state === 'class' && e.code === 'Escape') closeClass();
+    if (state === 'class' && e.code === 'Escape') { if (wpOpen()) closeWp(); else closeClass(); }
     if (state === 'tree' && e.code === 'Escape') { state = 'title'; UI.title(); }
     if (state === 'shop' && e.code === 'Escape') { state = 'title'; UI.title(); }
   }
