@@ -92,7 +92,7 @@ const critRate = () => P.crit;
 // 武器の現在のステータス。熟練(クラスLv の共通強化)の威力・範囲・クールダウンを掛けたもの(Lv / 進化が変わるまでキャッシュ)
 const wst = k => {
   const w = P.weapons[k], base = w.evo ? DATA.weapons[k].evo.st : DATA.weapons[k].lv[w.lv - 1], m = P.wm[k];
-  if (!m || (!m.dmg && !m.area && !m.cd && !m.count && !m.pierce && !m.speed)) return base;
+  if (!m || (!m.dmg && !m.area && !m.cd && !m.count && !m.pierce && !m.speed && !m.dur)) return base;
   if (w.stBase !== base) {
     w.stBase = base;
     w.st = Object.assign({}, base, { dmg: base.dmg * (1 + (m.dmg || 0)), cd: base.cd * (1 - (m.cd || 0)) });
@@ -100,6 +100,7 @@ const wst = k => {
     if (base.count) w.st.count = base.count + (m.count || 0);
     if (base.pierce !== undefined) w.st.pierce = base.pierce + (m.pierce || 0);
     if (base.speed) w.st.speed = base.speed * (1 + (m.speed || 0));
+    if (base.dur) w.st.dur = base.dur + (m.dur || 0);
   }
   return w.st;
 };
@@ -607,6 +608,7 @@ function updProjs(dt) {
 }
 
 // ---------- 設置ゾーン(ブリザード / ブラックホール) ----------
+const ICE_FALL = 0.15; // つららが落ちてくる時間
 function updZones(dt) {
   for (let i = zones.length - 1; i >= 0; i--) {
     const z = zones[i];
@@ -620,8 +622,8 @@ function updZones(dt) {
       if (z.tick <= 0) {
         z.tick = 0.25;
         forEachNear(z.x, z.y, z.r, e => {
-          if (z.dmg) hitEnemy(e, z.dmg, { src: 'blizzard', noNum: Math.random() < 0.6, col: '#bff4ff' });
-          e.frost = z.maxFrost ? Math.max(e.frost || 0, mageFrostCap()) : Math.min(10, (e.frost || 0) + 1); e.frostT = 5; // maxFrost: 絶対零度
+          if (z.dmg) hitEnemy(e, z.dmg, { src: 'blizzard', noNum: Math.random() < 0.6, col: '#bff4ff', frost: true });
+          if (z.maxFrost) addFrost(e, mageFrostCap(), mageFrostCap()); else addFrost(e, 1, 10); // maxFrost: 絶対零度
         });
       }
     } else if (z.kind === 'crack') { // 地割れ(グランドスラムの特殊強化)
@@ -669,11 +671,59 @@ function updZones(dt) {
         const a = z.t * 9 + k * TAU / 3 + rand(-0.3, 0.3), r = z.r * rand(0.3, 1);
         part(z.x + Math.cos(a) * r, z.y + Math.sin(a) * r * 0.6, -Math.sin(a) * 60, -rand(30, 70), 0.4, pick(cols), { glow: true, drag: 1 });
       }
+    } else if (z.kind === 'icicle') { // アイシクルフォール: every 秒ごとに1本。範囲内の敵を狙う(いなければランダムな位置)
+      for (const ic of z.ices) ic.t += dt;
+      z.acc += dt;
+      while (z.left > 0 && z.acc >= z.every) {
+        z.acc -= z.every; z.left--;
+        let x, y;
+        const tg = pick(enemies.filter(e => !e.dead && !e.prop && d2(e.x, e.y, z.x, z.y) < z.r * z.r));
+        if (tg) { x = tg.x; y = tg.y; } else { const a = rand(0, TAU), rr = Math.sqrt(Math.random()) * z.r; x = z.x + Math.cos(a) * rr; y = z.y + Math.sin(a) * rr; }
+        z.ices.push({ x, y, t: 0 });
+        if (z.left === 0 && z.big) z.ices.push({ x: z.x, y: z.y, t: -0.35, big: true }); // 大氷柱: 最後に巨大なつらら
+      }
+      for (const ic of z.ices) {
+        if (ic.done || ic.t < ICE_FALL) continue;
+        ic.done = true;
+        const R = ic.big ? z.bigR : z.iceR, dmg = ic.big ? z.big : z.dmg, el = clsNextEl();
+        asMine(() => {
+          forEachNear(ic.x, ic.y, R, e => {
+            if (e.prop) { killEnemy(e); return; }
+            hitEnemy(e, dmg, { src: 'icicle', ang: Math.atan2(e.y - ic.y, e.x - ic.x), kb: ic.big ? 120 : 15, col: '#bff4ff', el, eHit: true, frost: true, noNum: !ic.big && Math.random() < 0.4 });
+            if (!e.dead) addFrost(e, z.frost, 10);
+          });
+          burst(ic.x, ic.y, ic.big ? 40 : 8, ['#ffffff', '#bff4ff', '#7ad7ff'], { sp: ic.big ? 160 : 70, up: 30, g: 160, glow: true, life: 0.45 });
+          addFlash(ic.x, ic.y, R * (ic.big ? 2.2 : 1.4), '#bff4ff', ic.big ? 0.4 : 0.08);
+          if (ic.big) { addRing(ic.x, ic.y, R, '#ffffff', { w: 3, life: 0.45 }); shockAt(ic.x, ic.y, 1.6, 1); shake(8); hitstop(0.05); AudioMan.boom(); }
+          else shake(1);
+        });
+        if (z.patch) zones.push({ kind: 'frostpatch', x: ic.x, y: ic.y, r: R, t: 0, dur: DATA.weapons.blizzard.skill.patchT, tick: 0.5 }); // 凍てつく大地
+        if (!ic.big && Math.random() < 0.5) AudioMan.hit();
+      }
+      z.ices = z.ices.filter(ic => !ic.done || ic.t < ICE_FALL + 0.4);
+      if (z.left > 0 || z.ices.length) z.dur = Math.max(z.dur, z.t + 0.1); // 降り終わるまで残す
+    } else if (z.kind === 'frostpatch') { // 凍てつく大地: 触れた敵に凍傷 +1 / 0.5秒
+      if (z.tick <= 0) { z.tick = 0.5; forEachNear(z.x, z.y, z.r, e => { if (!e.prop) addFrost(e, 1, 10); }); }
+    } else if (z.kind === 'ddust') { // ダイヤモンドダスト: 自分についてくる細氷の領域
+      z.x = P.x; z.y = P.y;
+      if (z.tick <= 0) {
+        z.tick = z.every;
+        asMine(() => forEachNear(z.x, z.y, z.r, e => {
+          if (e.prop) return;
+          e.dustT = S.time; // この範囲内で凍結すると凍結時間が延びる
+          const frozen = !!e.freeze;
+          hitEnemy(e, z.dmg, { src: 'ddust', col: '#bff4ff', noNum: Math.random() < 0.6, frost: true });
+          if (!e.dead) addFrost(e, z.frost, 10);
+          if (z.glitter && frozen && !e.dead) { hitEnemy(e, z.glitter, { src: 'ddust', col: '#ffffff', noNum: Math.random() < 0.5 }); part(e.x, e.y - 4, 0, -20, 0.4, '#ffffff', { glow: true, sz: 2 }); } // 煌めき
+        }));
+      }
+      if (z.whiteout) for (const p of eprojs) if (!p.wo && d2(p.x, p.y, z.x, z.y) < z.r * z.r) { p.wo = true; p.vx *= z.whiteout; p.vy *= z.whiteout; p.life = (p.life || 4) / z.whiteout; } // ホワイトアウト
+      for (let k = 0; k < 4; k++) { const a = rand(0, TAU), r = Math.sqrt(Math.random()) * z.r; part(z.x + Math.cos(a) * r, z.y + Math.sin(a) * r, rand(-8, 8), rand(-12, 4), rand(0.4, 0.8), pick(['#ffffff', '#bff4ff', '#e0f8ff']), { glow: true, drag: 1 }); }
     } else if (z.kind === 'residue') { // ブリンクの氷の残滓: 触れた敵に凍傷
       if (Math.random() < dt * 20) part(z.x + rand(-z.r, z.r), z.y + rand(-z.r, z.r) * 0.6, 0, -10, 0.5, pick(['#bff4ff', '#ffffff']), { glow: true });
       if (z.tick <= 0) {
         z.tick = 0.3;
-        forEachNear(z.x, z.y, z.r, e => { if (!e.prop) { e.frost = Math.max(e.frost || 0, Math.min(mageFrostCap(), (e.frost || 0) + 1)); e.frostT = 5; } });
+        forEachNear(z.x, z.y, z.r, e => { if (!e.prop) addFrost(e, 1, mageFrostCap()); });
       }
     } else if (z.kind === 'hole') {
       const R = z.r * Math.min(1, z.t * 5);
@@ -709,7 +759,7 @@ function updZones(dt) {
 function hitEnemy(e, base, o = {}) {
   if (e.dead) return 0;
   if (e.prop) { killEnemy(e, o); return 0; }
-  let dmg = base * dmgMul() * clsDmgTaken(e); // 印などで敵が受けるダメージが増える
+  let dmg = base * dmgMul() * clsDmgTaken(e, o); // 印・凍結などで敵が受けるダメージが増える
   if (e.frost > 0 && P.weapons.blizzard && P.weapons.blizzard.evo) dmg *= 1 + 0.01 * e.frost;
   const crit = o.forceCrit || (!o.noCrit && Math.random() < critRate() + clsCritBonus(e));
   if (crit) dmg *= P.critMul + clsCritDmgBonus(e); else if (P.uq.exec) dmg *= 0.8; // 処刑人の
@@ -836,6 +886,13 @@ function updEnemies(dt) {
       if (!e.burns.length && bs.length) clsOnBurnOut(e, bs.reduce((a, b) => a + b.v, 0), bs.every(b => b.src === 'ember')); // 全部切れた
       if (Math.random() < dt * (8 + 2 * Math.min(10, e.burns.length))) part(e.x + rand(-3, 3), e.y + rand(-3, 3), 0, -20, 0.4, pick(['#ff6a2a', '#ffc34a']), { glow: true }); // 積むほど火の粉が増える
     }
+    if (e.freeze) { // 凍結(クライオマンサー): 凍傷が iv 秒ごとに 1 減り、0 で解除。ボス以外は行動不能
+      const f = e.freeze;
+      f.acc += dt; e.frostT = 5;
+      while (f.acc >= f.iv && e.frost > 0) { f.acc -= f.iv; e.frost--; }
+      if (e.frost <= 0) { e.freeze = null; e.frost = 0; burst(e.x, e.y, 8, ['#bff4ff', '#ffffff'], { sp: 40, life: 0.3 }); }
+      else if (!e.boss) e.stun = Math.max(e.stun || 0, dt + 0.01);
+    }
     if (e.frostT > 0) { e.frostT -= dt; if (e.frostT <= 0) e.frost = 0; }
     if (e.bleedT > 0 && e.bleed > 0 && (e.bleedTick = (e.bleedTick || 1) - dt) <= 0) {
       const B = DATA.bleed, k = e.boss ? B.boss : e.elite ? B.elite : 1;
@@ -850,7 +907,7 @@ function updEnemies(dt) {
     const damp = Math.exp(-9 * dt);
     e.kx *= damp; e.ky *= damp;
     if (e.stun > 0) { e.stun -= dt; continue; }
-    if (e.boss) { bossAI(e, dt); }
+    if (e.boss) { const r0 = CHAOS.rate; CHAOS.rate *= clsBossRate(e); try { bossAI(e, dt); } finally { CHAOS.rate = r0; } } // 凍結中のボスは攻撃速度 -30%
     else {
       const slow = Math.max(0.2, 1 - DATA.debuff.frostSlow * (e.frost || 0)) * (e.slowT > 0 ? 0.6 : 1); // 凍傷
       const sp = e.spd * slow;

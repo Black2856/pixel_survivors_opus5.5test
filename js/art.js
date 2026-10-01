@@ -289,7 +289,7 @@ const ART = (() => {
       ] },
     },
   });
-  S.mage.alias = { ranbu: 'mBarrage', iai: 'mMeteor', aRain: 'mMeteor', aVolley: 'mMeteor', aStep: 'mBlink', kSlam: 'mMeteor', kVerdict: 'mMeteor', pFlame: 'mBarrage', pInferno: 'mMeteor', pWall: 'mBlink' }; // 他クラスの武器スキルを使ったときの代わりのモーション
+  S.mage.alias = { ranbu: 'mBarrage', iai: 'mMeteor', aRain: 'mMeteor', aVolley: 'mMeteor', aStep: 'mBlink', kSlam: 'mMeteor', kVerdict: 'mMeteor', pFlame: 'mBarrage', pInferno: 'mMeteor', pWall: 'mBlink', cIcicle: 'mMeteor', cDust: 'mMeteor', cMirror: 'mBlink' }; // 他クラスの武器スキルを使ったときの代わりのモーション
 
   // ---------- クラス: アーチャー(16×18、部位アニメーション) ----------
   // 右向き。緑のフード(影の中で緑の目が光る)・背中のマントと矢筒・手に長弓
@@ -342,7 +342,7 @@ const ART = (() => {
     },
   });
   // 他クラスの武器スキルを使ったときの代わりのモーション
-  S.hunter.alias = { ranbu: 'aRain', mBarrage: 'aRain', iai: 'aVolley', mMeteor: 'aVolley', mBlink: 'aStep', kSlam: 'aRain', kVerdict: 'aVolley', pFlame: 'aRain', pInferno: 'aVolley', pWall: 'aStep' };
+  S.hunter.alias = { ranbu: 'aRain', mBarrage: 'aRain', iai: 'aVolley', mMeteor: 'aVolley', mBlink: 'aStep', kSlam: 'aRain', kVerdict: 'aVolley', pFlame: 'aRain', pInferno: 'aVolley', pWall: 'aStep', cIcicle: 'aRain', cDust: 'aVolley', cMirror: 'aStep' };
 
   // ---------- クラス: ナイト(16×18、部位アニメーション) ----------
   // 右向き(左半身が手前)。面頬の兜(隙間の目が光る)・銀の板金鎧・青い陣羽織に金の十字・手前の腕に凧形の大盾・奥の手に騎士剣
@@ -386,7 +386,7 @@ const ART = (() => {
     },
   });
   S.knight.guard = kup(0, 1, { shield: [1, -2, 'guard'], legs: [0, 0, 'stepB'] }); // 大盾を構えた姿勢
-  S.knight.alias = { ranbu: 'kSlam', mBarrage: 'kSlam', aRain: 'kSlam', iai: 'kVerdict', mMeteor: 'kVerdict', aVolley: 'kVerdict', pFlame: 'kSlam', pInferno: 'kVerdict' };
+  S.knight.alias = { ranbu: 'kSlam', mBarrage: 'kSlam', aRain: 'kSlam', iai: 'kVerdict', mMeteor: 'kVerdict', aVolley: 'kVerdict', pFlame: 'kSlam', pInferno: 'kVerdict', cIcicle: 'kSlam', cDust: 'kVerdict' };
 
   // ---------- クラス: パイロマンサー(16×18、部位アニメーション) ----------
   // 右向き。深紅のフード(影の中で橙の目が光る)・焦げ茶の帯・裾が燃えさしのようにちらつくローブ・先端に炎を宿した黒い杖
@@ -437,7 +437,58 @@ const ART = (() => {
     },
   });
   // 他クラスの武器スキルを使ったときの代わりのモーション
-  S.pyro.alias = { ranbu: 'pFlame', mBarrage: 'pFlame', aRain: 'pFlame', kSlam: 'pFlame', iai: 'pInferno', mMeteor: 'pInferno', aVolley: 'pInferno', kVerdict: 'pInferno', mBlink: 'pWall', aStep: 'pWall' };
+  S.pyro.alias = { ranbu: 'pFlame', mBarrage: 'pFlame', aRain: 'pFlame', kSlam: 'pFlame', iai: 'pInferno', mMeteor: 'pInferno', aVolley: 'pInferno', kVerdict: 'pInferno', mBlink: 'pWall', aStep: 'pWall', cIcicle: 'pInferno', cDust: 'pInferno', cMirror: 'pWall' };
+
+  // ---------- クラス: クライオマンサー(16×18、部位アニメーション) ----------
+  // 右向き。氷の結晶の冠を付けた白いフード(影の中で水色の目が光る)・淡い青のローブ・霜の付いた裾・先端に氷晶を浮かべた銀の杖
+  const CUP = ['hood', 'torso', 'backArm', 'frontArm', 'staff'];
+  const cup = (dx, dy, extra = {}) => Object.assign(Object.fromEntries(CUP.map(k => [k, [dx, dy]])), extra);
+  S.cryo = rig({
+    w: 16, h: 18, padX: 8, emit: 'EcC',
+    pal: {
+      w: '#b8c8dc', W: '#dce8f4', b: '#3f6aa0', B: '#5f8cc4', e: '#0c1424', E: '#bff4ff', c: '#7ad7ff', C: '#ffffff',
+      s: '#b8c4d8', S: '#e8eef8', i: '#f0dcc8', f: '#cfe8ff', a: '#2a3448',
+    },
+    order: ['backArm', 'legs', 'torso', 'hood', 'staff', 'frontArm'],
+    parts: {
+      // フード(白)と結晶の冠(光る)
+      hood: { x: 4, y: 0, v: {
+        base: ['.c.C.c..', '..wWww..', '.wWwwww.', 'wwweeeee', 'wwweEeeE', '.wweeeee', '..wwwww.'],
+      } },
+      torso: { x: 4, y: 7, v: { base: ['bBbbbbbb', 'bBbssbbb', 'ssSsssss', 'bBbbbbbb'] } },
+      backArm: { x: 3, y: 8, v: { base: ['b', 'b', 'i'] } },
+      frontArm: { x: 10, y: 8, v: {
+        base:    ['bb', 'bb', 'ii'],
+        forward: ['bbbii'],
+        raise:   ['..ii', '.bb.', 'bb..'],
+      } },
+      // 銀の杖と氷晶(光る)。b = 氷晶がゆっくり回った絵 / big = 大きく光る絵
+      staff: { x: 11, y: 3, v: {
+        base: ['.c.', 'cCc', '.c.', '.S.', '.s.', '.s.', '.s.', '.s.', '.s.', '.s.', '.s.', '.s.', '.s.', '.s.'],
+        b:    ['c.c', '.C.', 'c.c', '.S.', '.s.', '.s.', '.s.', '.s.', '.s.', '.s.', '.s.', '.s.', '.s.', '.s.'],
+        big:  ['.C.', 'cCc', 'CcC', 'cSc', '.s.', '.s.', '.s.', '.s.', '.s.', '.s.', '.s.', '.s.', '.s.', '.s.'],
+      } },
+      legs: { x: 3, y: 11, v: {
+        base:  ['.bbbbbbb..', '.bBbbbbbb.', 'bbBbbbbbbb', 'bbbbbbbbbb', 'fbfbbfbbfb', '.aa...aa..'],
+        stepA: ['.bbbbbbb..', '.bBbbbbbb.', 'bbBbbbbbbb', 'bbbbbbbbbb', 'bfbffbbfbf', 'aa.....aa.'],
+        stepB: ['.bbbbbbb..', '.bBbbbbbb.', 'bbBbbbbbbb', 'bbbbbbbbbb', 'fbfbbfbbfb', '..aa.aa...'],
+      } },
+    },
+    motions: {
+      // 待機: 呼吸で上半身が沈み、杖先の氷晶がゆっくり回る
+      idle: { loop: true, frames: [
+        { t: 0.4, p: cup(0, 0) }, { t: 0.4, p: cup(0, 0, { staff: [0, 0, 'b'] }) },
+        { t: 0.4, p: cup(0, 1) }, { t: 0.4, p: cup(0, 1, { staff: [0, 1, 'b'] }) },
+      ] },
+      walk: { loop: true, frames: [
+        { t: 0.12, p: cup(0, 1, { legs: [0, 0, 'stepA'], backArm: [-1, 1] }) },
+        { t: 0.12, p: cup(0, 0, { staff: [0, 0, 'b'] }) },
+        { t: 0.12, p: cup(0, 1, { legs: [0, 0, 'stepB'], backArm: [1, 1] }) },
+        { t: 0.12, p: cup(0, 0, { staff: [0, 0, 'b'] }) },
+      ] },
+    },
+  });
+  S.cryo.alias = { ranbu: 'cIcicle', mBarrage: 'cIcicle', aRain: 'cIcicle', kSlam: 'cIcicle', pFlame: 'cIcicle', iai: 'cDust', mMeteor: 'cDust', aVolley: 'cDust', kVerdict: 'cDust', pInferno: 'cDust', mBlink: 'cMirror', aStep: 'cMirror', pWall: 'cMirror' };
 
   S.zombie = mk({ a: '#3d2f24', b: '#7fb069', c: '#ff4040', d: '#2b3a22', e: '#6b5a8e', f: '#3a3350', g: '#241c2e' }, [
     '...aaaa...',
@@ -809,7 +860,7 @@ const ART = (() => {
     let v = cache.get(k);
     if (!v) cache.set(k, v = {});
     if (!v[kind]) v[kind] = kind === 'white' ? silhouette(sp.c) : kind === 'flip' ? flipX(sp.c)
-      : kind === 'flipE' ? (sp.e ? flipX(sp.e) : null) : kind === 'whiteFlip' ? silhouette(flipX(sp.c)) : kind === 'shadow' ? silhouette(sp.c, '#000') : kind === 'gold' ? silhouette(sp.c, '#ffd23f') : kind === 'goldFlip' ? silhouette(flipX(sp.c), '#ffd23f') : kind === 'ice' ? silhouette(sp.c, '#8fe4ff') : kind === 'iceFlip' ? silhouette(flipX(sp.c), '#8fe4ff') : null;
+      : kind === 'flipE' ? (sp.e ? flipX(sp.e) : null) : kind === 'whiteFlip' ? silhouette(flipX(sp.c)) : kind === 'shadow' ? silhouette(sp.c, '#000') : kind === 'gold' ? silhouette(sp.c, '#ffd23f') : kind === 'goldFlip' ? silhouette(flipX(sp.c), '#ffd23f') : kind === 'ice' ? silhouette(sp.c, '#8fe4ff') : kind === 'iceFlip' ? silhouette(flipX(sp.c), '#8fe4ff') : kind === 'frz' ? silhouette(sp.c, '#3f86c8') : kind === 'frzFlip' ? silhouette(flipX(sp.c), '#3f86c8') : null; // frz: 凍結(光で白く飛ばない濃い青)
     return v[kind];
   }
 

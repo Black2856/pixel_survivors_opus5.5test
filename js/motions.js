@@ -66,6 +66,15 @@ function pyroPose(U, arm, o = {}) {
   return { p, hand: null };
 }
 
+// クライオマンサーの部位の配置(ART.S.cryo と対応)
+function cryoPose(U, arm, o = {}) {
+  const p = {
+    hood: [0, U], torso: [0, U], backArm: [0, U], legs: [0, 0, o.legs || 'base'],
+    frontArm: arm === 'base' ? [0, U] : [0, U + (o.armDy || 0), arm], staff: [o.sx || 0, U + (o.sy || 0), o.staffV || 'base'],
+  };
+  return { p, hand: null };
+}
+
 const MOTIONS = {
   // メテオ(Q): 宝珠を頭上へ掲げて詠唱(0.5秒・のけぞる)→ 振り下ろして照準へ放つ → 戻る
   mMeteor: {
@@ -185,6 +194,35 @@ const MOTIONS = {
     state(t) {
       return Object.assign(pyroPose(t < 0.15 ? 2 : 0, 'base', { sy: t < 0.15 ? 3 : 0, staffV: t < 0.2 ? 'big' : 'base', legs: t < 0.15 ? 'stepB' : 'base' }),
         { blade: false, lean: 0, sy: track([[0, 1], [0.05, 0.86, 'out'], [0.2, 1.04], [0.3, 1]], t) });
+    },
+  },
+  // アイシクルフォール(E): 杖を頭上へ掲げる(0.3秒)→ 振り下ろす → 戻る
+  cIcicle: {
+    rig: 'cryo', dur: 0.6, cast: 0.3,
+    state(t) {
+      if (t < this.cast) { const u = t / this.cast; return Object.assign(cryoPose(0, 'raise', { armDy: -3, sy: Math.round(-3 * u), staffV: u > 0.5 ? 'big' : 'base' }), { blade: false, lean: -0.08 * u, sy: 1 + 0.03 * u }); }
+      const r = t - this.cast;
+      return Object.assign(cryoPose(r < 0.12 ? 1 : 0, r < 0.2 ? 'forward' : 'base', { sx: r < 0.2 ? 3 : 0, sy: r < 0.2 ? 2 : 0, staffV: r < 0.12 ? 'big' : 'base', legs: r < 0.15 ? 'stepA' : 'base' }),
+        { blade: false, lean: track([[0, 0.12], [0.3, 0, 'out']], r), sy: track([[0, 0.93], [0.15, 1, 'out']], r) });
+    },
+  },
+  // ダイヤモンドダスト(Q): 杖を高く掲げて冷気を集める(0.4秒)→ 両手を広げるように放つ → 戻る
+  cDust: {
+    rig: 'cryo', dur: 0.8, cast: 0.4,
+    state(t) {
+      if (t < this.cast) {
+        const u = track([[0, 0], [0.12, 1, 'out'], [this.cast, 1]], t);
+        return Object.assign(cryoPose(t > 0.25 ? 0 : 1, 'raise', { armDy: -3, sy: Math.round(-3 * u), staffV: Math.floor(t * 14) % 2 ? 'big' : 'b' }), { blade: false, lean: -0.06 * u, sy: track([[0, 1], [0.1, 0.95, 'out'], [this.cast, 1.05]], t) });
+      }
+      const r = t - this.cast;
+      return Object.assign(cryoPose(r < 0.1 ? 1 : 0, r < 0.25 ? 'raise' : 'base', { armDy: -1, staffV: r < 0.2 ? 'big' : 'base' }), { blade: false, lean: 0, sy: track([[0, 1.08], [0.2, 1, 'out']], r) });
+    },
+  },
+  // 氷の鏡(Space): 後ろへ滑る(少し沈む)
+  cMirror: {
+    rig: 'cryo', dur: 0.25,
+    state(t) {
+      return Object.assign(cryoPose(t < 0.15 ? 1 : 0, 'base', { staffV: 'b', legs: 'stepB' }), { blade: false, lean: track([[0, 0], [0.06, -0.14, 'out'], [0.25, 0]], t), sy: track([[0, 1], [0.05, 0.9, 'out'], [0.25, 1]], t) });
     },
   },
   // 居合(Q): 構え(0.25 秒)→ 抜刀して振り上げ → 残心 → 血振り → 納刀

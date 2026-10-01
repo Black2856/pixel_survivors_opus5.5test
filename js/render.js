@@ -404,6 +404,34 @@ function render() {
         }
       }
       addLight(z.x, z.y, z.r * 2, '#b8ff9a', 0.35 * fade * on);
+    } else if (z.kind === 'icicle') { // アイシクルフォール: 範囲の影 + 落ちてくるつらら
+      sx.globalAlpha = 0.18 * fade; pDisc(sx, zx, zy, Math.round(z.r), '#0c1a2a');
+      sx.globalAlpha = 0.5 * fade; pCircle(sx, zx, zy, Math.round(z.r), '#bff4ff', 1); sx.globalAlpha = 1;
+      for (const ic of z.ices) {
+        if (ic.t < 0) continue;
+        const x = Math.round(ic.x - cam.x), y = Math.round(ic.y - cam.y), L = ic.big ? 22 : 8, W = ic.big ? 3 : 1;
+        if (ic.t < ICE_FALL) { // 落ちてくる(先が尖った氷柱)
+          const tip = y - Math.round((ic.big ? 120 : 60) * (1 - ic.t / ICE_FALL));
+          for (let k = 0; k < L; k++) { const w = Math.max(0, Math.round(W * k / L)); sx.fillStyle = k < 2 ? '#ffffff' : '#bff4ff'; sx.fillRect(x - w, tip - k, w * 2 + 1, 1); gx.fillStyle = '#7ad7ff'; gx.fillRect(x, tip - k, 1, 1); }
+          sx.globalAlpha = 0.35; pDisc(sx, x, y, ic.big ? 6 : 2, '#0c1a2a'); sx.globalAlpha = 1; // 落ちる先の影
+        } else { // 砕けた跡(薄れて消える)
+          const k = 1 - (ic.t - ICE_FALL) / 0.4;
+          sx.globalAlpha = 0.6 * k; pCircle(sx, x, y, Math.round((ic.big ? z.bigR : z.iceR) * (1.1 - 0.3 * k)), '#ffffff', 1); sx.globalAlpha = 1;
+        }
+      }
+      addLight(z.x, z.y, z.r * 2, '#7ad7ff', 0.4 * fade);
+    } else if (z.kind === 'frostpatch') { // 凍てつく大地
+      sx.globalAlpha = 0.3 * fade; pDisc(sx, zx, zy, Math.round(z.r), '#bff4ff'); sx.globalAlpha = 1;
+      gx.globalAlpha = 0.25 * fade; pCircle(gx, zx, zy, Math.round(z.r), '#ffffff'); gx.globalAlpha = 1;
+    } else if (z.kind === 'ddust') { // ダイヤモンドダスト: 淡く光る縁ときらめき
+      sx.globalAlpha = 0.1 * fade; pDisc(sx, zx, zy, Math.round(z.r), '#bff4ff');
+      sx.globalAlpha = 0.55 * fade; pCircle(sx, zx, zy, Math.round(z.r), '#e0f8ff', 1); sx.globalAlpha = 1;
+      for (let i = 0; i < 24; i++) { // 縁を回る光
+        const a = t * 0.8 + i * TAU / 24, x = Math.round(zx + Math.cos(a) * z.r), y = Math.round(zy + Math.sin(a) * z.r);
+        gx.globalAlpha = fade * (0.4 + 0.6 * Math.abs(Math.sin(t * 3 + i))); gx.fillStyle = '#ffffff'; gx.fillRect(x, y, 1, 1);
+      }
+      gx.globalAlpha = 1;
+      addLight(z.x, z.y, z.r * 2.2, '#bff4ff', 0.6 * fade);
     } else if (z.kind === 'vortex') { // 火炎旋風: 回る炎の輪
       const col = z.blue ? '#7ad7ff' : '#ff6a2a', hi = z.blue ? '#ffffff' : '#ffc34a';
       sx.globalAlpha = 0.25 * fade; pDisc(sx, zx, zy, Math.round(z.r), col);
@@ -534,9 +562,9 @@ function render() {
       }
     }
     if (e.frost > 0 || e.stun > 0) {
-      const ice = ART.variant(sp, flip ? 'iceFlip' : 'ice'), ix = Math.round(e.x - cam.x - sp.w * sc / 2), iy = Math.round(e.y + yo - cam.y - sp.h * sc / 2);
-      sx.globalAlpha = e.stun > 0 ? 0.6 : Math.min(0.4, e.frost * 0.04); sx.drawImage(ice, ix, iy, sp.w * sc, sp.h * sc);
-      gx.globalAlpha = sx.globalAlpha * 0.6; gx.drawImage(ice, ix, iy, sp.w * sc, sp.h * sc);
+      const ice = ART.variant(sp, e.freeze ? (flip ? 'frzFlip' : 'frz') : flip ? 'iceFlip' : 'ice'), ix = Math.round(e.x - cam.x - sp.w * sc / 2), iy = Math.round(e.y + yo - cam.y - sp.h * sc / 2);
+      sx.globalAlpha = e.freeze ? 0.7 : e.stun > 0 ? 0.6 : Math.min(0.35, e.frost * 0.025); sx.drawImage(ice, ix, iy, sp.w * sc, sp.h * sc); // 凍結は氷漬け
+      if (!(e.frost > 0)) { gx.globalAlpha = sx.globalAlpha * 0.6; gx.drawImage(ice, ix, iy, sp.w * sc, sp.h * sc); } // 凍傷・凍結は光の層に描かない(薄くても白く飛んで、敵が白い塊に見えるため)
       sx.globalAlpha = gx.globalAlpha = 1;
     }
     if (e.elite) {

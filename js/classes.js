@@ -355,6 +355,51 @@ function flameTick(a, L, blue) {
   if (Math.random() < 0.3) AudioMan.fire();
 }
 
+// アイシクルフォール(ブリザードの E): 構え → 照準位置につららが降り続ける(放った後は動ける)
+// つららそのものは zones の 'icicle'(world.js の updZones で落とす)
+WEAPON_SKILL.blizzard = {
+  info(c, dmg) {
+    const sk = DATA.weapons.blizzard.skill, m = c.wm, n = sk.n + c.cuV('e', 'n') + (m.eCount || 0), one = dmg * sk.pow * (1 + c.cuV('e', 'pow')) * (1 + (m.ePow || 0));
+    return { name: sk.name, cat: 'e', desc: [
+      `構え ${sk.windup}秒(動けない)→ 照準位置(半径 ${sk.radius})に、${sk.dur}秒かけてつららが降る`,
+      `つららは範囲内の敵を狙って落ちる(いなければランダムな位置)`,
+      `つらら1本: 半径 ${sk.iceR} に 武器の威力 × ${Math.round(sk.pow * 100)}% と凍傷 +${sk.frost}`,
+      '放った後は自由に動ける(つららはその場に降り続ける)',
+      'E の攻撃なので、クラスの「攻撃1回ごと」の効果が1本ごとに起きる',
+    ], rows: [
+      ['CD', `<b>${(sk.cd * (1 - c.cuV('e', 'cd')) * (1 - (m.cd || 0)) * c.cdMul).toFixed(1)}</b> 秒`],
+      ['つらら', `${Math.round(n * (c.hasSp('e', 'cd') ? sk.rainK : 1))} 本 / ${sk.dur} 秒`],
+      ['1本の威力', `${Math.round(one)} → <b>${Math.round(one * c.atkMul)}</b>`, '武器の威力 × ' + Math.round(sk.pow * 100) + '%。攻撃力を掛けた値'],
+    ] };
+  },
+  start() {
+    const sk = weaponSkill(), m = P.wm.blizzard || {}, R = sk.range * P.range;
+    let t = mouseAimPt() || nearestEnemy(P.x, P.y, R) || { x: P.x + P.facing * 60, y: P.y };
+    const dd = Math.sqrt(d2(P.x, P.y, t.x, t.y));
+    if (dd > R) t = { x: P.x + (t.x - P.x) * R / dd, y: P.y + (t.y - P.y) * R / dd };
+    if (t.x !== P.x) P.facing = t.x < P.x ? -1 : 1;
+    P.act = { slot: 'e', ph: 'wind', t: 0, x: t.x, y: t.y, pow: clsESkillMul() * (1 + (m.ePow || 0)) };
+    setCd('e', sk.cd * (1 - cuV('e', 'cd')) * (1 - (m.cd || 0)) * P.cdMul);
+    playAnim('cIcicle', MOTIONS.cIcicle.dur);
+    skillCall(sk.name, '#bff4ff'); AudioMan.click();
+  },
+  update(a, dt) {
+    const sk = weaponSkill(), m = P.wm.blizzard || {};
+    P.moveMul = 0;
+    if (a.t < sk.windup) { // 頭上に氷の魔法陣
+      if (Math.random() < dt * 40) { const r = rand(0, TAU); part(P.x + Math.cos(r) * 12, P.y - 22 + Math.sin(r) * 4, 0, -10, 0.35, pick(['#bff4ff', '#ffffff']), { glow: true }); }
+      return;
+    }
+    const n = Math.round((sk.n + cuV('e', 'n') + (m.eCount || 0)) * (hasSp('e', 'cd') ? sk.rainK : 1)); // 氷雨: 攻撃頻度 1.5倍
+    zones.push({ kind: 'icicle', x: a.x, y: a.y, r: sk.radius * P.area, t: 0, dur: sk.dur + 0.5, tick: 0, acc: 0, every: sk.dur / n, left: n, ices: [],
+      dmg: wst(P.mainW).dmg * sk.pow * (1 + cuV('e', 'pow')) * a.pow, iceR: sk.iceR * P.area, frost: sk.frost,
+      patch: hasSp('e', 'n'), big: hasSp('e', 'pow') ? wst(P.mainW).dmg * sk.bigPow * (1 + cuV('e', 'pow')) * a.pow : 0, bigR: sk.bigR * P.area });
+    asMine(() => { addRing(a.x, a.y, sk.radius * P.area, '#bff4ff', { w: 2, life: 0.4 }); addFlash(P.x, P.y - 20, 40, '#bff4ff', 0.25); });
+    AudioMan.blizz();
+    P.act = null;
+  },
+};
+
 function ranbuHit(sk) {
   const R = sk.radius * P.area, dmg = wst(P.mainW).dmg * sk.pow * (1 + cuV('e', 'pow')) * P.act.pow, k0 = S.kills, el = clsNextEl(); // 1回の斬撃 = 1属性
   asMine(() => {
@@ -990,6 +1035,130 @@ const CLASS_RT = {
       ];
     },
   },
+  cryo: {
+    skills: ['q'],
+    init() { P.cryT = 0; P.cryExt = 0; P.dash = null; P.mirrorHeld = false; },
+    update(dt) {
+      const p = CR();
+      P.cryT = Math.max(0, P.cryT - dt);
+      if (P.cryT > 0 && Math.random() < dt * 20) part(P.x + rand(-7, 7), P.y + rand(-6, 6), rand(-6, 6), -rand(10, 25), 0.5, pick(['#bff4ff', '#ffffff', '#7ad7ff']), { glow: true }); // 纏った冷気
+      // 氷の鏡: 後ろへ滑る。分身に触れた敵に凍傷(1体1回)
+      if (P.dash) {
+        P.x += P.dash.vx * dt; P.y += P.dash.vy * dt; P.dash.t -= dt;
+        if (Math.random() < 0.5) P.after = (P.after || []).concat([{ x: P.x, y: P.y, t: 0.1, f: P.facing }]).slice(-3);
+        if (P.dash.t <= 0) P.dash = null;
+      }
+      const dc = S.decoy;
+      if (dc && dc.cryo) forEachNear(dc.x, dc.y, p.decoyR + 6, e => { if (!e.prop && !e.dead && !dc.hit.has(e.id)) { dc.hit.add(e.id); addFrost(e, p.decoyFrost, 10); part(e.x, e.y, 0, -15, 0.4, '#bff4ff', { glow: true }); } });
+      const held = (keys.Space || keys.TouchDef) && !P.act;
+      if (held && !P.mirrorHeld && !P.dash) { if (P.sta >= mirrorCost()) cryoMirror(); else addFloat(P.x, P.y - 16, 'STAMINA', '#6a7a88'); }
+      P.mirrorHeld = held;
+      P.moveMul = P.dash ? 0 : 1;
+    },
+    onHurt(dmg) {
+      if (P.cryT > 0 && hasSp('passive', 'armor')) { // 冷気の反撃
+        const p = CR();
+        forEachNear(P.x, P.y, p.counterR, e => { if (!e.prop) addFrost(e, p.counterFrost, 10); });
+        addRing(P.x, P.y, p.counterR, '#bff4ff', { w: 2, life: 0.3 });
+      }
+      return dmg;
+    },
+    onMainHit() {},
+    onSkill: () => cryWear(), // E / Q を使うと纏う
+    // 氷纏い: 全武器の命中で凍傷 +1(付与: 確率でさらに +1。冷たい刃: クリティカルで確率 2倍)
+    onWeaponHit(e, dmg, crit) {
+      if (P.cryT <= 0 || e.dead) return;
+      const ch = cuV('passive', 'chance') * (crit && hasSp('passive', 'chance') ? 2 : 1);
+      addFrost(e, 1 + (Math.random() < ch ? 1 : 0), 10);
+    },
+    // 凍傷の上限(このクラスでは出どころを問わず固定)と、上限での凍結
+    frostCap: () => cryCap(),
+    onFrost(e) { if (!e.freeze && e.frost >= cryCap()) cryFreeze(e); },
+    // 凍結中: 被ダメ +freezeDmg、凍傷を付ける攻撃ならさらに +frostHit(永久凍土: どちらも 2倍)
+    dmgTaken(e, o) {
+      if (!e.freeze) return 1;
+      const p = CR(), k2 = hasSp('trait', 'brittle') ? 2 : 1;
+      return 1 + (cuV('trait', 'brittle', p.freezeDmg) + (P.lvFx.freezeDmg || 0)) * k2 + (frostAtk(o) ? p.frostHit * k2 : 0);
+    },
+    critBonus: e => (e.freeze && hasSp('trait', 'deep') ? CR().critSp : 0), // 氷晶の急所
+    bossRate: e => (e.freeze ? CR().bossRate : 1), // 凍結中のボスは攻撃速度 -30%
+    onKill(e) {
+      if (!e.freeze) return;
+      const p = CR();
+      if (hasSp('trait', 'wave')) { // 砕氷
+        const x = e.x, y = e.y, R = p.shardR * P.area;
+        asMine(() => {
+          forEachNear(x, y, R, o => { if (o.prop || o === e) return; hitEnemy(o, p.shardPow, { src: 'shard', ang: Math.atan2(o.y - y, o.x - x), kb: 40, col: '#bff4ff', noNum: Math.random() < 0.5, frost: true }); if (!o.dead) addFrost(o, p.shardFrost, 10); });
+          burst(x, y, 16, ['#ffffff', '#bff4ff', '#7ad7ff'], { sp: 110, glow: true, life: 0.35 }); addRing(x, y, R, '#bff4ff', { w: 2, life: 0.25 });
+        });
+      }
+      if (P.cryT > 0 && hasSp('passive', 'wear') && P.cryExt < p.extendMax) { P.cryT += p.extendT; P.cryExt += p.extendT; } // 氷原
+    },
+    atkBonus: () => 0,
+    qStart() {
+      const q = DATA.classes.cryo.q;
+      P.act = { slot: 'q', ph: 'wind', t: 0 };
+      playAnim('cDust', MOTIONS.cDust.dur);
+      slowmo(0.5, 0.2);
+      skillCall(q.name, '#a8e8ff'); AudioMan.click();
+    },
+    qUpdate(a, dt) {
+      const q = DATA.classes.cryo.q;
+      P.moveMul = 0;
+      if (a.t < q.windup) { // 空気が凍りつく
+        asMine(() => { if (Math.random() < dt * 60) { const r = rand(0, TAU); part(P.x + Math.cos(r) * 30, P.y - 10 + Math.sin(r) * 30, -Math.cos(r) * 70, -Math.sin(r) * 70, 0.35, pick(['#bff4ff', '#ffffff']), { glow: true, drag: 0 }); } });
+        return;
+      }
+      cryoDust();
+      P.act = null;
+    },
+    res: () => ({ kind: 'wear', label: '氷纏い', v: P.cryT, max: Math.max(P.cryT, cryWearDur()), dk: '#1d4a7a' }),
+    staBroken: () => false,
+    statuses() {
+      const out = [];
+      if (P.cryT > 0) out.push({ id: 'cwear', glyph: '氷', name: '氷纏い', fx: '全武器の命中で凍傷 +1' + (cuV('passive', 'chance') ? `(${Math.round(cuV('passive', 'chance') * 100)}% でさらに +1)` : ''), t: P.cryT, max: Math.max(P.cryT, cryWearDur()), kind: 'buff' });
+      return out;
+    },
+    qInfo: () => ({ name: DATA.classes.cryo.q.name, glyph: '晶' }),
+    info(c) {
+      const p = CR(), q = DATA.classes.cryo.q, k = 1 + c.cuV('q', 'pow') + (c.lvFx.qPow || 0), sp2 = c.hasSp('trait', 'brittle') ? 2 : 1;
+      const cap = c.hasSp('trait', 'brittle') ? p.capSp : p.frostCap, iv = c.cuV('trait', 'deep', p.decay);
+      return [
+        { key: '特性', name: '凍結', cat: 'trait', desc: [
+          `凍傷の上限が ${cap} になる(どの出どころの凍傷も)。上限に達すると凍結する`,
+          '凍結: 行動不能・受けるダメージアップ。凍傷を付ける攻撃なら、さらにアップ',
+          `凍結中は凍傷が ${iv}秒ごとに 1 減り、0 で解除(凍結中は凍傷が増えない)`,
+          'ボスは行動不能にならず、攻撃速度 -30%',
+        ], rows: [
+          ['凍結の時間', `<b>${(cap * iv).toFixed(1)}</b> 秒`],
+          ['凍結中の被ダメージ', `<b>+${Math.round((c.cuV('trait', 'brittle', p.freezeDmg) + (c.lvFx.freezeDmg || 0)) * sp2 * 100)}%</b>`, `凍傷を付ける攻撃ならさらに +${Math.round(p.frostHit * sp2 * 100)}%`],
+        ] },
+        { key: 'パッシブ', name: '氷纏い', cat: 'passive', desc: [
+          'E か Q を使うと、冷気を纏う(使うたびに時間が戻る)',
+          '纏っている間、全武器の攻撃(通常攻撃・E)が命中すると、その敵に凍傷 +1',
+          '  → サブ武器も対象',
+        ], rows: [
+          ['纏う時間', `<b>${c.cuV('passive', 'wear', p.wearT) + (c.lvFx.wearT || 0)}</b> 秒`],
+        ].concat(c.cuV('passive', 'armor') ? [['纏った瞬間のシールド', `最大HP の ${Math.round(c.cuV('passive', 'armor') * 100)}%`]] : []) },
+        { key: 'Q', name: q.name, cat: 'q', desc: [
+          `構え ${q.windup}秒(動けない)→ 自分を中心に ${q.dur}秒間、細氷の領域(自分についてくる)`,
+          `範囲内の敵に、${q.every}秒ごとに凍傷 +${q.frost} とダメージ`,
+          `この範囲内で凍結した敵は、凍結時間 +${Math.round(q.freezeUp * 100)}%`,
+          '威力は武器に依存しない',
+        ], rows: [
+          ['CD', `<b>${(q.cd * (1 - c.cuV('q', 'cd')) * c.cdMul).toFixed(1)}</b> 秒`],
+          ['威力', `${Math.round(q.pow * k)} → <b>${Math.round(q.pow * k * c.atkMul)}</b>`, `${q.every}秒ごと`],
+          ['半径', `${Math.round(q.r * (1 + c.cuV('q', 'area')) * (1 + c.st.v.area) * c.st.mul.area)}`],
+        ] },
+        { key: 'Space', name: '氷の鏡', desc: [
+          `移動方向と逆へ ${p.mirrorDist} 下がる(${p.mirrorIfr}秒 無敵)`,
+          `元の位置に氷の分身を ${p.decoyT}秒残す。分身は敵を引きつけ、触れた敵に凍傷 +${p.decoyFrost}`,
+        ], rows: [
+          ['スタミナ消費', `<b>${p.mirrorCost - (c.lvFx.mirrorCut || 0)}</b>`],
+        ] },
+      ];
+    },
+  },
 };
 
 // 居合の斬撃: 通過した敵にまとめてダメージ(少し遅れて斬撃線が炸裂する)
@@ -1063,7 +1232,7 @@ function elEffect(e, el, dealt) {
     const perSec = dealt * p.burnPct * (1 + 0.1 * L) / p.burnDur / dmgMul();
     addBurn(e, perSec, p.burnDur, 'elfire'); // 炎上はスタックする
   } else if (el === 'ice') {
-    e.frost = Math.max(e.frost || 0, Math.min(mageFrostCap(), (e.frost || 0) + 1)); e.frostT = 5;
+    addFrost(e, 1, mageFrostCap());
   } else if (el === 'bolt') {
     const n = p.chainN + L, done = new Set([e]);
     let cur = e;
@@ -1459,6 +1628,66 @@ function pyroInferno() {
   AudioMan.boom(); AudioMan.crit();
 }
 
+// ---------- クライオマンサー: 凍結・氷纏い・ダイヤモンドダスト・氷の鏡 ----------
+const CR = () => DATA.classes.cryo.params;
+const cryCap = () => (hasSp('trait', 'brittle') ? CR().capSp : CR().frostCap); // 永久凍土: 50
+const cryWearDur = () => cuV('passive', 'wear', CR().wearT) + (P.lvFx.wearT || 0);
+const mirrorCost = () => CR().mirrorCost - (P.lvFx.mirrorCut || 0);
+// 凍傷を付ける攻撃か(凍結中の追加の被ダメージ): 凍傷を付ける処理を持つ攻撃 + 氷纏い中の武器の攻撃
+const frostAtk = o => !!o && !o.dot && (o.frost || (P.cryT > 0 && (o.eHit || (o.src && P.weapons[o.src]))));
+// 凍結: 行動不能(ボスは攻撃速度 -30%)。凍傷が iv 秒ごとに 1 減って、0 で解除(world.js)
+function cryFreeze(e) {
+  const p = CR(), q = DATA.classes.cryo.q;
+  let iv = cuV('trait', 'deep', p.decay);
+  if (S.time - (e.dustT || -9) < q.every + 0.1) iv *= 1 + q.freezeUp + (hasSp('q', 'cd') ? q.longFreeze : 0); // ダイヤモンドダストの範囲内
+  e.freeze = { iv, acc: 0 };
+  e.frost = cryCap(); e.frostT = 5;
+  asMine(() => {
+    addRing(e.x, e.y, e.r + 8, '#ffffff', { w: 2, life: 0.3 });
+    burst(e.x, e.y, 10, ['#ffffff', '#bff4ff', '#7ad7ff'], { sp: 60, glow: true, life: 0.35 });
+  });
+  const n = cuV('trait', 'wave');
+  if (n) { // 寒波: 周りの敵に凍傷(少し遅らせて、連鎖しても深く再帰しない)
+    const x = e.x, y = e.y;
+    setTimeout(() => {
+      if (state !== 'play') return;
+      forEachNear(x, y, p.waveR * P.area, o => { if (o !== e && !o.prop && !o.dead) addFrost(o, n, 10); });
+      asMine(() => addRing(x, y, p.waveR * P.area, '#bff4ff', { w: 1, life: 0.3 }));
+    }, 60);
+  }
+}
+// 氷纏い: 纏う(氷鎧: 纏っている間のシールド)
+function cryWear() {
+  P.cryT = cryWearDur(); P.cryExt = 0; S.hudDirty = true;
+  const a = cuV('passive', 'armor');
+  if (a) timedShield(P.maxhp * a, P.cryT);
+  asMine(() => burst(P.x, P.y, 18, ['#bff4ff', '#ffffff', '#7ad7ff'], { sp: 60, up: 20, glow: true, life: 0.45 }));
+}
+// 氷の鏡: 後ろへ滑り、元の位置に氷の分身(敵を引きつける)
+function cryoMirror() {
+  const p = CR(), d = P.moving && P.dir ? [-P.dir[0], -P.dir[1]] : [-P.facing, 0], len = Math.hypot(d[0], d[1]) || 1;
+  staUse(mirrorCost());
+  S.decoy = { x: P.x, y: P.y, t: p.decoyT, cryo: true, hit: new Set() };
+  P.dash = { vx: d[0] / len * p.mirrorDist / p.mirrorTime, vy: d[1] / len * p.mirrorDist / p.mirrorTime, t: p.mirrorTime };
+  P.invT = Math.max(P.invT, p.mirrorIfr); P.ifr = Math.max(P.ifr, p.mirrorIfr);
+  playAnim('cMirror', MOTIONS.cMirror.dur); P.anim.keep = true;
+  asMine(() => { burst(P.x, P.y, 14, ['#ffffff', '#bff4ff'], { sp: 60, glow: true, life: 0.35 }); addRing(P.x, P.y, 14, '#bff4ff', { life: 0.25 }); });
+  AudioMan.dash();
+}
+// ダイヤモンドダスト: 自分を中心に細氷の領域(zones の 'ddust'、world.js で凍傷とダメージ)
+function cryoDust() {
+  const q = DATA.classes.cryo.q, k = 1 + cuV('q', 'pow') + (P.lvFx.qPow || 0);
+  zones.push({ kind: 'ddust', x: P.x, y: P.y, r: q.r * (1 + cuV('q', 'area')) * P.area, t: 0, dur: q.dur + (hasSp('q', 'cd') ? q.longDur : 0), tick: 0,
+    every: q.every, frost: q.frost, dmg: q.pow * k, glitter: hasSp('q', 'pow') ? q.glitter * k : 0, whiteout: hasSp('q', 'area') ? q.whiteout : 0 });
+  asMine(() => {
+    burst(P.x, P.y, 50, ['#ffffff', '#bff4ff', '#7ad7ff'], { sp: 180, glow: true, life: 0.6 });
+    addRing(P.x, P.y, q.r * P.area, '#ffffff', { w: 3, life: 0.5 }); addFlash(P.x, P.y, q.r * 2.5, '#bff4ff', 0.4);
+    shockAt(P.x, P.y, 1.4, 1); shake(6); screenFlash(0.25 * SET.fxA, '#bff4ff');
+  });
+  setCd('q', q.cd * (1 - cuV('q', 'cd')) * P.cdMul);
+  AudioMan.blizz(); AudioMan.crit();
+}
+
 // ---------- world.js から呼ぶ入口 ----------
 const clsRT = () => CLASS_RT[P.cls];
 function clsInit() {
@@ -1502,10 +1731,21 @@ function clsOnEHit(e) { if (clsRT() && clsRT().onEHit) clsRT().onEHit(e); } // �
 const clsShieldGain = () => (clsRT() && clsRT().shieldGain ? clsRT().shieldGain() : 1); // シールドの獲得量の倍率
 const clsShieldCap = () => (clsRT() && clsRT().shieldCap ? clsRT().shieldCap() : P.maxhp);  // シールドの上限
 function clsOnShieldBreak() { if (clsRT() && clsRT().onShieldBreak) clsRT().onShieldBreak(); } // シールドが割れた
-const clsDmgTaken = e => (clsRT() && clsRT().dmgTaken ? clsRT().dmgTaken(e) : 1);
+const clsDmgTaken = (e, o) => (clsRT() && clsRT().dmgTaken ? clsRT().dmgTaken(e, o) : 1);
 const clsCritBonus = e => (clsRT() && clsRT().critBonus ? clsRT().critBonus(e) : 0);
 const clsCritDmgBonus = e => (clsRT() && clsRT().critDmgBonus ? clsRT().critDmgBonus(e) : 0);
 function clsOnKill(e) { if (clsRT() && clsRT().onKill) clsRT().onKill(e); }
+// 凍傷(共通の仕組み)へのクラスの補正: 上限・付いたとき(凍結)・ボスの攻撃速度
+const clsFrostCap = () => (clsRT() && clsRT().frostCap ? clsRT().frostCap() : 0);
+function clsOnFrost(e) { if (clsRT() && clsRT().onFrost) clsRT().onFrost(e); }
+const clsBossRate = e => (clsRT() && clsRT().bossRate ? clsRT().bossRate(e) : 1);
+// 凍傷を付ける(cap: 出どころの上限。クラスが上限を決めるときはそちら)。凍結中は増えない
+function addFrost(e, n, cap) {
+  if (!(n > 0) || e.dead || e.prop || e.freeze) return;
+  cap = clsFrostCap() || cap;
+  e.frost = Math.max(e.frost || 0, Math.min(cap, (e.frost || 0) + n)); e.frostT = 5;
+  clsOnFrost(e);
+}
 // 武器の命中(全武器の通常攻撃・E。炎上などの継続ダメージは除く)
 function clsOnWeaponHit(e, dmg, crit) { if (clsRT() && clsRT().onWeaponHit) clsRT().onWeaponHit(e, dmg, crit); }
 // 炎上(共通の仕組み)へのクラスの補正: ダメージ倍率・クリティカルするか・持続の追加・切れたとき
