@@ -404,6 +404,30 @@ function render() {
         }
       }
       addLight(z.x, z.y, z.r * 2, '#b8ff9a', 0.35 * fade * on);
+    } else if (z.kind === 'gspark') { // グラビティスパーク: 雷の球(引き寄せの縁が縮む → 爆発で消える)
+      const sk = DATA.weapons.thunder.skill, u = Math.min(1, z.t / sk.boomT);
+      if (!z.boomed) {
+        sx.globalAlpha = 0.5 * (1 - u); pCircle(sx, zx, zy, Math.round(z.r * (1 - u * 0.8)), '#9fd8ff', 1); sx.globalAlpha = 1;
+        pDisc(sx, zx, zy, 3 + Math.round(u * 3), '#ffffff'); gx.globalAlpha = 0.8; pDisc(gx, zx, zy, 6 + Math.round(u * 4), '#9fd8ff'); gx.globalAlpha = 1;
+        addLight(z.x, z.y, 90, '#9fd8ff', 1);
+      } else if (z.field) { // 残留磁場: 回る弱い輪
+        sx.globalAlpha = 0.35 * fade; pCircle(sx, zx, zy, Math.round(z.r * (0.5 + 0.5 * ((t * 1.5) % 1))), '#9fd8ff', 1); sx.globalAlpha = 1;
+        addLight(z.x, z.y, z.r, '#9fd8ff', 0.4 * fade);
+      }
+    } else if (z.kind === 'tower') { // 鉄塔: 格子の塔(先端の球が光る)。送電線: 隣の鉄塔へ雷の線
+      const rise = Math.min(1, z.t * 8), x = Math.round(zx), base = Math.round(zy), H = 20, top = base - Math.round(H * rise);
+      for (let y = top; y <= base; y++) {
+        const k = (y - top) / H, w = Math.round(1 + k * 3);
+        sx.fillStyle = (y - top) % 3 === 0 ? '#c8c0d8' : '#6a6080'; sx.fillRect(x - w, y, 1, 1); sx.fillRect(x + w, y, 1, 1);
+        if ((y - top) % 3 === 0) { sx.fillStyle = '#8a8098'; sx.fillRect(x - w, y, w * 2 + 1, 1); }
+      }
+      sx.fillStyle = '#ffffff'; sx.fillRect(x - 1, top - 2, 3, 2); gx.globalAlpha = 0.7 + 0.3 * Math.sin(t * 20); pDisc(gx, x, top - 1, 3, '#fff27a'); gx.globalAlpha = 1;
+      if (z.link && z.wire) {
+        const lx = Math.round(z.link.x - cam.x), ly = Math.round(z.link.y - cam.y) - H;
+        gx.globalAlpha = 0.6 * fade; pLine(gx, x, top, lx, ly, '#fff27a', 1); gx.globalAlpha = 1;
+        sx.globalAlpha = 0.8 * fade; pLine(sx, x, top + (Math.random() < 0.5 ? 1 : 0), lx, ly, '#ffffff', 1); sx.globalAlpha = 1;
+      }
+      addLight(z.x, z.y - 20, 60, '#fff27a', 0.7 * fade);
     } else if (z.kind === 'icicle') { // アイシクルフォール: 範囲の影 + 落ちてくるつらら
       sx.globalAlpha = 0.18 * fade; pDisc(sx, zx, zy, Math.round(z.r), '#0c1a2a');
       sx.globalAlpha = 0.5 * fade; pCircle(sx, zx, zy, Math.round(z.r), '#bff4ff', 1); sx.globalAlpha = 1;

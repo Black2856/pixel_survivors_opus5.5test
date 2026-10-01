@@ -98,6 +98,7 @@ const wst = k => {
     w.st = Object.assign({}, base, { dmg: base.dmg * (1 + (m.dmg || 0)), cd: base.cd * (1 - (m.cd || 0)) });
     for (const f of ['aoe', 'radius']) if (base[f]) w.st[f] = base[f] * (1 + (m.area || 0));
     if (base.count) w.st.count = base.count + (m.count || 0);
+    if (base.strikes) w.st.strikes = base.strikes + (m.count || 0); // サンダーの回数
     if (base.pierce !== undefined) w.st.pierce = base.pierce + (m.pierce || 0);
     if (base.speed) w.st.speed = base.speed * (1 + (m.speed || 0));
     if (base.dur) w.st.dur = base.dur + (m.dur || 0);
@@ -460,30 +461,18 @@ function asMine(fn) { const prev = FX_MINE; FX_MINE = true; try { fn(); } finall
 function strike(x, y, st, evo) { asMine(() => strikeNow(x, y, st, evo)); }
 function strikeNow(x, y, st, evo) {
   const R = st.aoe * P.area;
-  const hitSet = new Set();
-  forEachNear(x, y, R, e => { hitSet.add(e); hitEnemy(e, st.dmg, { src: 'thunder', ang: Math.atan2(e.y - y, e.x - x), kb: 30, col: '#fff27a' }); });
+  const shock = DATA.weapons.thunder.shock;
+  forEachNear(x, y, R, e => {
+    const dealt = hitEnemy(e, st.dmg, { src: 'thunder', ang: Math.atan2(e.y - y, e.x - x), kb: 30, col: '#fff27a' });
+    if (!dealt) return;
+    addShock(e, dealt, shock);               // 感電
+    if (evo) addShock(e, dealt, shock);      // ジャッジメント: 感電をもう1回
+  });
   bolts.push({ x0: x + rand(-20, 20), y0: cam.y - 10, x1: x, y1: y, t: 0, life: 0.22, w: 2 });
   addFlash(x, y, 70, '#fff27a', 0.3);
   addRing(x, y, R, '#fff27a', { life: 0.3 });
   burst(x, y, 14, ['#fff27a', '#ffffff', '#7ad7ff'], { sp: 90, glow: true, life: 0.4 });
   shake(2); AudioMan.zap();
-  if (evo) {
-    let cur = { x, y };
-    for (let c = 0; c < 4; c++) {
-      let best = null, bd = 70 * 70;
-      for (const e of enemies) {
-        if (e.dead || e.hidden || hitSet.has(e)) continue;
-        const dd = d2(cur.x, cur.y, e.x, e.y);
-        if (dd < bd) { bd = dd; best = e; }
-      }
-      if (!best) break;
-      hitSet.add(best);
-      bolts.push({ x0: cur.x, y0: cur.y, x1: best.x, y1: best.y, t: 0, life: 0.25, w: 1 });
-      hitEnemy(best, st.dmg * 0.7, { src: 'thunder', col: '#fff27a' });
-      addFlash(best.x, best.y, 30, '#fff27a', 0.2);
-      cur = best;
-    }
-  }
 }
 
 function spawnHole(x, y, st, evo) {
@@ -671,6 +660,77 @@ function updZones(dt) {
         const a = z.t * 9 + k * TAU / 3 + rand(-0.3, 0.3), r = z.r * rand(0.3, 1);
         part(z.x + Math.cos(a) * r, z.y + Math.sin(a) * r * 0.6, -Math.sin(a) * 60, -rand(30, 70), 0.4, pick(cols), { glow: true, drag: 1 });
       }
+    } else if (z.kind === 'gspark') { // グラビティスパーク: 最初に1回大きく引き寄せ → 爆発(残留磁場: その後も弱く引き寄せる)
+      if (!z.pulled) {
+        z.pulled = true;
+        forEachNear(z.x, z.y, z.r, e => { if (e.boss || e.prop) return; const k = 8 * (1 - (e.kbRes || 0) * 0.5); e.kx += (z.x - e.x) * k; e.ky += (z.y - e.y) * k; });
+        for (let i = 0; i < 30; i++) { const a = rand(0, TAU), r = z.r * rand(0.6, 1); part(z.x + Math.cos(a) * r, z.y + Math.sin(a) * r, -Math.cos(a) * r * 4, -Math.sin(a) * r * 4, 0.22, pick(['#9fd8ff', '#fff27a', '#ffffff']), { glow: true, drag: 0 }); }
+      }
+      const sk = DATA.weapons.thunder.skill;
+      if (!z.boomed && z.t >= sk.boomT) {
+        z.boomed = true;
+        const el = clsNextEl();
+        asMine(() => {
+          forEachNear(z.x, z.y, z.boomR, e => {
+            if (e.prop) { killEnemy(e); return; }
+            const dealt = hitEnemy(e, z.dmg, { src: 'gspark', ang: Math.atan2(e.y - z.y, e.x - z.x), kb: 30, col: '#9fd8ff', el, eHit: true });
+            if (dealt && !e.dead) addShock(e, dealt, sk.shock);
+            if (z.stun && !e.dead) e.stun = Math.max(e.stun || 0, e.boss ? sk.bossStun : sk.stun); // 超電磁
+          });
+          for (let i = 0; i < 8; i++) { const a = i * TAU / 8 + rand(-0.2, 0.2), L = z.boomR * rand(1, 1.6); bolts.push({ x0: z.x, y0: z.y, x1: z.x + Math.cos(a) * L, y1: z.y + Math.sin(a) * L, t: 0, life: 0.2, w: 1 }); }
+          addFlash(z.x, z.y, z.boomR * 2.2, '#9fd8ff', 0.22); addRing(z.x, z.y, z.boomR, '#ffffff', { w: 2, life: 0.35 });
+          burst(z.x, z.y, 30, ['#9fd8ff', '#fff27a', '#ffffff'], { sp: 150, glow: true, life: 0.4 }); shockAt(z.x, z.y, 1.3, 1); shake(6);
+        });
+        AudioMan.boom(); AudioMan.zap();
+      }
+      if (z.field && z.boomed) forEachNear(z.x, z.y, z.r, e => { // 残留磁場
+        if (e.boss || e.prop) return;
+        const a = Math.atan2(z.y - e.y, z.x - e.x), dd = Math.sqrt(d2(z.x, z.y, e.x, e.y)), k = Math.min(dd, DATA.weapons.thunder.skill.fieldPull * dt);
+        e.x += Math.cos(a) * k; e.y += Math.sin(a) * k;
+      });
+    } else if (z.kind === 'tower') { // 鉄塔: every 秒ごとに近くの敵 1体へ放電 / 送電線 / 過充電
+      if (z.tick <= 0) {
+        z.tick = DATA.classes.electro.q.every;
+        const tg = nearestEnemy(z.x, z.y, z.r);
+        if (tg) asMine(() => {
+          const dealt = hitEnemy(tg, z.pow, { src: 'tower', ang: Math.atan2(tg.y - z.y, tg.x - z.x), kb: 20, col: '#fff27a' });
+          if (dealt) { addShock(tg, dealt, z.shock); if (z.dis) addShock(tg, dealt, z.dis, { noCharge: true }); }
+          bolts.push({ x0: z.x, y0: z.y - 21, x1: tg.x, y1: tg.y, t: 0, life: 0.18, w: 2 });
+          addFlash(tg.x, tg.y, 30, '#fff27a', 0.2);
+        });
+        if (tg) AudioMan.zap();
+      }
+      if (z.wire) { // 送電線: 同じ Q の鉄塔のうち一番近いものと線でつなぐ(自分より後の鉄塔とだけ)
+        z.wireT -= dt;
+        if (z.wireT <= 0) {
+          z.wireT = DATA.classes.electro.q.wireEvery;
+          const others = zones.filter(o => o !== z && o.kind === 'tower' && o.id === z.id);
+          let nb = null, nd = Infinity;
+          for (const o of others) { const d = d2(o.x, o.y, z.x, z.y); if (d < nd) { nd = d; nb = o; } }
+          z.link = nb;
+          if (nb && zones.indexOf(nb) > zones.indexOf(z)) {
+            const W = DATA.classes.electro.q.wireW, ax = z.x, ay = z.y - 18, bx = nb.x, by = nb.y - 18, L2 = (bx - ax) ** 2 + (by - ay) ** 2 || 1;
+            asMine(() => forEachNear((ax + bx) / 2, (ay + by) / 2, Math.sqrt(L2) / 2 + W, e => {
+              if (e.prop) return;
+              const u = clamp(((e.x - ax) * (bx - ax) + (e.y - ay) * (by - ay)) / L2, 0, 1), px = ax + (bx - ax) * u, py = ay + (by - ay) * u;
+              if (d2(e.x, e.y, px, py) < W * W) hitEnemy(e, z.wire, { src: 'tower', noNum: Math.random() < 0.6, col: '#fff27a' });
+            }));
+          }
+        }
+      }
+      if (Math.random() < dt * 6) bolts.push({ x0: z.x, y0: z.y - 21, x1: z.x + rand(-6, 6), y1: z.y - 21 + rand(-6, 2), t: 0, life: 0.06, w: 1 }); // 先端の火花
+      if (z.t + dt >= z.dur && !z.done) {
+        z.done = true;
+        if (z.boom) { // 過充電
+          const R = DATA.classes.electro.q.boomR * P.area;
+          asMine(() => {
+            forEachNear(z.x, z.y, R, e => { if (!e.prop) hitEnemy(e, z.boom, { src: 'tower', ang: Math.atan2(e.y - z.y, e.x - z.x), kb: 90, col: '#fff27a' }); });
+            addFlash(z.x, z.y, R * 3, '#fff27a', 0.4); addRing(z.x, z.y, R, '#ffffff', { w: 3, life: 0.4 });
+            burst(z.x, z.y, 30, ['#fff27a', '#ffffff', '#9fd8ff'], { sp: 150, glow: true, life: 0.45 }); shockAt(z.x, z.y, 1.3, 1); shake(5);
+          });
+          AudioMan.boom();
+        } else asMine(() => burst(z.x, z.y - 10, 12, ['#8a8098', '#fff27a'], { sp: 60, up: 20, life: 0.4 }));
+      }
     } else if (z.kind === 'icicle') { // アイシクルフォール: every 秒ごとに1本。範囲内の敵を狙う(いなければランダムな位置)
       for (const ic of z.ices) ic.t += dt;
       z.acc += dt;
@@ -766,7 +826,7 @@ function hitEnemy(e, base, o = {}) {
   dmg = Math.max(1, Math.round(dmg * rand(0.9, 1.1)));
   e.hp -= dmg; e.flash = 0.08;
   if (o.src && o.src === P.mainW) clsOnMainHit(e); // 通常攻撃(メイン武器)の命中
-  if (o.eHit) clsOnEHit(e);                        // 武器スキル(E)の命中
+  if (o.eHit) clsOnEHit(e, dmg);                   // 武器スキル(E)の命中
   if (o.el) clsOnElement(e, o.el, dmg);             // 属性(メイジの元素循環)
   if (!o.dot && (o.eHit || (o.src && P.weapons[o.src]))) clsOnWeaponHit(e, dmg, crit); // 武器の命中(炎上などの継続ダメージは除く)
   S.totalDmg += dmg;
@@ -1438,6 +1498,7 @@ function updEprojs(dt) {
     if (p.t > p.life) { eprojs.splice(i, 1); continue; }
     if (d2(p.x, p.y, P.x, P.y) < Math.pow(p.r + 3, 2)) {
       if (P.invT > 0) continue;
+      if (!p.keep && clsBlockProj()) { burst(p.x, p.y, 8, ['#fff27a', '#ffffff'], { sp: 60, glow: true, life: 0.25 }); eprojs.splice(i, 1); continue; } // 静電気
       hurtPlayer(p.dmg);
       if (p.keep) continue;
       burst(p.x, p.y, 6, ['#ff3b5c', '#ffffff'], { sp: 50, glow: true });

@@ -400,6 +400,51 @@ WEAPON_SKILL.blizzard = {
   },
 };
 
+// グラビティスパーク(サンダーの E): 構え → 照準位置に雷の球。周りの敵を1回大きく引き寄せて爆発(zones の 'gspark')
+WEAPON_SKILL.thunder = {
+  info(c, dmg) {
+    const sk = DATA.weapons.thunder.skill, m = c.wm, one = dmg * sk.pow * (1 + c.cuV('e', 'pow')) * (1 + (m.ePow || 0)), ar = (1 + c.cuV('e', 'area')) * (1 + c.st.v.area) * c.st.mul.area;
+    return { name: sk.name, cat: 'e', desc: [
+      `構え ${sk.windup}秒(動けない)→ 照準位置に雷の球を放つ`,
+      `周りの敵を中心へ1回だけ大きく引き寄せ(ボス以外)、直後に爆発(武器の威力 × ${Math.round(sk.pow * 100)}%、感電 ${Math.round(sk.shock * 100)}%)`,
+      'E の攻撃なので、クラスの「攻撃1回ごと」の効果が爆発で起きる',
+    ], rows: [
+      ['CD', `<b>${(sk.cd * (1 - c.cuV('e', 'cd')) * (1 - (m.cd || 0)) * c.cdMul).toFixed(1)}</b> 秒`],
+      ['引き寄せ / 爆発の半径', `${Math.round(sk.pullR * ar * (1 + (m.eArea || 0)))} / ${Math.round(sk.boomR * ar)}`],
+      ['爆発の威力', `${Math.round(one)} → <b>${Math.round(one * c.atkMul)}</b>`, '武器の威力 × ' + Math.round(sk.pow * 100) + '%。攻撃力を掛けた値'],
+    ] };
+  },
+  start() {
+    const sk = weaponSkill(), m = P.wm.thunder || {}, R = sk.range * P.range;
+    let t = mouseAimPt() || nearestEnemy(P.x, P.y, R) || { x: P.x + P.facing * 60, y: P.y };
+    const dd = Math.sqrt(d2(P.x, P.y, t.x, t.y));
+    if (dd > R) t = { x: P.x + (t.x - P.x) * R / dd, y: P.y + (t.y - P.y) * R / dd };
+    if (t.x !== P.x) P.facing = t.x < P.x ? -1 : 1;
+    P.act = { slot: 'e', ph: 'wind', t: 0, x: t.x, y: t.y, pow: clsESkillMul() * (1 + (m.ePow || 0)) };
+    setCd('e', sk.cd * (1 - cuV('e', 'cd')) * (1 - (m.cd || 0)) * P.cdMul);
+    playAnim('eSpark', MOTIONS.eSpark.dur);
+    skillCall(sk.name, '#9fd8ff'); AudioMan.click();
+  },
+  update(a, dt) {
+    const sk = weaponSkill();
+    P.moveMul = 0;
+    if (a.t < sk.windup) { // 杖の先に雷の球が膨らむ
+      if (Math.random() < dt * 40) part(P.x + P.facing * 10 + rand(-5, 5), P.y - 8 + rand(-5, 5), rand(-20, 20), rand(-20, 20), 0.2, pick(['#9fd8ff', '#fff27a', '#ffffff']), { glow: true });
+      return;
+    }
+    gravitySpark(a.x, a.y, a.pow, 1, hasSp('e', 'area'));
+    P.act = null;
+  },
+};
+// グラビティスパークの球を置く(k: 威力の倍率。again: 二重重力でもう一度)
+function gravitySpark(x, y, pow, k, again) {
+  const sk = DATA.weapons.thunder.skill, m = P.wm.thunder || {}, ar = (1 + cuV('e', 'area')) * P.area;
+  zones.push({ kind: 'gspark', x, y, r: sk.pullR * ar * (1 + (m.eArea || 0)), boomR: sk.boomR * ar, t: 0, tick: 0, pulled: false, boomed: false,
+    dur: hasSp('e', 'cd') ? sk.boomT + sk.fieldT : sk.boomT + 0.15, dmg: wst(P.mainW).dmg * sk.pow * (1 + cuV('e', 'pow')) * pow * k, field: hasSp('e', 'cd'), stun: hasSp('e', 'pow') });
+  if (again) setTimeout(() => { if (state === 'play') gravitySpark(x, y, pow, sk.againK, false); }, sk.againT * 1000); // 二重重力
+  AudioMan.zap();
+}
+
 function ranbuHit(sk) {
   const R = sk.radius * P.area, dmg = wst(P.mainW).dmg * sk.pow * (1 + cuV('e', 'pow')) * P.act.pow, k0 = S.kills, el = clsNextEl(); // 1回の斬撃 = 1属性
   asMine(() => {
@@ -1159,6 +1204,113 @@ const CLASS_RT = {
       ];
     },
   },
+  electro: {
+    skills: ['q'],
+    init() { P.charge = 0; P.chargeT = -99; P.elT = 0; P.dash = null; P.dashHeld = false; P.recharge = null; P.elDis = {}; P.dashHit = null; },
+    update(dt) {
+      const p = EL();
+      P.elT = Math.max(0, P.elT - dt);
+      // 帯電: 感電が decayWait 秒起きないと減る / 再充電で少しずつ戻る
+      if (S.time - P.chargeT > p.decayWait && P.charge > 0) { P.charge = Math.max(0, P.charge - p.decay * dt); S.hudDirty = true; }
+      if (P.recharge) { const g = Math.min(P.recharge.left, P.recharge.rate * dt); P.recharge.left -= g; P.charge = Math.min(elMax(), P.charge + g); if (P.recharge.left <= 0.01) P.recharge = null; }
+      if (P.elT > 0 && Math.random() < dt * 14) { const a = rand(0, TAU); bolts.push({ x0: P.x, y0: P.y - 4, x1: P.x + Math.cos(a) * 9, y1: P.y - 4 + Math.sin(a) * 9, t: 0, life: 0.08, w: 1 }); } // 纏った雷
+      // 雷走: 駆け抜けながら、通った敵に一度ずつ
+      if (P.dash) {
+        P.x += P.dash.vx * dt; P.y += P.dash.vy * dt; P.dash.t -= dt;
+        P.after = (P.after || []).concat([{ x: P.x, y: P.y, t: 0.12, f: P.facing }]).slice(-5);
+        asMine(() => forEachNear(P.x, P.y, p.dashR, e => {
+          if (e.prop || e.dead || P.dashHit.has(e.id)) return;
+          P.dashHit.add(e.id);
+          const dealt = hitEnemy(e, p.dashPow, { src: 'edash', ang: Math.atan2(P.dash.vy, P.dash.vx), kb: 40, col: '#fff27a' });
+          addShock(e, dealt, p.dashShock);
+        }));
+        if (P.dash.t <= 0) P.dash = null;
+      }
+      const held = (keys.Space || keys.TouchDef) && !P.act;
+      if (held && !P.dashHeld && !P.dash) { if (P.sta >= dashCost()) electroDash(); else addFloat(P.x, P.y - 16, 'STAMINA', '#6a7a88'); }
+      P.dashHeld = held;
+      P.moveMul = P.dash ? 0 : 1;
+    },
+    onHurt: dmg => dmg,
+    onMainHit() {},
+    // E / Q を使うと纏う + 放電(帯電を消費して、その発動の命中に強い感電)
+    onSkill(slot) { elWear(); P.elDis[slot] = elDischarge(); },
+    onEHit(e, dealt) { if (P.elDis.e && dealt) addShock(e, dealt, P.elDis.e, { noCharge: true }); }, // 放電(E)
+    // 雷纏い: 全武器の命中に感電 / 雷鳴: クリティカルで帯電 +1
+    onWeaponHit(e, dmg, crit) {
+      if (crit && hasSp('passive', 'charge')) elGain(1, true);
+      if (P.elT > 0 && !e.dead) addShock(e, dmg, cuV('passive', 'shock', EL().wearShock) + (P.lvFx.wearShock || 0));
+    },
+    shockMod: e => elShockMod(e),
+    onShock(o) { P.chargeT = S.time; if (!o.noCharge) elGain(1); },
+    critDmgBonus: () => (hasSp('trait', 'store') && P.charge >= elMax() ? EL().overCrit : 0), // 過電流
+    blockProj: () => P.elT > 0 && hasSp('passive', 'wear') && Math.random() < EL().static, // 静電気
+    atkBonus: () => 0,
+    qStart() {
+      const q = DATA.classes.electro.q;
+      P.act = { slot: 'q', ph: 'wind', t: 0 };
+      playAnim('eTower', MOTIONS.eTower.dur);
+      slowmo(0.5, 0.2);
+      skillCall(q.name, '#fff27a'); AudioMan.click();
+    },
+    qUpdate(a, dt) {
+      const q = DATA.classes.electro.q;
+      P.moveMul = 0;
+      if (a.t < q.windup) {
+        asMine(() => { if (Math.random() < dt * 40) { const r = rand(0, TAU); bolts.push({ x0: P.x, y0: P.y - 16, x1: P.x + Math.cos(r) * 18, y1: P.y - 16 + Math.sin(r) * 18, t: 0, life: 0.08, w: 1 }); } });
+        return;
+      }
+      electroTowers();
+      P.act = null;
+    },
+    res: () => ({ kind: 'charge', label: '帯電', v: Math.floor(P.charge), max: elMax(), dk: '#6a5a10' }),
+    staBroken: () => false,
+    statuses() {
+      const out = [], n = Math.floor(P.charge / EL().perChain);
+      if (n > 0) out.push({ id: 'charge', glyph: '電', name: `帯電 ${Math.floor(P.charge)}`, fx: `感電の連鎖 +${n}` + (hasSp('trait', 'store') && P.charge >= elMax() ? ' クリティカルダメージ +50%' : ''), kind: 'buff' });
+      if (P.elT > 0) out.push({ id: 'elwear', glyph: '雷', name: '雷纏い', fx: `全武器に感電 ${Math.round((cuV('passive', 'shock', EL().wearShock) + (P.lvFx.wearShock || 0)) * 100)}%`, t: P.elT, max: Math.max(P.elT, elWearDur()), kind: 'buff' });
+      return out;
+    },
+    qInfo: () => ({ name: DATA.classes.electro.q.name, glyph: '塔' }),
+    info(c) {
+      const p = EL(), q = DATA.classes.electro.q, k = 1 + c.cuV('q', 'pow') + (c.lvFx.qPow || 0);
+      return [
+        { key: '特性', name: '帯電', cat: 'trait', desc: [
+          '感電が起きるたびに帯電 +1。帯電 ' + p.perChain + ' につき感電の連鎖 +1',
+          `${p.decayWait}秒間 感電が起きないと、1秒に ${p.decay} ずつ減る`,
+          '放電: E / Q を使うと帯電を消費し、その発動の命中に追加の感電(消費した帯電が多いほど強い)',
+          '感電: 命中した敵から近くの敵へ雷が連鎖し、与えたダメージの一部を与える',
+        ], rows: [
+          ['帯電の上限', `${p.max + c.cuV('trait', 'cap')}`],
+          ['放電で消費する帯電', `<b>${Math.round(c.cuV('trait', 'store', p.use) * 100)}%</b>`],
+          ['放電の感電', `${Math.round(p.disShock * 100)}%`, `消費した帯電 1 につき感電ダメージ +${Math.round(p.disPer * 100)}%`],
+        ] },
+        { key: 'パッシブ', name: '雷纏い', cat: 'passive', desc: [
+          'E か Q を使うと、雷を纏う(使うたびに時間が戻る)',
+          '纏っている間、全武器の攻撃(通常攻撃・E)に感電が付く',
+          '  → サブ武器も対象',
+        ], rows: [
+          ['纏う時間', `<b>${c.cuV('passive', 'wear', p.wearT)}</b> 秒`],
+          ['感電', `<b>${Math.round((c.cuV('passive', 'shock', p.wearShock) + (c.lvFx.wearShock || 0)) * 100)}%</b>`],
+        ] },
+        { key: 'Q', name: q.name, cat: 'q', desc: [
+          `構え ${q.windup}秒(動けない)→ 画面内のランダムな位置に鉄塔を落とす(落ちた瞬間に落雷)`,
+          `${q.dur}秒間、各鉄塔は ${q.every}秒ごとに近くの敵 1体へ電気を放つ(感電 ${Math.round(q.shock * 100)}%)`,
+          '放電は発動時に1回。この Q の攻撃すべてに放電の感電が乗る。威力は武器に依存しない',
+        ], rows: [
+          ['CD', `<b>${(q.cd * (1 - c.cuV('q', 'cd')) * c.cdMul).toFixed(1)}</b> 秒`],
+          ['鉄塔', `${q.n + c.cuV('q', 'n')} 本`],
+          ['落雷 / 放電の威力', `${Math.round(q.landPow * k)} / ${Math.round(q.pow * k)} → <b>${Math.round(q.landPow * k * c.atkMul)} / ${Math.round(q.pow * k * c.atkMul)}</b>`],
+        ] },
+        { key: 'Space', name: '雷走', desc: [
+          `移動方向へ ${p.dashDist} 駆け抜ける(${p.dashIfr}秒 無敵)`,
+          `通り抜けた敵に 基礎威力 ${p.dashPow} と感電 ${Math.round(p.dashShock * 100)}%`,
+        ], rows: [
+          ['スタミナ消費', `<b>${p.dashCost - (c.lvFx.dashCut || 0)}</b>`],
+        ] },
+      ];
+    },
+  },
 };
 
 // 居合の斬撃: 通過した敵にまとめてダメージ(少し遅れて斬撃線が炸裂する)
@@ -1234,16 +1386,7 @@ function elEffect(e, el, dealt) {
   } else if (el === 'ice') {
     addFrost(e, 1, mageFrostCap());
   } else if (el === 'bolt') {
-    const n = p.chainN + L, done = new Set([e]);
-    let cur = e;
-    for (let i = 0; i < n; i++) {
-      let best = null, bd = p.chainR * p.chainR;
-      forEachNear(cur.x, cur.y, p.chainR, o => { if (o.prop || o.dead || done.has(o)) return; const d = d2(cur.x, cur.y, o.x, o.y); if (d < bd) { bd = d; best = o; } });
-      if (!best) break;
-      bolts.push({ x0: cur.x, y0: cur.y, x1: best.x, y1: best.y, t: 0, life: 0.2, w: 1 });
-      hitEnemy(best, dealt * p.chainPct / dmgMul(), { src: 'chain', noNum: Math.random() < 0.5, col: EL_COL.bolt });
-      done.add(best); cur = best;
-    }
+    addShock(e, dealt, p.chainPct, { n: p.chainN + L, r: p.chainR, src: 'chain' }); // 感電(共通の仕組み)
   }
 }
 // 属性を付与して、3属性そろったら共鳴。depth: 連鎖共鳴の深さ(無限に続かないように)
@@ -1688,6 +1831,74 @@ function cryoDust() {
   AudioMan.blizz(); AudioMan.crit();
 }
 
+// ---------- エレクトロマンサー: 帯電・雷纏い・鉄塔・雷走 ----------
+const EL = () => DATA.classes.electro.params;
+const elMax = () => EL().max + cuV('trait', 'cap');
+const elWearDur = () => cuV('passive', 'wear', EL().wearT);
+const dashCost = () => EL().dashCost - (P.lvFx.dashCut || 0);
+// 帯電を得る(雷纏いの充電で増える。raw: そのまま)
+function elGain(n, raw) {
+  if (!raw && P.elT > 0) n *= 1 + cuV('passive', 'charge');
+  P.charge = Math.min(elMax(), (P.charge || 0) + n); S.hudDirty = true;
+}
+// 感電への補正: 帯電 20 につき連鎖 +1・避雷針・伝導(距離)・収束・雷光
+function elShockMod(e) {
+  const p = EL(), q = DATA.classes.electro.q;
+  let n = Math.floor((P.charge || 0) / p.perChain);
+  if (hasSp('q', 'cd') && zones.some(z => z.kind === 'tower' && d2(z.x, z.y, e.x, e.y) < q.r * q.r)) n++; // 避雷針
+  const focus = hasSp('trait', 'conduct');
+  return { n, nMul: focus ? p.focusN : 1, r: 1 + cuV('trait', 'conduct'), dmg: (focus ? p.focusDmg : 1) * (P.elT > 0 && hasSp('passive', 'shock') ? 1 + p.flash : 1) };
+}
+// 雷纏い
+function elWear() {
+  P.elT = elWearDur(); S.hudDirty = true;
+  asMine(() => { for (let i = 0; i < 6; i++) { const a = rand(0, TAU); bolts.push({ x0: P.x, y0: P.y - 4, x1: P.x + Math.cos(a) * 16, y1: P.y - 4 + Math.sin(a) * 16, t: 0, life: 0.15, w: 1 }); } });
+}
+// 放電: 帯電の一部を消費し、その発動の命中に起こす感電の割合を返す
+function elDischarge() {
+  const p = EL(), used = Math.floor((P.charge || 0) * cuV('trait', 'store', p.use));
+  P.charge -= used; S.hudDirty = true;
+  if (used > 0 && hasSp('trait', 'cap')) P.recharge = { left: used * p.recharge, rate: used * p.recharge / p.rechargeT }; // 再充電
+  if (used > 0) asMine(() => { addRing(P.x, P.y, 20 + used / 2, '#fff27a', { w: 2, life: 0.3 }); burst(P.x, P.y, 10 + used / 2, ['#fff27a', '#9fd8ff', '#ffffff'], { sp: 90, glow: true, life: 0.3 }); });
+  return p.disShock * (1 + used * p.disPer) * (1 + (P.lvFx.disDmg || 0));
+}
+// 雷走: 移動方向へ駆け抜ける
+function electroDash() {
+  const p = EL(), d = P.moving && P.dir ? P.dir : [P.facing, 0], len = Math.hypot(d[0], d[1]) || 1;
+  staUse(dashCost());
+  P.dash = { vx: d[0] / len * p.dashDist / p.dashTime, vy: d[1] / len * p.dashDist / p.dashTime, t: p.dashTime };
+  P.dashHit = new Set();
+  P.invT = Math.max(P.invT, p.dashIfr); P.ifr = Math.max(P.ifr, p.dashIfr);
+  playAnim('eDash', MOTIONS.eDash.dur); P.anim.keep = true;
+  asMine(() => { burst(P.x, P.y, 12, ['#fff27a', '#9fd8ff', '#ffffff'], { sp: 70, glow: true, life: 0.3 }); });
+  AudioMan.dash(); AudioMan.zap();
+}
+// 鉄塔: 画面内のランダムな位置に落とす(zones の 'tower'、world.js で放電)
+function electroTowers() {
+  const q = DATA.classes.electro.q, k = 1 + cuV('q', 'pow') + (P.lvFx.qPow || 0), n = q.n + cuV('q', 'n'), id = (S.actId = (S.actId || 0) + 1);
+  setCd('q', q.cd * (1 - cuV('q', 'cd')) * P.cdMul); // ここで纏い + 放電(P.elDis.q)
+  const dis = P.elDis.q || 0;
+  for (let i = 0; i < n; i++) {
+    const x = cam.x + rand(24, GFX.VW - 24), y = cam.y + rand(30, GFX.VH - 20);
+    setTimeout(() => {
+      if (state !== 'play') return;
+      zones.push({ kind: 'tower', id, x, y, r: q.r * P.area, t: 0, dur: q.dur, tick: q.every, dis, pow: q.pow * k, shock: q.shock, wireT: 0,
+        boom: hasSp('q', 'pow') ? q.boomPow * k : 0, wire: hasSp('q', 'n') ? q.wirePow * k : 0 });
+      asMine(() => {
+        forEachNear(x, y, q.landR * P.area, e => {
+          if (e.prop) { killEnemy(e); return; }
+          const dealt = hitEnemy(e, q.landPow * k, { src: 'tower', ang: Math.atan2(e.y - y, e.x - x), kb: 60, col: '#fff27a' });
+          if (dis && dealt) addShock(e, dealt, dis, { noCharge: true });
+        });
+        bolts.push({ x0: x + rand(-10, 10), y0: cam.y - 10, x1: x, y1: y - 20, t: 0, life: 0.25, w: 3 });
+        addFlash(x, y, 80, '#fff27a', 0.35); addRing(x, y, q.landR * P.area, '#ffffff', { w: 2, life: 0.3 });
+        burst(x, y, 20, ['#8a8098', '#fff27a', '#ffffff'], { sp: 100, up: 30, g: 160, life: 0.5 }); shockAt(x, y, 1, 1); shake(5);
+      });
+      AudioMan.zap(); AudioMan.boom();
+    }, i * 120);
+  }
+}
+
 // ---------- world.js から呼ぶ入口 ----------
 const clsRT = () => CLASS_RT[P.cls];
 function clsInit() {
@@ -1726,7 +1937,7 @@ const clsOnHurt = dmg => (clsRT() ? clsRT().onHurt(dmg) : dmg);
 const clsNextEl = () => (clsRT() && clsRT().nextEl ? clsRT().nextEl() : null);
 function clsOnElement(e, el, dealt) { if (clsRT() && clsRT().onElement) clsRT().onElement(e, el, dealt); }
 function clsOnMainHit(e) { if (clsRT()) clsRT().onMainHit(e); }
-function clsOnEHit(e) { if (clsRT() && clsRT().onEHit) clsRT().onEHit(e); } // 武器スキル(E)の命中
+function clsOnEHit(e, dealt) { if (clsRT() && clsRT().onEHit) clsRT().onEHit(e, dealt); } // 武器スキル(E)の命中
 // 敵ごとの補正(アーチャーの印・弱点露出・集中など)
 const clsShieldGain = () => (clsRT() && clsRT().shieldGain ? clsRT().shieldGain() : 1); // シールドの獲得量の倍率
 const clsShieldCap = () => (clsRT() && clsRT().shieldCap ? clsRT().shieldCap() : P.maxhp);  // シールドの上限
@@ -1739,6 +1950,31 @@ function clsOnKill(e) { if (clsRT() && clsRT().onKill) clsRT().onKill(e); }
 const clsFrostCap = () => (clsRT() && clsRT().frostCap ? clsRT().frostCap() : 0);
 function clsOnFrost(e) { if (clsRT() && clsRT().onFrost) clsRT().onFrost(e); }
 const clsBossRate = e => (clsRT() && clsRT().bossRate ? clsRT().bossRate(e) : 1);
+// 感電(共通の仕組み)へのクラスの補正(n: 連鎖の追加 / nMul: 連鎖数の倍率 / r: 距離の倍率 / dmg: ダメージの倍率)と、起きたとき
+const clsShockMod = e => (clsRT() && clsRT().shockMod ? clsRT().shockMod(e) : null);
+function clsOnShock(o) { if (clsRT() && clsRT().onShock) clsRT().onShock(o); }
+const clsBlockProj = () => !!(clsRT() && clsRT().blockProj && clsRT().blockProj()); // 敵の弾を消す(静電気)
+// 感電: 命中した敵 e から近くの敵へ雷が連鎖し、与えたダメージ dealt の pct を与える(同じ敵には戻らない)
+//   o.n: 連鎖数(基本 1)/ o.r: 連鎖距離 / o.src: ダメージの出どころ / o.noCharge: 帯電を増やさない(放電)
+function addShock(e, dealt, pct, o = {}) {
+  if (!(pct > 0) || !(dealt > 0)) return;
+  const m = clsShockMod(e) || { n: 0, nMul: 1, r: 1, dmg: 1 };
+  const n = Math.max(1, Math.floor(((o.n || 1) + m.n) * m.nMul)), R = (o.r || DATA.debuff.shockR) * m.r, dmg = dealt * pct * m.dmg / dmgMul();
+  const done = new Set([e]);
+  let cur = e;
+  asMine(() => {
+    for (let i = 0; i < n; i++) {
+      let best = null, bd = R * R;
+      const cx = cur.x, cy = cur.y;
+      forEachNear(cx, cy, R, t => { if (t.prop || t.dead || done.has(t)) return; const d = d2(cx, cy, t.x, t.y); if (d < bd) { bd = d; best = t; } });
+      if (!best) break;
+      bolts.push({ x0: cx, y0: cy, x1: best.x, y1: best.y, t: 0, life: 0.2, w: 1 });
+      hitEnemy(best, dmg, { src: o.src || 'shock', noNum: Math.random() < 0.5, col: '#fff27a', dot: true });
+      done.add(best); cur = best;
+    }
+  });
+  clsOnShock(o);
+}
 // 凍傷を付ける(cap: 出どころの上限。クラスが上限を決めるときはそちら)。凍結中は増えない
 function addFrost(e, n, cap) {
   if (!(n > 0) || e.dead || e.prop || e.freeze) return;

@@ -35,7 +35,7 @@ const DATA = {
     cdragon: { name: 'カオスドラゴン CHAOS DRAGON', hp: 2000, spd: 20, dmg: 28, r: 16, music: 'boss3', col: '#ff4a8a', enrage: 0.4 },
   },
   // 状態異常(プレイヤー): 粘液・スロウタイムの移動速度倍率 / スロウタイムのCD回復倍率 / 炎上
-  debuff: { slow: 0.6, cdRate: 0.5, burnTick: 0.5, burnDur: 3, frostSlow: 0.05 }, // frostSlow: 敵の凍傷1スタックあたりの減速
+  debuff: { slow: 0.6, cdRate: 0.5, burnTick: 0.5, burnDur: 3, frostSlow: 0.05, shockR: 60 }, // frostSlow: 敵の凍傷1スタックあたりの減速 / shockR: 感電の連鎖距離
   // 敵の出血: 1スタックごとに毎秒 最大HP × bleedPct(ボス ×bleedBoss・エリート ×bleedElite)、bleedDur 秒
   bleed: { pct: 0.002, dur: 5, boss: 0.1, elite: 0.25 },
 
@@ -118,7 +118,33 @@ const DATA = {
         { cd: 2.8, strikes: 2, dmg: 48, aoe: 24 },
         { cd: 2.6, strikes: 3, dmg: 60, aoe: 27 },
       ],
-      evo: { name: 'ジャッジメント', desc: '落雷が敵から敵へ連鎖する', st: { cd: 2.3, strikes: 3, dmg: 72, aoe: 30 } },
+      evo: { name: 'ジャッジメント', desc: '落雷が当たった敵に感電を 2回起こす', st: { cd: 2.3, strikes: 3, dmg: 72, aoe: 30 } },
+      shock: 0.3, // 落雷が当たった敵に感電 30%(進化で 2回)
+      // 武器スキル(E)グラビティスパーク: 構え windup 秒(動けない)→ 照準位置(range まで)の半径 pullR の敵を中心へ 1回大きく引き寄せ(ボス以外)
+      //   → boomT 秒後に半径 boomR で爆発(武器の威力 × pow、感電 shock)/ 超電磁: スタン stun 秒(ボス bossStun)
+      //   残留磁場: fieldT 秒 弱い引き寄せ(fieldPull)/ 二重重力: againT 秒後にもう一度(威力 againK)
+      skill: {
+        name: 'グラビティスパーク', cd: 18, windup: 0.3, range: 200, pullR: 90, boomR: 40, boomT: 0.22, pow: 4, shock: 0.3, radius: 90,
+        stun: 1.5, bossStun: 0.5, fieldT: 3, fieldPull: 40, againT: 0.6, againK: 0.6,
+        tree: { name: 'グラビティスパーク', paths: {
+          pow:  { name: '威力', desc: ['グラビティスパークの威力 +30%', 'グラビティスパークの威力 +60%', 'グラビティスパークの威力 +100%'], v: [0.3, 0.6, 1.0], sp: { name: '超電磁', desc: '爆発した敵を 1.5秒スタンさせる' } },
+          cd:   { name: '迅速', desc: ['グラビティスパークのCD -10%', 'グラビティスパークのCD -20%', 'グラビティスパークのCD -30%'], v: [0.1, 0.2, 0.3], sp: { name: '残留磁場', desc: '爆発の後、3秒間 その場に弱い引き寄せが残る' } },
+          area: { name: '範囲', desc: ['引き寄せ・爆発の半径 +15%', '引き寄せ・爆発の半径 +30%', '引き寄せ・爆発の半径 +50%'], v: [0.15, 0.3, 0.5], sp: { name: '二重重力', desc: '0.6秒後にもう一度 引き寄せて爆発する(威力 60%)' } },
+        } },
+      },
+      // 熟練(エレクトロマンサーの Lv で解放。サンダーを使うどのクラスにも効く)
+      mastery: {
+        4: { d: 'サンダー: 威力 +10%', fx: { dmg: 0.1 } },
+        5: { d: 'グラビティスパーク: 引き寄せの半径 +15%', fx: { eArea: 0.15 } },
+        7: { d: 'サンダー: 範囲 +10%', fx: { area: 0.1 } },
+        9: { d: 'サンダー: 回数 +1', fx: { count: 1 } },
+        10: { d: '進化「ジャッジメント」を解放', fx: { evo: 1 } },
+        12: { d: 'サンダー: 威力 +10%', fx: { dmg: 0.1 } },
+        14: { d: 'サンダー: 範囲 +10%', fx: { area: 0.1 } },
+        17: { d: 'サンダー: 威力 +15%', fx: { dmg: 0.15 } },
+        19: { d: 'サンダー: クールダウン -10%', fx: { cd: 0.1 } },
+        20: { d: 'グラビティスパーク: 威力 +30%', fx: { ePow: 0.3 } },
+      },
     },
     aura: {
       name: 'ホーリーオーラ', desc: '周囲の敵に継続ダメージ', col: '#ffe38a',
@@ -669,6 +695,52 @@ const DATA = {
           pow:  { name: '威力', desc: ['ダイヤモンドダストの威力 +30%', 'ダイヤモンドダストの威力 +60%', 'ダイヤモンドダストの威力 +100%'], v: [0.3, 0.6, 1.0], sp: { name: '煌めき', desc: '範囲内の凍結中の敵に、0.5秒ごとに基礎威力 100 の追加ダメージ' } },
           cd:   { name: '迅速', desc: ['ダイヤモンドダストのCD -10%', 'ダイヤモンドダストのCD -20%', 'ダイヤモンドダストのCD -30%'], v: [0.1, 0.2, 0.3], sp: { name: '永い冬', desc: '範囲内での凍結時間 +20%、領域の持続 +1秒' } },
           area: { name: '範囲', desc: ['ダイヤモンドダストの半径 +15%', 'ダイヤモンドダストの半径 +30%', 'ダイヤモンドダストの半径 +50%'], v: [0.15, 0.3, 0.5], sp: { name: 'ホワイトアウト', desc: '範囲内では敵の弾の速さ -50%' } },
+        } },
+      },
+    },
+    electro: {
+      name: 'エレクトロマンサー', en: 'ELECTROMANCER', weapon: 'thunder', col: '#fff27a', light: '#d8e8ff', rig: 'electro',
+      base: { hp: 90, sta: 100, staRegen: 20, spd: 0.05, range: 0.1, crit: 0.1, critDmg: 1.0, wslot: 4, reroll: 2 },
+      lv: {
+        2: { d: '最大HP +10', st: { hp: 10 } },
+        3: { d: '帯電: 放電ダメージ +10%', fx: { disDmg: 0.1 } },
+        6: { d: '雷走: スタミナ -5', fx: { dashCut: 5 } },
+        8: { d: '雷纏い: 感電 +5%', fx: { wearShock: 0.05 } },
+        11: { d: '鉄塔: 威力 +20%', fx: { qPow: 0.2 } },
+        13: { d: '最大HP +10、スタミナ +20', st: { hp: 10, sta: 20 } },
+        15: { d: 'メイン武器の切り替えを解放', fx: { swap: 1 } },
+        16: { d: '攻撃力 +10%', st: { atk: 0.1 } },
+        18: { d: 'クールダウン -5%', st: { cd: 0.05 } },
+      },
+      // 帯電: 感電が起きるたびに +1(上限 max)。perChain ごとに感電の連鎖 +1。decayWait 秒 感電がないと decay/s で減る
+      //   放電: E / Q を使うと帯電の use を消費し、その発動の命中に感電 disShock(消費 1 につき +disPer)。放電の感電では帯電は増えない
+      //   過電流: 帯電が max 以上で クリティカルダメージ +overCrit / 収束: 連鎖数 ×focusN、感電ダメージ ×focusDmg / 再充電: 消費の recharge を rechargeT 秒で戻す
+      // 雷纏い: E / Q を使うと wearT 秒。全武器の命中に感電 wearShock / 雷光: 纏っている間 感電ダメージ +flash / 静電気: 敵の弾を static で消す / 雷鳴: クリティカルで帯電 +1
+      // 雷走: 移動方向へ dashDist を dashTime 秒で駆け抜ける(無敵 dashIfr 秒、スタミナ dashCost)。通った敵に dashPow と感電 dashShock
+      params: {
+        max: 100, perChain: 20, decayWait: 3, decay: 10, use: 0.25, disShock: 0.2, disPer: 0.05, overCrit: 0.5, focusN: 0.5, focusDmg: 2, recharge: 0.3, rechargeT: 3,
+        wearT: 4, wearShock: 0.1, flash: 0.4, static: 0.2,
+        dashDist: 90, dashTime: 0.12, dashIfr: 0.2, dashCost: 80, dashPow: 20, dashShock: 0.5, dashR: 14,
+      },
+      // 鉄塔(Q): 構え windup 秒 → 画面内のランダムな位置に n 本。落ちた瞬間に半径 landR へ landPow
+      //   dur 秒間、every 秒ごとに半径 r の敵 1体へ 基礎威力 pow と感電 shock / 過充電: 消えるときに boomPow(半径 boomR)
+      //   避雷針: 鉄塔の近く(r)で起きた感電は連鎖 +1 / 送電線: 近い鉄塔どうしの線に触れた敵へ wireEvery 秒ごとに wirePow
+      q: { name: '鉄塔', cd: 30, windup: 0.4, n: 3, landR: 30, landPow: 120, dur: 8, every: 1, r: 70, pow: 80, shock: 0.3, boomPow: 200, boomR: 40, wirePow: 40, wireEvery: 0.5, wireW: 6 },
+      tree: {
+        trait: { name: '帯電', paths: {
+          store:  { name: '蓄電', desc: ['放電で消費する帯電 25% → 30%', '放電で消費する帯電 35%', '放電で消費する帯電 40%'], v: [0.3, 0.35, 0.4], sp: { name: '過電流', desc: '帯電が上限(100)以上の間、クリティカルダメージ +50%' } },
+          conduct: { name: '伝導', desc: ['感電の連鎖距離 +20%', '感電の連鎖距離 +40%', '感電の連鎖距離 +60%'], v: [0.2, 0.4, 0.6], sp: { name: '収束', desc: '感電の連鎖数 -50%、感電ダメージ +100%' } },
+          cap:    { name: '放電', desc: ['帯電の上限 +10', '帯電の上限 +20', '帯電の上限 +40'], v: [10, 20, 40], sp: { name: '再充電', desc: '放電で消費した帯電の 30% を 3秒かけて戻す' } },
+        } },
+        passive: { name: '雷纏い', paths: {
+          shock:  { name: '付与', desc: ['雷纏いの感電 10% → 12.5%', '雷纏いの感電 15%', '雷纏いの感電 20%'], v: [0.125, 0.15, 0.2], sp: { name: '雷光', desc: '纏っている間、感電ダメージ +40%' } },
+          wear:   { name: '持続', desc: ['纏う時間 4秒 → 5秒', '纏う時間 6秒', '纏う時間 7.5秒'], v: [5, 6, 7.5], sp: { name: '静電気', desc: '纏っている間、敵の弾が自分に当たる前に 20% で消える' } },
+          charge: { name: '充電', desc: ['纏っている間、帯電の獲得 +30%', '纏っている間、帯電の獲得 +60%', '纏っている間、帯電の獲得 +100%'], v: [0.3, 0.6, 1.0], sp: { name: '雷鳴', desc: 'クリティカルしたとき、帯電 +1' } },
+        } },
+        q: { name: '鉄塔', need: 'q', paths: {
+          pow:  { name: '威力', desc: ['鉄塔の威力 +30%', '鉄塔の威力 +60%', '鉄塔の威力 +100%'], v: [0.3, 0.6, 1.0], sp: { name: '過充電', desc: '鉄塔が消えるときに爆発する(基礎威力 200、半径 40)' } },
+          cd:   { name: '迅速', desc: ['鉄塔のCD -10%', '鉄塔のCD -20%', '鉄塔のCD -30%'], v: [0.1, 0.2, 0.3], sp: { name: '避雷針', desc: '鉄塔の近くで起きた感電は連鎖 +1' } },
+          n:    { name: '本数', desc: ['鉄塔 +1本', '鉄塔 +2本', '鉄塔 +3本'], v: [1, 2, 3], sp: { name: '送電線', desc: '近い鉄塔どうしを雷の線がつなぎ、線に触れた敵に 0.5秒ごとに基礎威力 40' } },
         } },
       },
     },
