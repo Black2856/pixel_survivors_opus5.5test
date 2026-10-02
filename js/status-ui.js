@@ -60,10 +60,11 @@ const StatusUI = (() => {
   }
   function skillTab(c) {
     const W = DATA.weapons[c.mainW], ws = c.wlv.evo ? W.evo.st : W.lv[c.wlv.lv - 1], m = c.wm;
-    const dmg = ws.dmg * (1 + (m.dmg || 0)), itv = ws.cd * (1 - (m.cd || 0)) * c.cdMul / c.atkSpd;
+    const base = ws.cd !== undefined ? ws.cd : ws.tick; // 攻撃間隔(ホーリーオーラは判定の間隔 tick。オービットブレードのように間隔がない武器もある)
+    const dmg = ws.dmg * (1 + (m.dmg || 0)), itv = base !== undefined ? base * (1 - (m.cd || 0)) * c.cdMul / c.atkSpd : null;
     const blocks = [{ key: '通常攻撃', name: c.wlv.evo ? W.evo.name : W.name, desc: c.wlv.evo ? [W.evo.desc] : [W.desc, `進化: ${W.evo.name}`, `  → ${W.evo.desc}`], rows: [
       ['威力', `${num(dmg)} → <b>${num(dmg * c.atkMul)}</b>`, '攻撃力を掛けた値'],
-      ['攻撃間隔', `<b>${num(itv)}</b> 秒`, 'クールダウン・攻撃速度を適用'],
+      ['攻撃間隔', itv !== null ? `<b>${itv.toFixed(2)}</b> 秒` : '— (常に攻撃)', itv !== null ? 'クールダウン・攻撃速度を適用' : ''],
       ['攻撃回数', `${(ws.count || 1) + (c.st.v.shots || 0)}`],
     ] }];
     if (WEAPON_SKILL[c.mainW] && WEAPON_SKILL[c.mainW].info) blocks.push(Object.assign({ key: 'E' }, WEAPON_SKILL[c.mainW].info(c, dmg)));

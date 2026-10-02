@@ -340,9 +340,9 @@ function updWeapons(dt) {
       case 'aura': {
         const R = st.radius * P.area;
         w.R = R;
-        w.tick -= cdt;
+        w.tick -= cdt * P.atkSpd; // 攻撃速度
         if (w.tick <= 0) {
-          w.tick = st.tick;
+          w.tick = st.tick * P.cdMul; // クールダウンは判定の間隔に効く(ほかの武器の攻撃間隔と同じ)
           let healed = 0;
           forEachNear(P.x, P.y, R, e => {
             hitEnemy(e, st.dmg, { src: k, noNum: Math.random() < 0.5, ang: Math.atan2(e.y - P.y, e.x - P.x), kb: 6 });
