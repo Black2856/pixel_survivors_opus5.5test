@@ -1370,7 +1370,7 @@ const CLASS_RT = {
   },
   cleric: {
     skills: ['q'],
-    init() { P.prayer = 0; P.afterT = 0; P.hot = null; P.lastCd = 0; P.noPray = false; P.prayHeld = false; },
+    init() { P.prayer = 0; P.afterT = 0; P.hot = null; P.lastCd = 0; P.noPray = false; P.prayHeld = false; P.strikeAt = -1; P.strikeNext = 0; },
     update(dt) {
       const p = CL();
       if (P.afterT > 0) { P.afterT -= dt; heal(cuV('passive', 'after') * dt, true); } // 余光
@@ -1412,8 +1412,13 @@ const CLASS_RT = {
       S.hudDirty = true;
     },
     // 祈りの一撃: メイン武器の通常攻撃・E の命中に 祈り × strike(聖杯: 祈りが上限で ×1.5)
+    //   strikeCd 秒に1回。乗った瞬間(同じ S.time)の命中にはすべて乗る(1回の攻撃のすべての命中)
     hitBonus(e, o) {
       if (o.dot || !(P.prayer > 0) || !(o.eHit || (o.src && o.src === P.mainW))) return 0;
+      if (S.time !== P.strikeAt) {
+        if (S.time < (P.strikeNext || 0)) return 0;
+        P.strikeAt = S.time; P.strikeNext = S.time + strikeCd();
+      }
       const p = CL();
       return P.prayer * cuV('trait', 'faith', p.strike) * (hasSp('trait', 'faith') && P.prayer >= prayCap() - 0.5 ? p.grail : 1);
     },
@@ -1454,7 +1459,8 @@ const CLASS_RT = {
           `祈りの一撃: メイン武器の通常攻撃・E のすべての命中に、祈りの ${Math.round(c.cuV('trait', 'faith', p.strike) * 100)}% の追加ダメージ(攻撃力を掛ける)`,
           '追加ダメージで祈りは減らない(祈りを使うのは Q だけ)',
         ], rows: [
-          ['祈りの上限', `最大HP の ${Math.round((1 + c.cuV('trait', 'vessel') + (c.lvFx.prayCap || 0)) * 100)}%(${Math.round(hp * (1 + c.cuV('trait', 'vessel') + (c.lvFx.prayCap || 0)))})`],
+          ['祈りの上限', `最大HP と同じ(${Math.round(hp)})`],
+          ['祈りの一撃の間隔', `<b>${(p.strikeCd * (1 - c.cuV('trait', 'vessel')) * (1 - (c.lvFx.strikeCd || 0))).toFixed(2)}</b> 秒に1回`, '1回の攻撃で同時に当たった敵には全部乗る'],
         ] },
         { key: 'パッシブ', name: '癒しの光', cat: 'passive', desc: [
           'E か Q を使ったとき、HP を回復する',
@@ -2071,7 +2077,8 @@ function electroTowers() {
 
 // ---------- クレリック: 祈り・癒しの光・審判の祈り・聖域の祈り ----------
 const CL = () => DATA.classes.cleric.params;
-const prayCap = () => P.maxhp * (1 + cuV('trait', 'vessel') + (P.lvFx.prayCap || 0));
+const prayCap = () => P.maxhp;
+const strikeCd = () => CL().strikeCd * (1 - cuV('trait', 'vessel')) * (1 - (P.lvFx.strikeCd || 0)); // 祈りの一撃の間隔(祈祷・クラスLv3)
 const prayCost = () => CL().prayCost - (P.lvFx.prayCut || 0);
 // 被回復量: HP が低いほど増える(満ちる光: HP が高いほど)。天啓: ×0.5
 function clHealMul() {

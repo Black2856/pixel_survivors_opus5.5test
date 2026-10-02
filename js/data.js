@@ -773,7 +773,7 @@ const DATA = {
       base: { hp: 125, regen: 0.5, dr: -0.05, sta: 100, staRegen: 20, atk: -0.05, area: 0.1, crit: 0.05, critDmg: 1.0, wslot: 4, reroll: 2 },
       lv: {
         2: { d: '最大HP +10', st: { hp: 10 } },
-        3: { d: '祈り: 祈りの上限 +5%', fx: { prayCap: 0.05 } },
+        3: { d: '祈り: 祈りの一撃のCD -5%', fx: { strikeCd: 0.05 } },
         6: { d: '聖域の祈り: スタミナ -5', fx: { prayCut: 5 } },
         8: { d: '癒しの光: E / Q の回復 +2%', fx: { lightHeal: 0.02 } },
         11: { d: '審判の祈り: 威力 +20%', fx: { qPow: 0.2 } },
@@ -782,13 +782,13 @@ const DATA = {
         16: { d: '攻撃力 +10%', st: { atk: 0.1 } },
         18: { d: 'クールダウン -5%', st: { cd: 0.05 } },
       },
-      // 祈り: 超過回復が祈りになる(上限は最大HP × (1 + 器))。祈りの一撃: メイン武器の通常攻撃・E の命中に 祈り × strike の追加ダメージ
+      // 祈り: 超過回復が祈りになる(上限は最大HP)。祈りの一撃: メイン武器の通常攻撃・E の命中に 祈り × strike の追加ダメージ(strikeCd 秒に1回。同じ瞬間の命中には全部乗る)
       //   聖杯: 祈りが上限で一撃 ×grail / 天啓: 祈りの獲得 ×revel・被回復 ×revelHeal / 加護: 祈りがあるとき被ダメ減 / 献身: 被ダメの devote を祈りで相殺
       // 癒しの光: E / Q を使うと最大HP の light を回復。今のHP が低いほど回復量 +mercy(満ちる光: HP が高いほど)
       //   恩寵: 癒しの光が ×grace で graceT 秒かけて / 余光: E / Q の後 afterT 秒 HP回復速度アップ / 不屈の祈り: HP lowAt 以下で祈りを全て HP に(lastCd 秒に1回)
       // 聖域の祈り: 無敵 prayIfr 秒、最大HP の prayHeal を回復、スタミナ prayCost
       params: {
-        strike: 0.5, grail: 1.5, revel: 3, revelHeal: 0.5, devote: 0.3,
+        strike: 0.5, strikeCd: 1, grail: 1.5, revel: 3, revelHeal: 0.5, devote: 0.3,
         light: 0.08, mercy: 0.3, grace: 2, graceT: 10, afterT: 3, lowAt: 0.3, lastCd: 60,
         prayIfr: 0.4, prayHeal: 0.03, prayCost: 80,
       },
@@ -798,7 +798,7 @@ const DATA = {
       tree: {
         trait: { name: '祈り', paths: {
           faith:  { name: '信心', desc: ['祈りの一撃 50% → 65%', '祈りの一撃 80%', '祈りの一撃 100%'], v: [0.65, 0.8, 1.0], sp: { name: '聖杯', desc: '祈りが上限のとき、祈りの一撃のダメージ +50%' } },
-          vessel: { name: '器', desc: ['祈りの上限 +10%(最大HP 比)', '祈りの上限 +20%(最大HP 比)', '祈りの上限 +35%(最大HP 比)'], v: [0.1, 0.2, 0.35], sp: { name: '天啓', desc: '祈りの獲得量 ×3、被回復量 ×0.5' } },
+          vessel: { name: '祈祷', desc: ['祈りの一撃のCD -15%', '祈りの一撃のCD -30%', '祈りの一撃のCD -45%'], v: [0.15, 0.3, 0.45], sp: { name: '天啓', desc: '祈りの獲得量 ×3、被回復量 ×0.5' } },
           ward:   { name: '加護', desc: ['祈りがあるとき、被ダメージ -4%', '祈りがあるとき、被ダメージ -8%', '祈りがあるとき、被ダメージ -12%'], v: [0.04, 0.08, 0.12], sp: { name: '献身', desc: '被弾したとき、受けるダメージの 30% を祈りで相殺する' } },
         } },
         passive: { name: '癒しの光', paths: {
