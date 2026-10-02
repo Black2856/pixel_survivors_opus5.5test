@@ -84,14 +84,17 @@ const MetaUI = (() => {
     state = 'class'; back = from; clSel = META.cls;
     UI.only('class-screen');
     renderClass();
+    const sel = document.querySelector('.cl-card.sel'); if (sel) sel.scrollIntoView({ block: 'nearest' }); // 開いたときは選択中のクラスが見えるように
   }
   function renderClass() {
+    const st = $('cl-list').scrollTop; // 描き直してもスクロール位置を保つ
     $('cl-list').innerHTML = Object.keys(DATA.classes).map(k => {
       const c = DATA.classes[k], m = META.classes[k];
       return `<button class="cl-card ${clSel === k ? 'sel' : ''} ${clsReady(k) ? '' : 'off'}" data-k="${k}" style="--cc:${c.col}">
         <span class="en">${c.en}</span><img src="${portrait(k)}" alt=""><span class="nm">${c.name}</span>
         <span class="lv">${clsReady(k) ? 'Lv ' + m.lv : '準備中'}</span>${META.cls === k ? '<span class="use">使用中</span>' : ''}</button>`;
     }).join('');
+    $('cl-list').scrollTop = st;
     const k = clSel, c = DATA.classes[k], m = META.classes[k], need = DATA.classLevel.need, max = need.length + 1;
     const xpP = m.lv >= max ? 100 : m.xp / need[m.lv - 1] * 100;
     const rows = classLvTable(k).map(r => `<div class="cl-row ${m.lv >= r.lv ? 'got' : ''} ${m.lv + 1 === r.lv ? 'next' : ''}">
@@ -131,6 +134,7 @@ const MetaUI = (() => {
           <div class="wp-e">${d.skill ? `E: ${d.skill.name}` : '<span class="dim">E スキルなし</span>'}${o ? `<span class="dim"> ・ ${o.name}の武器(熟練は${o.name}の Lv)</span>` : ''}</div></div></button>`;
       }).join('')}</div>`;
     wpModal.classList.remove('hidden');
+    const on = wpModal.querySelector('.wp-card.on'); if (on) on.scrollIntoView({ block: 'nearest' }); // 使用中の武器が見えるように
   }
   wpModal.onclick = e => {
     if (e.target === wpModal || e.target.closest('.svm-x')) { AudioMan.click(); closeWp(); return; }
