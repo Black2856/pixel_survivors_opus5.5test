@@ -440,7 +440,7 @@ function updWeapons(dt) {
           w.q.splice(i, 1);
           const a = aimAt(st.aoe * P.area + 20);
           const hits = sweep(a, st, s.flip, { src: k, col: '#ffe9a0', colEvo: '#fff3a0', arc: 1.35, kb: 90, evo: w.evo });
-          if (w.evo) hits.slice(0, 8).forEach((e, j) => skyBlade(e, st.dmg * 0.5, k, 0.08 + j * 0.035)); // 聖剣: 光の剣が上から追撃
+          if (w.evo) hits.slice(0, 8).forEach((e, j) => skyBlade(e, st.dmg * 0.3, k, 0.08 + j * 0.035)); // 聖剣: 光の剣が上から追撃(30%)
         }
         break;
 
@@ -533,16 +533,46 @@ function skyBlade(e, dmg, src, delay) {
 }
 function doSlash(a, st, evo, flip) {
   const R = st.aoe * P.area, el = P.mainW === 'katana' ? clsNextEl() : undefined; // 斬撃1回 = 1属性(メイジ。メイン武器のときだけ)
+  let hits = 0;
   slashes.push({ x: P.x, y: P.y, a, r: R, t: 0, life: 0.2, flip, evo });
   forEachNear(P.x, P.y, R, e => {
     let diff = Math.atan2(e.y - P.y, e.x - P.x) - a;
     diff = Math.atan2(Math.sin(diff), Math.cos(diff));
     if (Math.abs(diff) > 1.05) return;
     hitEnemy(e, st.dmg, { src: 'katana', ang: a, kb: 55, col: '#ff8a9a', el });
+    if (!e.prop) hits++;
   });
-  // 鬼神・村正: 斬撃の後に飛ぶ斬撃波(威力50%・貫通)
-  if (evo) setTimeout(() => { if (state === 'play') fire('wave', P.x, P.y, a, 170, { dmg: st.dmg * 0.5, pierce: 999, life: 0.55, src: 'katana', r: 9, col: '#ff5d73' }); }, 90);
+  // 鬼神・村正: 刀が CUT_EVERY 回当たるごとに、一閃の切り裂き
+  if (evo && hits) {
+    const w = P.weapons.katana;
+    w.cutN = (w.cutN || 0) + hits;
+    while (w.cutN >= CUT_EVERY) { w.cutN -= CUT_EVERY; muramasaCut(st); }
+  }
   AudioMan.slash();
+}
+// 鬼神・村正の一閃: 近くの敵を通るランダムな向きの長い切り裂き(刀の威力 × 800%、出血 +5)。線は一瞬で走り、だんだん細くなって消える
+const CUT_EVERY = 50;
+function muramasaCut(st) {
+  const tg = nearestEnemy(P.x, P.y, 140), cx = tg ? tg.x : P.x, cy = tg ? tg.y : P.y;
+  const a = rand(0, TAU), L = 120 * P.area, W = 14 * P.area, x0 = cx - Math.cos(a) * L, y0 = cy - Math.sin(a) * L, x1 = cx + Math.cos(a) * L, y1 = cy + Math.sin(a) * L;
+  setTimeout(() => {
+    if (state !== 'play') return;
+    asMine(() => {
+      const L2 = (x1 - x0) ** 2 + (y1 - y0) ** 2;
+      forEachNear(cx, cy, L + W, e => {
+        const u = clamp(((e.x - x0) * (x1 - x0) + (e.y - y0) * (y1 - y0)) / L2, 0, 1), px = x0 + (x1 - x0) * u, py = y0 + (y1 - y0) * u;
+        if (d2(e.x, e.y, px, py) > (W + (e.r || 4)) ** 2) return;
+        if (e.prop) { killEnemy(e); return; }
+        hitEnemy(e, st.dmg * 8, { src: 'katana', ang: a + Math.PI / 2, kb: 60, col: '#ff3b5c' });
+        if (!e.dead) { e.bleed = (e.bleed || 0) + 5; e.bleedT = DATA.bleed.dur; } // 出血 5
+        burst(e.x, e.y, 8, ['#ff3b5c', '#a0122a', '#ffffff'], { sp: 90, glow: true, life: 0.4 });
+      });
+      slashes.push({ cut: true, x: x0, y: y0, x1, y1, t: 0, life: 0.6, w: 7 });
+      for (let i = 0; i <= 16; i++) { const u = i / 16; part(x0 + (x1 - x0) * u, y0 + (y1 - y0) * u, Math.cos(a + Math.PI / 2) * rand(-40, 40), Math.sin(a + Math.PI / 2) * rand(-40, 40), rand(0.3, 0.6), pick(['#ff3b5c', '#ffffff', '#ff8a9a']), { glow: true, drag: 3 }); }
+      addFlash(cx, cy, L * 1.6, '#ff5d73', 0.25); shockAt(cx, cy, 0.9, 1.4); shake(6); hitstop(0.05);
+    });
+    AudioMan.slash(); AudioMan.crit();
+  }, 60);
 }
 
 

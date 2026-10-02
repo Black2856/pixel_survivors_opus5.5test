@@ -346,6 +346,18 @@ function render() {
         addLight(s.x + (full ? 0 : Math.cos(s.a) * s.r * 0.5), s.y + (full ? 0 : Math.sin(s.a) * s.r * 0.5), s.r * 1.2, s.col, 0.8 * fade);
         continue;
       }
+      if (s.cut) { // 鬼神・村正の一閃: 端から端へ一瞬で走り、赤い残光を残してだんだん細くなる
+        const run = Math.min(1, s.t / 0.07), k = easeOutCubic(Math.max(0, (s.t - 0.07) / (s.life - 0.07))), w = Math.max(0, (s.w || 6) * (1 - k));
+        const ex = s.x + (s.x1 - s.x) * run, ey = s.y + (s.y1 - s.y) * run, ax = s.x - cam.x, ay = s.y - cam.y, bx = ex - cam.x, by = ey - cam.y;
+        if (w >= 0.5) {
+          gx.globalAlpha = 0.8 * (1 - k); pLine(gx, ax, ay, bx, by, '#ff3b5c', Math.round(w + 4)); gx.globalAlpha = 1;
+          sx.globalAlpha = 0.7 * (1 - k); pLine(sx, ax, ay, bx, by, '#a0122a', Math.round(w + 2)); sx.globalAlpha = 1;
+          pLine(sx, ax, ay, bx, by, '#ffffff', Math.max(1, Math.round(w)));
+          if (run < 1) { gx.fillStyle = '#ffffff'; gx.fillRect(Math.round(bx) - 2, Math.round(by) - 2, 5, 5); } // 走る切っ先
+        }
+        addLight((s.x + ex) / 2, (s.y + ey) / 2, 140, '#ff5d73', 1 - k);
+        continue;
+      }
       if (s.line) { // 一閃 / グランドクロス: 経路に走る鋭い光
         const k = easeOutCubic(s.t / s.life), w = Math.max(1, Math.round((s.w || 4) * (1 - k)));
         pLine(gx, s.x - cam.x, s.y - cam.y, s.x1 - cam.x, s.y1 - cam.y, '#ff3b5c', w + 2);
