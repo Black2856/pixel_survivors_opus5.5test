@@ -289,7 +289,7 @@ const ART = (() => {
       ] },
     },
   });
-  S.mage.alias = { ranbu: 'mBarrage', iai: 'mMeteor', aRain: 'mMeteor', aVolley: 'mMeteor', aStep: 'mBlink', kSlam: 'mMeteor', kVerdict: 'mMeteor', pFlame: 'mBarrage', pInferno: 'mMeteor', pWall: 'mBlink', cIcicle: 'mMeteor', cDust: 'mMeteor', cMirror: 'mBlink', eSpark: 'mMeteor', eTower: 'mMeteor', eDash: 'mBlink' }; // 他クラスの武器スキルを使ったときの代わりのモーション
+  S.mage.alias = { ranbu: 'mBarrage', iai: 'mMeteor', aRain: 'mMeteor', aVolley: 'mMeteor', aStep: 'mBlink', kSlam: 'mMeteor', kVerdict: 'mMeteor', pFlame: 'mBarrage', pInferno: 'mMeteor', pWall: 'mBlink', cIcicle: 'mMeteor', cDust: 'mMeteor', cMirror: 'mBlink', eSpark: 'mMeteor', eTower: 'mMeteor', eDash: 'mBlink', hStrike: 'mMeteor', hJudge: 'mMeteor', hPray: 'mBlink' }; // 他クラスの武器スキルを使ったときの代わりのモーション
 
   // ---------- クラス: アーチャー(16×18、部位アニメーション) ----------
   // 右向き。緑のフード(影の中で緑の目が光る)・背中のマントと矢筒・手に長弓
@@ -342,7 +342,7 @@ const ART = (() => {
     },
   });
   // 他クラスの武器スキルを使ったときの代わりのモーション
-  S.hunter.alias = { ranbu: 'aRain', mBarrage: 'aRain', iai: 'aVolley', mMeteor: 'aVolley', mBlink: 'aStep', kSlam: 'aRain', kVerdict: 'aVolley', pFlame: 'aRain', pInferno: 'aVolley', pWall: 'aStep', cIcicle: 'aRain', cDust: 'aVolley', cMirror: 'aStep', eSpark: 'aRain', eTower: 'aVolley', eDash: 'aStep' };
+  S.hunter.alias = { ranbu: 'aRain', mBarrage: 'aRain', iai: 'aVolley', mMeteor: 'aVolley', mBlink: 'aStep', kSlam: 'aRain', kVerdict: 'aVolley', pFlame: 'aRain', pInferno: 'aVolley', pWall: 'aStep', cIcicle: 'aRain', cDust: 'aVolley', cMirror: 'aStep', eSpark: 'aRain', eTower: 'aVolley', eDash: 'aStep', hStrike: 'aRain', hJudge: 'aVolley', hPray: 'aStep' };
 
   // ---------- クラス: ナイト(16×18、部位アニメーション) ----------
   // 右向き(左半身が手前)。面頬の兜(隙間の目が光る)・銀の板金鎧・青い陣羽織に金の十字・手前の腕に凧形の大盾・奥の手に騎士剣
@@ -386,7 +386,7 @@ const ART = (() => {
     },
   });
   S.knight.guard = kup(0, 1, { shield: [1, -2, 'guard'], legs: [0, 0, 'stepB'] }); // 大盾を構えた姿勢
-  S.knight.alias = { ranbu: 'kSlam', mBarrage: 'kSlam', aRain: 'kSlam', iai: 'kVerdict', mMeteor: 'kVerdict', aVolley: 'kVerdict', pFlame: 'kSlam', pInferno: 'kVerdict', cIcicle: 'kSlam', cDust: 'kVerdict', eSpark: 'kSlam', eTower: 'kVerdict' };
+  S.knight.alias = { ranbu: 'kSlam', mBarrage: 'kSlam', aRain: 'kSlam', iai: 'kVerdict', mMeteor: 'kVerdict', aVolley: 'kVerdict', pFlame: 'kSlam', pInferno: 'kVerdict', cIcicle: 'kSlam', cDust: 'kVerdict', eSpark: 'kSlam', eTower: 'kVerdict', hStrike: 'kSlam', hJudge: 'kVerdict' };
 
   // ---------- クラス: パイロマンサー(16×18、部位アニメーション) ----------
   // 右向き。深紅のフード(影の中で橙の目が光る)・焦げ茶の帯・裾が燃えさしのようにちらつくローブ・先端に炎を宿した黒い杖
@@ -437,7 +437,7 @@ const ART = (() => {
     },
   });
   // 他クラスの武器スキルを使ったときの代わりのモーション
-  S.pyro.alias = { ranbu: 'pFlame', mBarrage: 'pFlame', aRain: 'pFlame', kSlam: 'pFlame', iai: 'pInferno', mMeteor: 'pInferno', aVolley: 'pInferno', kVerdict: 'pInferno', mBlink: 'pWall', aStep: 'pWall', cIcicle: 'pInferno', cDust: 'pInferno', cMirror: 'pWall', eSpark: 'pInferno', eTower: 'pInferno', eDash: 'pWall' };
+  S.pyro.alias = { ranbu: 'pFlame', mBarrage: 'pFlame', aRain: 'pFlame', kSlam: 'pFlame', iai: 'pInferno', mMeteor: 'pInferno', aVolley: 'pInferno', kVerdict: 'pInferno', mBlink: 'pWall', aStep: 'pWall', cIcicle: 'pInferno', cDust: 'pInferno', cMirror: 'pWall', eSpark: 'pInferno', eTower: 'pInferno', eDash: 'pWall', hStrike: 'pInferno', hJudge: 'pInferno', hPray: 'pWall' };
 
   // ---------- クラス: クライオマンサー(16×18、部位アニメーション) ----------
   // 右向き。氷の結晶の冠を付けた白いフード(影の中で水色の目が光る)・淡い青のローブ・霜の付いた裾・先端に氷晶を浮かべた銀の杖
@@ -488,7 +488,7 @@ const ART = (() => {
       ] },
     },
   });
-  S.cryo.alias = { ranbu: 'cIcicle', mBarrage: 'cIcicle', aRain: 'cIcicle', kSlam: 'cIcicle', pFlame: 'cIcicle', iai: 'cDust', mMeteor: 'cDust', aVolley: 'cDust', kVerdict: 'cDust', pInferno: 'cDust', mBlink: 'cMirror', aStep: 'cMirror', pWall: 'cMirror', eSpark: 'cIcicle', eTower: 'cDust', eDash: 'cMirror' };
+  S.cryo.alias = { ranbu: 'cIcicle', mBarrage: 'cIcicle', aRain: 'cIcicle', kSlam: 'cIcicle', pFlame: 'cIcicle', iai: 'cDust', mMeteor: 'cDust', aVolley: 'cDust', kVerdict: 'cDust', pInferno: 'cDust', mBlink: 'cMirror', aStep: 'cMirror', pWall: 'cMirror', eSpark: 'cIcicle', eTower: 'cDust', eDash: 'cMirror', hStrike: 'cIcicle', hJudge: 'cDust', hPray: 'cMirror' };
 
   // ---------- クラス: エレクトロマンサー(16×18、部位アニメーション) ----------
   // 右向き。逆立った白い髪・光るゴーグル・紺のロングコートに黄色い稲妻の縁取り・先端に放電する金属球の杖
@@ -541,7 +541,60 @@ const ART = (() => {
       ] },
     },
   });
-  S.electro.alias = { ranbu: 'eSpark', mBarrage: 'eSpark', aRain: 'eSpark', kSlam: 'eSpark', pFlame: 'eSpark', cIcicle: 'eSpark', iai: 'eTower', mMeteor: 'eTower', aVolley: 'eTower', kVerdict: 'eTower', pInferno: 'eTower', cDust: 'eTower', mBlink: 'eDash', aStep: 'eDash', pWall: 'eDash', cMirror: 'eDash' };
+  S.electro.alias = { ranbu: 'eSpark', mBarrage: 'eSpark', aRain: 'eSpark', kSlam: 'eSpark', pFlame: 'eSpark', cIcicle: 'eSpark', iai: 'eTower', mMeteor: 'eTower', aVolley: 'eTower', kVerdict: 'eTower', pInferno: 'eTower', cDust: 'eTower', mBlink: 'eDash', aStep: 'eDash', pWall: 'eDash', cMirror: 'eDash', hStrike: 'eSpark', hJudge: 'eTower', hPray: 'eDash' };
+
+  // ---------- クラス: クレリック(16×18、部位アニメーション) ----------
+  // 右向き。頭上の光の輪・長い金髪・白い法衣に金の刺繍・金の聖印(円に十字)を下げた短い杖
+  const HUP = ['halo', 'head', 'torso', 'backArm', 'frontArm', 'staff'];
+  const hup = (dx, dy, extra = {}) => Object.assign(Object.fromEntries(HUP.map(k => [k, [dx, dy]])), extra);
+  S.cleric = rig({
+    w: 16, h: 18, padX: 8, emit: 'OS',
+    pal: {
+      O: '#ffe38a', y: '#c89a38', Y: '#e8c060', c: '#e0b898', e: '#3a2a4a', w: '#a8a0c0', W: '#c8c2dc', g: '#b08830',
+      s: '#8a6a3a', S: '#ffe38a', a: '#4a3a5a',
+    },
+    order: ['backArm', 'legs', 'torso', 'head', 'halo', 'staff', 'frontArm'],
+    parts: {
+      halo: { x: 5, y: 0, v: { base: ['.OOOO.'], b: ['OO..OO'] } }, // 光の輪(光る)
+      // 長い金髪と顔
+      head: { x: 4, y: 1, v: {
+        base: ['..yyyy..', '.yYyyyy.', 'yyccccy.', 'yycece..', 'yycccc..', 'yy.cc...'],
+      } },
+      torso: { x: 4, y: 7, v: { base: ['wWwgwwww', 'wWwgwwww', 'gggggggg', 'wWwwwwww'] } },
+      backArm: { x: 3, y: 8, v: { base: ['w', 'w', 'c'] } },
+      frontArm: { x: 10, y: 8, v: {
+        base:    ['ww', 'ww', 'cc'],
+        forward: ['wwwcc'],
+        raise:   ['..cc', '.ww.', 'ww..'],
+        pray:    ['cc', 'ww', 'ww'],
+      } },
+      // 短い杖と聖印(光る)
+      staff: { x: 11, y: 3, v: {
+        base: ['.S.', 'SSS', '.S.', '.s.', '.s.', '.s.', '.s.', '.s.', '.s.', '.s.', '.s.', '.s.'],
+        big:  ['SSS', 'SSS', 'SSS', '.s.', '.s.', '.s.', '.s.', '.s.', '.s.', '.s.', '.s.', '.s.'],
+      } },
+      // 法衣の裾(金の縁)
+      legs: { x: 3, y: 11, v: {
+        base:  ['.wwwwwww..', '.wWwwwwww.', 'wwWwwwwwww', 'wwwwwwwwww', 'gggggggggg', '.aa...aa..'],
+        stepA: ['.wwwwwww..', '.wWwwwwww.', 'wwWwwwwwww', 'wwwwwwwwww', 'gggggggggg', 'aa.....aa.'],
+        stepB: ['.wwwwwww..', '.wWwwwwww.', 'wwWwwwwwww', 'wwwwwwwwww', 'gggggggggg', '..aa.aa...'],
+      } },
+    },
+    motions: {
+      // 待機: 呼吸で上半身が沈み、光の輪がゆっくり明滅する
+      idle: { loop: true, frames: [
+        { t: 0.45, p: hup(0, 0) }, { t: 0.45, p: hup(0, 0, { halo: [0, -1, 'b'] }) },
+        { t: 0.45, p: hup(0, 1) }, { t: 0.45, p: hup(0, 1, { halo: [0, 0, 'b'] }) },
+      ] },
+      walk: { loop: true, frames: [
+        { t: 0.12, p: hup(0, 1, { legs: [0, 0, 'stepA'], backArm: [-1, 1] }) },
+        { t: 0.12, p: hup(0, 0) },
+        { t: 0.12, p: hup(0, 1, { legs: [0, 0, 'stepB'], backArm: [1, 1] }) },
+        { t: 0.12, p: hup(0, 0) },
+      ] },
+    },
+  });
+  S.cleric.alias = { ranbu: 'hStrike', mBarrage: 'hStrike', aRain: 'hStrike', kSlam: 'hStrike', pFlame: 'hStrike', cIcicle: 'hStrike', eSpark: 'hStrike', iai: 'hJudge', mMeteor: 'hJudge', aVolley: 'hJudge', kVerdict: 'hJudge', pInferno: 'hJudge', cDust: 'hJudge', eTower: 'hJudge', mBlink: 'hPray', aStep: 'hPray', pWall: 'hPray', cMirror: 'hPray', eDash: 'hPray' };
 
   S.zombie = mk({ a: '#3d2f24', b: '#7fb069', c: '#ff4040', d: '#2b3a22', e: '#6b5a8e', f: '#3a3350', g: '#241c2e' }, [
     '...aaaa...',

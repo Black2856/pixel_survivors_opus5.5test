@@ -84,6 +84,15 @@ function electroPose(U, arm, o = {}) {
   return { p, hand: null };
 }
 
+// クレリックの部位の配置(ART.S.cleric と対応)
+function clericPose(U, arm, o = {}) {
+  const p = {
+    halo: [0, U + (o.hy || 0), o.haloV || 'base'], head: [0, U], torso: [0, U], backArm: [0, U], legs: [0, 0, o.legs || 'base'],
+    frontArm: arm === 'base' ? [0, U] : [0, U + (o.armDy || 0), arm], staff: [o.sx || 0, U + (o.sy || 0), o.staffV || 'base'],
+  };
+  return { p, hand: null };
+}
+
 const MOTIONS = {
   // メテオ(Q): 宝珠を頭上へ掲げて詠唱(0.5秒・のけぞる)→ 振り下ろして照準へ放つ → 戻る
   mMeteor: {
@@ -262,6 +271,34 @@ const MOTIONS = {
     rig: 'electro', dur: 0.2,
     state(t) {
       return Object.assign(electroPose(1, 'base', { staffV: 'big', legs: 'stepA', headV: 'b' }), { blade: false, lean: track([[0, 0], [0.04, 0.22, 'out'], [0.2, 0]], t), sy: track([[0, 1], [0.04, 0.9, 'out'], [0.2, 1]], t) });
+    },
+  },
+  // ホーリーストライク(E): 杖を掲げる(動きは止めない)
+  hStrike: {
+    rig: 'cleric', dur: 0.5,
+    state(t) {
+      const u = track([[0, 0], [0.12, 1, 'out'], [0.35, 1], [0.5, 0]], t);
+      return Object.assign(clericPose(0, u > 0.3 ? 'raise' : 'base', { armDy: -2, sy: Math.round(-3 * u), staffV: u > 0.5 ? 'big' : 'base', hy: -1 }), { blade: false, lean: -0.05 * u, sy: 1 + 0.03 * u });
+    },
+  },
+  // 審判の祈り(Q): 両手を組んで光を集める(0.5秒)→ 前へ振り下ろす → 戻る
+  hJudge: {
+    rig: 'cleric', dur: 0.9, cast: 0.5,
+    state(t) {
+      if (t < this.cast) {
+        const u = track([[0, 0], [0.15, 1, 'out'], [this.cast, 1]], t);
+        return Object.assign(clericPose(t > 0.3 ? 0 : 1, 'pray', { hy: -Math.round(2 * u), haloV: Math.floor(t * 12) % 2 ? 'b' : 'base', staffV: 'big' }), { blade: false, lean: -0.06 * u, sy: track([[0, 1], [0.1, 0.95, 'out'], [this.cast, 1.04]], t) });
+      }
+      const r = t - this.cast;
+      return Object.assign(clericPose(r < 0.12 ? 2 : 0, r < 0.25 ? 'forward' : 'base', { sx: r < 0.25 ? 3 : 0, sy: r < 0.25 ? 2 : 0, staffV: r < 0.15 ? 'big' : 'base', legs: r < 0.2 ? 'stepA' : 'base' }),
+        { blade: false, lean: track([[0, 0.14], [0.35, 0, 'out']], r), sy: track([[0, 0.9], [0.15, 1, 'out']], r) });
+    },
+  },
+  // 聖域の祈り(Space): 両手を組んで少し沈む
+  hPray: {
+    rig: 'cleric', dur: 0.4,
+    state(t) {
+      return Object.assign(clericPose(1, 'pray', { haloV: 'b', hy: -1 }), { blade: false, lean: 0, sy: track([[0, 1], [0.06, 0.92, 'out'], [0.4, 1]], t) });
     },
   },
   // 居合(Q): 構え(0.25 秒)→ 抜刀して振り上げ → 残心 → 血振り → 納刀

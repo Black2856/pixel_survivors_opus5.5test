@@ -404,6 +404,21 @@ function render() {
         }
       }
       addLight(z.x, z.y, z.r * 2, '#b8ff9a', 0.35 * fade * on);
+    } else if (z.kind === 'pillar') { // 光の柱: 天から細く降りて太くなり、消えていく
+      if (z.t >= 0) {
+        const u = z.t / z.dur, x = Math.round(zx), w = Math.max(1, Math.round(z.r * 0.35 * Math.sin(Math.min(1, u * 2.5) * Math.PI / 2) * (1 - u)));
+        const top = Math.round(zy - 200), y0 = Math.round(zy);
+        sx.globalAlpha = 0.55 * (1 - u); sx.fillStyle = '#fff6d8'; sx.fillRect(x - w, top, w * 2 + 1, y0 - top);
+        sx.globalAlpha = 0.9 * (1 - u); sx.fillStyle = '#ffffff'; sx.fillRect(x - Math.max(0, w - 2), top, Math.max(1, (w - 2) * 2 + 1), y0 - top);
+        gx.globalAlpha = 0.5 * (1 - u); gx.fillStyle = '#ffe38a'; gx.fillRect(x - w - 1, top, w * 2 + 3, y0 - top);
+        sx.globalAlpha = gx.globalAlpha = 1;
+        sx.globalAlpha = 0.5 * (1 - u); pCircle(sx, zx, zy, Math.round(z.r * (0.6 + 0.4 * u)), '#ffe38a', 1); sx.globalAlpha = 1;
+        addLight(z.x, z.y, z.r * 3, '#fff6d8', 0.9 * (1 - u));
+      }
+    } else if (z.kind === 'lightrain') { // 光の雨: 淡い金の円
+      sx.globalAlpha = 0.18 * fade; pDisc(sx, zx, zy, Math.round(z.r), '#ffe38a');
+      sx.globalAlpha = 0.6 * fade; pCircle(sx, zx, zy, Math.round(z.r), '#fff6d8', 1); sx.globalAlpha = 1;
+      addLight(z.x, z.y, z.r * 2, '#ffe38a', 0.5 * fade);
     } else if (z.kind === 'gspark') { // グラビティスパーク: 雷の球(引き寄せの縁が縮む → 爆発で消える)
       const sk = DATA.weapons.thunder.skill, u = Math.min(1, z.t / sk.boomT);
       if (!z.boomed) {

@@ -102,6 +102,7 @@ const wst = k => {
     if (base.pierce !== undefined) w.st.pierce = base.pierce + (m.pierce || 0);
     if (base.speed) w.st.speed = base.speed * (1 + (m.speed || 0));
     if (base.dur) w.st.dur = base.dur + (m.dur || 0);
+    if (base.tick && m.cd) w.st.tick = base.tick * (1 - m.cd); // ホーリーオーラ: 熟練のクールダウンは判定の間隔に
   }
   return w.st;
 };
@@ -120,6 +121,8 @@ function updEnemyLevel(dt) {
 }
 function heal(n, silent) {
   if (P.uq.mercy) n *= 1.25;
+  n *= clsHealMul(); // クラスの被回復量の補正(クレリック)
+  S.healed = (S.healed || 0) + n; // 回復した量の合計(聖痕)
   const before = P.hp;
   overheal(P.hp + n - P.maxhp);
   P.hp = Math.min(P.maxhp, P.hp + n);
@@ -147,7 +150,7 @@ function updPlayer(dt) {
   P.animT += dt * (P.moving ? 1 : 0.35);
   P.ifr -= dt; P.hurtT -= dt;
   updDebuffs(dt);
-  if (P.regen > 0) { overheal(P.hp + P.regen * dt - P.maxhp); P.hp = Math.min(P.maxhp, P.hp + P.regen * dt); } // 満タンで余った分は超過回復
+  if (P.regen > 0) { const n = P.regen * dt * clsHealMul(); S.healed = (S.healed || 0) + n; overheal(P.hp + n - P.maxhp); P.hp = Math.min(P.maxhp, P.hp + n); } // 満タンで余った分は超過回復
   updOverShield(dt); // 聖盾のシールドは得た分ごとに時間で消える
   if (P.moving && Math.random() < dt * 10) part(P.x + rand(-2, 2), P.y + 6, rand(-6, 6), rand(-8, -2), 0.35, '#8a8098', { drag: 4 });
   GFX.fx.lowhp = lerp(GFX.fx.lowhp, P.hp / P.maxhp < 0.3 ? 1 : 0, dt * 3);
@@ -189,7 +192,7 @@ function timedShield(n, dur) {
   P.oShield += v; S.hudDirty = true;
 }
 // 最大HP を超えた回復量(聖盾の: 20% を10秒のシールドに)
-function overheal(n) { if (P.uq.aegis && n > 0) timedShield(n * 0.2, 10); }
+function overheal(n) { if (!(n > 0)) return; if (P.uq.aegis) timedShield(n * 0.2, 10); clsOnOverheal(n); } // 聖盾の / クレリックの祈り
 function updOverShield(dt) {
   if (!P.oChunks.length) return;
   for (const c of P.oChunks) c.t -= dt;
@@ -660,6 +663,10 @@ function updZones(dt) {
         const a = z.t * 9 + k * TAU / 3 + rand(-0.3, 0.3), r = z.r * rand(0.3, 1);
         part(z.x + Math.cos(a) * r, z.y + Math.sin(a) * r * 0.6, -Math.sin(a) * 60, -rand(30, 70), 0.4, pick(cols), { glow: true, drag: 1 });
       }
+    } else if (z.kind === 'lightrain') { // 光の雨: 中にいると HP が回復する
+      if (d2(P.x, P.y, z.x, z.y) < z.r * z.r) heal(DATA.weapons.aura.skill.rainHeal * dt, true);
+      if (Math.random() < dt * 12) part(z.x + rand(-z.r, z.r) * 0.7, z.y + rand(-z.r, z.r) * 0.5, 0, -rand(10, 25), 0.6, pick(['#ffe38a', '#fff6d8']), { glow: true });
+    } else if (z.kind === 'pillar') { // 光の柱(見た目だけ)
     } else if (z.kind === 'gspark') { // グラビティスパーク: 最初に1回大きく引き寄せ → 爆発(残留磁場: その後も弱く引き寄せる)
       if (!z.pulled) {
         z.pulled = true;
@@ -819,7 +826,7 @@ function updZones(dt) {
 function hitEnemy(e, base, o = {}) {
   if (e.dead) return 0;
   if (e.prop) { killEnemy(e, o); return 0; }
-  let dmg = base * dmgMul() * clsDmgTaken(e, o); // 印・凍結などで敵が受けるダメージが増える
+  let dmg = (base + clsHitBonus(e, o)) * dmgMul() * clsDmgTaken(e, o); // 祈りの一撃などの追加 / 印・凍結などで敵が受けるダメージが増える
   if (e.frost > 0 && P.weapons.blizzard && P.weapons.blizzard.evo) dmg *= 1 + 0.01 * e.frost;
   const crit = o.forceCrit || (!o.noCrit && Math.random() < critRate() + clsCritBonus(e));
   if (crit) dmg *= P.critMul + clsCritDmgBonus(e); else if (P.uq.exec) dmg *= 0.8; // 処刑人の
