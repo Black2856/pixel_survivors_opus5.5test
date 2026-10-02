@@ -557,28 +557,39 @@ function doSlash(a, st, evo, flip) {
 //   CUT_RUN 〜           残心: 白い芯 → 赤 → 墨の縁と細くなって消える。空間が裂けたように線が二つに分かれる
 //   CUT_HIT              遅れて斬撃が炸裂: ダメージ・出血・敵の上の斬り跡・血しぶきと墨の飛沫
 const CUT_EVERY = 50, CUT_OMEN = 0.1, CUT_RUN = 0.16, CUT_HIT = 0.24, CUT_LIFE = 0.85;
+// 一閃の配色(村正・居合)
+const CUT_PAL = { dark: '#3a0610', mid: '#a8102a', bright: '#ff2a48', wakeGlow: '#a0102a', edge: '#1a0408', rim: '#ff9aa6', glow: '#ff3b5c' };
 // 一閃の中心線(少し反った三日月)。u = 0..1
 function cutPt(s, u) {
   const b = s.bulge * Math.sin(Math.PI * u);
   return [s.x0 + (s.x1 - s.x0) * u + s.nx * b, s.y0 + (s.y1 - s.y0) * u + s.ny * b];
 }
+// 一閃を作る(村正・居合・乱れ桜で共有)。時刻 omen / run / hit と life はゲーム時間
+//   o.wk: 帯の太さの倍率 / o.nodim: 周りを暗くしない / o.pal: 配色 / o.late: hit 時刻に s.onHit を呼ぶ(あとから決まる処理用)
+function makeCut(x0, y0, x1, y1, o = {}) {
+  const dx = x1 - x0, dy = y1 - y0, len = Math.hypot(dx, dy) || 1, a = Math.atan2(dy, dx);
+  const s = { cut: true, a, x0, y0, x1, y1, nx: -Math.sin(a), ny: Math.cos(a), bulge: len * 0.025 * (Math.random() < 0.5 ? -1 : 1), len, t: 0,
+    omen: o.omen ?? CUT_OMEN, run: o.run ?? CUT_RUN, hit: o.hit ?? CUT_HIT, life: o.life ?? CUT_LIFE, wk: o.wk ?? 1, nodim: !!o.nodim, pal: o.pal || CUT_PAL, ev: [] };
+  if (o.late) s.ev.push({ at: s.hit, fn: () => { s.hitDue = true; if (s.onHit) s.onHit(); } });
+  slashes.push(s);
+  return s;
+}
+// 走り終えた瞬間の火花(線に沿って進行方向へ飛ぶ。切っ先の先で小さく爆ぜる)
+function cutSpark(s, n) {
+  asMine(() => {
+    for (let i = 0; i < n; i++) { const [x, y] = cutPt(s, Math.random()), sp = rand(60, 170); part(x, y, Math.cos(s.a) * sp, Math.sin(s.a) * sp, rand(0.12, 0.28), pick(['#ffffff', '#ffd0d8', '#ff8a9a']), { glow: true, drag: 5 }); }
+    burst(s.x1, s.y1, 12, ['#ffffff', '#ff5d73'], { sp: 110, glow: true, life: 0.3 });
+  });
+}
 function muramasaCut(st) {
   const tg = nearestEnemy(P.x, P.y, 140), cx = tg ? tg.x : P.x, cy = tg ? tg.y : P.y;
   const a = rand(0, TAU), L = 120 * P.area, W = 14 * P.area;
-  const s = { cut: true, a, x0: cx - Math.cos(a) * L, y0: cy - Math.sin(a) * L, x1: cx + Math.cos(a) * L, y1: cy + Math.sin(a) * L,
-    nx: -Math.sin(a), ny: Math.cos(a), bulge: L * 0.05 * (Math.random() < 0.5 ? -1 : 1), len: L * 2, t: 0, life: CUT_LIFE };
-  s.ev = [
+  const s = makeCut(cx - Math.cos(a) * L, cy - Math.sin(a) * L, cx + Math.cos(a) * L, cy + Math.sin(a) * L);
+  s.ev.push(
     { at: CUT_OMEN, fn: () => { AudioMan.cut(); GFX.fx.aberr = Math.max(GFX.fx.aberr, 0.9 * SET.fxA); } },
-    { at: CUT_RUN, fn: () => { // 走り終えた瞬間: 一瞬止めて、切っ先の先で火花
-      hitstop(0.05); shake(3); screenFlash(0.08 * SET.fxA, '#ff3b5c');
-      asMine(() => {
-        for (let i = 0; i < 22; i++) { const [x, y] = cutPt(s, Math.random()), sp = rand(60, 170); part(x, y, Math.cos(s.a) * sp, Math.sin(s.a) * sp, rand(0.12, 0.28), pick(['#ffffff', '#ffd0d8', '#ff8a9a']), { glow: true, drag: 5 }); }
-        burst(s.x1, s.y1, 12, ['#ffffff', '#ff5d73'], { sp: 110, glow: true, life: 0.3 });
-      });
-    } },
+    { at: CUT_RUN, fn: () => { hitstop(0.05); shake(3); screenFlash(0.08 * SET.fxA, '#ff3b5c'); cutSpark(s, 22); } }, // 走り終えた瞬間: 一瞬止める
     { at: CUT_HIT, fn: () => cutHit(s, st, W) },
-  ];
-  slashes.push(s);
+  );
   AudioMan.cutDraw();
 }
 // 遅れて斬撃が炸裂する: 線(三日月)に沿って当たり判定

@@ -335,11 +335,15 @@ function render() {
     }
   };
   // 鬼神・村正の一閃(world.js の muramasaCut と時刻を合わせる)
-  const cutDim = t => (t < CUT_OMEN ? 0.22 * t / CUT_OMEN : t < 0.2 ? 0.22 : t < 0.38 ? 0.22 * (1 - (t - 0.2) / 0.18) : 0); // 周りを暗くする量
+  const cutDim = s => { // 周りを暗くする量(予兆で暗くなり、斬撃が炸裂する少し前から戻る)
+    if (s.nodim) return 0;
+    const t = s.t, hold = s.hit - 0.04;
+    return t < s.omen ? 0.22 * t / Math.max(s.omen, 0.001) : t < hold ? 0.22 : t < hold + 0.18 ? 0.22 * (1 - (t - hold) / 0.18) : 0;
+  };
   const drawCut = s => {
-    const t = s.t, n = Math.ceil(s.len), ox = cam.x, oy = cam.y;
-    if (t < CUT_OMEN) { // 予兆: 刃の筋が点線でうっすら走り、始点と自分の刀がきらめく
-      const k = t / CUT_OMEN, fl = Math.floor(t * 60) % 2;
+    const t = s.t, n = Math.ceil(s.len), ox = cam.x, oy = cam.y, pal = s.pal, wk = s.wk, tOmen = s.omen, tRun = s.run, tHit = s.hit;
+    if (t < tOmen) { // 予兆: 刃の筋が点線でうっすら走り、始点と自分の刀がきらめく
+      const k = t / tOmen, fl = Math.floor(t * 60) % 2;
       sx.globalAlpha = (0.2 + 0.6 * k) * (fl ? 1 : 0.6); sx.fillStyle = '#ffd6dc';
       for (let i = 0; i <= n; i += 3) { const [x, y] = cutPt(s, i / n); sx.fillRect(Math.round(x - ox), Math.round(y - oy), 1, 1); }
       sx.globalAlpha = 1;
@@ -348,8 +352,8 @@ function render() {
       addLight(s.x0, s.y0, 40, '#ff8a9a', 0.6 * k);
       return;
     }
-    const run = easeOutCubic(Math.min(1, (t - CUT_OMEN) / (CUT_RUN - CUT_OMEN))), m = Math.max(1, Math.round(n * run));
-    const k = Math.max(0, (t - CUT_RUN) / (s.life - CUT_RUN)), ke = easeOutCubic(k);
+    const run = easeOutCubic(Math.min(1, (t - tOmen) / (tRun - tOmen))), m = Math.max(1, Math.round(n * run));
+    const k = Math.max(0, (t - tRun) / (s.life - tRun)), ke = easeOutCubic(k);
     const pts = [];
     for (let i = 0; i <= m; i++) pts.push(cutPt(s, i / n));
     const sn = u => Math.sin(Math.PI * Math.min(1, u));
@@ -369,25 +373,25 @@ function render() {
     };
     // 刃が振られた内側(反りの内側)に赤い残像、外側は鋭い縁。芯は細い針のような白
     const wake = -Math.sign(s.bulge) || 1, edge = -wake, fade = 1 - ke;
-    const wW = u => 8 * Math.pow(sn(u), 0.8) * (0.55 + 0.9 * u) * (1 - ke * 0.5); // 刃が抜けていく後半ほど太い三日月
-    band(gx, '#a0102a', 0.3 * fade, u => wW(u) * 0.6, wake);                      // 残像の光(控えめ)
-    band(sx, '#3a0610', 0.55 * fade, wW, wake);                                     // 残像: 暗い紅
-    band(sx, '#a8102a', 0.7 * fade, u => wW(u) * 0.62, wake);                       //       紅
-    band(sx, '#ff2a48', 0.9 * Math.sqrt(Math.max(0, fade)), u => wW(u) * 0.3, wake); //     明るい赤(刃の近く)
-    band(sx, '#1a0408', 0.8 * fade, u => 1.6 * sn(u), edge);                         // 外側の墨の縁
-    band(sx, '#ff9aa6', Math.max(0, 1 - ke * 2), u => 1.1 * sn(u) * (1 - ke), edge); // 外側の鋭い縁
-    const flash = t >= CUT_RUN && t < CUT_RUN + 0.045, flash2 = t >= CUT_HIT && t < CUT_HIT + 0.04; // 走り終えた瞬間 / 斬撃が炸裂する瞬間に、刃筋全体が一瞬光る
+    const wW = u => 8 * wk * Math.pow(sn(u), 0.8) * (0.55 + 0.9 * u) * (1 - ke * 0.5); // 刃が抜けていく後半ほど太い三日月
+    band(gx, pal.wakeGlow, 0.3 * fade, u => wW(u) * 0.6, wake);                      // 残像の光(控えめ)
+    band(sx, pal.dark, 0.55 * fade, wW, wake);                                     // 残像: 暗い紅
+    band(sx, pal.mid, 0.7 * fade, u => wW(u) * 0.62, wake);                       //       紅
+    band(sx, pal.bright, 0.9 * Math.sqrt(Math.max(0, fade)), u => wW(u) * 0.3, wake); //     明るい赤(刃の近く)
+    band(sx, pal.edge, 0.8 * fade, u => 1.6 * sn(u), edge);                         // 外側の墨の縁
+    band(sx, pal.rim, Math.max(0, 1 - ke * 2), u => 1.1 * sn(u) * (1 - ke), edge); // 外側の鋭い縁
+    const flash = t >= tRun && t < tRun + 0.045, flash2 = t >= tHit && t < tHit + 0.04; // 走り終えた瞬間 / 斬撃が炸裂する瞬間に、刃筋全体が一瞬光る
     const core = u => (flash ? 2.2 : 1.3) * sn(u) * (1 - ke * 3);
     if (flash2) band(sx, '#ffd0d8', 1, u => 1.6 * sn(u));
     band(sx, '#ffffff', 1, core);                                                    // 白い芯(針のように両端が尖る)
     band(gx, '#ffffff', Math.max(0, 0.55 - ke * 2), core);
-    band(gx, '#ff3b5c', 0.4 * fade, u => 2 * sn(u) * (1 - ke));
+    band(gx, pal.glow, 0.4 * fade, u => 2 * sn(u) * (1 - ke));
     if (run < 1) { // 走る切っ先
       const [hx, hy] = pts[m];
       glint(hx - ox, hy - oy, 7, '#ffffff');
       addLight(hx, hy, 70, '#ffd0d8', 1);
     } else { // 速度線: 残像側に細い線が数本走り、外へ流れて消える
-      const kk = Math.min(1, (t - CUT_RUN) / 0.22);
+      const kk = Math.min(1, (t - tRun) / 0.22);
       if (kk < 1) {
         [[6, 0.15, 0.6, 0.55], [11, 0.35, 0.85, 0.35]].forEach(([d, u0, u1, al]) => {
           const off = wake * d * (1 + kk * 0.8);
@@ -395,19 +399,59 @@ function render() {
           sx.globalAlpha = al * (1 - kk); gx.globalAlpha = al * (1 - kk) * 0.4;
           for (let i = Math.round(n * u0); i <= Math.round(n * u1); i += 4) {
             const [x, y] = cutPt(s, i / n), qx = x - ox + s.nx * off * sn(i / n), qy = y - oy + s.ny * off * sn(i / n);
-            if (px !== null) { pLine(sx, px, py, qx, qy, '#ff9aa6', 1); pLine(gx, px, py, qx, qy, '#ff3b5c', 1); }
+            if (px !== null) { pLine(sx, px, py, qx, qy, pal.rim, 1); pLine(gx, px, py, qx, qy, pal.glow, 1); }
             px = qx; py = qy;
           }
         });
         sx.globalAlpha = gx.globalAlpha = 1;
       }
     }
-    for (const u of [0.1, 0.3, 0.5, 0.7, 0.9]) if (u <= run) { const [x, y] = cutPt(s, u); addLight(x, y, 70, '#ff3b5c', 0.9 * (1 - ke)); }
+    for (const u of [0.1, 0.3, 0.5, 0.7, 0.9]) if (u <= run) { const [x, y] = cutPt(s, u); addLight(x, y, 70, pal.glow, 0.9 * (1 - ke)); }
+  };
+  // 乱れ桜の流れる斬撃: 切っ先が 2点の間を数フレームかけて弧を描いて走り、少し遅れて尾がついていく(見えるのは尾〜切っ先の間の三日月)
+  //   通った跡には 1ドットの線が残り、すぐ消える
+  const drawFlow = s => {
+    const t = s.t, ox = cam.x, oy = cam.y, pal = s.pal, ss = x => x * x * (3 - 2 * x);
+    const uh = ss(Math.min(1, t / s.run)), ut = ss(clamp((t - s.lag) / s.run, 0, 1)); // 切っ先 / 尾の位置(0..1)
+    const at = u => { // 曲線上の点(画面座標)と法線
+      const [x, y] = cutPt(s, u), k = s.bulge * Math.PI * Math.cos(Math.PI * u);
+      const tx = s.x1 - s.x0 + s.nx * k, ty = s.y1 - s.y0 + s.ny * k, l = Math.hypot(tx, ty) || 1;
+      return [x - ox, y - oy, -ty / l, tx / l];
+    };
+    const ra = 0.35 * (1 - clamp((t - s.lag) / (s.run + s.fade), 0, 1)); // 通った跡(桜色の細い線。尾に近いほど濃く、古い側から消える)
+    if (ut > 0 && ra > 0.02) {
+      const n = Math.max(2, Math.ceil(s.len * ut / 3));
+      let p = at(0);
+      for (let i = 1; i <= n; i++) {
+        const q = at(ut * i / n), al = ra * i / n;
+        sx.globalAlpha = al; gx.globalAlpha = al * 0.5;
+        pLine(sx, p[0], p[1], q[0], q[1], pal.mid, 1); pLine(gx, p[0], p[1], q[0], q[1], pal.glow, 1); p = q;
+      }
+      sx.globalAlpha = gx.globalAlpha = 1;
+    }
+    if (uh - ut < 0.003) return;
+    const n = Math.max(4, Math.ceil(s.len * (uh - ut) / 1.5)), pts = [];
+    for (let i = 0; i <= n; i++) pts.push(at(ut + (uh - ut) * i / n));
+    // 尾は細く、切っ先の少し手前が一番太く、切っ先は尖る。front: 切っ先側だけ(白い芯。胴体は桜色のまま)
+    const band = (c, col, alpha, k, front) => {
+      const w = i => { const v = i / n; return s.w * k * Math.pow(Math.sin(Math.PI * v), 0.7) * (0.3 + 0.7 * v) * (front ? ss(clamp((v - 0.35) / 0.55, 0, 1)) : 1); };
+      c.globalAlpha = alpha; c.fillStyle = col; c.beginPath();
+      for (let i = 0; i <= n; i++) { const [x, y, nx, ny] = pts[i], r = w(i); c.lineTo(x + nx * r, y + ny * r); }
+      for (let i = n; i >= 0; i--) { const [x, y, nx, ny] = pts[i], r = w(i); c.lineTo(x - nx * r, y - ny * r); }
+      c.closePath(); c.fill(); c.globalAlpha = 1;
+    };
+    band(gx, pal.glow, 0.35, 1.6);      // 光
+    band(sx, pal.mid, 0.9, 1.35);       // 桜色の縁
+    band(sx, pal.bright, 1, 0.85);
+    band(sx, '#ffffff', 1, 0.35, true); // 白い芯(切っ先側)
+    const [hx, hy] = pts[n];
+    if (t < s.run) { sx.fillStyle = '#ffffff'; sx.fillRect(Math.round(hx), Math.round(hy), 1, 1); } // 走っている切っ先
+    addLight(hx + ox, hy + oy, 28, pal.glow, 0.6 * (1 - ut));
   };
   const drawSlashes = enemy => {
     if (!enemy) { // 一閃の間は周りを少し暗くする(刃筋だけが浮かび上がる)
       let dim = 0;
-      for (const s of slashes) if (s.cut) dim = Math.max(dim, cutDim(s.t));
+      for (const s of slashes) if (s.cut) dim = Math.max(dim, cutDim(s));
       if (dim > 0.01) { sx.globalAlpha = dim; sx.fillStyle = '#0a0208'; sx.fillRect(0, 0, VW, VH); sx.globalAlpha = 1; }
     }
     for (const s of slashes) {
@@ -435,6 +479,7 @@ function render() {
         continue;
       }
       if (s.cut) { drawCut(s); continue; } // 鬼神・村正の一閃
+      if (s.flow) { drawFlow(s); continue; } // 乱れ桜の流れる斬撃
       if (s.mark) { // 一閃で斬られた敵の上の細い斬り跡(1ドット。光は控えめ)
         const k = s.t / s.life, ax = s.x - cam.x, ay = s.y - cam.y, bx = s.x1 - cam.x, by = s.y1 - cam.y;
         sx.globalAlpha = 1 - k; pLine(sx, ax, ay, bx, by, '#ffffff', 1);

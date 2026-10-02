@@ -85,6 +85,7 @@ const WEAPON_SKILL = {
       a.hitT -= dt;
       if (a.hitT <= 0 && a.n < a.hits) { a.hitT += a.dur / a.hits; a.n++; ranbuHit(sk); }
       if (Math.random() < dt * 40) part(P.x + rand(-sk.radius, sk.radius) * P.area, P.y + rand(-sk.radius, sk.radius) * P.area, rand(-20, 20), rand(-30, 0), 0.8, pick(['#ffb7d5', '#ff8ac0', '#ffffff']), { glow: true, drag: 1 });
+      for (let n = dt * 45 * SET.fxA; Math.random() < n; n--) ranbuCut(sk); // あちこちで流れるような斬撃(毎秒 約45本)
       if (u >= a.dur) {
         if (hasSp('e', 'pow')) sakuraBurst(sk); // 桜吹雪
         P.act = null;
@@ -513,6 +514,23 @@ function ranbuHit(sk) {
   AudioMan.slash();
   if (hasSp('e', 'cd')) P.sk.e.cd = Math.max(0, P.sk.e.cd - (S.kills - k0)); // 剣の舞: 撃破1体ごとに CD -1秒
 }
+// 乱れ桜の演出: 範囲のあちこち(敵がいればその上)で、2点の間を数フレームかけて刻む、流れるような桜色の斬撃(ダメージは ranbuHit)
+//   切っ先が少し反った弧を描いて走り、少し遅れて尾がついていく(描画は render.js の drawFlow)
+//   配色は彩度の高い濃い桜色(淡い桃色はライト・発光・ブルームが重なると白に飛ぶ)
+const RANBU_PAL = { mid: '#a8185a', bright: '#e8357f', glow: '#b8205e' };
+function ranbuCut(sk) {
+  const R = sk.radius * P.area, r = Math.sqrt(Math.random()) * R * 0.8, ang = rand(0, TAU);
+  let cx = P.x + Math.cos(ang) * r, cy = P.y + Math.sin(ang) * r;
+  const tg = Math.random() < 0.6 ? nearestEnemy(cx, cy, 22) : null;
+  if (tg) { cx = tg.x; cy = tg.y; }
+  const a = rand(0, TAU), ca = Math.cos(a), sa = Math.sin(a), L = rand(16, 30) * P.area, run = rand(0.07, 0.11); // run: 切っ先が走る時間(4〜7フレーム)
+  const s = { flow: true, a, x0: cx - ca * L, y0: cy - sa * L, x1: cx + ca * L, y1: cy + sa * L, nx: -sa, ny: ca, bulge: L * 2 * rand(0.1, 0.22) * (Math.random() < 0.5 ? -1 : 1),
+    len: L * 2, t: 0, run, lag: run * 0.55, fade: 0.1, life: run * 1.55 + 0.1, w: rand(1.6, 2.4), pal: RANBU_PAL };
+  s.ev = [{ at: run, fn: () => asMine(() => { // 走り抜けた先に花びら
+    for (let i = 0; i < 2; i++) part(s.x1, s.y1, ca * rand(20, 80) + rand(-20, 20), sa * rand(20, 80) + rand(-20, 20), rand(0.3, 0.6), pick(['#ffb7d5', '#ff8ac0', '#ffffff']), { glow: true, drag: 3 });
+  }) }];
+  slashes.push(s);
+}
 function sakuraBurst(sk) {
   const R = sk.burstR * P.area, dmg = wst(P.mainW).dmg * sk.burst * (1 + cuV('e', 'pow')) * P.act.pow;
   asMine(() => {
@@ -604,7 +622,12 @@ const CLASS_RT = {
     // 居合・朧月(Q): 構え → 突進して通過した敵を斬る。剣気を全て消費し、消費量で威力が上がる
     qStart() {
       const q = DATA.classes.samurai.q, a = aimDir(q.dist * 1.6);
-      P.act = { slot: 'q', ph: 'wind', t: 0, a, ki: P.ki, x0: P.x, y0: P.y, hits: new Set(), back: false };
+      const D = q.dist * (1 + cuV('q', 'reach')), full = kiHigh();
+      // 一閃(演出): 構えの間に周りが暗くなり刃筋が点線で走る → 突進と同時に切っ先が走る → 遅れて炸裂(world.js の makeCut)
+      const cut = makeCut(P.x, P.y, P.x + Math.cos(a) * D, P.y + Math.sin(a) * D, { omen: q.windup, run: q.windup + q.dash, hit: q.windup + q.dash + 0.08, life: 0.9, wk: full ? 1.2 : 0.85, late: true });
+      cut.ev.push({ at: q.windup, fn: () => { AudioMan.cut(); GFX.fx.aberr = Math.max(GFX.fx.aberr, (full ? 1 : 0.7) * SET.fxA); } }, { at: q.windup + q.dash, fn: () => cutSpark(cut, full ? 26 : 16) });
+      P.act = { slot: 'q', ph: 'wind', t: 0, a, ki: P.ki, x0: P.x, y0: P.y, hits: new Set(), back: false, cut };
+      AudioMan.cutDraw();
       if (Math.cos(a) !== 0) P.facing = Math.cos(a) < 0 ? -1 : 1;
       playAnim('iai', MOTIONS.iai.dur);
       slowmo(0.35, 0.22);
@@ -631,7 +654,14 @@ const CLASS_RT = {
         if (!la || d2(la.x, la.y, P.x, P.y) > 36) P.after = (P.after || []).concat([{ x: P.x, y: P.y, t: 0, f: P.facing }]).slice(-6);
         if (a.t - a.t0 < q.dash) return;
         iaiStrike(a);
-        if (hasSp('q', 'cd') && !a.back) { a.back = true; a.hits = new Set(); a.t0 = a.t; a.x0 = P.x; a.y0 = P.y; return; } // 燕返し
+        if (hasSp('q', 'cd') && !a.back) { // 燕返し: 元の位置へ戻りながらもう一度斬る(予兆なし)
+          a.back = true; a.hits = new Set(); a.t0 = a.t; a.x0 = P.x; a.y0 = P.y;
+          const D = q.dist * reach, full = a.ki >= DATA.classes.samurai.params.kiFull;
+          a.cut = makeCut(P.x, P.y, P.x - Math.cos(a.a) * D, P.y - Math.sin(a.a) * D, { omen: 0, run: q.dash, hit: q.dash + 0.08, life: 0.7, wk: full ? 1.1 : 0.75, late: true, nodim: true });
+          a.cut.ev.push({ at: q.dash, fn: () => cutSpark(a.cut, 12) });
+          AudioMan.cut();
+          return;
+        }
         a.ph = 'rec'; a.t0 = a.t;
         return;
       }
@@ -688,6 +718,7 @@ const CLASS_RT = {
           `長押しでガード(移動 ×${p.guardSlow})。構えた瞬間にスタミナ ${p.guardCost}`,
           `構えてから ${p.parryWin}秒以内に受けるとジャスト見切り`,
           `  → スタミナを使わず周囲に反撃・剣気 +${p.kiParry}・無敵 ${p.parryIfr}秒`,
+          '  → その後も押している間はガードを続ける',
           'それ以外は受けたダメージ分のスタミナで受ける',
           `スタミナ 0 でガードブレイク(${p.breakT}秒 ガード不可・被ダメ +${Math.round(p.breakDmg * 100)}%)`,
         ], rows: [
@@ -1489,26 +1520,38 @@ const CLASS_RT = {
   },
 };
 
-// 居合の斬撃: 通過した敵にまとめてダメージ(少し遅れて斬撃線が炸裂する)
+// 居合の斬撃: 通過した敵にまとめてダメージ(切っ先が走り終えた少しあとに、一閃の演出と同時に炸裂する)
 function iaiStrike(a) {
   const q = DATA.classes.samurai.q, full = a.ki >= DATA.classes.samurai.params.kiFull, ittou = hasSp('q', 'pow') && full;
   const dmg = (q.pow + a.ki * q.kiPow) * (1 + cuV('q', 'pow') + (P.lvFx.qPow || 0)) * (a.back ? 0.6 : 1) * (ittou ? 1.5 : 1);
-  const x0 = a.x0, y0 = a.y0, x1 = P.x, y1 = P.y, hits = [...a.hits];
-  slashes.push({ line: true, x: x0, y: y0, x1, y1, t: 0, life: 0.2, w: 2 }); // 突進の軌跡(細い線。直後の炸裂との差を出す)
-  setTimeout(() => asMine(() => {
+  const x0 = a.x0, y0 = a.y0, x1 = P.x, y1 = P.y, hits = [...a.hits], ca = Math.cos(a.a), sa = Math.sin(a.a);
+  const onHit = () => {
     if (state !== 'play' && state !== 'levelup') return;
-    for (const e of hits) if (!e.dead) {
-      hitEnemy(e, dmg, { src: 'iai', ang: a.a, kb: 120, col: '#ff3b5c' });
-      if (ittou && !e.dead) { e.bleed = (e.bleed || 0) + 10; e.bleedT = DATA.bleed.dur; } // 一刀両断: 出血 10スタック
-      burst(e.x, e.y, 10, ['#ff3b5c', '#ffffff'], { sp: 100, glow: true, life: 0.35 });
-    }
-    slashes.push({ line: true, x: x0, y: y0, x1, y1, t: 0, life: 0.3, w: full ? 8 : 6 });
-    const mx = (x0 + x1) / 2, my = (y0 + y1) / 2;
-    hitstop(0.08); shake(full ? 10 : 7); screenFlash((full ? 0.3 : 0.2) * SET.fxA, full ? '#ff3b5c' : '#ffffff');
-    shockAt(mx, my, full ? 1.8 : 1.3, 1); addFlash(mx, my, 120, full ? '#ff3b5c' : '#ffffff', 0.4);
-    if (full) addRing(mx, my, 70, '#ff3b5c', { w: 3, life: 0.45 });
-    AudioMan.slash(); AudioMan.crit();
-  }), 110);
+    asMine(() => {
+      let marks = 0;
+      for (const e of hits) if (!e.dead) {
+        hitEnemy(e, dmg, { src: 'iai', ang: a.a, kb: 120, col: '#ff3b5c' });
+        if (ittou && !e.dead) { e.bleed = (e.bleed || 0) + 10; e.bleedT = DATA.bleed.dur; } // 一刀両断: 出血 10スタック
+        if (marks++ < 8) slashes.push({ mark: true, x: e.x - ca * 8, y: e.y - sa * 8, x1: e.x + ca * 8, y1: e.y + sa * 8, t: 0, life: 0.16 }); // 敵の上の細い斬り跡
+        for (let i = 0; i < 8; i++) { // 血しぶき(線の両側へ)
+          const k = i % 2 ? 1 : -1, sp = rand(40, 120);
+          part(e.x, e.y, -sa * k * sp + ca * rand(-30, 30), ca * k * sp + sa * rand(-30, 30) - 20, rand(0.3, 0.6), pick(['#a0122a', '#5a0a14', '#ff3b5c']), { g: 220, drag: 2, sz: pick([1, 2]) });
+        }
+        burst(e.x, e.y, 6, ['#ff3b5c', '#ffffff'], { sp: 100, glow: true, life: 0.35 });
+      }
+      for (let i = 0; i < (full ? 30 : 18); i++) { // 墨のような飛沫(線全体から)
+        const u = Math.random(), k = Math.random() < 0.5 ? -1 : 1, sp = rand(20, 100);
+        part(x0 + (x1 - x0) * u, y0 + (y1 - y0) * u, -sa * k * sp, ca * k * sp - 10, rand(0.4, 0.8), pick(['#1a0508', '#1a0508', '#a0122a', '#ff3b5c', '#ffd0d8']), { g: 140, drag: 2.5, sz: pick([1, 1, 2]), glow: Math.random() < 0.3 });
+      }
+      const mx = (x0 + x1) / 2, my = (y0 + y1) / 2;
+      hitstop(0.08); shake(full ? 10 : 7); screenFlash((full ? 0.3 : 0.2) * SET.fxA, full ? '#ff3b5c' : '#ffffff');
+      shockAt(mx, my, full ? 1.8 : 1.3, 1); addFlash(mx, my, 120, full ? '#ff3b5c' : '#ffffff', 0.4);
+      if (full) addRing(mx, my, 70, '#ff3b5c', { w: 3, life: 0.45 });
+    });
+    AudioMan.cutHit(); AudioMan.crit();
+  };
+  a.cut.onHit = onHit; // 炸裂の時刻は一閃(makeCut の late)が決める。すでに過ぎていたらすぐ
+  if (a.cut.hitDue) onHit();
   // CD(連環: 消費した剣気1につき 0.1秒短縮)
   if (!a.back) {
     const base = q.cd * (1 - cuV('q', 'cd')) * P.cdMul;
@@ -1531,11 +1574,11 @@ function kiAdd(n, flat) {
   }
 }
 
-// ジャスト見切り: スタミナを使わず、剣気を得て周囲に反撃
+// ジャスト見切り: スタミナを使わず、剣気を得て周囲に反撃。押している間はガードを続ける(無敵が切れた後は通常のガード)
 function samuraiParry() {
   const c = DATA.classes.samurai.params;
   kiAdd(c.kiParry);
-  P.ifr = c.parryIfr; P.guard = false;
+  P.ifr = c.parryIfr;
   asMine(() => {
     const R = c.parryR * P.area;
     forEachNear(P.x, P.y, R, e => { if (!e.prop) hitEnemy(e, c.parryPow, { src: 'parry', ang: Math.atan2(e.y - P.y, e.x - P.x), kb: 80, col: '#ffffff' }); });
