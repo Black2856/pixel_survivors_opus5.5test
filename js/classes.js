@@ -272,14 +272,15 @@ function slamWaves(a, x0, y0, k) {
   }, i * sk.gap * 1000);
 }
 
-// 火炎放射(ファイアーの E): 構え → 照準方向へ扇形に炎を吹き続ける(移動は遅くなる)。火炎旋風: 終わりに先端へ炎の竜巻
+// 火炎放射(ファイアーの E): 構え → 照準方向へ扇形に炎を吹き続ける(放射中も動ける)
+//   ダブル放射: 反対方向にも吹く / 火炎旋風: 攻撃ごとに放射先(炎の先端)へ吸い込み
 WEAPON_SKILL.fire = {
   info(c, dmg) {
-    const sk = DATA.weapons.fire.skill, m = c.wm, dur = sk.dur + (c.hasSp('e', 'cd') ? 1 : 0) + (m.eDur || 0), one = dmg * sk.pow * (1 + c.cuV('e', 'pow')) * (1 + (m.ePow || 0));
+    const sk = DATA.weapons.fire.skill, m = c.wm, dur = sk.dur + (m.eDur || 0), one = dmg * sk.pow * (1 + c.cuV('e', 'pow')) * (1 + (m.ePow || 0));
     return { name: sk.name, cat: 'e', desc: [
       `構え ${sk.windup}秒(動けない)→ ${sk.dur}秒間、照準方向へ扇形に炎を吹き続ける`,
       `${sk.every}秒ごとに、範囲内の敵へ 武器の威力 × ${Math.round(sk.pow * 100)}% と炎上(武器の燃焼/s × ${Math.round(sk.burn * 100)}% を 3秒)`,
-      `放射中は移動速度 ×${sk.slow}`,
+      '放射中も動ける',
       'E の攻撃なので、クラスの「攻撃1回ごと」の効果が1回ごとに起きる',
     ], rows: [
       ['CD', `<b>${(sk.cd * (1 - c.cuV('e', 'cd')) * (1 - (m.cd || 0)) * c.cdMul).toFixed(1)}</b> 秒`],
@@ -289,7 +290,7 @@ WEAPON_SKILL.fire = {
     ] };
   },
   start() {
-    const sk = weaponSkill(), m = P.wm.fire || {}, dur = sk.dur + (hasSp('e', 'cd') ? 1 : 0) + (m.eDur || 0); // 持続放射
+    const sk = weaponSkill(), m = P.wm.fire || {}, dur = sk.dur + (m.eDur || 0);
     P.act = { slot: 'e', ph: 'wind', t: 0, dur, acc: 0, a: aimDir(sk.len * 1.5), pow: clsESkillMul() * (1 + (m.ePow || 0)) };
     setCd('e', sk.cd * (1 - cuV('e', 'cd')) * (1 - (m.cd || 0)) * P.cdMul);
     playAnim('pFlame', MOTIONS.pFlame.duration(dur), dur);
@@ -317,19 +318,12 @@ WEAPON_SKILL.fire = {
       if (a.t >= sk.windup) { a.ph = 'fire'; a.t0 = a.t; }
       return;
     }
-    P.moveMul *= sk.slow;
-    P.flame = { a: a.a, len: L, arc: sk.arc, blue, t: a.t - a.t0 };
-    flamePuffs(a.a, L, sk.arc, blue, dt);
+    const dirs = hasSp('e', 'cd') ? [a.a, a.a + Math.PI] : [a.a]; // ダブル放射: 反対方向にも
+    P.flame = { a: a.a, len: L, arc: sk.arc, blue, t: a.t - a.t0, dbl: dirs.length > 1 };
+    for (const d of dirs) flamePuffs(d, L, sk.arc, blue, dt);
     a.acc += dt;
-    while (a.acc >= sk.every) { a.acc -= sk.every; flameTick(a, L, blue); }
-    if (a.t - a.t0 >= a.dur) {
-      P.flame = null; P.act = null;
-      if (hasSp('e', 'len')) { // 火炎旋風
-        const st = wst(P.mainW);
-        zones.push({ kind: 'vortex', x: P.x + Math.cos(a.a) * L, y: P.y + Math.sin(a.a) * L, r: sk.vortexR * P.area, t: 0, dur: sk.vortexT, tick: 0, every: sk.vortexEvery,
-          dmg: st.dmg * sk.vortexPow * (1 + cuV('e', 'pow')) * a.pow, pull: sk.pull, blue });
-      }
-    }
+    while (a.acc >= sk.every) { a.acc -= sk.every; for (const d of dirs) flameTick(a, d, L, blue); }
+    if (a.t - a.t0 >= a.dur) { P.flame = null; P.act = null; }
   },
 };
 // 火炎放射の見た目: 杖先から炎の塊を噴き出す(描画は render.js)。先端の速さは長さ L に届くように
@@ -342,18 +336,39 @@ function flamePuffs(ang, L, arc, blue, dt) {
   }
   if (Math.random() < dt * 25) part(nx, ny, Math.cos(ang) * L * 2 + rand(-40, 40), Math.sin(ang) * L * 2 + rand(-40, 40), rand(0.3, 0.5), blue ? '#ffffff' : pick(['#ffc34a', '#fff6c8']), { glow: true, drag: 2 }); // 火の粉
 }
-// 火炎放射の1回: 扇形の中の敵へダメージと炎上(1回 = 1回の E の攻撃)
-function flameTick(a, L, blue) {
-  const sk = DATA.weapons.fire.skill, st = wst(P.mainW), dmg = st.dmg * sk.pow * (1 + cuV('e', 'pow')) * a.pow, burn = (st.burn || 0) * sk.burn * (blue ? 2 : 1), el = clsNextEl();
+// 火炎放射の1回: 向き ang の扇形の中の敵へダメージと炎上(1回 = 1回の E の攻撃)
+function flameTick(a, ang, L, blue) {
+  const sk = DATA.weapons.fire.skill, st = wst(P.mainW), pw = (1 + cuV('e', 'pow')) * a.pow, dmg = st.dmg * sk.pow * pw, burn = (st.burn || 0) * sk.burn * (blue ? 2 : 1), el = clsNextEl();
   asMine(() => forEachNear(P.x, P.y, L, e => {
-    let diff = Math.atan2(e.y - P.y, e.x - P.x) - a.a;
+    let diff = Math.atan2(e.y - P.y, e.x - P.x) - ang;
     diff = Math.atan2(Math.sin(diff), Math.cos(diff));
     if (Math.abs(diff) > sk.arc / 2) return;
     if (e.prop) { killEnemy(e); return; }
-    hitEnemy(e, dmg, { src: 'flamer', ang: a.a, kb: 6, col: blue ? '#7ad7ff' : '#ff8a3d', el, eHit: true, noNum: Math.random() < 0.6 });
+    hitEnemy(e, dmg, { src: 'flamer', ang, kb: 6, col: blue ? '#7ad7ff' : '#ff8a3d', el, eHit: true, noNum: Math.random() < 0.6 });
     if (!e.dead) addBurn(e, burn, 3, 'flamer');
   }));
+  if (hasSp('e', 'len')) flameSuck(P.x + Math.cos(ang) * L, P.y + Math.sin(ang) * L, st.dmg * sk.suckPow * pw, blue); // 火炎旋風
   if (Math.random() < 0.3) AudioMan.fire();
+}
+// 火炎旋風: 放射先(炎の先端)へ周りの敵を吸い込み、半径 suckR の敵を焼く(攻撃1回ごと)。ボスは引き寄せない
+function flameSuck(x, y, dmg, blue) {
+  const sk = DATA.weapons.fire.skill, R = sk.suckR * P.area, cols = blue ? ['#7ad7ff', '#bff4ff', '#ffffff'] : ['#ff6a2a', '#ffc34a', '#fff6c8'];
+  asMine(() => {
+    forEachNear(x, y, R * 2, e => {
+      if (e.prop) return;
+      const dd = Math.sqrt(d2(x, y, e.x, e.y));
+      if (dd <= R) hitEnemy(e, dmg, { src: 'flamer', noNum: Math.random() < 0.6, col: blue ? '#7ad7ff' : '#ff8a3d', eHit: true });
+      if (e.boss || e.dead) return;
+      const a = Math.atan2(y - e.y, x - e.x), k = Math.min(dd, sk.suckPull * (1 - (e.kbRes || 0) * 0.6));
+      e.x += Math.cos(a) * k; e.y += Math.sin(a) * k;
+    });
+    // 見た目: 先端へ渦を巻いて吸い込まれる火の粉と、縮む輪
+    for (let i = 0; i < 4; i++) {
+      const a = rand(0, TAU), r = R * rand(0.7, 1.1), sp = r * 6;
+      part(x + Math.cos(a) * r, y + Math.sin(a) * r * 0.7, (-Math.cos(a) - Math.sin(a) * 0.8) * sp, (-Math.sin(a) + Math.cos(a) * 0.8) * sp * 0.7, 0.18, pick(cols), { glow: true, drag: 3 });
+    }
+    addRing(x, y, 2, cols[0], { r0: R, life: 0.18 });
+  });
 }
 
 // アイシクルフォール(ブリザードの E): 構え → 照準位置につららが降り続ける(放った後は動ける)

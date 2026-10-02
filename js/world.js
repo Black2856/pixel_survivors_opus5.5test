@@ -724,22 +724,6 @@ function updZones(dt) {
         }
       }
       if (z.t + dt >= z.dur && !z.done) { z.done = true; asMine(() => { addFlash(z.x, z.y, z.r * 2.4, '#b8ff9a', 0.3); addRing(z.x, z.y, z.r, '#e4ffd8', { w: 2, life: 0.35 }); }); }
-    } else if (z.kind === 'vortex') { // 火炎旋風: 周りの敵を引き寄せながら焼く
-      forEachNear(z.x, z.y, z.r * 2, e => {
-        if (e.boss || e.prop) return;
-        const a = Math.atan2(z.y - e.y, z.x - e.x), dd = Math.sqrt(d2(z.x, z.y, e.x, e.y));
-        const k = Math.min(dd, z.pull * dt * (1 - (e.kbRes || 0) * 0.6));
-        e.x += Math.cos(a) * k; e.y += Math.sin(a) * k;
-      });
-      if (z.tick <= 0) {
-        z.tick = z.every;
-        asMine(() => forEachNear(z.x, z.y, z.r, e => { if (!e.prop) hitEnemy(e, z.dmg, { src: 'flamer', noNum: Math.random() < 0.6, col: z.blue ? '#7ad7ff' : '#ff8a3d', eHit: true }); }));
-      }
-      const cols = z.blue ? ['#7ad7ff', '#bff4ff', '#ffffff'] : ['#ff6a2a', '#ffc34a', '#fff6c8'];
-      for (let k = 0; k < 3; k++) {
-        const a = z.t * 9 + k * TAU / 3 + rand(-0.3, 0.3), r = z.r * rand(0.3, 1);
-        part(z.x + Math.cos(a) * r, z.y + Math.sin(a) * r * 0.6, -Math.sin(a) * 60, -rand(30, 70), 0.4, pick(cols), { glow: true, drag: 1 });
-      }
     } else if (z.kind === 'lightrain') { // 光の雨: 中にいると HP が回復する
       if (d2(P.x, P.y, z.x, z.y) < z.r * z.r) heal(DATA.weapons.aura.skill.rainHeal * dt, true);
       if (Math.random() < dt * 12) part(z.x + rand(-z.r, z.r) * 0.7, z.y + rand(-z.r, z.r) * 0.5, 0, -rand(10, 25), 0.6, pick(['#ffe38a', '#fff6d8']), { glow: true });

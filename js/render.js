@@ -612,18 +612,6 @@ function render() {
       }
       gx.globalAlpha = 1;
       addLight(z.x, z.y, z.r * 2.2, '#bff4ff', 0.6 * fade);
-    } else if (z.kind === 'vortex') { // 火炎旋風: 回る炎の輪
-      const col = z.blue ? '#7ad7ff' : '#ff6a2a', hi = z.blue ? '#ffffff' : '#ffc34a';
-      sx.globalAlpha = 0.25 * fade; pDisc(sx, zx, zy, Math.round(z.r), col);
-      for (let i = 0; i < 3; i++) {
-        const R = z.r * (0.4 + 0.3 * i), a0 = t * (6 - i) + i;
-        for (let a = 0; a < 2.2; a += 0.12) {
-          const x = Math.round(zx + Math.cos(a0 + a) * R), y = Math.round(zy + Math.sin(a0 + a) * R * 0.6);
-          sx.globalAlpha = gx.globalAlpha = fade * (1 - a / 2.4); sx.fillStyle = gx.fillStyle = a < 0.3 ? '#ffffff' : hi; sx.fillRect(x, y, 1, 1); gx.fillRect(x, y, 1, 1);
-        }
-      }
-      sx.globalAlpha = gx.globalAlpha = 1;
-      addLight(z.x, z.y, z.r * 2.5, col, 0.8 * fade);
     } else if (z.kind === 'residue') {
       sx.globalAlpha = 0.28 * fade; pDisc(sx, zx, zy, Math.round(z.r), '#bff4ff');
       sx.globalAlpha = 0.7 * fade; pCircle(sx, zx, zy, Math.round(z.r), '#ffffff', 1); sx.globalAlpha = 1;
@@ -817,11 +805,14 @@ function render() {
       }
       sx.globalAlpha = gx.globalAlpha = 1;
     }
-    if (P.flame) { // 杖先の噴き出し口と、炎に照らされた地面
-      const f = P.flame, nx = P.x + Math.cos(f.a) * 9 - cam.x, ny = P.y - 6 + Math.sin(f.a) * 6 - cam.y;
-      gx.globalAlpha = 0.5; pDisc(gx, nx, ny, 2 + Math.round(Math.random()), f.blue ? '#bff4ff' : '#ffc34a'); gx.globalAlpha = 1;
-      pDisc(sx, nx, ny, 2, '#ffffff');
-      addLight(P.x + Math.cos(f.a) * f.len * 0.5, P.y + Math.sin(f.a) * f.len * 0.5, f.len * 1.8, f.blue ? '#7ad7ff' : '#ff8a3d', 0.9 + 0.1 * Math.sin(t * 25));
+    if (P.flame) { // 杖先の噴き出し口と、炎に照らされた地面(ダブル放射は反対側にも)
+      const f = P.flame;
+      for (const a of f.dbl ? [f.a, f.a + Math.PI] : [f.a]) {
+        const nx = P.x + Math.cos(a) * 9 - cam.x, ny = P.y - 6 + Math.sin(a) * 6 - cam.y;
+        gx.globalAlpha = 0.5; pDisc(gx, nx, ny, 2 + Math.round(Math.random()), f.blue ? '#bff4ff' : '#ffc34a'); gx.globalAlpha = 1;
+        pDisc(sx, nx, ny, 2, '#ffffff');
+        addLight(P.x + Math.cos(a) * f.len * 0.5, P.y + Math.sin(a) * f.len * 0.5, f.len * 1.8, f.blue ? '#7ad7ff' : '#ff8a3d', 0.9 + 0.1 * Math.sin(t * 25));
+      }
     }
     addLight(P.x, P.y, 105, DATA.classes[P.cls].light || '#ffe2b8', 0.95);
   }

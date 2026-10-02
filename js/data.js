@@ -213,16 +213,16 @@ const DATA = {
         { cd: 1.2, dmg: 24, count: 3, burn: 15 },
       ],
       evo: { name: 'インフェルノ', desc: '着弾毎に爆炎が広がる', st: { cd: 1.0, dmg: 30, count: 4, burn: 22 } },
-      // 武器スキル(E)火炎放射: 構え windup 秒(動けない)→ dur 秒間、照準方向へ扇形(長さ len・角度 arc)に炎を吹き続ける(移動 ×slow)
+      // 武器スキル(E)火炎放射: 構え windup 秒(動けない)→ dur 秒間、照準方向へ扇形(長さ len・角度 arc)に炎を吹き続ける(放射中も動ける)
       //   every 秒ごとに、範囲内の敵へ 武器の威力 × pow と炎上(武器の燃焼/s × burn を 3秒)
-      //   火炎旋風: 終わりに先端へ炎の竜巻(vortexT 秒、半径 vortexR、vortexEvery 秒ごとに 武器の威力 × vortexPow、引き寄せ pull)
+      //   ダブル放射: 反対方向にも吹く / 火炎旋風: 攻撃ごとに放射先(炎の先端)へ吸い込み(半径 suckR の敵へ 武器の威力 × suckPow。半径の2倍まで suckPull ずつ引き寄せる)
       skill: {
-        name: '火炎放射', cd: 20, windup: 0.2, dur: 2, every: 0.1, pow: 0.3, burn: 0.4, len: 80, arc: 0.87, slow: 0.6, radius: 70,
-        vortexT: 3, vortexR: 30, vortexEvery: 0.25, vortexPow: 0.3, pull: 60,
+        name: '火炎放射', cd: 20, windup: 0.2, dur: 2, every: 0.1, pow: 0.3, burn: 0.4, len: 80, arc: 0.87, radius: 70,
+        suckR: 30, suckPow: 0.2, suckPull: 8,
         tree: { name: '火炎放射', paths: {
           pow: { name: '威力', desc: ['火炎放射の威力 +30%', '火炎放射の威力 +60%', '火炎放射の威力 +100%'], v: [0.3, 0.6, 1.0], sp: { name: '蒼炎', desc: '炎が青くなり、付与する炎上が 2倍' } },
-          cd:  { name: '迅速', desc: ['火炎放射のCD -10%', '火炎放射のCD -20%', '火炎放射のCD -30%'], v: [0.1, 0.2, 0.3], sp: { name: '持続放射', desc: '放射時間 +1秒' } },
-          len: { name: '射程', desc: ['火炎放射の長さ +20%', '火炎放射の長さ +40%', '火炎放射の長さ +60%'], v: [0.2, 0.4, 0.6], sp: { name: '火炎旋風', desc: '放射の終わりに、先端へ 3秒間 炎の竜巻が残る(武器の威力 × 30% / 0.25秒、敵を引き寄せる)' } },
+          cd:  { name: '迅速', desc: ['火炎放射のCD -10%', '火炎放射のCD -20%', '火炎放射のCD -30%'], v: [0.1, 0.2, 0.3], sp: { name: 'ダブル放射', desc: '反対方向にも火炎放射を発生する' } },
+          len: { name: '射程', desc: ['火炎放射の長さ +20%', '火炎放射の長さ +40%', '火炎放射の長さ +60%'], v: [0.2, 0.4, 0.6], sp: { name: '火炎旋風', desc: '放射先に吸い込みが発生する(攻撃ごと。武器の威力 × 20%)' } },
         } },
       },
       // 熟練(パイロマンサーの Lv で解放。ファイアーを使うどのクラスにも効く)。範囲は火炎弾の大きさと爆炎の半径
@@ -633,7 +633,7 @@ const DATA = {
       lv: {
         2: { d: '最大HP +10', st: { hp: 10 } },
         3: { d: '業火: 1スタックの炎上ダメージ +0.5%', fx: { stackPct: 0.005 } },
-        6: { d: '炎壁: スタミナ 35 → 30', fx: { wallCut: 5 } },
+        6: { d: '炎壁: スタミナ 75 → 70', fx: { wallCut: 5 } },
         8: { d: '焔纏い: 付与量 +5%', fx: { ignite: 0.05 } },
         11: { d: '煉獄: 威力 +20%', fx: { qPow: 0.2 } },
         13: { d: '最大HP +10、スタミナ +20', st: { hp: 10, sta: 20 } },
@@ -651,7 +651,7 @@ const DATA = {
       params: {
         stackPct: 0.025, stackMax: 10, spreadPct: 0.25, spreadR: 40, spreadN: 2, whiteAt: 10, whiteCrit: 0.2, chainR: 25, emberPct: 0.3,
         wearT: 4, ignite: 0.15, critIgnite: 1.5, extendT: 0.5, extendMax: 3, kindleR: 60, kindleBurn: 0.5, drain: 0.03, hellBurn: 0.5,
-        wallR: 45, wallBurn: 15, wallIfr: 0.3, wallCost: 35,
+        wallR: 45, wallBurn: 15, wallIfr: 0.3, wallCost: 75,
       },
       // 煉獄(Q): 構え windup 秒 → 画面内の炎上中の敵全員の炎上を爆発させる。基礎威力 base + 残っていた炎上ダメージ × mul をすぐに与え、
       //   その敵の周り(半径 r)に 基礎威力 pow + 炎上スタック数 × perStack の爆風。炎上は消費する
