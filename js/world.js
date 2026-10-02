@@ -550,29 +550,65 @@ function doSlash(a, st, evo, flip) {
   }
   AudioMan.slash();
 }
-// 鬼神・村正の一閃: 近くの敵を通るランダムな向きの長い切り裂き(刀の威力 × 800%、出血 +5)。線は一瞬で走り、だんだん細くなって消える
-const CUT_EVERY = 50;
+// 鬼神・村正の一閃: 近くの敵を通るランダムな向きの長い切り裂き(刀の威力 × 800%、出血 +5)
+//   時刻はゲーム時間(slashes の t)で進め、決まった時刻に s.ev のイベントを起こす(ヒットストップ・スローでもずれない)
+//   0 〜 CUT_OMEN      予兆: 周りが少し暗くなり、刃の筋が点線でうっすら走る。始点と自分の刀がきらめく
+//   CUT_OMEN 〜 CUT_RUN  一閃: 切っ先が端から端へ走る(色収差)。走り終えた瞬間に一瞬止まる
+//   CUT_RUN 〜           残心: 白い芯 → 赤 → 墨の縁と細くなって消える。空間が裂けたように線が二つに分かれる
+//   CUT_HIT              遅れて斬撃が炸裂: ダメージ・出血・敵の上の斬り跡・血しぶきと墨の飛沫
+const CUT_EVERY = 50, CUT_OMEN = 0.1, CUT_RUN = 0.16, CUT_HIT = 0.24, CUT_LIFE = 0.85;
+// 一閃の中心線(少し反った三日月)。u = 0..1
+function cutPt(s, u) {
+  const b = s.bulge * Math.sin(Math.PI * u);
+  return [s.x0 + (s.x1 - s.x0) * u + s.nx * b, s.y0 + (s.y1 - s.y0) * u + s.ny * b];
+}
 function muramasaCut(st) {
   const tg = nearestEnemy(P.x, P.y, 140), cx = tg ? tg.x : P.x, cy = tg ? tg.y : P.y;
-  const a = rand(0, TAU), L = 120 * P.area, W = 14 * P.area, x0 = cx - Math.cos(a) * L, y0 = cy - Math.sin(a) * L, x1 = cx + Math.cos(a) * L, y1 = cy + Math.sin(a) * L;
-  setTimeout(() => {
-    if (state !== 'play') return;
-    asMine(() => {
-      const L2 = (x1 - x0) ** 2 + (y1 - y0) ** 2;
-      forEachNear(cx, cy, L + W, e => {
-        const u = clamp(((e.x - x0) * (x1 - x0) + (e.y - y0) * (y1 - y0)) / L2, 0, 1), px = x0 + (x1 - x0) * u, py = y0 + (y1 - y0) * u;
-        if (d2(e.x, e.y, px, py) > (W + (e.r || 4)) ** 2) return;
-        if (e.prop) { killEnemy(e); return; }
-        hitEnemy(e, st.dmg * 8, { src: 'katana', ang: a + Math.PI / 2, kb: 60, col: '#ff3b5c' });
-        if (!e.dead) { e.bleed = (e.bleed || 0) + 5; e.bleedT = DATA.bleed.dur; } // 出血 5
-        burst(e.x, e.y, 8, ['#ff3b5c', '#a0122a', '#ffffff'], { sp: 90, glow: true, life: 0.4 });
+  const a = rand(0, TAU), L = 120 * P.area, W = 14 * P.area;
+  const s = { cut: true, a, x0: cx - Math.cos(a) * L, y0: cy - Math.sin(a) * L, x1: cx + Math.cos(a) * L, y1: cy + Math.sin(a) * L,
+    nx: -Math.sin(a), ny: Math.cos(a), bulge: L * 0.05 * (Math.random() < 0.5 ? -1 : 1), len: L * 2, t: 0, life: CUT_LIFE };
+  s.ev = [
+    { at: CUT_OMEN, fn: () => { AudioMan.cut(); GFX.fx.aberr = Math.max(GFX.fx.aberr, 0.9 * SET.fxA); } },
+    { at: CUT_RUN, fn: () => { // 走り終えた瞬間: 一瞬止めて、切っ先の先で火花
+      hitstop(0.05); shake(3); screenFlash(0.08 * SET.fxA, '#ff3b5c');
+      asMine(() => {
+        for (let i = 0; i < 22; i++) { const [x, y] = cutPt(s, Math.random()), sp = rand(60, 170); part(x, y, Math.cos(s.a) * sp, Math.sin(s.a) * sp, rand(0.12, 0.28), pick(['#ffffff', '#ffd0d8', '#ff8a9a']), { glow: true, drag: 5 }); }
+        burst(s.x1, s.y1, 12, ['#ffffff', '#ff5d73'], { sp: 110, glow: true, life: 0.3 });
       });
-      slashes.push({ cut: true, x: x0, y: y0, x1, y1, t: 0, life: 0.6, w: 7 });
-      for (let i = 0; i <= 16; i++) { const u = i / 16; part(x0 + (x1 - x0) * u, y0 + (y1 - y0) * u, Math.cos(a + Math.PI / 2) * rand(-40, 40), Math.sin(a + Math.PI / 2) * rand(-40, 40), rand(0.3, 0.6), pick(['#ff3b5c', '#ffffff', '#ff8a9a']), { glow: true, drag: 3 }); }
-      addFlash(cx, cy, L * 1.6, '#ff5d73', 0.25); shockAt(cx, cy, 0.9, 1.4); shake(6); hitstop(0.05);
+    } },
+    { at: CUT_HIT, fn: () => cutHit(s, st, W) },
+  ];
+  slashes.push(s);
+  AudioMan.cutDraw();
+}
+// 遅れて斬撃が炸裂する: 線(三日月)に沿って当たり判定
+function cutHit(s, st, W) {
+  if (state !== 'play') return;
+  asMine(() => {
+    const L2 = (s.x1 - s.x0) ** 2 + (s.y1 - s.y0) ** 2, cx = (s.x0 + s.x1) / 2, cy = (s.y0 + s.y1) / 2, ca = Math.cos(s.a), sa = Math.sin(s.a);
+    let marks = 0;
+    forEachNear(cx, cy, s.len / 2 + W, e => {
+      const u = clamp(((e.x - s.x0) * (s.x1 - s.x0) + (e.y - s.y0) * (s.y1 - s.y0)) / L2, 0, 1), [px, py] = cutPt(s, u);
+      if (d2(e.x, e.y, px, py) > (W + (e.r || 4)) ** 2) return;
+      if (e.prop) { killEnemy(e); return; }
+      const sd = (e.x - px) * s.nx + (e.y - py) * s.ny < 0 ? -1 : 1; // 線のどちら側にいるか(そちらへ押し出す)
+      hitEnemy(e, st.dmg * 8, { src: 'katana', ang: Math.atan2(s.ny * sd, s.nx * sd), kb: 70, col: '#ff3b5c' });
+      if (!e.dead) { e.bleed = (e.bleed || 0) + 5; e.bleedT = DATA.bleed.dur; } // 出血 5
+      if (marks++ < 8) slashes.push({ mark: true, x: e.x - ca * 8, y: e.y - sa * 8, x1: e.x + ca * 8, y1: e.y + sa * 8, t: 0, life: 0.16 }); // 敵の上の細い斬り跡(重なって白く飛ばないよう 8体まで)
+      for (let i = 0; i < 10; i++) { // 血しぶき(線の両側へ。重さで落ちる)
+        const k = i % 2 ? 1 : -1, sp = rand(40, 130);
+        part(e.x, e.y, s.nx * k * sp + ca * rand(-30, 30), s.ny * k * sp + sa * rand(-30, 30) - 20, rand(0.35, 0.7), pick(['#a0122a', '#5a0a14', '#ff3b5c']), { g: 220, drag: 2, sz: pick([1, 2]) });
+      }
     });
-    AudioMan.slash(); AudioMan.crit();
-  }, 60);
+    for (let i = 0; i < 36; i++) { // 墨のような飛沫(線全体から)
+      const [x, y] = cutPt(s, Math.random()), k = Math.random() < 0.5 ? -1 : 1, sp = rand(20, 110);
+      part(x, y, s.nx * k * sp, s.ny * k * sp - 10, rand(0.4, 0.9), pick(['#1a0508', '#1a0508', '#a0122a', '#ff3b5c', '#ffd0d8']), { g: 140, drag: 2.5, sz: pick([1, 1, 2]), glow: Math.random() < 0.3 });
+    }
+    for (let i = 0; i < 10; i++) { const [x, y] = cutPt(s, Math.random()); part(x, y, rand(-15, 15), -rand(10, 30), rand(0.7, 1.1), pick(['#ff5d73', '#ff8a9a']), { glow: true, drag: 1 }); } // ゆっくり舞う赤い光
+    for (const u of [0.2, 0.5, 0.8]) { const [x, y] = cutPt(s, u); shockAt(x, y, 0.7, 1.3); }
+    shake(6);
+  });
+  AudioMan.cutHit();
 }
 
 

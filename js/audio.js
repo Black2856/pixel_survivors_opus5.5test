@@ -118,6 +118,10 @@ const AudioMan = (() => {
     boom()    { if (this._ok('boom', 0.06)) { this.noise(0.6, { vol: 0.3, f0: 2500, f1: 60 }); this.tone(120, 30, 0.5, { vol: 0.16, type: 'sine' }); } },
     zap()     { if (this._ok('zap', 0.05)) { this.noise(0.25, { vol: 0.16, f0: 9000, f1: 1500, ftype: 'highpass' }); this.tone(1800, 200, 0.15, { vol: 0.05, type: 'sawtooth' }); } },
     slash()   { if (this._ok('slash', 0.05)) this.noise(0.12, { vol: 0.16, f0: 7000, f1: 900, ftype: 'bandpass', rate: 1.6 }); },
+    // 鬼神・村正の一閃: 抜刀の「チャキ」→ 一閃の「シャッ」→ 遅れて「ザンッ」
+    cutDraw() { if (!this._ok('cutDraw', 0.15)) return; this.tone(3200, 2900, 0.05, { vol: 0.035, type: 'triangle' }); this.tone(4300, 4100, 0.08, { vol: 0.025, type: 'sine', delay: 0.04 }); },
+    cut()     { if (!this._ok('cut', 0.1)) return; this.noise(0.18, { vol: 0.22, f0: 10000, f1: 1800, ftype: 'bandpass', rate: 2 }); this.tone(6000, 2200, 0.14, { vol: 0.03, type: 'sine' }); },
+    cutHit()  { if (!this._ok('cutHit', 0.1)) return; this.noise(0.4, { vol: 0.28, f0: 3200, f1: 120 }); this.tone(170, 40, 0.32, { vol: 0.15, type: 'sine' }); this.noise(0.08, { vol: 0.12, f0: 9000, f1: 3000, ftype: 'highpass' }); },
     fire()    { if (this._ok('fire', 0.08)) this.noise(0.25, { vol: 0.1, f0: 1800, f1: 300 }); },
     blizz()   { if (this._ok('blizz', 0.2)) this.noise(0.8, { vol: 0.1, f0: 6000, f1: 2000, ftype: 'highpass' }); },
     hole()    { if (this._ok('hole', 0.2)) this.tone(90, 40, 0.8, { vol: 0.16, type: 'sine' }); },
