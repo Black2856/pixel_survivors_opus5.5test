@@ -2,8 +2,8 @@
 'use strict';
 
 const DATA = {
-  // staLock: ガード系の防御スキルで受けた後、スタミナ回復が止まる秒数
-  player: { hp: 100, speed: 58, magnet: 30, iframe: 0.5, comboTime: 3, staLock: 5 },
+  // staLock: ガード系の防御スキルで受けた後、スタミナ回復が止まる秒数 / food: 食べ物(肉)の回復量(最大HP の割合)
+  player: { hp: 100, speed: 58, magnet: 30, iframe: 0.5, comboTime: 3, staLock: 5, food: 0.2 },
 
   // ---------- 敵 ----------
   // ai: chase / flutter / keep(距離を取り射撃) / flee(逃走)
@@ -63,6 +63,7 @@ const DATA = {
 
   // ---------- 武器 ----------
   // evo: 武器Lv5 で進化カードが出る(メイン武器はクラスLv10 で解放)
+  // cut: 斬撃タイプの武器(刀・騎士剣・オービットブレード・スローイングアックス)。クラスは「斬撃タイプ」としてだけ参照する
   weapons: {
     bolt: {
       name: 'マジックボルト', desc: '最も近い敵へ魔法弾を放つ', col: '#7ad7ff',
@@ -74,14 +75,14 @@ const DATA = {
         { cd: 0.85, dmg: 27, count: 4, speed: 200, pierce: 2 },
       ],
       evo: { name: 'アーケインレイ', desc: '魔弾が敵をわずかに追尾する', st: { cd: 0.8, dmg: 30, count: 5, speed: 210, pierce: 2 } },
-      // 武器スキル(E)アーケイン・バラージュ: 詠唱 windup 秒(動けない)→ dur 秒間、照準方向へ毎秒 rate 発(各 武器の威力 × pow)。連射中は移動 ×slow
+      // 武器スキル(E)アーケイン・バラージュ: 詠唱 windup 秒(動けない)→ dur 秒間、照準方向へ毎秒 rate 発(各 武器の威力 × pow)。連射中も普通に動ける
       // 魔弾は通常攻撃と同じ弾速・貫通(進化後は追尾も)。弾数は通常攻撃の countMul 倍(切り上げ)/ radius: 自動発動の判定距離 / shield: 魔力障壁のシールド(最大HP の割合)
       skill: {
-        name: 'アーケイン・バラージュ', cd: 30, windup: 0.3, dur: 3, rate: 12, pow: 0.5, slow: 0.6, countMul: 0.5, radius: 90, shield: 0.2,
+        name: 'アーケイン・バラージュ', cd: 30, windup: 0.3, dur: 3, rate: 12, pow: 0.5, countMul: 0.5, radius: 90, shield: 0.2,
         tree: { name: 'バラージュ', paths: {
           pow: { name: '威力', desc: ['バラージュの威力 +30%', 'バラージュの威力 +60%', 'バラージュの威力 +100%'], v: [0.3, 0.6, 1.0], sp: { name: '集中砲火', desc: '使っている間、同じ敵に当たるたびに、その敵への威力 +5%(最大 +50%)' } },
           cd:  { name: '迅速', desc: ['バラージュのCD -10%', 'バラージュのCD -20%', 'バラージュのCD -30%'], v: [0.1, 0.2, 0.3], sp: { name: 'オーブ', desc: '自分の周りを回るオーブが5秒間、自動で連射する。自分は自由に動ける' } },
-          dur: { name: '持続', desc: ['バラージュの持続 +0.5秒', 'バラージュの持続 +1.0秒', 'バラージュの持続 +1.5秒'], v: [0.5, 1.0, 1.5], sp: { name: '魔力障壁', desc: '使っている間の移動速度ペナルティが無くなり、最大HP 20% のシールドを得る' } }, // 名前は仮(mage.md では ???)
+          dur: { name: '持続', desc: ['バラージュの持続 +0.5秒', 'バラージュの持続 +1.0秒', 'バラージュの持続 +1.5秒'], v: [0.5, 1.0, 1.5], sp: { name: '魔力障壁', desc: '使うと、最大HP 20% のシールドを得る' } }, // 名前は仮(mage.md では ???)
         } },
       },
       // 熟練(メイジの Lv で解放。マジックボルトを使うどのクラスにも効く)
@@ -99,15 +100,44 @@ const DATA = {
       },
     },
     blade: {
-      name: 'オービットブレード', desc: '周囲を回転する刃', col: '#d8e4ff',
+      // hitCd: 同じ敵に再び当たるまでの秒数(刃の輪ごと)
+      name: 'オービットブレード', desc: '周囲を回転する刃(クールダウン・攻撃速度で回転が速くなる)', col: '#d8e4ff', cut: true, hitCd: 0.1,
+      // size: 刃の大きさ(当たり判定の半径 5 と見た目に掛ける)
       lv: [
-        { count: 2, dmg: 9,  radius: 20, rot: 2.8 },
-        { count: 3, dmg: 11, radius: 22, rot: 3.0 },
-        { count: 3, dmg: 15, radius: 25, rot: 3.3 },
-        { count: 4, dmg: 18, radius: 28, rot: 3.6 },
-        { count: 6, dmg: 24, radius: 32, rot: 4.0 },
+        { count: 2, dmg: 9,  radius: 20, rot: 2.8, size: 1.0 },
+        { count: 3, dmg: 11, radius: 24, rot: 3.0, size: 1.1 },
+        { count: 3, dmg: 15, radius: 28, rot: 3.3, size: 1.2 },
+        { count: 4, dmg: 18, radius: 32, rot: 3.6, size: 1.35 },
+        { count: 6, dmg: 24, radius: 36, rot: 4.0, size: 1.5 },
       ],
-      evo: { name: 'ホーリーサークル', desc: '二重の聖刃が逆回転する', st: { count: 7, dmg: 30, radius: 34, rot: 4.4 } },
+      // bleed: 進化後の命中で付ける出血
+      evo: { name: 'ブラッドサークル', desc: '二重の刃が逆回転する。命中で出血 +1', st: { count: 7, dmg: 30, radius: 55, rot: 4.4, size: 1.75 }, bleed: 1 },
+      // 武器スキル(E)刃輪展開: 構え windup 秒(動けない)→ dur 秒間、回転半径 ×rMul・刃のサイズ ×size・回転速度 ×rot・刃の威力 ×pow(使っている間も動ける)
+      //   終わりに刃が回転しながら外へ飛び散る(1枚ごとに 武器の威力 × scatter、貫通)。輪の回転を保ったまま、らせんを描いて広がる(外へ scatterSpd、回る速さは spinMax まで、scatterT 秒)
+      //   刃の雨: rainT 秒 広がった後に自分のところへ戻ってきてもう一度当たる(戻りの威力 ×rainPow)
+      //   連環: 展開中の撃破で +killExt 秒(killExtMax まで)/ 渦: 輪の外側(半径の pullK 倍まで)を pull で引き寄せる
+      skill: {
+        name: '刃輪展開', cd: 22, windup: 0.2, dur: 5, rMul: 2, size: 2, rot: 1.5, pow: 1.5, scatter: 3, scatterSpd: 220, scatterT: 0.5, spinMax: 260, radius: 50,
+        rainT: 1, rainPow: 1.5, killExt: 0.3, killExtMax: 3, pullK: 1.5, pull: 40,
+        tree: { name: '刃輪展開', paths: {
+          pow:  { name: '威力', desc: ['刃輪展開の威力 +30%', '刃輪展開の威力 +60%', '刃輪展開の威力 +100%'], v: [0.3, 0.6, 1.0], sp: { name: '刃の雨', desc: '飛び散った刃が 1秒後に戻ってきて、もう一度当たる(戻りの威力 +50%)' } },
+          cd:   { name: '迅速', desc: ['刃輪展開のCD -10%', '刃輪展開のCD -20%', '刃輪展開のCD -30%'], v: [0.1, 0.2, 0.3], sp: { name: '連環', desc: '展開中に敵を倒すと、持続 +0.3秒(1回で +3秒まで)' } },
+          area: { name: '範囲', desc: ['展開の半径 +15%', '展開の半径 +30%', '展開の半径 +50%'], v: [0.15, 0.3, 0.5], sp: { name: '渦', desc: '展開中、輪の外側(半径の 1.5倍まで)の敵を輪へ少しずつ引き寄せる(ボス以外)' } },
+        } },
+      },
+      // 熟練(ブラッドアサシンの Lv で解放。オービットブレードを使うどのクラスにも効く)。クールダウンは回転速度と刃輪展開の CD に効く
+      mastery: {
+        4: { d: 'オービットブレード: 威力 +10%', fx: { dmg: 0.1 } },
+        5: { d: '刃輪展開: 持続 +0.5秒', fx: { eDur: 0.5 } },
+        7: { d: 'オービットブレード: 範囲 +10%', fx: { area: 0.1 } },
+        9: { d: 'オービットブレード: 刃の数 +1', fx: { count: 1 } },
+        10: { d: '進化「ブラッドサークル」を解放', fx: { evo: 1 } },
+        12: { d: 'オービットブレード: 威力 +10%', fx: { dmg: 0.1 } },
+        14: { d: 'オービットブレード: 範囲 +10%', fx: { area: 0.1 } },
+        17: { d: 'オービットブレード: 威力 +15%', fx: { dmg: 0.15 } },
+        19: { d: 'オービットブレード: クールダウン -10%', fx: { cd: 0.1 } },
+        20: { d: '刃輪展開: 威力 +30%', fx: { ePow: 0.3 } },
+      },
     },
     thunder: {
       name: 'サンダー', desc: 'ランダムな敵に落雷', col: '#fff27a',
@@ -182,7 +212,7 @@ const DATA = {
       },
     },
     axe: {
-      name: 'スローイングアックス', desc: '放物線を描く重い斧', col: '#ffb070',
+      name: 'スローイングアックス', desc: '放物線を描く重い斧', col: '#ffb070', cut: true,
       lv: [
         { cd: 1.7, count: 1, dmg: 20 },
         { cd: 1.6, count: 2, dmg: 24 },
@@ -212,7 +242,7 @@ const DATA = {
         { cd: 1.4, dmg: 18, count: 2, burn: 11 },
         { cd: 1.2, dmg: 24, count: 3, burn: 15 },
       ],
-      evo: { name: 'インフェルノ', desc: '着弾毎に爆炎が広がる', st: { cd: 1.0, dmg: 30, count: 4, burn: 22 } },
+      evo: { name: 'インフェルノ', desc: '着弾毎に爆炎が広がる(火炎弾の威力の 60%、半径 16、1発で最大 6回)', st: { cd: 1.0, dmg: 30, count: 4, burn: 22 } },
       // 武器スキル(E)火炎放射: 構え windup 秒(動けない)→ dur 秒間、照準方向へ扇形(長さ len・角度 arc)に炎を吹き続ける(放射中も動ける)
       //   every 秒ごとに、範囲内の敵へ 武器の威力 × pow と炎上(武器の燃焼/s × burn を 3秒)
       //   ダブル放射: 反対方向にも吹く / 火炎旋風: 攻撃ごとに放射先(炎の先端)へ吸い込み(半径 suckR の敵へ 武器の威力 × suckPow。半径の2倍まで suckPull ずつ引き寄せる)
@@ -286,7 +316,7 @@ const DATA = {
       evo: { name: 'ビッグクランチ', desc: '消滅時に超新星爆発を起こす', st: { cd: 4.0, dmg: 16, dur: 2.6, radius: 55, pull: 130 } },
     },
     katana: {
-      name: '刀', desc: '最も近い敵へ素早い斬撃', col: '#ff5d73',
+      name: '刀', desc: '最も近い敵へ素早い斬撃', col: '#ff5d73', cut: true,
       lv: [
         { cd: 1.0,  dmg: 16, count: 1, aoe: 35 },
         { cd: 0.9,  dmg: 22, count: 1, aoe: 40 },
@@ -303,7 +333,7 @@ const DATA = {
           dur: { name: '持続', desc: ['乱れ桜の持続 +0.45秒', '乱れ桜の持続 +0.9秒', '乱れ桜の持続 +1.5秒'], v: [0.45, 0.9, 1.5], sp: { name: '千本桜', desc: '使っている間、移動速度 +50%・無敵' } },
         } },
       },
-      evo: { name: '鬼神・村正', desc: '刀が 50回当たるごとに、ランダムな方向へ一閃の切り裂き(刀の威力 × 800%、出血 5)', st: { cd: 0.55, dmg: 52, count: 3, aoe: 70 } },
+      evo: { name: '鬼神・村正', desc: '刀が 50回当たるごとに、ランダムな方向へ一閃の切り裂き(刀の威力 × 800%、出血 5。CD 1秒)', st: { cd: 0.55, dmg: 52, count: 3, aoe: 70 } },
       // 熟練(クラスLv の「共通」強化)。サムライの Lv で解放され、刀を使うどのクラスにも効く
       // fx: dmg 威力 / area 範囲 / cd クールダウン(攻撃間隔と武器スキルの CD。乗算で重ねる)/ evo 進化の解放 / eHits・ePow 武器スキルの回数・威力
       mastery: {
@@ -313,7 +343,7 @@ const DATA = {
         9: { d: '刀: クールダウン -10%', fx: { cd: 0.1 } },
         10: { d: '進化「鬼神・村正」を解放', fx: { evo: 1 } },
         12: { d: '刀: 威力 +10%', fx: { dmg: 0.1 } },
-        14: { d: '刀: 範囲 +10%', fx: { area: 0.1 } },
+        14: { d: '刀: 攻撃回数 +1', fx: { count: 1 } },
         17: { d: '刀: 威力 +15%', fx: { dmg: 0.15 } },
         19: { d: '刀: クールダウン -10%', fx: { cd: 0.1 } },
         20: { d: '乱れ桜: 威力 +30%', fx: { ePow: 0.3 } },
@@ -354,15 +384,15 @@ const DATA = {
       },
     },
     longsword: {
-      name: '騎士剣', desc: '正面を大きく薙ぎ払う(遅いが広く、押し返しが強い)', col: '#ffe9a0',
+      name: '騎士剣', desc: '正面を大きく薙ぎ払う(遅いが広く、押し返しが強い)', col: '#ffe9a0', cut: true,
       lv: [
-        { cd: 1.3,  dmg: 20, count: 1, aoe: 40 },
-        { cd: 1.2,  dmg: 26, count: 1, aoe: 45 },
-        { cd: 1.15, dmg: 32, count: 2, aoe: 50 },
-        { cd: 1.1,  dmg: 40, count: 2, aoe: 55 },
-        { cd: 1.0,  dmg: 50, count: 3, aoe: 60 },
+        { cd: 1.5,  dmg: 20, count: 1, aoe: 40 },
+        { cd: 1.45, dmg: 26, count: 1, aoe: 45 },
+        { cd: 1.4,  dmg: 32, count: 2, aoe: 50 },
+        { cd: 1.35, dmg: 40, count: 2, aoe: 55 },
+        { cd: 1.3,  dmg: 48, count: 3, aoe: 60 },
       ],
-      evo: { name: '聖剣', desc: '薙ぎ払いが当たった敵に、光の剣が上から降って追撃する(30%)。当てるたびに 5秒のシールド +1', st: { cd: 0.95, dmg: 60, count: 3, aoe: 70 } },
+      evo: { name: '聖剣', desc: '薙ぎ払いが当たった敵に、光の剣が上から降って追撃する(25%)。当てるたびに 5秒のシールド +1', st: { cd: 1.25, dmg: 58, count: 3, aoe: 75 } },
       // 武器スキル(E)グランドスラム: シールドを最大HP の shield 分(shieldT 秒)得る → 構え windup 秒(動けない)
       //   → 前方へ衝撃波が steps 段(各 武器の威力 × pow + 今のシールド、半径 waveR、段の間隔 gap 秒・距離 stepD)
       skill: {
@@ -377,7 +407,7 @@ const DATA = {
         4: { d: '騎士剣: 威力 +10%', fx: { dmg: 0.1 } },
         5: { d: 'グランドスラム: 衝撃波 +1段', fx: { eSteps: 1 } },
         7: { d: '騎士剣: 範囲 +10%', fx: { area: 0.1 } },
-        9: { d: '騎士剣: 攻撃回数 +1', fx: { count: 1 } },
+        9: { d: '騎士剣: クールダウン -10%', fx: { cd: 0.1 } },
         10: { d: '進化「聖剣」を解放', fx: { evo: 1 } },
         12: { d: '騎士剣: 威力 +10%', fx: { dmg: 0.1 } },
         14: { d: '騎士剣: 範囲 +10%', fx: { area: 0.1 } },
@@ -390,7 +420,7 @@ const DATA = {
 
   statLabels: {
     cd: '攻撃間隔', dmg: '威力', count: '数', speed: '弾速', pierce: '貫通', strikes: '落雷数',
-    aoe: '範囲', radius: '半径', rot: '回転', tick: '間隔', burn: '燃焼/s', dur: '持続', pull: '吸引',
+    aoe: '範囲', radius: '半径', rot: '回転', tick: '間隔', burn: '燃焼/s', dur: '持続', pull: '吸引', size: 'サイズ',
   },
 
   // ---------- ステータス定義 ----------
@@ -404,6 +434,7 @@ const DATA = {
     sta:       { label: 'スタミナ',             kind: 'flat', group: 'life' },
     staRegen:  { label: 'スタミナ回復速度',     kind: 'flat', group: 'life', unit: '/s' },
     iframe:    { label: '無敵時間',             kind: 'pct',  group: 'life' },
+    food:      { label: '食べ物の効果',         kind: 'pct',  group: 'life' },
     spd:       { label: '移動速度',             kind: 'pct',  group: 'skill' },
     atk:       { label: '攻撃力',               kind: 'pct',  group: 'skill' },
     area:      { label: '範囲',                 kind: 'pct',  group: 'skill' },
@@ -493,25 +524,26 @@ const DATA = {
       base: { hp: 90, sta: 90, staRegen: 24, spd: -0.05, area: 0.1, range: 0.1, cd: 0.05, crit: 0.05, critDmg: 1.0, magnet: 0.1, wslot: 4, reroll: 2 },
       // 元素循環: 通常攻撃・E の攻撃1回ごとに 炎 → 氷 → 雷
       //   炎: 与えたダメージの burnPct を burnDur 秒かけて / 氷: 凍傷 +1(上限 frostCap)/ 雷: 近く(chainR)の敵 chainN 体へ chainPct
-      // 共鳴: 2属性を持つ敵に3属性目 → 爆発(基礎威力 resoPow・半径 resoR)して属性リセット。魔力結晶 +1(最大 crystalMax)
+      // 共鳴: 2属性を持つ敵に3属性目 → 爆発(基礎威力 resoPow・半径 resoR)して属性リセット。魔力結晶 +1(最大 crystalMax + 結晶容量)
+      //   魔力増幅: 魔力結晶 1つにつき攻撃力 +ampAtk
       // 魔力循環: 通常攻撃の命中ごとに E / Q の CD -flowCut 秒(1秒あたり flowCap 秒まで)
       // ブリンク: 移動方向へ blinkDist 瞬間移動、無敵 blinkIfr 秒、スタミナ blinkCost。出発地点に氷の残滓(residueT 秒・半径 residueR。触れた敵に凍傷)
       params: {
         burnPct: 0.2, burnDur: 3, frostCap: 5, chainPct: 0.3, chainN: 1, chainR: 60,
-        resoPow: 25, resoR: 30, crystalMax: 5,
+        resoPow: 25, resoR: 40, crystalMax: 10, ampAtk: 0.02,
         flowCut: 0.05, flowCap: 0.5,
         blinkDist: 50, blinkIfr: 0.15, blinkCost: 80, residueT: 1.5, residueR: 14,
       },
       // メテオ(Q): 照準位置へ。詠唱 windup 秒(動けない)→ fall 秒後に着弾(基礎威力 pow・半径 r・炎上)。武器に依存しない
       //   魔力結晶を全て消費し、1つにつき 威力 +crystalPow・半径 +crystalR / range: 照準の最大距離
-      q: { name: 'メテオ', cd: 45, windup: 0.5, fall: 0.3, pow: 200, r: 70, crystalPow: 0.2, crystalR: 0.1, range: 170 },
+      q: { name: 'メテオ', cd: 45, windup: 0.5, fall: 0.3, pow: 200, r: 70, crystalPow: 0.1, crystalR: 0.05, range: 170 },
       // 属性強化の Lv ごとの値: 炎上 +10%/Lv(倍率)・凍傷上限 elFrost・連鎖 +1体/Lv
       elFrost: [2, 4, 5],
       tree: {
         trait: { name: '元素循環', paths: {
           el: { name: '属性強化', desc: ['炎上 +10%・凍傷上限 +2・連鎖 +1体', '炎上 +20%・凍傷上限 +4・連鎖 +2体', '炎上 +30%・凍傷上限 +5・連鎖 +3体'], v: [1, 2, 3], sp: { name: '三重詠唱', desc: '15% の確率で、1発が3属性すべてを持つ' } },
           rpow: { name: '共鳴威力', desc: ['共鳴の威力 +30%', '共鳴の威力 +60%', '共鳴の威力 +100%'], v: [0.3, 0.6, 1.0], sp: { name: '連鎖共鳴', desc: '共鳴に巻き込まれた敵にも、ランダムな属性を1つ付与する' } },
-          rarea: { name: '共鳴範囲', desc: ['共鳴の半径 +15%', '共鳴の半径 +30%', '共鳴の半径 +50%'], v: [0.15, 0.3, 0.5], sp: { name: '特異点', desc: '共鳴した地点に、1秒間敵を引き寄せる渦を作る' } },
+          crys: { name: '結晶容量', desc: ['魔力結晶の容量 +3', '魔力結晶の容量 +6', '魔力結晶の容量 +10'], v: [3, 6, 10], sp: { name: '魔力増幅', desc: '魔力結晶 1つにつき攻撃力 +2%' } },
         } },
         passive: { name: '魔力循環', paths: {
           flow: { name: '循環', desc: ['CD の短縮量 +0.01秒', 'CD の短縮量 +0.02秒', 'CD の短縮量 +0.03秒'], v: [0.01, 0.02, 0.03], sp: { name: 'オーバーフロー', desc: 'E か Q の CD が 0 の状態でメイン武器の通常攻撃が命中すると、次のスキルの威力 +5%(最大 +50%)' } },
@@ -530,7 +562,7 @@ const DATA = {
         6: { d: 'ブリンク: スタミナ消費 -10', fx: { blinkCut: 10 } },
         8: { d: '魔力循環: 短縮量 +0.01秒', fx: { flowCut: 0.01 } },
         11: { d: 'メテオ: 威力 +20%', fx: { qPow: 0.2 } },
-        13: { d: '射程 +10%、魔力結晶の上限 +1', st: { range: 0.1 }, fx: { crystalMax: 1 } },
+        13: { d: '魔力結晶の上限 +5', fx: { crystalMax: 5 } },
         15: { d: 'メイン武器の切り替えを解放', fx: { swap: 1 } },
         16: { d: '攻撃力 +10%', st: { atk: 0.1 } },
         18: { d: 'クールダウン -5%', st: { cd: 0.05 } },
@@ -643,7 +675,7 @@ const DATA = {
       },
       // 業火: 火勢 = 敵の炎上 1スタックにつき、その敵の炎上ダメージ +stackPct(stackMax スタック分まで)
       //   延焼 = 炎上中の敵が倒れると、残っていた炎上ダメージの spreadPct を周り(spreadR)の spreadN 体へ 3秒の炎上として
-      //   白炎: whiteAt スタック以上の敵へのクリティカル率 +whiteCrit(炎上もクリティカルする)/ 連鎖爆発: 半径 chainR / 燻り: 切れたら最後の炎上の emberPct を 3秒
+      //   白炎: whiteAt スタック以上の敵へのクリティカル率 +whiteCrit(炎上ダメージにも乗る)/ 連鎖爆発: 半径 chainR / 燻り: 切れたら最後の炎上の emberPct を 3秒
       // 焔纏い: E / Q を使うと wearT 秒 纏う。全武器の命中(通常攻撃・E)で与えたダメージの ignite を 3秒の炎上に
       //   爆ぜる炎: クリティカルで ×critIgnite / 燎原: 炎上中の敵を倒すと +extendT 秒(1回の纏いで extendMax まで)
       //   点火: 纏った瞬間、半径 kindleR に火の輪(炎上は火の輪の kindleBurn を 3秒)/ 業火(特殊): 纏っている間 今のHP の drain/s を消費、炎上ダメージ +hellBurn
@@ -659,7 +691,7 @@ const DATA = {
       q: { name: '煉獄', cd: 25, windup: 0.5, base: 80, mul: 1.5, r: 30, pow: 40, perStack: 8, rekindle: 0.3, bigfire: 0.5 },
       tree: {
         trait: { name: '業火', paths: {
-          stack:  { name: '火勢', desc: ['火勢の最大スタック +3', '火勢の最大スタック +6', '火勢の最大スタック +10'], v: [3, 6, 10], sp: { name: '白炎', desc: '炎上が 10スタック以上の敵へのクリティカル率 +20%(炎上ダメージもクリティカルする)' } },
+          stack:  { name: '火勢', desc: ['火勢の最大スタック +3', '火勢の最大スタック +6', '火勢の最大スタック +10'], v: [3, 6, 10], sp: { name: '白炎', desc: '炎上が 10スタック以上の敵へのクリティカル率 +20%(炎上ダメージにも乗る)' } },
           spread: { name: '延焼', desc: ['燃え移る量 25% → 35%', '燃え移る量 45%', '燃え移る量 60%'], v: [0.35, 0.45, 0.6], sp: { name: '連鎖爆発', desc: '延焼のとき、倒れた場所で爆発する(残っていた炎上ダメージの 100%、半径 25)' } },
           dur:    { name: '持続', desc: ['炎上の持続 +0.5秒', '炎上の持続 +1秒', '炎上の持続 +1.5秒'], v: [0.5, 1.0, 1.5], sp: { name: '燻り', desc: '炎上が切れた敵に、残り火(最後の炎上の 30%)が 3秒続く' } },
         } },
@@ -813,6 +845,56 @@ const DATA = {
         } },
       },
     },
+    assassin: {
+      name: 'ブラッドアサシン', en: 'BLOOD ASSASSIN', weapon: 'blade', col: '#c0204a', light: '#ffd8de', rig: 'assassin',
+      base: { hp: 120, def: -2, dr: -0.2, sta: 100, staRegen: 25, spd: 0.15, atk: 0.05, area: -0.1, crit: 0.1, critDmg: 1.0, wslot: 4, reroll: 2 },
+      lv: {
+        2: { d: '最大HP +10', st: { hp: 10 } },
+        3: { d: '血刃: 出血ダメージ +10%', fx: { bleedDmg: 0.1 } },
+        6: { d: '血の渇き: 回復量 +10%', fx: { leech: 0.1 } },
+        8: { d: '移動速度 +5%', st: { spd: 0.05 } },
+        11: { d: '血の契約: 斬り裂きの威力 +20%', fx: { qPow: 0.2 } },
+        13: { d: '最大HP +15、スタミナ +20', st: { hp: 15, sta: 20 } },
+        15: { d: 'メイン武器の切り替えを解放', fx: { swap: 1 } },
+        16: { d: '攻撃力 +10%', st: { atk: 0.1 } },
+        18: { d: 'クールダウン -5%', st: { cd: 0.05 } },
+      },
+      // 血刃: 斬撃タイプの武器の命中で出血 +1。出血の最大スタック = 斬撃タイプの所持数(メイン武器も含む) × (perCut + 裂創)
+      //   鮮血: 出血に攻撃力・クリティカル / 血の連鎖: 出血中の敵を倒すと、スタックの半分を近く(chainR)の chainN 体へ / 致命傷: 出血1スタックにつきクリティカル率 +critPer
+      // 血の渇き: メイン武器の命中ごとに leech の HP を回復 / 出血中の敵を倒すと、最大HP × その敵の出血 × killPer を回復
+      //   どちらも合わせて 1秒に 最大HP × leechCap まで
+      //   血の盾: 最大HP を超えた回復 × shieldK を shieldT 秒のシールド / 生き血: HP lowAt 以下で回復量 ×2 / 饗宴: 血の契約の効果中、回復の上限 × pactCap
+      // 瞬影: 移動方向へ dashDist を dashTime 秒で駆け抜ける(無敵 dashIfr 秒、スタミナ dashCost)。通り抜けた敵(dashR)に dashPow と出血 +dashBleed
+      params: {
+        perCut: 5, critPer: 0.01, chainN: 2, chainR: 60,
+        leech: 0.1, leechCap: 0.02, killPer: 0.0002, shieldK: 0.5, shieldT: 3, lowAt: 0.5, pactCap: 1.5,
+        dashDist: 50, dashTime: 0.1, dashIfr: 0.2, dashCost: 60, dashPow: 20, dashR: 12, dashBleed: 1,
+      },
+      // 血の契約(Q): 構え windup 秒 → 今の HP の pay を支払い(HP は 1 未満にならない)、照準方向へ×字に交差する二筋の斬撃(pow + 支払ったHP × perHp、出血 +bleed)
+      //   交差の中心は自分から crossD 前、1本の長さ crossL × 2、線から crossW 以内に当たる(範囲%を掛ける)
+      //   dur 秒間、移動速度 +spd・敵の出血 1スタックにつき与えるダメージ +perStack(代償の効果倍率を掛ける)
+      //   血の嵐: stormEvery 秒ごとに半径 stormR へ stormPow と出血 +1 / 代償: 支払い pricePay / 捨て身: HP を 1 にして、支払った HP の allIn を allInT 秒のシールドに
+      //   血の契り: 効果中に出血中の敵を倒すと +extend 秒(extendMax まで)
+      q: { name: '血の契約', cd: 30, windup: 0.3, pay: 0.3, dur: 10, spd: 0.3, perStack: 0.01, crossD: 36, crossL: 58, crossW: 16, pow: 80, perHp: 10, bleed: 5,
+        stormEvery: 0.5, stormR: 45, stormPow: 20, pricePay: [0.4, 0.5, 0.6], allIn: 0.5, allInT: 8, extend: 0.5, extendMax: 5 },
+      tree: {
+        trait: { name: '血刃', paths: {
+          deep: { name: '深傷', desc: ['出血ダメージ +30%', '出血ダメージ +60%', '出血ダメージ +100%'], v: [0.3, 0.6, 1.0], sp: { name: '鮮血', desc: '出血ダメージに攻撃力・クリティカルが乗る' } },
+          rend: { name: '裂創', desc: ['斬撃タイプの武器1本ごとに、出血の最大スタック +1', '斬撃タイプの武器1本ごとに、出血の最大スタック +3', '斬撃タイプの武器1本ごとに、出血の最大スタック +5'], v: [1, 3, 5], sp: { name: '血の連鎖', desc: '出血中の敵を倒すと、そのスタックの半分を近くの敵 2体へ移す' } },
+          last: { name: '延命', desc: ['出血の持続 +1秒', '出血の持続 +2秒', '出血の持続 +3秒'], v: [1, 2, 3], sp: { name: '致命傷', desc: '出血 1スタックにつき、その敵へのクリティカル率 +1%' } },
+        } },
+        passive: { name: '血の渇き', paths: {
+          thirst: { name: '渇き', desc: ['血の渇きの回復量 +10%', '血の渇きの回復量 +20%', '血の渇きの回復量 +30%'], v: [0.1, 0.2, 0.3], sp: { name: '血の盾', desc: '最大HP を超えた回復の 50% が、3秒間のシールドになる' } },
+          greed:  { name: '貪り', desc: ['倒した敵の出血 1スタックにつき 0.02% → 0.03%', '倒した敵の出血 1スタックにつき 0.04%', '倒した敵の出血 1スタックにつき 0.05%'], v: [0.0003, 0.0004, 0.0005], sp: { name: '生き血', desc: 'HP 50% 以下の間、血の渇きの回復量 ×2' } },
+          feast:  { name: '血宴', desc: ['回復の上限 最大HP の 2%/秒 → 3%/秒', '回復の上限 最大HP の 4%/秒', '回復の上限 最大HP の 5%/秒'], v: [0.03, 0.04, 0.05], sp: { name: '饗宴', desc: '血の契約の効果中、回復の上限 ×1.5' } },
+        } },
+        q: { name: '血の契約', need: 'q', paths: {
+          pow:   { name: '威力', desc: ['斬り裂きの威力 +30%', '斬り裂きの威力 +60%', '斬り裂きの威力 +100%'], v: [0.3, 0.6, 1.0], sp: { name: '血の嵐', desc: '効果中、0.5秒ごとに周り(半径 45)を斬る(基礎威力 20、出血 +1)' } },
+          price: { name: '代償', desc: ['支払う HP 40%、効果 ×1.15', '支払う HP 50%、効果 ×1.3', '支払う HP 60%、効果 ×1.5'], v: [1.15, 1.3, 1.5], sp: { name: '捨て身', desc: '発動時に HP を 1 にする。支払った HP の半分を 8秒間のシールドにする' } },
+          dur:   { name: '持続', desc: ['血の契約の持続 +2秒', '血の契約の持続 +4秒', '血の契約の持続 +6秒'], v: [2, 4, 6], sp: { name: '血の契り', desc: '効果中に出血中の敵を倒すと、持続 +0.5秒(1回で +5秒まで)' } },
+        } },
+      },
+    },
   },
   // クラスLv: need[i] = Lv(i+1) → Lv(i+2) に必要な経験値。獲得量 = 討伐数 × killK + 撃破ボス数 × bossK
   classLevel: {
@@ -825,7 +907,7 @@ const DATA = {
   tree: {
     costBase: 50,
     stats: {
-      life:    { hp: [20, 10], regen: [1, 5], def: [1, 4], dr: [0.1, 5], sta: [30, 10], staRegen: [2, 5], iframe: [0.1, 1] },
+      life:    { hp: [20, 10], regen: [1, 5], def: [1, 4], dr: [0.1, 5], sta: [30, 10], staRegen: [2, 5], food: [0.5, 1] },
       skill:   { spd: [0.1, 5], atk: [0.2, 10], area: [0.1, 5], range: [0.1, 5], cd: [0.1, 4], crit: [0.05, 5], critDmg: [0.2, 5], wslot: [1, 1] },
       balance: { xp: [0.1, 4], gold: [0.2, 8], magnet: [0.2, 8], eqQual: [0.2, 5], chestQual: [0.2, 5], classXp: [0.2, 5], reroll: [3, 3], classPick: [1, 1], gearPick: [1, 1] },
     },
@@ -837,7 +919,7 @@ const DATA = {
     dirs: {
       life: { name: '生命', col: '#ff5d73', root: 'hp', branches: [
         { name: '活力', lanes: 2, chain: { hp: 9 }, leaf: { regen: 5 } },
-        { name: '守護', lanes: 1, chain: { def: 4, dr: 1 }, leaf: { dr: 4 }, tip: 'iframe' },
+        { name: '守護', lanes: 1, chain: { def: 4, dr: 1 }, leaf: { dr: 4 }, tip: 'food' },
         { name: '持久', lanes: 2, chain: { sta: 10 }, leaf: { staRegen: 5 } },
       ] },
       skill: { name: '技巧', col: '#ffd23f', root: 'atk', branches: [
@@ -853,7 +935,7 @@ const DATA = {
     },
     // ノードに表示する1文字
     glyph: {
-      hp: '体', regen: '癒', def: '守', dr: '減', sta: '持', staRegen: '息', iframe: '無',
+      hp: '体', regen: '癒', def: '守', dr: '減', sta: '持', staRegen: '息', iframe: '無', food: '食',
       spd: '速', atk: '攻', area: '域', range: '射', cd: '刻', crit: '会', critDmg: '撃', wslot: '枠',
       xp: '経', gold: '金', magnet: '引', eqQual: '装', chestQual: '宝', classXp: '級', reroll: '再', classPick: '選', gearPick: '武',
     },

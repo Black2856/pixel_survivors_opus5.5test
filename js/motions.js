@@ -93,7 +93,44 @@ function clericPose(U, arm, o = {}) {
   return { p, hand: null };
 }
 
+// ブラッドアサシンの部位の配置(ART.S.assassin と対応)
+function assassinPose(U, arm, o = {}) {
+  const p = {
+    hood: [0, U, o.hoodV || 'base'], torso: [0, U], backArm: [0, U], knife: [0, U], legs: [0, 0, o.legs || 'base'],
+    frontArm: arm === 'base' ? [0, U] : [0, U + (o.armDy || 0), arm],
+  };
+  return { p, hand: null };
+}
+
 const MOTIONS = {
+  // 刃輪展開(E): 両腕を上げて刃に力を込める(0.2秒)→ 前へ払うように輪を広げる → 戻る
+  bRing: {
+    rig: 'assassin', dur: 0.5, cast: 0.2,
+    state(t) {
+      if (t < this.cast) { const u = t / this.cast; return Object.assign(assassinPose(1, 'raise', { armDy: -2, hoodV: 'b' }), { blade: false, lean: -0.06 * u, sy: 1 - 0.04 * u }); }
+      const r = t - this.cast;
+      return Object.assign(assassinPose(0, r < 0.2 ? 'forward' : 'base', { legs: r < 0.15 ? 'stepB' : 'base' }), { blade: false, lean: track([[0, -0.1], [0.3, 0, 'out']], r), sy: track([[0, 1.06], [0.2, 1, 'out']], r) });
+    },
+  },
+  // 血の契約(Q): 身をかがめて血を集める(0.3秒)→ 体を起こして両腕を広げる → 戻る
+  bPact: {
+    rig: 'assassin', dur: 0.75, cast: 0.3,
+    state(t) {
+      if (t < this.cast) {
+        const u = track([[0, 0], [0.12, 1, 'out'], [this.cast, 1]], t);
+        return Object.assign(assassinPose(Math.round(2 * u), 'base', { legs: 'stepB', hoodV: Math.floor(t * 16) % 2 ? 'b' : 'base' }), { blade: false, lean: 0.12 * u, sy: 1 - 0.06 * u });
+      }
+      const r = t - this.cast;
+      return Object.assign(assassinPose(r < 0.1 ? 1 : 0, r < 0.3 ? 'raise' : 'base', { armDy: -2, legs: r < 0.2 ? 'stepA' : 'base' }), { blade: false, lean: track([[0, -0.14], [0.4, 0, 'out']], r), sy: track([[0, 1.08], [0.2, 1, 'out']], r) });
+    },
+  },
+  // 瞬影(Space): 深い前傾で駆け抜ける
+  bStep: {
+    rig: 'assassin', dur: 0.18,
+    state(t) {
+      return Object.assign(assassinPose(1, 'forward', { legs: 'stepA' }), { blade: false, lean: track([[0, 0], [0.04, 0.26, 'out'], [0.18, 0]], t), sy: track([[0, 1], [0.04, 0.88, 'out'], [0.18, 1]], t) });
+    },
+  },
   // メテオ(Q): 宝珠を頭上へ掲げて詠唱(0.5秒・のけぞる)→ 振り下ろして照準へ放つ → 戻る
   mMeteor: {
     rig: 'mage', dur: 0.85, cast: 0.5,

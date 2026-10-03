@@ -67,6 +67,7 @@ const StatusUI = (() => {
       ['攻撃間隔', itv !== null ? `<b>${itv.toFixed(2)}</b> 秒` : '— (常に攻撃)', itv !== null ? 'クールダウン・攻撃速度を適用' : ''],
       ['攻撃回数', `${(ws.count || 1) + (c.st.v.shots || 0)}`],
     ] }];
+    if (ws.rot) blocks[0].rows.push(['回転速度', `<b>${(ws.rot / ((1 - (m.cd || 0)) * c.cdMul) * c.atkSpd / TAU).toFixed(2)}</b> 周/秒`, 'クールダウン・攻撃速度で速くなる'], ['刃のサイズ', `×${ws.size || 1}`], ['同じ敵への命中', `${W.hitCd} 秒に1回`, '刃の輪ごと']); // オービットブレード
     if (WEAPON_SKILL[c.mainW] && WEAPON_SKILL[c.mainW].info) blocks.push(Object.assign({ key: 'E' }, WEAPON_SKILL[c.mainW].info(c, dmg)));
     const rt = CLASS_RT[c.cls];
     if (rt && rt.info) blocks.push(...rt.info(c));

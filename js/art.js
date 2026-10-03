@@ -289,7 +289,7 @@ const ART = (() => {
       ] },
     },
   });
-  S.mage.alias = { ranbu: 'mBarrage', iai: 'mMeteor', aRain: 'mMeteor', aVolley: 'mMeteor', aStep: 'mBlink', kSlam: 'mMeteor', kVerdict: 'mMeteor', pFlame: 'mBarrage', pInferno: 'mMeteor', pWall: 'mBlink', cIcicle: 'mMeteor', cDust: 'mMeteor', cMirror: 'mBlink', eSpark: 'mMeteor', eTower: 'mMeteor', eDash: 'mBlink', hStrike: 'mMeteor', hJudge: 'mMeteor', hPray: 'mBlink' }; // 他クラスの武器スキルを使ったときの代わりのモーション
+  S.mage.alias = { bRing: 'mMeteor', bPact: 'mMeteor', bStep: 'mBlink', ranbu: 'mBarrage', iai: 'mMeteor', aRain: 'mMeteor', aVolley: 'mMeteor', aStep: 'mBlink', kSlam: 'mMeteor', kVerdict: 'mMeteor', pFlame: 'mBarrage', pInferno: 'mMeteor', pWall: 'mBlink', cIcicle: 'mMeteor', cDust: 'mMeteor', cMirror: 'mBlink', eSpark: 'mMeteor', eTower: 'mMeteor', eDash: 'mBlink', hStrike: 'mMeteor', hJudge: 'mMeteor', hPray: 'mBlink' }; // 他クラスの武器スキルを使ったときの代わりのモーション
 
   // ---------- クラス: アーチャー(16×18、部位アニメーション) ----------
   // 右向き。緑のフード(影の中で緑の目が光る)・背中のマントと矢筒・手に長弓
@@ -342,7 +342,7 @@ const ART = (() => {
     },
   });
   // 他クラスの武器スキルを使ったときの代わりのモーション
-  S.hunter.alias = { ranbu: 'aRain', mBarrage: 'aRain', iai: 'aVolley', mMeteor: 'aVolley', mBlink: 'aStep', kSlam: 'aRain', kVerdict: 'aVolley', pFlame: 'aRain', pInferno: 'aVolley', pWall: 'aStep', cIcicle: 'aRain', cDust: 'aVolley', cMirror: 'aStep', eSpark: 'aRain', eTower: 'aVolley', eDash: 'aStep', hStrike: 'aRain', hJudge: 'aVolley', hPray: 'aStep' };
+  S.hunter.alias = { bRing: 'aRain', bPact: 'aVolley', bStep: 'aStep', ranbu: 'aRain', mBarrage: 'aRain', iai: 'aVolley', mMeteor: 'aVolley', mBlink: 'aStep', kSlam: 'aRain', kVerdict: 'aVolley', pFlame: 'aRain', pInferno: 'aVolley', pWall: 'aStep', cIcicle: 'aRain', cDust: 'aVolley', cMirror: 'aStep', eSpark: 'aRain', eTower: 'aVolley', eDash: 'aStep', hStrike: 'aRain', hJudge: 'aVolley', hPray: 'aStep' };
 
   // ---------- クラス: ナイト(16×18、部位アニメーション) ----------
   // 右向き(左半身が手前)。面頬の兜(隙間の目が光る)・銀の板金鎧・青い陣羽織に金の十字・手前の腕に凧形の大盾・奥の手に騎士剣
@@ -386,7 +386,7 @@ const ART = (() => {
     },
   });
   S.knight.guard = kup(0, 1, { shield: [1, -2, 'guard'], legs: [0, 0, 'stepB'] }); // 大盾を構えた姿勢
-  S.knight.alias = { ranbu: 'kSlam', mBarrage: 'kSlam', aRain: 'kSlam', iai: 'kVerdict', mMeteor: 'kVerdict', aVolley: 'kVerdict', pFlame: 'kSlam', pInferno: 'kVerdict', cIcicle: 'kSlam', cDust: 'kVerdict', eSpark: 'kSlam', eTower: 'kVerdict', hStrike: 'kSlam', hJudge: 'kVerdict' };
+  S.knight.alias = { bRing: 'kSlam', bPact: 'kVerdict', ranbu: 'kSlam', mBarrage: 'kSlam', aRain: 'kSlam', iai: 'kVerdict', mMeteor: 'kVerdict', aVolley: 'kVerdict', pFlame: 'kSlam', pInferno: 'kVerdict', cIcicle: 'kSlam', cDust: 'kVerdict', eSpark: 'kSlam', eTower: 'kVerdict', hStrike: 'kSlam', hJudge: 'kVerdict' };
 
   // ---------- クラス: パイロマンサー(16×18、部位アニメーション) ----------
   // 右向き。深紅のフード(影の中で橙の目が光る)・焦げ茶の帯・裾が燃えさしのようにちらつくローブ・先端に炎を宿した黒い杖
@@ -437,7 +437,7 @@ const ART = (() => {
     },
   });
   // 他クラスの武器スキルを使ったときの代わりのモーション
-  S.pyro.alias = { ranbu: 'pFlame', mBarrage: 'pFlame', aRain: 'pFlame', kSlam: 'pFlame', iai: 'pInferno', mMeteor: 'pInferno', aVolley: 'pInferno', kVerdict: 'pInferno', mBlink: 'pWall', aStep: 'pWall', cIcicle: 'pInferno', cDust: 'pInferno', cMirror: 'pWall', eSpark: 'pInferno', eTower: 'pInferno', eDash: 'pWall', hStrike: 'pInferno', hJudge: 'pInferno', hPray: 'pWall' };
+  S.pyro.alias = { bRing: 'pInferno', bPact: 'pInferno', bStep: 'pWall', ranbu: 'pFlame', mBarrage: 'pFlame', aRain: 'pFlame', kSlam: 'pFlame', iai: 'pInferno', mMeteor: 'pInferno', aVolley: 'pInferno', kVerdict: 'pInferno', mBlink: 'pWall', aStep: 'pWall', cIcicle: 'pInferno', cDust: 'pInferno', cMirror: 'pWall', eSpark: 'pInferno', eTower: 'pInferno', eDash: 'pWall', hStrike: 'pInferno', hJudge: 'pInferno', hPray: 'pWall' };
 
   // ---------- クラス: クライオマンサー(16×18、部位アニメーション) ----------
   // 右向き。氷の結晶の冠を付けた白いフード(影の中で水色の目が光る)・淡い青のローブ・霜の付いた裾・先端に氷晶を浮かべた銀の杖
@@ -488,7 +488,7 @@ const ART = (() => {
       ] },
     },
   });
-  S.cryo.alias = { ranbu: 'cIcicle', mBarrage: 'cIcicle', aRain: 'cIcicle', kSlam: 'cIcicle', pFlame: 'cIcicle', iai: 'cDust', mMeteor: 'cDust', aVolley: 'cDust', kVerdict: 'cDust', pInferno: 'cDust', mBlink: 'cMirror', aStep: 'cMirror', pWall: 'cMirror', eSpark: 'cIcicle', eTower: 'cDust', eDash: 'cMirror', hStrike: 'cIcicle', hJudge: 'cDust', hPray: 'cMirror' };
+  S.cryo.alias = { bRing: 'cIcicle', bPact: 'cDust', bStep: 'cMirror', ranbu: 'cIcicle', mBarrage: 'cIcicle', aRain: 'cIcicle', kSlam: 'cIcicle', pFlame: 'cIcicle', iai: 'cDust', mMeteor: 'cDust', aVolley: 'cDust', kVerdict: 'cDust', pInferno: 'cDust', mBlink: 'cMirror', aStep: 'cMirror', pWall: 'cMirror', eSpark: 'cIcicle', eTower: 'cDust', eDash: 'cMirror', hStrike: 'cIcicle', hJudge: 'cDust', hPray: 'cMirror' };
 
   // ---------- クラス: エレクトロマンサー(16×18、部位アニメーション) ----------
   // 右向き。逆立った白い髪・光るゴーグル・紺のロングコートに黄色い稲妻の縁取り・先端に放電する金属球の杖
@@ -541,7 +541,7 @@ const ART = (() => {
       ] },
     },
   });
-  S.electro.alias = { ranbu: 'eSpark', mBarrage: 'eSpark', aRain: 'eSpark', kSlam: 'eSpark', pFlame: 'eSpark', cIcicle: 'eSpark', iai: 'eTower', mMeteor: 'eTower', aVolley: 'eTower', kVerdict: 'eTower', pInferno: 'eTower', cDust: 'eTower', mBlink: 'eDash', aStep: 'eDash', pWall: 'eDash', cMirror: 'eDash', hStrike: 'eSpark', hJudge: 'eTower', hPray: 'eDash' };
+  S.electro.alias = { bRing: 'eSpark', bPact: 'eTower', bStep: 'eDash', ranbu: 'eSpark', mBarrage: 'eSpark', aRain: 'eSpark', kSlam: 'eSpark', pFlame: 'eSpark', cIcicle: 'eSpark', iai: 'eTower', mMeteor: 'eTower', aVolley: 'eTower', kVerdict: 'eTower', pInferno: 'eTower', cDust: 'eTower', mBlink: 'eDash', aStep: 'eDash', pWall: 'eDash', cMirror: 'eDash', hStrike: 'eSpark', hJudge: 'eTower', hPray: 'eDash' };
 
   // ---------- クラス: クレリック(16×18、部位アニメーション) ----------
   // 右向き。頭上の光の輪・長い金髪・白い法衣に金の刺繍・金の聖印(円に十字)を下げた短い杖
@@ -594,7 +594,57 @@ const ART = (() => {
       ] },
     },
   });
-  S.cleric.alias = { ranbu: 'hStrike', mBarrage: 'hStrike', aRain: 'hStrike', kSlam: 'hStrike', pFlame: 'hStrike', cIcicle: 'hStrike', eSpark: 'hStrike', iai: 'hJudge', mMeteor: 'hJudge', aVolley: 'hJudge', kVerdict: 'hJudge', pInferno: 'hJudge', cDust: 'hJudge', eTower: 'hJudge', mBlink: 'hPray', aStep: 'hPray', pWall: 'hPray', cMirror: 'hPray', eDash: 'hPray' };
+  S.cleric.alias = { ranbu: 'hStrike', mBarrage: 'hStrike', aRain: 'hStrike', kSlam: 'hStrike', pFlame: 'hStrike', cIcicle: 'hStrike', eSpark: 'hStrike', iai: 'hJudge', mMeteor: 'hJudge', aVolley: 'hJudge', kVerdict: 'hJudge', pInferno: 'hJudge', cDust: 'hJudge', eTower: 'hJudge', mBlink: 'hPray', aStep: 'hPray', pWall: 'hPray', cMirror: 'hPray', eDash: 'hPray', bRing: 'hStrike', bPact: 'hJudge', bStep: 'hPray' };
+
+  // ---------- クラス: ブラッドアサシン(16×18、部位アニメーション) ----------
+  // 右向き。黒いフード(影の中で赤い目が光る)・口元を覆う赤い布(縁が光る)・暗紅のロングコート・腰の帯に吊るした短刀
+  const BUP = ['hood', 'torso', 'backArm', 'frontArm', 'knife'];
+  const bup = (dx, dy, extra = {}) => Object.assign(Object.fromEntries(BUP.map(k => [k, [dx, dy]])), extra);
+  S.assassin = rig({
+    w: 16, h: 18, padX: 8, emit: 'ER',
+    pal: {
+      k: '#1c1622', K: '#352a3e', e: '#08050a', E: '#ff3050', r: '#9a1028', R: '#ff4a64',
+      c: '#4a1020', C: '#6e1a30', b: '#1a1014', g: '#2a2030', d: '#a8b0c0', D: '#e8eef8', a: '#120c14',
+    },
+    order: ['backArm', 'knife', 'legs', 'torso', 'hood', 'frontArm'],
+    parts: {
+      // 黒いフードと、口元を覆う赤い布
+      hood: { x: 4, y: 0, v: {
+        base: ['...kk...', '..kKkk..', '.kKkkkk.', 'kkkeeeee', 'kkkeEeeE', '.kkrrrrR', '..krrRr.'],
+        b:    ['...kk...', '..kKkk..', '.kKkkkk.', 'kkkeeeee', 'kkkeEeeE', '.kkrrrRr', '..krRrr.'],
+      } },
+      torso: { x: 4, y: 7, v: { base: ['cCcrrccc', 'cCccrccc', 'bbbbbbbb', 'cCcccccc'] } },
+      backArm: { x: 3, y: 8, v: { base: ['c', 'c', 'g'] } },
+      frontArm: { x: 10, y: 8, v: {
+        base:    ['cc', 'cc', 'gg'],
+        forward: ['cccgg'],
+        raise:   ['..gg', '.cc.', 'cc..'],
+      } },
+      knife: { x: 2, y: 9, v: { base: ['D', 'd', 'b'] } }, // 腰の後ろに吊るした短刀
+      // コートの裾(赤い縁取り)とブーツ
+      legs: { x: 3, y: 11, v: {
+        base:  ['.ccccccc..', '.cCcccccc.', 'ccCccccccc', 'cccccccccc', 'rcrccrccrc', '.aa...aa..'],
+        stepA: ['.ccccccc..', '.cCcccccc.', 'ccCccccccc', 'cccccccccc', 'crcrrccrcr', 'aa.....aa.'],
+        stepB: ['.ccccccc..', '.cCcccccc.', 'ccCccccccc', 'cccccccccc', 'rcrccrccrc', '..aa.aa...'],
+      } },
+    },
+    motions: {
+      // 待機: 呼吸で上半身が沈み、赤い布の縁がゆらめく
+      idle: { loop: true, frames: [
+        { t: 0.4, p: bup(0, 0) }, { t: 0.4, p: bup(0, 0, { hood: [0, 0, 'b'] }) },
+        { t: 0.4, p: bup(0, 1) }, { t: 0.4, p: bup(0, 1, { hood: [0, 1, 'b'] }) },
+      ] },
+      // 歩き: 前傾ぎみの速い足取り
+      walk: { loop: true, frames: [
+        { t: 0.1, p: bup(0, 1, { legs: [0, 0, 'stepA'], backArm: [-1, 1] }) },
+        { t: 0.1, p: bup(0, 0, { hood: [0, 0, 'b'] }) },
+        { t: 0.1, p: bup(0, 1, { legs: [0, 0, 'stepB'], backArm: [1, 1] }) },
+        { t: 0.1, p: bup(0, 0) },
+      ] },
+    },
+  });
+  // 他クラスの武器スキル・スキルを使ったときの代わりのモーション
+  S.assassin.alias = { ranbu: 'bRing', mBarrage: 'bRing', aRain: 'bRing', kSlam: 'bRing', pFlame: 'bRing', cIcicle: 'bRing', eSpark: 'bRing', hStrike: 'bRing', iai: 'bPact', mMeteor: 'bPact', aVolley: 'bPact', kVerdict: 'bPact', pInferno: 'bPact', cDust: 'bPact', eTower: 'bPact', hJudge: 'bPact', mBlink: 'bStep', aStep: 'bStep', pWall: 'bStep', cMirror: 'bStep', eDash: 'bStep', hPray: 'bStep' };
 
   S.zombie = mk({ a: '#3d2f24', b: '#7fb069', c: '#ff4040', d: '#2b3a22', e: '#6b5a8e', f: '#3a3350', g: '#241c2e' }, [
     '...aaaa...',
@@ -888,7 +938,7 @@ const ART = (() => {
     '..ba...',
     '...a...',
   ], { emit: 'c' });
-  S.bladeEvo = mk({ a: '#fff2a8', b: '#ffc93a', c: '#ffffff' }, [
+  S.bladeEvo = mk({ a: '#b80c22', b: '#5a000c', c: '#e0283a' }, [ // ブラッドサークル(血の色の刃)
     '...a...',
     '...ab..',
     'bb.cb..',

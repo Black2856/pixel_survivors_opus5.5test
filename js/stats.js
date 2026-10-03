@@ -219,6 +219,7 @@ function applyStats() {
   P.dr = v.dr;
   P.maxSta = v.sta; P.staRegen = v.staRegen;
   P.iframe = DATA.player.iframe * (1 + v.iframe);
+  P.foodMul = Math.max(0, 1 + v.food);
   P.speed = DATA.player.speed * Math.max(0.1, 1 + v.spd) * m.spd;
   P.uq = st.uq;
   P.atk = v.atk; P.atkMul = m.atk;

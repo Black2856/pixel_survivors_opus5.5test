@@ -93,7 +93,7 @@ const WEAPON_SKILL = {
     },
   },
 };
-// アーケイン・バラージュ(マジックボルトの E): 詠唱 → 照準方向へ連射(移動は遅くなる)
+// アーケイン・バラージュ(マジックボルトの E): 詠唱 → 照準方向へ連射(連射中も普通に動ける)
 // オーブ(迅速の特殊強化)では、代わりに周りを回るオーブが5秒間連射し、自分は自由に動ける
 WEAPON_SKILL.bolt = {
   info(c, dmg) {
@@ -101,7 +101,7 @@ WEAPON_SKILL.bolt = {
     return { name: sk.name, cat: 'e', desc: [
       `詠唱 ${sk.windup}秒(動けない)→ ${sk.dur}秒間、照準方向へ毎秒 ${sk.rate}発の魔弾を連射`,
       `1発の威力: 武器の威力 × ${Math.round(sk.pow * 100)}%`,
-      `連射中は移動速度 ×${sk.slow}`,
+      '連射中も普通に動ける',
       `弾数は通常攻撃の ${Math.round(sk.countMul * 100)}%(切り上げ)。弾速・貫通は通常攻撃と同じ(進化後は追尾も)`,
       'E の攻撃なので、クラスの「攻撃1回ごと」の効果が1発ごとに起きる',
     ], rows: [
@@ -129,7 +129,6 @@ WEAPON_SKILL.bolt = {
       if (a.t >= sk.windup) { a.ph = 'fire'; a.t0 = a.t; }
       return;
     }
-    if (!hasSp('e', 'dur')) P.moveMul *= sk.slow; // 魔力障壁: 移動速度ペナルティなし
     a.shotT -= dt;
     while (a.shotT <= 0) { a.shotT += 1 / sk.rate; barrageShot(a, P.x, P.y, aimDir(220)); }
     if (a.t - a.t0 >= a.dur) {
@@ -371,6 +370,89 @@ function flameSuck(x, y, dmg, blue) {
   });
 }
 
+// 刃輪展開(オービットブレードの E): 構え → dur 秒間、刃の輪が広がる(半径・刃のサイズ・回転・威力が上がる)→ 終わりに刃が外へ飛び散る
+//   展開中の状態は P.bladeE(world.js のオービットブレードが読む)。P.act は構えの間だけ(展開中も動けて、Q も使える)
+WEAPON_SKILL.blade = {
+  info(c, dmg) {
+    const sk = DATA.weapons.blade.skill, m = c.wm, pw = (1 + c.cuV('e', 'pow')) * (1 + (m.ePow || 0)), one = dmg * sk.pow * pw, sc = dmg * sk.scatter * pw;
+    return { name: sk.name, cat: 'e', desc: [
+      `構え ${sk.windup}秒(動けない)→ ${sk.dur}秒間、刃の輪が広がる(使っている間も動ける)`,
+      `回転半径 ×${sk.rMul}、刃のサイズ ×${sk.size}、回転速度 ×${sk.rot}、刃の威力 ×${Math.round(sk.pow * 100)}%`,
+      `終わりに刃が回転しながら外へ飛び散る(1枚ごとに 武器の威力 × ${Math.round(sk.scatter * 100)}%、貫通)`,
+      'E の攻撃なので、クラスの「攻撃1回ごと」の効果が命中ごとに起きる',
+    ], rows: [
+      ['CD', `<b>${(sk.cd * (1 - c.cuV('e', 'cd')) * (1 - (m.cd || 0)) * c.cdMul).toFixed(1)}</b> 秒`],
+      ['持続', `${(sk.dur + (m.eDur || 0)).toFixed(1)} 秒`],
+      ['展開中の刃の威力', `${Math.round(one)} → <b>${Math.round(one * c.atkMul)}</b>`, '武器の威力 × ' + Math.round(sk.pow * 100) + '%。攻撃力を掛けた値'],
+      ['飛び散る刃の威力', `${Math.round(sc)} → <b>${Math.round(sc * c.atkMul)}</b>`],
+    ] };
+  },
+  start() {
+    const sk = weaponSkill(), m = P.wm.blade || {};
+    P.act = { slot: 'e', ph: 'wind', t: 0 };
+    setCd('e', sk.cd * (1 - cuV('e', 'cd')) * (1 - (m.cd || 0)) * P.cdMul);
+    playAnim('bRing', MOTIONS.bRing.dur);
+    skillCall(sk.name, '#d8e4ff'); AudioMan.click();
+  },
+  update(a, dt) {
+    const sk = weaponSkill(), m = P.wm.blade || {};
+    P.moveMul = 0;
+    if (a.t < sk.windup) { // 構え: 刃に光が集まる
+      if (Math.random() < dt * 40) { const r = rand(0, TAU); part(P.x + Math.cos(r) * 20, P.y + Math.sin(r) * 14, -Math.cos(r) * 60, -Math.sin(r) * 40, 0.25, pick(['#d8e4ff', '#ffffff']), { glow: true, drag: 0 }); }
+      return;
+    }
+    const pw = (1 + cuV('e', 'pow')) * clsESkillMul() * (1 + (m.ePow || 0));
+    P.bladeE = { t: sk.dur + (m.eDur || 0), ext: 0, kills: S.kills, rMul: sk.rMul * (1 + cuV('e', 'area')), size: sk.size, rot: sk.rot, pow: sk.pow * pw, scat: sk.scatter * pw };
+    P.act = null;
+    const R = (wst('blade').radius || 20) * P.area * P.bladeE.rMul;
+    asMine(() => {
+      addRing(P.x, P.y, R, '#ffffff', { w: 2, life: 0.35 }); addRing(P.x, P.y, R * 0.6, '#d8e4ff', { life: 0.3 });
+      burst(P.x, P.y, 24, ['#d8e4ff', '#ffffff', '#8ea6d8'], { sp: 120, glow: true, life: 0.4 });
+      shockAt(P.x, P.y, 1, 1.1); shake(3); hitstop(0.04);
+    });
+    AudioMan.slash(); AudioMan.zap();
+  },
+  // 展開中(毎フレーム)。連環: 展開中の撃破で持続 +killExt / 渦: 輪の外側の敵を輪へ引き寄せる
+  tick(dt) {
+    const b = P.bladeE;
+    if (!b) return;
+    const sk = DATA.weapons.blade.skill;
+    if (S.kills > b.kills && hasSp('e', 'cd') && b.ext < sk.killExtMax) { const add = Math.min(sk.killExtMax - b.ext, (S.kills - b.kills) * sk.killExt); b.t += add; b.ext += add; }
+    b.kills = S.kills;
+    if (hasSp('e', 'area')) {
+      const R = (wst('blade').radius || 20) * P.area * b.rMul;
+      forEachNear(P.x, P.y, R * sk.pullK, e => {
+        if (e.boss || e.prop || e.dead) return;
+        const d = Math.hypot(e.x - P.x, e.y - P.y);
+        if (d <= R) return;
+        const k = Math.min(d - R, sk.pull * dt);
+        e.x -= (e.x - P.x) / d * k; e.y -= (e.y - P.y) / d * k;
+      });
+    }
+    if ((b.t -= dt) > 0) return;
+    P.bladeE = null;
+    bladeScatter(b);
+  },
+};
+// 刃輪展開の終わり: 刃が回転しながら外へ飛び散る(輪の回転を保ったまま、らせんを描いて広がる)
+//   刃の雨: rainT 秒 広がった後、自分のところへ戻ってきてもう一度当たる(戻りの威力 ×rainPow)
+function bladeScatter(b) {
+  const sk = DATA.weapons.blade.skill, w = P.weapons.blade;
+  if (!w || !w.blades) return;
+  const st = wst('blade'), col = w.evo ? '#8e0016' : '#d8e4ff', back = hasSp('e', 'pow'), mcd = (P.wm.blade || {}).cd || 0;
+  const omega = st.rot * P.atkSpd / (P.cdMul * (1 - mcd)) * b.rot; // 飛び散る直前の輪の回る速さ(rad/s)
+  const o = s => ({ dmg: st.dmg * b.scat, pierce: 999, src: 'blade', eHit: true, r: 5 * s, sz: s, col, evo: w.evo }); // s: 刃の大きさ(当たり判定・見た目)
+  for (const bl of w.blades) {
+    const a = Math.atan2(bl.y - P.y, bl.x - P.x), r = Math.hypot(bl.x - P.x, bl.y - P.y), s = bl.s || 2, dir = bl.dir || 1;
+    const vt = Math.sign(dir) * Math.min(sk.spinMax, omega * Math.abs(dir) * r); // 回る向きと速さ(接線方向)
+    fire('bscatter', bl.x, bl.y, a, sk.scatterSpd, Object.assign(o(s), { life: back ? sk.rainT : sk.scatterT,
+      spiral: { cx: P.x, cy: P.y, r, a, vr: sk.scatterSpd, vt },
+      onEnd: back ? p => fire('bscatter', p.x, p.y, Math.atan2(P.y - p.y, P.x - p.x), sk.scatterSpd, Object.assign(o(s), { dmg: p.dmg * sk.rainPow, life: 3, toP: true, speed: sk.scatterSpd * 1.3 })) : null }));
+  }
+  asMine(() => { addRing(P.x, P.y, 30, col, { w: 2, life: 0.3 }); burst(P.x, P.y, 16, [col, '#ffffff'], { sp: 140, glow: true, life: 0.3 }); shake(4); });
+  AudioMan.slash();
+}
+
 // アイシクルフォール(ブリザードの E): 構え → 照準位置につららが降り続ける(放った後は動ける)
 // つららそのものは zones の 'icicle'(world.js の updZones で落とす)
 WEAPON_SKILL.blizzard = {
@@ -485,7 +567,7 @@ WEAPON_SKILL.aura = {
     for (let i = 0; i < n; i++) setTimeout(() => { if (state === 'play') holyPillar(pow); }, (0.1 + i * sk.gap) * 1000);
   },
   update() {},
-  // 聖痕: 印を付けた敵に、自分の回復量を 0.5秒ごとにまとめてダメージとして与える
+  // 聖痕: 印を付けた敵に、自分の回復量を 0.5秒ごとにまとめてダメージとして与える(攻撃力・クリティカルが乗る)
   tick(dt) {
     if (!hasSp('e', 'pow')) { S.healSeen = S.healed || 0; return; }
     S.stigmaT = (S.stigmaT || 0) - dt;
@@ -495,7 +577,7 @@ WEAPON_SKILL.aura = {
     S.healSeen = S.healed || 0;
     if (amt <= 0) return;
     const sk = DATA.weapons.aura.skill;
-    asMine(() => { for (const e of enemies) if (!e.dead && !e.prop && S.time < (e.stigmaT || 0) && onScreen(e.x, e.y)) { hitEnemy(e, amt * sk.stigma / dmgMul(), { src: 'stigma', noCrit: true, dot: true, col: '#ffe38a', noNum: Math.random() < 0.5 }); } });
+    asMine(() => { for (const e of enemies) if (!e.dead && !e.prop && S.time < (e.stigmaT || 0) && onScreen(e.x, e.y)) { hitEnemy(e, amt * sk.stigma, { src: 'stigma', dot: true, col: '#ffe38a', noNum: Math.random() < 0.5 }); } });
   },
 };
 // 光の柱1本: ランダムな敵の位置に落ちる(zones の 'pillar' は見た目だけ)
@@ -522,7 +604,7 @@ function ranbuHit(sk) {
   const R = sk.radius * P.area, dmg = wst(P.mainW).dmg * sk.pow * (1 + cuV('e', 'pow')) * P.act.pow, k0 = S.kills, el = clsNextEl(); // 1回の斬撃 = 1属性
   asMine(() => {
     forEachNear(P.x, P.y, R, e => { if (!e.prop) hitEnemy(e, dmg, { src: 'ranbu', ang: Math.atan2(e.y - P.y, e.x - P.x), kb: 25, col: '#ffb7d5', noNum: Math.random() < 0.4, el, eHit: true }); });
-    slashes.push({ x: P.x, y: P.y, a: rand(0, TAU), r: R * rand(0.8, 1.1), t: 0, life: 0.18, flip: Math.random() < 0.5 });
+    slashes.push({ x: P.x, y: P.y, follow: true, a: rand(0, TAU), r: R, t: 0, life: 0.18, flip: Math.random() < 0.5, span: 1.9, pal: SWING_PAL.ranbu }); // 外縁 = 乱れ桜の範囲(全周に当たる。向きはばらばら)
     burst(P.x + rand(-R, R) * 0.6, P.y + rand(-R, R) * 0.6, 6, ['#ffb7d5', '#ffffff'], { sp: 70, glow: true, life: 0.3 });
     shake(1.5);
   });
@@ -748,7 +830,7 @@ const CLASS_RT = {
   mage: {
     skills: ['q'],
     init() {
-      P.crystal = 0; P.crystalMax = MG().crystalMax + (P.lvFx.crystalMax || 0);
+      P.crystal = 0;
       P.elI = 0; P.flowWin = 0; P.flowT = 0; P.echoT = 0; P.ovf = 0; P.calmT = 0; P.blinkHeld = false; P.meteors = [];
     },
     update(dt) {
@@ -787,10 +869,11 @@ const CLASS_RT = {
     onSkill() { P.echoT = 5; },
     // オーバーフロー: 貯めたスキル威力を使う
     eMul() { const k = 1 + P.ovf; P.ovf = 0; return k; },
-    atkBonus: () => 0,
-    res: () => ({ kind: 'crystal', label: '魔力結晶', v: P.crystal, max: P.crystalMax, seg: true, dk: '#1d4a7a' }),
+    atkBonus: () => (hasSp('trait', 'crys') ? P.crystal * MG().ampAtk : 0), // 魔力増幅
+    res: () => ({ kind: 'crystal', label: '魔力結晶', v: P.crystal, max: crystalMax(), seg: true, dk: '#1d4a7a' }),
     statuses() {
       const out = [], e = cuV('passive', 'echo'), sp = hasSp('passive', 'echo');
+      if (hasSp('trait', 'crys') && P.crystal > 0) out.push({ id: 'amp', glyph: '晶', name: '魔力増幅', fx: `攻撃力 +${Math.round(P.crystal * MG().ampAtk * 100)}%`, kind: 'buff' });
       if (P.echoT > 0 && (e || sp)) out.push({ id: 'echo', glyph: '韻', name: sp ? '詠唱加速' : '余韻', fx: (e ? `攻撃速度 +${Math.round(e * 100)}%` : '') + (sp ? ' 弾数 +1' : ''), t: P.echoT, max: 5, kind: 'buff' });
       if (P.ovf > 0) out.push({ id: 'ovf', glyph: '溢', name: 'オーバーフロー', fx: `次のスキルの威力 +${Math.round(P.ovf * 100)}%`, kind: 'buff' });
       if (hasSp('passive', 'cap') && P.calmT >= 3) out.push({ id: 'calm', glyph: '瞑', name: '瞑想', fx: 'HP 2/s で回復', kind: 'buff' });
@@ -809,8 +892,8 @@ const CLASS_RT = {
           ['凍傷の上限', `${MG().frostCap + (c.run && cuLv('trait', 'el') ? DATA.classes.mage.elFrost[cuLv('trait', 'el') - 1] : 0)}`],
           ['連鎖', `${p.chainN + (c.run ? cuLv('trait', 'el') : 0)} 体`],
           ['共鳴の威力', `${Math.round(p.resoPow * (1 + c.cuV('trait', 'rpow') + (c.lvFx.resoPow || 0)))} → <b>${Math.round(p.resoPow * (1 + c.cuV('trait', 'rpow') + (c.lvFx.resoPow || 0)) * c.atkMul)}</b>`, '3属性目が当たると爆発。魔力結晶 +1'],
-          ['共鳴の半径', `${Math.round(p.resoR * (1 + c.cuV('trait', 'rarea')) * (1 + c.st.v.area) * c.st.mul.area)}`],
-          ['魔力結晶の上限', `${p.crystalMax + (c.lvFx.crystalMax || 0)}`],
+          ['共鳴の半径', `${Math.round(p.resoR * (1 + c.st.v.area) * c.st.mul.area)}`],
+          ['魔力結晶の上限', `<b>${p.crystalMax + (c.lvFx.crystalMax || 0) + c.cuV('trait', 'crys')}</b>`],
         ] },
         { key: 'パッシブ', name: '魔力循環', cat: 'passive', desc: [
           'メイン武器の通常攻撃が1回命中するごとに、E と Q のクールダウンが短くなる',
@@ -825,7 +908,7 @@ const CLASS_RT = {
           '威力は武器に依存しない',
         ], rows: [
           ['CD', `<b>${(DATA.classes.mage.q.cd * (1 - c.cuV('q', 'cd')) * c.cdMul).toFixed(1)}</b> 秒`],
-          ['威力', `${Math.round(DATA.classes.mage.q.pow * (1 + c.cuV('q', 'pow') + (c.lvFx.qPow || 0)))} → <b>${Math.round(DATA.classes.mage.q.pow * (1 + c.cuV('q', 'pow') + (c.lvFx.qPow || 0)) * c.atkMul)}</b>`, '魔力結晶1つにつき 威力 +20%・半径 +10%(武器に依存しない)'],
+          ['威力', `${Math.round(DATA.classes.mage.q.pow * (1 + c.cuV('q', 'pow') + (c.lvFx.qPow || 0)))} → <b>${Math.round(DATA.classes.mage.q.pow * (1 + c.cuV('q', 'pow') + (c.lvFx.qPow || 0)) * c.atkMul)}</b>`, `魔力結晶1つにつき 威力 +${Math.round(DATA.classes.mage.q.crystalPow * 100)}%・半径 +${Math.round(DATA.classes.mage.q.crystalR * 100)}%(武器に依存しない)`],
           ['半径', `${Math.round(DATA.classes.mage.q.r * (1 + c.cuV('q', 'area')) * (1 + c.st.v.area) * c.st.mul.area)}`],
         ] },
         { key: 'Space', name: 'ブリンク', desc: [
@@ -1104,9 +1187,8 @@ const CLASS_RT = {
     },
     // 業火: 火勢(スタック数に比例)・業火(特殊): 纏っている間 +50%
     burnMul: e => 1 + Math.min((e.burns || []).length, pyStackMax()) * pyStackPct() + (P.pyT > 0 && hasSp('passive', 'kindle') ? PY().hellBurn : 0),
-    burnCrit: e => pyWhite(e),
     burnDur: () => cuV('trait', 'dur'),
-    critBonus: e => (pyWhite(e) ? PY().whiteCrit : 0), // 白炎
+    critBonus: e => (pyWhite(e) ? PY().whiteCrit : 0), // 白炎(炎上ダメージにも乗る)
     // 燻り: 炎上が切れた敵に残り火(残り火が切れても次は出ない)
     onBurnOut(e, perSec, onlyEmber) { if (hasSp('trait', 'dur') && !onlyEmber) addBurn(e, perSec * PY().emberPct, 3, 'ember'); },
     onKill(e) {
@@ -1533,6 +1615,137 @@ const CLASS_RT = {
       ];
     },
   },
+  assassin: {
+    skills: ['q'],
+    init() { P.dash = null; P.dashHeld = false; P.dashHit = null; P.pact = null; P.asBucket = asLeechCap(); },
+    update(dt) {
+      const p = AS(), q = DATA.classes.assassin.q;
+      // 血の渇き: 回復の上限(1秒に leechCap まで)。使った分は少しずつ戻る
+      const cap = asLeechCap();
+      P.asBucket = Math.min(cap, (P.asBucket || 0) + cap * dt);
+      // 血の契約: 効果中は赤い霧をまとう / 血の嵐
+      if (P.pact) {
+        P.pact.t -= dt;
+        if (Math.random() < dt * 14) part(P.x + rand(-5, 5), P.y + rand(-4, 6), rand(-8, 8), -rand(10, 25), 0.5, pick(BLOOD), { glow: Math.random() < 0.4 });
+        if (hasSp('q', 'pow') && (P.pact.storm -= dt) <= 0) { P.pact.storm += q.stormEvery; asStorm(); }
+        if (P.pact.t <= 0) { P.pact = null; S.hudDirty = true; }
+      }
+      // 瞬影: 駆け抜けながら、通った敵に一度ずつ
+      if (P.dash) {
+        P.x += P.dash.vx * dt; P.y += P.dash.vy * dt; P.dash.t -= dt;
+        P.after = (P.after || []).concat([{ x: P.x, y: P.y, t: 0.1, f: P.facing }]).slice(-5);
+        asMine(() => forEachNear(P.x, P.y, p.dashR, e => {
+          if (e.prop || e.dead || P.dashHit.has(e.id)) return;
+          P.dashHit.add(e.id);
+          hitEnemy(e, p.dashPow, { src: 'adash', ang: Math.atan2(P.dash.vy, P.dash.vx), kb: 30, col: '#8e0016' });
+          addBleed(e, p.dashBleed);
+          slashes.push({ mark: true, x: e.x - 5, y: e.y + 4, x1: e.x + 5, y1: e.y - 4, t: 0, life: 0.14, core: '#c0102a', col: '#5a000c' });
+        }));
+        if (P.dash.t <= 0) P.dash = null;
+      }
+      const held = (keys.Space || keys.TouchDef) && !P.act;
+      if (held && !P.dashHeld && !P.dash) { if (P.sta >= p.dashCost) assassinDash(); else addFloat(P.x, P.y - 16, 'STAMINA', '#6a7a88'); }
+      P.dashHeld = held;
+      P.moveMul = P.dash ? 0 : P.pact ? 1 + q.spd * asPactK() : 1;
+    },
+    onHurt: dmg => dmg,
+    // 血の渇き: メイン武器の命中ごとに leech を回復(撃破時の回復と合わせて 1秒に 最大HP × leechCap まで。血宴で上限アップ)
+    onMainHit() { asHeal(AS().leech * asLeechK()); },
+    // 血刃: 斬撃タイプの武器の命中(通常攻撃・E)で出血 +1
+    onWeaponHit(e, dmg, crit, o) {
+      const k = o && o.eHit ? P.mainW : o && o.src;
+      if (isCut(k)) addBleed(e, 1);
+    },
+    bleedCap: () => asBleedCap(),
+    bleedDur: () => cuV('trait', 'last'),                                   // 延命
+    bleedMul: () => 1 + cuV('trait', 'deep') + (P.lvFx.bleedDmg || 0),      // 深傷・クラスLv3
+    bleedFull: () => hasSp('trait', 'deep'),                                 // 鮮血
+    critBonus: e => (hasSp('trait', 'last') ? (e.bleed || 0) * AS().critPer : 0), // 致命傷
+    dmgTaken: e => (P.pact ? 1 + (e.bleed || 0) * DATA.classes.assassin.q.perStack * asPactK() : 1), // 血の契約: 出血1につき与ダメ +1%
+    onKill(e) {
+      if (!(e.bleed > 0)) return;
+      // 血の渇き: 出血中の敵を倒すと、最大HP × 出血 × killPer を回復(1秒の上限に含む。貪りで 1スタックあたりが増える)
+      asHeal(P.maxhp * e.bleed * cuV('passive', 'greed', AS().killPer) * asLeechK());
+      if (hasSp('trait', 'rend')) asChain(e);  // 血の連鎖
+      const q = DATA.classes.assassin.q;
+      if (P.pact && hasSp('q', 'dur') && P.pact.ext < q.extendMax) { // 血の契り
+        const add = Math.min(q.extendMax - P.pact.ext, q.extend);
+        P.pact.t += add; P.pact.ext += add; P.pact.max += add;
+      }
+    },
+    onOverheal(n) { if (hasSp('passive', 'thirst') && n > 0) timedShield(n * AS().shieldK, AS().shieldT); }, // 血の盾: 超えた分 × shieldK
+    atkBonus: () => 0,
+    qStart() {
+      const q = DATA.classes.assassin.q, a = aimDir((q.crossD + q.crossL) * 1.5);
+      if (Math.cos(a) !== 0) P.facing = Math.cos(a) < 0 ? -1 : 1;
+      P.act = { slot: 'q', ph: 'wind', t: 0, a };
+      playAnim('bPact', MOTIONS.bPact.dur);
+      slowmo(0.5, 0.2);
+      skillCall(q.name, '#ff3b5c'); AudioMan.click();
+    },
+    qUpdate(a, dt) {
+      const q = DATA.classes.assassin.q;
+      P.moveMul = 0;
+      if (a.t < q.windup) { // 構え: 体から赤い霧が立ちのぼる
+        asMine(() => { if (Math.random() < dt * 50) part(P.x + rand(-7, 7), P.y + rand(-2, 7), rand(-10, 10), -rand(25, 50), 0.45, pick(BLOOD), { glow: true, drag: 1 }); });
+        return;
+      }
+      assassinPact(a.a);
+      P.act = null;
+    },
+    res: () => (P.pact
+      ? { kind: 'pact', label: '血の契約', v: Math.ceil(P.pact.t), max: Math.max(1, Math.ceil(P.pact.max)), dk: '#6a0a1e' }
+      : { kind: 'bleed', label: '出血の上限', v: asBleedCap(), max: Math.max(1, asBleedMax()), dk: '#6a0a1e' }),
+    staBroken: () => false,
+    statuses() {
+      const out = [], q = DATA.classes.assassin.q, k = asPactK();
+      if (P.pact) out.push({ id: 'pact', glyph: '契', name: '血の契約', fx: `移動速度 +${Math.round(q.spd * k * 100)}% 出血1につき与ダメ +${(q.perStack * k * 100).toFixed(1)}%` + (hasSp('passive', 'feast') ? ` 血の渇きの上限 ×${AS().pactCap}` : ''), t: P.pact.t, max: P.pact.max, kind: 'buff' });
+      if (hasSp('passive', 'greed') && P.hp <= P.maxhp * AS().lowAt) out.push({ id: 'ikiti', glyph: '血', name: '生き血', fx: '血の渇きの回復量 ×2', kind: 'buff' });
+      return out;
+    },
+    qInfo: () => ({ name: DATA.classes.assassin.q.name, glyph: '契' }),
+    info(c) {
+      const p = AS(), q = DATA.classes.assassin.q, B = DATA.bleed, k = (1 + c.cuV('q', 'pow')) * (1 + (c.lvFx.qPow || 0));
+      const lk = 1 + c.cuV('passive', 'thirst') + (c.lvFx.leech || 0), pk = c.cuV('q', 'price', 1);
+      return [
+        { key: '特性', name: '血刃', cat: 'trait', desc: [
+          '斬撃タイプの武器(刀・騎士剣・オービットブレード・スローイングアックス)の命中で、出血 +1(通常攻撃・E とも)',
+          `出血の最大スタック = 斬撃タイプの武器の所持数 × ${p.perCut}`,
+          `出血: 1スタックにつき毎秒 最大HP の ${(B.pct * 100).toFixed(1)}%(ボス ×${B.boss}、エリート ×${B.elite})`,
+        ], rows: [
+          ['出血の最大スタック', c.run ? `<b>${asBleedCap()}</b>` : `斬撃タイプ 1本につき <b>${p.perCut + c.cuV('trait', 'rend')}</b>`],
+          ['出血ダメージ', `<b>+${Math.round((c.cuV('trait', 'deep') + (c.lvFx.bleedDmg || 0)) * 100)}%</b>`],
+          ['出血の持続', `${B.dur + c.cuV('trait', 'last')} 秒`],
+        ] },
+        { key: 'パッシブ', name: '血の渇き', cat: 'passive', desc: [
+          `メイン武器の攻撃が当たるたびに HP を ${p.leech} 回復する`,
+          `出血中の敵を倒すと、その敵の出血 1スタックにつき 最大HP の ${(p.killPer * 100).toFixed(2)}% を回復する`,
+          `血の渇きの回復は、合わせて 1秒に 最大HP の ${p.leechCap * 100}% まで`,
+        ], rows: [
+          ['命中ごとの回復', `<b>${(p.leech * lk).toFixed(2)}</b>`],
+          ['撃破時の回復', `出血 1 につき 最大HP の <b>${(c.cuV('passive', 'greed', p.killPer) * lk * 100).toFixed(3)}%</b>`],
+          ['1秒の上限', `最大HP の <b>${(c.cuV('passive', 'feast', p.leechCap) * 100).toFixed(1)}%</b>`],
+        ] },
+        { key: 'Q', name: q.name, cat: 'q', desc: [
+          `構え ${q.windup}秒(動けない)→ 今の HP の ${Math.round(q.pay * 100)}% を支払う(HP は 1 未満にならない)`,
+          `支払った瞬間、照準方向へ×字に交差する二筋の斬撃: 基礎威力 ${q.pow} + 支払った HP × ${q.perHp}、出血 +${q.bleed}(1体に1回)`,
+          `  → 交差の中心は ${q.crossD} 前、1本の長さ ${q.crossL * 2}、線から ${q.crossW} 以内に当たる`,
+          `${q.dur}秒間、移動速度 +${Math.round(q.spd * 100)}%、敵の出血 1スタックにつき与えるダメージ +${Math.round(q.perStack * 100)}%`,
+          '威力は武器に依存しない',
+        ], rows: [
+          ['CD', `<b>${(q.cd * c.cdMul).toFixed(1)}</b> 秒`],
+          ['斬り裂きの威力', `${q.pow} + 支払った HP × ${q.perHp} → <b>×${(k * c.atkMul).toFixed(2)}</b>`, '強化・攻撃力の倍率'],
+          ['効果', `移動速度 +${Math.round(q.spd * pk * 100)}%、出血1につき +${(q.perStack * pk * 100).toFixed(1)}%、${q.dur + c.cuV('q', 'dur')} 秒`],
+        ] },
+        { key: 'Space', name: '瞬影', desc: [
+          `移動方向へ ${p.dashDist} 駆け抜ける(${p.dashIfr}秒 無敵)`,
+          `通り抜けた敵に 基礎威力 ${p.dashPow} と出血 +${p.dashBleed}`,
+        ], rows: [
+          ['スタミナ消費', `<b>${p.dashCost}</b>`],
+        ] },
+      ];
+    },
+  },
 };
 
 // 居合の斬撃: 通過した敵にまとめてダメージ(切っ先が走り終えた少しあとに、一閃の演出と同時に炸裂する)
@@ -1546,7 +1759,7 @@ function iaiStrike(a) {
       let marks = 0;
       for (const e of hits) if (!e.dead) {
         hitEnemy(e, dmg, { src: 'iai', ang: a.a, kb: 120, col: '#ff3b5c' });
-        if (ittou && !e.dead) { e.bleed = (e.bleed || 0) + 10; e.bleedT = DATA.bleed.dur; } // 一刀両断: 出血 10スタック
+        if (ittou) addBleed(e, 10); // 一刀両断: 出血 10スタック
         if (marks++ < 8) slashes.push({ mark: true, x: e.x - ca * 8, y: e.y - sa * 8, x1: e.x + ca * 8, y1: e.y + sa * 8, t: 0, life: 0.16 }); // 敵の上の細い斬り跡
         for (let i = 0; i < 8; i++) { // 血しぶき(線の両側へ)
           const k = i % 2 ? 1 : -1, sp = rand(40, 120);
@@ -1597,7 +1810,7 @@ function samuraiParry() {
   asMine(() => {
     const R = c.parryR * P.area;
     forEachNear(P.x, P.y, R, e => { if (!e.prop) hitEnemy(e, c.parryPow, { src: 'parry', ang: Math.atan2(e.y - P.y, e.x - P.x), kb: 80, col: '#ffffff' }); });
-    slashes.push({ x: P.x, y: P.y, a: 0, r: R, t: 0, life: 0.25, full: true });
+    slashes.push({ x: P.x, y: P.y, follow: true, a: rand(0, TAU), r: R, t: 0, life: 0.25, full: true, pal: SWING_PAL.parry }); // 全周を一回転で斬る(見た目 = 反撃の範囲)
     hitstop(0.06); shake(5); screenFlash(0.25 * SET.fxA, '#ffffff'); shockAt(P.x, P.y, 1, 1.2);
     addRing(P.x, P.y, R, '#ffffff', { w: 2, life: 0.3 });
     burst(P.x, P.y, 24, ['#ffffff', '#9ff7ff', '#ff3b5c'], { sp: 120, glow: true, life: 0.35 });
@@ -1633,7 +1846,7 @@ function mageAddEl(e, el, dealt, depth = 0) {
   else e.els = bits | EL_BIT[el];
 }
 function mageResonate(e, depth) {
-  const p = MG(), R = p.resoR * (1 + cuV('trait', 'rarea')) * P.area, dmg = p.resoPow * (1 + cuV('trait', 'rpow') + (P.lvFx.resoPow || 0));
+  const p = MG(), R = p.resoR * P.area, dmg = p.resoPow * (1 + cuV('trait', 'rpow') + (P.lvFx.resoPow || 0));
   e.els = 0;
   const x = e.x, y = e.y, spread = hasSp('trait', 'rpow') && depth < 1;
   asMine(() => {
@@ -1647,15 +1860,16 @@ function mageResonate(e, depth) {
     burst(x, y, 16, ['#ff8a3d', '#9ff7ff', '#ffe14a', '#ffffff'], { sp: 110, glow: true, life: 0.4 });
     shake(1.5);
   });
-  if (hasSp('trait', 'rarea')) zones.push({ kind: 'hole', x, y, r: R * 0.8, t: 0, dur: 1, tick: 0, dmg: 0, pull: 90 }); // 特異点
-  if (P.crystal < P.crystalMax) {
+  const cmax = crystalMax();
+  if (P.crystal < cmax) {
     P.crystal++;
     part(x, y, (P.x - x) * 2, (P.y - y) * 2, 0.5, '#9ff7ff', { glow: true, sz: 2, drag: 0 });
-    if (P.crystal === P.crystalMax) { AudioMan.levelup(); addRing(P.x, P.y, 26, '#7ad7ff', { w: 2, life: 0.4 }); }
+    if (P.crystal === cmax) { AudioMan.levelup(); addRing(P.x, P.y, 26, '#7ad7ff', { w: 2, life: 0.4 }); }
   }
   AudioMan.boom();
 }
 const blinkCost = () => MG().blinkCost - (P.lvFx.blinkCut || 0);
+const crystalMax = () => MG().crystalMax + (P.lvFx.crystalMax || 0) + cuV('trait', 'crys'); // 魔力結晶の上限(クラスLv13・結晶容量)
 // ---------- メテオ(Q) ----------
 // 詠唱中は P.act、落下と着弾は P.meteors(着弾前に動ける)
 function meteorStart() {
@@ -1684,7 +1898,7 @@ function meteorUpdate(a, dt) {
     if (Math.random() < dt * 30) part(P.x + rand(-6, 6), P.y - 10 + rand(-4, 4), 0, -20, 0.3, pick(['#9ff7ff', '#ffc34a']), { glow: true });
   });
   if (a.t < q.windup) return;
-  P.meteors = (P.meteors || []).concat([{ x: a.x, y: a.y, t: 0, fall: q.fall, R: a.R, dmg: a.dmg, big: 1 + a.n * 0.2, main: true }]);
+  P.meteors = (P.meteors || []).concat([{ x: a.x, y: a.y, t: 0, fall: q.fall, R: a.R, dmg: a.dmg, big: 1 + a.n * q.crystalR * 2, main: true }]); // 隕石の大きさは半径の伸びに合わせる
   P.act = null;
 }
 // 落下中の隕石: 空から尾を引いて落ち、着弾で爆発
@@ -2184,11 +2398,122 @@ function clericJudge(a) {
   AudioMan.boom(); AudioMan.crit();
 }
 
+// ---------- ブラッドアサシン: 血刃・血の渇き・血の契約・瞬影 ----------
+const AS = () => DATA.classes.assassin.params;
+const isCut = k => !!(k && DATA.weapons[k] && DATA.weapons[k].cut); // 斬撃タイプの武器
+// 出血の最大スタック: 斬撃タイプの所持数 × (perCut + 裂創)。メイン武器も数える
+const asPerCut = () => AS().perCut + cuV('trait', 'rend');
+function asBleedCap() {
+  let n = 0;
+  for (const k in P.weapons) if (isCut(k)) n++;
+  return n * asPerCut();
+}
+// HUD 用: 出血の最大スタックの上限(武器枠を全て斬撃タイプにしたとき)
+function asBleedMax() {
+  const cuts = Object.keys(DATA.weapons).filter(isCut).length;
+  return Math.min(S.weaponSlots, cuts) * asPerCut();
+}
+// 血の渇きの回復量の倍率(渇き・クラスLv6。生き血: HP lowAt 以下で ×2)
+const asLeechK = () => (1 + cuV('passive', 'thirst') + (P.lvFx.leech || 0)) * (hasSp('passive', 'greed') && P.hp <= P.maxhp * AS().lowAt ? 2 : 1);
+// 命中ごとの回復の上限(1秒あたり。血宴で上がる。饗宴: 血の契約の効果中 × pactCap)
+const asLeechCap = () => P.maxhp * cuV('passive', 'feast', AS().leechCap) * (P.pact && hasSp('passive', 'feast') ? AS().pactCap : 1);
+const asPactK = () => cuV('q', 'price', 1); // 代償: 血の契約の効果の倍率
+// 血の渇きの回復(数字は出さない)。命中ごと・撃破時とも、1秒の上限の枠から取る
+function asHeal(n) {
+  const take = Math.min(n, P.asBucket);
+  if (!(take > 0)) return;
+  P.asBucket -= take;
+  heal(take, true);
+}
+// 血の連鎖: 倒した敵の出血の半分を、近くの敵 chainN 体へ移す
+function asChain(e) {
+  const p = AS(), n = Math.floor(e.bleed / 2);
+  if (n <= 0) return;
+  const near = [];
+  forEachNear(e.x, e.y, p.chainR, t => { if (t !== e && !t.dead && !t.prop) near.push(t); });
+  near.sort((a, b) => d2(e.x, e.y, a.x, a.y) - d2(e.x, e.y, b.x, b.y));
+  asMine(() => near.slice(0, p.chainN).forEach(t => {
+    addBleed(t, n);
+    slashes.push({ line: true, x: e.x, y: e.y, x1: t.x, y1: t.y, t: 0, life: 0.18, w: 1, col: '#5a000c', core: '#a0001a' });
+  }));
+}
+// 瞬影: 移動方向へ駆け抜ける
+function assassinDash() {
+  const p = AS(), d = P.moving && P.dir ? P.dir : [P.facing, 0], len = Math.hypot(d[0], d[1]) || 1;
+  staUse(p.dashCost);
+  P.dash = { vx: d[0] / len * p.dashDist / p.dashTime, vy: d[1] / len * p.dashDist / p.dashTime, t: p.dashTime };
+  P.dashHit = new Set();
+  P.invT = Math.max(P.invT, p.dashIfr); P.ifr = Math.max(P.ifr, p.dashIfr);
+  playAnim('bStep', MOTIONS.bStep.dur); P.anim.keep = true;
+  asMine(() => burst(P.x, P.y, 10, ['#8e0016', '#1a1420', '#3a0008'], { sp: 60, life: 0.3 }));
+  AudioMan.dash();
+}
+// 血の契約: 今の HP の一部を支払い(HP は 1 未満にならない。シールドでは払えない)、照準方向へ×字に交差する二筋の斬撃 → 効果中は加速・出血の敵へのダメージアップ
+//   斬撃は鬼神・村正の一閃と同じ作り(world.js の makeCut。時刻はゲーム時間)
+//   0 〜 0.07   1本目: 左上から右下へ切っ先が走る(照準方向を右としたとき)
+//   〜 0.15     2本目: 右上から左下へ、1本目に交差するように走る
+//   0.2         交差しきった瞬間に、二筋の上の敵へまとめて炸裂(1体に1回)
+function assassinPact(a) {
+  const q = DATA.classes.assassin.q, lv = cuLv('q', 'price'), allIn = hasSp('q', 'price');
+  const pay = lv ? q.pricePay[lv - 1] : q.pay;
+  const paid = Math.max(0, allIn ? P.hp - 1 : Math.min(P.hp - 1, P.hp * pay));
+  P.hp -= paid; S.hudDirty = true;
+  if (allIn && paid > 0) timedShield(paid * q.allIn, q.allInT); // 捨て身
+  const dmg = (q.pow + paid * q.perHp) * (1 + cuV('q', 'pow')) * (1 + (P.lvFx.qPow || 0));
+  const cx = P.x + Math.cos(a) * q.crossD * P.area, cy = P.y + Math.sin(a) * q.crossD * P.area, L = q.crossL * P.area, W = q.crossW * P.area;
+  const t1 = a + Math.PI / 4, t2 = a - Math.PI / 4;
+  const c1 = makeCut(cx - Math.cos(t1) * L, cy - Math.sin(t1) * L, cx + Math.cos(t1) * L, cy + Math.sin(t1) * L, { omen: 0, run: 0.07, hit: 0.2, life: 0.7, wk: 1.25, pal: CUT_PAL_BLOOD });
+  const c2 = makeCut(cx + Math.cos(t2) * L, cy + Math.sin(t2) * L, cx - Math.cos(t2) * L, cy - Math.sin(t2) * L, { omen: 0.08, run: 0.15, hit: 0.2, life: 0.75, wk: 1.25, late: true, pal: CUT_PAL_BLOOD });
+  c1.ev.push({ at: 0, fn: () => { AudioMan.cut(); GFX.fx.aberr = Math.max(GFX.fx.aberr, 0.8 * SET.fxA); } }, { at: 0.07, fn: () => cutSpark(c1, 16, ['#d0142a', '#8e0016', '#5a000c']) });
+  c2.ev.push({ at: 0.08, fn: () => { AudioMan.cut(); GFX.fx.aberr = Math.max(GFX.fx.aberr, 1 * SET.fxA); } }, { at: 0.15, fn: () => { cutSpark(c2, 16, ['#d0142a', '#8e0016', '#5a000c']); hitstop(0.04); } });
+  c2.onHit = () => { // 交差しきった瞬間: 二筋の上の敵へまとめて炸裂
+    if (state !== 'play' && state !== 'levelup') return;
+    asMine(() => {
+      const hit = new Set();
+      forEachNear(cx, cy, L + W + 8, e => { if (!e.dead && (cutNear(c1, e.x, e.y, W + (e.r || 4)) || cutNear(c2, e.x, e.y, W + (e.r || 4)))) hit.add(e); });
+      let marks = 0;
+      for (const e of hit) {
+        if (e.prop) { killEnemy(e); continue; }
+        hitEnemy(e, dmg, { src: 'pact', ang: a, kb: 90, col: '#8e0016' });
+        addBleed(e, q.bleed);
+        if (marks++ < 8) for (const t of [t1, t2]) slashes.push({ mark: true, x: e.x - Math.cos(t) * 7, y: e.y - Math.sin(t) * 7, x1: e.x + Math.cos(t) * 7, y1: e.y + Math.sin(t) * 7, t: 0, life: 0.18, core: '#c0102a', col: '#5a000c' }); // 敵の上の×字の斬り跡
+        for (let i = 0; i < 8; i++) { const d = rand(0, TAU), sp = rand(40, 120); part(e.x, e.y, Math.cos(d) * sp, Math.sin(d) * sp - 20, rand(0.3, 0.6), pick(BLOOD), { g: 220, drag: 2, sz: pick([1, 2]) }); } // 血しぶき
+      }
+      for (const s of [c1, c2]) for (let i = 0; i < 18; i++) { // 墨のような飛沫(線全体から)
+        const [x, y] = cutPt(s, Math.random()), k = Math.random() < 0.5 ? -1 : 1, sp = rand(20, 110);
+        part(x, y, s.nx * k * sp, s.ny * k * sp - 10, rand(0.4, 0.9), pick(['#0a0002', '#1e0004', '#3a0008', '#5a000c', '#8e0016']), { g: 140, drag: 2.5, sz: pick([1, 1, 2]), glow: Math.random() < 0.2 });
+      }
+      addFlash(cx, cy, L * 2.4, '#6a000e', 0.35); addRing(cx, cy, L * 0.8, '#8e0016', { w: 3, life: 0.4 }); addRing(cx, cy, L * 0.45, '#c0102a', { w: 2, life: 0.3 });
+      shockAt(cx, cy, 1.6, 1); shake(9); hitstop(0.07); screenFlash(0.3 * SET.fxA, '#3a0008');
+    });
+    AudioMan.cutHit(); AudioMan.crit();
+  };
+  asMine(() => burst(P.x, P.y, 24, BLOOD, { sp: 110, up: 20, glow: true, life: 0.5 })); // 支払いの瞬間: 体から血の霧が噴き出す
+  if (paid >= 1) addFloat(P.x, P.y - 16, '-' + Math.round(paid), '#ff3b5c', 1.2);
+  const dur = q.dur + cuV('q', 'dur');
+  P.pact = { t: dur, max: dur, ext: 0, storm: q.stormEvery };
+  setCd('q', q.cd * P.cdMul);
+  AudioMan.boom(); AudioMan.crit();
+}
+// 血の嵐: 血の契約の間、周りを斬る
+function asStorm() {
+  const q = DATA.classes.assassin.q, R = q.stormR * P.area;
+  asMine(() => {
+    forEachNear(P.x, P.y, R, e => {
+      if (e.prop) { killEnemy(e); return; }
+      hitEnemy(e, q.stormPow, { src: 'pact', ang: Math.atan2(e.y - P.y, e.x - P.x), kb: 30, col: '#8e0016', noNum: Math.random() < 0.5 });
+      addBleed(e, 1);
+    });
+    slashes.push({ x: P.x, y: P.y, follow: true, a: rand(0, TAU), r: R, t: 0, life: 0.22, full: true, pal: SWING_PAL.blood });
+  });
+  AudioMan.slash();
+}
+
 // ---------- world.js から呼ぶ入口 ----------
 const clsRT = () => CLASS_RT[P.cls];
 function clsInit() {
   P.sta = P.maxSta; P.staLockT = 0; P.moveMul = 1; P.invT = 0; P.atkSpd = 1; P.cu = {}; P.cs = {};
-  P.sk = { q: { cd: 0, max: 1 }, e: { cd: 0, max: 1 } }; P.act = null; P.anim = null; P.orb = null; P.dash = null; P.flame = null;
+  P.sk = { q: { cd: 0, max: 1 }, e: { cd: 0, max: 1 } }; P.act = null; P.anim = null; P.orb = null; P.dash = null; P.flame = null; P.bladeE = null;
   if (clsRT()) clsRT().init();
 }
 function clsUpdate(dt) {
@@ -2271,11 +2596,15 @@ function addFrost(e, n, cap) {
   e.frost = Math.max(e.frost || 0, Math.min(cap, (e.frost || 0) + n)); e.frostT = 5;
   clsOnFrost(e);
 }
-// 武器の命中(全武器の通常攻撃・E。炎上などの継続ダメージは除く)
-function clsOnWeaponHit(e, dmg, crit) { if (clsRT() && clsRT().onWeaponHit) clsRT().onWeaponHit(e, dmg, crit); }
-// 炎上(共通の仕組み)へのクラスの補正: ダメージ倍率・クリティカルするか・持続の追加・切れたとき
+// 武器の命中(全武器の通常攻撃・E。炎上などの継続ダメージは除く)。o: hitEnemy の指定(どの武器の命中か)
+function clsOnWeaponHit(e, dmg, crit, o) { if (clsRT() && clsRT().onWeaponHit) clsRT().onWeaponHit(e, dmg, crit, o); }
+// 出血(共通の仕組み)へのクラスの補正: 最大スタック(無ければ無制限)・持続の追加・ダメージの倍率・攻撃力とクリティカルを乗せるか
+const clsBleedCap = () => (clsRT() && clsRT().bleedCap ? clsRT().bleedCap() : Infinity);
+const clsBleedDur = () => (clsRT() && clsRT().bleedDur ? clsRT().bleedDur() : 0);
+const clsBleedMul = () => (clsRT() && clsRT().bleedMul ? clsRT().bleedMul() : 1);
+const clsBleedFull = () => !!(clsRT() && clsRT().bleedFull && clsRT().bleedFull());
+// 炎上(共通の仕組み)へのクラスの補正: ダメージ倍率・持続の追加・切れたとき
 const clsBurnMul = e => (clsRT() && clsRT().burnMul ? clsRT().burnMul(e) : 1);
-const clsBurnCrit = e => !!(clsRT() && clsRT().burnCrit && clsRT().burnCrit(e));
 const clsBurnDur = () => (clsRT() && clsRT().burnDur ? clsRT().burnDur() : 0);
 function clsOnBurnOut(e, perSec, onlyEmber) { if (clsRT() && clsRT().onBurnOut) clsRT().onBurnOut(e, perSec, onlyEmber); }
 

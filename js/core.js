@@ -53,6 +53,8 @@ const META = (() => {
   }
   for (const k in DATA.classes) m.classes[k] = Object.assign({ lv: 1, xp: 0, weapon: DATA.classes[k].weapon }, m.classes[k]);
   if (!DATA.classes[m.cls]) m.cls = 'samurai';
+  // 永続ツリー: 守護の先端を 無敵時間 → 食べ物の効果 に変えた。取得済みならそのまま引き継ぐ
+  m.tree = m.tree.map(id => (id === 'iframe#1' ? 'food#1' : id));
   return m;
 })();
 function saveMeta() { try { localStorage.setItem(META_KEY, JSON.stringify(META)); } catch (e) { /* 保存不可でも続行 */ } }

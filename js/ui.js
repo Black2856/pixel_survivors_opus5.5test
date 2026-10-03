@@ -344,7 +344,7 @@ const UI = (() => {
   function statDiff(k, from, to) {
     const a = from ? (from.evo ? DATA.weapons[k].evo.st : DATA.weapons[k].lv[from.lv - 1]) : null, b = DATA.weapons[k].lv[to - 1];
     if (!a) return '';
-    return Object.keys(b).filter(s => a[s] !== b[s]).map(s => `<div class="diff"><span>${DATA.statLabels[s]}</span>${a[s]} → <em>${b[s]}</em></div>`).join('');
+    return Object.keys(b).filter(s => a[s] !== b[s]).map(s => `<div class="diff"><span>${DATA.statLabels[s] || s}</span>${a[s]} → <em>${b[s]}</em></div>`).join('');
   }
   function cardHTML(c) {
     let head = '', name = '', body = '', foot = '', rar = 'common', ic = '';
