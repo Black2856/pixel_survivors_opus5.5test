@@ -298,7 +298,7 @@ const MetaUI = (() => {
     $('st-class').innerHTML = `<img src="${portrait(META.cls)}" alt=""><span><b>${c.name}</b> Lv${m.lv} ・ ${DATA.weapons[m.weapon].name}</span><small>クラス変更 ▶</small>`;
     $('stage-list').innerHTML = STAGE_ITEMS().map(s => {
       const clear = META.stageClear[s.key];
-      const pt = clear ? chaosPoints(META.chaos[s.key] || {}) : 0;
+      const pt = clear ? chaosPoints(META.chaos[s.key] || {}, s.key) : 0;
       return `<button class="stg" data-mode="${s.mode}" data-n="${s.n}" style="--sc:${s.col}">
         <span class="nm">${s.name}${clear ? ' <b class="clr">★ CLEAR</b>' : ''}</span><span class="sub">${s.sub}</span>
         <span class="chaos ${clear ? 'on' : ''}">${clear ? `カオス強化: <b>${pt} pt</b> <span class="cz-btn" data-chaos="${s.key}">設定 ▶</span>` : 'カオス強化: クリアで解放'}</span></button>`;
@@ -317,12 +317,12 @@ const MetaUI = (() => {
     .map(([a, b]) => `<div class="cz-rw"><span>${a}</span><b>${b}</b></div>`).join('') : '<div class="dim">なし(5 pt から)</div>');
   function chaosPanel(key) {
     czKey = key; const lv = META.chaos[key] || (META.chaos[key] = {});
-    const pt = chaosPoints(lv), r = chaosReward(pt), next = DATA.chaos.rewards.find(x => x.pt > pt);
+    const pt = chaosPoints(lv, key), r = chaosReward(pt), next = DATA.chaos.rewards.find(x => x.pt > pt);
     const item = STAGE_ITEMS().find(s => s.key === key);
     $('chaos-panel').innerHTML = `<div class="cz">
       <div class="cz-head"><b>カオス強化</b> ${item ? item.name : ''}<button class="cz-x" data-cz="close">×</button></div>
-      <div class="cz-body"><div class="cz-list">${DATA.chaos.mods.map(m => { const l = lv[m.k] || 0; return `<div class="cz-row ${l ? 'on' : ''}">
-        <span class="nm">${m.name}<small>${chaosDesc(m, Math.max(1, l))}${m.max > 1 ? ` (1Lv ${m.per}${m.k === 'bossLv' || m.k === 'startLv' ? '' : '%'})` : ''}</small></span>
+      <div class="cz-body"><div class="cz-list">${chaosMods(key).map(m => { const l = chaosLv(lv, m); return `<div class="cz-row ${l ? 'on' : ''}">
+        <span class="nm">${m.name}<small>${chaosDesc(m, Math.max(1, l))}${m.max > 1 ? ` (1Lv ${m.per}${m.unit ?? '%'})` : ''}</small></span>
         <span class="pt">${m.pt} pt/Lv</span>
         <button data-cz="-" data-k="${m.k}" ${l ? '' : 'disabled'}>−</button><b>${l} / ${m.max}</b><button data-cz="+" data-k="${m.k}" ${l < m.max ? '' : 'disabled'}>+</button></div>`; }).join('')}</div>
       <div class="cz-sum">
@@ -338,8 +338,8 @@ const MetaUI = (() => {
     if (e.target === $('chaos-panel')) { closeChaos(); return; }
     const b = e.target.closest('[data-cz]'); if (!b || b.disabled) return;
     if (b.dataset.cz === 'close') { closeChaos(); return; }
-    const lv = META.chaos[czKey], m = DATA.chaos.mods.find(x => x.k === b.dataset.k);
-    lv[m.k] = clamp((lv[m.k] || 0) + (b.dataset.cz === '+' ? 1 : -1), 0, m.max);
+    const lv = META.chaos[czKey], m = chaosMods(czKey).find(x => x.k === b.dataset.k);
+    lv[m.k] = clamp(chaosLv(lv, m) + (b.dataset.cz === '+' ? 1 : -1), 0, m.max);
     saveMeta(); AudioMan.click(); chaosPanel(czKey);
   };
   function closeChaos() { UI.hide($('chaos-panel')); czKey = null; stageSelect(); }

@@ -13,20 +13,27 @@ const xpFor = l => Math.floor(4 + l * 2.6 + Math.pow(l, 1.72));
 // ============================================================
 // ---------- カオス強化の効果(ラン開始時に S.chaos から計算) ----------
 // area: 敵の攻撃範囲の倍率 / rate: 敵の攻撃頻度の倍率 / debuff: デバフの時間の倍率 / その他は Lv
-let CHAOS = { area: 1, rate: 1, debuff: 1, lvSpeed: 1, spawn: 1, loot: 0, bossLv: 0, rage: false, twin: false };
-function setupChaos(lv) {
-  const L = k => lv[k] || 0, per = k => DATA.chaos.mods.find(m => m.k === k).per / 100;
+// bossHp: ボスの HP の倍率 / escort: ボスと一緒に入場するエリートの数(闘技場)
+let CHAOS = { area: 1, rate: 1, debuff: 1, lvSpeed: 1, spawn: 1, loot: 0, bossLv: 0, rage: false, twin: false, bossHp: 1, escort: 0 };
+// key: モード・ステージのキー(闘技場は闘技場の項目だけを見る)
+function setupChaos(lv, key) {
+  const mods = chaosMods(key), M = k => mods.find(m => m.k === k);
+  const L = k => (M(k) ? chaosLv(lv, M(k)) : 0), per = k => (M(k) ? M(k).per / 100 : 0);
   CHAOS = {
     area: 1 + L('area') * per('area'), rate: 1 + L('rate') * per('rate'), debuff: 1 + L('debuff') * per('debuff'),
     lvSpeed: 1 + L('lvSpeed') * per('lvSpeed'), spawn: 1 + L('spawn') * per('spawn'), loot: L('loot') * per('loot'),
     bossLv: L('bossLv'), startLv: L('startLv'), rage: !!L('rage'), twin: !!L('twin'),
+    bossHp: 1 + L('bossHp') * per('bossHp'), escort: L('escort'),
   };
 }
 // 敵の攻撃の予告(攻撃範囲の倍率で広げる。当たり判定の hitCircle / hitLine と揃える)
+// fixed: 移動の経路・出現位置の予告(突進・飛びつき・瞬間移動)。攻撃範囲ではないので広げない
 function pushWarn(w) {
-  if (w.r) w.r *= CHAOS.area;
-  if (w.w) w.w *= CHAOS.area;
-  if (w.len) w.len *= CHAOS.area;
+  if (!w.fixed) {
+    if (w.r) w.r *= CHAOS.area;
+    if (w.w) w.w *= CHAOS.area;
+    if (w.len) w.len *= CHAOS.area;
+  }
   warns.push(w);
 }
 
@@ -62,13 +69,13 @@ function initRun(mode = 'normal', stageNo = 1) {
   S.rerolls = st.v.reroll; S.weaponSlots = st.v.wslot;
   clsInit();
   S.stageNo = stageNo; S.sched = mode === 'stage' ? stageSchedule(stageNo) : DATA.schedule;
-  if (mode === 'arena') { S.stage = 4; S.elv = DATA.arena.elv[0]; S.arena = { idx: 0, restT: 3, warned: false }; }
+  if (mode === 'arena') { S.stage = 4; S.elv = DATA.arena.elv[0]; S.arena = { idx: 0, restT: 3, warned: false }; } // 開始時の敵Lv(深い闇)は下で足す。ラウンドの敵Lv は arenaLv
   if (mode === 'stage') { const R = DATA.stageRuns[stageNo - 1]; S.stage = R.stage; S.elv = R.elv; }
   // カオス強化: クリア済みのモード・ステージだけ。設定は META.chaos[キー]
   const ck = mode === 'stage' ? 'stage' + stageNo : mode;
   S.chaos = META.stageClear[ck] && META.chaos && META.chaos[ck] ? Object.assign({}, META.chaos[ck]) : {};
-  S.chaosPt = chaosPoints(S.chaos); S.chaosReward = chaosReward(S.chaosPt);
-  setupChaos(S.chaos);
+  S.chaosPt = chaosPoints(S.chaos, ck); S.chaosReward = chaosReward(S.chaosPt);
+  setupChaos(S.chaos, ck);
   S.elv += CHAOS.startLv;
   recalc(); // 報酬をステータスへ
 }
@@ -672,6 +679,19 @@ function cutHit(s, st, W) {
 }
 
 
+// 天弓の 2回目: 少し遅れて(TENKYU_ECHO 秒)、金の残像の矢が同じ向きでもう一度突き刺さる(ダメージの数字も出す。同じ瞬間に当てると 1回に見えるため)
+const TENKYU_ECHO = 0.08;
+function tenkyuEcho(e, dmg, ang, o) {
+  setTimeout(() => {
+    if (state !== 'play' || e.dead) return;
+    asMine(() => {
+      hitEnemy(e, dmg, o);
+      const ca = Math.cos(ang), sa = Math.sin(ang);
+      slashes.push({ mark: true, x: e.x - ca * 9, y: e.y - 2 - sa * 9, x1: e.x + ca * 3, y1: e.y - 2 + sa * 3, t: 0, life: 0.16, col: '#8a6a10', core: '#ffe14a' }); // 金の残像の矢
+      burst(e.x, e.y - 2, 5, ['#ffe14a', '#fff6c8'], { sp: 55, glow: true, life: 0.22 });
+    });
+  }, TENKYU_ECHO * 1000);
+}
 // ---------- 弾 ----------
 function updProjs(dt) {
   for (let i = projs.length - 1; i >= 0; i--) {
@@ -720,7 +740,7 @@ function updProjs(dt) {
       if (p.focus) { if (e.fcId !== p.focus) { e.fcId = p.focus; e.fcN = 0; } dmg *= 1 + Math.min(0.5, 0.05 * e.fcN++); } // 集中砲火
       hitEnemy(e, dmg, { src: p.src, ang, kb: p.kind === 'axe' ? 50 : 22, col: p.col, el: p.el, eHit: p.eHit, forceCrit: p.forceCrit, cl: p.cl });
       if (p.onHit) p.onHit(e);
-      if (p.dbl && p.pierce > 0 && !e.dead) { hitEnemy(e, dmg, { src: p.src, col: p.col, el: p.el, eHit: p.eHit, noNum: true, cl: p.cl }); p.pierce--; } // 天弓: 二重ヒット(貫通を1消費)
+      if (p.dbl && p.pierce > 0 && !e.dead) { p.pierce--; tenkyuEcho(e, dmg, ang, { src: p.src, col: p.col, el: p.el, eHit: p.eHit, cl: p.cl }); } // 天弓: 二重ヒット(貫通を1消費)
       if (p.burn) addBurn(e, p.burn, 3, p.src);
       if (p.boom > 0) {
         p.boom--;
@@ -775,6 +795,18 @@ function axeWhirl(p, dt) {
 
 // ---------- 設置ゾーン(ブリザード / ブラックホール) ----------
 const ICE_FALL = 0.15; // つららが落ちてくる時間
+// アローレインの見た目の矢: RAIN_FALL 秒で空から落ち(高さ RAIN_H)、刺さってから RAIN_STUCK 秒で消える
+const RAIN_FALL = 0.12, RAIN_H = 60, RAIN_STUCK = 0.6;
+// 1回に降らせる見た目の矢: nArrows は半径 60 のときの本数。広いほど増やして密度を保つ(最大 2.5倍)。画質で減らす
+const rainArrowN = z => Math.max(2, Math.round(z.nArrows * clamp((z.r / 60) ** 2, 1, 2.5) * Math.min(1, 0.3 + gq().parts)));
+// 矢が刺さった瞬間: 土煙と火花(炎の矢は火の粉)
+function rainImpact(z, ar) {
+  asMine(() => {
+    part(ar.x + rand(-1, 1), ar.y, rand(-14, 14), -rand(8, 22), rand(0.25, 0.4), pick(['#6a5a40', '#4a3e2e', '#8a7a5a']), { g: 90, drag: 3 });
+    if (Math.random() < 0.6) part(ar.x, ar.y - 1, rand(-30, 30), -rand(20, 50), 0.15, z.fire ? pick(['#ffc34a', '#ff8a3d']) : pick(['#e4ffd8', '#b8ff9a']), { glow: true, drag: 4 });
+    if (z.fire && Math.random() < 0.5) part(ar.x + rand(-1, 1), ar.y - 2, rand(-6, 6), -rand(15, 30), rand(0.4, 0.7), pick(['#ff6a2a', '#ffc34a', '#b8261a']), { glow: true, drag: 1 });
+  });
+}
 function updZones(dt) {
   for (let i = zones.length - 1; i >= 0; i--) {
     const z = zones[i];
@@ -798,16 +830,20 @@ function updZones(dt) {
         asMine(() => forEachNear(z.x, z.y, z.r, e => { if (!e.prop) hitEnemy(e, z.dmg, { src: 'slam', noNum: Math.random() < 0.6, col: '#ffb347', eHit: true, cl: z.cl }); }));
       }
       if (Math.random() < dt * 10) part(z.x + rand(-z.r, z.r) * 0.7, z.y + rand(-z.r, z.r) * 0.4, 0, -15, 0.5, pick(['#ffb347', '#8a5a2a']), { glow: true });
-    } else if (z.kind === 'rain') { // アローレイン: 範囲のランダムな位置へ矢が刺さる(follow: 追従。ついていく使い手)
-      if (z.follow) { z.x = z.follow.x; z.y = z.follow.y; }
-      for (const ar of z.arrows) ar.t += dt;
-      z.arrows = z.arrows.filter(ar => ar.t < 0.5); // t < 0 は降り始める前(少しずつずらして降らせる)
-      if (z.t >= z.delay && z.t < z.dur) {
+    } else if (z.kind === 'rain') { // アローレイン: 範囲のランダムな位置へ矢が斜めに降って刺さる(follow: 追従。ついていく使い手)
+      //   見た目の矢: t < 0 は降り始める前(少しずつずらして降らせる)→ RAIN_FALL 秒で落ちる → 刺さって残る。終わった後も linger 秒は刺さった矢だけ残る
+      const live = z.t < z.dur;
+      if (z.follow && live) { z.x = z.follow.x; z.y = z.follow.y; }
+      for (const ar of z.arrows) { ar.t += dt; if (!ar.hit && ar.t >= RAIN_FALL) { ar.hit = true; rainImpact(z, ar); } }
+      z.arrows = z.arrows.filter(ar => ar.t < RAIN_FALL + RAIN_STUCK);
+      if (z.t >= z.delay && live) {
         z.acc += dt;
-        while (z.acc >= z.every) { // every 秒ごとに、範囲内の敵全員へ(見た目の矢はランダムな位置に nArrows 本)
-          z.acc -= z.every;
-          const el = clsNextEl(), x0 = z.x, y0 = z.y;
-          for (let i = 0; i < z.nArrows; i++) { const a = rand(0, TAU), rr = Math.sqrt(Math.random()) * z.r; z.arrows.push({ x: x0 + Math.cos(a) * rr, y: y0 + Math.sin(a) * rr, t: -i * z.every / z.nArrows }); }
+        while (z.acc >= z.every) { // every 秒ごとに、範囲内の敵全員へ(見た目の矢はランダムな位置に。最後の 1回は倍の本数)
+          z.acc -= z.every; z.pulseT = z.t;
+          const el = clsNextEl(), x0 = z.x, y0 = z.y, n = rainArrowN(z) * (z.t + z.every >= z.dur ? 2 : 1);
+          for (let i = 0; i < n; i++) { const a = rand(0, TAU), rr = Math.sqrt(Math.random()) * z.r; z.arrows.push({ x: x0 + Math.cos(a) * rr, y: y0 + Math.sin(a) * rr, t: -i * z.every / n }); }
+          if (z.arrows.length > 220) z.arrows.splice(0, z.arrows.length - 220);
+          AudioMan.rainTick();
           setTimeout(() => { // 矢が落ちてから当たる
             if (state !== 'play') return;
             asMine(() => {
@@ -817,10 +853,18 @@ function updZones(dt) {
                 if (Math.random() < 0.4) part(e.x, e.y, rand(-20, 20), -rand(10, 30), 0.3, pick(['#b8ff9a', '#e4ffd8', '#8a8098']), { glow: true });
               });
             });
-          }, 70);
+          }, RAIN_FALL * 1000); // 1本目の矢が刺さる瞬間
         }
       }
-      if (z.t + dt >= z.dur && !z.done) { z.done = true; asMine(() => { addFlash(z.x, z.y, z.r * 2.4, '#b8ff9a', 0.3); addRing(z.x, z.y, z.r, '#e4ffd8', { w: 2, life: 0.35 }); }); }
+      if (z.t + dt >= z.dur && !z.done) { // 降り終わり: 光が弾け、輪が外へ広がって土煙が上がる
+        z.done = true;
+        asMine(() => {
+          addFlash(z.x, z.y, z.r * 2.4, z.fire ? '#ff8a3d' : '#b8ff9a', 0.3); addRing(z.x, z.y, z.r, z.fire ? '#ffe0b0' : '#e4ffd8', { w: 2, life: 0.35 });
+          addRing(z.x, z.y, z.r * 1.25, z.fire ? '#ffb070' : '#b8ff9a', { r0: z.r * 0.7, life: 0.45 });
+          burst(z.x, z.y, 18, ['#6a5a40', '#4a3e2e', '#8a7a5a'], { sp: 60, up: 20, g: 120, life: 0.5, drag: 2 });
+          shake(2);
+        });
+      }
     } else if (z.kind === 'lightrain') { // 光の雨: 中にいると HP が回復する
       if (d2(P.x, P.y, z.x, z.y) < z.r * z.r) heal(DATA.weapons.aura.skill.rainHeal * dt, true);
       if (Math.random() < dt * 12) part(z.x + rand(-z.r, z.r) * 0.7, z.y + rand(-z.r, z.r) * 0.5, 0, -rand(10, 25), 0.6, pick(['#ffe38a', '#fff6d8']), { glow: true });
@@ -981,7 +1025,7 @@ function updZones(dt) {
         shockAt(z.x, z.y, 1.6, 0.8); shake(6); AudioMan.boom();
       }
     }
-    if (z.t >= z.dur) zones.splice(i, 1);
+    if (z.t >= z.dur + (z.linger || 0)) zones.splice(i, 1); // linger: 終わった後も見た目だけ残す秒(アローレインの刺さった矢)
   }
 }
 
@@ -1201,7 +1245,7 @@ function spawnBoss(key, final, companion) {
   UI.banner('⚠ WARNING ⚠', b.name);
   shake(8); screenFlash(0.3, '#ff3b5c');
   const a = rand(0, TAU), R = Math.hypot(GFX.VW, GFX.VH) / 2 + 30;
-  const hp = b.hp * enemyBase() * hpK();
+  const hp = b.hp * enemyBase() * hpK() * CHAOS.bossHp; // カオス: ボスの基礎体力(闘技場)
   const e = {
     id: nextId++, type: key, boss: key, name: b.name, final: !!final, enrage: b.enrage ?? 0.5, x: P.x + Math.cos(a) * R, y: P.y + Math.sin(a) * R,
     hp, maxhp: hp, spd: b.spd * Math.min(DATA.enemyLevel.spdMax, lvK('spd')), dmg: b.dmg * enemyDmgK(), r: b.r, col: b.col, xp: 0, kbRes: 1,
@@ -1235,7 +1279,7 @@ function lob(kind, x, y, tx, ty, T, H, onLand) {
 }
 // 往復する大鎌(当たっても消えない)
 function boomerang(e, a) {
-  eprojs.push({ kind: 'boomer', x: e.x, y: e.y, a, v: 220, ret: false, owner: e, t: 0, life: 8, r: 7, keep: true, dmg: 18 * enemyDmgK() * (S.eatk ?? 1) });
+  eprojs.push({ kind: 'boomer', x: e.x, y: e.y, a, v: 220, ret: false, owner: e, t: 0, life: 8, r: 7 * CHAOS.area, keep: true, dmg: 18 * enemyDmgK() * (S.eatk ?? 1) });
 }
 function addHazard(kind, x, y, o) {
   if (kind === 'goo' && hazards.length > 40) hazards.splice(hazards.findIndex(h => h.kind === 'goo'), 1);
@@ -1282,7 +1326,7 @@ function bossAI(e, dt) {
       if (ai.ph === 'chase') {
         e.x += Math.cos(a) * e.spd * slow * dt; e.y += Math.sin(a) * e.spd * slow * dt;
         ai.atk -= dt * CHAOS.rate;
-        if (ai.atk <= 0) { ai.ph = 'tele'; ai.pt = 0.8; ai.dir = a; pushWarn({ kind: 'line', x: e.x, y: e.y, a, len: 260, w: e.r * 2, t: 0, life: 0.8 }); }
+        if (ai.atk <= 0) { ai.ph = 'tele'; ai.pt = 0.8; ai.dir = a; pushWarn({ kind: 'line', x: e.x, y: e.y, a, len: 260, w: e.r * 2, t: 0, life: 0.8, fixed: true }); } // 突進の経路(体当たりなので広げない)
         ai.slam -= dt * CHAOS.rate;
         if (ai.enraged && ai.slam <= 0 && ai.ph === 'chase') { ai.ph = 'slamTele'; ai.pt = 1; pushWarn({ kind: 'circle', x: e.x, y: e.y, r: 70, t: 0, life: 1 }); }
       } else if (ai.ph === 'tele') {
@@ -1297,7 +1341,7 @@ function bossAI(e, dt) {
         ai.pt -= dt;
         if (ai.pt <= 0) {
           ai.ph = 'chase'; ai.slam = 7;
-          if (dist < 70 * CHAOS.area) hurtPlayer(e.dmg * 1.2);
+          hitCircle(e.x, e.y, 70, e.dmg * 1.2);
           for (let i = 0; i < 14; i++) eball(e.x, e.y, TAU / 14 * i, 55, 12);
           shockAt(e.x, e.y, 1.8, 0.8); shake(10); AudioMan.boom();
           burst(e.x, e.y, 50, ['#7fae4e', '#b8d86a', '#3a1a14'], { sp: 150, g: 200 });
@@ -1339,7 +1383,7 @@ function bossAI(e, dt) {
       if (ai.tp <= 0 && !ai.tpTo) {
         const ta = rand(0, TAU), tr = rand(60, 90);
         ai.tpTo = { x: P.x + Math.cos(ta) * tr, y: P.y + Math.sin(ta) * tr, t: 0.55 };
-        pushWarn({ kind: 'circle', x: ai.tpTo.x, y: ai.tpTo.y, r: 20, t: 0, life: 0.55 });
+        pushWarn({ kind: 'circle', x: ai.tpTo.x, y: ai.tpTo.y, r: 20, t: 0, life: 0.55, fixed: true }); // 出現位置の目印(範囲攻撃ではない)
       }
       if (ai.tpTo) {
         ai.tpTo.t -= dt;
@@ -1447,7 +1491,8 @@ function golemAI(e, ai, dt, a, dist, slow) {
   if (ai.act === 'spin') {
     ai.pt -= dt; ai.spinA += (ai.enraged ? 9 : 7) * dt;
     e.x += Math.cos(a) * e.spd * 1.5 * slow * dt; e.y += Math.sin(a) * e.spd * 1.5 * slow * dt;
-    e.fists = [0, 1].map(i => { const fa = ai.spinA + Math.PI * i; return { x: e.x + Math.cos(fa) * 30, y: e.y + Math.sin(fa) * 30 }; });
+    const FR = 30 * CHAOS.area; // 腕の長さも攻撃範囲の倍率で伸ばす(拳の判定 7 と同じ倍率。予告の円との比は倍率 1 のときと同じ)
+    e.fists = [0, 1].map(i => { const fa = ai.spinA + Math.PI * i; return { x: e.x + Math.cos(fa) * FR, y: e.y + Math.sin(fa) * FR }; });
     for (const f of e.fists) {
       hitCircle(f.x, f.y, 7, e.dmg);
       if (Math.random() < 0.5) part(f.x, f.y, rand(-20, 20), rand(-20, 20), 0.4, pick(['#a89e8c', '#6ee7ff']), { glow: true });
@@ -1515,7 +1560,7 @@ function dragonAI(e, ai, dt, a, dist, slow) {
     ai.ba += clamp(angDiff(a, ai.ba), -0.9 * dt, 0.9 * dt);
     const L = 125 * CHAOS.area, H = 0.32, mx = e.x + Math.cos(ai.ba) * 10, my = e.y + Math.sin(ai.ba) * 10;
     for (let i = 0; i < 4; i++) {
-      const aa = ai.ba + rand(-H, H), sp = rand(120, 170);
+      const aa = ai.ba + rand(-H, H), sp = rand(120, 170) * CHAOS.area; // 炎の届く距離 = 当たり判定の長さ L
       part(mx, my, Math.cos(aa) * sp, Math.sin(aa) * sp, rand(0.55, 0.8), pick(['#ff6a2a', '#ffc34a', '#ff4a8a', '#fff6c8']), { glow: true, drag: 0.6, sz: pick([1, 2, 2]) });
     }
     if (dist < L && Math.abs(angDiff(a, ai.ba)) < H + 4 / Math.max(dist, 1)) { hurtPlayer(e.dmg * 0.3); burnPlayer(e.dmg * 0.03); }
@@ -1528,7 +1573,7 @@ function dragonAI(e, ai, dt, a, dist, slow) {
     const k = ai.pt / ai.T;
     ai.bA = ai.b0 + ai.dir * TAU * Math.min(1, k);
     hitLine(e.x, e.y, ai.bA, BEAM_LEN, 10, e.dmg * 1.2);
-    const r = rand(20, BEAM_LEN);
+    const r = rand(20, BEAM_LEN * CHAOS.area);
     part(e.x + Math.cos(ai.bA) * r, e.y + Math.sin(ai.bA) * r, rand(-30, 30), rand(-30, 30), 0.4, pick(['#ff4a8a', '#ffd0f0', '#ffffff']), { glow: true });
     shake(1.5);
     if (k >= 1) { ai.bA = null; endAct(); }
@@ -1573,7 +1618,7 @@ function dragonAI(e, ai, dt, a, dist, slow) {
     });
     endAct();
   } else if (dist < LUNGE_RANGE && (dist < 60 || Math.random() < 0.35)) { // 近距離は必ず、中距離は確率で飛びつき
-    pushWarn({ kind: 'line', x: e.x, y: e.y, a, len: LUNGE_RANGE + 20, w: 34, t: 0, life: 0.4 });
+    pushWarn({ kind: 'line', x: e.x, y: e.y, a, len: LUNGE_RANGE + 20, w: 34, t: 0, life: 0.4, fixed: true }); // 踏み込みの経路(爪撃は自分で範囲を描く)
     windup(e, 0.4, () => {
       ai.act = 'lunge'; ai.la = Math.atan2(P.y - e.y, P.x - e.x);
       ai.pt = clamp((Math.sqrt(d2(e.x, e.y, P.x, P.y)) - 14) / LUNGE_SPD, 0.08, (LUNGE_RANGE + 20) / LUNGE_SPD); // プレイヤーの手前まで踏み込む
@@ -1582,15 +1627,16 @@ function dragonAI(e, ai, dt, a, dist, slow) {
     pushWarn({ kind: 'line', x: e.x, y: e.y, a, len: 125, w: 30, t: 0, life: 0.6, track: w => { w.x = e.x; w.y = e.y; w.a = Math.atan2(P.y - e.y, P.x - e.x); } });
     windup(e, 0.6, () => { ai.act = 'breath'; ai.pt = 2.6; ai.ba = Math.atan2(P.y - e.y, P.x - e.x); AudioMan.roar(); });
   } else { // グランドクロス: プレイヤーの位置に十字の光柱(激昂時は続けてX字)
-    const tx = P.x, ty = P.y, L = 120, W = 16, T = 1.2;
-    const arms = off => [off, off + Math.PI / 2].map(aa => ({ x: tx - Math.cos(aa) * L, y: ty - Math.sin(aa) * L, a: aa }));
+    // 腕の始点は倍率を掛けた長さ LA で決める(十字の中心をプレイヤーの位置に保つ)。予告と判定の len・w は自分で倍率を掛けるので掛ける前の値を渡す
+    const tx = P.x, ty = P.y, L = 120, W = 16, T = 1.2, LA = L * CHAOS.area;
+    const arms = off => [off, off + Math.PI / 2].map(aa => ({ x: tx - Math.cos(aa) * LA, y: ty - Math.sin(aa) * LA, a: aa }));
     const mark = off => arms(off).forEach(r => pushWarn({ kind: 'line', x: r.x, y: r.y, a: r.a, len: L * 2, w: W, t: 0, life: T }));
     const blast = off => {
       for (const r of arms(off)) {
         hitLine(r.x, r.y, r.a, L * 2, W, e.dmg * 1.3);
-        slashes.push({ line: true, x: r.x, y: r.y, x1: r.x + Math.cos(r.a) * L * 2, y1: r.y + Math.sin(r.a) * L * 2, t: 0, life: 0.45, w: 10, enemy: true });
+        slashes.push({ line: true, x: r.x, y: r.y, x1: r.x + Math.cos(r.a) * LA * 2, y1: r.y + Math.sin(r.a) * LA * 2, t: 0, life: 0.45, w: 10 * CHAOS.area, enemy: true });
       }
-      addFlash(tx, ty, 160, '#ff4a8a', 0.5); shockAt(tx, ty, 1.6, 0.9); shake(7); AudioMan.boom(); AudioMan.zap();
+      addFlash(tx, ty, 160 * CHAOS.area, '#ff4a8a', 0.5); shockAt(tx, ty, 1.6, 0.9); shake(7); AudioMan.boom(); AudioMan.zap();
       burst(tx, ty, 30, ['#ff4a8a', '#ffd0f0', '#ffffff'], { sp: 140, glow: true });
     };
     mark(0); later(ai, T, () => blast(0));
@@ -1854,12 +1900,26 @@ function updArena(dt) {
   A.restT -= dt;
   if (!A.warned && A.restT <= 2.5) { A.warned = true; UI.announce('ROUND ' + (A.idx + 1) + ' / ' + cfg.order.length, '次の挑戦者が入場する…'); AudioMan.warning(); }
   if (A.restT > 0) return;
-  S.elv = DATA.arena.elv[A.idx]; UI.enemyLvUp();
+  S.elv = arenaLv(A.idx); UI.enemyLvUp();
   const e = spawnBoss(cfg.order[A.idx], A.idx === cfg.order.length - 1);
   // 闘技場の中、プレイヤーと中心を挟んだ反対側から入場
   const a = Math.hypot(P.x, P.y) > 30 ? Math.atan2(-P.y, -P.x) : rand(0, TAU), R = cfg.r * 0.6;
   e.x = Math.cos(a) * R; e.y = Math.sin(a) * R;
   shockAt(e.x, e.y, 1.5, 0.6); burst(e.x, e.y, 40, [e.col, '#ffffff'], { sp: 120, glow: true });
+  if (CHAOS.escort) arenaEscort(e, CHAOS.escort, a, R);
+}
+// 闘技場のラウンド i の敵Lv: ラウンドごとの値 + カオス(深い闇 + 復讐の連鎖 × それまでに倒したボスの数)
+const arenaLv = i => DATA.arena.elv[i] + CHAOS.startLv + CHAOS.bossLv * i;
+// カオス「親衛隊」: ボスの左右からエリートが n 体入場する(そのボスのステージの敵から)
+function arenaEscort(boss, n, a, R) {
+  const run = DATA.stageRuns.find(r => r.bosses.includes(boss.type)) || DATA.stageRuns[0];
+  const types = [...new Set(DATA.schedule.filter(w => w.types && w.t >= run.from && w.t < run.to).flatMap(w => w.types))].filter(k => DATA.enemies[k] && !DATA.enemies[k].prop);
+  for (let i = 0; i < n; i++) {
+    const b = a + (i - (n - 1) / 2) * 0.35 + (i % 2 ? 0.12 : -0.12), r = R * rand(0.85, 1.05);
+    const x = Math.cos(b) * r, y = Math.sin(b) * r;
+    spawnEnemy(pick(types.length ? types : ['skeleton']), { elite: true, x, y });
+    burst(x, y, 16, ['#ffd23f', '#ffffff'], { sp: 80, glow: true, life: 0.5 });
+  }
 }
 function arenaBossDown(e) {
   const A = S.arena, cfg = DATA.arena, xp = xpForLevels(cfg.rewardLv), n = 14;

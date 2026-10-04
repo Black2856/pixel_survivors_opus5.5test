@@ -269,19 +269,24 @@ WEAPON_SKILL.longbow = {
   },
 };
 // アローレインを放つ: 照準位置 (a.x, a.y) に矢の雨(zones の 'rain')。追従は使い手についていく
+//   見た目: 空へ矢の一斉射(上へ飛んで消える)→ 照準の輪が縮んで定まる → 空から斜めに矢が降り注ぎ、地面に刺さって残る(world.js / render.js)
+//   slant: 矢の傾き(1 落ちるあいだに横へ進む量。降る向きは使い手の向き)/ linger: 終わった後も刺さった矢が残る秒
 function arrowRain(X, a) {
   const sk = DATA.weapons.longbow.skill, m = P.wm.longbow || {};
   const heavy = X.sp('pow'), delay = 0.25; // 放ってから降り始めるまで
   const follow = X.sp('cd'); // 追従: ついてくる + 持続 +50%
-  zones.push({ kind: 'rain', x: a.x, y: a.y, r: sk.radius * (1 + X.lv('area')) * X.area, t: 0, delay, dur: delay + (sk.dur + (m.eDur || 0)) * (follow ? 1.5 : 1), tick: 0, acc: 0,
-    every: sk.every * (heavy ? 0.5 : 1), dmg: wst('longbow').dmg * sk.pow * (1 + X.lv('pow')) * a.pow * (heavy ? 0.6 : 1),
-    nArrows: sk.arrows, follow: follow ? X : null, fire: X.sp('area') ? sk.fire : 0, fireT: sk.fireT, arrows: [], cl: X.cl });
-  const x = X.x, y = X.y, f = X.face;
-  asMine(() => { // 空へ放つ光の矢
-    for (let i = 0; i < 10; i++) part(x + f * 4, y - 10, rand(-30, 30) + f * 20, -rand(200, 320), 0.35, pick(['#e4ffd8', '#b8ff9a', '#ffffff']), { glow: true, drag: 0 });
-    addRing(x, y, 18, '#b8ff9a', { w: 2, life: 0.3 }); shake(2);
+  const x = X.x, y = X.y, f = X.face || 1, every = sk.every * (heavy ? 0.5 : 1);
+  // acc = every: 照準の輪が定まった瞬間(delay)に 1回目が降る(dur 秒で dur / every 回)
+  zones.push({ kind: 'rain', x: a.x, y: a.y, r: sk.radius * (1 + X.lv('area')) * X.area, t: 0, delay, dur: delay + (sk.dur + (m.eDur || 0)) * (follow ? 1.5 : 1), tick: 0, acc: every,
+    every, dmg: wst('longbow').dmg * sk.pow * (1 + X.lv('pow')) * a.pow * (heavy ? 0.6 : 1),
+    nArrows: sk.arrows, follow: follow ? X : null, fire: X.sp('area') ? sk.fire : 0, fireT: sk.fireT, arrows: [], cl: X.cl, slant: 0.32 * f, linger: RAIN_STUCK });
+  asMine(() => { // 空へ放つ矢の一斉射(当たらない。上へ飛んで消える)と、手元の光
+    for (let i = 0; i < 7; i++) fire('volley', x + f * 3, y - 9, -Math.PI / 2 + f * 0.15 + (i - 3) * 0.07 + rand(-0.03, 0.03), rand(430, 520), { noHit: true, pierce: 999, life: rand(0.2, 0.28), src: 'arrowsky', r: 0, col: '#b8ffb0' });
+    for (let i = 0; i < 6; i++) part(x + f * 4, y - 10, rand(-30, 30) + f * 20, -rand(200, 320), 0.3, pick(['#e4ffd8', '#b8ff9a', '#ffffff']), { glow: true, drag: 0 });
+    burst(x + f * 3, y - 9, 8, ['#b8ff9a', '#e4ffd8'], { sp: 60, glow: true, life: 0.25 });
+    addRing(x, y, 18, '#b8ff9a', { w: 2, life: 0.3 }); addRing(a.x, a.y, 6, '#b8ff9a', { r0: 2, life: 0.2 }); shake(2);
   });
-  AudioMan.shoot();
+  AudioMan.volley();
 }
 
 // グランドスラム(騎士剣の E): シールドを得る → 構え → 前方へ衝撃波が数段走る(威力は 武器の威力 + 今のシールド)
@@ -1435,7 +1440,7 @@ const CLASS_RT = {
     skills: ['q'],
     init() {
       P.crystal = 0;
-      P.elI = 0; P.flowWin = 0; P.flowT = 0; P.echoT = 0; P.ovf = 0; P.calmT = 0; P.blinkHeld = false; P.meteors = [];
+      P.elI = 0; P.flowWin = 0; P.flowT = 0; P.echoT = 0; P.ovf = 0; P.covf = 0; P.calmT = 0; P.blinkHeld = false; P.meteors = [];
     },
     update(dt) {
       const p = MG();
@@ -1458,7 +1463,7 @@ const CLASS_RT = {
     // 通常攻撃の命中: E / Q の CD を短縮(1秒あたりの上限あり)。オーバーフロー: CD 0 で命中するとスキル威力を貯める
     onMainHit() {
       const p = MG(), cut = p.flowCut + cuV('passive', 'flow') + (P.lvFx.flowCut || 0), cap = p.flowCap + cuV('passive', 'cap');
-      if (hasSp('passive', 'flow') && (P.sk.e.cd <= 0 || P.sk.q.cd <= 0)) P.ovf = Math.min(0.5, P.ovf + 0.05);
+      if (hasSp('passive', 'flow') && (P.sk.e.cd <= 0 || P.sk.q.cd <= 0)) P.ovf = Math.min(0.5, P.ovf + 0.001);
       const c = Math.min(cut, cap - P.flowWin);
       if (c <= 0) return;
       P.flowWin += c;
@@ -1466,20 +1471,21 @@ const CLASS_RT = {
     },
     // 次の攻撃の属性(三重詠唱: 15% で全属性)
     nextEl() {
-      if (hasSp('trait', 'el') && Math.random() < 0.15) return 'all';
+      if (hasSp('trait', 'el') && Math.random() < 0.25) return 'all';
       return ELS[P.elI++ % 3];
     },
     onElement: (e, el, dealt) => mageAddEl(e, el, dealt),
     onSkill() { P.echoT = 5; },
-    // オーバーフロー: 貯めたスキル威力を使う
-    eMul() { const k = 1 + P.ovf; P.ovf = 0; return k; },
+    // オーバーフロー・余剰魔力: 貯めたスキル威力を使う(別枠で、合算する)
+    eMul() { const k = 1 + P.ovf + P.covf; P.ovf = 0; P.covf = 0; return k; },
     atkBonus: () => (hasSp('trait', 'crys') ? P.crystal * MG().ampAtk : 0), // 魔力増幅
     res: () => ({ kind: 'crystal', label: '魔力結晶', v: P.crystal, max: crystalMax(), seg: true, dk: '#1d4a7a' }),
     statuses() {
       const out = [], e = cuV('passive', 'echo'), sp = hasSp('passive', 'echo');
       if (hasSp('trait', 'crys') && P.crystal > 0) out.push({ id: 'amp', glyph: '晶', name: '魔力増幅', fx: `攻撃力 +${Math.round(P.crystal * MG().ampAtk * 100)}%`, kind: 'buff' });
       if (P.echoT > 0 && (e || sp)) out.push({ id: 'echo', glyph: '韻', name: sp ? '詠唱加速' : '余韻', fx: (e ? `攻撃速度 +${Math.round(e * 100)}%` : '') + (sp ? ' 弾数 +1' : ''), t: P.echoT, max: 5, kind: 'buff' });
-      if (P.ovf > 0) out.push({ id: 'ovf', glyph: '溢', name: 'オーバーフロー', fx: `次のスキルの威力 +${Math.round(P.ovf * 100)}%`, kind: 'buff' });
+      if (P.ovf > 0) out.push({ id: 'ovf', glyph: '溢', name: 'オーバーフロー', fx: `次のスキルの威力 +${+(P.ovf * 100).toFixed(1)}%`, kind: 'buff' });
+      if (P.covf > 0) out.push({ id: 'covf', glyph: '余', name: '余剰魔力', fx: `次のスキルの威力 +${+(P.covf * 100).toFixed(1)}%`, kind: 'buff' });
       if (hasSp('passive', 'cap') && P.calmT >= 3) out.push({ id: 'calm', glyph: '瞑', name: '瞑想', fx: 'HP 2/s で回復', kind: 'buff' });
       return out;
     },
@@ -1492,6 +1498,7 @@ const CLASS_RT = {
           `氷: 凍傷 +1(1つにつき移動速度 -${Math.round(DATA.debuff.frostSlow * 100)}%)`,
           `雷: 近くの敵に ${Math.round(p.chainPct * 100)}% で連鎖`,
           '共鳴: 2属性を持つ敵に3つ目が当たると爆発。魔力結晶 +1',
+          `魔力結晶が上限のときは、次のスキルの威力 +${+(p.crysOvf * 100).toFixed(1)}%(最大 +${Math.round(p.crysOvfMax * 100)}%。E か Q の発動で全て消費)`,
         ], rows: [
           ['凍傷の上限', `${MG().frostCap + (c.run && cuLv('trait', 'el') ? DATA.classes.mage.elFrost[cuLv('trait', 'el') - 1] : 0)}`],
           ['連鎖', `${p.chainN + (c.run ? cuLv('trait', 'el') : 0)} 体`],
@@ -1507,7 +1514,8 @@ const CLASS_RT = {
           ['1秒あたりの上限', `${(p.flowCap + c.cuV('passive', 'cap')).toFixed(1)} 秒`],
         ] },
         { key: 'Q', name: 'メテオ', cat: 'q', desc: [
-          `詠唱 ${DATA.classes.mage.q.windup}秒(動けない)→ 照準位置に隕石が落ちる(炎上を付与)`,
+          `詠唱 ${DATA.classes.mage.q.windup}秒(動けない)→ 照準位置に隕石が落ちる(基礎威力 ${DATA.classes.mage.q.pow}、半径 ${DATA.classes.mage.q.r})`,
+          `当たった敵は炎上: 与えたダメージの ${Math.round(DATA.classes.mage.q.burnPct * 100)}% を ${p.burnDur}秒かけて与える`,
           `魔力結晶を全て消費し、1つにつき威力 +${Math.round(DATA.classes.mage.q.crystalPow * 100)}%・半径 +${Math.round(DATA.classes.mage.q.crystalR * 100)}%`,
           '威力は武器に依存しない',
         ], rows: [
@@ -1528,9 +1536,10 @@ const CLASS_RT = {
 
   archer: {
     skills: ['q'],
-    init() { P.focus = 0; P.dash = null; P.backHeld = false; },
+    init() { P.focus = 0; P.dash = null; P.backHeld = false; P.chainB = AR().chainMax; },
     update(dt) {
       const p = AR(), max = focusMax();
+      P.chainB = Math.min(p.chainMax, P.chainB + p.chainMax * dt); // 狩りの連鎖: 縮められる量の枠(1秒で chainMax 溜まる)
       // 集中: 止まっている間(E / Q の予備動作中も)に溜まり、動くとゆっくり下がる
       const still = !P.moving || (P.act && P.act.ph === 'wind');
       if (still) P.focus = Math.min(max, (P.focus || 0) + dt / p.focusStep * (1 + cuV('passive', 'calm')));
@@ -1574,7 +1583,10 @@ const CLASS_RT = {
         forEachNear(e.x, e.y, p.spreadR, o => { if (o === e || o.dead || o.prop) return; const d = d2(o.x, o.y, e.x, e.y); if (d < bd) { bd = d; best = o; } });
         if (best && n > 0) { addMark(best, n); bolts.push({ x0: e.x, y0: e.y, x1: best.x, y1: best.y, t: 0, life: 0.15, w: 1 }); }
       }
-      if (hasSp('trait', 'spread')) P.sk.q.cd = Math.max(0, P.sk.q.cd - p.chainCd); // 狩りの連鎖
+      if (hasSp('trait', 'spread')) { // 狩りの連鎖: CD -chainCd(枠が残っている分だけ。1秒あたり chainMax まで)
+        const n = Math.min(p.chainCd, P.chainB, P.sk.q.cd);
+        P.chainB -= n; P.sk.q.cd -= n;
+      }
     },
     atkBonus: () => 0,
     qStart() {
@@ -2908,12 +2920,13 @@ const ELS = ['fire', 'ice', 'bolt'], EL_BIT = { fire: 1, ice: 2, bolt: 4 }, EL_C
 const MG = () => DATA.classes.mage.params;
 const mageFrostCap = () => MG().frostCap + (cuLv('trait', 'el') ? DATA.classes.mage.elFrost[cuLv('trait', 'el') - 1] : 0);
 const bitCount = b => (b & 1) + ((b >> 1) & 1) + ((b >> 2) & 1);
+// 炎上: 与えたダメージの pct を burnDur 秒かけて与える(属性強化で +10%/Lv)。炎上はスタックする
+const mageBurn = (e, dealt, pct) => addBurn(e, dealt * pct * (1 + 0.1 * cuLv('trait', 'el')) / MG().burnDur / dmgMul(), MG().burnDur, 'elfire');
 // 属性の効果(dealt: 実際に与えたダメージ。攻撃力を掛けた後なので、追加ダメージは dmgMul で割って基礎値に戻す)
 function elEffect(e, el, dealt) {
   const p = MG(), L = cuLv('trait', 'el');
   if (el === 'fire') {
-    const perSec = dealt * p.burnPct * (1 + 0.1 * L) / p.burnDur / dmgMul();
-    addBurn(e, perSec, p.burnDur, 'elfire'); // 炎上はスタックする
+    mageBurn(e, dealt, p.burnPct);
   } else if (el === 'ice') {
     addFrost(e, 1, mageFrostCap());
   } else if (el === 'bolt') {
@@ -2949,6 +2962,9 @@ function mageResonate(e, depth) {
     P.crystal++;
     part(x, y, (P.x - x) * 2, (P.y - y) * 2, 0.5, '#9ff7ff', { glow: true, sz: 2, drag: 0 });
     if (P.crystal === cmax) { AudioMan.levelup(); addRing(P.x, P.y, 26, '#7ad7ff', { w: 2, life: 0.4 }); }
+  } else { // 上限を超えた分は余剰魔力(次のスキルの威力)
+    P.covf = Math.min(p.crysOvfMax, P.covf + p.crysOvf);
+    part(x, y, (P.x - x) * 2, (P.y - y) * 2, 0.5, '#c78bff', { glow: true, sz: 2, drag: 0 });
   }
   AudioMan.boom();
 }
@@ -2990,6 +3006,7 @@ function updMeteors(dt) {
   if (!P.meteors || !P.meteors.length) return;
   for (let i = P.meteors.length - 1; i >= 0; i--) {
     const m = P.meteors[i];
+    if (m.tg && !m.tg.dead) { m.x = m.tg.x; m.y = m.tg.y; } // 狙った敵を追って落ちる(倒れたらその場所へ)
     if (m.delay > 0) { m.delay -= dt; continue; }
     m.t += dt;
     const u = Math.min(1, m.t / m.fall), mx = m.x - 70 * (1 - u), my = m.y - 190 * (1 - u);
@@ -3003,11 +3020,12 @@ function updMeteors(dt) {
   }
 }
 function meteorImpact(m) {
+  const q = DATA.classes.mage.q;
   asMine(() => {
     forEachNear(m.x, m.y, m.R, e => {
       if (e.prop) { killEnemy(e); return; }
       const dealt = hitEnemy(e, m.dmg, { src: 'meteor', ang: Math.atan2(e.y - m.y, e.x - m.x), kb: m.main ? 150 : 60, col: '#ff8a3d' });
-      if (dealt && !e.dead) elEffect(e, 'fire', dealt); // 炎上
+      if (dealt && !e.dead) mageBurn(e, dealt, q.burnPct); // 炎上(小隕石も同じ割合)
     });
     addFlash(m.x, m.y, m.R * 3, '#ff8a3d', m.main ? 0.5 : 0.25);
     addRing(m.x, m.y, m.R, '#ffc34a', { w: 3, life: 0.4 }); addRing(m.x, m.y, m.R * 1.4, '#ff6a2a', { w: 2, life: 0.55 });
@@ -3020,20 +3038,30 @@ function meteorImpact(m) {
   AudioMan.boom();
   if (!m.main) return;
   const R = m.R;
-  if (hasSp('q', 'pow')) for (let i = 0; i < 5; i++) { // メテオスウォーム
-    const a = rand(0, TAU), r = rand(R * 0.5, R * 1.3);
-    P.meteors.push({ x: m.x + Math.cos(a) * r, y: m.y + Math.sin(a) * r, t: 0, fall: 0.25, delay: 0.08 * (i + 1), R: 24 * P.area, dmg: 50, big: 0.6 });
+  const alive = r => { const out = []; forEachNear(m.x, m.y, r, o => { if (!o.prop && !o.hidden) out.push(o); }); return out; };
+  if (hasSp('q', 'pow')) { // メテオスウォーム: 周り(半径の2倍)の生き残りを狙う。5体より少なければ同じ敵にも落ち、いなければ周りのランダムな位置
+    const near = shuffle(alive(R * 2));
+    for (let i = 0; i < 5; i++) {
+      const tg = near.length ? near[i % near.length] : null, a = rand(0, TAU), r = rand(R * 0.5, R * 1.3);
+      P.meteors.push({ x: tg ? tg.x : m.x + Math.cos(a) * r, y: tg ? tg.y : m.y + Math.sin(a) * r, tg, t: 0, fall: 0.25, delay: 0.08 * (i + 1), R: 24 * P.area, dmg: q.swarmPow, big: 0.6 });
+    }
   }
-  if (hasSp('q', 'cd')) for (let i = 0; i < 6; i++) setTimeout(() => { // 審判
-    if (state !== 'play') return;
-    const a = rand(0, TAU), r = rand(0, R), x = m.x + Math.cos(a) * r, y = m.y + Math.sin(a) * r;
-    asMine(() => {
-      forEachNear(x, y, 24 * P.area, e => { if (!e.prop) hitEnemy(e, 50, { src: 'meteor', col: '#fff27a' }); });
-      bolts.push({ x0: x + rand(-20, 20), y0: cam.y - 10, x1: x, y1: y, t: 0, life: 0.22, w: 2 });
-      addFlash(x, y, 60, '#fff27a', 0.25); addRing(x, y, 24 * P.area, '#fff27a', { life: 0.3 });
-    });
-    AudioMan.zap();
-  }, 250 + i * 110);
+  if (hasSp('q', 'cd')) { // 審判: 落ちる瞬間に範囲内の敵を狙う(まだ打っていない敵を優先)
+    const struck = new Set();
+    for (let i = 0; i < 6; i++) setTimeout(() => {
+      if (state !== 'play') return;
+      const near = alive(R), fresh = near.filter(o => !struck.has(o)), pool = fresh.length ? fresh : near;
+      const tg = pool.length ? pick(pool) : nearestEnemy(m.x, m.y, R * 2); // 範囲内にいなければ、半径の2倍までで一番近い敵
+      let x, y;
+      if (tg) { struck.add(tg); x = tg.x; y = tg.y; } else { const a = rand(0, TAU), r = rand(0, R); x = m.x + Math.cos(a) * r; y = m.y + Math.sin(a) * r; } // 敵がいなければ範囲内のランダムな位置
+      asMine(() => {
+        forEachNear(x, y, 24 * P.area, e => { if (!e.prop) hitEnemy(e, q.judgePow, { src: 'meteor', col: '#fff27a' }); });
+        bolts.push({ x0: x + rand(-20, 20), y0: cam.y - 10, x1: x, y1: y, t: 0, life: 0.22, w: 2 });
+        addFlash(x, y, 60, '#fff27a', 0.25); addRing(x, y, 24 * P.area, '#fff27a', { life: 0.3 });
+      });
+      AudioMan.zap();
+    }, 250 + i * 110);
+  }
   if (hasSp('q', 'area')) zones.push({ kind: 'blizz', x: m.x, y: m.y, r: R, r0: R, t: 0, dur: 4, tick: 0, dmg: 0, maxFrost: true }); // 絶対零度
 }
 

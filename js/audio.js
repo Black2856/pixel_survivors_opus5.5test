@@ -106,6 +106,9 @@ const AudioMan = (() => {
 
     // ---------- 効果音 ----------
     shoot()   { if (this._ok('shoot', 0.05)) this.tone(900, 420, 0.07, { vol: 0.05 }); },
+    // アローレイン: 空へ一斉に放つ弦の音と風切り / 降り注ぐ矢が地面に刺さる音(小さく、続けて)
+    volley()  { if (!this._ok('volley', 0.2)) return; for (let i = 0; i < 4; i++) this.tone(760 + i * 70, 360, 0.06, { vol: 0.035, delay: i * 0.03, type: 'triangle' }); this.noise(0.32, { vol: 0.1, f0: 900, f1: 5200, ftype: 'bandpass' }); },
+    rainTick() { if (!this._ok('rainTick', 0.1)) return; this.noise(0.05, { vol: 0.05, f0: 2600, f1: 700 }); this.noise(0.05, { vol: 0.04, f0: 2000, f1: 500, delay: 0.05 }); this.tone(320, 120, 0.04, { vol: 0.02, type: 'triangle', delay: 0.02 }); },
     hit()     { if (this._ok('hit', 0.035)) { this.noise(0.05, { vol: 0.09, f0: 5000, f1: 800 }); this.tone(260, 90, 0.05, { vol: 0.05 }); } },
     crit()    { if (this._ok('crit', 0.06)) { this.tone(1400, 700, 0.08, { vol: 0.06, type: 'triangle' }); this.noise(0.06, { vol: 0.08, f0: 8000, f1: 2000, ftype: 'highpass' }); } },
     kill()    { if (this._ok('kill', 0.03)) this.tone(520, 70, 0.1, { vol: 0.06, type: 'triangle' }); },

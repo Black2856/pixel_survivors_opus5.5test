@@ -68,13 +68,13 @@ const DATA = {
     bolt: {
       name: 'マジックボルト', desc: '最も近い敵へ魔法弾を放つ', col: '#7ad7ff',
       lv: [
-        { cd: 1.1,  dmg: 10, count: 1, speed: 160, pierce: 0 },
-        { cd: 1.0,  dmg: 13, count: 2, speed: 165, pierce: 0 },
-        { cd: 0.95, dmg: 17, count: 2, speed: 175, pierce: 1 },
-        { cd: 0.9,  dmg: 22, count: 3, speed: 185, pierce: 1 },
-        { cd: 0.85, dmg: 27, count: 4, speed: 200, pierce: 2 },
+        { cd: 1.1,  dmg: 13, count: 1, speed: 160, pierce: 0 },
+        { cd: 1.0,  dmg: 17, count: 2, speed: 165, pierce: 0 },
+        { cd: 0.93, dmg: 22, count: 2, speed: 175, pierce: 1 },
+        { cd: 0.87, dmg: 27, count: 3, speed: 185, pierce: 1 },
+        { cd: 0.82, dmg: 32, count: 4, speed: 200, pierce: 2 },
       ],
-      evo: { name: 'アーケインレイ', desc: '魔弾が敵をわずかに追尾する', st: { cd: 0.8, dmg: 30, count: 5, speed: 210, pierce: 2 } },
+      evo: { name: 'アーケインレイ', desc: '魔弾が敵をわずかに追尾する', st: { cd: 0.77, dmg: 36, count: 5, speed: 210, pierce: 2 } },
       // 武器スキル(E)アーケイン・バラージュ: 詠唱 windup 秒(動けない)→ dur 秒間、照準方向へ毎秒 rate 発(各 武器の威力 × pow)。連射中も普通に動ける
       // 魔弾は通常攻撃と同じ弾速・貫通(進化後は追尾も)。弾数は通常攻撃の countMul 倍(切り上げ)/ radius: 自動発動の判定距離
       //   魔力障壁: 使うと最大HP × shield のシールド。連射中の撃破で持続 +killExt 秒(1回の連射で killExtMax まで)
@@ -301,13 +301,13 @@ const DATA = {
     fire: {
       name: 'ファイアー', desc: '貫通する火炎弾。燃焼を付与', col: '#ff8a3d',
       lv: [
-        { cd: 1.8, dmg: 8,  count: 1, burn: 4 },
-        { cd: 1.7, dmg: 10, count: 1, burn: 6 },
-        { cd: 1.6, dmg: 14, count: 2, burn: 8 },
-        { cd: 1.4, dmg: 18, count: 2, burn: 11 },
-        { cd: 1.2, dmg: 24, count: 3, burn: 15 },
+        { cd: 1.8, dmg: 10, count: 1, burn: 5 },
+        { cd: 1.7, dmg: 14, count: 1, burn: 7 },
+        { cd: 1.6, dmg: 18, count: 2, burn: 10 },
+        { cd: 1.4, dmg: 23, count: 2, burn: 13 },
+        { cd: 1.2, dmg: 29, count: 3, burn: 17 },
       ],
-      evo: { name: 'インフェルノ', desc: '着弾毎に爆炎が広がる(火炎弾の威力の 60%、半径 16、1発で最大 6回)', st: { cd: 1.0, dmg: 30, count: 4, burn: 22 } },
+      evo: { name: 'インフェルノ', desc: '着弾毎に爆炎が広がる(火炎弾の威力の 60%、半径 16、1発で最大 6回)', st: { cd: 1.0, dmg: 34, count: 4, burn: 22 } },
       // 武器スキル(E)火炎放射: 構え windup 秒(動けない)→ dur 秒間、照準方向へ扇形(長さ len・角度 arc)に炎を吹き続ける(放射中も動ける)
       //   every 秒ごとに、範囲内の敵へ 武器の威力 × pow と炎上(武器の燃焼/s × burn を 3秒)
       //   ダブル放射: 反対方向にも吹く / 火炎旋風: 攻撃ごとに放射先(炎の先端)へ吸い込み(半径 suckR の敵へ 武器の威力 × suckPow。半径の2倍まで suckPull ずつ引き寄せる)
@@ -411,11 +411,11 @@ const DATA = {
     katana: {
       name: '刀', desc: '最も近い敵へ素早い斬撃', col: '#ff5d73', cut: true,
       lv: [
-        { cd: 1.0,  dmg: 16, count: 1, aoe: 35 },
-        { cd: 0.9,  dmg: 22, count: 1, aoe: 40 },
-        { cd: 0.85, dmg: 26, count: 2, aoe: 46 },
-        { cd: 0.8,  dmg: 32, count: 2, aoe: 52 },
-        { cd: 0.7,  dmg: 40, count: 3, aoe: 58 },
+        { cd: 1.0,  dmg: 16, count: 1, aoe: 30 },
+        { cd: 0.9,  dmg: 22, count: 1, aoe: 34 },
+        { cd: 0.85, dmg: 26, count: 2, aoe: 39 },
+        { cd: 0.8,  dmg: 32, count: 2, aoe: 44 },
+        { cd: 0.72, dmg: 39, count: 3, aoe: 50 },
       ],
       // 武器スキル(E)乱れ桜: 構え windup 秒 → dur 秒間 周囲(半径 radius)を hits 回斬る(1回 武器の威力 × pow)。使っている間も移動できる
       skill: {
@@ -426,7 +426,7 @@ const DATA = {
           dur: { name: '持続', desc: ['乱れ桜の持続 +0.45秒', '乱れ桜の持続 +0.9秒', '乱れ桜の持続 +1.5秒'], v: [0.45, 0.9, 1.5], sp: { name: '千本桜', desc: '使っている間、移動速度 +50%・無敵' } },
         } },
       },
-      evo: { name: '鬼神・村正', desc: '刀が 50回当たるごとに、ランダムな方向へ一閃の切り裂き(刀の威力 × 800%、出血 5。CD 1秒)', st: { cd: 0.55, dmg: 52, count: 3, aoe: 70 } },
+      evo: { name: '鬼神・村正', desc: '刀が 50回当たるごとに、ランダムな方向へ一閃の切り裂き(刀の威力 × 800%、出血 5。CD 1秒)', st: { cd: 0.64, dmg: 48, count: 3, aoe: 57 } },
       // 熟練(クラスLv の「共通」強化)。サムライの Lv で解放され、刀を使うどのクラスにも効く
       // fx: dmg 威力 / area 範囲 / cd クールダウン(攻撃間隔と武器スキルの CD。乗算で重ねる)/ evo 進化の解放 / eHits・ePow 武器スキルの回数・威力
       mastery: {
@@ -445,17 +445,17 @@ const DATA = {
     longbow: {
       name: '長弓', desc: '照準方向へ貫通する矢を放つ(本数が多いときは時間差で連射)', col: '#b8ff9a',
       lv: [
-        { cd: 1.2,  dmg: 14, count: 1, speed: 260, pierce: 1 },
-        { cd: 1.1,  dmg: 18, count: 1, speed: 270, pierce: 2 },
-        { cd: 1.05, dmg: 22, count: 2, speed: 280, pierce: 3 },
-        { cd: 1.0,  dmg: 26, count: 2, speed: 290, pierce: 4 },
-        { cd: 0.95, dmg: 32, count: 3, speed: 300, pierce: 5 },
+        { cd: 1.2,  dmg: 18, count: 1, speed: 260, pierce: 1 },
+        { cd: 1.1,  dmg: 22, count: 1, speed: 270, pierce: 2 },
+        { cd: 1.05, dmg: 26, count: 2, speed: 280, pierce: 3 },
+        { cd: 1.0,  dmg: 32, count: 2, speed: 290, pierce: 4 },
+        { cd: 0.95, dmg: 37, count: 3, speed: 300, pierce: 5 },
       ],
-      evo: { name: '天弓', desc: '矢が同じ敵に二度当たる(2回目は貫通を1消費する)', st: { cd: 0.9, dmg: 38, count: 3, speed: 320, pierce: 6 } },
+      evo: { name: '天弓', desc: '矢が同じ敵に二度当たる(2回目は貫通を1消費する)', st: { cd: 0.9, dmg: 44, count: 3, speed: 320, pierce: 6 } },
       // 武器スキル(E)アローレイン: 構え windup 秒(動けない)→ 照準位置の半径 radius に dur 秒間矢が降り、every 秒ごとに範囲内の敵全員へ
-      // 武器の威力 × pow(見た目の矢は1回に arrows 本)/ range: 照準の最大距離 / fire: 炎の矢の炎上(与えたダメージの割合を fireT 秒で)
+      // 武器の威力 × pow(見た目の矢は1回に arrows 本 × 広さ(半径 60 を基準に最大 2.5倍)。画質で減らす。最後の 1回は倍)/ range: 照準の最大距離 / fire: 炎の矢の炎上(与えたダメージの割合を fireT 秒で)
       skill: {
-        name: 'アローレイン', cd: 25, windup: 0.3, dur: 2.5, every: 0.25, pow: 1.2, arrows: 3, radius: 60, range: 200, fire: 0.4, fireT: 3,
+        name: 'アローレイン', cd: 25, windup: 0.3, dur: 2.5, every: 0.25, pow: 1.4, arrows: 12, radius: 90, range: 200, fire: 0.4, fireT: 3,
         tree: { name: 'アローレイン', paths: {
           pow:  { name: '威力', desc: ['アローレインの威力 +30%', 'アローレインの威力 +60%', 'アローレインの威力 +100%'], v: [0.3, 0.6, 1.0], sp: { name: '豪雨', desc: '攻撃の間隔が半分になる(各 威力 -40%)' } },
           cd:   { name: '迅速', desc: ['アローレインのCD -10%', 'アローレインのCD -20%', 'アローレインのCD -30%'], v: [0.1, 0.2, 0.3], sp: { name: '追従', desc: '雨の範囲がプレイヤーについてくる。持続 +50%' } },
@@ -479,13 +479,13 @@ const DATA = {
     longsword: {
       name: '騎士剣', desc: '正面を大きく薙ぎ払う(遅いが広く、押し返しが強い)', col: '#ffe9a0', cut: true,
       lv: [
-        { cd: 1.5,  dmg: 20, count: 1, aoe: 40 },
-        { cd: 1.45, dmg: 26, count: 1, aoe: 45 },
-        { cd: 1.4,  dmg: 32, count: 2, aoe: 50 },
-        { cd: 1.35, dmg: 40, count: 2, aoe: 55 },
-        { cd: 1.3,  dmg: 48, count: 3, aoe: 60 },
+        { cd: 1.5,  dmg: 20, count: 1, aoe: 35 },
+        { cd: 1.45, dmg: 26, count: 1, aoe: 40 },
+        { cd: 1.4,  dmg: 32, count: 2, aoe: 45 },
+        { cd: 1.35, dmg: 40, count: 2, aoe: 51 },
+        { cd: 1.3,  dmg: 48, count: 3, aoe: 56 },
       ],
-      evo: { name: '聖剣', desc: '薙ぎ払いが当たった敵に、光の剣が上から降って追撃する(25%)。当てるたびに 5秒のシールド +1', st: { cd: 1.25, dmg: 58, count: 3, aoe: 75 } },
+      evo: { name: '聖剣', desc: '薙ぎ払いが当たった敵に、光の剣が上から降って追撃する(25%)。当てるたびに 5秒のシールド +1', st: { cd: 1.25, dmg: 58, count: 3, aoe: 63 } },
       // 武器スキル(E)グランドスラム: シールドを最大HP の shield 分(shieldT 秒)得る → 構え windup 秒(動けない)
       //   → 前方へ衝撃波が steps 段(各 武器の威力 × pow + 今のシールド、半径 waveR、段の間隔 gap 秒・距離 stepD)
       skill: {
@@ -589,7 +589,7 @@ const DATA = {
       },
       // 居合・朧月(Q): 構え windup 秒 → dist 先へ突進(幅 width、無敵)→ 通過した敵を斬る。硬直 recover 秒
       // ダメージ = 基礎威力 pow + 消費した剣気 × kiPow(武器に依存しない)
-      q: { name: '居合・朧月', cd: 30, windup: 0.25, dash: 0.1, recover: 0.2, dist: 90, width: 12, pow: 150, kiPow: 3 },
+      q: { name: '居合・朧月', cd: 30, windup: 0.25, dash: 0.1, recover: 0.2, dist: 90, width: 12, pow: 150, kiPow: 5 },
       // ラン中の強化ツリー(3の倍数のLv で選ぶ)。カテゴリ → 強化パス(Lv1〜3、v が各Lvの値)→ 特殊強化(sp)
       // need: そのスキルが実装済みの場合だけ候補に出す(CLASS_RT の skills に含まれるもの)
       // 特殊強化は各パスが Lv3 で候補に出る。1カテゴリにつき1つだけ取れる
@@ -618,34 +618,36 @@ const DATA = {
       // 元素循環: 通常攻撃・E の攻撃1回ごとに 炎 → 氷 → 雷
       //   炎: 与えたダメージの burnPct を burnDur 秒かけて / 氷: 凍傷 +1(上限 frostCap)/ 雷: 近く(chainR)の敵 chainN 体へ chainPct
       // 共鳴: 2属性を持つ敵に3属性目 → 爆発(基礎威力 resoPow・半径 resoR)して属性リセット。魔力結晶 +1(最大 crystalMax + 結晶容量)
+      //   上限のときは 次のスキルの威力 +crysOvf(最大 crysOvfMax。E か Q の発動で全て消費。オーバーフローとは別枠)
       //   魔力増幅: 魔力結晶 1つにつき攻撃力 +ampAtk
       // 魔力循環: 通常攻撃の命中ごとに E / Q の CD -flowCut 秒(1秒あたり flowCap 秒まで)
       // ブリンク: 移動方向へ blinkDist 瞬間移動、無敵 blinkIfr 秒、スタミナ blinkCost。出発地点に氷の残滓(residueT 秒・半径 residueR。触れた敵に凍傷)
       params: {
         burnPct: 0.2, burnDur: 3, frostCap: 5, chainPct: 0.3, chainN: 1, chainR: 60,
-        resoPow: 25, resoR: 30, crystalMax: 10, ampAtk: 0.02,
+        resoPow: 25, resoR: 30, crystalMax: 10, crysOvf: 0.005, crysOvfMax: 0.5, ampAtk: 0.02,
         flowCut: 0.05, flowCap: 0.5,
         blinkDist: 50, blinkIfr: 0.15, blinkCost: 80, residueT: 1.5, residueR: 14,
       },
-      // メテオ(Q): 照準位置へ。詠唱 windup 秒(動けない)→ fall 秒後に着弾(基礎威力 pow・半径 r・炎上)。武器に依存しない
+      // メテオ(Q): 照準位置へ。詠唱 windup 秒(動けない)→ fall 秒後に着弾(基礎威力 pow・半径 r・与えたダメージの burnPct を炎上で)。武器に依存しない
       //   魔力結晶を全て消費し、1つにつき 威力 +crystalPow・半径 +crystalR / range: 照準の最大距離
-      q: { name: 'メテオ', cd: 45, windup: 0.5, fall: 0.3, pow: 200, r: 70, crystalPow: 0.1, crystalR: 0.05, range: 170 },
+      //   メテオスウォームの小隕石: 周り(半径の2倍)の敵を狙う。各 基礎威力 swarmPow(炎上も同じ)/ 審判の落雷: 範囲内の敵を狙う。各 基礎威力 judgePow
+      q: { name: 'メテオ', cd: 45, windup: 0.5, fall: 0.3, pow: 250, r: 70, burnPct: 0.5, crystalPow: 0.1, crystalR: 0.05, range: 170, swarmPow: 100, judgePow: 50 },
       // 属性強化の Lv ごとの値: 炎上 +10%/Lv(倍率)・凍傷上限 elFrost・連鎖 +1体/Lv
       elFrost: [2, 4, 5],
       tree: {
         trait: { name: '元素循環', paths: {
-          el: { name: '属性強化', desc: ['炎上 +10%・凍傷上限 +2・連鎖 +1体', '炎上 +20%・凍傷上限 +4・連鎖 +2体', '炎上 +30%・凍傷上限 +5・連鎖 +3体'], v: [1, 2, 3], sp: { name: '三重詠唱', desc: '15% の確率で、1発が3属性すべてを持つ' } },
+          el: { name: '属性強化', desc: ['炎上 +10%・凍傷上限 +2・連鎖 +1体', '炎上 +20%・凍傷上限 +4・連鎖 +2体', '炎上 +30%・凍傷上限 +5・連鎖 +3体'], v: [1, 2, 3], sp: { name: '三重詠唱', desc: '25% の確率で、1発が3属性すべてを持つ' } },
           rpow: { name: '共鳴威力', desc: ['共鳴の威力 +30%', '共鳴の威力 +60%', '共鳴の威力 +100%'], v: [0.3, 0.6, 1.0], sp: { name: '連鎖共鳴', desc: '共鳴に巻き込まれた敵にも、ランダムな属性を1つ付与する' } },
           crys: { name: '結晶容量', desc: ['魔力結晶の容量 +3', '魔力結晶の容量 +6', '魔力結晶の容量 +10'], v: [3, 6, 10], sp: { name: '魔力増幅', desc: '魔力結晶 1つにつき攻撃力 +2%' } },
         } },
         passive: { name: '魔力循環', paths: {
-          flow: { name: '循環', desc: ['CD の短縮量 +0.01秒', 'CD の短縮量 +0.02秒', 'CD の短縮量 +0.03秒'], v: [0.01, 0.02, 0.03], sp: { name: 'オーバーフロー', desc: 'E か Q の CD が 0 の状態でメイン武器の通常攻撃が命中すると、次のスキルの威力 +5%(最大 +50%)' } },
+          flow: { name: '循環', desc: ['CD の短縮量 +0.01秒', 'CD の短縮量 +0.02秒', 'CD の短縮量 +0.03秒'], v: [0.01, 0.02, 0.03], sp: { name: 'オーバーフロー', desc: 'E か Q の CD が 0 の状態でメイン武器の通常攻撃が命中すると、次のスキルの威力 +0.1%(最大 +50%)' } },
           cap: { name: '容量', desc: ['1秒あたりの上限 +0.1秒', '1秒あたりの上限 +0.3秒', '1秒あたりの上限 +0.5秒'], v: [0.1, 0.3, 0.5], sp: { name: '瞑想', desc: '3秒間被弾しないと、HP 2/s で回復し続ける' } },
           echo: { name: '余韻', desc: ['スキル使用後5秒、全武器の攻撃速度 +10%', 'スキル使用後5秒、全武器の攻撃速度 +20%', 'スキル使用後5秒、全武器の攻撃速度 +30%'], v: [0.1, 0.2, 0.3], sp: { name: '詠唱加速', desc: 'スキル使用後5秒、全武器の弾数 +1(近接武器では攻撃回数 +1)' } },
         } },
         q: { name: 'メテオ', need: 'q', paths: {
-          pow: { name: '威力', desc: ['メテオの威力 +30%', 'メテオの威力 +60%', 'メテオの威力 +100%'], v: [0.3, 0.6, 1.0], sp: { name: 'メテオスウォーム', desc: '周囲に小隕石を5個追加する(各 基礎威力 50)' } },
-          cd:  { name: '迅速', desc: ['メテオのCD -10%', 'メテオのCD -20%', 'メテオのCD -30%'], v: [0.1, 0.2, 0.3], sp: { name: '審判', desc: '着弾後、範囲内に落雷を6回落とす(各 基礎威力 50)' } },
+          pow: { name: '威力', desc: ['メテオの威力 +30%', 'メテオの威力 +60%', 'メテオの威力 +100%'], v: [0.3, 0.6, 1.0], sp: { name: 'メテオスウォーム', desc: '周囲の敵を狙って小隕石を5個追加する(各 基礎威力 100)' } },
+          cd:  { name: '迅速', desc: ['メテオのCD -10%', 'メテオのCD -20%', 'メテオのCD -30%'], v: [0.1, 0.2, 0.3], sp: { name: '審判', desc: '着弾後、範囲内の敵を狙って落雷を6回落とす(各 基礎威力 50)' } },
           area: { name: '範囲', desc: ['メテオの半径 +15%', 'メテオの半径 +30%', 'メテオの半径 +50%'], v: [0.15, 0.3, 0.5], sp: { name: '絶対零度', desc: '着弾地点に氷原を4秒間残す(凍傷が即座に最大)' } },
         } },
       },
@@ -666,7 +668,7 @@ const DATA = {
       base: { hp: 90, sta: 100, staRegen: 25, spd: 0.1, area: -0.1, range: 0.2, crit: 0.1, critDmg: 1.0, wslot: 4, reroll: 2 },
       lv: {
         2: { d: '最大HP +10', st: { hp: 10 } },
-        3: { d: '狩人の印: 印1つの被ダメ +0.5%', fx: { markPct: 0.005 } },
+        3: { d: '狩人の印: 印1つの被ダメ +1%', fx: { markPct: 0.01 } },
         6: { d: 'バックステップ: スタミナ消費 -10', fx: { backCut: 10 } },
         8: { d: '集中: 最大段 +1', fx: { focusMax: 1 } },
         11: { d: '一斉射撃: 威力 +20%', fx: { qPow: 0.2 } },
@@ -680,20 +682,21 @@ const DATA = {
       // 集中: 止まっている間 focusStep 秒ごとに +1段(最大 focusMax)。移動すると focusDecay 段/秒 下がる。被弾で -focusHurt
       //   1段につき 攻撃速度 +focusAtkSpd・クリティカル率 +focusCrit
       // バックステップ: 移動と逆へ backDist を backTime 秒で跳ぶ(無敵 backIfr 秒、スタミナ backCost)。着地で集中 +backFocus
+      // 狩りの連鎖: 印を持つ敵を倒すと一斉射撃の CD -chainCd。縮む量は 1秒あたり chainMax まで(chainMax 分の枠が 1秒で溜まる)
       params: {
-        markMax: 10, markPct: 0.01, markT: 3, weakT: 3, weakCrit: 0.15, spreadR: 60, guardT: 5, chainCd: 0.5,
+        markMax: 10, markPct: 0.04, markT: 3, weakT: 3, weakCrit: 0.15, spreadR: 60, guardT: 5, chainCd: 0.1, chainMax: 0.5,
         focusMax: 5, focusStep: 0.5, focusDecay: 1, focusAtkSpd: 0.04, focusCrit: 0.02, focusHurt: 2,
         backDist: 80, backTime: 0.15, backIfr: 0.25, backCost: 100, backFocus: 1,
       },
       // 一斉射撃(Q): 構え windup 秒(動けない)→ 画面内の印を持つ敵1体につき1本、その敵へまっすぐ高速の矢(貫通無限・基礎威力 pow)
       //   矢が当たった敵は、印1つにつき markPow の追加ダメージを interval 秒おきに連続で受ける(印は消費)
       //   さらに無条件で、最寄り none 体(印を持つ敵とは別)へも1本ずつ。最大 max 本。流星: 当たるたびに爆発(meteorPow・半径 meteorR)
-      q: { name: '一斉射撃', cd: 35, windup: 0.4, pow: 100, markPow: 25, interval: 0.05, none: 10, max: 100, speed: 600, meteorPow: 10, meteorR: 16 },
+      q: { name: '一斉射撃', cd: 35, windup: 0.4, pow: 100, markPow: 50, interval: 0.05, none: 10, max: 100, speed: 600, meteorPow: 25, meteorR: 16 },
       tree: {
         trait: { name: '狩人の印', paths: {
           deep:   { name: '深手', desc: ['印の持続 +2秒', '印の持続 +4秒', '印の持続 +7秒'], v: [2, 4, 7], sp: { name: '急所', desc: '弱点露出中の敵へのクリティカルダメージ +30%' } },
           carve:  { name: '刻印', desc: ['印の上限 +3', '印の上限 +6', '印の上限 +10'], v: [3, 6, 10], sp: { name: '守印', desc: '印を持つ敵を倒すと、その印の数だけシールドを得る(5秒)' } },
-          spread: { name: '伝播', desc: ['印を持つ敵を倒すと、印の 20% を近くの敵に移す', '印を持つ敵を倒すと、印の 40% を近くの敵に移す', '印を持つ敵を倒すと、印の 75% を近くの敵に移す'], v: [0.2, 0.4, 0.75], sp: { name: '狩りの連鎖', desc: '印を持つ敵を倒すと、一斉射撃の CD -0.5秒' } },
+          spread: { name: '伝播', desc: ['印を持つ敵を倒すと、印の 20% を近くの敵に移す', '印を持つ敵を倒すと、印の 40% を近くの敵に移す', '印を持つ敵を倒すと、印の 75% を近くの敵に移す'], v: [0.2, 0.4, 0.75], sp: { name: '狩りの連鎖', desc: '印を持つ敵を倒すと、一斉射撃の CD -0.1秒(縮むのは 1秒あたり 0.5秒まで)' } },
         } },
         passive: { name: '集中', paths: {
           calm: { name: '静心', desc: ['集中の溜まる速さ +20%', '集中の溜まる速さ +40%', '集中の溜まる速さ +60%'], v: [0.2, 0.4, 0.6], sp: { name: '不動', desc: '集中が最大の間、被ダメージ -20%' } },
@@ -701,9 +704,9 @@ const DATA = {
           eye:  { name: '鋭眼', desc: ['集中1段のクリティカル率 +0.5% 追加', '集中1段のクリティカル率 +1% 追加', '集中1段のクリティカル率 +1.5% 追加'], v: [0.005, 0.01, 0.015], sp: { name: '連射', desc: '集中が最大の間、全武器の弾数 +1(近接武器では攻撃回数 +1)' } },
         } },
         q: { name: '一斉射撃', need: 'q', paths: {
-          pow: { name: '威力', desc: ['一斉射撃の威力 +30%(矢・追加ダメージ)', '一斉射撃の威力 +60%(矢・追加ダメージ)', '一斉射撃の威力 +100%(矢・追加ダメージ)'], v: [0.3, 0.6, 1.0], sp: { name: '流星', desc: '矢が敵に当たるたびに小さく爆発する(基礎威力 10、半径 16)' } },
+          pow: { name: '威力', desc: ['一斉射撃の威力 +30%(矢・追加ダメージ)', '一斉射撃の威力 +60%(矢・追加ダメージ)', '一斉射撃の威力 +100%(矢・追加ダメージ)'], v: [0.3, 0.6, 1.0], sp: { name: '流星', desc: '矢が敵に当たるたびに小さく爆発する(基礎威力 25、半径 16)' } },
           cd:  { name: '迅速', desc: ['一斉射撃のCD -10%', '一斉射撃のCD -20%', '一斉射撃のCD -30%'], v: [0.1, 0.2, 0.3], sp: { name: '印の嵐', desc: '追加ダメージの後、その敵に印 +5 を刻み直す' } },
-          keep: { name: '残印', desc: ['追加ダメージで印を消費しない確率 6%', '追加ダメージで印を消費しない確率 12%', '追加ダメージで印を消費しない確率 20%'], v: [0.06, 0.12, 0.2], sp: { name: '必中', desc: '一斉射撃の矢と追加ダメージは必ずクリティカルになる' } },
+          keep: { name: '残印', desc: ['追加ダメージで印を消費しない確率 15%', '追加ダメージで印を消費しない確率 30%', '追加ダメージで印を消費しない確率 50%'], v: [0.15, 0.3, 0.5], sp: { name: '必中', desc: '一斉射撃の矢と追加ダメージは必ずクリティカルになる' } },
         } },
       },
     },
@@ -1331,12 +1334,13 @@ const DATA = {
   // ---------- カオス強化(db.xlsx「カオス強化」)----------
   // クリア済みのモード・ステージごとに、出撃前に各項目の Lv を選ぶ。合計ポイント = Σ(Lv × pt)
   // 合計ポイントに応じた報酬(rewards: pt 以上で一番上の行)が、そのランの間だけ「カオス強化」としてステータスに入る
-  // per: Lv 1 あたりの効果量(desc の {v} に入る)。名前は仮
+  // per: Lv 1 あたりの効果量(desc の {v} に入る)/ unit: 設定画面の「1Lv あたり」の単位(無ければ %)。名前は仮
+  // mods: 通常モード・ステージ単体 / arenaMods: 闘技場(敵Lv の上昇・出現率・アイテムの項目は闘技場にないので、代わりにボスの項目)
   chaos: {
     mods: [
       { k: 'lvSpeed', name: '加速する夜',   max: 5, pt: 2,  per: 20, desc: '敵Lv の上昇速度 +{v}%' },
-      { k: 'bossLv',  name: '復讐の連鎖',   max: 5, pt: 1,  per: 1,  desc: 'ボスを倒すたびに敵Lv +{v}' },
-      { k: 'startLv', name: '深い闇',       max: 4, pt: 1,  per: 1,  desc: '開始時の敵Lv +{v}' },
+      { k: 'bossLv',  name: '復讐の連鎖',   max: 5, pt: 1,  per: 1,  unit: '', desc: 'ボスを倒すたびに敵Lv +{v}' },
+      { k: 'startLv', name: '深い闇',       max: 4, pt: 1,  per: 1,  unit: '', desc: '開始時の敵Lv +{v}' },
       { k: 'spawn',   name: '群れの目覚め', max: 5, pt: 1,  per: 5,  desc: '敵の出現率 +{v}%' },
       { k: 'area',    name: '膨れる殺意',   max: 5, pt: 1,  per: 10, desc: '敵の攻撃範囲 +{v}%' },
       { k: 'rate',    name: '狂騒',         max: 3, pt: 2,  per: 10, desc: '敵の攻撃頻度 +{v}%' },
@@ -1344,6 +1348,18 @@ const DATA = {
       { k: 'debuff',  name: '蝕む呪い',     max: 5, pt: 1,  per: 10, desc: 'デバフの効果時間 +{v}%' },
       { k: 'rage',    name: '血の夜明け',   max: 1, pt: 5,  per: 1,  desc: 'ボスは常に激怒する' },
       { k: 'twin',    name: '双王',         max: 1, pt: 10, per: 1,  desc: 'ボスが2体同時に出現する(もう1体は別のボス)' },
+    ],
+    // 闘技場: 敵Lv はラウンドごとの値(DATA.arena.elv)+ 深い闇 + 復讐の連鎖 × 倒したボスの数 / 巨躯: ボスの HP の倍率 / 親衛隊: ボスと一緒にエリートが入場(そのボスのステージの敵)
+    arenaMods: [
+      { k: 'bossLv',  name: '復讐の連鎖',   max: 10, pt: 1,  per: 1,  unit: '', desc: 'ボスを倒すたびに敵Lv +{v}' },
+      { k: 'bossHp',  name: '巨躯',         max: 5,  pt: 1,  per: 20, desc: 'ボスの基礎体力 +{v}%' },
+      { k: 'startLv', name: '深い闇',       max: 9,  pt: 1,  per: 1,  unit: '', desc: '開始時の敵Lv +{v}(この後のラウンドも同じだけ高い)' },
+      { k: 'debuff',  name: '蝕む呪い',     max: 5,  pt: 1,  per: 10, desc: 'デバフの効果時間 +{v}%' },
+      { k: 'area',    name: '膨れる殺意',   max: 5,  pt: 1,  per: 10, desc: '敵の攻撃範囲 +{v}%' },
+      { k: 'rate',    name: '狂騒',         max: 3,  pt: 2,  per: 10, desc: '敵の攻撃頻度 +{v}%' },
+      { k: 'escort',  name: '親衛隊',       max: 5,  pt: 1,  per: 1,  unit: '体', desc: 'ボス出現時にエリートが {v}体 出現する' },
+      { k: 'rage',    name: '血の夜明け',   max: 1,  pt: 5,  per: 1,  desc: 'ボスは常に激怒する' },
+      { k: 'twin',    name: '双王',         max: 1,  pt: 10, per: 1,  desc: 'ボスが2体同時に出現する(もう1体は別のボス)' },
     ],
     // eqMaxVal: 装備ロール上限 / eqMaxLv: 装備Lv上限 / eqQual: 装備品質 / chestQual: 宝箱品質 / gold: 獲得ゴールド
     rewards: [

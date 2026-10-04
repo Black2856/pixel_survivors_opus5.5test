@@ -660,22 +660,7 @@ function render() {
       }
       gx.globalAlpha = 1;
     } else if (z.kind === 'rain') {
-      const on = z.t >= z.delay ? 1 : z.t / z.delay;
-      sx.globalAlpha = 0.22 * fade * on; pDisc(sx, zx, zy, Math.round(z.r), '#0c1a10'); // 影の円
-      sx.globalAlpha = 0.6 * fade * on; pCircle(sx, zx, zy, Math.round(z.r), '#b8ff9a', 1); sx.globalAlpha = 1;
-      for (const ar of z.arrows) { // 落ちてくる矢(0.07秒)→ 刺さった矢(薄れて消える)
-        if (ar.t < 0) continue;
-        const ax = Math.round(ar.x - cam.x), ay = Math.round(ar.y - cam.y);
-        if (ar.t < 0.07) {
-          const top = ay - Math.round(26 * (1 - ar.t / 0.07));
-          for (let yy = top - 5; yy <= top; yy++) { sx.fillStyle = yy === top ? '#ffffff' : '#e4ffd8'; sx.fillRect(ax, yy, 1, 1); gx.fillStyle = '#b8ff9a'; gx.fillRect(ax, yy, 1, 1); }
-        } else {
-          sx.globalAlpha = 1 - ar.t / 0.5;
-          sx.fillStyle = '#d9c9a0'; sx.fillRect(ax, ay - 3, 1, 3); sx.fillStyle = '#7dff9a'; sx.fillRect(ax - 1, ay - 4, 1, 1); sx.fillRect(ax + 1, ay - 4, 1, 1);
-          sx.globalAlpha = 1;
-        }
-      }
-      addLight(z.x, z.y, z.r * 2, '#b8ff9a', 0.35 * fade * on);
+      drawArrowRain(z, zx, zy, t);
     } else if (z.kind === 'pillar') { // 光の柱: 天から細く降りて太くなり、消えていく
       if (z.t >= 0) {
         const u = z.t / z.dur, x = Math.round(zx), w = Math.max(1, Math.round(z.r * 0.35 * Math.sin(Math.min(1, u * 2.5) * Math.PI / 2) * (1 - u)));
@@ -1145,7 +1130,7 @@ function render() {
   mineOff();
 
   // ======== 敵の攻撃(最前面): ボスの技・敵弾・予兆 ========
-  if (S.boss && !S.boss.dead) drawBossFx(S.boss);
+  for (const b of S.bosses || []) if (!b.dead) drawBossFx(b); // 双王(カオス)の2体目の技も描く
   drawSlashes(true);
   drawParts(false);
   drawRings(false);
@@ -1160,16 +1145,16 @@ function render() {
       addLight(p.x, p.y - p.z, 20, oc, stop ? 0.2 : 0.5);
       continue;
     }
-    // 敵弾は形に沿った赤いアウトラインで自分の弾と区別する
-    const ol = { outline: oc, alpha: al };
+    // 敵弾は形に沿った赤いアウトラインで自分の弾と区別する。大きさは当たり判定(p.r)と同じく攻撃範囲の倍率を掛ける
+    const A = CHAOS.area, ol = { outline: oc, alpha: al, scale: A };
     if (al !== undefined) sx.globalAlpha = al; // drawRot は透明度を受け取らないので、ここで掛けて戻す
-    if (p.kind === 'boomer') drawRot('scythe', p.t * 16, p.x, p.y, { scale: 2, outline: oc });
+    if (p.kind === 'boomer') drawRot('scythe', p.t * 16, p.x, p.y, { scale: 2 * A, outline: oc });
     else if (p.kind === 'glob' || p.kind === 'rbit') drawSp(ART.S[p.kind], p.x, p.y, ol);
     else if (p.kind === 'arrow') drawRot('arrow', a, p.x, p.y, ol);
     else if (p.kind === 'scythe') drawRot('scythe', p.t * 14, p.x, p.y, ol);
     else drawSp(ART.S.ball, p.x, p.y, ol);
     sx.globalAlpha = 1;
-    addLight(p.x, p.y, p.kind === 'boomer' ? 40 : 22, oc, stop ? 0.2 : 0.6);
+    addLight(p.x, p.y, (p.kind === 'boomer' ? 40 : 22) * A, oc, stop ? 0.2 : 0.6);
   }
   // 予兆: 赤い半透明の塗り(時間とともに内側が満ちる) + 点滅する縁
   const edge = warnBlink ? '#ff3b5c' : '#ffd0d8';
@@ -1224,19 +1209,20 @@ function render() {
 // ボス固有の付随表現(ゴーレムの拳・掲げた岩 / ドラゴンのブレス・ビーム・溜め)
 function drawBossFx(e) {
   const sx = GFX.sctx, gx = GFX.gctx, ai = e.ai, ex = e.x - cam.x, ey = e.y - cam.y, sp = ART.S[e.boss], yo = -(e.jz || 0);
+  const A = CHAOS.area; // 攻撃範囲の倍率(当たり判定と同じだけ見た目も広げる)
   if (e.fists) for (const f of e.fists) {
     pLine(sx, ex, ey, f.x - cam.x, f.y - cam.y, '#6a6258', 3);
-    drawSp(ART.S.fist, f.x, f.y);
-    addLight(f.x, f.y, 26, '#6ee7ff', 0.5);
+    drawSp(ART.S.fist, f.x, f.y, { scale: A });
+    addLight(f.x, f.y, 26 * A, '#6ee7ff', 0.5);
   }
   if (e.hold) drawSp(ART.S.rock, e.x, e.y + yo - sp.h / 2 - 5);
-  if (ai.act === 'breath') for (let r = 20; r < 125; r += 26) addLight(e.x + Math.cos(ai.ba) * r, e.y + Math.sin(ai.ba) * r, r * 0.9, '#ff6a2a', 0.7);
+  if (ai.act === 'breath') for (let r = 20; r < 125 * A; r += 26 * A) addLight(e.x + Math.cos(ai.ba) * r, e.y + Math.sin(ai.ba) * r, r * 0.9, '#ff6a2a', 0.7);
   if (ai.act === 'beam' && ai.bA != null) {
-    const bx = ex + Math.cos(ai.bA) * BEAM_LEN, by = ey + Math.sin(ai.bA) * BEAM_LEN, fl = Math.floor(GFX.fx.time * 30) % 2;
-    pLine(gx, ex, ey, bx, by, '#ff4a8a', 9 + fl * 2);
-    pLine(sx, ex, ey, bx, by, '#ffd0f0', 5);
-    pLine(sx, ex, ey, bx, by, '#ffffff', 3);
-    for (let r = 0; r < BEAM_LEN; r += 40) addLight(e.x + Math.cos(ai.bA) * r, e.y + Math.sin(ai.bA) * r, 60, '#ff4a8a', 0.8);
+    const BL = BEAM_LEN * A, bx = ex + Math.cos(ai.bA) * BL, by = ey + Math.sin(ai.bA) * BL, fl = Math.floor(GFX.fx.time * 30) % 2;
+    pLine(gx, ex, ey, bx, by, '#ff4a8a', Math.round((9 + fl * 2) * A));
+    pLine(sx, ex, ey, bx, by, '#ffd0f0', Math.round(5 * A));
+    pLine(sx, ex, ey, bx, by, '#ffffff', Math.round(3 * A));
+    for (let r = 0; r < BL; r += 40) addLight(e.x + Math.cos(ai.bA) * r, e.y + Math.sin(ai.bA) * r, 60, '#ff4a8a', 0.8);
   }
   if (ai.chg && ai.wind > 0) {
     gx.globalAlpha = 0.6; pCircle(gx, ex, ey, Math.round(10 + ai.wind * 20), '#ff4a8a', 2); gx.globalAlpha = 1;
@@ -1258,6 +1244,52 @@ function drawMotes(st) {
   gx.globalAlpha = 1;
 }
 
+// アローレインの色(ふつう / 炎の矢)。光の層は色で明るさが決まるので、軌跡は暗い色を順に(先端に近いほど明るい)
+const RAIN_PAL = {
+  base: { ring: '#b8ff9a', tick: '#e4ffd8', head: '#ffffff', body: '#d8f0c8', fletch: '#5ad07a', shaft: '#b8a880', trail: ['#3a6a3a', '#284a28', '#183018'], light: '#b8ff9a', shade: '#0c1a10' },
+  fire: { ring: '#ffb070', tick: '#ffe0b0', head: '#fff6c8', body: '#ffc34a', fletch: '#ff6a2a', shaft: '#6a4a30', trail: ['#7a3a10', '#4a220a', '#2a1206'], light: '#ff8a3d', shade: '#1a0c06' },
+};
+// アローレイン: 照準の輪(外から縮んで定まる・回る目盛り)→ 空から斜めに降る矢(光の軌跡・地面の小さな影)→ 刺さった矢が残る
+//   攻撃 1回ごとに縁から内へ波紋。終わった後(linger)は刺さった矢だけ残って消える
+function drawArrowRain(z, zx, zy, t) {
+  const sx = GFX.sctx, gx = GFX.gctx, C = z.fire ? RAIN_PAL.fire : RAIN_PAL.base, R = Math.round(z.r);
+  const fade = Math.max(0, Math.min(1, (z.dur - z.t) * 4, z.t * 6)), lock = Math.min(1, z.t / z.delay);
+  if (fade > 0) {
+    sx.globalAlpha = 0.24 * fade * lock; pDisc(sx, zx, zy, R, C.shade); // 影の円
+    const rr = Math.round(R * (1 + 0.5 * (1 - easeOutCubic(lock)))); // 照準の輪: 外から縮んで定まる
+    sx.globalAlpha = (0.35 + 0.35 * lock) * fade; pCircle(sx, zx, zy, rr, C.ring, 1);
+    for (let i = 0; i < 4; i++) { // 目盛り: 輪の上の 4本の短い線(ゆっくり回る)
+      const a = t * 0.9 + i * Math.PI / 2, ca = Math.cos(a), sa = Math.sin(a);
+      pLine(sx, zx + ca * (rr - 4), zy + sa * (rr - 4), zx + ca * (rr + 3), zy + sa * (rr + 3), C.tick, 1);
+    }
+    if (lock < 1) { gx.fillStyle = C.trail[1]; for (let i = 0; i < 4; i++) { const a = t * 0.9 + i * Math.PI / 2; gx.fillRect(Math.round(zx + Math.cos(a) * rr), Math.round(zy + Math.sin(a) * rr), 1, 1); } }
+    const pu = z.pulseT === undefined ? 1 : (z.t - z.pulseT) / 0.22; // 攻撃ごとの波紋(縁から内へ)
+    if (pu < 1) { sx.globalAlpha = 0.45 * (1 - pu) * fade; pCircle(sx, zx, zy, Math.round(R * (1 - 0.3 * pu)), C.tick, 1); }
+    sx.globalAlpha = 1;
+    addLight(z.x, z.y, z.r * 2, C.light, (0.3 + 0.2 * Math.max(0, 1 - pu)) * fade * lock);
+  }
+  const sl = z.slant || 0, len = Math.hypot(sl, 1), dx = sl / len, dy = 1 / len; // 矢の進む向き(斜め下)
+  for (const ar of z.arrows) {
+    if (ar.t < 0) continue;
+    const ax = Math.round(ar.x - cam.x), ay = Math.round(ar.y - cam.y);
+    if (ar.t < RAIN_FALL) { // 落ちてくる矢: 先端(白)・矢柄・矢羽。後ろに光の軌跡。地面の小さな影が濃くなる
+      const u = ar.t / RAIN_FALL, H = RAIN_H * (1 - u), hx = ax - sl * H, hy = ay - H;
+      for (let i = 2; i < 18; i++) { gx.fillStyle = C.trail[Math.min(2, (i - 2) / 5 | 0)]; gx.fillRect(Math.round(hx - dx * i), Math.round(hy - dy * i), 1, 1); }
+      for (let i = 0; i < 8; i++) { sx.fillStyle = i === 0 ? C.head : i < 6 ? C.body : C.fletch; sx.fillRect(Math.round(hx - dx * i), Math.round(hy - dy * i), 1, 1); }
+      sx.fillStyle = C.fletch; sx.fillRect(Math.round(hx - dx * 7 - 1), Math.round(hy - dy * 7), 1, 1); sx.fillRect(Math.round(hx - dx * 7 + 1), Math.round(hy - dy * 7), 1, 1); // 矢羽の広がり
+      sx.globalAlpha = 0.55 * u; sx.fillStyle = '#060c06'; sx.fillRect(ax - 1, ay, 3, 1); sx.globalAlpha = 1;
+      continue;
+    }
+    const s = ar.t - RAIN_FALL, k = s / RAIN_STUCK; // 刺さった矢: 斜めに地面へ刺さり、だんだん薄れる(炎の矢は矢羽の火が揺れる)
+    sx.globalAlpha = 1 - k * k;
+    for (let i = 0; i < 5; i++) { sx.fillStyle = i === 0 ? '#2a2418' : C.shaft; sx.fillRect(Math.round(ax - dx * i), Math.round(ay - dy * i), 1, 1); }
+    const fx = Math.round(ax - dx * 5), fy = Math.round(ay - dy * 5), fl = z.fire && Math.floor(t * 12 + ar.x) % 2;
+    sx.fillStyle = fl ? '#ffc34a' : C.fletch; sx.fillRect(fx - 1, fy, 1, 1); sx.fillRect(fx + 1, fy, 1, 1); sx.fillRect(fx, fy - 1, 1, 1);
+    sx.globalAlpha = 1;
+    if (z.fire && k < 0.7) { gx.fillStyle = fl ? '#5a2a08' : '#3a1606'; gx.fillRect(fx, fy - 1, 1, 2); }
+    if (s < 0.05) { gx.fillStyle = C.trail[0]; gx.fillRect(ax - 1, ay - 1, 3, 2); } // 刺さった瞬間の光
+  }
+}
 // ディメンション・リフト: 画面全体が暗い星空(異次元)に沈み、画面の端から暗いひびが走る(画面の座標)
 //   白く飛ぶと画面全体が見えなくなるので、明るくせず暗く沈める。画質が低いときは、ひびと背景の切り替えだけ
 function drawRift(t) {

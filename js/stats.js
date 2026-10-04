@@ -123,8 +123,11 @@ const lootStats = s => ({
 });
 
 // ---------- カオス強化 ----------
-// lv: { 項目のキー: Lv } → 合計ポイント / 報酬の行
-const chaosPoints = lv => DATA.chaos.mods.reduce((a, m) => a + (lv[m.k] || 0) * m.pt, 0);
+// key: モード・ステージのキー('arena' は闘技場の項目)/ lv: { 項目のキー: Lv } → 合計ポイント / 報酬の行
+//   その項目の一覧にないキー(以前の設定の残り)は数えない。最大Lv を超えた分も数えない
+const chaosMods = key => (key === 'arena' ? DATA.chaos.arenaMods : DATA.chaos.mods);
+const chaosLv = (lv, m) => Math.min(m.max, (lv && lv[m.k]) || 0);
+const chaosPoints = (lv, key) => chaosMods(key).reduce((a, m) => a + chaosLv(lv, m) * m.pt, 0);
 const chaosReward = pt => DATA.chaos.rewards.filter(r => pt >= r.pt).pop() || null;
 const chaosDesc = (m, lv) => m.desc.replace('{v}', (lv || 1) * m.per);
 
