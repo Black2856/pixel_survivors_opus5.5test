@@ -99,11 +99,13 @@ const MetaUI = (() => {
     const xpP = m.lv >= max ? 100 : m.xp / need[m.lv - 1] * 100;
     const rows = classLvTable(k).map(r => `<div class="cl-row ${m.lv >= r.lv ? 'got' : ''} ${m.lv + 1 === r.lv ? 'next' : ''}">
       <b>Lv${r.lv}</b><span class="tag ${r.kind === '共通' ? 'wp' : ''}">${r.kind}</span><span>${r.d}</span><em>${m.lv >= r.lv ? '✔' : need[r.lv - 2].toLocaleString()}</em></div>`).join('');
-    const swap = classLvFx(k).swap, cw = m.weapon || c.weapon;
+    const swap = canSwap(k), cw = m.weapon || c.weapon || c.startW;
+    const note = c.weapon ? `<span class="tag">専用</span>このクラスだけ <span class="tag wp">共通</span>${DATA.weapons[c.weapon].name}を使うどのクラスにも効く`
+      : '<span class="tag">専用</span>このクラスだけ(専用の武器がないので全て専用。武器の熟練は、その武器を専用にしているクラスの Lv で決まる)';
     $('cl-detail').innerHTML = `
       <div class="cl-head" style="--cc:${c.col}"><span class="nm">${c.name}</span><span class="lv">Lv ${m.lv}${m.lv >= max ? ' MAX' : ''}</span></div>
       <div class="cl-xp"><i style="width:${xpP.toFixed(1)}%"></i><span>${m.lv >= max ? 'MAX' : `${m.xp.toLocaleString()} / ${need[m.lv - 1].toLocaleString()} EXP`}</span></div>
-      <div class="dim cl-note">クラス経験値 = 討伐数 + 撃破ボス数 × ${DATA.classLevel.bossK}(ラン終了時)。<span class="tag">専用</span>このクラスだけ <span class="tag wp">共通</span>${DATA.weapons[c.weapon].name}を使うどのクラスにも効く</div>
+      <div class="dim cl-note">クラス経験値 = 討伐数 + 撃破ボス数 × ${DATA.classLevel.bossK}(ラン終了時)。${note}</div>
       <div class="cl-rows">${rows}</div>
       <div class="cl-sub">メイン武器 ${swap ? '' : '<span class="dim">(Lv15 で切り替え解放)</span>'}</div>
       <button class="cl-wsel">${UI.weaponIcon(cw)}<span>${DATA.weapons[cw].name}${cw === c.weapon ? '<small>専用</small>' : ''}</span><em>${swap ? '変更 ▸' : '一覧 ▸'}</em></button>
@@ -113,7 +115,8 @@ const MetaUI = (() => {
   // MetaUI は StatusUI より先に読み込まれるので、実行時に参照する
   const statusPanel = (id, cls) => { if (typeof StatusUI !== 'undefined') StatusUI.render($(id), false, cls); };
   $('cl-list').onclick = e => { const b = e.target.closest('.cl-card'); if (!b) return; clSel = b.dataset.k; AudioMan.click(); renderClass(); };
-  // メイン武器の切り替え(モーダル)。Lv15 まではクラス専用の武器だけ選べる(一覧は見られる)
+  // メイン武器の切り替え(モーダル)。Lv15 まではクラス専用の武器だけ選べる(一覧は見られる)。専用武器がないクラスは Lv1 から選べる
+  const canSwap = k => !DATA.classes[k].weapon || !!classLvFx(k).swap;
   const wpModal = document.createElement('div');
   wpModal.id = 'wp-modal'; wpModal.className = 'hidden';
   wpModal.innerHTML = '<div class="svm"><button class="svm-x">×</button><div class="svm-body"></div></div>';
@@ -121,8 +124,8 @@ const MetaUI = (() => {
   const wpOpen = () => !wpModal.classList.contains('hidden');
   const closeWp = () => wpModal.classList.add('hidden');
   function openWp() {
-    const k = clSel, c = DATA.classes[k], m = META.classes[k], swap = classLvFx(k).swap, cw = m.weapon || c.weapon;
-    const weps = [...new Set(Object.values(DATA.classes).map(x => x.weapon))];
+    const k = clSel, c = DATA.classes[k], m = META.classes[k], swap = canSwap(k), cw = m.weapon || c.weapon || c.startW;
+    const weps = [...new Set(Object.values(DATA.classes).map(x => x.weapon).filter(Boolean))];
     const owner = w => Object.values(DATA.classes).find(x => x.weapon === w);
     wpModal.querySelector('.svm-body').innerHTML = `<div class="wp-h">メイン武器を選ぶ <span class="dim">— ${c.name}</span></div>
       ${swap ? '' : '<div class="dim wp-note">Lv15 で切り替えが解放されます(今はクラス専用の武器だけ)</div>'}

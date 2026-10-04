@@ -212,7 +212,7 @@ function computeStats({ cls = META.cls, run = false, eq = run ? 'run' : 'zero' }
 function applyStats() {
   const st = computeStats({ cls: P.cls, run: true }), v = st.v, m = st.mul;
   P.stats = st;
-  P.maxhp = Math.max(1, Math.round(v.hp * m.hp));
+  P.maxhp = Math.max(1, Math.round(v.hp * m.hp) + clsHpAdd()); // クラスの最大HP の追加(ウェポンマスターの頑健など。変わったらクラスが recalc する)
   P.hp = Math.min(P.hp, P.maxhp);
   P.regen = v.regen;
   P.armor = v.def;

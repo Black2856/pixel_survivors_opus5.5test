@@ -102,7 +102,179 @@ function assassinPose(U, arm, o = {}) {
   return { p, hand: null };
 }
 
+// ネクロマンサーの部位の配置(ART.S.necro と対応)
+function necroPose(U, arm, o = {}) {
+  const p = {
+    hood: [0, U], torso: [0, U], backArm: [0, U], legs: [0, 0, o.legs || 'base'],
+    frontArm: arm === 'base' ? [0, U] : [0, U + (o.armDy || 0), arm], staff: [o.sx || 0, U + (o.sy || 0), o.staffV || 'base'],
+  };
+  return { p, hand: null };
+}
+
+// アストロマンサーの部位の配置(ART.S.astro と対応)
+function astroPose(U, arm, o = {}) {
+  const p = {
+    hood: [0, U, o.hoodV || 'base'], torso: [0, U], backArm: [0, U + (o.backDy || 0)], legs: [0, 0, o.legs || 'base'],
+    frontArm: arm === 'base' ? [0, U] : [0, U + (o.armDy || 0), arm], staff: [o.sx || 0, U + (o.sy || 0), o.staffV || 'base'],
+  };
+  return { p, hand: null };
+}
+
+// バーサーカーの部位の配置(ART.S.berserker と対応)。U: 上半身の沈み / o.L: 前のめり / o.arm・o.back: 腕の絵 / o.headV: 顔の絵(無ければ怒りで決める)/ o.legs
+//   手前の腕の絵ごとの手の位置(体の枠の座標。raise は y を -4 した腕の上端)。斧はモーション中は drawPose で角度付きで描く
+const BERSERKER_HAND = { base: [13, 10.5], raise: [12.5, 3.5], forward: [15.5, 8.5] };
+function berserkerPose(U, o = {}) {
+  const L = o.L || 0, arm = o.arm || 'base', back = o.back || 'base';
+  const p = {
+    cape: [L, U], hood: [L, U], head: [L, U, o.headV || (bkEyes() ? 'r' : 'base')], torso: [L, U], axes: [L, U], legs: [0, 0, o.legs || 'base'],
+    backArm: back === 'base' ? [L, U] : [L, U - 4, back], frontArm: arm === 'base' ? [L, U] : [L, U + (arm === 'raise' ? -4 : 0), arm],
+  };
+  const h = BERSERKER_HAND[arm];
+  return { p, hand: [h[0] + L, h[1] + U] };
+}
+// ウェポンマスターの部位の配置(ART.S.weaponmaster と対応)。U: 上半身の沈み / o.L: 前のめり / o.arm・o.back: 腕の絵(o.armDy・o.backDy: 腕の上下)/ o.gearV: 背中の武器のきらめき / o.legs
+//   手前の腕の絵ごとの手の位置(体の枠の座標)。持っている武器はモーション中は drawPose でアイコンとして手元に描く(ms.icon)
+const WM_HAND = { base: [11.5, 11], forward: [14, 9], raise: [12.5, 8], seal: [12.5, 9] };
+function weaponmasterPose(U, o = {}) {
+  const L = o.L || 0, arm = o.arm || 'base', back = o.back || 'base', ad = o.armDy || 0;
+  const p = {
+    gear: [L, U, o.gearV || 'base'], head: [L, U], torso: [L, U], legs: [0, 0, o.legs || 'base'],
+    backArm: back === 'base' ? [L, U] : [L, U + (o.backDy || 0), back], frontArm: arm === 'base' ? [L, U] : [L, U + ad, arm],
+  };
+  const h = WM_HAND[arm];
+  return { p, hand: [h[0] + L, h[1] + U + ad] };
+}
+
 const MOTIONS = {
+  // ワイルドトマホーク(E): 斧を頭の後ろへ大きく振りかぶる(0.3秒・のけぞる)→ 前へ投げ放つ(斧は手を離れる)→ 戻る
+  zThrow: {
+    rig: 'berserker', dur: 0.65, cast: 0.3,
+    state(t) {
+      if (t < this.cast) {
+        const u = track([[0, 0], [0.15, 1, 'out'], [this.cast, 1]], t);
+        return Object.assign(berserkerPose(u > 0.5 ? 1 : 0, { arm: 'raise', legs: 'stepB' }), { blade: true, axe: true, len: 8, ang: -1.6 - 1.4 * u, lean: -0.12 * u, sy: 1 - 0.03 * u });
+      }
+      const r = t - this.cast;
+      return Object.assign(berserkerPose(r < 0.12 ? 1 : 0, { L: r < 0.25 ? 1 : 0, arm: r < 0.25 ? 'forward' : 'base', legs: r < 0.2 ? 'stepA' : 'base' }),
+        { blade: false, lean: track([[0, 0.2], [0.35, 0, 'out']], r), sy: track([[0, 0.92], [0.15, 1, 'out']], r) });
+    },
+  },
+  // 狂乱(Q): 両手で大斧を振りかぶって雄叫び(0.3秒・のけぞる)→ 大斧で一回転の斬撃 → 雄叫びの余韻 → 戻る
+  zRoar: {
+    rig: 'berserker', dur: 0.95, cast: 0.3, spin: 0.22,
+    state(t) {
+      if (t < this.cast) {
+        const u = track([[0, 0], [0.12, 1, 'out'], [this.cast, 1]], t);
+        return Object.assign(berserkerPose(Math.round(u), { arm: 'raise', back: 'lift', headV: 'roar', legs: 'brace' }), { blade: true, axe: true, big: true, len: 12, smear: '#8a2418', ang: -1.5 - 0.9 * u, lean: -0.14 * u, sy: 1 + 0.04 * u });
+      }
+      const r = t - this.cast;
+      if (r < this.spin) return Object.assign(berserkerPose(1, { L: 1, arm: 'forward', headV: 'roar', legs: 'brace' }), { blade: true, axe: true, big: true, len: 12, smear: '#8a2418', ang: -2.4 + TAU * EASE.out(r / this.spin), lean: 0.12, sy: 0.94 });
+      const s = r - this.spin;
+      return Object.assign(berserkerPose(s < 0.25 ? 1 : 0, { headV: s < 0.3 ? 'roar' : undefined, legs: s < 0.3 ? 'brace' : 'base' }),
+        { blade: false, lean: track([[0, 0.1], [0.4, 0, 'out']], s), sy: track([[0, 0.94], [0.2, 1.03, 'out'], [0.4, 1]], s) });
+    },
+  },
+  // 不屈(Space): 足を大きく開いて踏ん張る(沈んで身構える)
+  zFirm: {
+    rig: 'berserker', dur: 0.4,
+    state(t) {
+      return Object.assign(berserkerPose(t < 0.3 ? 1 : 0, { legs: 'brace' }), { blade: false, lean: track([[0, 0], [0.05, -0.06, 'out'], [0.4, 0]], t), sy: track([[0, 1], [0.05, 0.9, 'out'], [0.25, 0.96], [0.4, 1]], t) });
+    },
+  },
+  // ウェポンマスターの武器スキル(E。どの武器でも): メイン武器を掲げて構える(0.22秒)→ 前へ突き出して放つ → 使っている間(乱れ桜・連射・放射)は構えたまま
+  //   武器はメイン武器のアイコンを手元に描く(ms.icon)
+  wmArt: {
+    rig: 'weaponmaster', dur: 0.6, cast: 0.22,
+    state(t) {
+      const icon = P.mainW;
+      if (t < this.cast) {
+        const u = track([[0, 0], [0.12, 1, 'out'], [this.cast, 1]], t);
+        return Object.assign(weaponmasterPose(u > 0.5 ? 1 : 0, { arm: 'raise', armDy: -2, legs: 'stepB', gearV: Math.floor(t * 20) % 2 ? 'g1' : 'g2' }), { blade: false, icon, lean: -0.08 * u, sy: 1 - 0.03 * u });
+      }
+      const r = t - this.cast;
+      return Object.assign(weaponmasterPose(r < 0.1 ? 1 : Math.floor(r * 6) % 2, { L: r < 0.25 ? 1 : 0, arm: 'forward', legs: r < 0.25 ? 'stepA' : 'brace' }),
+        { blade: false, icon, lean: track([[0, 0.16], [0.3, 0.04, 'out']], r), sy: track([[0, 0.93], [0.15, 1, 'out']], r) });
+    },
+  },
+  // 武神降臨(Q): 両手で印を結ぶ(0.4秒・身を沈める。背中の武器が次々にきらめく)→ 両腕を開いて分身を放つ → 戻る
+  wmSeal: {
+    rig: 'weaponmaster', dur: 0.8, cast: 0.4,
+    state(t) {
+      if (t < this.cast) {
+        const u = track([[0, 0], [0.12, 1, 'out'], [this.cast, 1]], t);
+        return Object.assign(weaponmasterPose(Math.round(u), { arm: 'seal', back: 'seal', legs: 'brace', gearV: ['g1', 'g2', 'g3'][Math.floor(t * 15) % 3] }), { blade: false, lean: 0.04 * u, sy: 1 - 0.05 * u });
+      }
+      const r = t - this.cast;
+      return Object.assign(weaponmasterPose(r < 0.12 ? 0 : r < 0.3 ? 1 : 0, { arm: r < 0.3 ? 'raise' : 'base', armDy: -2, legs: r < 0.3 ? 'brace' : 'base', gearV: r < 0.2 ? 'g3' : 'base' }),
+        { blade: false, lean: track([[0, -0.12], [0.4, 0, 'out']], r), sy: track([[0, 1.06], [0.25, 1, 'out']], r) });
+    },
+  },
+  // 残像(Space): 前へ低く傾いて、滑るように跳ぶ
+  wmDash: {
+    rig: 'weaponmaster', dur: 0.25,
+    state(t) {
+      return Object.assign(weaponmasterPose(1, { arm: 'forward', legs: 'stepA' }), { blade: false, lean: track([[0, 0], [0.03, 0.3, 'out'], [0.25, 0]], t), sy: track([[0, 1], [0.03, 0.86, 'out'], [0.25, 1]], t) });
+    },
+  },
+  // ディメンション・リフト(E): 杖を後ろへ引いて力を溜める(0.4秒・杖先の輪が明滅)→ 横に払って空間を裂く → 戻る
+  gRift: {
+    rig: 'astro', dur: 0.75, cast: 0.4,
+    state(t) {
+      if (t < this.cast) { const u = t / this.cast; return Object.assign(astroPose(u > 0.3 ? 1 : 0, 'raise', { armDy: -2, sx: -2, sy: -1, staffV: Math.floor(t * 14) % 2 ? 'big' : 'b', legs: 'stepB' }), { blade: false, lean: -0.06 * u, sy: 1 - 0.04 * u }); }
+      const r = t - this.cast;
+      return Object.assign(astroPose(r < 0.1 ? 1 : 0, r < 0.22 ? 'forward' : 'base', { sx: r < 0.22 ? 3 : 0, sy: r < 0.22 ? 2 : 0, staffV: r < 0.15 ? 'big' : 'base', legs: r < 0.2 ? 'stepA' : 'base' }),
+        { blade: false, lean: track([[0, 0.16], [0.35, 0, 'out']], r), sy: track([[0, 0.92], [0.15, 1, 'out']], r) });
+    },
+  },
+  // 重力崩壊(Q): 両手で黒い球を握り込むように構える(0.4秒・身をかがめる)→ 握りつぶす(縮んでから伸びる)→ 戻る
+  gCrush: {
+    rig: 'astro', dur: 0.8, cast: 0.4,
+    state(t) {
+      if (t < this.cast) {
+        const u = track([[0, 0], [0.12, 1, 'out'], [this.cast, 1]], t);
+        return Object.assign(astroPose(Math.round(2 * u), 'forward', { backDy: -1, staffV: Math.floor(t * 16) % 2 ? 'big' : 'b', legs: 'stepB' }), { blade: false, lean: 0.08 * u, sy: 1 - 0.06 * u });
+      }
+      const r = t - this.cast;
+      return Object.assign(astroPose(r < 0.12 ? 2 : 0, r < 0.3 ? 'raise' : 'base', { armDy: -2, staffV: r < 0.2 ? 'big' : 'base', legs: r < 0.2 ? 'stepA' : 'base' }),
+        { blade: false, lean: track([[0, -0.12], [0.4, 0, 'out']], r), sy: track([[0, 0.88], [0.1, 1.08, 'out'], [0.3, 1]], r) });
+    },
+  },
+  // 質量放出(Space): 前へ大きく傾いて、弾かれるように跳ぶ
+  gEject: {
+    rig: 'astro', dur: 0.3,
+    state(t) {
+      return Object.assign(astroPose(1, 'forward', { staffV: 'b', legs: 'stepA' }), { blade: false, lean: track([[0, 0], [0.04, 0.28, 'out'], [0.3, 0]], t), sy: track([[0, 1], [0.04, 0.86, 'out'], [0.3, 1]], t) });
+    },
+  },
+  // スピリットストーム(E): 杖を地面に突いて円陣を広げる(0.3秒・沈む)→ 杖を掲げて精霊を放つ → 戻る
+  nStorm: {
+    rig: 'necro', dur: 0.6, cast: 0.3,
+    state(t) {
+      if (t < this.cast) { const u = t / this.cast; return Object.assign(necroPose(u > 0.3 ? 1 : 0, 'base', { sy: Math.round(2 * u), staffV: u > 0.5 ? 'big' : 'b', legs: 'stepB' }), { blade: false, lean: -0.04 * u, sy: 1 - 0.05 * u }); }
+      const r = t - this.cast;
+      return Object.assign(necroPose(0, r < 0.2 ? 'raise' : 'base', { armDy: -2, sy: r < 0.2 ? -2 : 0, staffV: r < 0.15 ? 'big' : 'base' }), { blade: false, lean: track([[0, -0.08], [0.3, 0, 'out']], r), sy: track([[0, 1.06], [0.2, 1, 'out']], r) });
+    },
+  },
+  // 葬送(Q): 杖を高く掲げて死霊を集める(0.4秒)→ 前へ振り下ろす → 戻る
+  nRite: {
+    rig: 'necro', dur: 0.8, cast: 0.4,
+    state(t) {
+      if (t < this.cast) {
+        const u = track([[0, 0], [0.12, 1, 'out'], [this.cast, 1]], t);
+        return Object.assign(necroPose(t > 0.25 ? 0 : 1, 'raise', { armDy: -3, sy: Math.round(-3 * u), staffV: Math.floor(t * 16) % 2 ? 'big' : 'b' }), { blade: false, lean: -0.08 * u, sy: track([[0, 1], [0.1, 0.95, 'out'], [this.cast, 1.05]], t) });
+      }
+      const r = t - this.cast;
+      return Object.assign(necroPose(r < 0.12 ? 2 : 0, r < 0.25 ? 'forward' : 'base', { sx: r < 0.25 ? 3 : 0, sy: r < 0.25 ? 2 : 0, staffV: r < 0.15 ? 'big' : 'base', legs: r < 0.2 ? 'stepA' : 'base' }),
+        { blade: false, lean: track([[0, 0.14], [0.35, 0, 'out']], r), sy: track([[0, 0.9], [0.15, 1, 'out']], r) });
+    },
+  },
+  // 霊体化(Space): 前へ傾いて滑る
+  nPhase: {
+    rig: 'necro', dur: 0.5,
+    state(t) {
+      return Object.assign(necroPose(1, 'base', { staffV: 'b', legs: 'stepA' }), { blade: false, lean: track([[0, 0], [0.06, 0.18, 'out'], [0.4, 0.12], [0.5, 0]], t), sy: track([[0, 1], [0.06, 0.92, 'out'], [0.5, 1]], t) });
+    },
+  },
   // 刃輪展開(E): 両腕を上げて刃に力を込める(0.2秒)→ 前へ払うように輪を広げる → 戻る
   bRing: {
     rig: 'assassin', dur: 0.5, cast: 0.2,

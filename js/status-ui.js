@@ -20,7 +20,8 @@ const StatusUI = (() => {
     const d = DATA.stats[k];
     if (d.kind === 'flat') return (Math.abs(x) >= 10 ? Math.round(x) : Math.round(x * 10) / 10) + (d.unit || ''); // 最大HP などは実際の値と同じく整数
     const p = Math.round(x * 1000) / 10;
-    return (d.kind === 'red' ? (p ? '-' : '') : p > 0 ? '+' : '') + p + '%';
+    if (d.kind === 'red') return (p > 0 ? '-' : p < 0 ? '+' : '') + Math.abs(p) + '%'; // 軽減がマイナス(ダメージ軽減 -5% = 受けるダメージ +5%)は + で出す
+    return (p > 0 ? '+' : '') + p + '%';
   }
   const num = x => (Math.round(x * 10) / 10).toLocaleString();
 
@@ -68,6 +69,8 @@ const StatusUI = (() => {
       ['攻撃回数', `${(ws.count || 1) + (c.st.v.shots || 0)}`],
     ] }];
     if (ws.rot) blocks[0].rows.push(['回転速度', `<b>${(ws.rot / ((1 - (m.cd || 0)) * c.cdMul) * c.atkSpd / TAU).toFixed(2)}</b> 周/秒`, 'クールダウン・攻撃速度で速くなる'], ['刃のサイズ', `×${ws.size || 1}`], ['同じ敵への命中', `${W.hitCd} 秒に1回`, '刃の輪ごと']); // オービットブレード
+    if (ws.pierce !== undefined) blocks[0].rows.push(['貫通', `${ws.pierce + (m.pierce || 0)}`, 'この数 + 1 体まで当たる']);
+    if (ws.size && !ws.rot) blocks[0].rows.push(['斧の大きさ', `×${+(ws.size * (1 + (m.size || 0))).toFixed(2)}`, `当たり判定の半径 ${+(5 * ws.size * (1 + (m.size || 0))).toFixed(1)}(熟練の大きさを含む)`]); // スローイングアックス
     if (WEAPON_SKILL[c.mainW] && WEAPON_SKILL[c.mainW].info) blocks.push(Object.assign({ key: 'E' }, WEAPON_SKILL[c.mainW].info(c, dmg)));
     const rt = CLASS_RT[c.cls];
     if (rt && rt.info) blocks.push(...rt.info(c));

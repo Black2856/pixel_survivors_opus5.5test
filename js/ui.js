@@ -266,7 +266,7 @@ const UI = (() => {
         const u = ((a + Math.PI / 2) / TAU + 1) % 1;
         const on = u < frac, pulse = full && Math.floor(pt * 5) % 2;
         if (res.seg && Math.abs(u * res.max - Math.round(u * res.max)) < 0.05) { px(x, y, '#0f0b1c'); continue; } // 区切り(魔力結晶など)
-        px(x, y, on ? (pulse ? '#ffffff' : d >= 9.5 ? cc : res.dk || '#a0122a') : '#241c3a');
+        px(x, y, on ? (pulse ? res.pulse || '#ffffff' : d >= 9.5 ? cc : res.dk || '#a0122a') : '#241c3a'); // pulse: 上限で脈打つ色(バーサーカーの怒りは暗い赤)
         continue;
       }
       px(x, y, '#0f0b1c');
@@ -351,7 +351,7 @@ const UI = (() => {
     if (c.type === 'weapon') {
       const d = DATA.weapons[c.key], w = P.weapons[c.key];
       name = d.name; ic = icon('weapon', c.key, 'big');
-      head = w ? `Lv ${w.lv} → ${w.lv + 1}` : 'NEW!';
+      head = w ? `Lv ${w.lv} → ${w.lv + 1}` : 'NEW!' + (P.lvFx.startLv ? ` Lv${1 + P.lvFx.startLv} から` : ''); // クラスLv: 新しい武器が高い Lv から(ウェポンマスター)
       rar = w ? (w.lv + 1 === 5 ? 'epic' : 'rare') : 'new';
       body = w ? statDiff(c.key, w, w.lv + 1) : `<p>${d.desc}</p>`;
       foot = `<div class="evohint">進化 ${evoCond(c.key)}${c.key === P.mainW ? ' (メイン)' : ''}</div>`;

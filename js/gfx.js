@@ -1,6 +1,7 @@
 // gfx.js — 描画レイヤー(低解像度 2D canvas ×3)と WebGL ポストプロセス
 //   scene: 通常描画 / light: ライトマップ(加算) / glow: 発光体(加算, ブルーム源)
-//   合成: scene × (環境光 + ライト) + glow → ブルーム(ブライトパス + ガウスぼかし) → 衝撃波歪み・色収差・ビネット・走査線
+//   合成: scene × (環境光 + ライト) + glow → ブルーム(ブライトパス + ガウスぼかし) → 重力レンズ・衝撃波歪み・色収差・ビネット・走査線
+//   over: 前景(歪み・ブルームを受けずに最後に重ねる。重力崩壊の特異点など、自分が起こす歪みで自分が歪まないもの)
 'use strict';
 
 const GFX = (() => {
@@ -9,11 +10,14 @@ const GFX = (() => {
   const [scene, sctx] = mk(), [light, lctx] = mk(), [glow, gctx] = mk();
   // 自分の攻撃専用レイヤー(濃さ設定に合わせて半透明で合成する)
   const [mscene, msctx] = mk(), [mglow, mgctx] = mk();
+  const [over, octx] = mk();
   const G = {
-    scene, sctx, light, lctx, glow, gctx, mscene, msctx, mglow, mgctx, VW: 480, VH: 270, PX: 4, gl: null, lightMul: 1,
+    scene, sctx, light, lctx, glow, gctx, mscene, msctx, mglow, mgctx, over, octx, VW: 480, VH: 270, PX: 4, gl: null, lightMul: 1,
     ambient: [0.5, 0.5, 0.6], tint: [1, 1, 1],
     fx: { flash: 0, flashCol: [1, 1, 1], aberr: 0, hurt: 0, lowhp: 0, sat: 1, bloom: 1, time: 0 },
     waves: [],
+    overOn: false, // 前景に何か描いたフレームだけ合成する
+    lenses: [],    // 重力レンズ(毎フレーム描画側が積む): { x, y: 画面の座標 / e: アインシュタイン半径 / rs: 影の半径 / R: 歪む範囲の外径(いずれも px)/ swirl: 渦の角度 / a: 強さ 0..1 }
   };
 
   function resize() {
@@ -21,11 +25,11 @@ const GFX = (() => {
     const iw = innerWidth, ih = innerHeight;
     G.PX = Math.max(2, Math.round(Math.min(iw / 480, ih / 280)));
     G.VW = Math.ceil(iw / G.PX); G.VH = Math.ceil(ih / G.PX);
-    for (const c of [scene, glow, mscene, mglow]) { c.width = G.VW; c.height = G.VH; }
+    for (const c of [scene, glow, mscene, mglow, over]) { c.width = G.VW; c.height = G.VH; }
     light.width = Math.ceil(G.VW / 2); light.height = Math.ceil(G.VH / 2);
     out.width = G.VW * G.PX * dpr; out.height = G.VH * G.PX * dpr;
     out.style.width = G.VW * G.PX + 'px'; out.style.height = G.VH * G.PX + 'px';
-    for (const x of [sctx, gctx, lctx, msctx, mgctx]) x.imageSmoothingEnabled = false;
+    for (const x of [sctx, gctx, lctx, msctx, mgctx, octx]) x.imageSmoothingEnabled = false;
     if (G.gl) allocTargets();
   }
 
@@ -74,15 +78,32 @@ void main(){
   const FS_FINAL = `#version 300 es
 precision mediump float;
 in vec2 uv; out vec4 o;
-uniform sampler2D uSrc, uBloom, uBloom2;
+uniform sampler2D uSrc, uBloom, uBloom2, uOver;
 uniform vec2 uRes; uniform float uPX;
 uniform vec4 uWaves[6];
+uniform vec4 uLens[2], uLensB[2]; // 重力レンズ: xy 中心 / z アインシュタイン半径 / w 強さ ・ x 外径 / y 渦の角度 / z 影の半径(長さは画面の高さ基準)
 uniform vec3 uTint, uFlashCol;
-uniform float uTime, uFlash, uAberr, uHurt, uLow, uSat, uBloomK, uPost;
+uniform float uTime, uFlash, uAberr, uHurt, uLow, uSat, uBloomK, uPost, uOverOn;
 float hash(vec2 p){ return fract(sin(dot(p, vec2(12.9898,78.233))) * 43758.5453); }
 void main(){
   vec2 st = uv;
   float asp = uRes.x / uRes.y;
+  // 重力レンズ: 中心に近いほど、手前(中心寄り)の景色を引き伸ばして見せ(θE ≤ 影の半径なので反転はしない)、渦を巻くように回す
+  //   影の内側と外径の外は歪ませない(影そのものは前景で描く)
+  for (int i = 0; i < 2; i++) {
+    vec4 L = uLens[i], B = uLensB[i];
+    if (L.w <= 0.0) continue;
+    vec2 d = st - L.xy; d.x *= asp;
+    float r = max(length(d), 1e-5);
+    if (r < B.z || r > B.x) continue;
+    float win = 1.0 - smoothstep(B.x * 0.45, B.x, r);
+    float k = 1.0 - L.z * L.z / (r * r) * win * L.w;
+    float a = B.y * win * L.w * min(1.0, L.z / r);
+    float cs = cos(a), sn = sin(a);
+    d = vec2(d.x * cs - d.y * sn, d.x * sn + d.y * cs) * k;
+    d.x /= asp;
+    st = L.xy + d;
+  }
   // 衝撃波(リング状に UV を押し出す)
   for (int i = 0; i < 6; i++) {
     vec4 w = uWaves[i];
@@ -102,6 +123,8 @@ void main(){
   col.b = texture(uSrc, st - cd * ab).b;
   vec3 bl = texture(uBloom, st).rgb + texture(uBloom2, st).rgb * 0.8;
   col += bl * uBloomK;
+  // 前景(歪みを受けない元の位置で重ねる)
+  if (uOverOn > 0.5) { vec4 ov = texture(uOver, vec2(uv.x, 1. - uv.y)); col = mix(col, ov.rgb, ov.a); }
   // グレーディング
   col *= uTint;
   float lum = dot(col, vec3(0.299,0.587,0.114));
@@ -176,6 +199,7 @@ void main(){
       gl.enableVertexAttribArray(0);
       gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
       tex.scene = mkTex(gl.NEAREST); tex.light = mkTex(gl.LINEAR); tex.glow = mkTex(gl.NEAREST);
+      tex.over = mkTex(gl.NEAREST); gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 1, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, new Uint8Array(4)); // 前景を使うまでは透明の 1×1
       G.gl = gl;
       allocTargets();
       return true;
@@ -215,14 +239,16 @@ void main(){
     x.globalCompositeOperation = 'lighter';
     x.drawImage(glow, 0, 0, out.width, out.height);
     x.globalCompositeOperation = 'source-over';
+    if (G.overOn) x.drawImage(over, 0, 0, out.width, out.height); // 前景
     if (G.fx.flash > 0) { x.globalAlpha = G.fx.flash; x.fillStyle = '#fff'; x.fillRect(0, 0, out.width, out.height); x.globalAlpha = 1; }
   }
 
-  const waveBuf = new Float32Array(24);
+  const waveBuf = new Float32Array(24), lensBuf = new Float32Array(8), lensBufB = new Float32Array(8);
   function present() {
     if (!G.gl) return present2D();
     const f = G.fx;
     upload(tex.scene, scene); upload(tex.light, light); upload(tex.glow, glow);
+    if (G.overOn) upload(tex.over, over); // 前景は描いたフレームだけ送る
 
     const c = progs.comp;
     pass(c, fbo.comp);
@@ -250,6 +276,14 @@ void main(){
     waveBuf.fill(0);
     G.waves.slice(0, 6).forEach((w, i) => waveBuf.set([w.u, w.v, w.r, w.a], i * 4));
     gl.uniform4fv(fn.u.uWaves, waveBuf);
+    // 重力レンズ: 画面の座標(px)→ UV(WebGL は Y 上向き)。長さは画面の高さ基準(シェーダーで横を縦横比で補正する)。画質「高」だけ
+    lensBuf.fill(0); lensBufB.fill(0);
+    if (q.post) G.lenses.slice(0, 2).forEach((L, i) => {
+      lensBuf.set([L.x / G.VW, 1 - L.y / G.VH, L.e / G.VH, L.a], i * 4);
+      lensBufB.set([L.R / G.VH, L.swirl, L.rs / G.VH, 0], i * 4);
+    });
+    gl.uniform4fv(fn.u.uLens, lensBuf); gl.uniform4fv(fn.u.uLensB, lensBufB);
+    bindTex(3, tex.over, fn.u.uOver); gl.uniform1f(fn.u.uOverOn, G.overOn ? 1 : 0);
     gl.uniform3fv(fn.u.uTint, G.tint);
     gl.uniform3fv(fn.u.uFlashCol, f.flashCol);
     gl.uniform1f(fn.u.uTime, f.time);

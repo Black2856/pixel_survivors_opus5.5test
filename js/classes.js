@@ -33,6 +33,24 @@ function aimDir(maxD) {
   if (e) return Math.atan2(e.y - P.y, e.x - P.x);
   return P.dir ? Math.atan2(P.dir[1], P.dir[0]) : (P.facing < 0 ? Math.PI : 0);
 }
+// (x, y) から狙う位置: 照準 → 一番近い敵 → 向いている方向の前。R より遠ければ R まで
+function aimPt(x, y, R, face) {
+  let t = mouseAimPt() || nearestEnemy(x, y, R) || { x: x + face * 60, y };
+  const dd = Math.sqrt(d2(x, y, t.x, t.y));
+  if (dd > R) t = { x: x + (t.x - x) * R / dd, y: y + (t.y - y) * R / dd };
+  return t;
+}
+// 武器スキルの使い手。武器スキルは位置・向き・強化を使い手から読む(自分の E は ME。ほかの仕組みは自分の使い手を作って WEAPON_SKILL[k].cast を呼ぶ)
+//   x, y: 位置(毎回読む)/ face: 向き / area, range: 範囲・射程の倍率 / lv(path, def): 強化ツリーの値 / sp(path): 特殊強化を持っているか
+//   aim(maxD): 狙う向き / tgt(R): 狙う位置 / cdCut(秒): スキルの CD を縮める(剣の舞)/ cl: 自分以外が使った(撃破の数え方。hitEnemy の o.cl)
+const ME = {
+  cl: false,
+  get x() { return P.x; }, get y() { return P.y; }, get face() { return P.facing; },
+  get area() { return P.area; }, get range() { return P.range; },
+  lv: (p, d = 0) => cuV('e', p, d), sp: p => hasSp('e', p),
+  aim: maxD => aimDir(maxD), tgt: R => aimPt(P.x, P.y, R, P.facing),
+  cdCut(n) { P.sk.e.cd = Math.max(0, P.sk.e.cd - n); },
+};
 // 半径 r 以内に敵が n 体以上いるか(自動発動の条件)。ボスは1体で条件を満たす
 function crowd(r, n) {
   let c = 0;
@@ -69,31 +87,44 @@ const WEAPON_SKILL = {
       ] };
     },
     start() {
-      const sk = weaponSkill(), dur = sk.dur + cuV('e', 'dur');
-      const m = P.wm.katana || {}; // 熟練: 斬る回数・威力
-      P.act = { slot: 'e', ph: 'wind', t: 0, dur, hits: sk.hits + Math.round(cuV('e', 'dur') / 0.15) + (m.eHits || 0), n: 0, hitT: 0, pow: clsESkillMul() * (1 + (m.ePow || 0)) };
-      playAnim('ranbu', MOTIONS.ranbu.duration(dur), dur);
+      const sk = weaponSkill(), m = P.wm.katana || {}; // 熟練: 斬る回数・威力
+      P.act = Object.assign(ranbuState(ME, clsESkillMul() * (1 + (m.ePow || 0))), { slot: 'e', ph: 'wind', t: 0 });
+      playAnim('ranbu', MOTIONS.ranbu.duration(P.act.dur), P.act.dur);
       setCd('e', sk.cd * (1 - cuV('e', 'cd')) * (1 - (m.cd || 0)) * P.cdMul); // 熟練のクールダウンは武器スキルにも効く
       skillCall(sk.name, '#ffb7d5'); AudioMan.click();
       burst(P.x, P.y, 12, ['#ffb7d5', '#ffffff'], { sp: 40, up: 20, glow: true });
     },
     update(a, dt) {
       const sk = weaponSkill();
-      if (a.ph === 'wind') { P.moveMul = 0; if (a.t >= sk.windup) { a.ph = 'spin'; a.t0 = a.t; } return; }
-      const u = a.t - a.t0;
+      if (a.ph === 'wind') { P.moveMul = 0; if (a.t >= sk.windup) a.ph = 'spin'; return; }
       if (hasSp('e', 'dur')) { P.moveMul *= 1.5; P.invT = Math.max(P.invT, 0.05); } // 千本桜
-      a.hitT -= dt;
-      if (a.hitT <= 0 && a.n < a.hits) { a.hitT += a.dur / a.hits; a.n++; ranbuHit(sk); }
-      if (Math.random() < dt * 40) part(P.x + rand(-sk.radius, sk.radius) * P.area, P.y + rand(-sk.radius, sk.radius) * P.area, rand(-20, 20), rand(-30, 0), 0.8, pick(['#ffb7d5', '#ff8ac0', '#ffffff']), { glow: true, drag: 1 });
-      for (let n = dt * 45 * SET.fxA; Math.random() < n; n--) ranbuCut(sk); // あちこちで流れるような斬撃(毎秒 約45本)
-      if (u >= a.dur) {
-        if (hasSp('e', 'pow')) sakuraBurst(sk); // 桜吹雪
-        P.act = null;
-      }
+      if (ranbuStep(ME, a, dt)) P.act = null;
+    },
+    // 分身など自分以外の使い手(構えなし)。乱れ桜の間は使い手のまわりを斬り続ける(返り値の step が true で終わり)
+    cast(X, a) {
+      const s = ranbuState(X, a.pow);
+      if (X.sp('dur')) s.self = true; // 千本桜: 自分の移動速度・無敵(自分への効果は自分に入る)
+      return { step: dt => { if (s.self) { P.moveMul *= 1.5; P.invT = Math.max(P.invT, 0.05); } return ranbuStep(X, s, dt); } };
     },
   },
 };
-// アーケイン・バラージュ(マジックボルトの E): 詠唱 → 照準方向へ連射(連射中も普通に動ける)
+// 乱れ桜 1回分の状態(dur: 斬る時間 / hits: 斬る回数 / pow: 威力の倍率)
+function ranbuState(X, pow) {
+  const sk = DATA.weapons.katana.skill, m = P.wm.katana || {};
+  return { dur: sk.dur + X.lv('dur'), hits: sk.hits + Math.round(X.lv('dur') / 0.15) + (m.eHits || 0), n: 0, hitT: 0, u: 0, pow };
+}
+// 乱れ桜を dt 進める(終わったら true)
+function ranbuStep(X, a, dt) {
+  const sk = DATA.weapons.katana.skill;
+  a.u += dt; a.hitT -= dt;
+  if (a.hitT <= 0 && a.n < a.hits) { a.hitT += a.dur / a.hits; a.n++; ranbuHit(X, a); }
+  if (Math.random() < dt * 40) part(X.x + rand(-sk.radius, sk.radius) * X.area, X.y + rand(-sk.radius, sk.radius) * X.area, rand(-20, 20), rand(-30, 0), 0.8, pick(['#ffb7d5', '#ff8ac0', '#ffffff']), { glow: true, drag: 1 });
+  for (let n = dt * 45 * SET.fxA; Math.random() < n; n--) ranbuCut(X); // あちこちで流れるような斬撃(毎秒 約45本)
+  if (a.u < a.dur) return false;
+  if (X.sp('pow')) sakuraBurst(X, a); // 桜吹雪
+  return true;
+}
+// アーケイン・バラージュ(マジックボルトの E): 詠唱 → 照準方向へ連射(連射中も普通に動ける)。魔力障壁(持続の特殊強化)では撃破で連射が伸びる
 // オーブ(迅速の特殊強化)では、代わりに周りを回るオーブが5秒間連射し、自分は自由に動ける
 WEAPON_SKILL.bolt = {
   info(c, dmg) {
@@ -112,11 +143,11 @@ WEAPON_SKILL.bolt = {
   },
   start() {
     const sk = weaponSkill(), m = P.wm.bolt || {};
-    const o = { slot: 'e', ph: 'wind', t: 0, dur: sk.dur + cuV('e', 'dur') + (m.eDur || 0), pow: clsESkillMul() * (1 + (m.ePow || 0)), shotT: 0, id: (S.actId = (S.actId || 0) + 1) };
+    const o = barrageState(ME, clsESkillMul() * (1 + (m.ePow || 0)));
     setCd('e', sk.cd * (1 - cuV('e', 'cd')) * (1 - (m.cd || 0)) * P.cdMul);
     skillCall(sk.name, '#b98bff'); AudioMan.click();
-    if (hasSp('e', 'cd')) { P.orb = Object.assign(o, { t: 5, shotT: 0 }); burst(P.x, P.y, 20, ['#b98bff', '#ffffff'], { sp: 60, glow: true }); return; } // オーブ
-    P.act = o;
+    if (hasSp('e', 'cd')) { arcaneOrb(ME, o); return; } // オーブ
+    P.act = Object.assign(o, { slot: 'e', ph: 'wind', t: 0 });
     if (hasSp('e', 'dur')) gainShield(P.maxhp * sk.shield); // 魔力障壁
     playAnim('mBarrage', MOTIONS.mBarrage.duration(o.dur), o.dur);
     addRing(P.x, P.y, 20, '#b98bff', { w: 2, life: 0.4 });
@@ -126,33 +157,63 @@ WEAPON_SKILL.bolt = {
     if (a.ph === 'wind') { // 詠唱: 足元に魔法陣
       P.moveMul = 0;
       if (Math.random() < dt * 40) { const r = rand(0, TAU); part(P.x + Math.cos(r) * 14, P.y + 5 + Math.sin(r) * 6, 0, -20, 0.4, pick(['#b98bff', '#ffffff']), { glow: true }); }
-      if (a.t >= sk.windup) { a.ph = 'fire'; a.t0 = a.t; }
+      if (a.t >= sk.windup) { a.ph = 'fire'; a.kills = S.kills; }
       return;
     }
-    a.shotT -= dt;
-    while (a.shotT <= 0) { a.shotT += 1 / sk.rate; barrageShot(a, P.x, P.y, aimDir(220)); }
-    if (a.t - a.t0 >= a.dur) {
-      P.act = null;
-      asMine(() => { addRing(P.x, P.y, 28, '#b98bff', { w: 2, life: 0.35 }); burst(P.x, P.y, 16, ['#b98bff', '#ffffff'], { sp: 80, glow: true }); });
-    }
+    const d0 = a.dur, done = barrageStep(ME, a, dt);
+    if (a.dur > d0 && P.anim && P.anim.name === 'mBarrage') { P.anim.dur += a.dur - d0; P.anim.arg += a.dur - d0; } // 魔力障壁で伸びた分はモーションも伸ばす
+    if (!done) return;
+    P.act = null;
+    asMine(() => { addRing(P.x, P.y, 28, '#b98bff', { w: 2, life: 0.35 }); burst(P.x, P.y, 16, ['#b98bff', '#ffffff'], { sp: 80, glow: true }); });
+  },
+  cast(X, a) {
+    const o = barrageState(X, a.pow);
+    if (X.sp('cd')) { arcaneOrb(X, o); return null; } // オーブ(使い手の周りを回る)
+    if (X.sp('dur')) gainShield(P.maxhp * DATA.weapons.bolt.skill.shield); // 魔力障壁(シールドは自分に入る)
+    return { step: dt => barrageStep(X, o, dt) };
   },
   // スキルの実行とは別に毎フレーム(オーブ)
   tick(dt) {
-    const o = P.orb;
-    if (!o) return;
-    o.t -= dt;
+    if (!P.orbs || !P.orbs.length) return;
     const sk = DATA.weapons.bolt.skill, spin = S.time * 5;
-    const pos = i => ({ x: P.x + Math.cos(spin + i * TAU / 3) * 20, y: P.y - 3 + Math.sin(spin + i * TAU / 3) * 12 });
-    for (let i = 0; i < 3; i++) { const q = pos(i); part(q.x, q.y, 0, 0, 0.15, pick(['#b98bff', '#ffffff']), { glow: true, sz: 2, drag: 0 }); }
-    o.shotT -= dt;
-    while (o.shotT <= 0) {
-      o.shotT += 1 / sk.rate;
-      const q = pos(o.n = ((o.n || 0) + 1) % 3), tg = nearestEnemy(q.x, q.y, 200);
-      if (tg) barrageShot(o, q.x, q.y, Math.atan2(tg.y - q.y, tg.x - q.x));
+    for (const o of P.orbs) {
+      o.t -= dt;
+      const X = o.X, pos = i => ({ x: X.x + Math.cos(spin + i * TAU / 3) * 20, y: X.y - 3 + Math.sin(spin + i * TAU / 3) * 12 });
+      for (let i = 0; i < 3; i++) { const q = pos(i); part(q.x, q.y, 0, 0, 0.15, pick(['#b98bff', '#ffffff']), { glow: true, sz: 2, drag: 0 }); }
+      o.shotT -= dt;
+      while (o.shotT <= 0) {
+        o.shotT += 1 / sk.rate;
+        const q = pos(o.n = ((o.n || 0) + 1) % 3), tg = nearestEnemy(q.x, q.y, 200);
+        if (tg) barrageShot(X, o, q.x, q.y, Math.atan2(tg.y - q.y, tg.x - q.x));
+      }
     }
-    if (o.t <= 0) P.orb = null;
+    P.orbs = P.orbs.filter(o => o.t > 0);
   },
 };
+// バラージュ 1回分の状態(dur: 連射の時間 / pow: 威力の倍率 / id: 集中砲火の数え分け)
+function barrageState(X, pow) {
+  const sk = DATA.weapons.bolt.skill, m = P.wm.bolt || {};
+  return { dur: sk.dur + X.lv('dur') + (m.eDur || 0), pow, shotT: 0, u: 0, kills: S.kills, ext: 0, id: (S.actId = (S.actId || 0) + 1) };
+}
+// オーブ: 使い手の周りを回る 3つのオーブが 5秒間、近くの敵へ自動で連射する
+function arcaneOrb(X, o) {
+  (P.orbs || (P.orbs = [])).push(Object.assign(o, { X, t: 5, shotT: 0 }));
+  burst(X.x, X.y, 20, ['#b98bff', '#ffffff'], { sp: 60, glow: true });
+}
+// バラージュの連射を dt 進める(終わったら true)
+//   魔力障壁: 連射中に敵を倒すと持続 +killExt(1回の連射で killExtMax まで)
+function barrageStep(X, a, dt) {
+  const sk = DATA.weapons.bolt.skill;
+  if (X.sp('dur') && S.kills > a.kills && a.ext < sk.killExtMax) {
+    const add = Math.min(sk.killExtMax - a.ext, (S.kills - a.kills) * sk.killExt);
+    a.dur += add; a.ext += add;
+  }
+  a.kills = S.kills;
+  a.shotT -= dt;
+  while (a.shotT <= 0) { a.shotT += 1 / sk.rate; barrageShot(X, a, X.x, X.y, X.aim(220)); }
+  a.u += dt;
+  return a.u >= a.dur;
+}
 // シールド: 被ダメージを HP より先に受ける(最大HP を超えない。時間では消えない)
 function gainShield(n) {
   n *= clsShieldGain();
@@ -161,10 +222,10 @@ function gainShield(n) {
   S.hudDirty = true;
 }
 // バラージュの1回の発射: 通常攻撃(メイン武器)の半分の弾数を、同じ弾速・貫通・追尾で扇状に撃つ。E の攻撃なので発射ごとに属性が変わる
-function barrageShot(a, x, y, ang) {
-  const sk = DATA.weapons.bolt.skill, w = P.weapons[P.mainW], st = wst(P.mainW), dmg = st.dmg * sk.pow * (1 + cuV('e', 'pow')) * a.pow, el = clsNextEl();
+function barrageShot(X, a, x, y, ang) {
+  const sk = DATA.weapons.bolt.skill, w = P.weapons.bolt, st = wst('bolt'), dmg = st.dmg * sk.pow * (1 + X.lv('pow')) * a.pow, el = clsNextEl();
   const n = Math.ceil(((st.count || 1) + P.shots) * sk.countMul), base = ang + rand(-0.12, 0.12); // 弾数は通常攻撃の半分(切り上げ)
-  for (let i = 0; i < n; i++) fire('bolt', x, y, base + (i - (n - 1) / 2) * 0.13, st.speed || 200, { dmg, pierce: st.pierce || 0, life: 1.3, src: 'barrage', col: '#b98bff', r: 3, el, eHit: true, home: w.evo, homing: w.evo ? ARCANE_TURN : 0, focus: hasSp('e', 'pow') ? a.id : 0 });
+  for (let i = 0; i < n; i++) fire('bolt', x, y, base + (i - (n - 1) / 2) * 0.13, st.speed || 200, { dmg, pierce: st.pierce || 0, life: 1.3, src: 'barrage', col: '#b98bff', r: 3, el, eHit: true, home: w.evo, homing: w.evo ? ARCANE_TURN : 0, focus: X.sp('pow') ? a.id : 0, cl: X.cl });
   if (Math.random() < 0.5) part(x + Math.cos(ang) * 6, y + Math.sin(ang) * 6, Math.cos(ang) * 60, Math.sin(ang) * 60, 0.2, '#ffffff', { glow: true });
   AudioMan.shoot();
 }
@@ -187,10 +248,7 @@ WEAPON_SKILL.longbow = {
     ] };
   },
   start() {
-    const sk = weaponSkill(), m = P.wm.longbow || {}, R = sk.range * P.range;
-    let t = mouseAimPt() || nearestEnemy(P.x, P.y, R) || { x: P.x + P.facing * 60, y: P.y };
-    const dd = Math.sqrt(d2(P.x, P.y, t.x, t.y));
-    if (dd > R) t = { x: P.x + (t.x - P.x) * R / dd, y: P.y + (t.y - P.y) * R / dd };
+    const sk = weaponSkill(), m = P.wm.longbow || {}, t = ME.tgt(sk.range * P.range);
     if (t.x !== P.x) P.facing = t.x < P.x ? -1 : 1;
     P.act = { slot: 'e', ph: 'wind', t: 0, x: t.x, y: t.y, pow: clsESkillMul() * (1 + (m.ePow || 0)) };
     setCd('e', sk.cd * (1 - cuV('e', 'cd')) * (1 - (m.cd || 0)) * P.cdMul);
@@ -198,22 +256,33 @@ WEAPON_SKILL.longbow = {
     skillCall(sk.name, '#b8ff9a'); AudioMan.click();
   },
   update(a, dt) {
-    const sk = weaponSkill(), m = P.wm.longbow || {};
+    const sk = weaponSkill();
     P.moveMul = 0;
     if (a.t < sk.windup) { if (Math.random() < dt * 30) part(P.x + rand(-8, 8), P.y + 6, rand(-20, 20), -10, 0.4, pick(['#b8ff9a', '#e4ffd8']), { glow: true }); return; }
-    const heavy = hasSp('e', 'pow'), delay = 0.25; // 放ってから降り始めるまで
-    const follow = hasSp('e', 'cd'); // 追従: ついてくる + 持続 +50%
-    zones.push({ kind: 'rain', x: a.x, y: a.y, r: sk.radius * (1 + cuV('e', 'area')) * P.area, t: 0, delay, dur: delay + (sk.dur + (m.eDur || 0)) * (follow ? 1.5 : 1), tick: 0, acc: 0,
-      every: sk.every * (heavy ? 0.5 : 1), dmg: wst(P.mainW).dmg * sk.pow * (1 + cuV('e', 'pow')) * a.pow * (heavy ? 0.6 : 1),
-      nArrows: sk.arrows, follow, fire: hasSp('e', 'area') ? sk.fire : 0, fireT: sk.fireT, arrows: [] });
-    asMine(() => { // 空へ放つ光の矢
-      for (let i = 0; i < 10; i++) part(P.x + P.facing * 4, P.y - 10, rand(-30, 30) + P.facing * 20, -rand(200, 320), 0.35, pick(['#e4ffd8', '#b8ff9a', '#ffffff']), { glow: true, drag: 0 });
-      addRing(P.x, P.y, 18, '#b8ff9a', { w: 2, life: 0.3 }); shake(2);
-    });
-    AudioMan.shoot();
+    arrowRain(ME, a);
     P.act = null;
   },
+  cast(X, a) {
+    const t = X.tgt(DATA.weapons.longbow.skill.range * X.range);
+    arrowRain(X, { x: t.x, y: t.y, pow: a.pow });
+    return null;
+  },
 };
+// アローレインを放つ: 照準位置 (a.x, a.y) に矢の雨(zones の 'rain')。追従は使い手についていく
+function arrowRain(X, a) {
+  const sk = DATA.weapons.longbow.skill, m = P.wm.longbow || {};
+  const heavy = X.sp('pow'), delay = 0.25; // 放ってから降り始めるまで
+  const follow = X.sp('cd'); // 追従: ついてくる + 持続 +50%
+  zones.push({ kind: 'rain', x: a.x, y: a.y, r: sk.radius * (1 + X.lv('area')) * X.area, t: 0, delay, dur: delay + (sk.dur + (m.eDur || 0)) * (follow ? 1.5 : 1), tick: 0, acc: 0,
+    every: sk.every * (heavy ? 0.5 : 1), dmg: wst('longbow').dmg * sk.pow * (1 + X.lv('pow')) * a.pow * (heavy ? 0.6 : 1),
+    nArrows: sk.arrows, follow: follow ? X : null, fire: X.sp('area') ? sk.fire : 0, fireT: sk.fireT, arrows: [], cl: X.cl });
+  const x = X.x, y = X.y, f = X.face;
+  asMine(() => { // 空へ放つ光の矢
+    for (let i = 0; i < 10; i++) part(x + f * 4, y - 10, rand(-30, 30) + f * 20, -rand(200, 320), 0.35, pick(['#e4ffd8', '#b8ff9a', '#ffffff']), { glow: true, drag: 0 });
+    addRing(x, y, 18, '#b8ff9a', { w: 2, life: 0.3 }); shake(2);
+  });
+  AudioMan.shoot();
+}
 
 // グランドスラム(騎士剣の E): シールドを得る → 構え → 前方へ衝撃波が数段走る(威力は 武器の威力 + 今のシールド)
 WEAPON_SKILL.longsword = {
@@ -243,29 +312,39 @@ WEAPON_SKILL.longsword = {
     const sk = weaponSkill();
     P.moveMul = 0;
     if (a.t < sk.windup) return;
-    const x0 = P.x, y0 = P.y;
-    slamWaves(a, x0, y0, 1);
-    if (hasSp('e', 'cd')) setTimeout(() => { if (state === 'play') slamWaves(a, x0, y0, 0.6); }, 1500); // 余震
+    grandSlam(ME, a);
     P.act = null;
   },
+  cast(X, a) {
+    const sk = DATA.weapons.longsword.skill;
+    timedShield(P.maxhp * sk.shield * (1 + X.lv('guard')), sk.shieldT); // シールドは自分に入る
+    grandSlam(X, { a: X.aim(120), pow: a.pow });
+    return null;
+  },
 };
+// 叩きつける: 使い手の位置から a.a の方向へ衝撃波(余震: 1.5秒後にもう一度)
+function grandSlam(X, a) {
+  const x0 = X.x, y0 = X.y;
+  slamWaves(X, a, x0, y0, 1);
+  if (X.sp('cd')) setTimeout(() => { if (state === 'play') slamWaves(X, a, x0, y0, 0.6); }, 1500); // 余震
+}
 // 衝撃波を段ごとに時間差で前へ走らせる(1段 = 1回の E の攻撃)
-function slamWaves(a, x0, y0, k) {
-  const sk = DATA.weapons.longsword.skill, m = P.wm.longsword || {}, n = sk.steps + (m.eSteps || 0), fly = hasSp('e', 'guard'), crack = hasSp('e', 'pow');
+function slamWaves(X, a, x0, y0, k) {
+  const sk = DATA.weapons.longsword.skill, m = P.wm.longsword || {}, n = sk.steps + (m.eSteps || 0), fly = X.sp('guard'), crack = X.sp('pow');
   for (let i = 0; i < n; i++) setTimeout(() => {
-    if (state !== 'play') return;
-    const d = sk.stepD * (i + 1) * P.area, x = x0 + Math.cos(a.a) * d, y = y0 + Math.sin(a.a) * d, R = sk.waveR * P.area, el = clsNextEl();
-    const dmg = (wst(P.mainW).dmg * sk.pow * (1 + cuV('e', 'pow')) * a.pow + shieldTotal()) * k; // シールドはそのまま足す
+    if (state !== 'play' || !P.weapons.longsword) return; // 遅れて走る間にランが変わったとき
+    const d = sk.stepD * (i + 1) * X.area, x = x0 + Math.cos(a.a) * d, y = y0 + Math.sin(a.a) * d, R = sk.waveR * X.area, el = clsNextEl();
+    const dmg = (wst('longsword').dmg * sk.pow * (1 + X.lv('pow')) * a.pow + shieldTotal()) * k; // シールドはそのまま足す
     asMine(() => {
       forEachNear(x, y, R, e => {
         if (e.prop) { killEnemy(e); return; }
-        hitEnemy(e, dmg, { src: 'slam', ang: a.a, kb: fly ? 220 : 70, col: '#ffe9a0', el, eHit: true });
+        hitEnemy(e, dmg, { src: 'slam', ang: a.a, kb: fly ? 220 : 70, col: '#ffe9a0', el, eHit: true, cl: X.cl });
         if (fly && !e.dead) e.stun = Math.max(e.stun || 0, 1.5); // 吹き飛ばし
       });
       addRing(x, y, R, '#ffe9a0', { w: 2, life: 0.3 }); addFlash(x, y, R * 2.4, '#fff1d0', 0.25);
       burst(x, y, 18, ['#8a7a60', '#5a4a3a', '#ffe9a0', '#ffffff'], { sp: 110, up: 50, g: 180, life: 0.6 }); // 岩の破片と土煙
       shockAt(x, y, 1, 1); shake(4 + i);
-      if (crack) zones.push({ kind: 'crack', x, y, r: R, t: 0, dur: 5, tick: 0.5, dmg: wst(P.mainW).dmg * 0.8 }); // 地割れ
+      if (crack) zones.push({ kind: 'crack', x, y, r: R, t: 0, dur: 5, tick: 0.5, dmg: wst('longsword').dmg * 0.8, cl: X.cl }); // 地割れ
     });
     AudioMan.boom();
   }, i * sk.gap * 1000);
@@ -289,11 +368,17 @@ WEAPON_SKILL.fire = {
     ] };
   },
   start() {
-    const sk = weaponSkill(), m = P.wm.fire || {}, dur = sk.dur + (m.eDur || 0);
-    P.act = { slot: 'e', ph: 'wind', t: 0, dur, acc: 0, a: aimDir(sk.len * 1.5), pow: clsESkillMul() * (1 + (m.ePow || 0)) };
+    const sk = weaponSkill(), m = P.wm.fire || {};
+    P.act = Object.assign(flameState(ME, clsESkillMul() * (1 + (m.ePow || 0))), { slot: 'e', ph: 'wind', t: 0 });
     setCd('e', sk.cd * (1 - cuV('e', 'cd')) * (1 - (m.cd || 0)) * P.cdMul);
-    playAnim('pFlame', MOTIONS.pFlame.duration(dur), dur);
+    playAnim('pFlame', MOTIONS.pFlame.duration(P.act.dur), P.act.dur);
     skillCall(sk.name, '#ff8a3d'); AudioMan.click();
+  },
+  // 分身など: 使い手の位置から吹く(噴き出し口の描画は返り値の flame)
+  cast(X, a) {
+    const o = flameState(X, a.pow), ch = { flame: null, X };
+    ch.step = dt => { const done = flameStep(X, o, dt); ch.flame = o.flame; return done; };
+    return ch;
   },
   // 炎の塊の移動(放射が終わっても消えるまで動かす)
   tick(dt) {
@@ -308,55 +393,72 @@ WEAPON_SKILL.fire = {
     S.flamePuffs = fp.filter(f => f.t < f.life);
   },
   update(a, dt) {
-    const sk = weaponSkill(), blue = hasSp('e', 'pow'), L = sk.len * (1 + cuV('e', 'len')) * P.area;
+    const sk = weaponSkill(), L = sk.len * (1 + cuV('e', 'len')) * P.area;
     a.a = aimDir(L * 1.5);
     if (Math.cos(a.a) !== 0) P.facing = Math.cos(a.a) < 0 ? -1 : 1;
     if (a.ph === 'wind') { // 構え: 杖先に火が集まる
       P.moveMul = 0;
       if (Math.random() < dt * 40) part(P.x + P.facing * 10 + rand(-6, 6), P.y - 8 + rand(-6, 6), -P.facing * 20, -10, 0.3, pick(['#ff6a2a', '#ffc34a']), { glow: true });
-      if (a.t >= sk.windup) { a.ph = 'fire'; a.t0 = a.t; }
+      if (a.t >= sk.windup) a.ph = 'fire';
       return;
     }
-    const dirs = hasSp('e', 'cd') ? [a.a, a.a + Math.PI] : [a.a]; // ダブル放射: 反対方向にも
-    P.flame = { a: a.a, len: L, arc: sk.arc, blue, t: a.t - a.t0, dbl: dirs.length > 1 };
-    for (const d of dirs) flamePuffs(d, L, sk.arc, blue, dt);
-    a.acc += dt;
-    while (a.acc >= sk.every) { a.acc -= sk.every; for (const d of dirs) flameTick(a, d, L, blue); }
-    if (a.t - a.t0 >= a.dur) { P.flame = null; P.act = null; }
+    const done = flameStep(ME, a, dt);
+    P.flame = a.flame;
+    if (done) P.act = null;
   },
 };
+// 火炎放射 1回分の状態(dur: 放射の時間 / acc: 次の攻撃までの時間 / pow: 威力の倍率)
+function flameState(X, pow) {
+  const sk = DATA.weapons.fire.skill, m = P.wm.fire || {};
+  return { dur: sk.dur + (m.eDur || 0), acc: 0, u: 0, a: X.aim(sk.len * 1.5), pow, flame: null };
+}
+// 火炎放射を dt 進める(終わったら true)。a.flame: 噴き出し口の描画用(終わると null)
+function flameStep(X, a, dt) {
+  const sk = DATA.weapons.fire.skill, blue = X.sp('pow'), L = sk.len * (1 + X.lv('len')) * X.area;
+  a.a = X.aim(L * 1.5);
+  const dirs = X.sp('cd') ? [a.a, a.a + Math.PI] : [a.a]; // ダブル放射: 反対方向にも
+  a.flame = { a: a.a, len: L, arc: sk.arc, blue, t: a.u, dbl: dirs.length > 1 };
+  for (const d of dirs) flamePuffs(X, d, L, sk.arc, blue, dt);
+  a.acc += dt;
+  while (a.acc >= sk.every) { a.acc -= sk.every; for (const d of dirs) flameTick(X, a, d, L, blue); }
+  a.u += dt;
+  if (a.u < a.dur) return false;
+  a.flame = null;
+  return true;
+}
 // 火炎放射の見た目: 杖先から炎の塊を噴き出す(描画は render.js)。先端の速さは長さ L に届くように
-function flamePuffs(ang, L, arc, blue, dt) {
+function flamePuffs(X, ang, L, arc, blue, dt) {
   const fp = S.flamePuffs || (S.flamePuffs = []), n = Math.round(dt * 110 * gq().parts) || 1;
-  const nx = P.x + Math.cos(ang) * 9, ny = P.y - 6 + Math.sin(ang) * 6;
+  const nx = X.x + Math.cos(ang) * 9, ny = X.y - 6 + Math.sin(ang) * 6;
   for (let i = 0; i < n && fp.length < 260; i++) {
     const d = ang + rand(-arc / 2, arc / 2) * rand(0.3, 1), life = rand(0.32, 0.45), sp = L / life * rand(1.25, 1.55);
-    fp.push({ x: nx + rand(-1, 1), y: ny + rand(-1, 1), vx: Math.cos(d) * sp, vy: Math.sin(d) * sp, t: 0, life, r0: rand(1, 2), r1: rand(6, 10) * P.area, blue, seed: Math.random() });
+    fp.push({ x: nx + rand(-1, 1), y: ny + rand(-1, 1), vx: Math.cos(d) * sp, vy: Math.sin(d) * sp, t: 0, life, r0: rand(1, 2), r1: rand(6, 10) * X.area, blue, seed: Math.random() });
   }
   if (Math.random() < dt * 25) part(nx, ny, Math.cos(ang) * L * 2 + rand(-40, 40), Math.sin(ang) * L * 2 + rand(-40, 40), rand(0.3, 0.5), blue ? '#ffffff' : pick(['#ffc34a', '#fff6c8']), { glow: true, drag: 2 }); // 火の粉
 }
 // 火炎放射の1回: 向き ang の扇形の中の敵へダメージと炎上(1回 = 1回の E の攻撃)
-function flameTick(a, ang, L, blue) {
-  const sk = DATA.weapons.fire.skill, st = wst(P.mainW), pw = (1 + cuV('e', 'pow')) * a.pow, dmg = st.dmg * sk.pow * pw, burn = (st.burn || 0) * sk.burn * (blue ? 2 : 1), el = clsNextEl();
-  asMine(() => forEachNear(P.x, P.y, L, e => {
-    let diff = Math.atan2(e.y - P.y, e.x - P.x) - ang;
+function flameTick(X, a, ang, L, blue) {
+  const sk = DATA.weapons.fire.skill, st = wst('fire'), pw = (1 + X.lv('pow')) * a.pow, dmg = st.dmg * sk.pow * pw, burn = (st.burn || 0) * sk.burn * (blue ? 2 : 1), el = clsNextEl();
+  const x = X.x, y = X.y;
+  asMine(() => forEachNear(x, y, L, e => {
+    let diff = Math.atan2(e.y - y, e.x - x) - ang;
     diff = Math.atan2(Math.sin(diff), Math.cos(diff));
     if (Math.abs(diff) > sk.arc / 2) return;
     if (e.prop) { killEnemy(e); return; }
-    hitEnemy(e, dmg, { src: 'flamer', ang, kb: 6, col: blue ? '#7ad7ff' : '#ff8a3d', el, eHit: true, noNum: Math.random() < 0.6 });
+    hitEnemy(e, dmg, { src: 'flamer', ang, kb: 6, col: blue ? '#7ad7ff' : '#ff8a3d', el, eHit: true, noNum: Math.random() < 0.6, cl: X.cl });
     if (!e.dead) addBurn(e, burn, 3, 'flamer');
   }));
-  if (hasSp('e', 'len')) flameSuck(P.x + Math.cos(ang) * L, P.y + Math.sin(ang) * L, st.dmg * sk.suckPow * pw, blue); // 火炎旋風
+  if (X.sp('len')) flameSuck(X, x + Math.cos(ang) * L, y + Math.sin(ang) * L, st.dmg * sk.suckPow * pw, blue); // 火炎旋風
   if (Math.random() < 0.3) AudioMan.fire();
 }
 // 火炎旋風: 放射先(炎の先端)へ周りの敵を吸い込み、半径 suckR の敵を焼く(攻撃1回ごと)。ボスは引き寄せない
-function flameSuck(x, y, dmg, blue) {
-  const sk = DATA.weapons.fire.skill, R = sk.suckR * P.area, cols = blue ? ['#7ad7ff', '#bff4ff', '#ffffff'] : ['#ff6a2a', '#ffc34a', '#fff6c8'];
+function flameSuck(X, x, y, dmg, blue) {
+  const sk = DATA.weapons.fire.skill, R = sk.suckR * X.area, cols = blue ? ['#7ad7ff', '#bff4ff', '#ffffff'] : ['#ff6a2a', '#ffc34a', '#fff6c8'];
   asMine(() => {
     forEachNear(x, y, R * 2, e => {
       if (e.prop) return;
       const dd = Math.sqrt(d2(x, y, e.x, e.y));
-      if (dd <= R) hitEnemy(e, dmg, { src: 'flamer', noNum: Math.random() < 0.6, col: blue ? '#7ad7ff' : '#ff8a3d', eHit: true });
+      if (dd <= R) hitEnemy(e, dmg, { src: 'flamer', noNum: Math.random() < 0.6, col: blue ? '#7ad7ff' : '#ff8a3d', eHit: true, cl: X.cl });
       if (e.boss || e.dead) return;
       const a = Math.atan2(y - e.y, x - e.x), k = Math.min(dd, sk.suckPull * (1 - (e.kbRes || 0) * 0.6));
       e.x += Math.cos(a) * k; e.y += Math.sin(a) * k;
@@ -401,25 +503,19 @@ WEAPON_SKILL.blade = {
       if (Math.random() < dt * 40) { const r = rand(0, TAU); part(P.x + Math.cos(r) * 20, P.y + Math.sin(r) * 14, -Math.cos(r) * 60, -Math.sin(r) * 40, 0.25, pick(['#d8e4ff', '#ffffff']), { glow: true, drag: 0 }); }
       return;
     }
-    const pw = (1 + cuV('e', 'pow')) * clsESkillMul() * (1 + (m.ePow || 0));
-    P.bladeE = { t: sk.dur + (m.eDur || 0), ext: 0, kills: S.kills, rMul: sk.rMul * (1 + cuV('e', 'area')), size: sk.size, rot: sk.rot, pow: sk.pow * pw, scat: sk.scatter * pw };
+    bladeOpen(ME, clsESkillMul() * (1 + (m.ePow || 0)));
     P.act = null;
-    const R = (wst('blade').radius || 20) * P.area * P.bladeE.rMul;
-    asMine(() => {
-      addRing(P.x, P.y, R, '#ffffff', { w: 2, life: 0.35 }); addRing(P.x, P.y, R * 0.6, '#d8e4ff', { life: 0.3 });
-      burst(P.x, P.y, 24, ['#d8e4ff', '#ffffff', '#8ea6d8'], { sp: 120, glow: true, life: 0.4 });
-      shockAt(P.x, P.y, 1, 1.1); shake(3); hitstop(0.04);
-    });
-    AudioMan.slash(); AudioMan.zap();
   },
+  // 分身など: 自分のオービットブレードの輪を広げる(輪は自分の武器なので、自分の周りで広がる)
+  cast(X, a) { if (P.weapons.blade) bladeOpen(X, a.pow); return null; },
   // 展開中(毎フレーム)。連環: 展開中の撃破で持続 +killExt / 渦: 輪の外側の敵を輪へ引き寄せる
   tick(dt) {
     const b = P.bladeE;
     if (!b) return;
-    const sk = DATA.weapons.blade.skill;
-    if (S.kills > b.kills && hasSp('e', 'cd') && b.ext < sk.killExtMax) { const add = Math.min(sk.killExtMax - b.ext, (S.kills - b.kills) * sk.killExt); b.t += add; b.ext += add; }
+    const sk = DATA.weapons.blade.skill, has = p => b.Xs.some(X => X.sp(p));
+    if (S.kills > b.kills && has('cd') && b.ext < sk.killExtMax) { const add = Math.min(sk.killExtMax - b.ext, (S.kills - b.kills) * sk.killExt); b.t += add; b.ext += add; }
     b.kills = S.kills;
-    if (hasSp('e', 'area')) {
+    if (has('area')) {
       const R = (wst('blade').radius || 20) * P.area * b.rMul;
       forEachNear(P.x, P.y, R * sk.pullK, e => {
         if (e.boss || e.prop || e.dead) return;
@@ -434,14 +530,30 @@ WEAPON_SKILL.blade = {
     bladeScatter(b);
   },
 };
+// 刃輪展開を始める(P.bladeE。world.js のオービットブレードが読む)。展開中にもう一度使われたら 1つにまとめる(長い方・強い方。特殊強化はどちらかが持っていれば)
+//   Xs: 使い手(連環・渦・刃の雨はここから読む)/ cl: 全て自分以外の使い手
+function bladeOpen(X, pow) {
+  const sk = DATA.weapons.blade.skill, m = P.wm.blade || {}, pw = (1 + X.lv('pow')) * pow;
+  const b = { t: sk.dur + (m.eDur || 0), ext: 0, kills: S.kills, rMul: sk.rMul * (1 + X.lv('area')), size: sk.size, rot: sk.rot, pow: sk.pow * pw, scat: sk.scatter * pw, Xs: [X], cl: X.cl };
+  const o = P.bladeE;
+  if (o) { o.t = Math.max(o.t, b.t); o.rMul = Math.max(o.rMul, b.rMul); o.pow = Math.max(o.pow, b.pow); o.scat = Math.max(o.scat, b.scat); o.Xs.push(X); o.cl = o.cl && X.cl; }
+  else P.bladeE = b;
+  const R = (wst('blade').radius || 20) * P.area * P.bladeE.rMul;
+  asMine(() => {
+    addRing(P.x, P.y, R, '#ffffff', { w: 2, life: 0.35 }); addRing(P.x, P.y, R * 0.6, '#d8e4ff', { life: 0.3 });
+    burst(P.x, P.y, 24, ['#d8e4ff', '#ffffff', '#8ea6d8'], { sp: 120, glow: true, life: 0.4 });
+    shockAt(P.x, P.y, 1, 1.1); shake(3); hitstop(0.04);
+  });
+  AudioMan.slash(); AudioMan.zap();
+}
 // 刃輪展開の終わり: 刃が回転しながら外へ飛び散る(輪の回転を保ったまま、らせんを描いて広がる)
 //   刃の雨: rainT 秒 広がった後、自分のところへ戻ってきてもう一度当たる(戻りの威力 ×rainPow)
 function bladeScatter(b) {
   const sk = DATA.weapons.blade.skill, w = P.weapons.blade;
   if (!w || !w.blades) return;
-  const st = wst('blade'), col = w.evo ? '#8e0016' : '#d8e4ff', back = hasSp('e', 'pow'), mcd = (P.wm.blade || {}).cd || 0;
+  const st = wst('blade'), col = w.evo ? '#8e0016' : '#d8e4ff', back = b.Xs.some(X => X.sp('pow')), mcd = (P.wm.blade || {}).cd || 0;
   const omega = st.rot * P.atkSpd / (P.cdMul * (1 - mcd)) * b.rot; // 飛び散る直前の輪の回る速さ(rad/s)
-  const o = s => ({ dmg: st.dmg * b.scat, pierce: 999, src: 'blade', eHit: true, r: 5 * s, sz: s, col, evo: w.evo }); // s: 刃の大きさ(当たり判定・見た目)
+  const o = s => ({ dmg: st.dmg * b.scat, pierce: 999, src: 'blade', eHit: true, r: 5 * s, sz: s, col, evo: w.evo, cl: b.cl }); // s: 刃の大きさ(当たり判定・見た目)
   for (const bl of w.blades) {
     const a = Math.atan2(bl.y - P.y, bl.x - P.x), r = Math.hypot(bl.x - P.x, bl.y - P.y), s = bl.s || 2, dir = bl.dir || 1;
     const vt = Math.sign(dir) * Math.min(sk.spinMax, omega * Math.abs(dir) * r); // 回る向きと速さ(接線方向)
@@ -451,6 +563,185 @@ function bladeScatter(b) {
   }
   asMine(() => { addRing(P.x, P.y, 30, col, { w: 2, life: 0.3 }); burst(P.x, P.y, 16, [col, '#ffffff'], { sp: 140, glow: true, life: 0.3 }); shake(4); });
   AudioMan.slash();
+}
+
+// スピリットストーム(スピリットウィスプの E): 構え → 自分の周りから精霊が渦を巻いて広がり、それぞれ近くの敵へ飛んで取り憑く(放った後は動ける)
+//   取り憑いた精霊(P.poss): 一定時間ダメージを与え続け、宿主が倒れたら近くの敵へ乗り移り、時間が来たら宿主の中で爆ぜる
+//   侵蝕: 取り憑かれた敵の被ダメージ(dmgTaken)/ 分霊: 乗り移るときに分かれる / 大精霊: P.bigWisps
+WEAPON_SKILL.wisp = {
+  info(c, dmg) {
+    const sk = DATA.weapons.wisp.skill, m = c.wm, n = sk.n + c.cuV('e', 'n') + (m.eCount || 0), k = (1 + c.cuV('e', 'pow')) * (1 + (m.ePow || 0));
+    const one = dmg * sk.pow * k, boom = dmg * sk.burstPow * k, f = v => (v < 10 ? v.toFixed(1) : Math.round(v)); // 1回の威力は小さいので 10 未満は小数1桁
+    return { name: sk.name, cat: 'e', desc: [
+      `構え ${sk.windup}秒(動けない)→ 自分の周りから精霊 ${sk.n}体が渦を巻いて広がり、それぞれ近くの敵へ飛んで取り憑く(まだ取り憑かれていない敵を優先)`,
+      `取り憑いた精霊は ${sk.possT}秒間、${sk.every}秒ごとにその敵へ 武器の威力 × ${Math.round(sk.pow * 100)}%(取り憑いた瞬間にも1回)`,
+      `  → その敵が倒れると、近く(半径 ${sk.hopR})の敵へ乗り移る(残り時間はそのまま。いなければその場で爆ぜる)`,
+      `  → 時間が来ると、取り憑いた敵の中で爆ぜる(武器の威力 × ${Math.round(sk.burstPow * 100)}%、半径 ${sk.burstR})`,
+      'E の攻撃なので、クラスの「攻撃1回ごと」の効果が1回ごとに起きる',
+    ], rows: [
+      ['CD', `<b>${(sk.cd * (1 - c.cuV('e', 'cd')) * (1 - (m.cd || 0)) * c.cdMul).toFixed(1)}</b> 秒`],
+      ['精霊の数', `<b>${n}</b> 体`],
+      ['1回の威力', `${f(one)} → <b>${f(one * c.atkMul)}</b>`, `${sk.every}秒ごと・${sk.possT}秒。武器の威力 × ${Math.round(sk.pow * 100)}%。攻撃力を掛けた値`],
+      ['爆ぜる威力', `${f(boom)} → <b>${f(boom * c.atkMul)}</b>`, '武器の威力 × ' + Math.round(sk.burstPow * 100) + '%'],
+    ] };
+  },
+  start() {
+    const sk = weaponSkill(), m = P.wm.wisp || {};
+    P.act = { slot: 'e', ph: 'wind', t: 0, pow: clsESkillMul() * (1 + (m.ePow || 0)) };
+    setCd('e', sk.cd * (1 - cuV('e', 'cd')) * (1 - (m.cd || 0)) * P.cdMul);
+    playAnim('nStorm', MOTIONS.nStorm.dur);
+    skillCall(sk.name, '#9dffcf'); AudioMan.click();
+  },
+  update(a, dt) {
+    const sk = weaponSkill();
+    P.moveMul = 0;
+    if (a.t < sk.windup) { // 構え: 足元に緑の円陣が広がり、精霊が集まってくる
+      const u = a.t / sk.windup;
+      asMine(() => {
+        if (Math.random() < dt * 30) addRing(P.x, P.y + 5, 6 + 22 * u, '#9dffcf', { r0: 5 + 22 * u, life: 0.1 });
+        for (let n = dt * 60; Math.random() < n; n--) { const r = rand(0, TAU), d = rand(18, 30); part(P.x + Math.cos(r) * d, P.y + Math.sin(r) * d * 0.7, -Math.cos(r) * d * 3, -Math.sin(r) * d * 2, 0.3, pick(['#9dffcf', '#2fbf8a', '#1f8f6a']), { glow: true, drag: 0 }); }
+      });
+      return;
+    }
+    spiritStorm(ME, a);
+    P.act = null;
+  },
+  cast(X, a) { spiritStorm(X, a); return null; },
+  // 侵蝕(威力の特殊強化): 取り憑かれた敵は、どの攻撃からも受けるダメージが増える(侵蝕を持つ使い手の精霊が取り憑いている敵 = possE)
+  dmgTaken: e => (e.possE > 0 ? 1 + DATA.weapons.wisp.skill.erode : 1),
+  // スキルの実行とは別に毎フレーム: 取り憑いた精霊・大精霊
+  tick(dt) {
+    stormPossess(dt);
+    if (!P.bigWisps || !P.bigWisps.length) return;
+    for (const b of P.bigWisps) bigWispStep(b, dt);
+    P.bigWisps = P.bigWisps.filter(b => b.t > 0);
+  },
+};
+// 大精霊: 精霊が広がりきるまで使い手の頭上で待ち、そのあと bigT 秒 敵を追う(bigEvery 秒ごとに触れた敵へ)
+function bigWispStep(b, dt) {
+  const sk = DATA.weapons.wisp.skill, X = b.X;
+  if (b.delay > 0) { b.delay -= dt; b.x = X.x; b.y = X.y - 10; return; } // 精霊が広がりきるまで頭上で待つ
+  const tg = nearestEnemy(b.x, b.y, 260);
+  if (tg) { // ゆっくり向きを変えながら追う
+    const a = Math.atan2(tg.y - b.y, tg.x - b.x);
+    b.vx += (Math.cos(a) * sk.bigSpd - b.vx) * Math.min(1, dt * 3); b.vy += (Math.sin(a) * sk.bigSpd - b.vy) * Math.min(1, dt * 3);
+  } else { b.vx *= 1 - Math.min(1, dt * 2); b.vy *= 1 - Math.min(1, dt * 2); }
+  b.x += b.vx * dt; b.y += b.vy * dt;
+  b.t -= dt; b.tick -= dt;
+  if (b.tick <= 0) {
+    b.tick = sk.bigEvery;
+    asMine(() => {
+      forEachNear(b.x, b.y, sk.bigR * X.area, e => {
+        if (e.prop) { killEnemy(e); return; }
+        hitEnemy(e, b.dmg, { src: 'wstorm', ang: Math.atan2(e.y - b.y, e.x - b.x), kb: 25, col: '#9dffcf', eHit: true, el: clsNextEl(), noNum: Math.random() < 0.3, cl: X.cl });
+      });
+      addRing(b.x, b.y, sk.bigR * X.area, '#9dffcf', { life: 0.25 });
+    });
+  }
+  if (Math.random() < dt * 30) asMine(() => part(b.x + rand(-5, 5), b.y + rand(-5, 5), rand(-10, 10), -rand(10, 30), 0.5, pick(['#9dffcf', '#2fbf8a', '#1f8f6a']), { glow: true }));
+  if (b.t <= 0) asMine(() => { burst(b.x, b.y, 24, ['#9dffcf', '#2fbf8a', '#1f8f6a'], { sp: 90, glow: true, life: 0.5 }); addFlash(b.x, b.y, 40, '#2fbf8a', 0.2); });
+}
+// スピリットストームの解放: 精霊が渦を巻いて広がる(spreadT 秒)→ それぞれ近くの敵へ飛び、最初に触れた敵に取り憑く(貫通しない)
+function spiritStorm(X, a) {
+  const sk = DATA.weapons.wisp.skill, m = P.wm.wisp || {}, st = wst('wisp'), pw = (1 + X.lv('pow')) * a.pow, x = X.x, y = X.y;
+  const n = sk.n + X.lv('n') + (m.eCount || 0), dmg = st.dmg * sk.pow * pw, boom = st.dmg * sk.burstPow * pw;
+  for (let i = 0; i < n; i++) {
+    const ang = i * TAU / n + rand(-0.08, 0.08), o = { dmg, boom, X };
+    fire('wisp', x, y, ang, st.speed, { dmg, pierce: 0, life: sk.life, src: 'wstorm', eHit: true, el: clsNextEl(), homing: 5.5, speed: st.speed, col: '#9dffcf', r: 3, cl: X.cl,
+      spiral: { cx: x, cy: y, r: 6, a: ang, vr: 80 + rand(-10, 10), vt: 170 }, spiralT: sk.spreadT, // 渦を巻いて広がってから追い始める
+      seek: stormSeek, onHit: e => stormAttach(e, o) }); // 触れた瞬間に 1回当たって(dmg)、そのまま取り憑く
+  }
+  if (X.sp('n')) (P.bigWisps || (P.bigWisps = [])).push({ x, y: y - 10, vx: 0, vy: 0, t: sk.bigT, tick: 0, delay: sk.spreadT, dmg: st.dmg * sk.bigPow * pw, X }); // 大精霊
+  asMine(() => {
+    addRing(x, y, 34, '#9dffcf', { w: 2, life: 0.4 }); addRing(x, y, 18, '#2fbf8a', { life: 0.25 });
+    addFlash(x, y, 60, '#2fbf8a', 0.18);
+    burst(x, y, 26, ['#9dffcf', '#2fbf8a', '#1f8f6a'], { sp: 120, glow: true, life: 0.45 });
+    shockAt(x, y, 0.9, 1.1); shake(3); hitstop(0.04);
+  });
+  slowmo(0.55, 0.18);
+  AudioMan.zap(); AudioMan.shoot();
+}
+// 飛ぶ精霊の狙い: まだ取り憑かれていない(ほかの精霊も追っていない)一番近い敵。いなければ取り憑かれた敵でも。置物は狙わない
+function stormSeek(p) {
+  const R = DATA.weapons.wisp.skill.seekR, taken = new Set();
+  for (const q of projs) if (q !== p && q.seek === stormSeek && q.seekT && !q.seekT.dead) taken.add(q.seekT);
+  let best = null, bd = R * R, alt = null, ad = R * R;
+  for (const e of enemies) {
+    if (e.dead || e.hidden || e.prop || p.hit.has(e.id)) continue;
+    const d = d2(p.x, p.y, e.x, e.y);
+    if (e.possN > 0 || taken.has(e)) { if (d < ad) { ad = d; alt = e; } } else if (d < bd) { bd = d; best = e; }
+  }
+  return (p.seekT = best || alt);
+}
+// 取り憑いた精霊: { e: 宿主, t: 残り秒, tick: 次に当たるまでの秒, dmg: 1回の威力, boom: 爆ぜる威力, x, y, a: 宿主の頭上を回る角度, X: 使い手, er: 侵蝕 }
+//   宿主の possN = 取り憑いている精霊の数 / possE = そのうち侵蝕を持つ精霊の数(侵蝕は取り憑いたときの使い手で決まる)
+function stormHost(ps, e) { ps.e = e; e.possN = (e.possN || 0) + 1; ps.er = ps.X.sp('pow'); if (ps.er) e.possE = (e.possE || 0) + 1; ps.x = e.x; ps.y = e.y; }
+function stormLeave(ps) {
+  if (ps.e) { ps.e.possN = Math.max(0, (ps.e.possN || 1) - 1); if (ps.er) ps.e.possE = Math.max(0, (ps.e.possE || 1) - 1); }
+  ps.e = null; ps.er = false;
+}
+function stormAttach(e, o) {
+  const sk = DATA.weapons.wisp.skill, ps = { e: null, t: sk.possT, tick: sk.every, dmg: o.dmg, boom: o.boom, x: e.x, y: e.y, a: rand(0, TAU), X: o.X };
+  P.poss.push(ps);
+  if (e.dead || e.prop) stormHop(ps); else stormHost(ps, e); // 触れた一撃で倒れたら、すぐ近くの敵へ乗り移る
+  asMine(() => burst(e.x, e.y - 3, 5, ['#9dffcf', '#2fbf8a', '#1f8f6a'], { sp: 40, glow: true, life: 0.25 }));
+}
+// 宿主が倒れた: 近くの敵へ乗り移る(分霊: 2体に分かれる)。いなければその場で爆ぜる。乗り移れたら true
+function stormHop(ps) {
+  const sk = DATA.weapons.wisp.skill, R = sk.hopR * ps.X.area, fx = ps.x, fy = ps.y;
+  stormLeave(ps);
+  const near = skip => {
+    let best = null, bd = R * R, alt = null, ad = R * R;
+    forEachNear(fx, fy, R, e => {
+      if (e.dead || e.prop || e.hidden || e === skip) return;
+      const d = d2(fx, fy, e.x, e.y);
+      if (e.possN > 0) { if (d < ad) { ad = d; alt = e; } } else if (d < bd) { bd = d; best = e; }
+    });
+    return best || alt;
+  };
+  const t1 = near(null);
+  if (!t1) { stormBurst(ps); return false; }
+  const jump = t => asMine(() => slashes.push({ line: true, x: fx, y: fy - 4, x1: t.x, y1: t.y - 4, t: 0, life: 0.2, w: 1, col: '#1f8f6a', core: '#9dffcf' }));
+  stormHost(ps, t1); jump(t1);
+  if (ps.X.sp('cd') && P.poss.filter(q => !q.done).length < sk.splitMax) { // 分霊
+    const t2 = near(t1);
+    if (t2) { const c = Object.assign({}, ps, { e: null, a: rand(0, TAU), er: false }); P.poss.push(c); stormHost(c, t2); jump(t2); }
+  }
+  return true;
+}
+// 時間が来た(または乗り移る先がない): 宿主の中で爆ぜる
+function stormBurst(ps) {
+  const R = DATA.weapons.wisp.skill.burstR * ps.X.area, x = ps.x, y = ps.y, cl = ps.X.cl;
+  ps.done = true;
+  stormLeave(ps);
+  asMine(() => {
+    forEachNear(x, y, R, e => { if (!e.prop) hitEnemy(e, ps.boom, { src: 'wstorm', ang: Math.atan2(e.y - y, e.x - x), kb: 40, col: '#9dffcf', eHit: true, el: clsNextEl(), noNum: Math.random() < 0.3, cl }); });
+    burst(x, y, 14, ['#9dffcf', '#2fbf8a', '#1f8f6a', '#0f5a44'], { sp: 90, glow: true, life: 0.4 });
+    addRing(x, y, R, '#2fbf8a', { w: 2, life: 0.3 }); addFlash(x, y, R * 2, '#1f8f6a', 0.15);
+    shake(1.5);
+  });
+  AudioMan.boom();
+}
+// 取り憑いた精霊を毎フレーム進める(every 秒ごとに宿主へ。宿主が倒れたら乗り移る。時間が来たら爆ぜる)
+function stormPossess(dt) {
+  if (!P.poss || !P.poss.length) return;
+  const sk = DATA.weapons.wisp.skill;
+  for (const ps of P.poss.slice()) { // 分霊で増えた分は次のフレームから
+    if (ps.done) continue;
+    if ((!ps.e || ps.e.dead) && !stormHop(ps)) continue;
+    const e = ps.e;
+    ps.x = e.x; ps.y = e.y; ps.a += dt * 5;
+    ps.t -= dt; ps.tick -= dt;
+    if (ps.tick <= 0) {
+      ps.tick += sk.every;
+      asMine(() => {
+        hitEnemy(e, ps.dmg, { src: 'wstorm', col: '#9dffcf', eHit: true, el: clsNextEl(), noNum: Math.random() < 0.4, cl: ps.X.cl });
+        part(e.x + rand(-3, 3), e.y - 2, rand(-10, 10), -rand(15, 30), 0.4, pick(['#9dffcf', '#2fbf8a']), { glow: true });
+      });
+    }
+    if (ps.t <= 0) stormBurst(ps);
+  }
+  P.poss = P.poss.filter(ps => !ps.done);
 }
 
 // アイシクルフォール(ブリザードの E): 構え → 照準位置につららが降り続ける(放った後は動ける)
@@ -471,10 +762,7 @@ WEAPON_SKILL.blizzard = {
     ] };
   },
   start() {
-    const sk = weaponSkill(), m = P.wm.blizzard || {}, R = sk.range * P.range;
-    let t = mouseAimPt() || nearestEnemy(P.x, P.y, R) || { x: P.x + P.facing * 60, y: P.y };
-    const dd = Math.sqrt(d2(P.x, P.y, t.x, t.y));
-    if (dd > R) t = { x: P.x + (t.x - P.x) * R / dd, y: P.y + (t.y - P.y) * R / dd };
+    const sk = weaponSkill(), m = P.wm.blizzard || {}, t = ME.tgt(sk.range * P.range);
     if (t.x !== P.x) P.facing = t.x < P.x ? -1 : 1;
     P.act = { slot: 'e', ph: 'wind', t: 0, x: t.x, y: t.y, pow: clsESkillMul() * (1 + (m.ePow || 0)) };
     setCd('e', sk.cd * (1 - cuV('e', 'cd')) * (1 - (m.cd || 0)) * P.cdMul);
@@ -482,21 +770,32 @@ WEAPON_SKILL.blizzard = {
     skillCall(sk.name, '#bff4ff'); AudioMan.click();
   },
   update(a, dt) {
-    const sk = weaponSkill(), m = P.wm.blizzard || {};
+    const sk = weaponSkill();
     P.moveMul = 0;
     if (a.t < sk.windup) { // 頭上に氷の魔法陣
       if (Math.random() < dt * 40) { const r = rand(0, TAU); part(P.x + Math.cos(r) * 12, P.y - 22 + Math.sin(r) * 4, 0, -10, 0.35, pick(['#bff4ff', '#ffffff']), { glow: true }); }
       return;
     }
-    const n = Math.round((sk.n + cuV('e', 'n') + (m.eCount || 0)) * (hasSp('e', 'cd') ? sk.rainK : 1)); // 氷雨: 攻撃頻度 1.5倍
-    zones.push({ kind: 'icicle', x: a.x, y: a.y, r: sk.radius * P.area, t: 0, dur: sk.dur + 0.5, tick: 0, acc: 0, every: sk.dur / n, left: n, ices: [],
-      dmg: wst(P.mainW).dmg * sk.pow * (1 + cuV('e', 'pow')) * a.pow, iceR: sk.iceR * P.area, frost: sk.frost,
-      patch: hasSp('e', 'n'), big: hasSp('e', 'pow') ? wst(P.mainW).dmg * sk.bigPow * (1 + cuV('e', 'pow')) * a.pow : 0, bigR: sk.bigR * P.area });
-    asMine(() => { addRing(a.x, a.y, sk.radius * P.area, '#bff4ff', { w: 2, life: 0.4 }); addFlash(P.x, P.y - 20, 40, '#bff4ff', 0.25); });
-    AudioMan.blizz();
+    icicleFall(ME, a);
     P.act = null;
   },
+  cast(X, a) {
+    const t = X.tgt(DATA.weapons.blizzard.skill.range * X.range);
+    icicleFall(X, { x: t.x, y: t.y, pow: a.pow });
+    return null;
+  },
 };
+// アイシクルフォールを放つ: 照準位置 (a.x, a.y) につららが降る(zones の 'icicle')
+function icicleFall(X, a) {
+  const sk = DATA.weapons.blizzard.skill, m = P.wm.blizzard || {}, ar = X.area, dmg = wst('blizzard').dmg * (1 + X.lv('pow')) * a.pow;
+  const n = Math.round((sk.n + X.lv('n') + (m.eCount || 0)) * (X.sp('cd') ? sk.rainK : 1)); // 氷雨: 攻撃頻度 1.5倍
+  zones.push({ kind: 'icicle', x: a.x, y: a.y, r: sk.radius * ar, t: 0, dur: sk.dur + 0.5, tick: 0, acc: 0, every: sk.dur / n, left: n, ices: [],
+    dmg: dmg * sk.pow, iceR: sk.iceR * ar, frost: sk.frost,
+    patch: X.sp('n'), big: X.sp('pow') ? dmg * sk.bigPow : 0, bigR: sk.bigR * ar, cl: X.cl });
+  const x = X.x, y = X.y;
+  asMine(() => { addRing(a.x, a.y, sk.radius * ar, '#bff4ff', { w: 2, life: 0.4 }); addFlash(x, y - 20, 40, '#bff4ff', 0.25); });
+  AudioMan.blizz();
+}
 
 // グラビティスパーク(サンダーの E): 構え → 照準位置に雷の球。周りの敵を1回大きく引き寄せて爆発(zones の 'gspark')
 WEAPON_SKILL.thunder = {
@@ -513,10 +812,7 @@ WEAPON_SKILL.thunder = {
     ] };
   },
   start() {
-    const sk = weaponSkill(), m = P.wm.thunder || {}, R = sk.range * P.range;
-    let t = mouseAimPt() || nearestEnemy(P.x, P.y, R) || { x: P.x + P.facing * 60, y: P.y };
-    const dd = Math.sqrt(d2(P.x, P.y, t.x, t.y));
-    if (dd > R) t = { x: P.x + (t.x - P.x) * R / dd, y: P.y + (t.y - P.y) * R / dd };
+    const sk = weaponSkill(), m = P.wm.thunder || {}, t = ME.tgt(sk.range * P.range);
     if (t.x !== P.x) P.facing = t.x < P.x ? -1 : 1;
     P.act = { slot: 'e', ph: 'wind', t: 0, x: t.x, y: t.y, pow: clsESkillMul() * (1 + (m.ePow || 0)) };
     setCd('e', sk.cd * (1 - cuV('e', 'cd')) * (1 - (m.cd || 0)) * P.cdMul);
@@ -530,16 +826,21 @@ WEAPON_SKILL.thunder = {
       if (Math.random() < dt * 40) part(P.x + P.facing * 10 + rand(-5, 5), P.y - 8 + rand(-5, 5), rand(-20, 20), rand(-20, 20), 0.2, pick(['#9fd8ff', '#fff27a', '#ffffff']), { glow: true });
       return;
     }
-    gravitySpark(a.x, a.y, a.pow, 1, hasSp('e', 'area'));
+    gravitySpark(ME, a.x, a.y, a.pow, 1, hasSp('e', 'area'));
     P.act = null;
+  },
+  cast(X, a) {
+    const t = X.tgt(DATA.weapons.thunder.skill.range * X.range);
+    gravitySpark(X, t.x, t.y, a.pow, 1, X.sp('area'));
+    return null;
   },
 };
 // グラビティスパークの球を置く(k: 威力の倍率。again: 二重重力でもう一度)
-function gravitySpark(x, y, pow, k, again) {
-  const sk = DATA.weapons.thunder.skill, m = P.wm.thunder || {}, ar = (1 + cuV('e', 'area')) * P.area;
+function gravitySpark(X, x, y, pow, k, again) {
+  const sk = DATA.weapons.thunder.skill, m = P.wm.thunder || {}, ar = (1 + X.lv('area')) * X.area;
   zones.push({ kind: 'gspark', x, y, r: sk.pullR * ar * (1 + (m.eArea || 0)), boomR: sk.boomR * ar, t: 0, tick: 0, pulled: false, boomed: false,
-    dur: hasSp('e', 'cd') ? sk.boomT + sk.fieldT : sk.boomT + 0.15, dmg: wst(P.mainW).dmg * sk.pow * (1 + cuV('e', 'pow')) * pow * k, field: hasSp('e', 'cd'), stun: hasSp('e', 'pow') });
-  if (again) setTimeout(() => { if (state === 'play') gravitySpark(x, y, pow, sk.againK, false); }, sk.againT * 1000); // 二重重力
+    dur: X.sp('cd') ? sk.boomT + sk.fieldT : sk.boomT + 0.15, dmg: wst('thunder').dmg * sk.pow * (1 + X.lv('pow')) * pow * k, field: X.sp('cd'), stun: X.sp('pow'), cl: X.cl });
+  if (again) setTimeout(() => { if (state === 'play' && P.weapons.thunder) gravitySpark(X, x, y, pow, sk.againK, false); }, sk.againT * 1000); // 二重重力
   AudioMan.zap();
 }
 
@@ -559,17 +860,19 @@ WEAPON_SKILL.aura = {
     ] };
   },
   start() {
-    const sk = weaponSkill(), m = P.wm.aura || {}, n = sk.n + (hasSp('e', 'cd') ? sk.more : 0) + (m.eCount || 0), pow = clsESkillMul() * (1 + (m.ePow || 0));
+    const sk = weaponSkill(), m = P.wm.aura || {};
     setCd('e', sk.cd * (1 - cuV('e', 'cd')) * (1 - (m.cd || 0)) * P.cdMul);
     playAnim('hStrike', MOTIONS.hStrike.dur); P.anim.keep = true;
     skillCall(sk.name, '#ffe38a'); AudioMan.click();
     asMine(() => addRing(P.x, P.y - 18, 10, '#ffe38a', { w: 2, life: 0.4 }));
-    for (let i = 0; i < n; i++) setTimeout(() => { if (state === 'play') holyPillar(pow); }, (0.1 + i * sk.gap) * 1000);
+    holyStrike(ME, clsESkillMul() * (1 + (m.ePow || 0)));
   },
   update() {},
+  cast(X, a) { holyStrike(X, a.pow); return null; },
   // 聖痕: 印を付けた敵に、自分の回復量を 0.5秒ごとにまとめてダメージとして与える(攻撃力・クリティカルが乗る)
+  //   自分の E(メイン武器がホーリーオーラ)が聖痕を持っているときと、ほかの使い手が付けた印が残っている間(S.stigmaUntil)
   tick(dt) {
-    if (!hasSp('e', 'pow')) { S.healSeen = S.healed || 0; return; }
+    if (!(P.mainW === 'aura' && hasSp('e', 'pow')) && !(S.time < (S.stigmaUntil || 0))) { S.healSeen = S.healed || 0; return; }
     S.stigmaT = (S.stigmaT || 0) - dt;
     if (S.stigmaT > 0) return;
     S.stigmaT = 0.5;
@@ -580,47 +883,348 @@ WEAPON_SKILL.aura = {
     asMine(() => { for (const e of enemies) if (!e.dead && !e.prop && S.time < (e.stigmaT || 0) && onScreen(e.x, e.y)) { hitEnemy(e, amt * sk.stigma, { src: 'stigma', dot: true, col: '#ffe38a', noNum: Math.random() < 0.5 }); } });
   },
 };
-// 光の柱1本: ランダムな敵の位置に落ちる(zones の 'pillar' は見た目だけ)
-function holyPillar(pow) {
+
+// ディメンション・リフト(ブラックホールの E): 構え → 画面全体を異次元に沈める(P.rift。放った後は動ける)
+//   every 秒ごとに画面内の全ての敵(ボスも)へ。敵が多いので当たり方は静か(音・光なし。数字はクリティカルだけ)
+WEAPON_SKILL.bhole = {
+  info(c, dmg) {
+    const sk = DATA.weapons.bhole.skill, m = c.wm, dur = sk.dur + c.cuV('e', 'dur') + (m.eDur || 0), one = dmg * sk.pow * (1 + c.cuV('e', 'pow')) * (1 + (m.ePow || 0));
+    const n = Math.floor(dur / sk.every + 1e-6), f = v => (v < 10 ? v.toFixed(1) : Math.round(v)); // 1回の威力は小さいので 10 未満は小数1桁
+    return { name: sk.name, cat: 'e', desc: [
+      `構え ${sk.windup}秒(動けない)→ ${sk.dur}秒間、画面全体を異次元に沈める(放った後は動ける)`,
+      `異次元の間、${sk.every}秒ごとに 画面内の全ての敵(ボスも)へ 武器の威力 × ${Math.round(sk.pow * 100)}%`,
+      '距離・範囲は関係ない(範囲は効かない)。効果中に画面へ入ってきた敵にも当たる',
+      'E の攻撃なので、クラスの「攻撃1回ごと」の効果が1回ごとに起きる',
+    ], rows: [
+      ['CD', `<b>${(sk.cd * (1 - c.cuV('e', 'cd')) * (1 - (m.cd || 0)) * c.cdMul).toFixed(1)}</b> 秒`],
+      ['回数', `${n} 回 / ${dur.toFixed(1)} 秒`],
+      ['1回の威力', `${f(one)} → <b>${f(one * c.atkMul)}</b>`, `武器の威力 × ${Math.round(sk.pow * 100)}%。攻撃力を掛けた値`],
+      ['1体あたりの合計', `${f(one * n)} → <b>${f(one * n * c.atkMul)}</b>`, 'ずっと画面内にいた敵'],
+    ] };
+  },
+  start() {
+    const sk = weaponSkill(), m = P.wm.bhole || {};
+    P.act = { slot: 'e', ph: 'wind', t: 0, pow: clsESkillMul() * (1 + (m.ePow || 0)) };
+    setCd('e', sk.cd * (1 - cuV('e', 'cd')) * (1 - (m.cd || 0)) * P.cdMul);
+    playAnim('gRift', MOTIONS.gRift.dur);
+    skillCall(sk.name, '#c78bff'); AudioMan.click();
+  },
+  update(a, dt) {
+    const sk = weaponSkill();
+    P.moveMul = 0;
+    if (a.t < sk.windup) { // 構え: 杖先の黒い球へ光の粒が吸い込まれる
+      const hx = P.x + P.facing * 8, hy = P.y - 14;
+      asMine(() => { for (let n = dt * 50; Math.random() < n; n--) { const r = rand(0, TAU), d = rand(10, 22); part(hx + Math.cos(r) * d, hy + Math.sin(r) * d, -Math.cos(r) * d * 3.5, -Math.sin(r) * d * 3.5, 0.28, pick(RIFT_FX), { glow: Math.random() < 0.4, drag: 0 }); } });
+      return;
+    }
+    riftOpen(ME, a);
+    P.act = null;
+  },
+  cast(X, a) { riftOpen(X, a); return null; },
+  // 次元歪み(迅速の特殊強化): リフトのダメージを受けるたびに、その敵がどの攻撃からも受けるダメージが warp ずつ増える(リフトが終わるまで)
+  dmgTaken: e => (e.riftT > S.time ? 1 + DATA.weapons.bhole.skill.warp * (e.riftN || 1) : 1),
+  // スキルの実行とは別に毎フレーム: 異次元
+  tick(dt) { riftTick(dt); },
+};
+const RIFT_FX = ['#c78bff', '#6a3aa0', '#2a1040', '#ff7ad9']; // 異次元の演出の色(暗い紫。明るいのは少しだけ)
+// 画面内の敵(置物以外)。画面の縁で当たったり外れたりしないよう、少しだけ画面の外まで含める(onScreen の余白)
+const riftTargets = () => enemies.filter(e => !e.dead && !e.prop && !e.hidden && onScreen(e.x, e.y));
+// 異次元を開く: 画面の端から走るひび(画面の座標)を作る
+//   異次元は画面に 1つだけ。開いている間にもう一度開かれたら 1つにまとめる(長い方・強い方。特殊強化はどれかの使い手が持っていれば)
+//   Xs: 使い手 / cl: 全て自分以外の使い手
+function riftOpen(X, a) {
+  const sk = DATA.weapons.bhole.skill, m = P.wm.bhole || {}, VW = GFX.VW, VH = GFX.VH, cracks = [], dur = sk.dur + X.lv('dur') + (m.eDur || 0);
+  const r = P.rift;
+  if (r) { r.dur = Math.max(r.dur, r.t + dur); r.pow = Math.max(r.pow, a.pow); r.Xs.push(X); r.cl = r.cl && X.cl; r.pulse = 1; AudioMan.rift(); return; }
+  for (let i = 0; i < 8; i++) {
+    const side = i % 4, u = rand(0.1, 0.9);
+    let x = side === 1 ? VW : side === 3 ? 0 : u * VW, y = side === 0 ? 0 : side === 2 ? VH : u * VH;
+    let ang = Math.atan2(VH / 2 - y, VW / 2 - x) + rand(-0.5, 0.5);
+    const pts = [[x, y]], L = rand(50, 110);
+    for (let d = 0; d < L; d += 5) { ang += rand(-0.55, 0.55); x += Math.cos(ang) * 5; y += Math.sin(ang) * 5; pts.push([x, y]); }
+    cracks.push(pts);
+  }
+  P.rift = { t: 0, dur, tick: sk.every, n: 0, pow: a.pow, pulse: 0, cracks, Xs: [X], cl: X.cl };
+  asMine(() => { shake(4); hitstop(0.04); });
+  GFX.fx.aberr = Math.max(GFX.fx.aberr, 0.7 * SET.fxA);
+  AudioMan.rift();
+}
+const riftHas = (r, p) => r.Xs.some(X => X.sp(p));                // どれかの使い手が特殊強化を持っているか
+const riftPow = r => 1 + Math.max(...r.Xs.map(X => X.lv('pow'))); // 威力のパス(一番高い使い手)
+// 異次元(毎フレーム): every 秒ごとに画面内の全ての敵へ / 異次元送り / 終わりに次元断層
+function riftTick(dt) {
+  const r = P.rift;
+  if (!r) return;
+  const sk = DATA.weapons.bhole.skill;
+  r.t += dt; r.tick -= dt; r.pulse = Math.max(0, r.pulse - dt * 3);
+  if (r.tick <= 1e-6 && r.n < Math.floor(r.dur / sk.every + 1e-6)) {
+    r.tick += sk.every; r.n++; r.pulse = 1;
+    const dmg = wst('bhole').dmg * sk.pow * riftPow(r) * r.pow, el = clsNextEl(), warp = riftHas(r, 'cd'), until = S.time + Math.max(0, r.dur - r.t) + 0.05, marks = gq().parts > 0.5;
+    asMine(() => {
+      for (const e of riftTargets()) {
+        hitEnemy(e, dmg, { src: 'rift', eHit: true, el, noNum: true, quiet: true, col: '#c78bff', cl: r.cl });
+        if (e.dead) continue;
+        if (warp) { e.riftN = (e.riftT > S.time ? e.riftN || 0 : 0) + 1; e.riftT = until; } // 次元歪み: 当たるたびに 1段ずつ(前のリフトの分は数えない)
+        if (marks) { const a = rand(0, Math.PI), L = (e.r || 4) + 2; slashes.push({ mark: true, x: e.x - Math.cos(a) * L, y: e.y - 2 - Math.sin(a) * L, x1: e.x + Math.cos(a) * L, y1: e.y - 2 + Math.sin(a) * L, t: 0, life: 0.22, col: '#6a1a58', core: '#ff7ad9' }); } // 体に細い裂け目が一瞬走る
+      }
+    });
+    if (gq().post) GFX.fx.aberr = Math.max(GFX.fx.aberr, 0.25 * SET.fxA);
+    AudioMan.riftPulse();
+  }
+  if (riftHas(r, 'dur')) for (const e of riftTargets()) if (e.hp <= e.maxhp * (e.boss ? sk.exileBoss : sk.exile)) riftExile(e, r.cl); // 異次元送り
+  if (r.t < r.dur) return;
+  if (riftHas(r, 'pow')) riftFault(r); // 次元断層
+  P.rift = null;
+}
+// 異次元送り: 残りの HP を与えて倒した扱い(内側へ縮んで消える)
+function riftExile(e, cl) {
+  const left = Math.max(0, Math.round(e.hp));
+  S.totalDmg += left; S.dmgBy.rift = (S.dmgBy.rift || 0) + left;
+  e.hp = 0;
+  asMine(() => {
+    addRing(e.x, e.y, 1, '#ff7ad9', { r0: (e.r || 4) + 8, life: 0.25 });
+    for (let i = 0; i < 8; i++) { const a = rand(0, TAU), d = rand(6, 14); part(e.x + Math.cos(a) * d, e.y + Math.sin(a) * d, -Math.cos(a) * d * 5, -Math.sin(a) * d * 5, 0.2, pick(RIFT_FX), { glow: i % 3 === 0, drag: 0 }); }
+    if (e.boss || e.elite) { addFlash(e.x, e.y, 70, '#5a1450', 0.35); shockAt(e.x, e.y, 1.2, 0.8); shake(5); }
+  });
+  if (e.boss) UI.announce('異次元送り', '');
+  killEnemy(e, { src: 'rift', cl });
+}
+// 次元断層: 最後に画面全体が一度に裂ける(画面を横切る裂け目)
+function riftFault(r) {
+  const sk = DATA.weapons.bhole.skill, dmg = wst('bhole').dmg * sk.faultPow * riftPow(r) * r.pow, el = clsNextEl();
+  asMine(() => {
+    for (const e of riftTargets()) hitEnemy(e, dmg, { src: 'rift', eHit: true, el, quiet: true, noNum: Math.random() < 0.6, col: '#c78bff', cl: r.cl });
+    for (let i = 0; i < 4; i++) {
+      const a = rand(-0.5, 0.5) + (i % 2 ? Math.PI / 2 : 0), cx = cam.x + GFX.VW * rand(0.25, 0.75), cy = cam.y + GFX.VH * rand(0.25, 0.75), L = Math.hypot(GFX.VW, GFX.VH) * 0.6;
+      slashes.push({ line: true, x: cx - Math.cos(a) * L, y: cy - Math.sin(a) * L, x1: cx + Math.cos(a) * L, y1: cy + Math.sin(a) * L, t: 0, life: 0.4, w: 3, col: '#6a1a58', core: '#ff7ad9' });
+    }
+    shake(9); hitstop(0.06);
+    screenFlash(0.15 * SET.fxA, '#3a0a30');
+  });
+  GFX.fx.aberr = Math.max(GFX.fx.aberr, 1 * SET.fxA);
+  AudioMan.cut(); AudioMan.boom();
+}
+
+// ワイルドトマホーク(スローイングアックスの E): HP を払う → 構え → 照準方向(照準がなければ一番近い敵)へ大きな斧を投げる(放った後は動ける)
+//   代償: 使った瞬間に 最大HP × hpCost を受け(selfHurt)、実際に払った HP × hpK を今回の 1回ごとの威力に足す(跳ね返り・戻り。地割れには足さない)
+//   斧は projs の 'toma'。共通の当たり判定は使わず、WEAPON_SKILL.axe.tick(tomaStep)で動かす
+//   out: 真っすぐ(狙う敵がいれば曲がりながら)飛んで、最初に触れた敵に当たる / hop: 次の敵へ飛ぶ(狙った敵にだけ当たる) / back: 回りながら戻る(触れた敵に1回ずつ)
+WEAPON_SKILL.axe = {
+  info(c, dmg) {
+    const sk = DATA.weapons.axe.skill, m = c.wm, k = (1 + c.cuV('e', 'pow')) * (1 + (m.ePow || 0)), n = sk.bounces + c.cuV('e', 'jump') + (m.eBounce || 0);
+    const hp = c.run ? P.maxhp : c.st.v.hp * c.st.mul.hp, paid = Math.round(hp * sk.hpCost), add = paid * sk.hpK; // 代償(最大HP のとき。HP が少ないと払える分だけ)
+    const inc = c.hasSp('e', 'jump') ? sk.incSp : sk.inc, first = dmg * sk.pow * k + add, last = dmg * (sk.pow + inc * n) * k + add, back = dmg * sk.backPow * k + add;
+    return { name: sk.name, cat: 'e', desc: [
+      `使った瞬間に 最大HP の ${Math.round(sk.hpCost * 100)}% のダメージを受ける(防御力・シールドでは減らない。自分の技では倒れない)`,
+      `  → 今回の攻撃 1回ごとの威力に、払った HP × ${sk.hpK} を足す`,
+      `構え ${sk.windup}秒(動けない)→ 照準方向(照準がなければ一番近い敵)へ、大きな斧(通常の斧の ${sk.big}倍の大きさ)を投げる`,
+      `敵に当たると、近く(半径 ${sk.hopR})のまだ当たっていない敵へ跳ね返る(最大 ${sk.bounces}回)`,
+      `1回の威力: 武器の威力 × ${Math.round(sk.pow * 100)}%、跳ねるたびに +${Math.round(sk.inc * 100)}%`,
+      `跳ね終わると、回りながら自分のところへ戻ってくる(戻る途中も当たる。武器の威力 × ${Math.round(sk.backPow * 100)}%)`,
+      '放った後は自由に動ける',
+      'E の攻撃なので、クラスの「攻撃1回ごと」の効果が1回ごとに起きる',
+    ], rows: [
+      ['CD', `<b>${(sk.cd * (1 - c.cuV('e', 'cd')) * (1 - (m.cd || 0)) * c.cdMul).toFixed(1)}</b> 秒`],
+      ['代償', `HP <b>${paid}</b>`, `最大HP の ${Math.round(sk.hpCost * 100)}%。1回ごとの威力 +${add}`],
+      ['跳ねる回数', `<b>${n}</b> 回(${n + 1}回 当たる)`],
+      ['1回目の威力', `${Math.round(first)} → <b>${Math.round(first * c.atkMul)}</b>`, `武器の威力 × ${Math.round(sk.pow * 100)}% + 払った HP × ${sk.hpK}。攻撃力を掛けた値`],
+      [`${n + 1}回目の威力`, `${Math.round(last)} → <b>${Math.round(last * c.atkMul)}</b>`, `跳ねるたびに +${Math.round(inc * 100)}%`],
+      ['戻りの威力', `${Math.round(back)} → <b>${Math.round(back * c.atkMul)}</b>`],
+    ] };
+  },
+  start() {
+    const sk = weaponSkill(), m = P.wm.axe || {}, a = aimDir(sk.reach * P.range);
+    if (Math.cos(a) !== 0) P.facing = Math.cos(a) < 0 ? -1 : 1;
+    const paid = selfHurt(P.maxhp * sk.hpCost); // 代償: 払った HP × hpK を今回の 1回ごとの威力に足す
+    P.act = { slot: 'e', ph: 'wind', t: 0, pow: clsESkillMul() * (1 + (m.ePow || 0)), add: paid * sk.hpK };
+    setCd('e', sk.cd * (1 - cuV('e', 'cd')) * (1 - (m.cd || 0)) * P.cdMul);
+    playAnim('zThrow', MOTIONS.zThrow.dur);
+    skillCall(sk.name, '#ffb070'); AudioMan.click();
+  },
+  update(a, dt) {
+    const sk = weaponSkill();
+    P.moveMul = 0;
+    if (a.t < sk.windup) { // 構え: 振りかぶった斧の刃先に火花が散る
+      const hx = P.x - P.facing * 5, hy = P.y - 17;
+      asMine(() => { if (Math.random() < dt * 30) part(hx + rand(-3, 3), hy + rand(-3, 3), rand(-20, 20), -rand(10, 30), 0.25, pick(['#ffb070', '#fff1d0', '#8a5a2a']), { glow: Math.random() < 0.4, drag: 2 }); });
+      return;
+    }
+    tomaThrow(ME, a);
+    P.act = null;
+  },
+  // 分身など: 代償(HP)は払わない。斧は使い手の手元へ戻る
+  cast(X, a) { tomaThrow(X, { pow: a.pow, add: 0 }); return null; },
+  tick(dt) { tomaStep(dt); },
+};
+const TOMA_TRAIL = ['#e07a3a', '#a8401c', '#5a1a0c']; // 斧の軌跡(赤橙 → 暗い赤。明るい赤は敵の攻撃の色なので使わない)
+// 投げる: 大きな斧を 1本(双斧は 2本、左右に開いて)。照準がないときは一番近い敵を狙って曲がりながら飛ぶ
+//   斧は使い手 X を持つ(暴れ斧・地割れ・範囲・戻る先は X から読む)
+function tomaThrow(X, a) {
+  const sk = DATA.weapons.axe.skill, st = wst('axe'), m = P.wm.axe || {}, reach = sk.reach * X.range;
+  const ang = X.aim(reach), tg = mouseAimPt() ? null : nearestEnemy(X.x, X.y, reach);
+  const sz = (st.size || 1) * sk.big, max = sk.bounces + X.lv('jump') + (m.eBounce || 0), inc = X.sp('jump') ? sk.incSp : sk.inc, pw = (1 + X.lv('pow')) * a.pow;
+  const hx = X.x + Math.cos(ang) * 6, hy = X.y - 8;
+  for (const d of X.sp('cd') ? [ang - sk.twinA, ang + sk.twinA] : [ang]) { // 双斧
+    projs.push({ kind: 'toma', x: hx, y: hy, vx: 0, vy: 0, ang: 0, spin: (Math.cos(d) < 0 ? -1 : 1) * 24, t: 0, life: 99, r: 5 * sz, sz, noHit: true, hit: new Set(), backHit: new Set(), src: 'toma',
+      ph: 'out', dir: d, sp: sk.speed, dist: 0, reach, tg, n: 0, max, inc, pw, add: a.add || 0, armT: 0, trail: [], X });
+  }
+  asMine(() => { burst(hx, hy, 10, ['#ffb070', '#fff1d0', '#8a5a2a'], { sp: 90, glow: true, life: 0.3 }); shake(3); });
+  AudioMan.dash(); AudioMan.slash();
+}
+// 毎フレーム: 斧を動かす(out → hop → back)。軌跡は直近 8点
+function tomaStep(dt) {
+  for (const p of projs) {
+    if (p.kind !== 'toma' || p.t >= p.life) continue;
+    p.trail.push(p.x, p.y); if (p.trail.length > 16) p.trail.splice(0, 2);
+    if (p.ph === 'back') { tomaBack(p, dt); continue; }
+    if (p.armT > 0) { // 跳ね返った直後: 少しだけ弾かれた向きへ飛んでから次の敵を追う
+      p.armT -= dt;
+      p.x += Math.cos(p.dir) * p.sp * dt; p.y += Math.sin(p.dir) * p.sp * dt;
+      continue;
+    }
+    if (p.ph === 'out') {
+      if (p.tg && !p.tg.dead) { // 狙う敵へ曲がりながら(双斧は左右から回り込む)
+        const want = Math.atan2(p.tg.y - p.y, p.tg.x - p.x);
+        p.dir += clamp(Math.atan2(Math.sin(want - p.dir), Math.cos(want - p.dir)), -7 * dt, 7 * dt);
+      }
+      const step = p.sp * dt;
+      p.x += Math.cos(p.dir) * step; p.y += Math.sin(p.dir) * step; p.dist += step;
+      let first = null;
+      forEachNear(p.x, p.y, p.r, e => {
+        if (e.dead || e.hidden) return;
+        if (e.prop) { killEnemy(e); return; }
+        first = e; return false;
+      });
+      if (first) tomaHit(p, first); else if (p.dist >= p.reach) tomaReturn(p);
+      continue;
+    }
+    // hop: 狙った敵へまっすぐ。途中の敵は素通り(跳ねた回数 = 当たった回数 - 1 がずれないように)
+    if (!p.tg || p.tg.dead) { p.tg = tomaNext(p, p.x, p.y, null); if (!p.tg) { tomaReturn(p); continue; } }
+    const dx = p.tg.x - p.x, dy = p.tg.y - p.y, d = Math.hypot(dx, dy) || 1, k = Math.min(1, p.sp * dt / d);
+    p.dir = Math.atan2(dy, dx); p.x += dx * k; p.y += dy * k;
+    if (Math.hypot(p.tg.x - p.x, p.tg.y - p.y) <= p.r + (p.tg.r || 4)) tomaHit(p, p.tg);
+  }
+}
+// 1回の命中: 武器の威力 × (pow + inc × 跳ねた回数) + 代償の上乗せ。地割れ / 次の敵へ跳ね返る(いなければ戻る)
+function tomaHit(p, e) {
+  const sk = DATA.weapons.axe.skill, x = e.x, y = e.y, dmg = wst('axe').dmg * (sk.pow + p.inc * p.n) * p.pw + p.add;
+  p.hit.add(e.id); p.n++;
+  asMine(() => {
+    hitEnemy(e, dmg, { src: 'toma', ang: p.dir, kb: 70, col: '#ffb070', eHit: true, el: clsNextEl(), cl: p.X.cl });
+    burst(x, y - 2, 10, ['#fff1d0', '#ffb070', '#a8401c'], { sp: 110, glow: true, life: 0.3 }); // 当たるたびに火花
+    addRing(x, y, (e.r || 4) + 5, '#a8401c', { life: 0.18 });
+    shake(1.5 + Math.min(3, p.n * 0.4));
+    if (p.X.sp('pow')) tomaCrack(p.X, x, y, p.pw); // 地割れ
+  });
+  AudioMan.thud();
+  if (p.n > p.max) { tomaReturn(p); return; } // 跳ね終わり(当たった回数 = 跳ねる回数 + 1)
+  const nx = tomaNext(p, x, y, e);
+  if (!nx) { tomaReturn(p); return; }
+  p.ph = 'hop'; p.tg = nx;
+  if (nx === e) { p.dir = Math.atan2(p.y - y, p.x - x) + rand(-0.6, 0.6); p.armT = 0.14; } // 同じ敵へは一度弾かれてから戻る(暴れ斧)
+  else { p.dir = Math.atan2(nx.y - p.y, nx.x - p.x); p.armT = 0.04; }
+}
+// 次に跳ねる敵: 近く(半径 hopR)の、まだ当たっていない一番近い敵(ほかの斧が狙っている敵は後回し)
+//   暴れ斧: 当たった敵も選べる。ボス → エリート → まだ当たっていない敵 → 当たった敵 の順(同じ順位なら近い敵)
+//     ボス・エリートは今当たった敵でもまた選ぶ(一度弾かれてから戻る)。ふつうの敵は、ほかに誰もいないときだけ同じ敵へ
+function tomaNext(p, x, y, cur) {
+  const R = DATA.weapons.axe.skill.hopR * p.X.area, wild = p.X.sp('jump'), taken = new Set();
+  for (const q of projs) if (q !== p && q.kind === 'toma' && q.tg) taken.add(q.tg);
+  let best = null, bd = Infinity;
+  forEachNear(x, y, R, e => {
+    if (e.dead || e.prop || e.hidden) return;
+    const was = p.hit.has(e.id), rank = !wild ? 0 : e.boss ? 0 : e.elite ? 1 : was ? 3 : 2;
+    if (!wild && (was || e === cur)) return;
+    if (wild && e === cur && rank > 1) return;
+    const d = rank * 1e8 + (taken.has(e) ? 1e6 : 0) + d2(x, y, e.x, e.y);
+    if (d < bd) { bd = d; best = e; }
+  });
+  return best || (wild && cur && !cur.dead ? cur : null);
+}
+function tomaReturn(p) { p.ph = 'back'; p.tg = null; p.armT = 0; p.sp = DATA.weapons.axe.skill.speed * 0.5; }
+// 戻る: 回りながら使い手の手元へ(だんだん速く)。途中で触れた敵に1回ずつ(武器の威力 × backPow)。手元に届いたら消える
+function tomaBack(p, dt) {
+  const sk = DATA.weapons.axe.skill, X = p.X, dx = X.x - p.x, dy = X.y - 8 - p.y, d = Math.hypot(dx, dy) || 1;
+  p.sp = Math.min(sk.speed * 1.5, p.sp + sk.speed * 2 * dt);
+  const step = p.sp * dt;
+  if (d <= step + 4 || p.t > 8) { tomaCatch(p); return; }
+  p.dir = Math.atan2(dy, dx); p.x += dx / d * step; p.y += dy / d * step;
+  const dmg = wst('axe').dmg * sk.backPow * p.pw + p.add; // 代償の上乗せは戻りにも
+  asMine(() => forEachNear(p.x, p.y, p.r, e => {
+    if (e.dead || p.backHit.has(e.id)) return;
+    if (e.prop) { killEnemy(e); return; }
+    p.backHit.add(e.id);
+    hitEnemy(e, dmg, { src: 'toma', ang: p.dir, kb: 40, col: '#ffb070', eHit: true, el: clsNextEl(), noNum: Math.random() < 0.3, cl: X.cl });
+  }));
+}
+// 手元に収まる
+function tomaCatch(p) {
+  p.t = p.life; // updProjs が消す
+  const X = p.X;
+  asMine(() => burst(X.x + X.face * 4, X.y - 8, 8, ['#ffb070', '#fff1d0'], { sp: 50, glow: true, life: 0.25 }));
+  AudioMan.click();
+}
+// 地割れ: 跳ねた場所の地面が割れ、周り(半径 crackR)へ 武器の威力 × crackPow。放射状のひびと、岩の破片・土煙
+function tomaCrack(X, x, y, pw) {
+  const sk = DATA.weapons.axe.skill, R = sk.crackR * X.area, dmg = wst('axe').dmg * sk.crackPow * pw;
+  forEachNear(x, y, R, e => {
+    if (e.prop) { killEnemy(e); return; }
+    hitEnemy(e, dmg, { src: 'toma', ang: Math.atan2(e.y - y, e.x - x), kb: 25, col: '#a08060', eHit: true, noNum: Math.random() < 0.5, cl: X.cl });
+  });
+  for (let i = 0; i < 6; i++) {
+    const a = i * TAU / 6 + rand(-0.4, 0.4), L = R * rand(0.6, 1.05);
+    slashes.push({ mark: true, x, y: y + 2, x1: x + Math.cos(a) * L, y1: y + 2 + Math.sin(a) * L * 0.6, t: 0, life: 0.5, core: '#140806', col: '#7a2a10' });
+  }
+  burst(x, y + 2, 12, ['#8a7a60', '#5a4a3a', '#3a2a20'], { sp: 80, up: 40, g: 200, life: 0.5 });
+  addRing(x, y + 2, R, '#6a3a1a', { w: 2, life: 0.3 });
+}
+// ホーリーストライク: 光の柱を gap 秒おきに n 本(連祷: +more 本)
+function holyStrike(X, pow) {
+  const sk = DATA.weapons.aura.skill, m = P.wm.aura || {}, n = sk.n + (X.sp('cd') ? sk.more : 0) + (m.eCount || 0);
+  for (let i = 0; i < n; i++) setTimeout(() => { if (state === 'play') holyPillar(X, pow); }, (0.1 + i * sk.gap) * 1000);
+}
+// 光の柱1本: ランダムな敵の位置に落ちる(zones の 'pillar' は見た目だけ)。回復は自分に入る
+function holyPillar(X, pow) {
   const sk = DATA.weapons.aura.skill, tg = randomTargets(1)[0];
-  const x = tg ? tg.x : P.x + rand(-60, 60), y = tg ? tg.y : P.y + rand(-40, 40), R = sk.r * P.area;
-  const dmg = (sk.pow + P.maxhp * sk.hpPow) * (1 + cuV('e', 'pow')) * pow, el = clsNextEl();
+  const x = tg ? tg.x : X.x + rand(-60, 60), y = tg ? tg.y : X.y + rand(-40, 40), R = sk.r * X.area;
+  const dmg = (sk.pow + P.maxhp * sk.hpPow) * (1 + X.lv('pow')) * pow, el = clsNextEl(), mark = X.sp('pow');
   asMine(() => {
     forEachNear(x, y, R, e => {
       if (e.prop) { killEnemy(e); return; }
-      hitEnemy(e, dmg, { src: 'hstrike', ang: Math.atan2(e.y - y, e.x - x), kb: 40, col: '#ffe38a', el, eHit: true });
-      if (hasSp('e', 'pow') && !e.dead) e.stigmaT = S.time + sk.stigmaT; // 聖痕
+      hitEnemy(e, dmg, { src: 'hstrike', ang: Math.atan2(e.y - y, e.x - x), kb: 40, col: '#ffe38a', el, eHit: true, cl: X.cl });
+      if (mark && !e.dead) { e.stigmaT = S.time + sk.stigmaT; S.stigmaUntil = Math.max(S.stigmaUntil || 0, e.stigmaT); } // 聖痕
     });
     zones.push({ kind: 'pillar', x, y, r: R, t: 0, dur: 0.45, tick: 0 });
-    if (hasSp('e', 'heal')) zones.push({ kind: 'lightrain', x, y, r: R, t: 0, dur: sk.rainT, tick: 0 }); // 光の雨
+    if (X.sp('heal')) zones.push({ kind: 'lightrain', x, y, r: R, t: 0, dur: sk.rainT, tick: 0 }); // 光の雨
     addFlash(x, y, R * 2.4, '#fff6d8', 0.3); addRing(x, y, R, '#ffe38a', { w: 2, life: 0.35 });
     burst(x, y, 18, ['#ffe38a', '#fff6d8', '#ffffff'], { sp: 90, up: 40, glow: true, life: 0.45 }); shake(2);
   });
-  heal(P.maxhp * cuV('e', 'heal', sk.heal));
+  heal(P.maxhp * X.lv('heal', sk.heal));
   AudioMan.zap();
 }
 
-function ranbuHit(sk) {
-  const R = sk.radius * P.area, dmg = wst(P.mainW).dmg * sk.pow * (1 + cuV('e', 'pow')) * P.act.pow, k0 = S.kills, el = clsNextEl(); // 1回の斬撃 = 1属性
+function ranbuHit(X, a) {
+  const sk = DATA.weapons.katana.skill, R = sk.radius * X.area, dmg = wst('katana').dmg * sk.pow * (1 + X.lv('pow')) * a.pow, k0 = S.kills, el = clsNextEl(); // 1回の斬撃 = 1属性
+  const x = X.x, y = X.y;
   asMine(() => {
-    forEachNear(P.x, P.y, R, e => { if (!e.prop) hitEnemy(e, dmg, { src: 'ranbu', ang: Math.atan2(e.y - P.y, e.x - P.x), kb: 25, col: '#ffb7d5', noNum: Math.random() < 0.4, el, eHit: true }); });
-    slashes.push({ x: P.x, y: P.y, follow: true, a: rand(0, TAU), r: R, t: 0, life: 0.18, flip: Math.random() < 0.5, span: 1.9, pal: SWING_PAL.ranbu }); // 外縁 = 乱れ桜の範囲(全周に当たる。向きはばらばら)
-    burst(P.x + rand(-R, R) * 0.6, P.y + rand(-R, R) * 0.6, 6, ['#ffb7d5', '#ffffff'], { sp: 70, glow: true, life: 0.3 });
+    forEachNear(x, y, R, e => { if (!e.prop) hitEnemy(e, dmg, { src: 'ranbu', ang: Math.atan2(e.y - y, e.x - x), kb: 25, col: '#ffb7d5', noNum: Math.random() < 0.4, el, eHit: true, cl: X.cl }); });
+    slashes.push({ x, y, follow: X, a: rand(0, TAU), r: R, t: 0, life: 0.18, flip: Math.random() < 0.5, span: 1.9, pal: SWING_PAL.ranbu }); // 外縁 = 乱れ桜の範囲(全周に当たる。向きはばらばら)
+    burst(x + rand(-R, R) * 0.6, y + rand(-R, R) * 0.6, 6, ['#ffb7d5', '#ffffff'], { sp: 70, glow: true, life: 0.3 });
     shake(1.5);
   });
   AudioMan.slash();
-  if (hasSp('e', 'cd')) P.sk.e.cd = Math.max(0, P.sk.e.cd - (S.kills - k0)); // 剣の舞: 撃破1体ごとに CD -1秒
+  if (X.sp('cd')) X.cdCut(S.kills - k0); // 剣の舞: 撃破1体ごとに CD -1秒
 }
 // 乱れ桜の演出: 範囲のあちこち(敵がいればその上)で、2点の間を数フレームかけて刻む、流れるような桜色の斬撃(ダメージは ranbuHit)
 //   切っ先が少し反った弧を描いて走り、少し遅れて尾がついていく(描画は render.js の drawFlow)
 //   配色は彩度の高い濃い桜色(淡い桃色はライト・発光・ブルームが重なると白に飛ぶ)
 const RANBU_PAL = { mid: '#a8185a', bright: '#e8357f', glow: '#b8205e' };
-function ranbuCut(sk) {
-  const R = sk.radius * P.area, r = Math.sqrt(Math.random()) * R * 0.8, ang = rand(0, TAU);
-  let cx = P.x + Math.cos(ang) * r, cy = P.y + Math.sin(ang) * r;
+function ranbuCut(X) {
+  const R = DATA.weapons.katana.skill.radius * X.area, r = Math.sqrt(Math.random()) * R * 0.8, ang = rand(0, TAU);
+  let cx = X.x + Math.cos(ang) * r, cy = X.y + Math.sin(ang) * r;
   const tg = Math.random() < 0.6 ? nearestEnemy(cx, cy, 22) : null;
   if (tg) { cx = tg.x; cy = tg.y; }
-  const a = rand(0, TAU), ca = Math.cos(a), sa = Math.sin(a), L = rand(16, 30) * P.area, run = rand(0.07, 0.11); // run: 切っ先が走る時間(4〜7フレーム)
+  const a = rand(0, TAU), ca = Math.cos(a), sa = Math.sin(a), L = rand(16, 30) * X.area, run = rand(0.07, 0.11); // run: 切っ先が走る時間(4〜7フレーム)
   const s = { flow: true, a, x0: cx - ca * L, y0: cy - sa * L, x1: cx + ca * L, y1: cy + sa * L, nx: -sa, ny: ca, bulge: L * 2 * rand(0.1, 0.22) * (Math.random() < 0.5 ? -1 : 1),
     len: L * 2, t: 0, run, lag: run * 0.55, fade: 0.1, life: run * 1.55 + 0.1, w: rand(1.6, 2.4), pal: RANBU_PAL };
   s.ev = [{ at: run, fn: () => asMine(() => { // 走り抜けた先に花びら
@@ -628,13 +1232,13 @@ function ranbuCut(sk) {
   }) }];
   slashes.push(s);
 }
-function sakuraBurst(sk) {
-  const R = sk.burstR * P.area, dmg = wst(P.mainW).dmg * sk.burst * (1 + cuV('e', 'pow')) * P.act.pow;
+function sakuraBurst(X, a) {
+  const sk = DATA.weapons.katana.skill, R = sk.burstR * X.area, dmg = wst('katana').dmg * sk.burst * (1 + X.lv('pow')) * a.pow, x = X.x, y = X.y;
   asMine(() => {
-    forEachNear(P.x, P.y, R, e => { if (!e.prop) hitEnemy(e, dmg, { src: 'ranbu', ang: Math.atan2(e.y - P.y, e.x - P.x), kb: 120, col: '#ff8ac0', eHit: true }); });
-    addRing(P.x, P.y, R, '#ffb7d5', { w: 3, life: 0.5 }); addRing(P.x, P.y, R * 0.6, '#ffffff', { w: 2, life: 0.35 });
-    addFlash(P.x, P.y, R * 2, '#ffb7d5', 0.5); shockAt(P.x, P.y, 1.6, 0.9);
-    burst(P.x, P.y, 70, ['#ffb7d5', '#ff8ac0', '#ffffff'], { sp: 170, glow: true, life: 0.8, drag: 1.5 });
+    forEachNear(x, y, R, e => { if (!e.prop) hitEnemy(e, dmg, { src: 'ranbu', ang: Math.atan2(e.y - y, e.x - x), kb: 120, col: '#ff8ac0', eHit: true, cl: X.cl }); });
+    addRing(x, y, R, '#ffb7d5', { w: 3, life: 0.5 }); addRing(x, y, R * 0.6, '#ffffff', { w: 2, life: 0.35 });
+    addFlash(x, y, R * 2, '#ffb7d5', 0.5); shockAt(x, y, 1.6, 0.9);
+    burst(x, y, 70, ['#ffb7d5', '#ff8ac0', '#ffffff'], { sp: 170, glow: true, life: 0.8, drag: 1.5 });
     hitstop(0.06); shake(8); screenFlash(0.3 * SET.fxA, '#ffb7d5');
   });
   AudioMan.boom();
@@ -1746,6 +2350,486 @@ const CLASS_RT = {
       ];
     },
   },
+  // 死霊(P.souls)は倒した敵から増え、周りを漂って敵を襲う。身代わり(死者の盾)と葬送(Q)で使う
+  necro: {
+    skills: ['q'],
+    init() { P.souls = []; P.rei = 0; P.nbombs = []; P.nOver = []; P.phase = null; P.phaseHeld = false; P.undyingAt = -999; },
+    update(dt) {
+      const p = NC();
+      necSouls(dt);  // 死霊: 漂う・飛びかかる・戻る
+      necBombs(dt);  // 葬送の霊弾
+      if (P.rei > 0) P.rei = Math.max(0, P.rei - necReiDecay() * dt); // 霊力は少しずつ減る
+      // 百鬼夜行: 上限を超えた死霊は少し遅れて爆ぜる(連鎖が1フレームに重ならないように)
+      for (let i = P.nOver.length - 1; i >= 0; i--) { const o = P.nOver[i]; if ((o.t -= dt) <= 0) { P.nOver.splice(i, 1); necOverBurst(o); } }
+      if (S.dimK > 0) S.dimK = Math.max(0, S.dimK - dt * 1.5);
+      // 霊体化: 半透明で滑る → 解けた瞬間に死霊が一斉に飛びかかる
+      if (P.phase) {
+        P.phase.t -= dt;
+        P.after = (P.after || []).concat([{ x: P.x, y: P.y, t: 0.06, f: P.facing }]).slice(-6);
+        if (Math.random() < dt * 30) asMine(() => part(P.x + rand(-5, 5), P.y + rand(-6, 6), rand(-10, 10), -rand(5, 20), 0.4, pick(NEC_FX), { glow: true }));
+        if (P.phase.t <= 0) { P.phase = null; necVolley(); }
+      }
+      const held = (keys.Space || keys.TouchDef) && !P.act;
+      if (held && !P.phaseHeld && !P.phase) { if (P.sta >= necPhaseCost()) necPhase(); else addFloat(P.x, P.y - 16, 'STAMINA', '#6a7a88'); }
+      P.phaseHeld = held;
+      P.moveMul = P.phase ? 1 + p.phaseSpd : 1;
+    },
+    onHurt: dmg => necGuard(dmg), // 死者の盾
+    onMainHit() {},
+    onKill(e) { necGain(e.elite ? NC().eliteN : 1, e.x, e.y); }, // 死霊使役: 倒した敵が死霊になる
+    onBossKill(e) { necGain(necMax(), e.x, e.y, true); },          // ボスは上限まで満たす(溢れた分は爆ぜない)
+    dmgTaken: e => (e.curseT > S.time ? 1 + NC().curse : 1),      // 呪い牙: 呪われた敵が受けるダメージ
+    atkBonus: () => 0,
+    qStart() {
+      const q = DATA.classes.necro.q, a = aimDir(220);
+      if (Math.cos(a) !== 0) P.facing = Math.cos(a) < 0 ? -1 : 1;
+      P.act = { slot: 'q', ph: 'wind', t: 0, a };
+      for (const s of P.souls) s.ph = 'gather';
+      playAnim('nRite', MOTIONS.nRite.dur);
+      skillCall(q.name, '#a58cff'); AudioMan.click();
+    },
+    qUpdate(a, dt) {
+      const q = DATA.classes.necro.q;
+      P.moveMul = 0;
+      if (a.t < q.windup) { // 構え: 死霊が頭上に集まって渦を巻き、周りが少し暗くなる
+        S.dimK = Math.max(S.dimK || 0, 0.2 * Math.min(1, a.t / 0.15));
+        asMine(() => { if (Math.random() < dt * 40) { const r = rand(0, TAU), d = rand(10, 22); part(P.x + Math.cos(r) * d, P.y - 22 + Math.sin(r) * d * 0.5, -Math.cos(r) * d * 2, -Math.sin(r) * d, 0.3, pick(NEC_FX), { glow: true, drag: 0 }); } });
+        return;
+      }
+      necRelease(a);
+      P.act = null;
+    },
+    res: () => ({ kind: 'soul', label: '死霊', v: P.souls.length, max: necMax(), seg: true, dk: '#4a3a8a' }),
+    staBroken: () => false,
+    statuses() {
+      const out = [], p = NC(), left = p.undyingCd - (S.time - P.undyingAt);
+      if (P.rei >= 1) out.push({ id: 'rei', glyph: '霊', name: `霊力 ${Math.floor(P.rei)}`, fx: `死霊の攻撃・葬送の威力 +${((necK() - 1) * 100).toFixed(1)}%`, kind: 'buff' });
+      if (hasSp('passive', 'soul') && left > 0) out.push({ id: 'undying', glyph: '契', name: '不死の契り', fx: '再び使えるまで', t: left, max: p.undyingCd, kind: 'debuff' });
+      return out;
+    },
+    qInfo: () => ({ name: DATA.classes.necro.q.name, glyph: '葬' }),
+    info(c) {
+      const p = NC(), q = DATA.classes.necro.q, rk = c.run ? necK() : 1, k = (1 + c.cuV('q', 'pow') + (c.lvFx.qPow || 0)) * rk;
+      const max = p.max + (c.lvFx.soulMax || 0) + c.cuV('trait', 'herd'), pow = p.pow * (1 + c.cuV('trait', 'fang') + (c.lvFx.soulPow || 0)) * rk, itv = p.every, decay = p.reiDecay * (1 - c.cuV('trait', 'haste'));
+      return [
+        { key: '特性', name: '死霊使役', cat: 'trait', desc: [
+          `敵を倒すと、その敵が死霊になって従う(+1。エリートは +${p.eliteN}、ボスは上限まで)`,
+          `死霊は周りを漂い、それぞれ ${p.every}秒ごとに近く(半径 ${p.range})の敵へ飛びかかる(基礎威力 ${p.pow}。なるべく別の敵を狙う)`,
+          '死霊の攻撃はクラスの攻撃(武器の命中ではない)。減るのは身代わりと葬送で使ったときだけ',
+          `上限のときに得た死霊は霊力になる(1秒に ${p.reiDecay} ずつ減る)。霊力 1 につき、死霊の攻撃(噛みつき・百鬼夜行・報い)と葬送の威力 +${(p.reiK * 100).toFixed(1)}%`,
+        ], rows: [
+          ['死霊', c.run ? `<b>${P.souls.length}</b> / ${max} 体` : `上限 <b>${max}</b> 体`],
+          ['霊力', c.run ? `<b>${Math.floor(P.rei)}</b>(+${((rk - 1) * 100).toFixed(1)}%)` : `上限のときに得た死霊 1体につき +${(p.reiK * 100).toFixed(1)}%`, `1秒に ${+decay.toFixed(2)} ずつ減る`],
+          ['1回の威力', `${Math.round(pow)} → <b>${Math.round(pow * c.atkMul)}</b>`, '霊力・攻撃力を掛けた値'],
+          ['攻撃の間隔', `<b>${itv.toFixed(2)}</b> 秒(1体ごと)`],
+        ] },
+        { key: 'パッシブ', name: '死者の盾', cat: 'passive', desc: [
+          `被弾したとき、死霊を ${p.guardN}体 使って(少ないときはいるだけ)、そのダメージを ${Math.round(p.guard * 100)}% 減らす(死霊がいないときは減らない)。霊力は減らない`,
+          '減らす順番: 身代わり → 防御力・ダメージ軽減 → シールド',
+        ], rows: [
+          ['身代わりの軽減', `<b>${Math.round(c.cuV('passive', 'ward', p.guard) * 100)}%</b>`],
+        ] },
+        { key: 'Q', name: q.name, cat: 'q', desc: [
+          `構え ${q.windup}秒(動けない)→ 死霊を全て解き放つ。1体につき霊弾 1発(最低 ${q.minShots}発)`,
+          `霊弾は照準方向へ飛び出し、近くの敵を追って触れると爆ぜる(基礎威力 ${q.pow}、半径 ${q.r})`,
+          '解き放った死霊は戻らない。威力は武器に依存しない(霊力で上がる)',
+        ], rows: [
+          ['CD', `<b>${(q.cd * (1 - c.cuV('q', 'cd')) * c.cdMul).toFixed(1)}</b> 秒`],
+          ['1発の威力', `${Math.round(q.pow * k)} → <b>${Math.round(q.pow * k * c.atkMul)}</b>`, '霊力・攻撃力を掛けた値'],
+          ['爆発の半径', `${Math.round(q.r * (1 + c.cuV('q', 'area')) * (1 + c.st.v.area) * c.st.mul.area)}`],
+        ] },
+        { key: 'Space', name: '霊体化', desc: [
+          `${p.phaseT}秒間 霊体になる(無敵、移動速度 +${Math.round(p.phaseSpd * 100)}%)`,
+          '解けた瞬間、死霊が全員、近くの敵へ一斉に飛びかかる',
+        ], rows: [
+          ['スタミナ消費', `<b>${p.phaseCost - (c.lvFx.phaseCut || 0)}</b>`],
+        ] },
+      ];
+    },
+  },
+  // 質量(P.mass)は敵を倒すと溜まり、攻撃力が上がって足が遅くなる。質量放出(Space)と重力崩壊(Q)で使う
+  // 重力圏(半径 P.astR・遅くする割合 P.astK)の中では、敵の移動・攻撃と敵の弾がゆっくりになる(world.js の clsEnemySlow / clsProjTime / clsBossRate)
+  astro: {
+    skills: ['q'],
+    init() { P.mass = 0; P.sings = []; P.dash = null; P.ejectHeld = false; P.tideT = 0; P.astR = 0; P.astK = 0; P.walkT = 0; },
+    update(dt) {
+      if (P.dash) { // 質量放出: 跳んでいる間(無敵)。最後のフレームは残りの時間だけ進める(跳ぶ距離をぴったりにする)
+        const k = Math.min(dt, P.dash.t);
+        P.x += P.dash.vx * k; P.y += P.dash.vy * k; P.dash.t -= dt;
+        P.after = (P.after || []).concat([{ x: P.x, y: P.y, t: 0.05, f: P.facing }]).slice(-6);
+        if (P.dash.t <= 0) P.dash = null;
+      }
+      const held = (keys.Space || keys.TouchDef) && !P.act;
+      if (held && !P.ejectHeld && !P.dash) { if (P.sta >= astEjectCost()) astEject(); else addFloat(P.x, P.y - 16, 'STAMINA', '#6a7a88'); }
+      P.ejectHeld = held;
+      const slow = astSlow();
+      P.moveMul = P.dash ? 0 : 1 - slow;
+      if (P.moving) P.walkT += dt * (1 - slow); // 歩きのモーション: 重いほど足取りが遅い
+      astField(dt); // 重力圏
+      astSings(dt); // 重力崩壊の特異点
+      if (S.dimK > 0) S.dimK = Math.max(0, S.dimK - dt * 1.5);
+    },
+    onHurt: dmg => dmg * (1 - astGuard()), // 慣性(防御力・軽減より先)
+    onMainHit() { if (hasSp('trait', 'accrete')) astGain(AST().catchN); }, // 重力捕獲: メイン武器の通常攻撃が当たるたびに
+    onPickup() { astGain(AST().pickN * astAccrete()); }, // アイテム(経験値の宝石も)を拾うと質量が溜まる(吸積)
+    onKill(e) { if (hasSp('trait', 'accrete')) astGain(AST().catchKill, e.x, e.y); },     // 重力捕獲: 敵を倒しても溜まる
+    onBossKill(e) { if (hasSp('trait', 'accrete')) astGain(AST().catchKill, e.x, e.y); },
+    atkBonus: () => astAtk(),
+    critBonus: () => (hasSp('trait', 'dense') && P.mass >= AST().critAt ? AST().crit : 0), // 中性子星
+    bossRate: e => astTime(e.x, e.y),  // 重力圏の中のボスは攻撃もゆっくり
+    enemySlow: e => astTime(e.x, e.y), // 重力圏の中の敵の移動・攻撃(凍傷と掛け算)
+    projTime(p) {                     // 重力圏の中の敵の弾(時間停止: 止まって stopT 秒で消える)
+      if (!astIn(p.x, p.y)) return 1;
+      if (hasSp('passive', 'area')) { p.stopT = S.time + AST().stopT; return 0; }
+      return 1 - P.astK;
+    },
+    ifrMul: () => (hasSp('passive', 'inert') && P.mass >= AST().ifrAt ? AST().ifrK : 1), // 不動
+    qStart() {
+      const q = DATA.classes.astro.q;
+      let t = mouseAimPt() || astCrowdPt(q.range);
+      if (!t) { // 射程内の敵がみな自分のすぐ近く(50 以内)か、いない: 一番近い敵の方向(いなければ向いている方向)へ 70 離して生む(敵を自分から引きはがす)
+        const e = nearestEnemy(P.x, P.y, q.range), a = e ? Math.atan2(e.y - P.y, e.x - P.x) : (P.facing < 0 ? Math.PI : 0);
+        t = { x: P.x + Math.cos(a) * 70, y: P.y + Math.sin(a) * 70 };
+      }
+      const dd = Math.sqrt(d2(P.x, P.y, t.x, t.y));
+      if (dd > q.range) t = { x: P.x + (t.x - P.x) * q.range / dd, y: P.y + (t.y - P.y) * q.range / dd };
+      if (t.x !== P.x) P.facing = t.x < P.x ? -1 : 1;
+      P.act = { slot: 'q', ph: 'wind', t: 0, x: t.x, y: t.y };
+      playAnim('gCrush', MOTIONS.gCrush.dur);
+      skillCall(DATA.classes.astro.q.name, '#ff7ad9'); AudioMan.click();
+    },
+    qUpdate(a, dt) {
+      const q = DATA.classes.astro.q;
+      P.moveMul = 0;
+      if (a.t < q.windup) { // 構え: 周りが少し暗くなり、光の粒が両手の間へ流れ込む。照準位置に縮む輪
+        S.dimK = Math.max(S.dimK || 0, 0.18 * Math.min(1, a.t / 0.15));
+        asMine(() => {
+          for (let n = dt * 45; Math.random() < n; n--) { const r = rand(0, TAU), d = rand(14, 28); part(P.x + P.facing * 5 + Math.cos(r) * d, P.y - 8 + Math.sin(r) * d * 0.6, -Math.cos(r) * d * 3, -Math.sin(r) * d * 1.8, 0.3, pick(AST_FX), { glow: Math.random() < 0.4, drag: 0 }); }
+          if (Math.random() < dt * 20) addRing(a.x, a.y, 3, '#ff7ad9', { r0: 16, life: 0.15 });
+        });
+        return;
+      }
+      astCollapse(a);
+      P.act = null;
+    },
+    res: () => ({ kind: 'mass', label: '質量', v: P.mass, max: astMax(), dk: '#8a2a6e' }),
+    staBroken: () => false,
+    statuses() {
+      const out = [];
+      const pc = v => String(+(v * 100).toFixed(1));
+      if (P.mass >= 1) out.push({ id: 'mass', glyph: '質', name: `質量 ${Math.floor(P.mass)}`, fx: `攻撃力 +${pc(astAtk())}%・移動速度 -${pc(astSlow())}%・時の歪み ${pc(P.astK)}%`, kind: 'buff' });
+      return out;
+    },
+    qInfo: () => ({ name: DATA.classes.astro.q.name, glyph: '崩' }),
+    info(c) {
+      const p = AST(), q = DATA.classes.astro.q, mass = c.run ? P.mass : 0, pc = v => String(+(v * 100).toFixed(2)); // % 表示(0.15 / 0.03 のような小さい値も出す)
+      const max = p.max + c.cuV('trait', 'vessel') + (c.lvFx.massMax || 0), atkPer = c.cuV('trait', 'dense', p.atkPer);
+      const ar = (1 + c.st.v.area) * c.st.mul.area, fieldR = (p.fieldR + c.cuV('passive', 'area') + (c.lvFx.fieldR || 0)) * ar, slowPer = c.cuV('passive', 'power', p.slowPer), inert = c.cuV('passive', 'inert');
+      const k = 1 + c.cuV('q', 'pow') + (c.lvFx.qPow || 0), qr = (1 + c.cuV('q', 'area')) * ar, rel = mass * p.ejectPart, qd = (q.pow + mass * q.perMass) * k, ej = p.ejectPow + rel * p.ejectPowPer;
+      const slow = c.hasSp('trait', 'vessel') && mass >= max ? 0 : Math.min(p.spdCap, mass * p.spdPer);
+      return [
+        { key: '特性', name: '質量', cat: 'trait', desc: [
+          `アイテム(経験値の宝石・コイン・肉・磁石・爆弾・宝箱)を拾うと質量が溜まる(1つにつき +${p.pickN})。時間では減らない`,
+          `質量 1 につき攻撃力 +${pc(atkPer)}%、移動速度 -${pc(p.spdPer)}%(移動速度の低下は -${Math.round(p.spdCap * 100)}% まで)`,
+          '減るのは質量放出(Space)と重力崩壊(Q)で使ったときだけ',
+        ], rows: [
+          ['質量', c.run ? `<b>${Math.floor(mass)}</b> / ${max}` : `上限 <b>${max}</b>`],
+          ['攻撃力', `<b>+${pc(mass * atkPer)}%</b>`, c.run ? '今の質量' : `上限で +${pc(max * atkPer)}%`],
+          ['移動速度', `<b>-${pc(slow)}%</b>`, c.run ? '今の質量' : `上限で -${pc(Math.min(p.spdCap, max * p.spdPer))}%`],
+        ] },
+        { key: 'パッシブ', name: '重力圏', cat: 'passive', desc: [
+          `自分の周り(半径 ${Math.round(fieldR)})の敵の移動速度・攻撃速度と、敵の弾が遅くなる(時の歪み)`,
+          `遅くなる割合は 質量 1 につき ${pc(slowPer)}%(最大 ${Math.round(p.slowCap * 100)}%)。敵の移動は凍傷と掛け算で重ねる`,
+        ], rows: [
+          ['半径', `<b>${Math.round(fieldR)}</b>`],
+          ['時の歪み', `<b>${pc(Math.min(p.slowCap, mass * slowPer))}%</b>`, c.run ? '今の質量' : `上限で ${pc(Math.min(p.slowCap, max * slowPer))}%`],
+        ].concat(inert ? [['被ダメージ', `<b>-${pc(Math.min(p.guardCap, mass * inert))}%</b>`, `慣性: 質量 1 につき -${pc(inert)}%(最大 -${Math.round(p.guardCap * 100)}%)`]] : []) },
+        { key: 'Q', name: q.name, cat: 'q', desc: [
+          `構え ${q.windup}秒(動けない)→ 質量を全て使い、照準位置(射程 ${q.range})に特異点を生む`,
+          `${q.dur}秒間、周り(半径 ${q.pullR} + 使った質量 × ${q.pullPer})の敵を中心へ引き寄せる(中心に近いほど強く。ボス以外)`,
+          `最後に崩壊して、半径 ${q.r} の敵へ 基礎威力 ${q.pow} + 使った質量 × ${q.perMass}(質量 0 でも使える)`,
+          '威力は武器に依存しない',
+        ], rows: [
+          ['CD', `<b>${(q.cd * (1 - c.cuV('q', 'cd')) * c.cdMul).toFixed(1)}</b> 秒`],
+          ['崩壊の威力', `${Math.round(qd)} → <b>${Math.round(qd * c.atkMul)}</b>`, (c.run ? '今の質量を全て使ったとき' : '質量 0 のとき') + '。攻撃力を掛けた値'],
+          ['引き寄せ / 崩壊の半径', `${Math.round((q.pullR + mass * q.pullPer) * qr)} / ${Math.round(q.r * qr)}`],
+        ] },
+        { key: 'Space', name: '質量放出', desc: [
+          `質量の ${Math.round(p.ejectPart * 100)}% を後ろへ噴き出して、移動方向へ跳ぶ(距離 ${p.ejectDist} + 使った質量 × ${p.ejectPer}。${p.ejectIfr}秒 無敵)`,
+          `放出した質量は元の位置で爆ぜる(半径 ${p.ejectR}、基礎威力 ${p.ejectPow} + 使った質量 × ${p.ejectPowPer})`,
+        ], rows: [
+          ['スタミナ消費', `<b>${p.ejectCost - (c.lvFx.ejectCut || 0)}</b>`],
+          ['跳ぶ距離', `<b>${Math.round(p.ejectDist + rel * p.ejectPer)}</b>`, c.run ? '今の質量' : '質量 0 のとき'],
+          ['爆発の威力', `${Math.round(ej)} → <b>${Math.round(ej * c.atkMul)}</b>`, '攻撃力を掛けた値'],
+        ] },
+      ];
+    },
+  },
+  // 怒り(P.rage)は被弾で溜まり、与えるダメージ(攻撃力とは別の倍率)になる。昂り(P.fervor = 段ごとの残り秒)は不屈で受けた被弾で重なり、攻撃力と HP回復速度が上がる
+  // 狂乱(Q)で怒りを全て使って薙ぎ払い、しばらく怒りを上限のまま保つ(スタミナは 0)。不屈(Space)で攻撃を受け止めて、痛みを怒りに変える
+  berserker: {
+    skills: ['q'],
+    init() { P.rage = 0; P.calmT = 0; P.fervor = []; P.firmT = 0; P.firmHeld = false; P.frenzy = null; },
+    update(dt) {
+      const p = BK(), q = DATA.classes.berserker.q;
+      // 不屈(Space): 押した瞬間に発動(押し直すまで再び使わない。効いている間は重ねない)
+      //   狂乱中はスタミナが 0 のまま(被弾でスタミナを得る固有効果があっても使えない)
+      if (P.frenzy) P.sta = 0;
+      if (P.firmT > 0) P.firmT = Math.max(0, P.firmT - dt);
+      const held = (keys.Space || keys.TouchDef) && !P.act;
+      if (held && !P.firmHeld && P.firmT <= 0) { if (P.sta >= bkFirmCost()) bkFirm(); else addFloat(P.x, P.y - 16, 'STAMINA', '#6a7a88'); }
+      P.firmHeld = held;
+      // 昂り: 段ごとに残り時間を数える
+      for (let i = P.fervor.length - 1; i >= 0; i--) if ((P.fervor[i] -= dt) <= 0) { P.fervor.splice(i, 1); S.hudDirty = true; }
+      const f = P.frenzy;
+      if (f) { // 狂乱: 怒りは上限のまま・スタミナは 0 で回復しない / 旋風 / 暗い赤の残像(重なって塊にならないよう 6 ドットごと)
+        f.t -= dt;
+        P.rage = bkRageMax(); P.sta = 0; P.staLockT = Math.max(P.staLockT, 0.1);
+        if (hasSp('q', 'pow') && (f.whirl -= dt) <= 0) { f.whirl += q.whirlEvery; bkWhirl(f); }
+        const la = P.after && P.after[P.after.length - 1];
+        if (P.moving && (!la || d2(la.x, la.y, P.x, P.y) > 36)) P.after = (P.after || []).concat([{ x: P.x, y: P.y, t: 0.05, f: P.facing, col: '#7a1020' }]).slice(-5);
+        if (f.t <= 0) bkFrenzyEnd();
+      } else if ((P.calmT += dt) >= bkCalmT() && P.rage > 0) { // 怒り: しばらく被弾しないと減る(執念で遅くなる)
+        const b = P.rage;
+        P.rage = Math.max(0, P.rage - bkDecay() * dt);
+        if (Math.floor(b) !== Math.floor(P.rage)) S.hudDirty = true;
+      }
+      // 狂乱の攻撃速度 / 血湧き肉躍る: 昂り 1段につきクールダウン -fervorCd(ステータスのクールダウンにさらに掛ける。使ったときの値で CD が決まる)
+      P.atkSpd = 1 + (P.frenzy ? q.atkSpd : 0);
+      P.cdMul = (1 - P.stats.v.cd) * P.stats.mul.cd * (hasSp('passive', 'zeal') ? 1 - p.fervorCd * bkFervorN() : 1);
+      P.moveMul = 1;
+      if (S.dimK > 0) S.dimK = Math.max(0, S.dimK - dt * 1.5);
+      bkSteam(dt);
+    },
+    // 被弾: 怒り +rageHit。不屈中は大きく減らし、受けた痛み(減らす前)も怒りに変えて昂り +1段(極限: 通常の被弾でも昂り)
+    //   憤怒の鎧(怒りが上限)は当たった時点の状態で決める。減らす順番: これらの軽減 → 防御力・ダメージ軽減 → シールド
+    //   自分の技で受けるダメージ(ワイルドトマホークの代償・仁王立ち)もここを通る(selfHurt)
+    onHurt(dmg) {
+      const p = BK();
+      let k = 1, rage = bkRageHit();
+      if (hasSp('trait', 'fury') && bkFull()) k *= 1 - p.armorCut; // 憤怒の鎧
+      if (P.firmT > 0) {
+        k *= 1 - p.firmDr; rage += dmg * p.firmRage;
+        bkFervorAdd(1);
+        asMine(() => { addRing(P.x, P.y - 2, 12, '#7a1418', { w: 2, life: 0.25 }); burst(P.x, P.y - 4, 10, BK_FX, { sp: 70, glow: true, life: 0.3 }); });
+      } else if (cuLv('passive', 'edge')) bkFervorAdd(cuV('passive', 'edge'));
+      bkRageAdd(rage);
+      P.calmT = 0;
+      return dmg * k;
+    },
+    onMainHit() {},
+    onKill() { if (hasSp('trait', 'pain')) bkRageAdd(BK().bloodN); bkBloom(); },     // 返り血 / 狂い咲き
+    onBossKill() { if (hasSp('trait', 'pain')) bkRageAdd(BK().bloodN); bkBloom(); },
+    atkBonus: () => bkFervorN() * BK().fervorAtk * bkFervorK(),                                                     // 昂り
+    dmgDealt: () => 1 + (P.rage || 0) * BK().dmgPer + (P.frenzy ? DATA.classes.berserker.q.dmg : 0),               // 怒り・狂乱(与えるダメージ)
+    regen: () => bkFervorN() * BK().fervorRegen * bkFervorK() + (P.frenzy ? DATA.classes.berserker.q.regen : 0) + (hasSp('trait', 'grudge') ? P.rage * BK().burnK : 0), // 昂り・狂乱・焼灼
+    slowImmune: () => P.firmT > 0,                                                                                    // 不屈
+    // 不死の狂乱: 狂乱中に倒れるダメージを受けても HP 1 で耐える(1回の狂乱で1回)。耐えた後 undyingT 秒 無敵になり、炎上も消える
+    saveLethal() {
+      const f = P.frenzy, q = DATA.classes.berserker.q;
+      if (!f || f.saved || !hasSp('q', 'cd')) return false;
+      f.saved = true; P.burnT = 0;
+      P.invT = Math.max(P.invT, q.undyingT); P.ifr = Math.max(P.ifr, q.undyingT);
+      UI.announce('不死の狂乱', '');
+      asMine(() => {
+        addRing(P.x, P.y, 40, '#7a1418', { w: 3, life: 0.5 }); addFlash(P.x, P.y, 90, '#3a0610', 0.35);
+        burst(P.x, P.y, 30, BK_FX, { sp: 120, up: 30, life: 0.6 }); shockAt(P.x, P.y, 1.2, 1);
+      });
+      slowmo(0.3, 0.5); AudioMan.warcry();
+      return true;
+    },
+    // 自分の技で受けるダメージ(ワイルドトマホークの代償・仁王立ち)も被弾として扱う(怒り・昂り。不屈・憤怒の鎧の軽減も効く)。HP が 2 未満で払えないときは被弾にしない
+    selfHurt: n => (P.hp >= 2 ? CLASS_RT.berserker.onHurt(n) : n),
+    // 仁王立ち: E・Q を使うと 最大HP × selfHit のダメージを受ける。E・Q の威力 +selfPow(E はクラスの E 倍率で、Q は薙ぎ払いに掛ける)
+    onSkill(slot) { if (slot === 'e' && hasSp('passive', 'field')) selfHurt(P.maxhp * BK().selfHit); }, // E を使った(Q は qStart で)
+    eMul: () => (hasSp('passive', 'field') ? 1 + BK().selfPow : 1),
+    qStart() {
+      if (hasSp('passive', 'field')) selfHurt(P.maxhp * BK().selfHit); // 仁王立ち: 押した瞬間に受ける(得た怒りも薙ぎ払いに乗る)
+      P.act = { slot: 'q', ph: 'wind', t: 0 };
+      playAnim('zRoar', MOTIONS.zRoar.dur);
+      skillCall(DATA.classes.berserker.q.name, '#b8402a'); AudioMan.click();
+    },
+    qUpdate(a, dt) {
+      const q = DATA.classes.berserker.q;
+      P.moveMul = 0;
+      if (a.t < q.windup) { // 構え: 両手で斧を振りかぶる。周りが少し暗くなり、赤黒い闘気が集まる
+        S.dimK = Math.max(S.dimK || 0, 0.15 * Math.min(1, a.t / 0.12));
+        asMine(() => { for (let n = dt * 50; Math.random() < n; n--) { const r = rand(0, TAU), d = rand(14, 26); part(P.x + Math.cos(r) * d, P.y - 4 + Math.sin(r) * d * 0.6, -Math.cos(r) * d * 3, -Math.sin(r) * d * 2, 0.3, pick(BK_FX), { glow: Math.random() < 0.3, drag: 0 }); } });
+        return;
+      }
+      bkFrenzy();
+      P.act = null;
+    },
+    res: () => ({ kind: 'rage', label: '怒り', v: P.rage, max: bkRageMax(), dk: '#5a0a14', pulse: '#a01828' }),
+    staBroken: () => false,
+    statuses() {
+      const out = [], p = BK(), q = DATA.classes.berserker.q, fk = bkFervorK(), pc = v => String(+(v * 100).toFixed(1));
+      if (P.rage >= 1) out.push({ id: 'rage', glyph: '怒', name: `怒り ${Math.floor(P.rage)}`, fx: `与えるダメージ +${pc(P.rage * p.dmgPer)}%` + (hasSp('trait', 'fury') && bkFull() ? `・被ダメージ -${Math.round(p.armorCut * 100)}%(憤怒の鎧)` : '') + (hasSp('trait', 'grudge') ? `・HP回復速度 +${+(P.rage * p.burnK).toFixed(2)}/s(焼灼)` : ''), kind: 'buff' });
+      // 昂り: 段の数をまとめて 1つ(残り時間の表示は一番長く残る段。段ごとの残りは説明に)。死に物狂いの間は時間なしで最大
+      const n = bkFervorN(), des = bkDesperate();
+      if (n > 0) {
+        const left = P.fervor.slice().sort((a, b) => b - a).map(v => v.toFixed(1));
+        out.push({ id: 'fervor', glyph: '昂', name: `昂り ${n}段` + (des ? '(死に物狂い)' : ''), kind: 'buff', max: bkFervorT(), t: des ? undefined : Math.max(...P.fervor),
+          fx: `攻撃力 +${pc(n * p.fervorAtk * fk)}%・HP回復速度 +${+(n * p.fervorRegen * fk).toFixed(2)}/s` + (hasSp('passive', 'zeal') ? `・クールダウン -${pc(n * p.fervorCd)}%` : '')
+            + (des ? `(HP ${Math.round(p.desperateAt * 100)}% 以下の間は常に最大)` : `(段ごとの残り ${left.join(' / ')}秒)`) });
+      }
+      if (P.firmT > 0) out.push({ id: 'firm', glyph: '屈', name: '不屈', fx: `被ダメージ -${Math.round(p.firmDr * 100)}%・減速を受けない`, t: P.firmT, max: p.firmT, kind: 'buff' });
+      if (P.frenzy) out.push({ id: 'frenzy', glyph: '狂', name: '狂乱', fx: `怒りが上限のまま・与えるダメージ +${Math.round(q.dmg * 100)}%・攻撃速度 +${Math.round(q.atkSpd * 100)}%・HP回復速度 +${q.regen}/s・スタミナ 0`
+        + (hasSp('q', 'cd') ? (P.frenzy.saved ? '・不死の狂乱は使用済み' : '・倒れるダメージを 1回 HP 1 で耐える') : ''), t: P.frenzy.t, max: P.frenzy.max, kind: 'buff' });
+      return out;
+    },
+    qInfo: () => ({ name: DATA.classes.berserker.q.name, glyph: '狂' }),
+    info(c) {
+      const p = BK(), q = DATA.classes.berserker.q, pc = v => String(+(v * 100).toFixed(1));
+      const max = p.rageMax + c.cuV('trait', 'fury'), hitN = c.cuV('trait', 'pain', p.rageHit), calm = p.calmT + (c.lvFx.calmT || 0), decay = p.decay * (1 - c.cuV('trait', 'grudge')), rage = c.run ? P.rage : 0;
+      const fk = 1 + c.cuV('passive', 'zeal'), fT = p.fervorT + c.cuV('passive', 'field') + (c.lvFx.fervorT || 0), edge = c.cuV('passive', 'edge');
+      const k = (1 + c.cuV('q', 'pow') + (c.lvFx.qPow || 0)) * (c.hasSp('passive', 'field') ? 1 + p.selfPow : 1), qd = (q.pow + rage * q.perRage) * k, dur = Math.min(q.durMax, q.dur + rage * q.durPer) + c.cuV('q', 'dur'); // 仁王立ち: 威力 +selfPow
+      return [
+        { key: '特性', name: '怒り', cat: 'trait', desc: [
+          `被弾すると 怒り +${p.rageHit}(上限 ${p.rageMax})`,
+          `怒り 1 につき 与えるダメージ +${pc(p.dmgPer)}%(攻撃力とは別の倍率で、掛け算で効く)`,
+          `${p.calmT}秒間 被弾しないと、1秒に ${p.decay} ずつ減る`,
+        ], rows: [
+          ['怒り', c.run ? `<b>${Math.floor(rage)}</b> / ${max}` : `上限 <b>${max}</b>`],
+          ['与えるダメージ', `<b>+${pc(rage * p.dmgPer)}%</b>`, c.run ? '今の怒り' : `上限で +${pc(max * p.dmgPer)}%`],
+          ['被弾で得る怒り', `<b>+${hitN}</b>`],
+          ['減り始めるまで', `${calm} 秒`],
+          ['減る速さ', `1秒に <b>${+decay.toFixed(1)}</b>`],
+        ] },
+        { key: 'パッシブ', name: '昂り', cat: 'passive', desc: [
+          `不屈の間に被弾すると ${p.fervorT}秒間、HP回復速度 +${p.fervorRegen}/s・攻撃力 +${Math.round(p.fervorAtk * 100)}%(最大 ${p.fervorMax}段。段ごとに別々に数える)`,
+          '攻撃力は与えるダメージ(怒り)とは別の倍率なので、掛け算で伸びる',
+        ], rows: [
+          ['昂り', c.run ? `<b>${bkFervorN()}</b> / ${p.fervorMax} 段` : `最大 <b>${p.fervorMax}</b> 段`],
+          ['1段の効果', `攻撃力 +${pc(p.fervorAtk * fk)}%・HP回復速度 +${+(p.fervorRegen * fk).toFixed(2)}/s`],
+          ['時間', `${fT} 秒`],
+        ].concat(edge ? [['通常の被弾', `昂り +${edge}段`, '極限']] : []) },
+        { key: 'Q', name: q.name, cat: 'q', desc: [
+          `構え ${q.windup}秒(動けない)→ 怒りを全て使い、雄叫びとともに周り(半径 ${q.r})を薙ぎ払う(基礎威力 ${q.pow} + 使った怒り × ${q.perRage})`,
+          `そのあと狂乱(${q.dur}秒 + 使った怒り × ${q.durPer}秒。最大 ${q.durMax}秒): 怒りは上限のまま減らない、与えるダメージ +${Math.round(q.dmg * 100)}%、攻撃速度 +${Math.round(q.atkSpd * 100)}%、HP回復速度 +${q.regen}/s`,
+          '  → そのかわりスタミナが 0 になり、回復しなくなる。終わると怒りは 0 から溜め直し',
+          '威力は武器に依存しない',
+        ], rows: [
+          ['CD', `<b>${(q.cd * (1 - c.cuV('q', 'cd')) * c.cdMul).toFixed(1)}</b> 秒`],
+          ['薙ぎ払いの威力', `${Math.round(qd)} → <b>${Math.round(qd * c.atkMul)}</b>`, (c.run ? '今の怒りを全て使ったとき' : '怒り 0 のとき') + '。攻撃力を掛けた値'],
+          ['狂乱の持続', `<b>${+dur.toFixed(1)}</b> 秒`, c.run ? '今の怒りを全て使ったとき' : '怒り 0 のとき'],
+          ['半径', `${Math.round(q.r * (1 + c.st.v.area) * c.st.mul.area)}`],
+        ] },
+        { key: 'Space', name: '不屈', desc: [
+          `${p.firmT}秒間、被ダメージ -${Math.round(p.firmDr * 100)}%、減速(粘液・スロウタイム)を受けない。動ける`,
+          `受けたダメージ(減らす前)10 につき 怒り +${+(p.firmRage * 10).toFixed(1)}(被弾の怒りとは別)`,
+          '不屈の間の被弾で 昂り +1段',
+        ], rows: [
+          ['スタミナ消費', `<b>${p.firmCost - (c.lvFx.firmCut || 0)}</b>`],
+        ] },
+      ];
+    },
+  },
+  // 専用武器を持たない。武芸百般(持っている武器の数で攻撃力・クールダウン・最大HP)と影の追撃(数秒ごとに武器のどれかがもう一度攻撃する)
+  // 武神降臨(Q): 分身(P.wmClone)が、持っている武器の武器スキルをランダムに使う。残像(Space): 跳んだ直後にメイン武器がもう一度攻撃する
+  weaponmaster: {
+    skills: ['q'],
+    init() { P.dash = null; P.dashHeld = false; P.wmShadeT = 0; P.shades = []; P.wmClone = null; P.wmCut = 0; P.wmKey = ''; },
+    update(dt) {
+      if (P.dash) { // 残像: 跳んでいる間(無敵)。最後のフレームは残りの時間だけ進める(跳ぶ距離をぴったりにする)
+        const k = Math.min(dt, P.dash.t);
+        P.x += P.dash.vx * k; P.y += P.dash.vy * k; P.dash.t -= dt;
+        P.after = (P.after || []).concat([{ x: P.x, y: P.y, t: 0.12, f: P.facing, col: '#4a2e16' }]).slice(-4); // 跳んだ跡(暗い銅。明るいと光で塊に見える)
+        if (P.dash.t <= 0) { P.dash = null; wmAgain(); } // 跳んだ直後: メイン武器がもう一度攻撃する
+      }
+      const held = (keys.Space || keys.TouchDef) && !P.act;
+      if (held && !P.dashHeld && !P.dash) { if (P.sta >= wmDashCost()) wmDash(); else addFloat(P.x, P.y - 16, 'STAMINA', '#6a7a88'); }
+      P.dashHeld = held;
+      P.moveMul = P.dash ? 0 : 1;
+      // 武芸百般: スタック・頑健が変わったら最大HP を計算し直す(applyStats が hpAdd を読む)
+      const key = wmStack() + ':' + cuLv('trait', 'tough');
+      if (key !== P.wmKey) { P.wmKey = key; recalc(); }
+      // 器用: スタック 1つにつきクールダウン -(パスの値)(ステータスのクールダウンにさらに掛ける)
+      P.cdMul = (1 - P.stats.v.cd) * P.stats.mul.cd * (1 - Math.min(0.5, wmStack() * cuV('trait', 'deft')));
+      wmShadeTick(dt);
+      wmCloneTick(dt);
+    },
+    onHurt: dmg => (hasSp('trait', 'tough') && wmFull() ? dmg * (1 - WM().steadyDr) : dmg), // 不動
+    onMainHit() {},
+    onKill(e, o) { if (o && o.cl) wmQuick(); }, // 間髪: 分身の武器スキルで倒した
+    atkBonus: () => wmStack() * cuV('trait', 'train', WM().stackAtk),
+    hpAdd: () => Math.round(wmStack() * cuV('trait', 'tough')), // 頑健
+    onSkill(slot) { if (slot === 'e' && hasSp('trait', 'deft')) wmHaste(); }, // 早業: E を使うと全ての武器がすぐに攻撃する
+    qStart() { // スキル名は分身が出たときに、使う武器スキルと一緒に出す(wmSummon)
+      P.act = { slot: 'q', ph: 'wind', t: 0 };
+      playAnim('wmSeal', MOTIONS.wmSeal.dur);
+      AudioMan.click();
+    },
+    qUpdate(a, dt) {
+      const q = DATA.classes.weaponmaster.q;
+      P.moveMul = 0;
+      if (a.t < q.windup) { // 構え: 両手で印を結ぶ。足元に銅色の円が縮み、光の粒が体へ集まる
+        const u = a.t / q.windup;
+        asMine(() => {
+          if (Math.random() < dt * 25) addRing(P.x, P.y + 6, 4 + 12 * (1 - u), WM_COL, { r0: 6 + 12 * (1 - u), life: 0.12 });
+          for (let n = dt * 40; Math.random() < n; n--) { const r = rand(0, TAU), d = rand(12, 22); part(P.x + Math.cos(r) * d, P.y - 4 + Math.sin(r) * d * 0.6, -Math.cos(r) * d * 3, -Math.sin(r) * d * 2, 0.3, pick(WM_FX), { glow: Math.random() < 0.3, drag: 0 }); }
+        });
+        return;
+      }
+      wmSummon();
+      P.act = null;
+    },
+    res: () => ({ kind: 'arms', label: '武器', v: Object.keys(P.weapons).length, max: S.weaponSlots, seg: true, dk: '#7a4a22', pulse: '#e0a060' }),
+    staBroken: () => false,
+    statuses() {
+      const out = [], p = WM(), n = wmStack(), pc = v => String(+(v * 100).toFixed(1));
+      const atk = n * cuV('trait', 'train', p.stackAtk), deft = Math.min(0.5, n * cuV('trait', 'deft')), hp = Math.round(n * cuV('trait', 'tough')), steady = hasSp('trait', 'tough') && wmFull();
+      out.push({ id: 'wmArts', glyph: '武', name: `武芸百般 ${+n.toFixed(1)}`, kind: 'buff',
+        fx: `攻撃力 +${pc(atk)}%` + (deft ? `・クールダウン -${pc(deft)}%` : '') + (hp ? `・最大HP +${hp}` : '') + (steady ? `・被ダメージ -${Math.round(p.steadyDr * 100)}%(不動)` : '') });
+      const every = wmShadeEvery(), left = Math.max(0, every - P.wmShadeT);
+      out.push({ id: 'wmShade', glyph: '影', name: '影の追撃', fx: `${+every.toFixed(1)}秒ごとに、持っている武器(メイン武器も)のどれかがもう一度攻撃する(次まで ${left.toFixed(1)}秒)`, t: left, max: every, kind: 'buff' });
+      const c = P.wmClone;
+      if (c) out.push({ id: 'wmClone', glyph: '神', name: DATA.classes.weaponmaster.q.name, kind: 'buff', t: c.stay ? Math.max(0, c.stay - c.t) : undefined, max: c.stay || undefined,
+        fx: `分身が武器スキルを使う(残り ${c.list.length - c.i}つ)` + (c.stay ? `・化身: 使った武器 ${c.used.length}種の通常攻撃` : '') });
+      return out;
+    },
+    qInfo: () => ({ name: DATA.classes.weaponmaster.q.name, glyph: '神' }),
+    info(c) {
+      const p = WM(), q = DATA.classes.weaponmaster.q, pc = v => String(+(v * 100).toFixed(1)), ar = (1 + c.st.v.area) * c.st.mul.area;
+      const owned = c.run ? Object.keys(P.weapons).length : 1, n = c.run ? wmStack() : 1 + (c.lvFx.stack || 0), slots = c.run ? S.weaponSlots : c.st.v.wslot;
+      const per = c.cuV('trait', 'train', p.stackAtk), deft = c.cuV('trait', 'deft'), tough = c.cuV('trait', 'tough'), evo = c.hasSp('trait', 'train') ? 1 : p.evoK;
+      const every = p.shadeT - c.cuV('passive', 'freq') - (c.lvFx.shadeCut || 0), sp = 1 + c.cuV('passive', 'pow') + (c.lvFx.shadePow || 0), edge = c.cuV('passive', 'edge');
+      const qn = q.n + c.cuV('q', 'multi') + (c.lvFx.qN || 0), lvA = c.run ? cuLv('q', 'art') : 0, qk = 1 + c.cuV('q', 'art') + (c.lvFx.qPow || 0);
+      return [
+        { key: '特性', name: '武芸百般', cat: 'trait', desc: [
+          `持っている武器 1つにつき 攻撃力 +${pc(p.stackAtk)}%(メイン武器もサブ武器も数える)`,
+          `進化した武器は 効果 +${Math.round(p.evoK * 100)}%(1つで ${1 + p.evoK}つ分)`,
+        ].concat(c.lvFx.stack ? [`クラスLv3: 常に +${c.lvFx.stack}つ分`] : []), rows: [
+          ['武芸百般', `<b>${+n.toFixed(1)}</b> つ分`, c.run ? `武器 ${owned} / ${slots}。進化した武器は ${1 + evo}つ分` : 'ラン開始時(メイン武器 1つ)'],
+          ['攻撃力', `<b>+${pc(n * per)}%</b>`, `1つにつき +${pc(per)}%`],
+        ].concat(deft ? [['クールダウン', `<b>-${pc(Math.min(0.5, n * deft))}%</b>`, `器用: 1つにつき -${pc(deft)}%`]] : [])
+          .concat(tough ? [['最大HP', `<b>+${Math.round(n * tough)}</b>`, `頑健: 1つにつき +${tough}`]] : []) },
+        { key: 'パッシブ', name: '影の追撃', cat: 'passive', desc: [
+          `${p.shadeT}秒ごとに、持っている武器(メイン武器も)のどれか 1つを影がまねて、その武器がすぐにもう一度攻撃する(威力は通常攻撃と同じ)`,
+          '影は自分の横に現れ、攻撃はそこから出る',
+        ], rows: [
+          ['間隔', `<b>${+every.toFixed(1)}</b> 秒`],
+          ['まねた攻撃の威力', `<b>${Math.round(sp * (c.hasSp('passive', 'freq') ? 1 - p.twinCut : 1) * 100)}%</b>` + (c.hasSp('passive', 'freq') ? ' × 2体' : ''), '通常攻撃の威力に対して'],
+        ].concat(edge ? [['影刃の威力', `${edge} → <b>${Math.round(edge * c.atkMul)}</b>`, `半径 ${Math.round(p.edgeR * ar)}。攻撃力を掛けた値`]] : []) },
+        { key: 'Q', name: q.name, cat: 'q', desc: [
+          `構え ${q.windup}秒(動けない)→ 自分の隣に分身をつくる。分身は持っている武器の武器スキルをランダムに ${q.n}種(重複なし)使う`,
+          `分身は ${q.gap}秒おきに 1つずつ使う。自分はすぐに動ける。分身は狙われず、ダメージも受けない`,
+          '威力はその武器の今の値(Lv・進化・熟練)。メイン武器の E の強化も効く',
+          '武器スキルの自分への効果(シールド・回復など)は自分に入る。ワイルドトマホークの代償は払わない',
+        ], rows: [
+          ['CD', `<b>${(q.cd * (1 - c.cuV('q', 'cd')) * c.cdMul).toFixed(1)}</b> 秒`],
+          ['武器スキル', `<b>${qn}</b> 種`, c.run ? `今は ${Math.min(qn, owned)} 種(持っている武器の数まで)` : '持っている武器の数まで'],
+          ['威力', `<b>${Math.round(qk * 100)}%</b>`, '武器スキルの威力に対して(練度・クラスLv)'],
+        ].concat(lvA ? [['範囲 / 射程', `+${Math.round(q.artArea[lvA - 1] * 100)}% / +${Math.round(q.artRange[lvA - 1] * 100)}%`, '練度']] : []) },
+        { key: 'Space', name: '残像', desc: [
+          `移動方向へ ${p.dashDist} 跳ぶ(${p.dashTime}秒。${p.dashIfr}秒 無敵)。元の位置に残像が残る`,
+          '跳んだ直後、メイン武器がすぐにもう一度攻撃する',
+        ], rows: [
+          ['スタミナ消費', `<b>${wmDashCostOf(c.lvFx)}</b>`],
+        ] },
+      ];
+    },
+  },
 };
 
 // 居合の斬撃: 通過した敵にまとめてダメージ(切っ先が走り終えた少しあとに、一閃の演出と同時に炸裂する)
@@ -2509,11 +3593,630 @@ function asStorm() {
   AudioMan.slash();
 }
 
+// ---------- ネクロマンサー: 死霊使役・死者の盾・葬送・霊体化 ----------
+// 死霊: { x, y, vx, vy, ph, t, bright, e, ot, hop }
+//   ph: join(倒した敵の位置から来る)/ orbit(漂う)/ out(飛びかかる)/ back(戻る)/ gather(葬送の構えで頭上に集まる)
+//   t: 次に飛びかかるまでの秒数(every 秒ごと。戻る途中でも時間が来たら次へ)/ ot: 飛びかかってからの秒数 / hop: 渡りを使った
+const NC = () => DATA.classes.necro.params;
+const NEC_FX = ['#8a6cff', '#5a3ab0', '#3a2a6a', '#c8b4ff']; // 死霊の演出の色(濃い紫。淡い色や白はブルームで白く飛ぶので、明るいのは芯の1色だけ)
+const necMax = () => NC().max + (P.lvFx.soulMax || 0) + cuV('trait', 'herd');                // 上限(クラスLv8・群れ)
+const necK = () => 1 + (P.rei || 0) * NC().reiK;                                             // 霊力: 死霊の攻撃・葬送の威力の倍率(上限のときに得た死霊 1体につき +reiK)
+const necPow = () => NC().pow * (1 + cuV('trait', 'fang') + (P.lvFx.soulPow || 0)) * necK();  // 1回の威力(牙・クラスLv3・霊力)
+const necEvery = () => NC().every;                                                            // 攻撃の間隔
+const necReiDecay = () => NC().reiDecay * (1 - cuV('trait', 'haste'));                         // 霊力の減り方(1秒あたり。疾走で遅くなる)
+const necPhaseCost = () => NC().phaseCost - (P.lvFx.phaseCut || 0);                           // 霊体化のスタミナ(クラスLv6)
+// 死霊を得る(倒した敵の位置から飛んでくる)。fill: ボス(上限まで満たし、溢れない)
+//   上限を超えた分は霊力になる(使っても減らない)/ 百鬼夜行: さらに、倒した場所で少し遅れて爆ぜる
+function necGain(n, x, y, fill) {
+  const add = Math.max(0, Math.min(n, necMax() - P.souls.length));
+  for (let i = 0; i < add; i++) P.souls.push({ x: x + rand(-3, 3), y: y - 4, vx: 0, vy: 0, ph: 'join', t: NC().every * rand(0.3, 1), bright: 1, e: null, ot: 0, hop: false });
+  if (add) { S.hudDirty = true; asMine(() => part(x, y - 4, 0, -25, 0.5, '#8a6cff', { glow: true, sz: 2 })); }
+  const over = fill ? 0 : n - add;
+  if (over <= 0) return;
+  P.rei = (P.rei || 0) + over;
+  asMine(() => part(x, y - 4, (P.x - x) * 1.5, (P.y - y) * 1.5, 0.6, '#5a3ab0', { glow: true, drag: 0 })); // 霊力: 自分へ吸い込まれる
+  if (hasSp('trait', 'herd')) P.nOver.push({ x, y, n: over, t: 0.08 });
+}
+function necOverBurst(o) {
+  const p = NC(), R = p.overR * P.area;
+  asMine(() => {
+    forEachNear(o.x, o.y, R, e => {
+      if (e.prop) { killEnemy(e); return; }
+      hitEnemy(e, p.overPow * o.n * necK(), { src: 'nsoul', ang: Math.atan2(e.y - o.y, e.x - o.x), kb: 40, col: '#a58cff', noNum: Math.random() < 0.4 });
+    });
+    burst(o.x, o.y, 14, NEC_FX, { sp: 90, glow: true, life: 0.4 });
+    addRing(o.x, o.y, R, '#8a6cff', { w: 2, life: 0.3 }); addFlash(o.x, o.y, R * 2, '#5a30c0', 0.15);
+    shake(1.5);
+  });
+  AudioMan.boom();
+}
+// 死霊の狙い: (x, y) から半径 R の敵のうち一番近い敵(ほかの死霊が飛びかかっている敵は後回し)
+function necTarget(x, y, R, skip) {
+  const taken = new Set();
+  for (const s of P.souls) if (s.ph === 'out' && s.e) taken.add(s.e);
+  let best = null, bd = Infinity, alt = null, ad = Infinity;
+  forEachNear(x, y, R, e => {
+    if (e.dead || e.prop || e.hidden || e === skip) return;
+    const d = d2(x, y, e.x, e.y);
+    if (!taken.has(e)) { if (d < bd) { bd = d; best = e; } } else if (d < ad) { ad = d; alt = e; }
+  });
+  return best || alt;
+}
+function necLaunch(s, e, itv) { s.ph = 'out'; s.e = e; s.ot = 0; s.hop = false; s.t = itv; }
+// 死霊: 自分の周りを楕円に漂い、every 秒ごとに近くの敵へ飛びかかって戻る
+function necSouls(dt) {
+  const L = P.souls, n = L.length, R = NC().range * P.area, itv = necEvery();
+  for (let i = 0; i < n; i++) {
+    const s = L[i], a = S.time * 1.1 + i * TAU / n;
+    const ox = P.x + Math.cos(a) * 15, oy = P.y - 4 + Math.sin(a) * 8 + Math.sin(S.time * 3 + i * 1.7) * 1.5; // 漂う位置
+    s.bright = Math.max(0, s.bright - dt * 3);
+    s.t -= dt;
+    if (s.ph === 'gather') { // 葬送の構え: 頭上に集まって渦を巻く
+      const ga = S.time * 6 + i * TAU / n, gx = P.x + Math.cos(ga) * 7, gy = P.y - 22 + Math.sin(ga) * 3, k = Math.min(1, dt * 12);
+      s.vx = (gx - s.x) * k / dt; s.vy = (gy - s.y) * k / dt; s.x += (gx - s.x) * k; s.y += (gy - s.y) * k; s.bright = 1;
+      continue;
+    }
+    if (s.ph === 'out') { // 飛びかかる(狙った敵が倒れたら近くの別の敵へ。いなければ戻る)
+      if (!s.e || s.e.dead) { s.e = necTarget(s.x, s.y, 40); if (!s.e) { s.ph = 'back'; continue; } }
+      const e = s.e, d = Math.hypot(e.x - s.x, e.y - s.y), k = Math.min(1, 300 * dt / Math.max(d, 0.01));
+      s.vx = (e.x - s.x) * k / dt; s.vy = (e.y - s.y) * k / dt; s.x += (e.x - s.x) * k; s.y += (e.y - s.y) * k;
+      s.ot += dt; s.bright = 1;
+      if (d <= (e.r || 4) + 2) necBite(s, e);
+      else if (s.ot > 0.7) s.ph = 'back';
+      continue;
+    }
+    if (s.ph === 'join' || s.ph === 'back') { // 漂う位置へ戻る
+      const d = Math.hypot(ox - s.x, oy - s.y), k = Math.min(1, (s.ph === 'join' ? 170 : 220) * dt / Math.max(d, 0.01));
+      s.vx = (ox - s.x) * k / dt; s.vy = (oy - s.y) * k / dt; s.x += (ox - s.x) * k; s.y += (oy - s.y) * k;
+      if (d < 3) s.ph = 'orbit';
+    } else { const k = Math.min(1, dt * 10); s.vx = (ox - s.x) * k / dt; s.vy = (oy - s.y) * k / dt; s.x += (ox - s.x) * k; s.y += (oy - s.y) * k; }
+    if (s.t <= 0 && s.ph !== 'join') { const e = necTarget(P.x, P.y, R); if (e) necLaunch(s, e, itv); else s.t = 0.25; }
+  }
+}
+// 噛みつき(呪い牙: 呪う / 渡り: 近くの別の敵へもう一度)
+function necBite(s, e) {
+  const p = NC();
+  asMine(() => {
+    hitEnemy(e, necPow(), { src: 'nsoul', ang: Math.atan2(s.vy, s.vx), kb: 18, col: '#a58cff', noNum: Math.random() < 0.3 });
+    if (hasSp('trait', 'fang') && !e.dead) e.curseT = S.time + p.curseT;
+    burst(e.x, e.y, 5, NEC_FX, { sp: 50, glow: true, life: 0.25 });
+  });
+  if (hasSp('trait', 'haste') && !s.hop) {
+    const e2 = necTarget(e.x, e.y, p.hopR * P.area, e);
+    if (e2) { s.hop = true; s.e = e2; s.ot = 0; return; }
+  }
+  s.ph = 'back';
+}
+// 死霊を k 体使う(古いものから)。還魂: 1体につき HP 回復。quiet: 砕ける演出を出さない(葬送で霊弾になる)
+function necSpend(k, quiet) {
+  const used = P.souls.splice(0, Math.min(k, P.souls.length));
+  if (!quiet) asMine(() => { for (const s of used) burst(s.x, s.y, 6, NEC_FX, { sp: 60, glow: true, life: 0.3 }); });
+  const h = used.length * cuV('passive', 'soul');
+  if (h > 0) heal(h, true);
+  S.hudDirty = true;
+  return used;
+}
+// 死者の盾: 被弾したとき、死霊を guardN 体使ってダメージを減らす(少ないときはいるだけ使う)
+//   骸の盾: 死霊が guardN × 2 体以上いるときは、その数を使って 2回分(×(1 - 軽減)^2)
+//   不死の契り: 身代わりで減らしても倒れるとき、死霊が undyingMin 体以上(使う前の数)なら全て使って耐える
+//   報い: 身代わりになった死霊が自分の周りで爆ぜる(1回の身代わりにつき1回。骸の盾は2回分の威力。呪詛返し: 減らしたダメージ × backK を足す)
+function necGuard(dmg) {
+  const p = NC(), n = P.souls.length;
+  if (!n) return dmg;
+  const r = cuV('passive', 'ward', p.guard), two = hasSp('passive', 'ward') && n >= p.guardN * 2, out = dmg * (two ? (1 - r) * (1 - r) : 1 - r);
+  if (hasSp('passive', 'soul') && n >= p.undyingMin && S.time - P.undyingAt >= p.undyingCd) {
+    const fin = Math.max(1, Math.round((out - P.armor) * (1 - P.dr))) - Math.floor(shieldTotal()); // HP が減る量(hurtPlayer と同じ計算)
+    if (fin >= P.hp) { necUndying(); return null; }
+  }
+  necSpend(two ? p.guardN * 2 : Math.min(n, p.guardN));
+  const ret = cuV('passive', 'ret');
+  if (ret > 0) necRetBurst(ret * (two ? 2 : 1) + (hasSp('passive', 'ret') ? (dmg - out) * p.backK : 0));
+  asMine(() => addRing(P.x, P.y, 14, '#8a6cff', { w: 2, life: 0.3 }));
+  return out;
+}
+function necRetBurst(pow) {
+  const R = NC().burstR * P.area;
+  pow *= necK(); // 霊力
+  asMine(() => {
+    forEachNear(P.x, P.y, R, e => { if (!e.prop) hitEnemy(e, pow, { src: 'nsoul', ang: Math.atan2(e.y - P.y, e.x - P.x), kb: 50, col: '#a58cff' }); });
+    burst(P.x, P.y, 16, NEC_FX, { sp: 100, glow: true, life: 0.4 });
+    addRing(P.x, P.y, R, '#8a6cff', { w: 2, life: 0.3 }); addFlash(P.x, P.y, R * 2, '#5a30c0', 0.15);
+  });
+  AudioMan.boom();
+}
+function necUndying() {
+  const p = NC(), n = P.souls.length;
+  necSpend(n);
+  P.hp = Math.min(P.maxhp, Math.max(P.hp, P.maxhp * p.undyingHp * n));
+  P.undyingAt = S.time; P.ifr = Math.max(P.ifr, 1); P.invT = Math.max(P.invT, 1);
+  S.hudDirty = true;
+  UI.announce('不死の契り', '');
+  asMine(() => {
+    addRing(P.x, P.y, 50, '#8a6cff', { w: 3, life: 0.6 }); addFlash(P.x, P.y, 120, '#5a30c0', 0.4);
+    burst(P.x, P.y, 40, NEC_FX, { sp: 140, up: 40, glow: true, life: 0.8 });
+    shockAt(P.x, P.y, 1.6, 0.8); screenFlash(0.3 * SET.fxA, '#5a30c0');
+  });
+  slowmo(0.3, 0.6); AudioMan.knell();
+}
+// 葬送: 死霊を全て霊弾にして放つ(最低 minShots 発)。集束: 1発にまとめる / 輪廻: 使った死霊 1体につき CD -rebirth 秒
+function necRelease(a) {
+  const q = DATA.classes.necro.q, k = (1 + cuV('q', 'pow') + (P.lvFx.qPow || 0)) * necK(), R = q.r * (1 + cuV('q', 'area')) * P.area; // 霊力も乗る
+  const used = necSpend(P.souls.length, true), shots = Math.max(q.minShots, used.length), hx = P.x, hy = P.y - 22;
+  if (hasSp('q', 'area')) necBomb(hx, hy, a.a, q.pow * k * shots * q.fuseK, R * q.fuseR, 0, true);
+  else for (let i = 0; i < shots; i++) {
+    const s = used[i] || { x: hx, y: hy }, ang = a.a + (shots > 1 ? (i / (shots - 1) - 0.5) * 1.4 : 0);
+    necBomb(s.x, s.y, ang, q.pow * k, R, i * 0.03);
+  }
+  const base = q.cd * (1 - cuV('q', 'cd')) * P.cdMul;
+  setCd('q', hasSp('q', 'cd') ? Math.max(1, base - used.length * q.rebirth) : base);
+  asMine(() => {
+    addFlash(hx, hy, 70, '#5a30c0', 0.25); addRing(hx, hy, 24, '#8a6cff', { w: 2, life: 0.3 });
+    burst(hx, hy, 20, NEC_FX, { sp: 110, glow: true, life: 0.4 }); shake(4); hitstop(0.05);
+  });
+  GFX.fx.aberr = Math.max(GFX.fx.aberr, 0.6 * SET.fxA);
+  AudioMan.boom();
+}
+function necBomb(x, y, ang, pow, R, delay, big) {
+  const q = DATA.classes.necro.q;
+  P.nbombs.push({ x, y, vx: Math.cos(ang) * q.speed, vy: Math.sin(ang) * q.speed, t: 0, life: q.life, pow, R, big: !!big, delay, tg: null });
+}
+// 霊弾: 照準方向へ飛び出し、近くの敵を追って触れると爆ぜる(寿命で消えるときも爆ぜる)
+function necBombs(dt) {
+  for (let i = P.nbombs.length - 1; i >= 0; i--) {
+    const b = P.nbombs[i];
+    if (b.delay > 0) { b.delay -= dt; continue; }
+    b.t += dt;
+    if (!b.tg || b.tg.dead) b.tg = nearestEnemy(b.x, b.y, 220);
+    const sp = Math.min(260, Math.hypot(b.vx, b.vy) + 200 * dt);
+    let cur = Math.atan2(b.vy, b.vx);
+    if (b.tg && b.t > 0.08) { const d = Math.atan2(b.tg.y - b.y, b.tg.x - b.x) - cur; cur += clamp(Math.atan2(Math.sin(d), Math.cos(d)), -7 * dt, 7 * dt); }
+    b.vx = Math.cos(cur) * sp; b.vy = Math.sin(cur) * sp;
+    b.x += b.vx * dt; b.y += b.vy * dt;
+    if (Math.random() < dt * 40) asMine(() => part(b.x, b.y, rand(-8, 8), rand(-8, 8), 0.35, pick(['#8a6cff', '#5a3ab0', '#3a2a6a']), { glow: true, drag: 4 }));
+    let hit = false;
+    forEachNear(b.x, b.y, b.big ? 8 : 4, e => { if (!e.dead && !e.prop) { hit = true; return false; } });
+    if (hit || b.t >= b.life) { P.nbombs.splice(i, 1); necBombBurst(b, !P.nbombs.length); }
+  }
+}
+// 霊弾の爆発(慟哭: 着弾地点に念が残る)。last: 最後の1発(鐘の音)
+function necBombBurst(b, last) {
+  const q = DATA.classes.necro.q;
+  asMine(() => {
+    forEachNear(b.x, b.y, b.R, e => {
+      if (e.prop) { killEnemy(e); return; }
+      hitEnemy(e, b.pow, { src: 'nrite', ang: Math.atan2(e.y - b.y, e.x - b.x), kb: b.big ? 120 : 60, col: '#a58cff' });
+    });
+    burst(b.x, b.y, b.big ? 50 : 16, NEC_FX, { sp: b.big ? 180 : 110, glow: true, life: 0.5 });
+    addRing(b.x, b.y, b.R, '#8a6cff', { w: 2, life: 0.35 }); addFlash(b.x, b.y, b.R * 2, '#5a30c0', b.big ? 0.3 : 0.18);
+    if (b.big) { shockAt(b.x, b.y, 1.8, 1); shake(9); hitstop(0.07); screenFlash(0.2 * SET.fxA, '#5a30c0'); } else { shockAt(b.x, b.y, 0.7, 1.2); shake(2); }
+  });
+  if (hasSp('q', 'pow')) zones.push({ kind: 'grudge', x: b.x, y: b.y, r: b.R, t: 0, dur: q.lingerT, tick: 0, dmg: q.lingerPow * necK() }); // 慟哭(霊力も乗る)
+  if (last) AudioMan.knell(); else AudioMan.boom();
+}
+// 霊体化: 無敵で滑るように進む
+function necPhase() {
+  const p = NC();
+  staUse(necPhaseCost());
+  P.phase = { t: p.phaseT };
+  P.invT = Math.max(P.invT, p.phaseT); P.ifr = Math.max(P.ifr, p.phaseT);
+  playAnim('nPhase', MOTIONS.nPhase.dur); P.anim.keep = true;
+  asMine(() => burst(P.x, P.y, 14, NEC_FX, { sp: 50, glow: true, life: 0.35 }));
+  AudioMan.dash();
+}
+// 霊体化が解けた瞬間: 死霊が全員、近くの敵へ一斉に飛びかかる(攻撃の間隔はここから数え直す)
+function necVolley() {
+  const R = NC().range * P.area, itv = necEvery();
+  let n = 0;
+  for (const s of P.souls) {
+    if (s.ph === 'gather' || s.ph === 'out') continue;
+    const e = necTarget(P.x, P.y, R);
+    if (e) { necLaunch(s, e, itv); n++; }
+  }
+  asMine(() => { addRing(P.x, P.y, 20, '#8a6cff', { w: 2, life: 0.3 }); burst(P.x, P.y, 12, NEC_FX, { sp: 80, glow: true, life: 0.3 }); });
+  if (n) AudioMan.slash();
+}
+
+// ---------- アストロマンサー ----------
+const AST = () => DATA.classes.astro.params;
+const AST_FX = ['#ff7ad9', '#8a2a6e', '#3a1438', '#c78bff']; // 重力の演出の色(濃い桃〜紫。淡い色や白はブルームで白く飛ぶので、明るいのは芯の1色だけ)
+const AST_INFALL = ['#ffcc8c', '#ff8c68', '#e25292', '#8a2a6e']; // 特異点へ落ちていく物質の色(降着円盤と同じ: 金 → 珊瑚 → 桃 → 暗い紫)
+const astMax = () => AST().max + cuV('trait', 'vessel') + (P.lvFx.massMax || 0);                                         // 質量の上限(器・クラスLv3)
+const astAtk = () => (P.mass || 0) * cuV('trait', 'dense', AST().atkPer);                                                 // 攻撃力の上昇(密度)
+const astSlow = () => (hasSp('trait', 'vessel') && P.mass >= astMax() ? 0 : Math.min(AST().spdCap, (P.mass || 0) * AST().spdPer)); // 移動速度の低下(事象の地平: 上限のときは下がらない)
+const astFieldR = () => (AST().fieldR + cuV('passive', 'area') + (P.lvFx.fieldR || 0)) * P.area;                         // 重力圏の半径(範囲・クラスLv8・範囲%)
+const astWarp = () => Math.min(AST().slowCap, (P.mass || 0) * cuV('passive', 'power', AST().slowPer));                     // 時の歪み: 遅くなる割合(強度)
+const astGuard = () => Math.min(AST().guardCap, (P.mass || 0) * cuV('passive', 'inert'));                                 // 慣性: 被ダメージの軽減
+const astEjectCost = () => AST().ejectCost - (P.lvFx.ejectCut || 0);                                                      // 質量放出のスタミナ(クラスLv6)
+const astAccrete = () => cuV('trait', 'accrete', 1);                                                                      // 吸積: 拾ったときの質量の倍率
+const astIn = (x, y) => d2(x, y, P.x, P.y) < (P.astR || 0) * (P.astR || 0);                                              // 重力圏の中か
+const astTime = (x, y) => (P.astK > 0 && astIn(x, y) ? 1 - P.astK : 1);                                                 // 重力圏の中の時間の進み方(1 = ふつう)
+// 質量を得る(上限まで)。x, y: 倒した敵の位置(自分へ吸い込まれる粒を出す)
+function astGain(n, x, y) {
+  if (!(n > 0)) return;
+  const before = P.mass;
+  P.mass = Math.min(astMax(), P.mass + n);
+  if (Math.floor(P.mass) !== Math.floor(before)) S.hudDirty = true;
+  if (x !== undefined) asMine(() => part(x, y - 3, (P.x - x) * 1.6, (P.y - y) * 1.6, 0.55, pick(['#8a2a6e', '#ff7ad9']), { glow: true, drag: 0 }));
+}
+// 重力圏(毎フレーム): 半径と遅くする割合を決める / 潮汐力
+function astField(dt) {
+  const p = AST();
+  P.astR = astFieldR(); P.astK = astWarp();
+  if (!hasSp('passive', 'power') || (P.tideT -= dt) > 0) return;
+  P.tideT = p.tideEvery;
+  const pow = p.tidePow + P.mass * p.tidePer;
+  asMine(() => forEachNear(P.x, P.y, P.astR, e => { if (!e.prop) hitEnemy(e, pow, { src: 'gtide', col: '#ff7ad9', noNum: Math.random() < 0.5 }); }));
+}
+// 質量放出(Space): 質量の一部を後ろへ噴き出して、移動方向へ跳ぶ。元の位置で爆ぜる
+function astEject() {
+  const p = AST(), rel = (P.mass || 0) * p.ejectPart, d = P.moving && P.dir ? P.dir : [P.facing, 0], len = Math.hypot(d[0], d[1]) || 1;
+  const dist = p.ejectDist + rel * p.ejectPer, x = P.x, y = P.y, R = p.ejectR * P.area, pow = p.ejectPow + rel * p.ejectPowPer;
+  staUse(astEjectCost());
+  P.mass -= rel; S.hudDirty = true;
+  P.dash = { vx: d[0] / len * dist / p.ejectTime, vy: d[1] / len * dist / p.ejectTime, t: p.ejectTime };
+  P.invT = Math.max(P.invT, p.ejectIfr); P.ifr = Math.max(P.ifr, p.ejectIfr);
+  playAnim('gEject', MOTIONS.gEject.dur); P.anim.keep = true;
+  asMine(() => {
+    forEachNear(x, y, R, e => {
+      if (e.prop) { killEnemy(e); return; }
+      hitEnemy(e, pow, { src: 'geject', ang: Math.atan2(e.y - y, e.x - x), kb: 70, col: '#ff7ad9' });
+    });
+    const back = Math.atan2(-d[1], -d[0]); // 背中から暗い塵と桃色の光が噴き出す(跳ぶ向きと反対へ)
+    for (let i = 0; i < 18; i++) { const s = rand(40, 130), a = back + rand(-0.6, 0.6); part(x, y - 3, Math.cos(a) * s, Math.sin(a) * s, rand(0.3, 0.55), pick(AST_FX), { glow: i % 3 === 0, drag: 3 }); }
+    burst(x, y, 10 + Math.round(rel / 3), ['#3a1438', '#8a2a6e', '#ff7ad9'], { sp: 80, glow: true, life: 0.4 });
+    addRing(x, y, R, '#ff7ad9', { w: 2, life: 0.3 }); addRing(x, y, R * 0.5, '#8a2a6e', { life: 0.25 });
+    addFlash(x, y, R * 1.8, '#5a1450', 0.18);
+    shockAt(x, y, 0.6 + Math.min(0.8, rel / 40), 1.2); shake(2 + Math.min(4, rel / 10));
+  });
+  AudioMan.dash(); AudioMan.boom();
+}
+// 照準がないときの重力崩壊の位置: 射程内で敵が一番集まっている敵の位置。自分のすぐ近くは避ける(引き寄せた敵が自分に重ならないように)
+function astCrowdPt(R) {
+  let best = null, bn = 0;
+  for (const e of enemies) {
+    if (e.dead || e.prop || e.hidden) continue;
+    const d = d2(e.x, e.y, P.x, P.y);
+    if (d < 50 * 50 || d > R * R) continue;
+    let n = 0;
+    forEachNear(e.x, e.y, 40, o => { if (!o.dead && !o.prop) n++; });
+    if (n > bn) { bn = n; best = e; }
+  }
+  return best;
+}
+// 重力崩壊(Q): 質量を全て使い、照準位置に特異点を生む(P.sings)。dur 秒引き寄せてから崩壊する
+function astCollapse(a) {
+  const q = DATA.classes.astro.q, used = P.mass || 0, ar = (1 + cuV('q', 'area')) * P.area, k = 1 + cuV('q', 'pow') + (P.lvFx.qPow || 0);
+  P.mass = 0; S.hudDirty = true;
+  P.sings.push({ x: a.x, y: a.y, t: 0, used, pullR: (q.pullR + used * q.pullPer) * ar, r: q.r * ar, dmg: (q.pow + used * q.perMass) * k,
+    nova: hasSp('q', 'pow'), hawking: hasSp('q', 'cd'), white: hasSp('q', 'area'), boomed: false, novaDone: false });
+  setCd('q', q.cd * (1 - cuV('q', 'cd')) * P.cdMul);
+  asMine(() => { addRing(a.x, a.y, 24, '#ff7ad9', { r0: 4, w: 2, life: 0.35 }); burst(a.x, a.y, 14, AST_FX, { sp: 60, glow: true, life: 0.35 }); shockAt(a.x, a.y, 0.8, 0.6); shake(3); });
+  GFX.fx.aberr = Math.max(GFX.fx.aberr, 0.4 * SET.fxA);
+  AudioMan.hum(q.dur);
+}
+// 特異点: 引き寄せ(中心に近いほど速い。ボス以外)→ 崩壊 → 超新星(特殊強化)
+function astSings(dt) {
+  if (!P.sings.length) return;
+  const q = DATA.classes.astro.q;
+  for (let i = P.sings.length - 1; i >= 0; i--) {
+    const s = P.sings[i];
+    s.t += dt;
+    if (s.t < q.dur) {
+      const R = s.pullR * Math.min(1, s.t * 4);
+      forEachNear(s.x, s.y, R, e => {
+        if (e.boss || e.prop) return;
+        const dd = Math.sqrt(d2(s.x, s.y, e.x, e.y)), u = 1 - Math.min(1, dd / s.pullR), ang = Math.atan2(s.y - e.y, s.x - e.x);
+        const k = Math.min(dd, (q.pullMin + (q.pullMax - q.pullMin) * u) * (1 - (e.kbRes || 0) * 0.6) * dt);
+        e.x += Math.cos(ang) * k; e.y += Math.sin(ang) * k;
+      });
+      // 周りの物質(光の粒)が渦を巻きながら、傾いた降着円盤の面へ落ちていく
+      asMine(() => { for (let n = dt * 50; Math.random() < n; n--) { const a = rand(0, TAU), r = R * rand(0.4, 1), c = Math.cos(a), sn = Math.sin(a); part(s.x + c * r, s.y + sn * r * 0.45, (-c * 1.2 - sn * 0.8) * r * 1.5, (-sn * 1.2 + c * 0.8) * r * 0.68, 0.45, pick(AST_INFALL), { glow: Math.random() < 0.3, drag: 0 }); } });
+      continue;
+    }
+    if (!s.boomed) { s.boomed = true; astCrush(s); }
+    if (s.nova && !s.novaDone && s.t >= q.dur + q.novaT) { s.novaDone = true; astNova(s); }
+    if (s.t >= q.dur + (s.nova ? q.novaT : 0) + 0.05) P.sings.splice(i, 1);
+  }
+}
+// 崩壊: 半径 r の敵へ(ホワイトホール: 生き残りを外へ吹き飛ばしてスタン / ホーキング放射: 使った質量の一部が戻る)
+function astCrush(s) {
+  const q = DATA.classes.astro.q, out = e => { const dx = e.x - s.x, dy = e.y - s.y; return dx * dx + dy * dy < 1 ? rand(0, TAU) : Math.atan2(dy, dx); }; // 中心に重なった敵はランダムな向きへ
+  asMine(() => {
+    forEachNear(s.x, s.y, s.r, e => {
+      if (e.prop) { killEnemy(e); return; }
+      const a = out(e);
+      hitEnemy(e, s.dmg, { src: 'gcrush', ang: a, kb: 60, col: '#ff7ad9' });
+      if (!s.white || e.dead) return;
+      if (!e.boss) { const kb = q.whiteKb * (1 - (e.kbRes || 0)); e.kx += Math.cos(a) * kb; e.ky += Math.sin(a) * kb; }
+      e.stun = Math.max(e.stun || 0, q.whiteStun); // ホワイトホール
+    });
+    // 一瞬縮んで → 桃色の閃光と衝撃波
+    addFlash(s.x, s.y, s.r * 2.4, '#8a2a6e', 0.35); addFlash(s.x, s.y, s.r * 0.8, '#ff7ad9', 0.12);
+    addRing(s.x, s.y, s.r, '#ff7ad9', { w: 3, life: 0.4 }); addRing(s.x, s.y, s.r * 1.4, '#8a2a6e', { w: 2, life: 0.5 });
+    burst(s.x, s.y, 50, AST_FX, { sp: 170, glow: true, life: 0.6 });
+    shockAt(s.x, s.y, 2, 0.9); shake(10); hitstop(0.07);
+    screenFlash(0.15 * SET.fxA, '#3a0a30');
+    if (s.white) { addRing(s.x, s.y, s.r * 2, '#c78bff', { r0: s.r * 0.3, w: 2, life: 0.45 }); shockAt(s.x, s.y, 1.4, 1.4); }
+  });
+  GFX.fx.aberr = Math.max(GFX.fx.aberr, 0.9 * SET.fxA);
+  if (s.hawking) astGain(s.used * q.hawking); // ホーキング放射
+  AudioMan.crush();
+}
+// 超新星: 崩壊の novaT 秒後、外へ向かってもう一度(威力 ×novaK、半径 ×novaR)
+function astNova(s) {
+  const q = DATA.classes.astro.q, R = s.r * q.novaR;
+  asMine(() => {
+    forEachNear(s.x, s.y, R, e => {
+      if (e.prop) { killEnemy(e); return; }
+      hitEnemy(e, s.dmg * q.novaK, { src: 'gcrush', ang: Math.atan2(e.y - s.y, e.x - s.x), kb: 90, col: '#ff7ad9' });
+    });
+    addRing(s.x, s.y, R, '#ff7ad9', { r0: s.r * 0.5, w: 3, life: 0.45 }); addRing(s.x, s.y, R * 0.8, '#8a2a6e', { r0: s.r * 0.3, w: 2, life: 0.5 });
+    addFlash(s.x, s.y, R * 1.6, '#8a2a6e', 0.3);
+    burst(s.x, s.y, 40, AST_FX, { sp: 220, glow: true, life: 0.55 });
+    shockAt(s.x, s.y, 1.6, 1.1); shake(7);
+  });
+  AudioMan.boom();
+}
+
+// ---------- バーサーカー ----------
+const BK = () => DATA.classes.berserker.params;
+const BK_FX = ['#5a0a14', '#3a0610', '#1a0408', '#7a1420']; // 闘気の色(赤黒。明るい赤は敵の攻撃の色なので使わない)
+const bkRageMax = () => BK().rageMax + cuV('trait', 'fury');                               // 怒りの上限(激情)
+const bkRageHit = () => cuV('trait', 'pain', BK().rageHit);                                // 被弾で得る怒り(痛覚)
+const bkCalmT = () => BK().calmT + (P.lvFx.calmT || 0);                                    // 怒りが減り始めるまでの秒数(クラスLv3)
+const bkDecay = () => BK().decay * (1 - cuV('trait', 'grudge'));                           // 怒りが減る速さ(1秒あたり。執念で遅くなる)
+const bkFull = () => P.rage >= bkRageMax();                                                // 怒りが上限
+const bkFervorK = () => 1 + cuV('passive', 'zeal');                                        // 昂りの効果の倍率(熱狂)
+const bkFervorT = () => BK().fervorT + cuV('passive', 'field') + (P.lvFx.fervorT || 0);   // 昂りの時間(戦場・クラスLv8)
+const bkDesperate = () => hasSp('passive', 'edge') && P.hp <= P.maxhp * BK().desperateAt; // 死に物狂い: HP が少ないと昂りが常に最大
+const bkFervorN = () => (bkDesperate() ? BK().fervorMax : P.fervor.length);               // 効いている昂りの段数
+const bkFirmCost = () => BK().firmCost - (P.lvFx.firmCut || 0);                            // 不屈のスタミナ(クラスLv6)
+const bkEyes = () => P.cls === 'berserker' && !!(P.frenzy || bkFull());                    // 目が赤く光る(怒りが上限・狂乱中)
+function bkRageAdd(n) {
+  if (!(n > 0)) return;
+  const before = P.rage;
+  P.rage = Math.min(bkRageMax(), P.rage + n);
+  if (Math.floor(P.rage) !== Math.floor(before)) S.hudDirty = true;
+}
+// 昂りを n 段得る(段ごとに fervorT 秒。上限のときは残りが一番短い段を新しくする)
+function bkFervorAdd(n) {
+  const max = BK().fervorMax, T = bkFervorT();
+  for (let i = 0; i < n; i++) {
+    if (P.fervor.length < max) { P.fervor.push(T); continue; }
+    let j = 0;
+    for (let k = 1; k < P.fervor.length; k++) if (P.fervor[k] < P.fervor[j]) j = k;
+    P.fervor[j] = T;
+  }
+  S.hudDirty = true;
+}
+// 狂い咲き: 狂乱中に敵を倒すと持続 +bloomT(1回の狂乱で bloomMax まで)
+function bkBloom() {
+  const f = P.frenzy, q = DATA.classes.berserker.q;
+  if (!f || !hasSp('q', 'dur') || f.ext >= q.bloomMax) return;
+  const add = Math.min(q.bloomMax - f.ext, q.bloomT);
+  f.t += add; f.max += add; f.ext += add;
+}
+// 不屈(Space): firmT 秒 被ダメージを減らし、減速を受けない(動ける)。足を踏ん張り、全身に赤黒い闘気をまとう
+function bkFirm() {
+  staUse(bkFirmCost());
+  P.firmT = BK().firmT; P.slowT = P.cdSlowT = 0;
+  playAnim('zFirm', MOTIONS.zFirm.dur);
+  asMine(() => {
+    addRing(P.x, P.y + 4, 14, '#7a1418', { w: 2, life: 0.3 }); addRing(P.x, P.y + 4, 8, '#3a0610', { life: 0.25 });
+    burst(P.x, P.y + 2, 14, BK_FX, { sp: 60, up: 20, life: 0.4 });
+    shake(2);
+  });
+  AudioMan.firm();
+}
+// 狂乱(Q): 怒りを全て使い、雄叫びとともに周りを薙ぎ払う(大斧の一回転・赤黒い衝撃波・強い揺れ)→ 狂乱
+//   薙ぎ払いは使う前の怒りの与えるダメージのまま当たる。狂乱の間は怒りを上限にしておく(update)
+function bkFrenzy() {
+  const q = DATA.classes.berserker.q, used = P.rage, R = q.r * P.area;
+  const dmg = (q.pow + used * q.perRage) * (1 + cuV('q', 'pow') + (P.lvFx.qPow || 0)) * (hasSp('passive', 'field') ? 1 + BK().selfPow : 1); // 仁王立ち: 威力 +selfPow
+  asMine(() => {
+    forEachNear(P.x, P.y, R, e => {
+      if (e.prop) { killEnemy(e); return; }
+      hitEnemy(e, dmg, { src: 'frenzy', ang: Math.atan2(e.y - P.y, e.x - P.x), kb: 130, col: '#b8402a' });
+    });
+    slashes.push({ x: P.x, y: P.y, follow: true, a: P.facing < 0 ? Math.PI : 0, r: R, t: 0, life: 0.32, full: true, flip: P.facing < 0, pal: SWING_PAL.rage });
+    addRing(P.x, P.y, R, '#7a1418', { w: 3, life: 0.4 }); addRing(P.x, P.y, R * 1.5, '#3a0610', { r0: R * 0.5, w: 2, life: 0.5 });
+    addFlash(P.x, P.y, R * 2.4, '#3a0610', 0.35);
+    burst(P.x, P.y, 40, BK_FX, { sp: 150, life: 0.55 }); burst(P.x, P.y, 8, BK_FX, { sp: 120, glow: true, life: 0.4 }); // 赤黒い破片(光るのは少しだけ)
+    shockAt(P.x, P.y, 1.3, 1.1); shake(11); hitstop(0.07); // 自分が中心の衝撃波は強すぎると自分の絵が引き伸ばされるので控えめ
+    screenFlash(0.14 * SET.fxA, '#2a0408');
+  });
+  GFX.fx.aberr = Math.max(GFX.fx.aberr, 0.8 * SET.fxA);
+  const dur = Math.min(q.durMax, q.dur + used * q.durPer) + cuV('q', 'dur');
+  P.frenzy = { t: dur, max: dur, used, ext: 0, whirl: q.whirlEvery };
+  P.rage = bkRageMax(); P.sta = 0; S.hudDirty = true;
+  setCd('q', q.cd * (1 - cuV('q', 'cd')) * P.cdMul);
+  AudioMan.warcry(); AudioMan.boom();
+}
+// 狂乱の終わり: 怒りは 0 から溜め直し。スタミナの回復が戻る(0 から)
+function bkFrenzyEnd() {
+  P.frenzy = null; P.rage = 0; P.staLockT = 0; S.hudDirty = true;
+  asMine(() => burst(P.x, P.y - 2, 16, BK_FX, { sp: 50, up: 30, life: 0.5 }));
+}
+// 旋風: 狂乱中、周り(半径 whirlR)を斬る(基礎威力 whirlPow + 使った怒り × whirlPer)
+function bkWhirl(f) {
+  const q = DATA.classes.berserker.q, R = q.whirlR * P.area, dmg = q.whirlPow + f.used * q.whirlPer;
+  asMine(() => {
+    forEachNear(P.x, P.y, R, e => {
+      if (e.prop) { killEnemy(e); return; }
+      hitEnemy(e, dmg, { src: 'frenzy', ang: Math.atan2(e.y - P.y, e.x - P.x), kb: 40, col: '#b8402a', noNum: Math.random() < 0.4 });
+    });
+    slashes.push({ x: P.x, y: P.y, follow: true, a: rand(0, TAU), r: R, t: 0, life: 0.24, full: true, flip: Math.random() < 0.5, pal: SWING_PAL.rage });
+  });
+  AudioMan.slash();
+}
+// 闘気: 怒りが溜まるほど体から赤黒い湯気が立ちのぼる(上限・狂乱で濃く)
+function bkSteam(dt) {
+  const f = P.frenzy ? 1 : P.rage / bkRageMax();
+  if (f < 0.05) return;
+  const rate = (3 + 20 * f) * (bkEyes() ? 1.6 : 1);
+  asMine(() => { for (let n = dt * rate; Math.random() < n; n--) part(P.x + rand(-5, 5), P.y + rand(-8, 3), rand(-6, 6), -rand(12, 28), rand(0.5, 0.9), pick(BK_FX), { glow: Math.random() < 0.06, drag: 1.5 }); });
+}
+
+// ---------- ウェポンマスター ----------
+const WM = () => DATA.classes.weaponmaster.params;
+const WM_COL = '#d08a48';                                  // クラスの色(銅)
+const WM_FX = ['#d08a48', '#8a5a2a', '#5a3a1a', '#ffe8cc']; // 銅の粒(明るい色は少しだけ)
+const WM_SMOKE = ['#5a4a40', '#3a2e28', '#8a5a2a'];         // 煙(分身の出入り・持ち替え・影)
+const WM_SHADE_LIFE = 0.45;                                // 影が見えている時間
+// 武芸百般のスタック: 持っている武器 1つにつき 1(進化した武器は 1 + evoK。極意で 2)+ クラスLv3
+function wmStack() {
+  const evo = hasSp('trait', 'train') ? 1 : WM().evoK;
+  let n = P.lvFx.stack || 0;
+  for (const k in P.weapons) n += P.weapons[k].evo ? 1 + evo : 1;
+  return n;
+}
+const wmFull = () => Object.keys(P.weapons).length >= S.weaponSlots;           // 武器枠が全て埋まっている(不動)
+const wmDashCostOf = lvFx => WM().dashCost - (lvFx.dashCut || 0);              // 残像のスタミナ(クラスLv6)
+const wmDashCost = () => wmDashCostOf(P.lvFx);
+const wmShadeEvery = () => WM().shadeT - cuV('passive', 'freq') - (P.lvFx.shadeCut || 0); // 影の追撃の間隔(頻度・クラスLv5)
+// 影の追撃(毎フレーム): 間隔ごとに影が現れる。まねる武器は持っている武器(メイン武器も)からランダム
+//   双影: 2体(別の武器。武器が 1つだけのときは同じ武器を 2体がまねる)
+function wmShadeTick(dt) {
+  for (const s of P.shades) s.t += dt;
+  if (P.shades.length) P.shades = P.shades.filter(s => s.t < WM_SHADE_LIFE);
+  const ks = shuffle(Object.keys(P.weapons));
+  if (!ks.length || (P.wmShadeT += dt) < wmShadeEvery()) return;
+  P.wmShadeT = 0;
+  const twin = hasSp('passive', 'freq'), side = Math.random() < 0.5 ? -1 : 1;
+  wmShade(ks[0], side, twin);
+  if (twin) wmShade(ks[1] || ks[0], -side, true);
+}
+// 影 1体: 自分の横に現れ、武器 k の攻撃をまねる(攻撃は影の位置から)。威力 ×(1 + 威力のパス + クラスLv17)。双影は -twinCut
+//   残響: その武器の攻撃速度 +echoSpd(echoT 秒)/ 影刃: 影の周り(半径 edgeR)へ 基礎威力(パスの値)。影縫い: スタン
+function wmShade(k, side, twin) {
+  const p = WM(), w = P.weapons[k], st = wst(k), s = { x: P.x + side * p.shadeD, y: P.y, face: P.facing, t: 0, k };
+  const mul = (1 + cuV('passive', 'pow') + (P.lvFx.shadePow || 0)) * (twin ? 1 - p.twinCut : 1);
+  P.shades.push(s);
+  weaponFire(k, w, Object.assign({}, st, { dmg: st.dmg * mul }), orgOf(s, 'S'));
+  if (hasSp('passive', 'pow')) { w.haste = 1 + p.echoSpd; w.hasteT = S.time + p.echoT; } // 残響
+  const edge = cuV('passive', 'edge'), R = p.edgeR * P.area, stun = hasSp('passive', 'edge');
+  asMine(() => {
+    if (edge) { // 影刃: 影の周りの敵に黒い斬り跡が走る(8体まで)。範囲の縁に銅の輪
+      let marks = 0;
+      forEachNear(s.x, s.y, R, e => {
+        if (e.prop) { killEnemy(e); return; }
+        hitEnemy(e, edge, { src: 'wshade', ang: Math.atan2(e.y - s.y, e.x - s.x), kb: 30, col: WM_COL, noNum: Math.random() < 0.4 });
+        if (stun && !e.dead) e.stun = Math.max(e.stun || 0, p.stunT); // 影縫い
+        if (marks++ < 8) { const a = rand(0, Math.PI), L = (e.r || 4) + 3; slashes.push({ mark: true, x: e.x - Math.cos(a) * L, y: e.y - 2 - Math.sin(a) * L, x1: e.x + Math.cos(a) * L, y1: e.y - 2 + Math.sin(a) * L, t: 0, life: 0.2, col: '#2a1a0e', core: '#d08a48' }); }
+      });
+      addRing(s.x, s.y, R, '#8a5a2a', { r0: R * 0.6, life: 0.22 });
+    }
+    burst(s.x, s.y - 4, 8, WM_SMOKE, { sp: 40, up: 15, life: 0.35, drag: 2 });
+  });
+  AudioMan.shade();
+}
+// 残像(Space): 移動方向へ跳ぶ(無敵)。元の位置に銅色の残像
+function wmDash() {
+  const p = WM(), d = P.moving && P.dir ? P.dir : [P.facing, 0], len = Math.hypot(d[0], d[1]) || 1;
+  staUse(wmDashCost());
+  P.dash = { vx: d[0] / len * p.dashDist / p.dashTime, vy: d[1] / len * p.dashDist / p.dashTime, t: p.dashTime };
+  P.invT = Math.max(P.invT, p.dashIfr); P.ifr = Math.max(P.ifr, p.dashIfr);
+  P.after = (P.after || []).concat([{ x: P.x, y: P.y, t: 0, f: P.facing, col: '#7a4a22' }]); // 元の位置の残像(銅)
+  playAnim('wmDash', MOTIONS.wmDash.dur); P.anim.keep = true;
+  asMine(() => burst(P.x, P.y + 5, 8, WM_SMOKE, { sp: 40, up: 8, life: 0.3, drag: 3 }));
+  AudioMan.dash();
+}
+// 残像: 跳んだ直後にメイン武器がもう一度攻撃する(攻撃間隔はそのまま)
+function wmAgain() {
+  const k = P.mainW;
+  if (P.weapons[k]) weaponFire(k, P.weapons[k], wst(k), P_ORG);
+  asMine(() => addRing(P.x, P.y, 12, WM_COL, { life: 0.2 }));
+}
+// 早業: 全ての武器の攻撃間隔を 0 に戻す(オーラは判定の間隔。回り続ける刃は帯の敵へ 1回)
+function wmHaste() {
+  for (const k in P.weapons) {
+    const w = P.weapons[k];
+    if (k === 'blade') weaponFire(k, w, wst(k), P_ORG); else if (k === 'aura') w.tick = 0; else w.cd = 0;
+  }
+  asMine(() => { addRing(P.x, P.y, 16, WM_COL, { w: 2, life: 0.25 }); burst(P.x, P.y - 6, 10, WM_FX, { sp: 70, glow: true, life: 0.3 }); });
+}
+// 間髪: 分身の武器スキルで敵を倒すたびに 武神降臨の CD -killCd(1回の武神降臨で killMax まで)
+function wmQuick() {
+  const q = DATA.classes.weaponmaster.q;
+  if (!hasSp('q', 'cd') || P.wmCut >= q.killMax) return;
+  const n = Math.min(q.killCd, q.killMax - P.wmCut);
+  P.wmCut += n; P.sk.q.cd = Math.max(0, P.sk.q.cd - n); S.hudDirty = true;
+}
+// 武神降臨: 分身を生む。持っている武器の武器スキルから n 個(多芸・クラスLv10。重複なし。武器の数まで)を選び、gap 秒おきに使わせる
+//   分身: 自分の後ろ側(side)についてくる / list: 使う武器の順 / extra: 秘伝で付く特殊強化(武器ごと)/ chans: 使っている途中の武器スキル
+//   stay: 化身(残る秒)/ cws: 化身の通常攻撃の武器の状態
+//   秘伝: その武器の特殊強化を 1つ(メイン武器ですでに特殊強化を持っているときは残りの 2つから)
+function wmSummon() {
+  const q = DATA.classes.weaponmaster.q, n = q.n + cuV('q', 'multi') + (P.lvFx.qN || 0);
+  const list = shuffle(Object.keys(P.weapons).filter(k => WEAPON_SKILL[k] && WEAPON_SKILL[k].cast)).slice(0, n);
+  const extra = list.map(k => (hasSp('q', 'art') ? pick(Object.keys(DATA.weapons[k].skill.tree.paths).filter(p => !(k === P.mainW && P.cs.e === p))) : null));
+  if (P.wmClone) wmCloneEnd(P.wmClone);
+  const side = -P.facing, c = { x: P.x + side * 16, y: P.y + 1, side, face: P.facing, t: 0, list, extra, i: 0, next: 0.05, lastT: 0, chans: [], cur: null, curT: 9,
+    stay: hasSp('q', 'multi') ? q.stayT : 0, cws: {}, used: [] };
+  c.org = orgOf(c, 'C');
+  P.wmClone = c; P.wmCut = 0;
+  setCd('q', q.cd * (1 - cuV('q', 'cd')) * P.cdMul);
+  UI.announce(q.name, list.map((k, i) => DATA.weapons[k].skill.name + (extra[i] ? `(${DATA.weapons[k].skill.tree.paths[extra[i]].sp.name})` : '')).join(' / ')); // 使う武器スキル(秘伝の特殊強化)
+  asMine(() => { // 体から半透明の分身が抜け出す: 煙と銅色の輪(自分が中心の衝撃波は自分の絵を引き伸ばすので使わない)
+    burst(c.x, c.y - 4, 18, WM_SMOKE, { sp: 60, up: 20, life: 0.5, drag: 2 });
+    for (let i = 0; i < 10; i++) part(P.x, P.y - 6, side * rand(40, 90), rand(-30, 10), 0.3, pick(WM_FX), { glow: i % 3 === 0, drag: 4 });
+    addRing(c.x, c.y + 5, 14, WM_COL, { w: 2, life: 0.35 }); addFlash(c.x, c.y, 40, '#5a3a1a', 0.2);
+    shake(3);
+  });
+  AudioMan.summon();
+}
+// 分身(毎フレーム): ついてくる → gap 秒おきに武器スキル → 途中の武器スキルを進める → 化身の通常攻撃 → 全て終わったら消える
+function wmCloneTick(dt) {
+  const c = P.wmClone;
+  if (!c) return;
+  const q = DATA.classes.weaponmaster.q;
+  c.t += dt; c.curT += dt;
+  const tx = P.x + c.side * 16, ty = P.y + 1, k = Math.min(1, dt * 7);
+  c.x += (tx - c.x) * k; c.y += (ty - c.y) * k;
+  const e = nearestEnemy(c.x, c.y, 160);
+  c.face = e ? (e.x < c.x ? -1 : 1) : P.facing;
+  if ((c.next -= dt) <= 0 && c.i < c.list.length) { c.next += q.gap; wmCloneCast(c, c.list[c.i], c.extra[c.i]); c.i++; }
+  c.chans = c.chans.filter(ch => !ch.step(dt));
+  if (c.stay) { const cdt = dt * (P.cdSlowT > 0 ? DATA.debuff.cdRate : 1); for (const k2 of c.used) weaponStep(k2, c.cws[k2], dt, cdt, c.org); } // 化身
+  if (c.i >= c.list.length && !c.chans.length && c.t >= Math.max(c.stay, c.lastT + 0.35)) wmCloneEnd(c);
+}
+// 分身が武器 k の武器スキルを使う: 持ち替え(煙)→ 分身の使い手から cast。威力: 熟練の E の威力 ×(1 + 練度 + クラスLv8・11)/ extra: 秘伝の特殊強化
+function wmCloneCast(c, k, extra) {
+  if (!P.weapons[k]) return; // 使う前に手放した武器(ふつうは起きない)
+  const m = P.wm[k] || {}, X = wmCaster(c, k, extra);
+  const ch = WEAPON_SKILL[k].cast(X, { pow: (1 + (m.ePow || 0)) * (1 + cuV('q', 'art') + (P.lvFx.qPow || 0)) });
+  if (ch) c.chans.push(ch);
+  c.cur = k; c.curT = 0; c.lastT = c.t;
+  if (!c.used.includes(k)) { c.used.push(k); c.cws[k] = Object.assign(Object.create(P.weapons[k]), { cd: 0, q: [], tick: 0, t: 0, ang: 0, blades: null, R: 0, cutN: 0, cutAt: 0, hasteT: 0 }); }
+  asMine(() => { burst(c.x, c.y - 6, 10, WM_SMOKE, { sp: 45, up: 15, life: 0.35, drag: 2 }); addRing(c.x, c.y + 5, 10, DATA.weapons[k].col, { life: 0.25 }); }); // 持ち替えの煙と、武器の色の輪
+  AudioMan.click();
+}
+// 分身の使い手(武器スキルの cast に渡す)。位置は分身(分身が消えた後も残る効果は自分の位置へ。戻ってくる斧など)
+//   E の強化: メイン武器なら自分の E の強化ツリーをそのまま / それ以外は強化なし(秘伝の特殊強化だけ)
+//   範囲・射程: 練度で上がる / 剣の舞の CD 短縮は武神降臨の CD へ
+function wmCaster(c, k, extra) {
+  const q = DATA.classes.weaponmaster.q, lvA = cuLv('q', 'art'), main = k === P.mainW, here = () => P.wmClone === c;
+  return {
+    cl: true,
+    get x() { return here() ? c.x : P.x; }, get y() { return here() ? c.y : P.y; }, get face() { return here() ? c.face : P.facing; },
+    area: P.area * (1 + (lvA ? q.artArea[lvA - 1] : 0)), range: P.range * (1 + (lvA ? q.artRange[lvA - 1] : 0)),
+    lv: (p, d = 0) => (main ? cuV('e', p, d) : d), sp: p => (main && hasSp('e', p)) || p === extra,
+    aim(maxD) { const x = this.x, y = this.y, t = mouseAimPt() || nearestEnemy(x, y, maxD); return t ? Math.atan2(t.y - y, t.x - x) : (this.face > 0 ? 0 : Math.PI); },
+    tgt(R) { return aimPt(this.x, this.y, R, this.face); },
+    cdCut(n) { P.sk.q.cd = Math.max(0, P.sk.q.cd - n); S.hudDirty = true; },
+  };
+}
+// 分身が煙のように消える
+function wmCloneEnd(c) {
+  if (P.wmClone === c) P.wmClone = null;
+  asMine(() => burst(c.x, c.y - 4, 22, WM_SMOKE, { sp: 40, up: 25, life: 0.7, drag: 2 }));
+}
+
 // ---------- world.js から呼ぶ入口 ----------
 const clsRT = () => CLASS_RT[P.cls];
 function clsInit() {
   P.sta = P.maxSta; P.staLockT = 0; P.moveMul = 1; P.invT = 0; P.atkSpd = 1; P.cu = {}; P.cs = {};
-  P.sk = { q: { cd: 0, max: 1 }, e: { cd: 0, max: 1 } }; P.act = null; P.anim = null; P.orb = null; P.dash = null; P.flame = null; P.bladeE = null;
+  P.sk = { q: { cd: 0, max: 1 }, e: { cd: 0, max: 1 } }; P.act = null; P.anim = null; P.orbs = []; P.dash = null; P.flame = null; P.bladeE = null; P.bigWisps = []; P.poss = []; P.rift = null;
   if (clsRT()) clsRT().init();
 }
 function clsUpdate(dt) {
@@ -2524,7 +4227,7 @@ function clsUpdate(dt) {
   if (S.decoy && (S.decoy.t -= dt) <= 0) S.decoy = null;
   const rt = clsRT();
   if (rt) rt.update(dt);
-  if (WEAPON_SKILL[P.mainW] && WEAPON_SKILL[P.mainW].tick) WEAPON_SKILL[P.mainW].tick(dt);
+  for (const w of WS_TICK) w.tick(dt); // 武器スキルの残る効果(オーブ・刃輪・精霊・異次元・斧など)。メイン武器以外の武器スキルも分身などが使うので全て
   // スキルの発動(実行中は他のスキルを使えない)。自動発動は周りに敵が集まっているときだけ(ガード中は使わない)
   if (!P.act && rt) {
     const ws = weaponSkill(), auto = !P.guard;
@@ -2553,9 +4256,14 @@ const clsShieldGain = () => (clsRT() && clsRT().shieldGain ? clsRT().shieldGain(
 const clsShieldCap = () => (clsRT() && clsRT().shieldCap ? clsRT().shieldCap() : P.maxhp);  // シールドの上限
 function clsOnShieldBreak() { if (clsRT() && clsRT().onShieldBreak) clsRT().onShieldBreak(); } // シールドが割れた
 const clsDmgTaken = (e, o) => (clsRT() && clsRT().dmgTaken ? clsRT().dmgTaken(e, o) : 1);
+// 武器スキルによる敵の被ダメージ(侵蝕・次元歪みなど。どれも敵に付いた印で決まるので、メイン武器に限らず全て掛ける)
+const WS_TAKEN = Object.values(WEAPON_SKILL).filter(w => w.dmgTaken), WS_TICK = Object.values(WEAPON_SKILL).filter(w => w.tick);
+const wsDmgTaken = e => { let k = 1; for (const w of WS_TAKEN) k *= w.dmgTaken(e); return k; };
 const clsCritBonus = e => (clsRT() && clsRT().critBonus ? clsRT().critBonus(e) : 0);
 const clsCritDmgBonus = e => (clsRT() && clsRT().critDmgBonus ? clsRT().critDmgBonus(e) : 0);
-function clsOnKill(e) { if (clsRT() && clsRT().onKill) clsRT().onKill(e); }
+function clsOnKill(e, o) { if (clsRT() && clsRT().onKill) clsRT().onKill(e, o); } // o: 倒した一撃の指定(hitEnemy の o。o.cl: 自分以外の使い手の武器スキル)
+function clsOnBossKill(e) { if (clsRT() && clsRT().onBossKill) clsRT().onBossKill(e); } // ボスを倒した(ボスでは clsOnKill は呼ばれない)
+function clsOnPickup(kind) { if (clsRT() && clsRT().onPickup) clsRT().onPickup(kind); } // アイテムを拾った(kind: 'gem' = 経験値の宝石 / coin / meat / magnet / bomb / chest)
 // 凍傷(共通の仕組み)へのクラスの補正: 上限・付いたとき(凍結)・ボスの攻撃速度
 const clsFrostCap = () => (clsRT() && clsRT().frostCap ? clsRT().frostCap() : 0);
 function clsOnFrost(e) { if (clsRT() && clsRT().onFrost) clsRT().onFrost(e); }
@@ -2568,6 +4276,18 @@ const clsBlockProj = () => !!(clsRT() && clsRT().blockProj && clsRT().blockProj(
 const clsHealMul = () => (clsRT() && clsRT().healMul ? clsRT().healMul() : 1);
 function clsOnOverheal(n) { if (clsRT() && clsRT().onOverheal) clsRT().onOverheal(n); }
 const clsHitBonus = (e, o) => (clsRT() && clsRT().hitBonus ? clsRT().hitBonus(e, o) : 0);
+// 時の歪み(アストロマンサーの重力圏): 敵の移動・攻撃の速さの倍率 / 敵の弾の時間の進み方(0 = 止まる)/ 被弾後の無敵時間の倍率(不動)
+const clsEnemySlow = e => (clsRT() && clsRT().enemySlow ? clsRT().enemySlow(e) : 1);
+const clsProjTime = p => (clsRT() && clsRT().projTime ? clsRT().projTime(p) : 1);
+const clsIfrMul = () => (clsRT() && clsRT().ifrMul ? clsRT().ifrMul() : 1);
+// 与えるダメージの倍率(攻撃力とは別に掛ける)/ 倒れるダメージを耐えるか(耐えたら true。HP は呼んだ側で 1 にする)/ 減速を受けない / HP回復速度の追加
+//   (バーサーカーの怒り・不死の狂乱・不屈・昂り など)
+const clsDmgDealt = () => (clsRT() && clsRT().dmgDealt ? clsRT().dmgDealt() : 1);
+const clsSaveLethal = () => !!(clsRT() && clsRT().saveLethal && clsRT().saveLethal());
+const clsSelfHurt = n => (clsRT() && clsRT().selfHurt ? clsRT().selfHurt(n) : n); // 自分の技で受けるダメージ(selfHurt)をクラスが被弾として扱うとき、受ける量
+const clsSlowImmune = () => !!(clsRT() && clsRT().slowImmune && clsRT().slowImmune());
+const clsRegen = () => (clsRT() && clsRT().regen ? clsRT().regen() : 0);
+const clsHpAdd = () => (P && P.cu && clsRT() && clsRT().hpAdd ? clsRT().hpAdd() : 0); // 最大HP の追加(applyStats が読む。ラン開始の最初の計算ではまだ強化ツリーがない)
 // 感電: 命中した敵 e から近くの敵へ雷が連鎖し、与えたダメージ dealt の pct を与える(同じ敵には戻らない)
 //   o.n: 連鎖数(基本 1)/ o.r: 連鎖距離 / o.src: ダメージの出どころ / o.noCharge: 帯電を増やさない(放電)
 function addShock(e, dealt, pct, o = {}) {

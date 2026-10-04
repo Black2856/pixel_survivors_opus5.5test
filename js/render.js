@@ -226,46 +226,153 @@ function drawBow(hx, hy, ang, pull, arrow, glow) {
   if (arrow) for (let i = 0; i <= 9; i++) dot(pt(0, -pull + i), i === 9 ? '#ffffff' : i < 2 ? '#7dff9a' : '#d9c9a0', glow ? '#b8ff9a' : i === 9 ? '#e4ffd8' : null);
   if (glow) addLight(hx + fw[0] * 6 + cam.x, hy + fw[1] * 6 + cam.y, 30, '#b8ff9a', 0.8);
 }
-function drawPose(rig, sp, ms, x, y, flip, white) {
+function drawPose(rig, sp, ms, x, y, flip, white, emitImg) { // emitImg: 発光の絵の差し替え(バーサーカーの戦化粧の明るさ)
   const sx = GFX.sctx, gx = GFX.gctx, sg = flip ? -1 : 1;
   const fx = Math.round(x - cam.x), fy = Math.round(y - cam.y + sp.h / 2 - 1), ax = sp.w / 2, ay = sp.h - 1;
   const img = white ? ART.variant(sp, 'white') : sp.c;
   sx.setTransform(sg, 0, -ms.lean * sg, ms.sy, fx, fy); sx.drawImage(img, -ax, -ay); sx.setTransform(1, 0, 0, 1, 0, 0);
-  if (sp.e) { gx.globalAlpha = 0.9; gx.setTransform(sg, 0, -ms.lean * sg, ms.sy, fx, fy); gx.drawImage(white ? img : sp.e, -ax, -ay); gx.setTransform(1, 0, 0, 1, 0, 0); gx.globalAlpha = 1; }
+  if (sp.e) { gx.globalAlpha = 0.9; gx.setTransform(sg, 0, -ms.lean * sg, ms.sy, fx, fy); gx.drawImage(white ? img : emitImg || sp.e, -ax, -ay); gx.setTransform(1, 0, 0, 1, 0, 0); gx.globalAlpha = 1; }
   const hist = P.anim.hist || (P.anim.hist = []);
   if (ms.bow && ms.hand) { const rx = 1 + rig.padX + ms.hand[0] - ax, ry = 1 + ms.hand[1] - ay; drawBow(fx + sg * (rx - ms.lean * ry), fy + ms.sy * ry, flip ? Math.PI - ms.bowAng : ms.bowAng, ms.pull || 0, ms.arrow, ms.glow); }
+  if (ms.icon && ms.hand) { const rx = 1 + rig.padX + ms.hand[0] - ax, ry = 1 + ms.hand[1] - ay; drawHeld(ms.icon, fx + sg * (rx - ms.lean * ry), fy + ms.sy * ry, flip); } // 手に持った武器(ウェポンマスター)
   if (!ms.blade || !ms.hand) { hist.length = 0; return; }
   const rx = 1 + rig.padX + ms.hand[0] - ax, ry = 1 + ms.hand[1] - ay;
   const hx = fx + sg * (rx - ms.lean * ry), hy = fy + ms.sy * ry;
-  const ang = flip ? Math.PI - ms.ang : ms.ang, T = P.anim.t;
-  // スミア: 直近の角度の範囲を扇形に塗る(新しい角度ほど明るい)
+  const ang = flip ? Math.PI - ms.ang : ms.ang, T = P.anim.t, L = ms.len || BLADE_LEN; // len: 持ち物の長さ(バーサーカーの斧)
+  // スミア: 直近の角度の範囲を扇形に塗る(新しい角度ほど明るい)。smear: 色(既定は白っぽい青)
   hist.push({ t: T, a: ang }); while (hist.length && T - hist[0].t > 0.07) hist.shift();
   let a0 = Infinity, a1 = -Infinity;
   for (const h of hist) { const d = Math.atan2(Math.sin(h.a - ang), Math.cos(h.a - ang)); a0 = Math.min(a0, d); a1 = Math.max(a1, d); }
   if (a1 - a0 > 0.25) {
     const span = a1 - a0;
-    for (let yy = -BLADE_LEN - 1; yy <= BLADE_LEN + 1; yy++) for (let xx = -BLADE_LEN - 1; xx <= BLADE_LEN + 1; xx++) {
-      const d = Math.hypot(xx, yy); if (d < 3 || d > BLADE_LEN + 0.5) continue;
+    for (let yy = -L - 1; yy <= L + 1; yy++) for (let xx = -L - 1; xx <= L + 1; xx++) {
+      const d = Math.hypot(xx, yy); if (d < 3 || d > L + 0.5) continue;
       const da = Math.atan2(Math.sin(Math.atan2(yy, xx) - ang), Math.cos(Math.atan2(yy, xx) - ang));
       if (da < a0 || da > a1) continue;
-      const alpha = 0.55 * (1 - Math.abs(da) / (span + 0.01)) * (d / BLADE_LEN);
-      sx.globalAlpha = gx.globalAlpha = alpha * SET.fxA; sx.fillStyle = gx.fillStyle = '#eaf4ff';
+      const alpha = 0.55 * (1 - Math.abs(da) / (span + 0.01)) * (d / L);
+      sx.globalAlpha = gx.globalAlpha = alpha * SET.fxA; sx.fillStyle = gx.fillStyle = ms.smear || '#eaf4ff';
       sx.fillRect(Math.round(hx + xx), Math.round(hy + yy), 1, 1); gx.fillRect(Math.round(hx + xx), Math.round(hy + yy), 1, 1);
     }
     sx.globalAlpha = gx.globalAlpha = 1;
   }
-  // 刀身(柄は金)
+  // 刀身(柄は金)。斧(axe)は木の柄で光らない
   const seen = new Set();
-  for (let i = 0; i <= BLADE_LEN; i++) {
+  for (let i = 0; i <= L; i++) {
     const px = Math.round(hx + Math.cos(ang) * i), py = Math.round(hy + Math.sin(ang) * i), k = px * 1000 + py;
     if (seen.has(k)) continue; seen.add(k);
+    if (ms.axe) { sx.fillStyle = i < L - 3 ? '#6a4424' : '#5a5f6a'; sx.fillRect(px, py, 1, 1); continue; }
     sx.fillStyle = i < 2 ? '#d6ae5c' : '#eaf4ff'; sx.fillRect(px, py, 1, 1);
     if (i >= 2) { gx.fillStyle = '#eaf4ff'; gx.fillRect(px, py, 1, 1); }
   }
+  if (ms.axe) { // 斧の刃: 先端の片側(振る向きの前)に張り出す。背に小さなとがり。big は刃が大きい(狂乱の大斧)
+    const nx = -Math.sin(ang) * sg, ny = Math.cos(ang) * sg, W = ms.big ? 3 : 2;
+    for (let i = L - 3; i <= L; i++) for (let s = -1; s <= W; s++) {
+      if (s === 0 || (s < 0 && i < L - 1) || (s === W && (i === L - 3 || i === L))) continue; // 柄の上・背のとがり以外・刃の角
+      const px = Math.round(hx + Math.cos(ang) * i + nx * s), py = Math.round(hy + Math.sin(ang) * i + ny * s);
+      sx.fillStyle = s === W || (s === W - 1 && (i === L - 3 || i === L)) ? '#e8eef6' : '#8d97a6'; sx.fillRect(px, py, 1, 1);
+    }
+  }
+}
+// 手に持った武器: 武器のアイコン(9×9)を手の位置 (hx, hy)(画面の座標)の少し上に描く。光の層には描かない(白く飛ぶため)
+function drawHeld(k, hx, hy, flip, alpha = 1) {
+  const ic = ART.S.icons[k];
+  if (!ic) return;
+  const sx = GFX.sctx;
+  sx.globalAlpha = alpha;
+  sx.drawImage(flip ? ART.variant(ic, 'flip') : ic.c, Math.round(hx - ic.w / 2), Math.round(hy - ic.h + 2));
+  sx.globalAlpha = 1;
+}
+// 体の縁の光(バーサーカーの狂乱・不屈): スプライトの形の単色を上下左右へ 1ドットずらして本体の後ろに描く
+//   光の層には別の暗い色(gcol)で描き、本体の形でくり抜いて縁の 1ドットだけを光らせる(体ごと光るとブルームで丸く白く飛ぶため)
+//   光の層は透明度では暗くならない(色そのままで光る)ので、明るさは gcol の色で決める
+//   ms があればスキルのモーション中(drawPose と同じ変形)、なければ待機・歩き(drawSp と同じ位置)
+function drawRim(psp, ms, x, y, flip, col, a, gcol) {
+  const sx = GFX.sctx, gx = GFX.gctx, D = [[-1, 0], [1, 0], [0, -1], [0, 1]];
+  const sg = flip ? -1 : 1, fx = Math.round(x - cam.x), fy = Math.round(y - cam.y + psp.h / 2 - 1), src = ms ? psp.c : flip ? ART.variant(psp, 'flip') : psp.c;
+  const dx = Math.round(x - cam.x - psp.w / 2), dy = Math.round(y - cam.y - psp.h / 2);
+  const put = (c, img, ox, oy) => {
+    if (ms) { c.setTransform(sg, 0, -ms.lean * sg, ms.sy, fx + ox, fy + oy); c.drawImage(img, -psp.w / 2, -(psp.h - 1)); c.setTransform(1, 0, 0, 1, 0, 0); }
+    else c.drawImage(img, dx + ox, dy + oy);
+  };
+  sx.globalAlpha = a; for (const [ox, oy] of D) put(sx, ART.tint(src, col), ox, oy); sx.globalAlpha = 1;
+  if (!gcol) return;
+  for (const [ox, oy] of D) put(gx, ART.tint(src, gcol), ox, oy);
+  gx.globalCompositeOperation = 'destination-out'; put(gx, src, 0, 0); gx.globalCompositeOperation = 'source-over';
+}
+// バーサーカー: 体の縁の光 [色, 濃さ, 光の層の色](狂乱は赤く脈打ち、不屈は暗い赤で光らせない)
+const bkRim = t => (P.frenzy ? ['#7a0e1c', 0.75 + 0.15 * Math.sin(t * 12), Math.sin(t * 12) > 0 ? '#3a0610' : '#2a040a'] : P.firmT > 0 ? ['#4a0810', 0.9, null] : null);
+// 発光の絵を明るさの段階 lv(0〜n-1)で暗くしたもの(光の層は透明度では暗くならないので、色そのものを暗くする)。段階ごとにキャッシュ
+const dimCache = new WeakMap();
+function dimEmit(e, lv, n = 6) {
+  if (!e || lv >= n - 1) return e;
+  let a = dimCache.get(e);
+  if (!a) dimCache.set(e, a = []);
+  if (!a[lv]) {
+    const c = ART.canvas(e.width, e.height), x = c.getContext('2d'), v = Math.round(255 * (0.12 + 0.88 * lv / (n - 1)));
+    x.drawImage(e, 0, 0);
+    x.globalCompositeOperation = 'multiply'; x.fillStyle = `rgb(${v},${v},${v})`; x.fillRect(0, 0, c.width, c.height);
+    x.globalCompositeOperation = 'destination-in'; x.drawImage(e, 0, 0);
+    a[lv] = c;
+  }
+  return a[lv];
+}
+// バーサーカーの戦化粧の光り方の段階: 怒りが溜まるほど明るい(狂乱中は最大)。目(怒りが上限・狂乱中だけ赤い)も同じ絵なので一緒に明るくなる
+const bkPaintLv = () => (P.frenzy ? 5 : Math.round(5 * Math.min(1, P.rage / bkRageMax())));
+// ウェポンマスター: 影の追撃の影と、武神降臨の分身(自分の後ろに描く)
+//   影: 黒い影が一瞬現れ、まねた武器を手に前へ突き出して、薄れて消える(銅色の縁取り)
+//   分身: 半透明の自分(銅色の縁取り。光の層には暗い銅の縁だけ)。今使っている武器を手に持つ(持ち替えた直後は少し掲げる)。現れるとき・消えるときは薄く
+function drawWm(rig, t) {
+  if (P.cls !== 'weaponmaster' || !rig) return;
+  const sx = GFX.sctx, base = rig.base, foot = y => y - (base.h - ART.S.player.h) / 2; // 足元の位置を旧プレイヤーと揃える
+  for (const s of P.shades) {
+    const u = s.t / WM_SHADE_LIFE, a = s.t < 0.06 ? s.t / 0.06 : 1 - Math.max(0, (u - 0.45) / 0.55), flip = s.face < 0, y = foot(s.y);
+    const pose = weaponmasterPose(s.t < 0.2 ? 1 : 0, { L: s.t < 0.2 ? 1 : 0, arm: s.t < 0.25 ? 'forward' : 'base', legs: s.t < 0.25 ? 'stepA' : 'base' }), sp = rig.pose(pose.p);
+    shadow(s.x, s.y + 7, 7 * a);
+    drawRim(sp, null, s.x, y, flip, WM_COL, 0.5 * a, null);
+    sx.globalAlpha = 0.8 * a; sx.drawImage(ART.tint(flip ? ART.variant(sp, 'flip') : sp.c, '#140e0c'), Math.round(s.x - cam.x - sp.w / 2), Math.round(y - cam.y - sp.h / 2)); sx.globalAlpha = 1;
+    const hx = s.x + (flip ? -1 : 1) * (pose.hand[0] + 1 - sp.w / 2 + rig.padX), hy = y - sp.h / 2 + pose.hand[1] + 1;
+    drawHeld(s.k, hx, hy, flip, 0.9 * a);
+  }
+  const c = P.wmClone;
+  if (!c) return;
+  const end = c.i >= c.list.length && !c.chans.length ? Math.min(1, Math.max(0, Math.max(c.stay, c.lastT + 0.35) - c.t) / 0.25) : 1;
+  const a = Math.min(1, c.t / 0.15, end), flip = c.face < 0, y = foot(c.y), raise = c.curT < 0.25;
+  const moving = Math.hypot(P.x + c.side * 16 - c.x, P.y + 1 - c.y) > 2 || P.moving;
+  const pose = raise ? weaponmasterPose(0, { arm: 'raise', armDy: -2, legs: 'stepB' }) : weaponmasterPose(0, { arm: 'forward', legs: moving ? (Math.floor(t * 9) % 2 ? 'stepA' : 'stepB') : 'base' });
+  const sp = rig.pose(pose.p), img = flip ? ART.variant(sp, 'flip') : sp.c, dx = Math.round(c.x - cam.x - sp.w / 2), dy = Math.round(y - cam.y - sp.h / 2);
+  shadow(c.x, c.y + 7, 8 * a);
+  // 縁は暗めの銅(足元の光で明るくなるので、クラスの色そのままだと白っぽく飛ぶ)。光の層には暗い銅の縁だけ
+  drawRim(sp, null, c.x, y, flip, '#8a5a2a', 0.85 * a, '#2a1a0c');
+  sx.globalAlpha = 0.7 * a; sx.drawImage(ART.tint(img, '#16121a'), dx, dy); // 影の体
+  sx.globalAlpha = 0.3 * a; sx.drawImage(img, dx, dy);                      // うっすら自分の姿(鉢金・背中の武器)
+  sx.globalAlpha = 1;
+  if (c.cur) {
+    const hx = c.x + (flip ? -1 : 1) * (pose.hand[0] + 1 - sp.w / 2 + rig.padX), hy = y - sp.h / 2 + pose.hand[1] + 1;
+    drawHeld(c.cur, hx, hy, flip, 0.9 * a);
+  }
+}
+// バーサーカー: 足元の昂りの輪(段の数だけ重なる。最大で脈打つ)
+function drawBerserkRings(t) {
+  if (P.cls !== 'berserker' || P.dead) return;
+  const n = bkFervorN();
+  if (!n) return;
+  const sx = GFX.sctx, gx = GFX.gctx, cx = P.x - cam.x, cy = P.y - cam.y + 7, full = n >= BK().fervorMax, pulse = full ? 0.5 + 0.5 * Math.sin(t * 9) : 0;
+  gx.globalAlpha = 1;
+  for (let i = 0; i < n; i++) {
+    const R = 7 + i * 3 + (full && pulse > 0.5 ? 1 : 0), m = Math.round(R * 4.5);
+    for (let j = 0; j < m; j++) {
+      const a = j * TAU / m, x = Math.round(cx + Math.cos(a) * R), y = Math.round(cy + Math.sin(a) * R * 0.38);
+      sx.globalAlpha = 0.45 + 0.3 * pulse; sx.fillStyle = '#4a0810'; sx.fillRect(x, y, 1, 1);
+      if (full && pulse > 0.6) { gx.fillStyle = '#1e0306'; gx.fillRect(x, y, 1, 1); } // 最大で脈打つ(光の層は色で明るさが決まるので、ごく暗い赤)
+    }
+  }
+  sx.globalAlpha = gx.globalAlpha = 1;
 }
 
 function render() {
   const { lctx: lx, VW, VH } = GFX;
+  if (GFX.overOn) { GFX.octx.clearRect(0, 0, VW, VH); GFX.overOn = false; } // 前景(重力崩壊の特異点)と重力レンズは毎フレーム描き直す
+  GFX.lenses.length = 0;
   const REAL_S = GFX.sctx, REAL_G = GFX.gctx;
   let sx = REAL_S, gx = REAL_G;
   sx.setTransform(1, 0, 0, 1, 0, 0); gx.setTransform(1, 0, 0, 1, 0, 0);
@@ -453,6 +560,7 @@ function render() {
     if (!enemy) { // 一閃の間は周りを少し暗くする(刃筋だけが浮かび上がる)
       let dim = 0;
       for (const s of slashes) if (s.cut) dim = Math.max(dim, cutDim(s));
+      dim = Math.max(dim, S.dimK || 0); // スキルの構えで暗くする(葬送)
       if (dim > 0.01) { sx.globalAlpha = dim; sx.fillStyle = '#0a0208'; sx.fillRect(0, 0, VW, VH); sx.globalAlpha = 1; }
     }
     for (const s of slashes) {
@@ -499,11 +607,11 @@ function render() {
     }
   };
   // 斬撃の振り抜き: 刃の軌跡が扇の端から端へ走る三日月。少し遅れて尾がついていき、消える
-  //   外側の縁 = 当たり判定の半径 r、振り抜く角度 = 当たり判定の角度 span(full は全周)。follow: 自分について動く
+  //   外側の縁 = 当たり判定の半径 r、振り抜く角度 = 当たり判定の角度 span(full は全周)。follow: 自分(true)・使い手(x, y を持つもの)について動く
   //   通った範囲の外縁には細い線が残り、どこまで届いたかが分かる
   const drawSwing = s => {
     const span = s.full ? TAU : s.span || 2.1, R = s.r, dir = s.flip ? -1 : 1, pal = s.pal || SWING_PAL.katana;
-    const ox = (s.follow ? P.x : s.x) - cam.x, oy = (s.follow ? P.y : s.y) - cam.y;
+    const fo = s.follow === true ? P : s.follow, ox = (fo ? fo.x : s.x) - cam.x, oy = (fo ? fo.y : s.y) - cam.y;
     const k = s.t / s.life, ss = x => x * x * (3 - 2 * x);
     const head = easeOutCubic(Math.min(1, k / 0.45)), tail = ss(clamp((k - 0.15) / 0.85, 0, 1)); // 切っ先 / 尾(0 = 扇の始端 → 1 = 終端)
     const fade = 1 - ss(clamp((k - 0.5) / 0.5, 0, 1));
@@ -535,6 +643,7 @@ function render() {
   // ======== 自分の攻撃(地面側): ゾーン・オーラ ========
   // 範囲は均一な半透明塗り(市松ディザは模様の切り替わりでちらつくため廃止)
   mineOn();
+  drawRift(t); // ディメンション・リフト: 画面全体を異次元に沈める(地面の上・敵の下)
   for (const z of zones) {
     const zx = z.x - cam.x, zy = z.y - cam.y;
     const fade = Math.min(1, (z.dur - z.t) * 4, z.t * 6);
@@ -634,6 +743,17 @@ function render() {
       }
       gx.globalAlpha = 1;
       addLight(z.x, z.y, z.r * 2.2, '#bff4ff', 0.6 * fade);
+    } else if (z.kind === 'grudge') { // 慟哭: 紫の念が渦を巻く円
+      const R = Math.round(z.r);
+      sx.globalAlpha = 0.18 * fade; pDisc(sx, zx, zy, R, '#4a3a8a');
+      sx.globalAlpha = 0.6 * fade; pCircle(sx, zx, zy, R, '#8a6cff', 1); sx.globalAlpha = 1;
+      gx.globalAlpha = 0.5 * fade;
+      for (let i = 0; i < 3; i++) for (let s = 0; s < 7; s++) { // 中心へ巻き込む腕
+        const rr = R * (1 - s / 8), aa = t * 2 + i * TAU / 3 + s * 0.5;
+        gx.fillStyle = s % 2 ? '#6a4ad0' : '#8a6cff'; gx.fillRect(Math.round(zx + Math.cos(aa) * rr), Math.round(zy + Math.sin(aa) * rr * 0.7), 1, 1);
+      }
+      gx.globalAlpha = 1;
+      addLight(z.x, z.y, z.r * 2, '#7a50e0', 0.3 * fade);
     } else if (z.kind === 'residue') {
       sx.globalAlpha = 0.28 * fade; pDisc(sx, zx, zy, Math.round(z.r), '#bff4ff');
       sx.globalAlpha = 0.7 * fade; pCircle(sx, zx, zy, Math.round(z.r), '#ffffff', 1); sx.globalAlpha = 1;
@@ -646,15 +766,19 @@ function render() {
       addLight(z.x, z.y, z.r * 2.5, '#c78bff', 0.9);
     }
   }
+  drawAstroField(t); // アストロマンサーの重力圏の縁
   const aw = P.weapons.aura;
   if (aw && aw.R && !P.dead) {
-    const R = Math.round(aw.R), col = aw.evo ? '#fff3a0' : '#ffe38a';
-    sx.globalAlpha = 0.12; pDisc(sx, P.x - cam.x, P.y - cam.y, R, col); sx.globalAlpha = 1;
-    pCircle(gx, P.x - cam.x, P.y - cam.y, R, col, 1);
-    gx.globalAlpha = 0.5;
-    for (let i = 0; i < 8; i++) { const a = t * 1.2 + TAU / 8 * i; gx.fillStyle = col; gx.fillRect(Math.round(P.x - cam.x + Math.cos(a) * (R - 3)), Math.round(P.y - cam.y + Math.sin(a) * (R - 3)), 2, 2); }
-    gx.globalAlpha = 1;
-    addLight(P.x, P.y, R * 2.2, '#ffe38a', 0.45);
+    const ca = P.wmClone && P.wmClone.cws.aura && P.wmClone.cws.aura.R ? [P.wmClone] : []; // 分身(化身)のオーラも
+    for (const o of [P, ...ca]) {
+      const R = Math.round(aw.R), col = aw.evo ? '#fff3a0' : '#ffe38a', ox = o.x - cam.x, oy = o.y - cam.y;
+      sx.globalAlpha = 0.12; pDisc(sx, ox, oy, R, col); sx.globalAlpha = 1;
+      pCircle(gx, ox, oy, R, col, 1);
+      gx.globalAlpha = 0.5;
+      for (let i = 0; i < 8; i++) { const a = t * 1.2 + TAU / 8 * i; gx.fillStyle = col; gx.fillRect(Math.round(ox + Math.cos(a) * (R - 3)), Math.round(oy + Math.sin(a) * (R - 3)), 2, 2); }
+      gx.globalAlpha = 1;
+      addLight(o.x, o.y, R * 2.2, '#ffe38a', 0.45);
+    }
   }
   mineOff();
 
@@ -757,6 +881,10 @@ function render() {
       if (!(e.frost > 0)) { gx.globalAlpha = sx.globalAlpha * 0.6; gx.drawImage(ice, ix, iy, sp.w * sc, sp.h * sc); } // 凍傷・凍結は光の層に描かない(薄くても白く飛んで、敵が白い塊に見えるため)
       sx.globalAlpha = gx.globalAlpha = 1;
     }
+    if (e.curseT > S.time) { // 呪い(紫): 頭上で小さな火がゆらめく(取り憑いた精霊は自分の攻撃の層で描く)
+      const top = Math.round(e.y + yo - cam.y - sp.h * sc / 2) - 3, f = Math.floor(t * 8 + e.seed * 5) % 2, x = Math.round(e.x - cam.x) - (e.possN > 0 ? 3 : 0);
+      sx.fillStyle = gx.fillStyle = '#a58cff'; sx.fillRect(x, top - f, 1, 2); gx.fillRect(x, top - f, 1, 2); sx.fillRect(x - 1, top + 1, 3, 1);
+    }
     if (e.elite) {
       addLight(e.x, e.y, 50, '#ffd23f', 0.8);
     }
@@ -778,7 +906,8 @@ function render() {
     const mn = rig && P.anim ? (rig.alias && rig.alias[P.anim.name]) || P.anim.name : null;
     const M = mn && MOTIONS[mn] && MOTIONS[mn].rig === DATA.classes[P.cls].rig ? MOTIONS[mn] : null; // 他クラスのモーションは使わない
     const ms = M ? M.state(P.anim.t, P.anim.arg) : null;
-    const psp = ms ? rig.pose(ms.p) : rig && P.guard && rig.guard ? rig.pose(rig.guard) : rig ? ART.rigFrame(rig, P.moving ? 'walk' : 'idle', t) : ART.S.player; // guard: 構えの姿勢(ナイト)
+    const bk = P.cls === 'berserker', walkM = (P.moving ? 'walk' : 'idle') + (bk && bkEyes() ? 'R' : ''); // バーサーカー: 怒りが上限・狂乱中は目が赤く光る絵
+    const psp = ms ? rig.pose(ms.p) : rig && P.guard && rig.guard ? rig.pose(rig.guard) : rig ? ART.rigFrame(rig, walkM, P.cls === 'astro' && P.moving ? P.walkT : t) : ART.S.player; // アストロマンサーは重いほど足取りが遅い // guard: 構えの姿勢(ナイト)
     const py = P.y - (psp.h - ART.S.player.h) / 2; // 足元の位置を旧プレイヤーと揃える
     // 空蝉の分身(白いシルエットが明滅する)
     if (S.decoy && rig) drawSp(rig.base, S.decoy.x, S.decoy.y - (rig.base.h - ART.S.player.h) / 2, { white: true, alpha: 0.35 + 0.25 * Math.sin(t * 20), flip: P.facing < 0, emit: false });
@@ -787,14 +916,24 @@ function render() {
       const ax = Math.round(a.x - cam.x - psp.w / 2), ay = Math.round(a.y - (P.y - py) - cam.y - psp.h / 2);
       const src = a.f < 0 ? ART.variant(psp, 'flip') : psp.c;
       sx.globalAlpha = 0.45 * (1 - a.t / 0.25);
-      sx.drawImage(ART.tint(src, DATA.classes[P.cls].col), ax, ay);
+      sx.drawImage(ART.tint(src, a.col || DATA.classes[P.cls].col), ax, ay); // col: 残像ごとの色(バーサーカーの狂乱は暗い赤)
       sx.globalAlpha = 1;
     }
+    drawWm(rig, t); // ウェポンマスター: 影の追撃の影・武神降臨の分身(自分の後ろに描く)
     shadow(P.x, P.y + 7, 9);
+    drawAstroBody(t, false); // アストロマンサー: 足元の暗い輪・奥側を回る星
+    drawBerserkRings(t);     // バーサーカー: 足元の昂りの輪
     const step = rig ? 0 : P.moving ? Math.sin(P.animT * 14) : Math.sin(P.animT * 3) * 0.5;
-    const blink = P.ifr > 0 && Math.floor(t * 20) % 2 === 0;
-    if (ms) { if (!blink || P.invT > 0) drawPose(rig, psp, ms, P.x, py, P.facing < 0, P.hurtT > 0); }
-    else if (!blink || P.invT > 0) drawSp(psp, P.x, py - Math.abs(step) * (P.moving ? 1.5 : 0.5), { flip: P.facing < 0, white: P.hurtT > 0, sy: 1 + step * 0.05, sxk: 1 - step * 0.03 });
+    const blink = P.ifr > 0 && Math.floor(t * 20) % 2 === 0, ghostA = P.phase ? 0.45 : 1; // 霊体化(ネクロマンサー): 半透明
+    const rim = bk ? bkRim(t) : null; // バーサーカー: 体の縁の光(狂乱・不屈)
+    if (ms) { if (!blink || P.invT > 0) { if (rim) drawRim(psp, ms, P.x, py, P.facing < 0, ...rim); sx.globalAlpha = ghostA; drawPose(rig, psp, ms, P.x, py, P.facing < 0, P.hurtT > 0, bk ? dimEmit(psp.e, bkPaintLv()) : null); sx.globalAlpha = 1; } }
+    else if (!blink || P.invT > 0) {
+      if (rim) drawRim(psp, null, P.x, py, P.facing < 0, ...rim);
+      const dimE = bk && P.hurtT <= 0; // バーサーカー: 戦化粧は怒りが溜まるほど光る(暗くした発光の絵を自分で重ねる)
+      drawSp(psp, P.x, py - Math.abs(step) * (P.moving ? 1.5 : 0.5), { flip: P.facing < 0, white: P.hurtT > 0, sy: 1 + step * 0.05, sxk: 1 - step * 0.03, alpha: P.phase ? ghostA : undefined, emit: !dimE });
+      if (dimE && psp.e) { gx.globalAlpha = 0.9; gx.drawImage(dimEmit(P.facing < 0 ? ART.variant(psp, 'flipE') : psp.e, bkPaintLv()), Math.round(P.x - cam.x - psp.w / 2), Math.round(py - cam.y - psp.h / 2)); gx.globalAlpha = 1; }
+    }
+    drawAstroBody(t, true); // アストロマンサー: 質量の塵・手前を回る星
     // ガード(見切り): 正面に光る弧。ジャスト受付中は白く明るい
     if (P.guard && P.cls === 'knight') { // 大盾: 全方向を守る金の輪(ゆっくり回る光)
       const cx = P.x - cam.x, cy = P.y - cam.y - 2, R = 13;
@@ -827,13 +966,15 @@ function render() {
       }
       sx.globalAlpha = gx.globalAlpha = 1;
     }
-    if (P.flame) { // 杖先の噴き出し口と、炎に照らされた地面(ダブル放射は反対側にも)
-      const f = P.flame;
+    // 杖先の噴き出し口と、炎に照らされた地面(ダブル放射は反対側にも)。分身の火炎放射は分身の位置から
+    const flames = P.flame ? [[P.flame, P]] : [];
+    if (P.wmClone) for (const ch of P.wmClone.chans) if (ch.flame) flames.push([ch.flame, ch.X]);
+    for (const [f, o] of flames) {
       for (const a of f.dbl ? [f.a, f.a + Math.PI] : [f.a]) {
-        const nx = P.x + Math.cos(a) * 9 - cam.x, ny = P.y - 6 + Math.sin(a) * 6 - cam.y;
+        const nx = o.x + Math.cos(a) * 9 - cam.x, ny = o.y - 6 + Math.sin(a) * 6 - cam.y;
         gx.globalAlpha = 0.5; pDisc(gx, nx, ny, 2 + Math.round(Math.random()), f.blue ? '#bff4ff' : '#ffc34a'); gx.globalAlpha = 1;
         pDisc(sx, nx, ny, 2, '#ffffff');
-        addLight(P.x + Math.cos(a) * f.len * 0.5, P.y + Math.sin(a) * f.len * 0.5, f.len * 1.8, f.blue ? '#7ad7ff' : '#ff8a3d', 0.9 + 0.1 * Math.sin(t * 25));
+        addLight(o.x + Math.cos(a) * f.len * 0.5, o.y + Math.sin(a) * f.len * 0.5, f.len * 1.8, f.blue ? '#7ad7ff' : '#ff8a3d', 0.9 + 0.1 * Math.sin(t * 25));
       }
     }
     addLight(P.x, P.y, 105, DATA.classes[P.cls].light || '#ffe2b8', 0.95);
@@ -843,18 +984,55 @@ function render() {
   mineOn();
   const bw = P.weapons.blade;
   if (bw && bw.blades) {
-    if (P.bladeE && P.mainW === 'blade' && bw.blades.length) { // 刃輪展開: 広がった輪の軌跡がうっすら光る
+    if (P.bladeE && bw.blades.length) { // 刃輪展開: 広がった輪の軌跡がうっすら光る
       const b0 = bw.blades[0], R = Math.hypot(b0.x - P.x, b0.y - P.y), cx = P.x - cam.x, cy = P.y - cam.y;
       gx.globalAlpha = 0.35; gx.fillStyle = bw.evo ? '#8e0016' : '#d8e4ff';
       for (let a = 0; a < TAU; a += 0.05) gx.fillRect(Math.round(cx + Math.cos(a) * R), Math.round(cy + Math.sin(a) * R), 1, 1);
       gx.globalAlpha = 1;
     }
-    for (const b of bw.blades) {
+    // 自分の刃と、分身(化身)の刃の輪
+    const cbw = P.wmClone && P.wmClone.cws.blade;
+    for (const b of cbw && cbw.blades ? bw.blades.concat(cbw.blades) : bw.blades) {
       drawRot(bw.evo ? 'bladeEvo' : 'blade', b.a * 2, b.x, b.y, { scale: b.s || 1 });
       addLight(b.x, b.y, 16 * (b.s || 1), bw.evo ? '#8e0016' : '#d8e4ff', 0.6);
     }
   }
-  drawSlashes(false);
+  drawSlashes(false); // (一閃・葬送の構えで周りを暗くするので、死霊・霊弾はこの後に描いて浮かび上がらせる)
+  drawSings(t); // 重力崩壊の特異点(引き寄せた敵の団子に隠れないよう、敵より手前に描く)
+  // ネクロマンサーの死霊: 小さな紫白の人魂(進む向きと反対に尾を引く)。ふだんは暗め、飛びかかる瞬間だけ明るい
+  if (P.souls && P.souls.length && !P.dead) for (const s of P.souls) {
+    const x = Math.round(s.x - cam.x), y = Math.round(s.y - cam.y), v = Math.hypot(s.vx || 0, s.vy || 0);
+    const tx = v > 20 ? -s.vx / v : 0, ty = v > 20 ? -s.vy / v : 1, k = 0.6 + 0.4 * s.bright; // 尾の向き(止まっているときは下)
+    sx.fillStyle = '#5a3ab0';
+    for (let i = 2; i <= 5; i++) { sx.globalAlpha = k * (1 - i / 6); sx.fillRect(Math.round(x + tx * i), Math.round(y + ty * i), 1, 1); }
+    sx.globalAlpha = k; sx.fillStyle = '#8a6cff'; sx.fillRect(x - 1, y, 3, 1); sx.fillRect(x, y - 1, 1, 3);
+    sx.fillStyle = s.bright > 0.3 ? '#d8c8ff' : '#b8a4ff'; sx.fillRect(x, y, 1, 1);
+    gx.globalAlpha = 0.12 + 0.45 * s.bright; gx.fillStyle = '#6a4ad0'; gx.fillRect(x - 1, y, 3, 1); gx.fillRect(x, y - 1, 1, 3);
+    sx.globalAlpha = gx.globalAlpha = 1;
+    addLight(s.x, s.y, 8 + 10 * s.bright, '#7a50e0', 0.15 + 0.35 * s.bright);
+  }
+  // 葬送の霊弾: 紫の光の球と尾(集束は大きい)
+  if (P.nbombs && P.nbombs.length) for (const b of P.nbombs) {
+    const x = b.x - cam.x, y = b.y - cam.y, r = b.big ? 5 : 2, v = Math.hypot(b.vx, b.vy) || 1, L = b.big ? 14 : 8;
+    gx.fillStyle = '#6a4ad0';
+    for (let i = 1; i <= L; i++) { gx.globalAlpha = 0.6 * (1 - i / (L + 1)); gx.fillRect(Math.round(x - b.vx / v * i), Math.round(y - b.vy / v * i), b.big ? 2 : 1, b.big ? 2 : 1); }
+    gx.globalAlpha = 1;
+    pDisc(sx, x, y, r, '#4a2a9a'); pDisc(sx, x, y, Math.max(1, r - 1), '#8a6cff'); sx.fillStyle = '#d8c8ff'; sx.fillRect(Math.round(x), Math.round(y), 1, 1);
+    gx.globalAlpha = 0.55; pDisc(gx, x, y, r, '#6a4ad0'); gx.globalAlpha = 1;
+    addLight(b.x, b.y, b.big ? 50 : 22, '#7a50e0', 0.6);
+  }
+  // 大精霊(スピリットストームの特殊強化)
+  if (P.bigWisps) for (const b of P.bigWisps) { drawSp(ART.S.wisp, b.x, b.y + Math.sin(t * 6) * 1.5, { scale: 3 }); addLight(b.x, b.y, 70, '#9dffcf', 0.9); }
+  // スピリットストームの取り憑いた精霊: 宿主の頭の上を小さく回る緑の火(数が多いので、白く飛ばないよう暗めの緑で小さく)
+  if (P.poss && P.poss.length) for (const ps of P.poss) {
+    if (ps.done || !ps.e) continue;
+    const e = ps.e, x = Math.round(e.x - cam.x + Math.cos(ps.a) * 4), y = Math.round(e.y - cam.y - (e.r || 4) - 5 + Math.sin(ps.a * 2)), f = Math.floor(t * 10 + ps.a) % 2;
+    sx.fillStyle = '#1f8f6a'; sx.fillRect(x + (f ? 1 : 0), y - 2 - f, 1, 1); // 揺れる火の先
+    sx.fillStyle = '#2fbf8a'; sx.fillRect(x - 1, y, 3, 1); sx.fillRect(x, y - 1, 1, 3);
+    sx.fillStyle = '#9dffcf'; sx.fillRect(x, y, 1, 1);
+    gx.globalAlpha = 0.35; gx.fillStyle = '#2fbf8a'; gx.fillRect(x - 1, y, 3, 1); gx.fillRect(x, y - 1, 1, 3); gx.globalAlpha = 1;
+    addLight(e.x, e.y - 6, 12, '#2fbf8a', 0.3);
+  }
   // 聖剣: 上から降ってくる光の剣(落ちる → 刺さって光りながら消える)
   if (S.skyBlades && S.skyBlades.length) {
     S.skyBlades = S.skyBlades.filter(b => S.time - b.t0 < SKY_FALL + 0.3);
@@ -899,9 +1077,35 @@ function render() {
       }
       case 'bolt':
         drawSp(p.home ? ART.S.boltEvo : ART.S.bolt, p.x, p.y); addLight(p.x, p.y, 22, p.col, 0.7); break;
-      case 'wisp': drawSp(ART.S.wisp, p.x, p.y + Math.sin(p.t * 20)); addLight(p.x, p.y, 24, '#9dffcf', 0.7); break;
+      case 'wisp': drawSp(ART.S.wisp, p.x, p.y + Math.sin(p.t * 20)); addLight(p.x, p.y, p.eHit ? 16 : 24, '#9dffcf', p.eHit ? 0.35 : 0.7); break; // スピリットストームの精霊は一度に大量に出て重なるので、光を弱める
       case 'fire': drawSp(ART.S.fire, p.x, p.y); addLight(p.x, p.y, 30, '#ff8a3d', 0.8); break;
-      case 'axe': drawRot('axe', p.ang, p.x, p.y, { scale: p.big ? 2 : 1 }); break;
+      case 'axe': {
+        if (p.wh === 1) { // 巨斧旋風: 斧の周りを回る斬撃の弧(回転に合わせて回り、後ろへ尾を引く)
+          const R = DATA.weapons.axe.evo.whirlR * P.area, cx = p.x - cam.x, cy = p.y - cam.y, fade = Math.min(1, p.wt / 0.15), s = Math.sign(p.spin) || 1;
+          for (let k = 0; k < 3; k++) for (let j = 0; j < 10; j++) {
+            const a = p.ang + k * TAU / 3 - s * j * 0.09, al = fade * (1 - j / 10), x = Math.round(cx + Math.cos(a) * R), y = Math.round(cy + Math.sin(a) * R);
+            sx.globalAlpha = 0.5 * al; sx.fillStyle = j < 2 ? '#fff1d0' : '#ffb070'; sx.fillRect(x, y, 1, 1);
+            gx.globalAlpha = 0.35 * al; gx.fillStyle = '#ffb070'; gx.fillRect(x, y, 1, 1);
+          }
+          sx.globalAlpha = gx.globalAlpha = 1;
+          addLight(p.x, p.y, R * 2, '#ffb070', 0.35 * fade);
+        }
+        drawRot('axe', p.ang, p.x, p.y, { scale: p.sz || 1 }); // 斧の大きさ(武器Lv・熟練)
+        break;
+      }
+      case 'toma': { // ワイルドトマホーク: 回る大きな斧が赤い軌跡を引く(新しいほど明るく太い)
+        const tr = p.trail, n = tr.length / 2;
+        for (let i = 1; i <= n; i++) {
+          const k = i / n, x0 = tr[i * 2 - 2] - cam.x, y0 = tr[i * 2 - 1] - cam.y, x1 = (i < n ? tr[i * 2] : p.x) - cam.x, y1 = (i < n ? tr[i * 2 + 1] : p.y) - cam.y;
+          const col = TOMA_TRAIL[k > 0.66 ? 0 : k > 0.33 ? 1 : 2];
+          sx.globalAlpha = 0.55 * k; pLine(sx, x0, y0, x1, y1, col, Math.max(1, Math.round(p.sz * 0.9 * k)));
+          gx.globalAlpha = 0.3 * k; pLine(gx, x0, y0, x1, y1, col, 1);
+        }
+        sx.globalAlpha = gx.globalAlpha = 1;
+        drawRot('axe', p.ang, p.x, p.y, { scale: p.sz });
+        addLight(p.x, p.y, 18, '#ffb070', 0.2); // 強い光だと銀の刃が白く飛んで斧の形が見えなくなる
+        break;
+      }
       case 'bscatter': { // 刃輪展開の飛び散る刃: 回りながら飛び、後ろに光の筋
         const a = Math.atan2(p.vy, p.vx), cx = p.x - cam.x, cy = p.y - cam.y;
         gx.fillStyle = p.col;
@@ -948,20 +1152,24 @@ function render() {
   for (const p of eprojs) {
     if (!onScreen(p.x, p.y, 30)) continue;
     const a = Math.atan2(p.vy, p.vx);
+    // アストロマンサーの重力圏: 止まった弾(時間停止)は暗い桃色の縁で薄く、ゆっくりになった弾(時の歪み)は少しくすむ
+    const stop = !!p.stopT, al = stop ? 0.45 : P.astK > 0 && P.cls === 'astro' && d2(p.x, p.y, P.x, P.y) < P.astR * P.astR ? 0.75 : undefined, oc = stop ? '#8a2a6e' : '#ff3b5c';
     if (p.lob) { // 放物線弾: 地面に影、高さぶん持ち上げて描く
       shadow(p.x, p.y + 2, p.kind === 'rock' ? 10 : 5);
-      drawSp(ART.S[p.kind], p.x, p.y - p.z, { scale: p.kind === 'rock' ? 1 + p.z / 140 : 1, outline: '#ff3b5c' });
-      addLight(p.x, p.y - p.z, 20, '#ff3b5c', 0.5);
+      drawSp(ART.S[p.kind], p.x, p.y - p.z, { scale: p.kind === 'rock' ? 1 + p.z / 140 : 1, outline: oc, alpha: al });
+      addLight(p.x, p.y - p.z, 20, oc, stop ? 0.2 : 0.5);
       continue;
     }
     // 敵弾は形に沿った赤いアウトラインで自分の弾と区別する
-    const ol = { outline: '#ff3b5c' };
-    if (p.kind === 'boomer') drawRot('scythe', p.t * 16, p.x, p.y, { scale: 2, outline: '#ff3b5c' });
+    const ol = { outline: oc, alpha: al };
+    if (al !== undefined) sx.globalAlpha = al; // drawRot は透明度を受け取らないので、ここで掛けて戻す
+    if (p.kind === 'boomer') drawRot('scythe', p.t * 16, p.x, p.y, { scale: 2, outline: oc });
     else if (p.kind === 'glob' || p.kind === 'rbit') drawSp(ART.S[p.kind], p.x, p.y, ol);
     else if (p.kind === 'arrow') drawRot('arrow', a, p.x, p.y, ol);
     else if (p.kind === 'scythe') drawRot('scythe', p.t * 14, p.x, p.y, ol);
     else drawSp(ART.S.ball, p.x, p.y, ol);
-    addLight(p.x, p.y, p.kind === 'boomer' ? 40 : 22, '#ff3b5c', 0.6);
+    sx.globalAlpha = 1;
+    addLight(p.x, p.y, p.kind === 'boomer' ? 40 : 22, oc, stop ? 0.2 : 0.6);
   }
   // 予兆: 赤い半透明の塗り(時間とともに内側が満ちる) + 点滅する縁
   const edge = warnBlink ? '#ff3b5c' : '#ffd0d8';
@@ -1048,6 +1256,141 @@ function drawMotes(st) {
     if (i % 3 === 0) addLight(wx + cam.x, wy + cam.y, 14, m.col, 0.5);
   }
   gx.globalAlpha = 1;
+}
+
+// ディメンション・リフト: 画面全体が暗い星空(異次元)に沈み、画面の端から暗いひびが走る(画面の座標)
+//   白く飛ぶと画面全体が見えなくなるので、明るくせず暗く沈める。画質が低いときは、ひびと背景の切り替えだけ
+function drawRift(t) {
+  const r = P.rift;
+  if (!r || P.dead) return; // 倒れたら消す(倒れると時間が止まり、そのまま残るため)
+  const sx = GFX.sctx, gx = GFX.gctx, VW = GFX.VW, VH = GFX.VH, pulse = r.pulse || 0;
+  const open = Math.min(1, r.t / 0.3), close = clamp((r.dur - r.t) / 0.3, 0, 1), k = Math.min(open, close);
+  sx.globalAlpha = (0.42 + 0.1 * pulse) * k; sx.fillStyle = '#0a0418'; sx.fillRect(0, 0, VW, VH);
+  if (gq().parts > 0.5) for (let i = 0; i < 80; i++) { // 星(画面に貼りついた点がゆっくり流れて瞬く)
+    const h = Math.sin(i * 127.1) * 43758.5453, u = h - Math.floor(h), h2 = Math.sin(i * 311.7) * 24634.6345, v = h2 - Math.floor(h2);
+    const x = Math.floor((u * VW + t * (3 + (i % 5))) % VW), y = Math.floor(v * VH);
+    sx.globalAlpha = k * (0.3 + 0.5 * Math.abs(Math.sin(t * 2 + i))); sx.fillStyle = i % 9 === 0 ? '#ff7ad9' : i % 3 === 0 ? '#9a7ad8' : '#5a5a98';
+    sx.fillRect(x, y, 1, 1);
+  }
+  for (const c of r.cracks) { // ひび: 開くときに伸び、閉じるときに縮む(芯は黒、縁だけ暗い桃色にかすかに光る)
+    const n = Math.max(1, Math.round((c.length - 1) * k));
+    for (let i = 0; i < n; i++) {
+      const [x0, y0] = c[i], [x1, y1] = c[i + 1];
+      sx.globalAlpha = 0.9 * k; pLine(sx, x0, y0, x1, y1, '#030108', 2);
+      gx.globalAlpha = (0.3 + 0.35 * pulse) * k * (1 - i / c.length); pLine(gx, x0, y0, x1, y1, '#8a2a6e', 1);
+    }
+  }
+  sx.globalAlpha = gx.globalAlpha = 1;
+}
+// 重力崩壊の特異点: 本物のブラックホールのように描く。周りの景色は重力レンズで引き伸ばされ、渦を巻く(GFX.lenses。画質「高」だけ)
+//   ブラックホール自体は前景(GFX.octx)へ描くので、自分が起こす空間の歪みでは歪まない。引き寄せの範囲の縁がうっすら縮む
+//   最後の一瞬(shrinkT 秒)で縮みながら白くなり、そのあと崩壊の閃光・衝撃波(classes.js の astCrush)
+function drawSings(t) {
+  if (!P.sings || !P.sings.length || P.dead) return;
+  const sx = GFX.sctx, gx = GFX.gctx, q = DATA.classes.astro.q, shrinkT = 0.15;
+  for (const s of P.sings) {
+    if (s.t >= q.dur) continue; // 崩壊した後はリング・閃光だけ
+    const u = s.t / q.dur, x = s.x - cam.x, y = s.y - cam.y;
+    const wht = clamp(1 - (q.dur - s.t) / shrinkT, 0, 1); // 縮む瞬間の白さ
+    const rsMax = clamp(4 + s.pullR / 40, 6, 13); // 影の大きさは引き寄せの範囲(使った質量・範囲)で大きくなる
+    const rs = Math.max(0.6, rsMax * easeOutCubic(Math.min(1, s.t / 0.5)) * (1 + 0.04 * Math.sin(t * 10)) * (1 - 0.9 * wht * wht));
+    gx.globalAlpha = 0.22; pCircle(gx, x, y, Math.round(s.pullR * (1 - ((t * 0.8) % 1) * 0.6)), '#8a2a6e', 3); // 引き寄せの範囲
+    sx.globalAlpha = 0.3; pCircle(sx, x, y, Math.round(s.pullR), '#8a2a6e', 4);
+    gx.globalAlpha = 0.25 * (1 - wht); pCircle(gx, x, y, Math.round(rs + 1), '#ffb38a'); // 影の縁のかすかな光(レンズで外へ引き伸ばされて光の輪になる)
+    sx.globalAlpha = gx.globalAlpha = 1;
+    drawBlackHole(x, y, rs, t, wht, SET.fxA);
+    GFX.lenses.push({ x, y, e: rs * 0.75, rs, R: Math.max(70, s.pullR * 0.6), swirl: 2.2 * (0.2 + 0.8 * u), a: Math.min(1, s.t / 0.35) * (1 - wht) });
+    addLight(s.x, s.y, rs * 9, '#ffb38a', 0.25 + 0.2 * u); // 降着円盤が周りを暖かく照らす(敵が集まって重なるので控えめ)
+  }
+}
+// 降着円盤の色(内側ほど熱い: 白 → 金 → 珊瑚 → 桃 → 暗い紫)
+const BH_PAL = [[0, [255, 246, 232]], [0.2, [255, 204, 140]], [0.45, [255, 140, 104]], [0.72, [226, 82, 146]], [1, [96, 24, 84]]];
+function bhCol(u) {
+  u = clamp(u, 0, 1);
+  for (let i = 1; i < BH_PAL.length; i++) {
+    const [u1, c1] = BH_PAL[i];
+    if (u > u1) continue;
+    const [u0, c0] = BH_PAL[i - 1], k = (u - u0) / (u1 - u0);
+    return [c0[0] + (c1[0] - c0[0]) * k, c0[1] + (c1[1] - c0[1]) * k, c0[2] + (c1[2] - c0[2]) * k];
+  }
+  return BH_PAL[BH_PAL.length - 1][1];
+}
+const BH_CV = document.createElement('canvas'), BH_CX = BH_CV.getContext('2d');
+// ブラックホール 1つを 1ドットずつ計算して前景へ描く(cx, cy: 画面の座標 / rs: 影の半径 / wht: 白さ 0..1 / alpha: 全体の濃さ)
+//   奥から: 周りを暗く沈める(光が呑まれる)→ 傾いた降着円盤の奥側 → 奥側が重力で曲がって影の上下に回り込んで見える弧(上は太く、下は細い)
+//   → 光子リング → 影(事象の地平)→ 円盤の手前側。円盤は近づく側(左)が明るく、筋が内側ほど速く回る
+function drawBlackHole(cx, cy, rs, t, wht, alpha) {
+  const tilt = 0.3, rin = rs * 1.45, rout = rs * 3.1, halo = rs * 3.2, W = Math.ceil(Math.max(rout, halo)) + 1, H = Math.ceil(halo) + 1, w = W * 2 + 1, h = H * 2 + 1;
+  if (BH_CV.width < w || BH_CV.height < h) { BH_CV.width = Math.max(BH_CV.width, w); BH_CV.height = Math.max(BH_CV.height, h); }
+  const img = BH_CX.createImageData(w, h), D = img.data;
+  const white = c => [c[0] + (255 - c[0]) * wht, c[1] + (255 - c[1]) * wht, c[2] + (255 - c[2]) * wht];
+  for (let j = 0; j < h; j++) for (let i = 0; i < w; i++) {
+    const dx = i - W, dy = j - H, r = Math.hypot(dx, dy), pz = dy / tilt, rho = Math.hypot(dx, pz);
+    let R = 0, G = 0, B = 0, A = 0;
+    const put = (c, a) => { // 奥から手前へ重ねる
+      if (a <= 0) return;
+      const na = a + A * (1 - a);
+      R = (c[0] * a + R * A * (1 - a)) / na; G = (c[1] * a + G * A * (1 - a)) / na; B = (c[2] * a + B * A * (1 - a)) / na; A = na;
+    };
+    const inDisk = rho >= rin && rho <= rout;
+    const disk = () => {
+      const phi = Math.atan2(pz, dx), u = (rho - rin) / (rout - rin), c = bhCol(u);
+      const k = (1 - 0.5 * Math.cos(phi)) * (0.7 + 0.3 * Math.sin(phi * 4 - t * 9 * rin / rho + rho * 0.7)); // 近づく側が明るい × 回る筋
+      put(white([Math.min(255, c[0] * k), Math.min(255, c[1] * k), Math.min(255, c[2] * k)]), Math.min(1, 1.7 * (1 - u)) * 0.95);
+    };
+    if (r >= rs && r < halo) { const f = 1 - (r - rs) / (halo - rs); put([6, 2, 12], 0.62 * f * f); }   // 0) 周りを暗く沈める
+    if (inDisk && dy < 0 && r >= rs) disk();                                                          // 1) 円盤の奥側
+    if (r >= rs && r < rs + (dy < 0 ? Math.max(1.2, 3.2 - 2 * Math.abs(dx) / (rs + 3)) : 1.4)) {        // 2) 回り込んで見える弧
+      const c = bhCol(dy < 0 ? 0.06 : 0.25), k = 1 - 0.45 * dx / (rs + 3);
+      put(white([Math.min(255, c[0] * k), Math.min(255, c[1] * k), Math.min(255, c[2] * k)]), dy < 0 ? 0.9 : 0.55);
+    }
+    if (Math.abs(r - rs - 0.4) < 0.75) put(white([255, 236, 246]), 0.85);                              // 3) 光子リング
+    if (r < rs) put([0, 0, 0], 1);                                                                    // 4) 影
+    if (inDisk && dy >= 0) disk();                                                                    // 5) 円盤の手前側
+    const o = (j * w + i) * 4;
+    D[o] = R; D[o + 1] = G; D[o + 2] = B; D[o + 3] = Math.round(A * alpha * 255);
+  }
+  BH_CX.clearRect(0, 0, BH_CV.width, BH_CV.height);
+  BH_CX.putImageData(img, 0, 0);
+  GFX.octx.drawImage(BH_CV, 0, 0, w, h, Math.round(cx) - W, Math.round(cy) - H, w, h);
+  GFX.overOn = true;
+}
+// アストロマンサーの重力圏: 縁にごく薄い桃色の点線が回る(時の歪みが強いほど少し濃い)
+function drawAstroField(t) {
+  if (P.cls !== 'astro' || P.dead || !P.astR) return;
+  const sx = GFX.sctx, gx = GFX.gctx, cx = P.x - cam.x, cy = P.y - cam.y, R = P.astR, n = Math.max(12, Math.round(R * TAU / 3)), k = 0.35 + 0.65 * Math.min(1, (P.astK || 0) / 0.3);
+  sx.fillStyle = gx.fillStyle = '#ff7ad9';
+  for (let i = 0; i < n; i += 2) {
+    const a = t * 0.5 + i * TAU / n, x = Math.round(cx + Math.cos(a) * R), y = Math.round(cy + Math.sin(a) * R);
+    sx.globalAlpha = 0.3 * k; sx.fillRect(x, y, 1, 1);
+    gx.globalAlpha = 0.15 * k; gx.fillRect(x, y, 1, 1);
+  }
+  sx.globalAlpha = gx.globalAlpha = 1;
+}
+// アストロマンサーの体まわり。front = false: 足元の暗い輪(質量が増えるほど濃い。上限で脈打つ)と奥側の星 / true: 回る暗い塵と手前側の星
+function drawAstroBody(t, front) {
+  if (P.cls !== 'astro' || P.dead) return;
+  const sx = GFX.sctx, gx = GFX.gctx, cx = P.x - cam.x, cy = P.y - cam.y, max = astMax(), f = Math.min(1, (P.mass || 0) / max), full = P.mass >= max;
+  if (!front && f > 0.02) {
+    const pulse = full ? 0.5 + 0.5 * Math.sin(t * 8) : 0, R = 9 + Math.round(2 * pulse);
+    sx.globalAlpha = 0.2 + 0.45 * f; pCircle(sx, cx, cy + 7, R, '#2a0a28'); pCircle(sx, cx, cy + 7, R + 1, '#14041a');
+    if (full) { gx.globalAlpha = 0.3 * pulse; pCircle(gx, cx, cy + 7, R, '#8a2a6e'); }
+    sx.globalAlpha = gx.globalAlpha = 1;
+  }
+  if (front) { // 質量 10 ごとに 1粒(最大 20)
+    const n = Math.min(20, Math.floor((P.mass || 0) / 10));
+    for (let i = 0; i < n; i++) {
+      const a = t * (1.2 + (i % 3) * 0.3) + i * 2.399, rr = 9 + (i % 4) * 2;
+      sx.fillStyle = i % 4 === 0 ? '#8a2a6e' : '#2a1030'; sx.fillRect(Math.round(cx + Math.cos(a) * rr), Math.round(cy - 2 + Math.sin(a) * rr * 0.45), 1, 1);
+    }
+  }
+  for (let i = 0; i < 3; i++) { // 肩のまわりを公転する 3つの星(奥側は体の後ろに隠れる)
+    const a = t * 1.6 + i * TAU / 3;
+    if ((Math.sin(a) >= 0) !== front) continue;
+    const x = Math.round(cx + Math.cos(a) * 9), y = Math.round(cy - 9 + Math.sin(a) * 3);
+    sx.fillStyle = i === 0 ? '#ffd8f2' : '#ff7ad9'; sx.fillRect(x, y, 1, 1);
+    gx.globalAlpha = 0.6; gx.fillStyle = '#ff7ad9'; gx.fillRect(x, y, 1, 1); gx.globalAlpha = 1;
+  }
 }
 
 // ============================================================

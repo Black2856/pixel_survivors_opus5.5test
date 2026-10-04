@@ -43,6 +43,7 @@ function initRun(mode = 'normal', stageNo = 1) {
     mode, arena: null, time: 0, kills: 0, totalDmg: 0, dmgBy: {}, stage: 1, loop: 1, loopStart: 0,
     combo: 0, comboT: 0, bestCombo: 0, gemStreak: 0, gemStreakT: 0,
     freeze: 0, ts: 1, tsBack: 0, schedIdx: 0, spawnT: 0, spawnCfg: null,
+    eatk: 1, // 敵の攻撃力の倍率(敵ごとの処理の間だけ。ビッグクランチのブラックホールの中で下がる)
     eliteT: 95, goblinT: 70, propT: 2, elv: 1, elvT: 0, boss: null, pendingLv: 0, lvFx: 0,
     rerolls: 0, weaponSlots: 4, lvQueue: [],
     gold: 0, deathT: 0, victoryT: 0, hudDirty: true, won: false, hint: {}, decoy: null, bossKills: 0, loot: [],
@@ -85,14 +86,15 @@ function recalc() {
   return st;
 }
 // 攻撃力倍率 = ステータス + クラスの一時的な強化(剣気満タン・残心など)
+// 与えるダメージ(バーサーカーの怒り・狂乱)は攻撃力とは別の倍率として掛ける。継続ダメージの割り戻し(/ dmgMul())でも一緒に戻る
 function dmgMul() {
-  return (1 + P.atk + clsAtkBonus() + (P.uq.berserk ? 1 - P.hp / P.maxhp : 0)) * P.atkMul;
+  return (1 + P.atk + clsAtkBonus() + (P.uq.berserk ? 1 - P.hp / P.maxhp : 0)) * P.atkMul * clsDmgDealt();
 }
 const critRate = () => P.crit;
 // 武器の現在のステータス。熟練(クラスLv の共通強化)の威力・範囲・クールダウンを掛けたもの(Lv / 進化が変わるまでキャッシュ)
 const wst = k => {
   const w = P.weapons[k], base = w.evo ? DATA.weapons[k].evo.st : DATA.weapons[k].lv[w.lv - 1], m = P.wm[k];
-  if (!m || (!m.dmg && !m.area && !m.cd && !m.count && !m.pierce && !m.speed && !m.dur)) return base;
+  if (!m || (!m.dmg && !m.area && !m.cd && !m.count && !m.pierce && !m.speed && !m.dur && !m.size)) return base;
   if (w.stBase !== base) {
     w.stBase = base;
     w.st = Object.assign({}, base, { dmg: base.dmg * (1 + (m.dmg || 0)) });
@@ -104,6 +106,7 @@ const wst = k => {
     if (base.speed) w.st.speed = base.speed * (1 + (m.speed || 0));
     if (base.dur) w.st.dur = base.dur + (m.dur || 0);
     if (base.tick && m.cd) w.st.tick = base.tick * (1 - m.cd); // ホーリーオーラ: 熟練のクールダウンは判定の間隔に
+    if (base.size && m.size) w.st.size = base.size * (1 + m.size); // スローイングアックス: 熟練の大きさ
   }
   return w.st;
 };
@@ -151,7 +154,8 @@ function updPlayer(dt) {
   P.animT += dt * (P.moving ? 1 : 0.35);
   P.ifr -= dt; P.hurtT -= dt;
   updDebuffs(dt);
-  if (P.regen > 0) { const n = P.regen * dt * clsHealMul(); S.healed = (S.healed || 0) + n; overheal(P.hp + n - P.maxhp); P.hp = Math.min(P.maxhp, P.hp + n); } // 満タンで余った分は超過回復
+  const rg = P.regen + clsRegen(); // クラスの一時的な HP回復速度(バーサーカーの昂り・狂乱など)
+  if (rg > 0) { const n = rg * dt * clsHealMul(); S.healed = (S.healed || 0) + n; overheal(P.hp + n - P.maxhp); P.hp = Math.min(P.maxhp, P.hp + n); } // 満タンで余った分は超過回復
   updOverShield(dt); // 聖盾のシールドは得た分ごとに時間で消える
   if (P.moving && Math.random() < dt * 10) part(P.x + rand(-2, 2), P.y + 6, rand(-6, 6), rand(-8, -2), 0.35, '#8a8098', { drag: 4 });
   GFX.fx.lowhp = lerp(GFX.fx.lowhp, P.hp / P.maxhp < 0.3 ? 1 : 0, dt * 3);
@@ -168,11 +172,13 @@ function updDebuffs(dt) {
   P.burnTick = DATA.debuff.burnTick;
   const dmg = Math.max(1, Math.round(P.burnDmg));
   P.hp -= dmg; breakCombo(); S.hudDirty = true;
+  if (P.hp <= 0 && clsSaveLethal()) P.hp = 1; // 倒れるダメージをクラスが耐える(バーサーカーの不死の狂乱)
   addFloat(P.x, P.y - 10, String(dmg), '#ff8a3d');
   if (P.hp <= 0) playerDown();
 }
 function burnPlayer(dmg) {
   if (P.invT > 0 || P.dead) return;
+  dmg *= S.eatk ?? 1; // 攻撃してきた敵の攻撃力の倍率(ビッグクランチ)
   if (P.burnT <= 0) { P.burnTick = DATA.debuff.burnTick; P.burnDmg = 0; }
   P.burnT = DATA.debuff.burnDur * CHAOS.debuff; P.burnDmg = Math.max(P.burnDmg, dmg); // カオス: デバフの時間
 }
@@ -207,6 +213,7 @@ function takeOverShield(a) {
 }
 function hurtPlayer(dmg) {
   if (P.ifr > 0 || P.invT > 0 || P.dead || state !== 'play') return;
+  dmg *= S.eatk ?? 1; // 攻撃してきた敵の攻撃力の倍率(ビッグクランチ)
   const r = clsOnHurt(dmg); // ガードなどでクラスが受けきった場合は null
   if (r === null) { S.hudDirty = true; return; }
   dmg = Math.max(1, Math.round((r - P.armor) * (1 - P.dr)));
@@ -219,9 +226,10 @@ function hurtPlayer(dmg) {
     addFloat(P.x, P.y - 10, String(a), '#7ab8ff', 1);
     burst(P.x, P.y, 8, ['#9fd8ff', '#4f8ff0', '#ffffff'], { sp: 60, glow: true, life: 0.3 });
     if (shieldTotal() < 1) { P.shield = P.oShield = 0; P.oChunks = []; addRing(P.x, P.y, 20, '#4f8ff0', { w: 2, life: 0.3 }); AudioMan.hit(); clsOnShieldBreak(); } // 割れた
-    if (dmg <= 0) { P.ifr = P.iframe; AudioMan.hit(); return; }
+    if (dmg <= 0) { P.ifr = P.iframe * clsIfrMul(); AudioMan.hit(); return; }
   }
-  P.hp -= dmg; P.ifr = P.iframe; P.hurtT = 0.12;
+  P.hp -= dmg; P.ifr = P.iframe * clsIfrMul(); P.hurtT = 0.12; // 被弾後の無敵時間(クラスの倍率: アストロマンサーの不動)
+  if (P.hp <= 0 && clsSaveLethal()) P.hp = 1; // 倒れるダメージをクラスが耐える(バーサーカーの不死の狂乱)
   if (P.uq.adversity) P.sta = Math.min(P.maxSta, P.sta + dmg);
   breakCombo();
   GFX.fx.hurt = 1; GFX.fx.aberr = Math.max(GFX.fx.aberr, 0.9);
@@ -230,6 +238,18 @@ function hurtPlayer(dmg) {
   burst(P.x, P.y, 10, ['#ff4a5a', '#ffffff', '#8a1a2a'], { sp: 70 });
   S.hudDirty = true;
   if (P.hp <= 0) playerDown();
+}
+// 自分の技で受けるダメージ(HP を払う: ワイルドトマホークの代償・仁王立ちなど)。防御力・ダメージ軽減・シールドでは減らず、無敵時間も付かない
+//   被弾として扱うクラスは clsSelfHurt で量を変える(バーサーカー: 怒り・昂り、不屈などの軽減)。自分の技では倒れない(HP は 1 未満にならない)
+//   返り値: 実際に減った HP
+function selfHurt(n) {
+  if (P.dead) return 0;
+  const d = Math.floor(Math.min(P.hp - 1, Math.max(1, Math.round(clsSelfHurt(n)))));
+  if (d <= 0) return 0;
+  P.hp -= d; P.hurtT = 0.12; S.hudDirty = true;
+  addFloat(P.x, P.y - 10, String(d), '#ff4a5a', 1);
+  burst(P.x, P.y - 4, 8, ['#8e0016', '#5a000c', '#3a0008'], { sp: 60, life: 0.35 });
+  return d;
 }
 
 function playerDown() {
@@ -260,7 +280,8 @@ function gainXP(v) {
 // ============================================================
 function addWeapon(k) {
   const w = P.weapons[k];
-  if (!w) { P.weapons[k] = { lv: 1, cd: 0.3, evo: false, t: 0, q: [], tick: 0 }; P.wm[k] = weaponMastery(k); }
+  // 新しい武器は Lv1(クラスLv の startLv: ラン中に手に入れた武器はその分だけ高い Lv から。はじめのメイン武器は除く)
+  if (!w) { P.weapons[k] = { lv: Math.min(5, 1 + (Object.keys(P.weapons).length ? P.lvFx.startLv || 0 : 0)), cd: 0.3, evo: false, t: 0, q: [], tick: 0 }; P.wm[k] = weaponMastery(k); }
   else w.lv = Math.min(5, w.lv + 1);
   S.hudDirty = true;
 }
@@ -283,188 +304,180 @@ function aimAt(maxD) {
 
 // アーケインレイの旋回性能(rad/s)。以前の既定値 4 の 20%
 const ARCANE_TURN = 0.8;
+// 追尾弾の狙い: 一番近い敵のうち、その弾がまだ当たっていない敵(hit は当たった敵の id。当たった敵の周りを回り続けないように)
+function nearestUnhit(x, y, maxD, hit) {
+  let best = null, bd = maxD * maxD;
+  for (const e of enemies) {
+    if (e.dead || e.hidden || hit.has(e.id)) continue;
+    const d = d2(x, y, e.x, e.y);
+    if (d < bd) { bd = d; best = e; }
+  }
+  return best;
+}
 function fire(kind, x, y, ang, spd, o) {
   if (o.src === P.mainW && o.el === undefined) o.el = clsNextEl(); // 通常攻撃の1発ごとに属性(メイジ)
   projs.push(Object.assign({ kind, x, y, vx: Math.cos(ang) * spd, vy: Math.sin(ang) * spd, ang, t: 0, life: 1.5, r: 3, pierce: 0, hit: new Set() }, o));
 }
 
+// 通常攻撃の撃ち手: 撃つ位置と狙い。自分は P_ORG、影・分身などは orgOf(位置を持つもの) で作る
+//   main: 自分(刃輪展開・メイジの属性など自分だけの効果)/ aim(maxD): 狙う向き(照準 → 一番近い敵 → 向き)/ hk: 当たり判定の間隔を自分と分けるときの印
+const P_ORG = { main: true, hk: '', get x() { return P.x; }, get y() { return P.y; }, get face() { return P.facing; }, aim: maxD => aimAt(maxD) };
+function orgOf(p, hk = '') {
+  const face = () => p.face || P.facing;
+  return { main: false, hk, get x() { return p.x; }, get y() { return p.y; }, get face() { return face(); },
+    aim(maxD) { const t = mouseAimPt() || nearestEnemy(p.x, p.y, maxD); return t ? Math.atan2(t.y - p.y, t.x - p.x) : (face() > 0 ? 0 : Math.PI); } };
+}
+
 function updWeapons(dt) {
   // クールダウン(P.cdMul)は全ての武器と E / Q に、攻撃速度(P.atkSpd)は全ての武器の通常攻撃にだけ効く(E / Q には効かない)
   const cdt = dt * (P.cdSlowT > 0 ? DATA.debuff.cdRate : 1); // スロウタイム中はCD回復が遅い
-  for (const k in P.weapons) {
-    const w = P.weapons[k], st = wst(k);
-    w.t += dt;
-    w.cd -= cdt * P.atkSpd;
-    const n = (st.count || 1) + P.shots; // 弾数(千手の など)
-    switch (k) {
-      case 'bolt':
-        if (w.cd <= 0) {
-          const m = mouseAimPt(), t = m || nearestEnemy(P.x, P.y, 180);
-          if (!t) { w.cd = 0.1; break; }
-          w.cd = st.cd * P.cdMul;
-          const base = Math.atan2(t.y - P.y, t.x - P.x);
-          for (let i = 0; i < n; i++) {
-            const a = base + (i - (n - 1) / 2) * 0.13;
-            const o = { dmg: st.dmg, pierce: st.pierce, life: 1.5, src: k, home: w.evo, homing: w.evo ? ARCANE_TURN : 0, col: w.evo ? '#ff9bf5' : '#7ad7ff', r: 3 };
-            fire('bolt', P.x, P.y, a, st.speed, o);
-          }
-          burst(P.x + Math.cos(base) * 6, P.y + Math.sin(base) * 6, 4, ['#7ad7ff', '#ffffff'], { sp: 40, glow: true, life: 0.25 });
-          AudioMan.shoot();
-        }
-        break;
-
-      case 'blade': {
-        // 回転速度: クールダウン・攻撃速度(熟練のクールダウンも)で速くなる。刃輪展開(E)の間は半径・刃のサイズ・回転・威力が上がる
-        const bE = k === P.mainW ? P.bladeE : null, mcd = (P.wm[k] || {}).cd || 0;
-        const rotK = P.atkSpd / (P.cdMul * (1 - mcd)) * (bE ? bE.rot : 1), R = st.radius * P.area * (bE ? bE.rMul : 1), size = (st.size || 1) * (bE ? bE.size : 1); // 刃の大きさ(武器Lv)× 刃輪展開
-        w.ang = (w.ang || 0) + st.rot * rotK * dt;
-        const rings = w.evo ? [[n, R, 1], [Math.max(3, n - 3), R * 0.55, -1.4]] : [[n, R, 1]];
-        const dmg = st.dmg * (bE ? bE.pow : 1), bleed = w.evo ? DATA.weapons.blade.evo.bleed : 0;
-        w.blades = [];
-        rings.forEach(([cnt, rad, dir], ri) => {
-          for (let i = 0; i < cnt; i++) {
-            const a = w.ang * dir + (TAU / cnt) * i;
-            const bx = P.x + Math.cos(a) * rad, by = P.y + Math.sin(a) * rad;
-            w.blades.push({ x: bx, y: by, a, s: size, dir });
-            forEachNear(bx, by, 5 * size, e => {
-              if (!canHit(e, 'blade' + ri, DATA.weapons.blade.hitCd)) return;
-              hitEnemy(e, dmg, { src: k, ang: a + Math.PI / 2 * dir, kb: 45, eHit: !!bE });
-              if (bleed && !e.prop) addBleed(e, bleed); // ブラッドサークル: 命中で出血
-            });
-          }
-        });
-        break;
-      }
-
-      case 'thunder':
-        if (w.cd <= 0) {
-          w.cd = st.cd * P.cdMul;
-          const ts = randomTargets((st.strikes || 1) + P.shots);
-          if (!ts.length) { w.cd = 0.2; break; }
-          ts.forEach((t, i) => setTimeout(() => state === 'play' && strike(t.x, t.y, st, w.evo), i * 70));
-        }
-        break;
-
-      case 'aura': {
-        const R = st.radius * P.area;
-        w.R = R;
-        w.tick -= cdt * P.atkSpd; // 攻撃速度
-        if (w.tick <= 0) {
-          w.tick = st.tick * P.cdMul; // クールダウンは判定の間隔に効く(ほかの武器の攻撃間隔と同じ)
-          let healed = 0;
-          forEachNear(P.x, P.y, R, e => {
-            hitEnemy(e, st.dmg, { src: k, noNum: Math.random() < 0.5, ang: Math.atan2(e.y - P.y, e.x - P.x), kb: 6 });
-            if (w.evo && healed < 5) { heal(0.4, true); healed++; }
+  for (const k in P.weapons) weaponStep(k, P.weapons[k], dt, cdt, P_ORG);
+}
+// 武器 k を dt 進める(攻撃間隔 → 攻撃、時間差の攻撃、回り続ける刃、オーラ)
+//   w: その撃ち手の武器の状態(自分は P.weapons[k]。分身などは Lv・進化を自分の武器から引き継いだ別の状態)
+//   w.haste / w.hasteT: 一時的な攻撃速度の倍率と、その終わる時刻(影の追撃の残響など)
+function weaponStep(k, w, dt, cdt, o) {
+  const st = wst(k), spd = P.atkSpd * (w.hasteT > S.time ? w.haste : 1);
+  w.t += dt;
+  w.cd -= cdt * spd;
+  switch (k) {
+    case 'blade': { // 回り続ける刃(攻撃間隔はない)
+      // 回転速度: クールダウン・攻撃速度(熟練のクールダウンも)で速くなる。刃輪展開(E)の間は半径・刃のサイズ・回転・威力が上がる(自分の刃だけ)
+      const n = (st.count || 1) + P.shots, bE = o.main ? P.bladeE : null, mcd = (P.wm[k] || {}).cd || 0;
+      const rotK = spd / (P.cdMul * (1 - mcd)) * (bE ? bE.rot : 1), R = st.radius * P.area * (bE ? bE.rMul : 1), size = (st.size || 1) * (bE ? bE.size : 1); // 刃の大きさ(武器Lv)× 刃輪展開
+      w.ang = (w.ang || 0) + st.rot * rotK * dt;
+      const rings = w.evo ? [[n, R, 1], [Math.max(3, n - 3), R * 0.55, -1.4]] : [[n, R, 1]];
+      const dmg = st.dmg * (bE ? bE.pow : 1), bleed = w.evo ? DATA.weapons.blade.evo.bleed : 0;
+      w.blades = [];
+      rings.forEach(([cnt, rad, dir], ri) => {
+        for (let i = 0; i < cnt; i++) {
+          const a = w.ang * dir + (TAU / cnt) * i;
+          const bx = o.x + Math.cos(a) * rad, by = o.y + Math.sin(a) * rad;
+          w.blades.push({ x: bx, y: by, a, s: size, dir });
+          forEachNear(bx, by, 5 * size, e => {
+            if (!canHit(e, 'blade' + ri + o.hk, DATA.weapons.blade.hitCd)) return;
+            hitEnemy(e, dmg, { src: k, ang: a + Math.PI / 2 * dir, kb: 45, eHit: !!bE, cl: !!(bE && bE.cl) });
+            if (bleed && !e.prop) addBleed(e, bleed); // ブラッドサークル: 命中で出血
           });
         }
-        break;
-      }
-
-      case 'axe':
-        if (w.cd <= 0) {
-          w.cd = st.cd * P.cdMul;
-          for (let i = 0; i < n; i++) {
-            const dir = (i % 2 ? -1 : 1) * P.facing;
-            const o = { dmg: st.dmg, pierce: 999, life: 2.4, src: k, g: 300, spin: dir * 12, r: w.evo ? 9 : 5, big: w.evo };
-            projs.push(Object.assign({ kind: 'axe', x: P.x, y: P.y - 4, vx: dir * rand(20, 55) + i * 8 * dir, vy: -rand(150, 185), ang: 0, t: 0, hit: new Set() }, o));
-          }
-          AudioMan.slash();
-        }
-        break;
-
-      case 'wisp':
-        if (w.cd <= 0) {
-          w.cd = st.cd * P.cdMul;
-          for (let i = 0; i < n; i++) {
-            const a = rand(0, TAU);
-            fire('wisp', P.x, P.y, a, 90, { dmg: st.dmg, pierce: st.pierce, life: 3.2, src: k, homing: 5.5, speed: 110, col: '#9dffcf' });
-          }
-        }
-        break;
-
-      case 'fire':
-        if (w.cd <= 0) {
-          w.cd = st.cd * P.cdMul;
-          const base = aimAt(160), ar = 1 + ((P.wm[k] || {}).area || 0); // 熟練の範囲: 火炎弾の大きさと爆炎の半径
-          for (let i = 0; i < n; i++) {
-            const a = base + (i - (n - 1) / 2) * 0.22;
-            const o = { dmg: st.dmg, pierce: 999, life: 0.95, src: k, burn: st.burn, r: 4 * ar, boom: w.evo ? 6 : 0, boomR: 16 * ar, col: '#ff8a3d' };
-            fire('fire', P.x, P.y, a, 135, o);
-          }
-          AudioMan.fire();
-        }
-        break;
-
-      case 'blizzard':
-        if (w.cd <= 0) {
-          w.cd = st.cd * P.cdMul;
-          const ts = [mouseAimPt() || randomTargets(1)[0]];
-          for (let i = 0; i < 1; i++) {
-            const t = ts[i];
-            const x = t ? t.x : P.x + rand(-40, 40), y = t ? t.y : P.y + rand(-40, 40);
-            zones.push({ kind: 'blizz', x, y, r: st.radius * P.area, r0: st.radius * P.area, t: 0, dur: st.dur, tick: 0, dmg: st.dmg, evo: w.evo });
-          }
-          AudioMan.blizz();
-        }
-        break;
-
-      case 'bhole':
-        if (w.cd <= 0) {
-          w.cd = st.cd * P.cdMul;
-          const ts = [mouseAimPt() || randomTargets(1)[0]];
-          for (let i = 0; i < 1; i++) {
-            const t = ts[i];
-            const tx = t ? t.x : P.x + P.facing * 70, ty = t ? t.y : P.y;
-            const a = Math.atan2(ty - P.y, tx - P.x), dist = Math.hypot(tx - P.x, ty - P.y);
-            fire('orbShot', P.x, P.y, a, 160, { life: dist / 160, pierce: 999, noHit: true, src: k, col: '#c78bff', onEnd: p => spawnHole(p.x, p.y, st, w.evo) });
-          }
-        }
-        break;
-
-      case 'longbow':
-        // 照準方向へ貫通する矢。本数が多いときは同じ方向へ時間差で撃つ
-        if (w.cd <= 0) {
-          if (!mouseAimPt() && !nearestEnemy(P.x, P.y, 220 * P.range)) { w.cd = 0.1; break; }
-          w.cd = st.cd * P.cdMul;
-          for (let i = 0; i < n; i++) w.q.push({ t: i * 0.1 });
-        }
-        for (let i = w.q.length - 1; i >= 0; i--) {
-          const s = w.q[i];
-          s.t -= dt;
-          if (s.t <= 0) { w.q.splice(i, 1); shootArrow(k, st, w.evo); }
-        }
-        break;
-
-      case 'longsword':
-        // 正面を大きく薙ぎ払う(回数が多いときは往復で時間差)。聖剣: 当たった敵に光の剣が上から降る(25%)
-        if (w.cd <= 0) {
-          w.cd = st.cd * P.cdMul;
-          for (let i = 0; i < n; i++) w.q.push({ t: i * 0.14, flip: i % 2 });
-        }
-        for (let i = w.q.length - 1; i >= 0; i--) {
-          const s = w.q[i];
-          s.t -= dt;
-          if (s.t > 0) continue;
-          w.q.splice(i, 1);
-          const a = aimAt(st.aoe * P.area + 20);
-          const hits = sweep(a, st, s.flip, { src: k, col: '#ffe9a0', colEvo: '#fff3a0', arc: 1.35, kb: 90, evo: w.evo });
-          if (w.evo) hits.slice(0, 8).forEach((e, j) => skyBlade(e, st.dmg * 0.25, k, 0.08 + j * 0.035)); // 聖剣: 光の剣が上から追撃(25%)
-        }
-        break;
-
-      case 'katana':
-        if (w.cd <= 0) {
-          w.cd = st.cd * P.cdMul;
-          for (let i = 0; i < n; i++) w.q.push({ t: i * 0.09, flip: i % 2 });
-        }
-        for (let i = w.q.length - 1; i >= 0; i--) {
-          const s = w.q[i];
-          s.t -= dt;
-          if (s.t <= 0) { w.q.splice(i, 1); doSlash(aimAt(st.aoe * P.area + 20), st, w.evo, s.flip); }
-        }
-        break;
+      });
+      break;
     }
+    case 'aura': { // 周りに継続ダメージ(判定の間隔 tick。クールダウンは判定の間隔に効く)
+      w.R = st.radius * P.area;
+      w.tick -= cdt * spd; // 攻撃速度
+      if (w.tick <= 0) { w.tick = st.tick * P.cdMul; weaponFire(k, w, st, o); }
+      break;
+    }
+    default:
+      // 攻撃間隔が来たら 1回攻撃する。狙う敵がいなくて撃てなかったときは少し待って撃ち直す(マジックボルト・長弓 0.1秒 / サンダー 0.2秒)
+      if (w.cd <= 0) w.cd = weaponFire(k, w, st, o) ? st.cd * P.cdMul : k === 'thunder' ? 0.2 : 0.1;
   }
+  // 時間差の攻撃(長弓の連射・騎士剣と刀の往復)。s.st: 撃ったときのステータス(影の追撃で威力を上げた分も)/ s.o: 撃ち手
+  if (w.q && w.q.length) for (let i = w.q.length - 1; i >= 0; i--) {
+    const s = w.q[i];
+    s.t -= dt;
+    if (s.t > 0) continue;
+    w.q.splice(i, 1);
+    const qs = s.st || st, qo = s.o || o;
+    if (k === 'longbow') shootArrow(k, qs, w.evo, qo);
+    else if (k === 'longsword') { // 正面を大きく薙ぎ払う。聖剣: 当たった敵に光の剣が上から降る(25%)
+      const hits = sweep(qo.aim(qs.aoe * P.area + 20), qs, s.flip, { src: k, col: '#ffe9a0', colEvo: '#fff3a0', arc: 1.35, kb: 90, evo: w.evo }, qo);
+      if (w.evo) hits.slice(0, 8).forEach((e, j) => skyBlade(e, qs.dmg * 0.25, k, 0.08 + j * 0.035)); // 聖剣: 光の剣が上から追撃(25%)
+    } else if (k === 'katana') doSlash(qo.aim(qs.aoe * P.area + 20), qs, w.evo, s.flip, qo, w);
+  }
+}
+// 武器 k の 1回の攻撃(通常攻撃)。o: 撃ち手 / st: ステータス(影の追撃は威力を上げたもの)
+//   撃てたら true(狙う敵がいないときは false)。時間差で撃つ武器(長弓・騎士剣・刀)は w.q に積む
+//   回り続ける刃(オービットブレード)は、刃の輪が通る帯の敵へ 1回ずつ当たる
+function weaponFire(k, w, st, o) {
+  const n = (st.count || 1) + P.shots; // 弾数(千手の など)
+  switch (k) {
+    case 'bolt': {
+      const t = mouseAimPt() || nearestEnemy(o.x, o.y, 180);
+      if (!t) return false;
+      const base = Math.atan2(t.y - o.y, t.x - o.x);
+      for (let i = 0; i < n; i++) {
+        const a = base + (i - (n - 1) / 2) * 0.13;
+        fire('bolt', o.x, o.y, a, st.speed, { dmg: st.dmg, pierce: st.pierce, life: 1.5, src: k, home: w.evo, homing: w.evo ? ARCANE_TURN : 0, col: w.evo ? '#ff9bf5' : '#7ad7ff', r: 3 });
+      }
+      burst(o.x + Math.cos(base) * 6, o.y + Math.sin(base) * 6, 4, ['#7ad7ff', '#ffffff'], { sp: 40, glow: true, life: 0.25 });
+      AudioMan.shoot();
+      return true;
+    }
+    case 'blade': { // 刃の輪が一周、帯の敵へ 1回ずつ
+      const R = st.radius * P.area, band = 5 * (st.size || 1) + 2, x = o.x, y = o.y;
+      asMine(() => {
+        forEachNear(x, y, R + band, e => {
+          if (Math.abs(Math.hypot(e.x - x, e.y - y) - R) > band + (e.r || 4)) return;
+          hitEnemy(e, st.dmg, { src: k, ang: Math.atan2(e.y - y, e.x - x) + Math.PI / 2, kb: 45 });
+          if (w.evo && !e.prop) addBleed(e, DATA.weapons.blade.evo.bleed);
+        });
+        slashes.push({ x, y, follow: o.main ? true : null, a: rand(0, TAU), r: R + band * 0.5, t: 0, life: 0.22, full: true, pal: SWING_PAL.ring });
+      });
+      AudioMan.slash();
+      return true;
+    }
+    case 'thunder': {
+      const ts = randomTargets((st.strikes || 1) + P.shots);
+      if (!ts.length) return false;
+      ts.forEach((t, i) => setTimeout(() => state === 'play' && strike(t.x, t.y, st, w.evo), i * 70));
+      return true;
+    }
+    case 'aura': { // 周りの敵へ 1回(サンクチュアリ: 命中 1回につき HP 回復。1回で 5回分まで)
+      let healed = 0;
+      forEachNear(o.x, o.y, st.radius * P.area, e => {
+        hitEnemy(e, st.dmg, { src: k, noNum: Math.random() < 0.5, ang: Math.atan2(e.y - o.y, e.x - o.x), kb: 6 });
+        if (w.evo && healed < 5) { heal(0.4, true); healed++; }
+      });
+      return true;
+    }
+    case 'axe': {
+      const sz = st.size || 1; // 斧の大きさ(武器Lv・熟練): 当たり判定の半径 5 と見た目に掛ける
+      for (let i = 0; i < n; i++) {
+        const dir = (i % 2 ? -1 : 1) * o.face;
+        const p = { dmg: st.dmg, pierce: 999, life: 2.4, src: k, g: 300, spin: dir * 12, r: 5 * sz, sz, whirl: !!w.evo, wdmg: st.dmg * DATA.weapons.axe.evo.whirlPow }; // whirl: 巨斧旋風
+        projs.push(Object.assign({ kind: 'axe', x: o.x, y: o.y - 4, vx: dir * rand(20, 55) + i * 8 * dir, vy: -rand(150, 185), ang: 0, t: 0, hit: new Set() }, p));
+      }
+      AudioMan.slash();
+      return true;
+    }
+    case 'wisp': // 精霊を四方へ放つ(放つときは追うときの 90/110 の速さ)。近くのまだ当たっていない敵を追う
+      for (let i = 0; i < n; i++) fire('wisp', o.x, o.y, rand(0, TAU), st.speed * 90 / 110, { dmg: st.dmg, pierce: st.pierce, life: 3.2, src: k, homing: 5.5, speed: st.speed, col: '#9dffcf' });
+      return true;
+    case 'fire': {
+      const base = o.aim(160), ar = 1 + ((P.wm[k] || {}).area || 0); // 熟練の範囲: 火炎弾の大きさと爆炎の半径
+      for (let i = 0; i < n; i++) {
+        const a = base + (i - (n - 1) / 2) * 0.22;
+        fire('fire', o.x, o.y, a, 135, { dmg: st.dmg, pierce: 999, life: 0.95, src: k, burn: st.burn, r: 4 * ar, boom: w.evo ? 6 : 0, boomR: 16 * ar, col: '#ff8a3d' });
+      }
+      AudioMan.fire();
+      return true;
+    }
+    case 'blizzard': {
+      const t = mouseAimPt() || randomTargets(1)[0], x = t ? t.x : o.x + rand(-40, 40), y = t ? t.y : o.y + rand(-40, 40);
+      zones.push({ kind: 'blizz', x, y, r: st.radius * P.area, r0: st.radius * P.area, t: 0, dur: st.dur, tick: 0, dmg: st.dmg, evo: w.evo });
+      AudioMan.blizz();
+      return true;
+    }
+    case 'bhole': {
+      const t = mouseAimPt() || randomTargets(1)[0], tx = t ? t.x : o.x + o.face * 70, ty = t ? t.y : o.y;
+      const a = Math.atan2(ty - o.y, tx - o.x), dist = Math.hypot(tx - o.x, ty - o.y);
+      fire('orbShot', o.x, o.y, a, 160, { life: dist / 160, pierce: 999, noHit: true, src: k, col: '#c78bff', onEnd: p => spawnHole(p.x, p.y, st, w.evo) });
+      return true;
+    }
+    case 'longbow': // 照準方向へ貫通する矢。本数が多いときは同じ方向へ時間差で撃つ
+      if (!mouseAimPt() && !nearestEnemy(o.x, o.y, 220 * P.range)) return false;
+      for (let i = 0; i < n; i++) w.q.push({ t: i * 0.1, st, o });
+      return true;
+    case 'longsword': // 正面を大きく薙ぎ払う(回数が多いときは往復で時間差)
+      for (let i = 0; i < n; i++) w.q.push({ t: i * 0.14, flip: i % 2, st, o });
+      return true;
+    case 'katana':
+      for (let i = 0; i < n; i++) w.q.push({ t: i * 0.09, flip: i % 2, st, o });
+      return true;
+  }
+  return false;
 }
 
 // 遅延実行される自分の攻撃も「自分の演出」として扱う
@@ -509,10 +522,10 @@ function addBleed(e, n) {
   e.bleed = Math.min(clsBleedCap(), (e.bleed || 0) + n);
   e.bleedT = DATA.bleed.dur + clsBleedDur();
 }
-function shootArrow(k, st, evo) {
-  const a = aimAt(220 * P.range);
-  fire('arrow', P.x, P.y - 2, a, st.speed, { dmg: st.dmg, pierce: st.pierce, life: 0.9 * P.range, src: k, r: 3, col: evo ? '#ffe14a' : '#e4ffd8', dbl: evo });
-  part(P.x + Math.cos(a) * 8, P.y - 2 + Math.sin(a) * 8, Math.cos(a) * 40, Math.sin(a) * 40, 0.2, '#e4ffd8', { glow: true });
+function shootArrow(k, st, evo, o = P_ORG) {
+  const a = o.aim(220 * P.range);
+  fire('arrow', o.x, o.y - 2, a, st.speed, { dmg: st.dmg, pierce: st.pierce, life: 0.9 * P.range, src: k, r: 3, col: evo ? '#ffe14a' : '#e4ffd8', dbl: evo });
+  part(o.x + Math.cos(a) * 8, o.y - 2 + Math.sin(a) * 8, Math.cos(a) * 40, Math.sin(a) * 40, 0.2, '#e4ffd8', { glow: true });
   AudioMan.shoot();
 }
 // 斬撃の振り抜き(render.js の drawSwing)の配色。淡い色はライト・発光・ブルームが重なると白に飛ぶので、胴体は濃い色にする
@@ -524,14 +537,16 @@ const SWING_PAL = {
   ranbu:     { body: '#a8185a', edge: '#e8357f', glow: '#b8205e' },
   enemy:     { body: '#8a0c22', edge: '#ff3b5c', glow: '#ff3b5c' },
   blood:     { body: '#3a0008', edge: '#8e0016', glow: '#5a000c', core: '#c0102a' }, // 血の色(ブラッドアサシン)
+  rage:      { body: '#2a0408', edge: '#7a1418', glow: '#2a0508', core: '#b8402a' }, // 赤黒い闘気(バーサーカー。明るい赤は敵の攻撃の色なので芯だけ。光の層は色で明るさが決まるので暗く)
+  ring:      { body: '#3a4668', edge: '#8ea6d8', glow: '#3a4668' },                  // オービットブレードの輪が一周する(影の追撃)
 };
-// 騎士剣の薙ぎ払い(扇形)。o.arc: 半分の角度 / o.evo: 聖剣(当てるたびに 5秒のシールド +1。1回の攻撃につき1まで)
-function sweep(a, st, flip, o) {
-  const R = st.aoe * P.area, el = o.src === P.mainW ? clsNextEl() : undefined;
-  slashes.push({ x: P.x, y: P.y, follow: true, a, r: R, t: 0, life: 0.24, flip, span: o.arc * 2, pal: SWING_PAL.sword }); // 見た目 = 当たり判定(半径 R・角度 ±arc)
+// 騎士剣の薙ぎ払い(扇形)。o.arc: 半分の角度 / o.evo: 聖剣(当てるたびに 5秒のシールド +1。1回の攻撃につき1まで)/ org: 撃ち手
+function sweep(a, st, flip, o, org = P_ORG) {
+  const R = st.aoe * P.area, el = o.src === P.mainW && org.main ? clsNextEl() : undefined, x = org.x, y = org.y;
+  slashes.push({ x, y, follow: org.main ? true : org, a, r: R, t: 0, life: 0.24, flip, span: o.arc * 2, pal: SWING_PAL.sword }); // 見た目 = 当たり判定(半径 R・角度 ±arc)
   const hits = [];
-  forEachNear(P.x, P.y, R, e => {
-    let diff = Math.atan2(e.y - P.y, e.x - P.x) - a;
+  forEachNear(x, y, R, e => {
+    let diff = Math.atan2(e.y - y, e.x - x) - a;
     diff = Math.atan2(Math.sin(diff), Math.cos(diff));
     if (Math.abs(diff) > o.arc) return;
     hitEnemy(e, st.dmg, { src: o.src, ang: a, kb: o.kb, col: o.col, el });
@@ -556,22 +571,22 @@ function skyBlade(e, dmg, src, delay) {
   }, (delay + SKY_FALL) * 1000);
 }
 const KATANA_ARC = 1.05; // 刀の斬撃の半分の角度(全体で約 120°)
-function doSlash(a, st, evo, flip) {
-  const R = st.aoe * P.area, el = P.mainW === 'katana' ? clsNextEl() : undefined; // 斬撃1回 = 1属性(メイジ。メイン武器のときだけ)
+// 刀の斬撃(扇形)。org: 撃ち手 / w: 村正の数を数える武器の状態(撃ち手ごと)
+function doSlash(a, st, evo, flip, org = P_ORG, w = P.weapons.katana) {
+  const R = st.aoe * P.area, el = P.mainW === 'katana' && org.main ? clsNextEl() : undefined, x = org.x, y = org.y; // 斬撃1回 = 1属性(メイジ。メイン武器のときだけ)
   let hits = 0;
-  slashes.push({ x: P.x, y: P.y, follow: true, a, r: R, t: 0, life: 0.2, flip, span: KATANA_ARC * 2, pal: evo ? SWING_PAL.katanaEvo : SWING_PAL.katana }); // 見た目 = 当たり判定
-  forEachNear(P.x, P.y, R, e => {
-    let diff = Math.atan2(e.y - P.y, e.x - P.x) - a;
+  slashes.push({ x, y, follow: org.main ? true : org, a, r: R, t: 0, life: 0.2, flip, span: KATANA_ARC * 2, pal: evo ? SWING_PAL.katanaEvo : SWING_PAL.katana }); // 見た目 = 当たり判定
+  forEachNear(x, y, R, e => {
+    let diff = Math.atan2(e.y - y, e.x - x) - a;
     diff = Math.atan2(Math.sin(diff), Math.cos(diff));
     if (Math.abs(diff) > KATANA_ARC) return;
     hitEnemy(e, st.dmg, { src: 'katana', ang: a, kb: 55, col: '#ff8a9a', el });
     if (!e.prop) hits++;
   });
   // 鬼神・村正: 刀が CUT_EVERY 回当たるごとに、一閃の切り裂き(CD CUT_CD 秒。CD 中は CUT_EVERY で止めて待ち、明けた後の命中で出る)
-  if (evo && hits) {
-    const w = P.weapons.katana;
+  if (evo && hits && w) {
     w.cutN = Math.min(CUT_EVERY, (w.cutN || 0) + hits);
-    if (w.cutN >= CUT_EVERY && S.time >= (w.cutAt || 0)) { w.cutN = 0; w.cutAt = S.time + CUT_CD; muramasaCut(st); }
+    if (w.cutN >= CUT_EVERY && S.time >= (w.cutAt || 0)) { w.cutN = 0; w.cutAt = S.time + CUT_CD; muramasaCut(st, org); }
   }
   AudioMan.slash();
 }
@@ -615,8 +630,8 @@ function cutSpark(s, n, cols = ['#ffffff', '#ffd0d8', '#ff8a9a']) {
     burst(s.x1, s.y1, 12, [cols[0], cols[cols.length - 1]], { sp: 110, glow: true, life: 0.3 });
   });
 }
-function muramasaCut(st) {
-  const tg = nearestEnemy(P.x, P.y, 140), cx = tg ? tg.x : P.x, cy = tg ? tg.y : P.y;
+function muramasaCut(st, org = P_ORG) {
+  const tg = nearestEnemy(org.x, org.y, 140), cx = tg ? tg.x : org.x, cy = tg ? tg.y : org.y;
   const a = rand(0, TAU), L = 120 * P.area, W = 14 * P.area;
   const s = makeCut(cx - Math.cos(a) * L, cy - Math.sin(a) * L, cx + Math.cos(a) * L, cy + Math.sin(a) * L);
   s.ev.push(
@@ -662,9 +677,10 @@ function updProjs(dt) {
   for (let i = projs.length - 1; i >= 0; i--) {
     const p = projs[i];
     p.t += dt;
-    if (p.homing || p.home) {
-      const tg = p.target && !p.target.dead ? p.target : nearestEnemy(p.x, p.y, 120, null); // target: 一斉射撃の狙った敵
-      if (tg && !p.hit.has(tg)) {
+    if ((p.homing || p.home) && !p.spiral) {
+      // target: 一斉射撃の狙った敵 / seek: 弾ごとの狙い方(スピリットストーム: まだ取り憑かれていない敵)/ それ以外は、まだ当たっていない一番近い敵
+      const tg = p.target && !p.target.dead ? p.target : p.seek ? p.seek(p) : nearestUnhit(p.x, p.y, 120, p.hit);
+      if (tg && !p.hit.has(tg.id)) {
         const want = Math.atan2(tg.y - p.y, tg.x - p.x);
         let cur = Math.atan2(p.vy, p.vx), diff = Math.atan2(Math.sin(want - cur), Math.cos(want - cur));
         cur += clamp(diff, -(p.homing || 4) * dt, (p.homing || 4) * dt);
@@ -672,7 +688,11 @@ function updProjs(dt) {
         p.vx = Math.cos(cur) * sp; p.vy = Math.sin(cur) * sp;
       }
     }
-    if (p.spiral) { // らせん(刃輪展開の飛び散る刃): 中心から外へ広がりながら回り続ける(回る速さは一定)
+    if (p.spiral && p.spiralT && p.t >= p.spiralT) { // らせんを終えて、そのときの向きのまま普通に飛ぶ(スピリットストーム: ここから敵を追う)
+      const k = (p.speed || Math.hypot(p.vx, p.vy)) / (Math.hypot(p.vx, p.vy) || 1);
+      p.vx *= k; p.vy *= k; p.spiral = null;
+    }
+    if (p.spiral) { // らせん(刃輪展開の飛び散る刃・スピリットストーム): 中心から外へ広がりながら回り続ける(回る速さは一定)
       const s = p.spiral;
       s.r += s.vr * dt; s.a += s.vt / Math.max(8, s.r) * dt;
       p.vx = (s.cx + Math.cos(s.a) * s.r - p.x) / dt; p.vy = (s.cy + Math.sin(s.a) * s.r - p.y) / dt; // 向きは描画・ノックバック用
@@ -682,6 +702,7 @@ function updProjs(dt) {
       p.vx = Math.cos(a) * p.speed; p.vy = Math.sin(a) * p.speed;
       if (d2(p.x, p.y, P.x, P.y) < 64) p.t = p.life;
     }
+    if (p.whirl) axeWhirl(p, dt); // 巨斧旋風(テンペスト)
     if (p.g) p.vy += p.g * dt;
     p.x += p.vx * dt; p.y += p.vy * dt;
     if (p.spin) p.ang += p.spin * dt;
@@ -697,9 +718,9 @@ function updProjs(dt) {
       const ang = Math.atan2(p.vy, p.vx);
       let dmg = p.dmg;
       if (p.focus) { if (e.fcId !== p.focus) { e.fcId = p.focus; e.fcN = 0; } dmg *= 1 + Math.min(0.5, 0.05 * e.fcN++); } // 集中砲火
-      hitEnemy(e, dmg, { src: p.src, ang, kb: p.kind === 'axe' ? 50 : 22, col: p.col, el: p.el, eHit: p.eHit, forceCrit: p.forceCrit });
+      hitEnemy(e, dmg, { src: p.src, ang, kb: p.kind === 'axe' ? 50 : 22, col: p.col, el: p.el, eHit: p.eHit, forceCrit: p.forceCrit, cl: p.cl });
       if (p.onHit) p.onHit(e);
-      if (p.dbl && p.pierce > 0 && !e.dead) { hitEnemy(e, dmg, { src: p.src, col: p.col, el: p.el, eHit: p.eHit, noNum: true }); p.pierce--; } // 天弓: 二重ヒット(貫通を1消費)
+      if (p.dbl && p.pierce > 0 && !e.dead) { hitEnemy(e, dmg, { src: p.src, col: p.col, el: p.el, eHit: p.eHit, noNum: true, cl: p.cl }); p.pierce--; } // 天弓: 二重ヒット(貫通を1消費)
       if (p.burn) addBurn(e, p.burn, 3, p.src);
       if (p.boom > 0) {
         p.boom--;
@@ -712,12 +733,44 @@ function updProjs(dt) {
       if (p.pierce-- <= 0) {
         dead = true;
         burst(p.x, p.y, 5, [p.col || '#fff', '#ffffff'], { sp: 50, glow: true, life: 0.3 });
+        if (p.onEnd) p.onEnd(p); // 消えるとき(寿命で消えるときと同じ)
         return false;
       }
     });
     if (dead) { projs.splice(i, 1); continue; }
     if (p.kind === 'axe' && p.y > cam.y + GFX.VH + 30) projs.splice(i, 1);
   }
+}
+
+// 巨斧旋風(スローイングアックスの進化「テンペスト」): 上がりきる手前で重力を切ってだんだん止まり、速く回りながら周りを斬る → 重力をだんだん戻して落ちる
+//   p.wh: 0 = 上昇 / 1 = 旋回 / 2 = 落下。止まっている間のぶん寿命を延ばす(落ちる長さは今までと同じ)
+function axeWhirl(p, dt) {
+  const W = DATA.weapons.axe.evo;
+  if (!p.wh) {
+    if (p.vy < -W.brake) return;
+    p.wh = 1; p.wt = 0; p.tick = 0; p.g0 = p.g; p.g = 0; p.life += W.whirlT;
+    AudioMan.dash();
+  }
+  p.wt += dt;
+  if (p.wh === 1) {
+    const k = Math.exp(-W.damp * dt), s = Math.sign(p.spin) || 1;
+    p.vx *= k; p.vy *= k;                                            // なめらかに止まる
+    p.spin = s * Math.min(W.spinMax, Math.abs(p.spin) + 60 * dt);   // 回転がだんだん速くなる
+    if ((p.tick -= dt) <= 0) {
+      p.tick += W.every;
+      const R = W.whirlR * P.area, x = p.x, y = p.y;
+      asMine(() => {
+        forEachNear(x, y, R, e => {
+          if (e.prop) { killEnemy(e); return; }
+          hitEnemy(e, p.wdmg, { src: p.src, ang: Math.atan2(e.y - y, e.x - x), kb: 20, col: '#ffb070', noNum: Math.random() < 0.75 }); // 何度も当たるので数字は少なめ(ブラックホールと同じ)
+        });
+        for (let i = 0; i < 4; i++) { const a = rand(0, TAU); part(x + Math.cos(a) * R * 0.8, y + Math.sin(a) * R * 0.8, -Math.sin(a) * 90 * s, Math.cos(a) * 90 * s, 0.25, pick(['#ffb070', '#fff1d0', '#8a5a2a']), { glow: i === 0, drag: 2 }); }
+      });
+    }
+    if (p.wt >= W.whirlT) { p.wh = 2; p.wt = 0; }
+    return;
+  }
+  p.g = p.g0 * Math.min(1, p.wt / W.fallEase); // 落下: 重力をだんだん戻す
 }
 
 // ---------- 設置ゾーン(ブリザード / ブラックホール) ----------
@@ -742,11 +795,11 @@ function updZones(dt) {
     } else if (z.kind === 'crack') { // 地割れ(グランドスラムの特殊強化)
       if (z.tick <= 0) {
         z.tick = 0.5;
-        asMine(() => forEachNear(z.x, z.y, z.r, e => { if (!e.prop) hitEnemy(e, z.dmg, { src: 'slam', noNum: Math.random() < 0.6, col: '#ffb347', eHit: true }); }));
+        asMine(() => forEachNear(z.x, z.y, z.r, e => { if (!e.prop) hitEnemy(e, z.dmg, { src: 'slam', noNum: Math.random() < 0.6, col: '#ffb347', eHit: true, cl: z.cl }); }));
       }
       if (Math.random() < dt * 10) part(z.x + rand(-z.r, z.r) * 0.7, z.y + rand(-z.r, z.r) * 0.4, 0, -15, 0.5, pick(['#ffb347', '#8a5a2a']), { glow: true });
-    } else if (z.kind === 'rain') { // アローレイン: 範囲のランダムな位置へ矢が刺さる
-      if (z.follow) { z.x = P.x; z.y = P.y; }
+    } else if (z.kind === 'rain') { // アローレイン: 範囲のランダムな位置へ矢が刺さる(follow: 追従。ついていく使い手)
+      if (z.follow) { z.x = z.follow.x; z.y = z.follow.y; }
       for (const ar of z.arrows) ar.t += dt;
       z.arrows = z.arrows.filter(ar => ar.t < 0.5); // t < 0 は降り始める前(少しずつずらして降らせる)
       if (z.t >= z.delay && z.t < z.dur) {
@@ -759,7 +812,7 @@ function updZones(dt) {
             if (state !== 'play') return;
             asMine(() => {
               forEachNear(x0, y0, z.r, e => {
-                const dealt = hitEnemy(e, z.dmg, { src: 'arrowrain', col: z.fire ? '#ff8a3d' : '#b8ff9a', el, eHit: true, noNum: Math.random() < 0.5 });
+                const dealt = hitEnemy(e, z.dmg, { src: 'arrowrain', col: z.fire ? '#ff8a3d' : '#b8ff9a', el, eHit: true, noNum: Math.random() < 0.5, cl: z.cl });
                 if (z.fire && dealt && !e.dead) addBurn(e, dealt * z.fire / z.fireT / dmgMul(), z.fireT, 'arrowrain'); // 炎の矢(与えたダメージの 40% を3秒で)
                 if (Math.random() < 0.4) part(e.x, e.y, rand(-20, 20), -rand(10, 30), 0.3, pick(['#b8ff9a', '#e4ffd8', '#8a8098']), { glow: true });
               });
@@ -785,7 +838,7 @@ function updZones(dt) {
         asMine(() => {
           forEachNear(z.x, z.y, z.boomR, e => {
             if (e.prop) { killEnemy(e); return; }
-            const dealt = hitEnemy(e, z.dmg, { src: 'gspark', ang: Math.atan2(e.y - z.y, e.x - z.x), kb: 30, col: '#9fd8ff', el, eHit: true });
+            const dealt = hitEnemy(e, z.dmg, { src: 'gspark', ang: Math.atan2(e.y - z.y, e.x - z.x), kb: 30, col: '#9fd8ff', el, eHit: true, cl: z.cl });
             if (dealt && !e.dead) addShock(e, dealt, sk.shock);
             if (z.stun && !e.dead) e.stun = Math.max(e.stun || 0, e.boss ? sk.bossStun : sk.stun); // 超電磁
           });
@@ -861,7 +914,7 @@ function updZones(dt) {
         asMine(() => {
           forEachNear(ic.x, ic.y, R, e => {
             if (e.prop) { killEnemy(e); return; }
-            hitEnemy(e, dmg, { src: 'icicle', ang: Math.atan2(e.y - ic.y, e.x - ic.x), kb: ic.big ? 120 : 15, col: '#bff4ff', el, eHit: true, frost: true, noNum: !ic.big && Math.random() < 0.4 });
+            hitEnemy(e, dmg, { src: 'icicle', ang: Math.atan2(e.y - ic.y, e.x - ic.x), kb: ic.big ? 120 : 15, col: '#bff4ff', el, eHit: true, frost: true, noNum: !ic.big && Math.random() < 0.4, cl: z.cl });
             if (!e.dead) addFrost(e, z.frost, 10);
           });
           burst(ic.x, ic.y, ic.big ? 40 : 8, ['#ffffff', '#bff4ff', '#7ad7ff'], { sp: ic.big ? 160 : 70, up: 30, g: 160, glow: true, life: 0.45 });
@@ -891,6 +944,12 @@ function updZones(dt) {
       }
       if (z.whiteout) for (const p of eprojs) if (!p.wo && d2(p.x, p.y, z.x, z.y) < z.r * z.r) { p.wo = true; p.vx *= z.whiteout; p.vy *= z.whiteout; p.life = (p.life || 4) / z.whiteout; } // ホワイトアウト
       for (let k = 0; k < 4; k++) { const a = rand(0, TAU), r = Math.sqrt(Math.random()) * z.r; part(z.x + Math.cos(a) * r, z.y + Math.sin(a) * r, rand(-8, 8), rand(-12, 4), rand(0.4, 0.8), pick(['#ffffff', '#bff4ff', '#e0f8ff']), { glow: true, drag: 1 }); }
+    } else if (z.kind === 'grudge') { // 慟哭(葬送の特殊強化): 着弾地点に残る念。lingerEvery 秒ごとに範囲の敵へ
+      if (z.tick <= 0) {
+        z.tick = DATA.classes.necro.q.lingerEvery;
+        asMine(() => forEachNear(z.x, z.y, z.r, e => { if (!e.prop) hitEnemy(e, z.dmg, { src: 'nrite', noNum: Math.random() < 0.5, col: '#a58cff' }); }));
+      }
+      if (Math.random() < dt * 14) { const a = rand(0, TAU), r = Math.sqrt(Math.random()) * z.r; asMine(() => part(z.x + Math.cos(a) * r, z.y + Math.sin(a) * r * 0.7, rand(-6, 6), -rand(10, 25), 0.6, pick(['#8a6cff', '#5a3ab0', '#3a2a6a']), { glow: true, drag: 1 })); }
     } else if (z.kind === 'residue') { // ブリンクの氷の残滓: 触れた敵に凍傷
       if (Math.random() < dt * 20) part(z.x + rand(-z.r, z.r), z.y + rand(-z.r, z.r) * 0.6, 0, -10, 0.5, pick(['#bff4ff', '#ffffff']), { glow: true });
       if (z.tick <= 0) {
@@ -899,6 +958,7 @@ function updZones(dt) {
       }
     } else if (z.kind === 'hole') {
       const R = z.r * Math.min(1, z.t * 5);
+      if (z.evo) forEachNear(z.x, z.y, R, e => { e.atkDownT = S.time + 0.15; }); // ビッグクランチ: 中の敵(ボスも)は攻撃力が下がる
       forEachNear(z.x, z.y, R * 1.6, e => {
         if (e.boss) return;
         const a = Math.atan2(z.y - e.y, z.x - e.x), dd = Math.sqrt(d2(z.x, z.y, e.x, e.y));
@@ -931,7 +991,7 @@ function updZones(dt) {
 function hitEnemy(e, base, o = {}) {
   if (e.dead) return 0;
   if (e.prop) { killEnemy(e, o); return 0; }
-  let dmg = (base + clsHitBonus(e, o)) * dmgMul() * clsDmgTaken(e, o); // 祈りの一撃などの追加 / 印・凍結などで敵が受けるダメージが増える
+  let dmg = (base + clsHitBonus(e, o)) * dmgMul() * clsDmgTaken(e, o) * wsDmgTaken(e); // 祈りの一撃などの追加 / 印・凍結・侵蝕などで敵が受けるダメージが増える
   if (e.frost > 0 && P.weapons.blizzard && P.weapons.blizzard.evo) dmg *= 1 + 0.01 * e.frost;
   const crit = o.forceCrit || (!o.noCrit && Math.random() < critRate() + clsCritBonus(e));
   if (crit) dmg *= P.critMul + clsCritDmgBonus(e); else if (P.uq.exec) dmg *= 0.8; // 処刑人の
@@ -947,14 +1007,14 @@ function hitEnemy(e, base, o = {}) {
     const k = o.kb * (1 - (e.kbRes || 0));
     e.kx += Math.cos(o.ang) * k; e.ky += Math.sin(o.ang) * k;
   }
+  // quiet: 画面中の敵へまとめて当てる攻撃(ディメンション・リフト)。音・光を出さず、数字はクリティカルだけ
   if (crit) {
     addFloat(e.x, e.y - e.r - 3, dmg + '!', '#ffe14a', 1, -38);
-    burst(e.x, e.y, 6, ['#ffe14a', '#ffffff'], { sp: 90, glow: true, life: 0.3 });
-    AudioMan.crit();
+    if (!o.quiet) { burst(e.x, e.y, 6, ['#ffe14a', '#ffffff'], { sp: 90, glow: true, life: 0.3 }); AudioMan.crit(); }
   } else {
     if (!o.noNum) addFloat(e.x, e.y - e.r - 3, String(dmg), '#ffffff');
-    if (Math.random() < 0.5) part(e.x + rand(-2, 2), e.y + rand(-2, 2), rand(-40, 40), rand(-40, 10), 0.25, o.col || '#ffffff', { glow: true });
-    AudioMan.hit();
+    if (!o.quiet && Math.random() < 0.5) part(e.x + rand(-2, 2), e.y + rand(-2, 2), rand(-40, 40), rand(-40, 10), 0.25, o.col || '#ffffff', { glow: true });
+    if (!o.quiet) AudioMan.hit();
   }
   if (e.boss) S.hudDirty = true;
   if (e.hp <= 0) killEnemy(e, o);
@@ -986,13 +1046,13 @@ function killEnemy(e, o = {}) {
   dropGem(e.x, e.y, e.xp * (e.elite ? 12 : 1));
   if (Math.random() < 0.035) dropItem('coin', e.x, e.y, 1);
   if (Math.random() < 0.004) dropItem('meat', e.x, e.y);
-  clsOnKill(e);
+  clsOnKill(e, o); // o: 倒した一撃の指定(o.cl: 分身など自分以外の使い手の武器スキル)
   if (P.uq.vamp && Math.random() < 0.25) heal(P.maxhp * 0.01, true); // 吸血鬼の
   // ソウルイーター: 撃破地点から魂を召喚(同時40体まで)
   const ww = P.weapons.wisp;
   if (ww && ww.evo && projs.filter(p => p.summon).length < 40) {
     const st = wst('wisp');
-    fire('wisp', e.x, e.y, rand(0, TAU), 90, { dmg: st.dmg, pierce: st.pierce, life: 2.2, src: 'wisp', homing: 5.5, speed: 110, col: '#9dffcf', summon: true });
+    fire('wisp', e.x, e.y, rand(0, TAU), st.speed * 90 / 110, { dmg: st.dmg, pierce: st.pierce, life: 2.2, src: 'wisp', homing: 5.5, speed: st.speed, col: '#9dffcf', summon: true });
     part(e.x, e.y, 0, -30, 0.5, '#9dffcf', { glow: true, sz: 2 });
   }
   AudioMan.kill();
@@ -1040,6 +1100,7 @@ function updEnemies(dt) {
   const R2 = Math.pow(Math.hypot(GFX.VW, GFX.VH) * 0.75, 2);
   for (const e of enemies) {
     if (e.dead) continue;
+    S.eatk = e.atkDownT > S.time ? 1 - DATA.weapons.bhole.evo.atkDown : 1; // ビッグクランチ: ブラックホールの中の敵は攻撃力が下がる(体当たり・矢・ボスの攻撃)
     e.t += dt; e.flash -= dt;
     if (e.prop) { if (d2(e.x, e.y, P.x, P.y) > R2 * 2) e.dead = true; continue; }
     // 状態異常
@@ -1082,7 +1143,8 @@ function updEnemies(dt) {
     if (e.stun > 0) { e.stun -= dt; continue; }
     if (e.boss) { const r0 = CHAOS.rate; CHAOS.rate *= clsBossRate(e); try { bossAI(e, dt); } finally { CHAOS.rate = r0; } } // 凍結中のボスは攻撃速度 -30%
     else {
-      const slow = Math.max(0.2, 1 - DATA.debuff.frostSlow * (e.frost || 0)) * (e.slowT > 0 ? 0.6 : 1); // 凍傷
+      const tw = clsEnemySlow(e); // 時の歪み(アストロマンサーの重力圏): 移動・攻撃が遅くなる
+      const slow = Math.max(0.2, 1 - DATA.debuff.frostSlow * (e.frost || 0)) * (e.slowT > 0 ? 0.6 : 1) * tw; // 凍傷(時の歪みと掛け算)
       const sp = e.spd * slow;
       const dc = S.decoy && d2(e.x, e.y, S.decoy.x, S.decoy.y) < 200 * 200 ? S.decoy : P; // 空蝉の分身
       const a = Math.atan2(dc.y - e.y, dc.x - e.x);
@@ -1093,11 +1155,11 @@ function updEnemies(dt) {
         const dd = Math.sqrt(d2(e.x, e.y, P.x, P.y));
         const k = dd > 95 ? 1 : dd < 70 ? -1 : 0;
         mx *= k; my *= k;
-        e.shotT -= dt * CHAOS.rate; // カオス: 攻撃頻度
+        e.shotT -= dt * CHAOS.rate * tw; // カオス: 攻撃頻度 / 時の歪み
         if (e.shotT <= 0 && dd < 180) {
           const s = DATA.enemies.archer.shot;
           e.shotT = s.cd;
-          eprojs.push({ kind: 'arrow', x: e.x, y: e.y, vx: Math.cos(a) * s.spd, vy: Math.sin(a) * s.spd, dmg: s.dmg * enemyDmgK(), life: 4, t: 0, r: 2 * CHAOS.area });
+          eprojs.push({ kind: 'arrow', x: e.x, y: e.y, vx: Math.cos(a) * s.spd, vy: Math.sin(a) * s.spd, dmg: s.dmg * enemyDmgK() * S.eatk, life: 4, t: 0, r: 2 * CHAOS.area });
         }
         e.aim = e.shotT < 0.4;
       } else if (e.ai === 'flee') {
@@ -1126,6 +1188,7 @@ function updEnemies(dt) {
     }
     if (e.dmg > 0 && !e.air && d2(e.x, e.y, P.x, P.y) < Math.pow(e.r + 4, 2)) hurtPlayer(e.dmg);
   }
+  S.eatk = 1;
   if (enemies.length > 40) enemies = enemies.filter(e => !e.dead);
 }
 
@@ -1164,7 +1227,7 @@ function spawnBoss(key, final, companion) {
 }
 
 function eball(x, y, a, spd, dmg, kind = 'ball') {
-  eprojs.push({ kind, x, y, vx: Math.cos(a) * spd, vy: Math.sin(a) * spd, dmg: dmg * enemyDmgK(), life: 7, t: 0, r: (kind === 'scythe' ? 4 : 3) * CHAOS.area });
+  eprojs.push({ kind, x, y, vx: Math.cos(a) * spd, vy: Math.sin(a) * spd, dmg: dmg * enemyDmgK() * (S.eatk ?? 1), life: 7, t: 0, r: (kind === 'scythe' ? 4 : 3) * CHAOS.area });
 }
 // 放物線で飛ぶ弾(着弾まで当たり判定なし。着地で onLand)
 function lob(kind, x, y, tx, ty, T, H, onLand) {
@@ -1172,7 +1235,7 @@ function lob(kind, x, y, tx, ty, T, H, onLand) {
 }
 // 往復する大鎌(当たっても消えない)
 function boomerang(e, a) {
-  eprojs.push({ kind: 'boomer', x: e.x, y: e.y, a, v: 220, ret: false, owner: e, t: 0, life: 8, r: 7, keep: true, dmg: 18 * enemyDmgK() });
+  eprojs.push({ kind: 'boomer', x: e.x, y: e.y, a, v: 220, ret: false, owner: e, t: 0, life: 8, r: 7, keep: true, dmg: 18 * enemyDmgK() * (S.eatk ?? 1) });
 }
 function addHazard(kind, x, y, o) {
   if (kind === 'goo' && hazards.length > 40) hazards.splice(hazards.findIndex(h => h.kind === 'goo'), 1);
@@ -1199,7 +1262,7 @@ function windup(e, t, fn) { e.ai.wind = t; e.ai.fire = fn; }
 
 function bossAI(e, dt) {
   const ai = e.ai, a = Math.atan2(P.y - e.y, P.x - e.x), dist = Math.sqrt(d2(e.x, e.y, P.x, P.y));
-  const slow = 1 - 0.03 * e.frost;
+  const slow = (1 - 0.03 * e.frost) * clsEnemySlow(e); // 凍傷 / 時の歪み(移動。攻撃の速さは clsBossRate)
   e.face = P.x < e.x ? -1 : 1;
   if (!ai.enraged && e.hp < e.maxhp * e.enrage) {
     ai.enraged = true; e.spd *= 1.35;
@@ -1538,6 +1601,7 @@ function dragonAI(e, ai, dt, a, dist, slow) {
 }
 
 function onBossDeath(e) {
+  clsOnBossKill(e); // クラスの「ボスを倒した」(ネクロマンサー: 死霊を上限まで)
   // 2体のボス(カオス: 双王): 両方倒すまで次へ進まない
   const rest = (S.bosses || []).filter(b => b !== e && !b.dead);
   if (rest.length) {
@@ -1586,9 +1650,12 @@ function setStage(n) {
 }
 
 // ---------- 敵弾 ----------
-function updEprojs(dt) {
+function updEprojs(dt0) {
   for (let i = eprojs.length - 1; i >= 0; i--) {
     const p = eprojs[i];
+    // 時間停止(アストロマンサーの重力圏): 止まった弾は当たらず、時間が来たら消える
+    if (p.stopT) { if (S.time >= p.stopT) { burst(p.x, p.y - (p.z || 0), 5, ['#8a2a6e', '#3a1438'], { sp: 30, life: 0.25 }); eprojs.splice(i, 1); } continue; }
+    const dt = dt0 * clsProjTime(p); // 時の歪み: 重力圏の中の弾は時間がゆっくり進む(0 = 止まった)
     p.t += dt;
     if (p.lob) {
       const k = Math.min(1, p.t / p.T);
@@ -1628,7 +1695,7 @@ function updHazards(dt) {
     if (h.owner) { if (h.owner.dead) h.t = h.dur; else { h.x = h.owner.x; h.y = h.owner.y; } }
     const dd = d2(h.x, h.y, P.x, P.y);
     if (h.kind === 'goo') {
-      if (dd < h.r * h.r && h.t > 0.1) P.slowT = Math.max(P.slowT, 0.15 * CHAOS.debuff);
+      if (dd < h.r * h.r && h.t > 0.1 && !clsSlowImmune()) P.slowT = Math.max(P.slowT, 0.15 * CHAOS.debuff); // 減速を受けないクラスの状態(不屈)は除く
       if (Math.random() < dt * h.r * 0.15) part(h.x + rand(-h.r, h.r) * 0.7, h.y + rand(-h.r, h.r) * 0.7, 0, -6, 0.5, '#8affd8', { drag: 1 });
     } else if (h.kind === 'quake') {
       h.r += h.spd * dt;
@@ -1637,7 +1704,7 @@ function updHazards(dt) {
       if (h.r >= h.max) h.t = h.dur;
     } else if (h.kind === 'clock') {
       const R = h.r * Math.min(1, h.t * 4);
-      if (dd < R * R) { P.slowT = Math.max(P.slowT, 0.15 * CHAOS.debuff); P.cdSlowT = Math.max(P.cdSlowT, 0.15 * CHAOS.debuff); }
+      if (dd < R * R && !clsSlowImmune()) { P.slowT = Math.max(P.slowT, 0.15 * CHAOS.debuff); P.cdSlowT = Math.max(P.cdSlowT, 0.15 * CHAOS.debuff); }
     } else if (h.kind === 'vortex') { // 中心へ引き寄せる(移動速度より弱いので歩いて脱出できる)
       const R = h.r * Math.min(1, h.t * 4), d = Math.sqrt(dd);
       if (d < R && d > 2 && !P.dead && state === 'play') {
@@ -1697,6 +1764,7 @@ function updGems(dt) {
       const cols = [['#4cc3ff', '#e0fbff'], ['#5dff8a', '#eaffea'], ['#ff5d73', '#ffe0e6'], ['#ffd23f', '#fffbe0']][g.tier];
       burst(P.x, P.y - 4, 3, cols, { sp: 35, glow: true, life: 0.35 });
       gainXP(g.v);
+      clsOnPickup('gem'); // クラスの「アイテムを拾った」(アストロマンサー: 質量)
     }
   }
 }
@@ -1714,6 +1782,7 @@ function updDrops(dt) {
     }
     if (dd > 100 || d.t < 0.35) continue;
     drops.splice(i, 1);
+    clsOnPickup(d.kind);
     switch (d.kind) {
       case 'coin': { const g = addGold(d.val); addFloat(P.x, P.y - 12, '+' + g, '#ffcc33'); AudioMan.coin(); break; }
       case 'meat': heal(P.maxhp * DATA.player.food * P.foodMul); break; // 最大HP の 20%(食べ物の効果で増える)

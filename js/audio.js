@@ -125,6 +125,21 @@ const AudioMan = (() => {
     fire()    { if (this._ok('fire', 0.08)) this.noise(0.25, { vol: 0.1, f0: 1800, f1: 300 }); },
     blizz()   { if (this._ok('blizz', 0.2)) this.noise(0.8, { vol: 0.1, f0: 6000, f1: 2000, ftype: 'highpass' }); },
     hole()    { if (this._ok('hole', 0.2)) this.tone(90, 40, 0.8, { vol: 0.16, type: 'sine' }); },
+    // 葬送の最後の着弾: 鐘のような低い音(低い音 + 少しずれた倍音が長く残る)
+    knell()   { if (!this._ok('knell', 0.4)) return; this.noise(0.5, { vol: 0.22, f0: 2000, f1: 80 }); this.tone(196, 190, 1.6, { vol: 0.14, type: 'sine' }); this.tone(392, 385, 1.2, { vol: 0.06, type: 'triangle' }); this.tone(587, 580, 0.9, { vol: 0.035, type: 'sine' }); },
+    // ディメンション・リフト: 空間が裂ける「ビリッ」と低いうねり / 異次元の脈動(0.5秒ごと)
+    rift()    { if (!this._ok('rift', 0.3)) return; this.noise(0.5, { vol: 0.2, f0: 9000, f1: 300, ftype: 'bandpass', rate: 1.4 }); this.tone(70, 32, 1.4, { vol: 0.16, type: 'sine' }); this.tone(140, 55, 0.9, { vol: 0.04, type: 'sawtooth' }); },
+    riftPulse() { if (this._ok('riftPulse', 0.3)) this.tone(58, 40, 0.3, { vol: 0.09, type: 'sine' }); },
+    // 重力崩壊: 特異点の低い唸り(引き寄せている間)/ 崩壊の「ドゥン」
+    hum(dur)  { if (this._ok('hum', 0.5)) { this.tone(48, 62, dur, { vol: 0.07, type: 'sawtooth' }); this.tone(96, 120, dur, { vol: 0.03, type: 'sine' }); } },
+    crush()   { if (!this._ok('crush', 0.2)) return; this.noise(0.8, { vol: 0.3, f0: 3000, f1: 50 }); this.tone(100, 24, 0.9, { vol: 0.2, type: 'sine' }); this.tone(1600, 300, 0.12, { vol: 0.03, type: 'triangle' }); },
+    // バーサーカー: 狂乱の雄叫び(低いうなり + 喉の荒い息)/ ワイルドトマホークが当たる鈍い音 / 不屈で踏ん張る音
+    warcry()  { if (!this._ok('warcry', 0.5)) return; this.tone(150, 70, 0.9, { vol: 0.15, type: 'sawtooth' }); this.tone(225, 105, 0.8, { vol: 0.06, type: 'sawtooth', delay: 0.02 }); this.noise(0.9, { vol: 0.2, f0: 1400, f1: 140 }); },
+    thud()    { if (this._ok('thud', 0.05)) { this.tone(150, 48, 0.16, { vol: 0.15, type: 'sine' }); this.noise(0.1, { vol: 0.14, f0: 1200, f1: 120 }); this.tone(900, 500, 0.04, { vol: 0.03, type: 'triangle' }); } },
+    firm()    { if (this._ok('firm', 0.2)) { this.tone(95, 55, 0.28, { vol: 0.1, type: 'sawtooth' }); this.noise(0.18, { vol: 0.12, f0: 700, f1: 100 }); } },
+    // ウェポンマスター: 影が現れる「シュッ」/ 分身が抜け出す(金属の響き + 煙)
+    shade()   { if (this._ok('shade', 0.1)) { this.noise(0.12, { vol: 0.1, f0: 3000, f1: 800, ftype: 'bandpass' }); this.tone(660, 990, 0.06, { vol: 0.03, type: 'triangle' }); } },
+    summon()  { if (!this._ok('summon', 0.3)) return; this.tone(330, 660, 0.25, { vol: 0.06, type: 'triangle' }); this.tone(495, 990, 0.3, { vol: 0.04, type: 'triangle', delay: 0.05 }); this.noise(0.45, { vol: 0.12, f0: 2400, f1: 300, ftype: 'bandpass' }); },
     splat()   { if (this._ok('splat', 0.08)) { this.noise(0.3, { vol: 0.16, f0: 900, f1: 120 }); this.tone(220, 60, 0.2, { vol: 0.08, type: 'sine' }); } },
     charge(dur) { if (this._ok('charge', 0.3)) { this.tone(120, 900, dur, { vol: 0.07, type: 'sawtooth' }); this.noise(dur, { vol: 0.08, f0: 400, f1: 6000, ftype: 'bandpass' }); } },
     dash()    { if (this._ok('dash', 0.05)) this.noise(0.18, { vol: 0.14, f0: 1200, f1: 5000, ftype: 'bandpass' }); },
