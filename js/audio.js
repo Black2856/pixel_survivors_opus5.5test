@@ -2,10 +2,17 @@
 'use strict';
 
 const AudioMan = (() => {
+  // 曲: タイトル / ステージごとのフィールド曲(f_)・ボス曲(b_)。music/ のファイル名(拡張子なし)。ない曲は草原の曲で代用
   const MUSIC = {
-    title: 'music/title-menu.mp3', field1: 'music/field1.mp3', field2: 'music/field2.mp3', field3: 'music/field3.mp3',
-    boss1: 'music/boss1.mp3', boss2: 'music/boss2.mp3', boss3: 'music/boss3.mp3',
+    title: 'title-menu',
+    f_grass: 'はじまりの草原-フィールド', b_grass: 'はじまりの草原-ボス',
+    f_wild: '黄昏の荒野-フィールド', b_wild: '黄昏の荒野-ボス',
+    f_hell: '灼熱の奈落-フィールド', b_hell: '灼熱の奈落-ボス',
+    f_sea: '沈黙の海淵-フィールド', b_sea: '沈黙の海淵-ボス',
+    f_peak: '霜天の霊峰-フィールド', b_peak: '霜天の霊峰-ボス',
+    f_clock: '終刻の時計塔-フィールド', b_clock1: '終刻の時計塔-ボス1', b_clock2: '終刻の時計塔-ボス2',
   };
+  const musicSrc = name => encodeURI('music/' + (MUSIC[name] || (name && name[0] === 'b' ? MUSIC.b_grass : MUSIC.f_grass)) + '.mp3');
   let ctx = null, bus = null, noiseBuf = null;
   const last = {};
   let vol = { music: 0.7, sfx: 0.8 }, muted = false;
@@ -55,7 +62,7 @@ const AudioMan = (() => {
       this.musicName = name;
       const old = this.music;
       if (old) this._ramp(old, 0, fade, () => { old.pause(); old.src = ''; });
-      const el = new Audio(MUSIC[name]);
+      const el = new Audio(musicSrc(name));
       el.loop = true; el.volume = 0;
       this.music = el;
       el.play().catch(() => {});

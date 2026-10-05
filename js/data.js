@@ -37,13 +37,13 @@ const DATA = {
 
   // hp: 基礎HP(1500〜2000。Lv倍率は雑魚と共通) / enrage: 激昂する残りHP割合(省略時 0.5)
   bosses: {
-    king:    { name: '腐肉の王 ROT KING',          hp: 1500, spd: 14, dmg: 22, r: 13, music: 'boss1', col: '#8fce5e' },
-    gslime:  { name: '巨大スライム GIANT SLIME',   hp: 1500, spd: 16, dmg: 20, r: 14, music: 'boss1', col: '#4fd6a8' },
-    wyrm:    { name: '白骨竜 BONE WYRM',           hp: 1700, spd: 19, dmg: 22, r: 14, music: 'boss2', col: '#efe9d4' },
-    golem:   { name: 'ゴーレム GOLEM',             hp: 1800, spd: 12, dmg: 22, r: 15, music: 'boss2', col: '#6ee7ff' },
-    reaper:  { name: '死神 THE REAPER',            hp: 1800, spd: 22, dmg: 28, r: 12, music: 'boss3', col: '#c29bff', enrage: 0.3 }, // 段階3 で 1600 / 24 に
-    cdragon: { name: 'カオスドラゴン CHAOS DRAGON', hp: 1700, spd: 20, dmg: 20, r: 16, music: 'boss3', col: '#ff4a8a', enrage: 0.4 },
-    ifrit:   { name: '炎魔イフリート IFRIT',        hp: 1600, spd: 18, dmg: 24, r: 13, music: 'boss3', col: '#ff8a3d', enrage: 0.4 },
+    king:    { name: '腐肉の王 ROT KING',          hp: 1500, spd: 14, dmg: 22, r: 13, music: 'b_grass', col: '#8fce5e' },
+    gslime:  { name: '巨大スライム GIANT SLIME',   hp: 1500, spd: 16, dmg: 20, r: 14, music: 'b_grass', col: '#4fd6a8' },
+    wyrm:    { name: '白骨竜 BONE WYRM',           hp: 1700, spd: 19, dmg: 22, r: 14, music: 'b_wild', col: '#efe9d4' },
+    golem:   { name: 'ゴーレム GOLEM',             hp: 1800, spd: 12, dmg: 22, r: 15, music: 'b_wild', col: '#6ee7ff' },
+    reaper:  { name: '死神 THE REAPER',            hp: 1800, spd: 22, dmg: 28, r: 12, music: 'b_clock2', col: '#c29bff', enrage: 0.3 }, // 段階3 で 1600 / 24 に
+    cdragon: { name: 'カオスドラゴン CHAOS DRAGON', hp: 1700, spd: 20, dmg: 20, r: 16, music: 'b_hell', col: '#ff4a8a', enrage: 0.4 },
+    ifrit:   { name: '炎魔イフリート IFRIT',        hp: 1600, spd: 18, dmg: 24, r: 13, music: 'b_hell', col: '#ff8a3d', enrage: 0.4 },
   },
   // 状態異常(プレイヤー): 粘液・スロウタイムの移動速度倍率 / スロウタイムのCD回復倍率 / 炎上
   debuff: { slow: 0.6, cdRate: 0.5, burnTick: 0.5, burnDur: 3, frostSlow: 0.05, shockR: 60, pDur: 5, pBleed: 0.01, pBleedMax: 5 }, // frostSlow: 凍傷1スタックあたりの減速(敵・自分) / shockR: 感電の連鎖距離 / pDur: 自分の凍傷・出血が消えるまでの秒 / pBleed: 自分の出血1スタックの毎秒ダメージ(最大HP の割合)
@@ -1331,14 +1331,14 @@ const DATA = {
   // ---------- ステージ ----------
   // amb: 環境光(暗いほど光源が映える) / tint: カラーグレーディング / motes: 環境パーティクル
   stages: [
-    { label: 'はじまりの草原', ground: ['#2d4c35', '#335a3b', '#284430', '#3b6843'], deco: ['#4f8a4c', '#6fae5a', '#e4e98a', '#f28cb1'],
+    { label: 'はじまりの草原', music: 'f_grass', ground: ['#2d4c35', '#335a3b', '#284430', '#3b6843'], deco: ['#4f8a4c', '#6fae5a', '#e4e98a', '#f28cb1'],
       amb: [0.64, 0.68, 0.82], tint: [1.0, 1.02, 1.05], motes: { col: '#d9ff8a', rise: false } },
-    { label: '黄昏の荒野',     ground: ['#2f2a45', '#373052', '#29243c', '#40385e'], deco: ['#5a4d80', '#8b7ec8', '#e0c3fc', '#ffd6a5'],
+    { label: '黄昏の荒野', music: 'f_wild',     ground: ['#2f2a45', '#373052', '#29243c', '#40385e'], deco: ['#5a4d80', '#8b7ec8', '#e0c3fc', '#ffd6a5'],
       amb: [0.62, 0.56, 0.78], tint: [1.04, 0.98, 1.08], motes: { col: '#e0c3fc', rise: false } },
-    { label: '灼熱の奈落',     ground: ['#3a1e1b', '#452520', '#321815', '#502a22'], deco: ['#6b3024', '#a23e3e', '#ffb347', '#ff6a2a'],
+    { label: '灼熱の奈落', music: 'f_hell',     ground: ['#3a1e1b', '#452520', '#321815', '#502a22'], deco: ['#6b3024', '#a23e3e', '#ffb347', '#ff6a2a'],
       amb: [0.74, 0.52, 0.48], tint: [1.1, 0.96, 0.9], motes: { col: '#ff9b3d', rise: true }, lava: true },
     // 闘技場モード専用(石畳 + 円形の壁と観客席)
-    { label: '血戦の闘技場',   ground: ['#5a4838', '#65513f', '#4d3d30', '#6f5a45'], deco: ['#3a2c22', '#8a7058', '#7a1e24', '#cfc2a8'],
+    { label: '血戦の闘技場', music: 'f_wild',   ground: ['#5a4838', '#65513f', '#4d3d30', '#6f5a45'], deco: ['#3a2c22', '#8a7058', '#7a1e24', '#cfc2a8'],
       amb: [0.6, 0.52, 0.5], tint: [1.06, 0.98, 0.94], motes: { col: '#ffcf8a', rise: true }, tiles: true },
   ],
 

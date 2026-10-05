@@ -2370,13 +2370,13 @@ function onBossDeath(e) {
     if (S.mode === 'stage' || (S.loop === 1 && !S.won)) { S.won = true; S.victoryT = 2.4; AudioMan.stopMusic(1.5); return; }
     S.loop++; S.schedIdx = 0; S.loopStart = S.time; setStage(1);
     UI.announce('LOOP ' + S.loop, '敵はさらに強くなる…');
-    AudioMan.playMusic('field1');
+    AudioMan.playMusic(DATA.stages[0].music);
     return;
   }
-  if (S.mode === 'stage') { UI.announce('BOSS 1/2 撃破!', '次のボスに備えよ'); AudioMan.playMusic('field' + S.stage); return; } // ステージ単体: ステージはそのまま
+  if (S.mode === 'stage') { UI.announce('BOSS 1/2 撃破!', '次のボスに備えよ'); AudioMan.playMusic(DATA.stages[S.stage - 1].music); return; } // ステージ単体: ステージはそのまま
   setStage(Math.min(3, S.stage + 1));
   UI.announce('STAGE ' + S.stage, DATA.stages[S.stage - 1].label);
-  AudioMan.playMusic('field' + S.stage);
+  AudioMan.playMusic(DATA.stages[S.stage - 1].music);
 }
 
 function setStage(n) {
@@ -2732,7 +2732,7 @@ function arenaBossDown(e) {
   if (A.idx >= cfg.order.length) { S.won = true; S.victoryT = 3.2; AudioMan.stopMusic(1.5); UI.announce('ARENA CLEAR!!', '全ボス撃破'); return; }
   A.restT = cfg.rest; A.warned = false;
   UI.announce('ROUND ' + A.idx + ' CLEAR!', '報酬を拾って次に備えよ');
-  AudioMan.playMusic('field2');
+  AudioMan.playMusic(DATA.stages[S.stage - 1].music);
 }
 // 闘技場の壁: プレイヤー・敵・ドロップを円内に収める
 function confineArena() {

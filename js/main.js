@@ -12,7 +12,7 @@ function startRun(mode = 'normal', stageNo = 1) {
   groundCache.clear();
   UI.show(UI.$('hud'));
   UI.beginPlay();
-  AudioMan.playMusic(mode === 'arena' ? 'field2' : 'field' + S.stage);
+  AudioMan.playMusic(DATA.stages[S.stage - 1].music); // ステージのフィールド曲(闘技場は荒野の曲)
   // 闘技場: 雑魚から経験値を稼げないので開始時にまとめてレベルアップ
   if (mode === 'arena') gainXP(xpForLevels(DATA.arena.startLv) / P.xpMul);
   screenFlash(0.5);
@@ -47,7 +47,7 @@ function startEndless() {
   UI.show(UI.$('hud')); UI.pause(false);
   state = 'play';
   UI.announce('ENDLESS MODE', 'LOOP 2 — 敵はさらに強くなる');
-  AudioMan.playMusic('field1');
+  AudioMan.playMusic(DATA.stages[0].music);
 }
 function goTitle() {
   state = 'title';
