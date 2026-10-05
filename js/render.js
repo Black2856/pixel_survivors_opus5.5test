@@ -50,8 +50,47 @@ function buildTileChunk(cx, cy, st) {
   }
   return { c, g };
 }
+// 時計塔の地面: 小さな石畳。ところどころに真鍮の歯車がはめこまれ(ほのかに光る)、鋲の打たれた真鍮の板、ひび、砂だまり
+function buildClockChunk(cx, cy, st) {
+  const c = ART.canvas(CH, CH), x = c.getContext('2d'), g = ART.canvas(CH, CH), gx = g.getContext('2d');
+  const [g0, g1, g2, g3] = st.ground, [mortar, hi, brass, brassHi] = st.deco, T = 12;
+  const ox = cx * CH, oy = cy * CH;
+  x.fillStyle = mortar; x.fillRect(0, 0, CH, CH);
+  for (let ty = 0; ty < CH; ty += T) {
+    const off = (((oy + ty) / T) & 1) ? T / 2 : 0;
+    for (let tx = -T; tx < CH + T; tx += T) {
+      const px = tx + off, h = hash2(ox + px, oy + ty);
+      x.fillStyle = h < 0.3 ? g1 : h < 0.55 ? g2 : h < 0.7 ? g3 : g0; x.fillRect(px + 1, ty + 1, T - 1, T - 1); // 石(目地は暗い)
+      x.fillStyle = hi; x.globalAlpha = 0.22; x.fillRect(px + 1, ty + 1, T - 2, 1); x.fillRect(px + 1, ty + 1, 1, T - 2); x.globalAlpha = 1;
+      if (h > 0.93) { x.fillStyle = mortar; x.fillRect(px + 3, ty + 5, 3, 1); x.fillRect(px + 5, ty + 6, 1, 3); } // 欠け
+    }
+  }
+  for (let i = 0; i < 120; i++) { x.fillStyle = hash2(ox + i * 11, oy + i * 5) < 0.5 ? g3 : '#6a5a40'; x.fillRect((hash2(i, cx * 29 + cy) * CH) | 0, (hash2(cy * 19 + i, cx) * CH) | 0, 1, 1); } // 砂粒
+  for (let i = 0; i < 8; i++) {
+    const hx = (hash2(cx * 97 + i, cy * 57) * (CH - 22)) | 0, hy = (hash2(cy * 89 + i, cx * 43 + i) * (CH - 22)) | 0, kind = hash2(hx + ox, hy + oy);
+    if (kind < 0.28) { // はめこまれた歯車(歯の数・大きさは場所ごと)
+      const R = 5 + ((kind * 40) | 0) % 5, n = 8 + ((kind * 97) | 0) % 5, cx0 = hx + 10, cy0 = hy + 10;
+      x.fillStyle = mortar; for (let a = 0; a < TAU; a += 0.08) x.fillRect(Math.round(cx0 + Math.cos(a) * (R + 2)), Math.round(cy0 + Math.sin(a) * (R + 2)), 1, 1);
+      for (let a = 0; a < TAU; a += 0.1) { x.fillStyle = brass; x.fillRect(Math.round(cx0 + Math.cos(a) * R), Math.round(cy0 + Math.sin(a) * R), 1, 1); }
+      for (let k = 0; k < n; k++) { const a = TAU / n * k; x.fillStyle = brass; x.fillRect(Math.round(cx0 + Math.cos(a) * (R + 1)), Math.round(cy0 + Math.sin(a) * (R + 1)), 2, 2); } // 床の歯車はくすんだ色で光らせない(転がる歯車の敵と見分ける)
+      for (let k = 0; k < 4; k++) { const a = TAU / 4 * k + kind * 3; x.fillStyle = brass; x.fillRect(Math.round(cx0 + Math.cos(a) * R * 0.5), Math.round(cy0 + Math.sin(a) * R * 0.5), 1, 1); } // スポーク
+      x.fillStyle = brassHi; x.fillRect(cx0 - 1, cy0 - 1, 2, 2); x.fillStyle = mortar; x.fillRect(cx0, cy0, 1, 1);
+    } else if (kind < 0.42) { // 鋲の打たれた真鍮の板
+      x.fillStyle = '#5a4424'; x.fillRect(hx, hy, 10, 6); x.fillStyle = brass; x.fillRect(hx, hy, 10, 1); x.fillRect(hx, hy, 1, 6);
+      x.fillStyle = brassHi; x.fillRect(hx + 1, hy + 1, 1, 1); x.fillRect(hx + 8, hy + 1, 1, 1); x.fillRect(hx + 1, hy + 4, 1, 1); x.fillRect(hx + 8, hy + 4, 1, 1);
+    } else if (kind < 0.62) { // ひび
+      let lx = hx, ly = hy; x.fillStyle = mortar;
+      for (let k = 0; k < 10; k++) { x.fillRect(lx, ly, 1, 1); lx += 1; ly = clamp(ly + (hash2(lx + ox, k) < 0.5 ? 1 : -1), 0, CH - 1); }
+    } else if (kind < 0.8) { // 砂だまり
+      x.fillStyle = '#8a7650'; x.fillRect(hx, hy + 1, 7, 1); x.fillRect(hx + 1, hy, 4, 1); x.fillRect(hx + 2, hy + 2, 5, 1);
+      x.fillStyle = '#b89c68'; x.fillRect(hx + 2, hy, 2, 1);
+    }
+  }
+  return { c, g };
+}
 function buildChunk(cx, cy, st) {
   if (st.tiles) return buildTileChunk(cx, cy, st);
+  if (st.clock) return buildClockChunk(cx, cy, st);
   const c = ART.canvas(CH, CH), x = c.getContext('2d');
   const g = ART.canvas(CH, CH), gx = g.getContext('2d');
   const [g0, g1, g2, g3] = st.ground, [d0, d1, d2c, d3] = st.deco;
@@ -293,6 +332,7 @@ function shadow(x, y, w) {
 // ============================================================
 function spriteOf(e) {
   const s = ART.S[e.type];
+  if (e.ai === 'roll') return s[Math.floor((e.spin || 0) * 1.3) % s.length]; // 歯車: 転がった距離でコマを送る
   if (Array.isArray(s)) return s[Math.floor(e.t * 8) % s.length];
   return s;
 }
@@ -858,6 +898,7 @@ function render() {
   // ---- ボスの設置物(自分の範囲より手前。縁は赤で危険を示す) ----
   const warnBlink = Math.floor(t * 8) % 2;
   for (const h of hazards) {
+    if (h.delay > 0) continue; // 予告のあとに出る床
     const hx = h.x - cam.x, hy = h.y - cam.y, fade = Math.min(1, (h.dur - h.t) * 3, h.t * 8);
     if (h.kind === 'goo') {
       const R = Math.round(h.r * Math.min(1, h.t * 6));

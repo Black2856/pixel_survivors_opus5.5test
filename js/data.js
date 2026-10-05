@@ -44,6 +44,11 @@ const DATA = {
     wolf:     { hp: 20, spd: 36, dmg: 8,  xp: 1, r: 5, ai: 'chase', touchFrost: 2, pack: [3, 4] }, // 雪狼
     icesprite:{ hp: 24, spd: 16, dmg: 8,  xp: 1, r: 4, ai: 'keep', keep: [90, 120], shot: { cd: 3.5, range: 180, spd: 75, n: 1.0, kind: 'eice', frost: 1 } }, // 氷の精
     yeti:     { hp: 70, spd: 10, dmg: 14, xp: 2, r: 8, ai: 'chase', snowball: { cd: 5, range: 150, r: 18, n: 1.0, frost: 2, floor: 3 } }, // イエティ
+    // 終刻の時計塔 / roll: 出たときのプレイヤーの位置へ一直線に転がり、通り過ぎると消える(遠くても移し直さない)
+    // blink: cd 秒ごとに wind 秒光って、プレイヤーの方向へ dist 瞬間移動 / warp: cd 秒ごとに、プレイヤーの位置に wind 秒の予告 → 時の歪み(半径 r・dur 秒。移動速度 ×slow・クールダウンの回復 ×0.5)
+    gear:     { hp: 40, spd: 110, dmg: 10, xp: 1, r: 6, ai: 'roll', kbRes: 1, noElite: true }, // 歯車(金属で硬い: 押されない)
+    clockman: { hp: 34, spd: 14, dmg: 10, xp: 1, r: 5, ai: 'chase', blink: { cd: 2.5, wind: 0.3, dist: 35 } }, // 時計兵
+    hglass:   { hp: 26, spd: 14, dmg: 8,  xp: 1, r: 5, ai: 'keep', keep: [90, 110], warp: { cd: 8, range: 200, wind: 0.8, r: 45, dur: 4, slow: 0.7 } }, // 砂時計の精
     goblin:   { hp: 160, spd: 44, dmg: 0, xp: 12, r: 5, ai: 'flee', kbRes: 0.5, noElite: true },
   },
 
@@ -1372,6 +1377,9 @@ const DATA = {
     // 霜天の霊峰(tier 3): 雪と氷の山。青白い光、降る雪、氷の割れ目
     { label: '霜天の霊峰', music: 'f_peak', ground: ['#56647e', '#5e6e8a', '#4c5a72', '#6a7a96'], deco: ['#8a9ab8', '#c8d8f0', '#2a4a3a', '#9ff7ff'],
       amb: [0.66, 0.74, 0.92], tint: [0.96, 1.0, 1.08], motes: { col: '#ffffff', snow: true }, snow: true, light: 0.5 }, // light: 明るい雪原なので光源を弱める
+    // 終刻の時計塔(tier 4): 石畳にはめこまれた真鍮の歯車、セピアの光、舞う砂
+    { label: '終刻の時計塔', music: 'f_clock', ground: ['#38322e', '#403833', '#302a27', '#47403a'], deco: ['#1a1614', '#7a6a58', '#6a5228', '#94784a'],
+      amb: [0.64, 0.56, 0.48], tint: [1.05, 1.0, 0.9], motes: { col: '#ffd8a0', cols: ['#ffd8a0', '#e8c88a', '#fff0c8', '#c8a060'], rise: false }, clock: true },
   ],
 
   // ---------- カオス強化(db.xlsx「カオス強化」)----------

@@ -9,6 +9,7 @@ const ECOL = {
   jslime: ['#9ff7ff', '#ff8ad8'], beetle: ['#5a4a8a', '#9ff7ff'], fairy: ['#ffd0f0', '#9ff7ff'],
   jelly: ['#ffb0e0', '#bff4ff'], sahagin: ['#3a9a8a', '#bff4ff'], puffer: ['#e8c86a', '#8a6a3a'], angler: ['#2a4a5a', '#fff6a0'],
   wolf: ['#d8e4f4', '#6a7a9a'], icesprite: ['#9ff7ff', '#ffffff'], yeti: ['#f0f4ff', '#7a8aa8'],
+  gear: ['#c8a050', '#5a4a30'], clockman: ['#c8a050', '#e8e0c8'], hglass: ['#e8c88a', '#9ff7ff'],
 };
 const xpFor = l => Math.floor(4 + l * 2.6 + Math.pow(l, 1.72));
 
@@ -44,9 +45,13 @@ function pushWarn(w) {
 // 通常モード(ステージを1つ選ぶ)の出現スケジュール。t はフェーズの時計(ボス・エリート群の間は止まる)
 // 3分 → エリート群 → 3分 → ボス1 → 3分 → ボス2(倒すとクリア)。同じ t ではフェーズの開始を波の切り替えより先に処理する
 const stageRun = n => DATA.stageRuns.find(r => r.no === n); // ステージのキーの番号(stage1〜7)から
+// 出現の候補には「敵のまとまり」(配列)が入ることがある(時計塔の「今までの敵」)。まとまりは 1枠として選ばれ、その中から1種
+const pickType = types => { const t = pick(types); return Array.isArray(t) ? pick(t) : t; };
+const flatTypes = types => [...new Set(types.flat())];
 function stageSchedule(n) {
   const R = stageRun(n), F = DATA.flow, L = F.seg;
-  const s1 = R.segs[0], s2 = R.segs[1] || s1, s3 = R.segs[2] || [...new Set([...s1, ...s2])];
+  const seen = new Set(), uniq = a => a.filter(t => !seen.has(String(t)) && seen.add(String(t))); // まとまりは中身が同じなら同じもの
+  const s1 = R.segs[0], s2 = R.segs[1] || s1, s3 = R.segs[2] || uniq([...s1, ...s2]);
   const out = F.waves[0].map((w, i) => ({ t: w.t, types: s1.slice(0, i + 1), interval: w.interval, max: w.max }));
   out.push({ t: L, elites: F.elites });
   for (const w of F.waves[1]) out.push({ t: L + w.t, types: s2, interval: w.interval, max: w.max });
@@ -171,7 +176,7 @@ function updPlayer(dt) {
   const aim = mouseAimPt();
   if (aim && aim.x !== P.x) P.facing = aim.x > P.x ? 1 : -1; // 照準中はマウス側を向く(アックスの投擲方向も追従)
   clsUpdate(dt);
-  const sp = P.speed * P.moveMul * (P.slowT > 0 ? DATA.debuff.slow : 1) * playerFrostMul() * (P.heatT > 0 ? 0.8 : 1) * (P.chillT > 0 ? 0.3 : 1); // 熱波(イフリート): ×0.8 / 氷の槍(雪華の女王): ×0.3
+  const sp = P.speed * P.moveMul * (P.slowT > 0 ? P.slowK || DATA.debuff.slow : 1) * playerFrostMul() * (P.heatT > 0 ? 0.8 : 1) * (P.chillT > 0 ? 0.3 : 1); // 熱波(イフリート): ×0.8 / 氷の槍(雪華の女王): ×0.3
   let vx = mx * sp, vy = my * sp;
   if (P.iceT > 0) { // 滑る床(霜の巨人): 向きを変えるのに 0.35秒の慣性がかかる
     P.iceT -= dt;
@@ -244,6 +249,13 @@ function frostPlayer(n) {
   burst(P.x, P.y - 4, 6 + n * 3, ['#bff4ff', '#ffffff', '#7ad7ff'], { sp: 50, glow: true, life: 0.4 }); // 霜が弾ける
   if (Math.floor(was / 4) < Math.floor(P.frost / 4)) { addRing(P.x, P.y, 14, '#9ff7ff', { life: 0.3 }); AudioMan.frost(); } // 4スタックごとに凍みる音
   S.hudDirty = true;
+}
+// 減速(粘液・スロウタイム・時の歪み): k = 移動速度の倍率(重なったら強い方)。cd: クールダウンの回復も遅くする。減速を受けない状態(不屈)では付かない
+function slowPlayer(k, t, cd) {
+  if (P.dead || clsSlowImmune()) return;
+  P.slowK = P.slowT > 0 ? Math.min(P.slowK || 1, k) : k;
+  P.slowT = Math.max(P.slowT, t);
+  if (cd) P.cdSlowT = Math.max(P.cdSlowT, t);
 }
 // 氷の槍(雪華の女王): t 秒 移動速度 ×0.3。減速を受けない状態(不屈)では付かない
 function chillPlayer(t) {
@@ -1218,7 +1230,7 @@ function spawnEnemy(type, o = {}) {
     id: nextId++, type, x, y, hp: d.hp * hpk, maxhp: d.hp * hpk, spd: d.spd * spk * rand(0.9, 1.1), dmg: d.dmg * enemyDmgK(),
     r: d.r * (o.elite ? 2 : 1), xp: d.xp * lvK('xp'), ai: d.ai, kbRes: o.elite ? 0.9 : d.kbRes || 0, ghost: d.ghost,
     t: rand(0, 5), seed: Math.random(), kx: 0, ky: 0, flash: 0, elite: !!o.elite, scale: o.elite ? 2 : 1,
-    frost: 0, frostT: 0, burns: [], burnT: 0, burnTick: 0, stun: 0, slowT: 0, bleed: 0, bleedT: 0, shotT: (d.shot || d.throw || d.rush || d.puff || d.lantern || d.snowball) ? rand(1, (d.shot || d.throw || d.rush || d.puff || d.lantern || d.snowball).cd) : 0, wind: 0, hopT: rand(0, 1),
+    frost: 0, frostT: 0, burns: [], burnT: 0, burnTick: 0, stun: 0, slowT: 0, bleed: 0, bleedT: 0, shotT: (d.shot || d.throw || d.rush || d.puff || d.lantern || d.snowball || d.blink || d.warp) ? rand(1, (d.shot || d.throw || d.rush || d.puff || d.lantern || d.snowball || d.blink || d.warp).cd) : 0, wind: 0, hopT: rand(0, 1),
     life: type === 'goblin' ? 16 : 0,
     noChest: !!o.noChest, phaseElite: !!o.phaseElite, // 宝箱を落とさない / エリート群のエリート
   };
@@ -1362,7 +1374,8 @@ function updEnemies(dt) {
         const s = d.shot, dd = Math.sqrt(d2(e.x, e.y, P.x, P.y));
         const k = e.wind > 0 ? 0 : dd > d.keep[1] ? 1 : dd < d.keep[0] ? -1 : 0; // 構えている間は止まる
         mx *= k; my *= k;
-        if (e.wind > 0) { // 構え(砂術師): 足元で砂が渦を巻き、終わると撃つ
+        if (!s) { /* 射撃のない敵(砂時計の精)は距離を保つだけ */ }
+        else if (e.wind > 0) { // 構え(砂術師): 足元で砂が渦を巻き、終わると撃つ
           e.wind -= dt * CHAOS.rate * tw;
           if (Math.random() < dt * 45) { const pa = rand(0, TAU), pr = rand(5, 10); part(e.x + Math.cos(pa) * pr, e.y + 4 + Math.sin(pa) * pr * 0.5, -Math.sin(pa) * 34, Math.cos(pa) * 16 - 10, 0.35, pick(['#e8c88a', '#c8a060', '#fff0c0']), { drag: 2 }); }
           if (e.wind <= 0) enemyShoot(e, s, Math.atan2(dc.y - e.y, dc.x - e.x));
@@ -1373,7 +1386,14 @@ function updEnemies(dt) {
             if (s.wind) { e.wind = s.wind; AudioMan.sand(); } else enemyShoot(e, s, a);
           }
         }
-        e.aim = s.wind ? e.wind > 0 : e.shotT < 0.4; // 撃つ前に構える(予兆)
+        if (s) e.aim = s.wind ? e.wind > 0 : e.shotT < 0.4; // 撃つ前に構える(予兆)
+      } else if (e.ai === 'roll') { // 歯車: 出たときのプレイヤーの位置へ一直線に転がり、通り過ぎると消える
+        if (e.ta === undefined) { e.ta = Math.atan2(P.y - e.y, P.x - e.x); e.rollLeft = Math.sqrt(d2(e.x, e.y, P.x, P.y)) + Math.hypot(GFX.VW, GFX.VH) / 2 + 30; }
+        mx = Math.cos(e.ta); my = Math.sin(e.ta);
+        e.spin = (e.spin || 0) + sp * dt / e.r;
+        if ((e.rollLeft -= sp * dt) <= 0) { e.dead = true; continue; } // 倒した扱いにしない(経験値なし)
+        if (Math.random() < dt * 12) part(e.x - mx * 5 + rand(-2, 2), e.y + 5, -mx * 20, -rand(4, 12), 0.35, pick(['#8a7a60', '#c8a050', '#5a4a40']), { drag: 2 }); // 転がる土ぼこりと火花
+        if (Math.random() < dt * 4) part(e.x, e.y + 5, rand(-30, 30), -rand(20, 40), 0.2, '#ffd27a', { glow: true, g: 200 });
       } else if (e.ai === 'flee') {
         mx = -mx; my = -my;
         e.life -= dt;
@@ -1440,6 +1460,29 @@ function updEnemies(dt) {
           if (e.shotT <= 0 && d2(e.x, e.y, P.x, P.y) < 160 * 160) { e.shotT = ln.cd; e.wind = ln.wind; pushWarn({ kind: 'circle', x: e.x, y: e.y, r: ln.r, t: 0, life: ln.wind, owner: e, track: w => { w.x = e.x; w.y = e.y; } }); }
         }
       }
+      if (d.blink) { // 時計兵: 光って(wind 秒)、プレイヤーの方向へ dist 瞬間移動する(時を飛ばす)
+        const bl = d.blink;
+        if (e.wind > 0) {
+          mx = my = 0; e.wind -= dt * CHAOS.rate * tw; e.flash = Math.sin(e.wind * 50) > 0 ? 0.05 : 0;
+          if (e.wind <= 0) {
+            const ba = Math.atan2(dc.y - e.y, dc.x - e.x), x0 = e.x, y0 = e.y;
+            e.x += Math.cos(ba) * bl.dist; e.y += Math.sin(ba) * bl.dist;
+            for (let k = 0; k < 6; k++) { const u = k / 5; part(lerp(x0, e.x, u), lerp(y0, e.y, u) - 2, 0, -4, 0.35, pick(['#ffd27a', '#c8a050', '#fff0c8']), { glow: true, drag: 1 }); } // 飛ばした時の跡
+            addRing(e.x, e.y, 8, '#ffd27a', { life: 0.25 }); AudioMan.tick(6);
+          }
+        } else if ((e.shotT -= dt * CHAOS.rate * tw) <= 0) { e.shotT = bl.cd; e.wind = bl.wind; }
+      }
+      if (d.warp) { // 砂時計の精: プレイヤーの位置に予告(wind 秒)→ 時の歪み(時計盤の床)
+        const wp = d.warp;
+        if ((e.shotT -= dt * CHAOS.rate * tw) <= 0 && d2(e.x, e.y, P.x, P.y) < wp.range * wp.range) {
+          e.shotT = wp.cd;
+          const tx = P.x, ty = P.y;
+          pushWarn({ kind: 'circle', x: tx, y: ty, r: wp.r, t: 0, life: wp.wind });
+          addHazard('clock', tx, ty, { r: wp.r, dur: wp.dur, slow: wp.slow, delay: wp.wind });
+          burst(e.x, e.y - 4, 10, ['#e8c88a', '#fff0c8', '#9ff7ff'], { sp: 40, glow: true, life: 0.4 }); AudioMan.tick(10);
+        }
+        e.aim = e.shotT < 0.5;
+      }
       if (d.snowball) { // イエティ: 止まって腕を振りかぶり(0.5秒)、雪玉を放物線で投げる(着弾点の円は投げる前から出る)
         const sb = d.snowball;
         if (e.wind > 0) {
@@ -1469,7 +1512,7 @@ function updEnemies(dt) {
       e.x += mx * sp * dt; e.y += my * sp * dt;
       e.face = (mx || dc.x - e.x) < 0 ? -1 : 1; // 止まっている間はプレイヤーの方を向く
       // 分離(重なり防止)
-      if (!e.ghost) {
+      if (!e.ghost && e.ai !== 'roll') {
         let n = 0;
         forEachNear(e.x, e.y, e.r, o => {
           if (o === e || o.ghost || o.prop) return;
@@ -1479,7 +1522,7 @@ function updEnemies(dt) {
         });
       }
       // 遠すぎる敵は進行方向の反対側へ再配置
-      if (d2(e.x, e.y, P.x, P.y) > R2 && e.type !== 'goblin') {
+      if (d2(e.x, e.y, P.x, P.y) > R2 && e.type !== 'goblin' && e.ai !== 'roll') {
         const a2 = Math.atan2(P.y - e.y, P.x - e.x) + rand(-0.5, 0.5), R = Math.hypot(GFX.VW, GFX.VH) / 2 + 12;
         e.x = P.x + Math.cos(a2) * R; e.y = P.y + Math.sin(a2) * R;
       }
@@ -3187,7 +3230,7 @@ function chestBeacon(x, y) {
 }
 // エリート群の襲来: そのステージの今の候補から n 体を、画面の外の 3方向(120°おき)から一斉に
 function startElitePhase(n) {
-  const pool = ((S.spawnCfg && S.spawnCfg.types) || ['zombie']).filter(k => !DATA.enemies[k].noElite);
+  const pool = flatTypes((S.spawnCfg && S.spawnCfg.types) || ['zombie']).filter(k => !DATA.enemies[k].noElite);
   const R = Math.hypot(GFX.VW, GFX.VH) / 2 + 10, a0 = rand(0, TAU), elites = [];
   for (let i = 0; i < n; i++) {
     const a = a0 + TAU / n * i, x = P.x + Math.cos(a) * R, y = P.y + Math.sin(a) * R;
@@ -3314,11 +3357,12 @@ function updHazards(dt) {
   S.inInk = false; S.lee = false;
   for (let i = hazards.length - 1; i >= 0; i--) {
     const h = hazards[i];
+    if (h.delay > 0) { h.delay -= dt; continue; } // 予告のあとに出る床
     h.t += dt;
     if (h.owner) { if (h.owner.dead) h.t = h.dur; else { h.x = h.owner.x; h.y = h.owner.y; } }
     const dd = d2(h.x, h.y, P.x, P.y);
     if (h.kind === 'goo') {
-      if (dd < h.r * h.r && h.t > 0.1 && !clsSlowImmune()) P.slowT = Math.max(P.slowT, 0.15 * CHAOS.debuff); // 減速を受けないクラスの状態(不屈)は除く
+      if (dd < h.r * h.r && h.t > 0.1) slowPlayer(DATA.debuff.slow, 0.15 * CHAOS.debuff); // 減速を受けないクラスの状態(不屈)は除く
       if (Math.random() < dt * h.r * 0.15) part(h.x + rand(-h.r, h.r) * 0.7, h.y + rand(-h.r, h.r) * 0.7, 0, -6, 0.5, '#8affd8', { drag: 1 });
     } else if (h.kind === 'fire') { // 燃える床: 上にいる間、炎上(その敵のダメージ × 0.1 を 0.5秒ごと)
       const R = h.r * Math.min(1, h.t * 8);
@@ -3343,7 +3387,7 @@ function updHazards(dt) {
       if (h.r >= h.max) h.t = h.dur;
     } else if (h.kind === 'clock') {
       const R = h.r * Math.min(1, h.t * 4);
-      if (dd < R * R && !clsSlowImmune()) { P.slowT = Math.max(P.slowT, 0.15 * CHAOS.debuff); P.cdSlowT = Math.max(P.cdSlowT, 0.15 * CHAOS.debuff); }
+      if (dd < R * R) slowPlayer(h.slow || DATA.debuff.slow, 0.15 * CHAOS.debuff, true); // スロウタイム(死神)/ 時の歪み(砂時計の精: ×0.7)
     } else if (h.kind === 'vortex') { // 中心へ引き寄せる(移動速度より弱いので歩いて脱出できる)
       const R = h.r * Math.min(1, h.t * 4), d = Math.sqrt(dd);
       if (d < R && d > 2 && !P.dead && state === 'play') {
@@ -3542,9 +3586,9 @@ function updSpawner(dt) {
     if (enemies.length < cfg.max * (P.uq.clock ? 1.15 : 1) * CHAOS.spawn) {
       // 時々小集団で出現
       if (Math.random() < 0.12) {
-        const t = pick(cfg.types), a = rand(0, TAU), R = Math.hypot(GFX.VW, GFX.VH) / 2 + 16;
+        const t = pickType(cfg.types), a = rand(0, TAU), R = Math.hypot(GFX.VW, GFX.VH) / 2 + 16;
         for (let i = 0; i < 6; i++) spawnEnemy(t, { x: P.x + Math.cos(a) * R + rand(-14, 14), y: P.y + Math.sin(a) * R + rand(-14, 14) });
-      } else spawnPack(pick(cfg.types));
+      } else spawnPack(pickType(cfg.types));
     }
   }
   // 自然発生のエリート・ゴブリン・篝火: 通常モードではフェーズの時計で進む(フェーズ中は止まる)
@@ -3553,7 +3597,7 @@ function updSpawner(dt) {
     S.eliteT -= tdt;
     if (S.eliteT <= 0) {
       S.eliteT = 60;
-      const pool = cfg.types.filter(k => !DATA.enemies[k].noElite);
+      const pool = flatTypes(cfg.types).filter(k => !DATA.enemies[k].noElite);
       if (pool.length) spawnEnemy(pick(pool), { elite: true, noChest: !!S.phase }); // ボス戦中に出たエリートは宝箱を落とさない
       UI.banner('ELITE 出現!!', S.phase ? 'ボス戦中のエリート' : '倒すと宝箱を落とす', 1600); AudioMan.warning();
     }
@@ -3591,7 +3635,7 @@ const arenaLv = i => DATA.arena.elv[i] + CHAOS.startLv + CHAOS.bossLv * i;
 // カオス「親衛隊」: ボスの左右からエリートが n 体入場する(そのボスのステージの敵から)
 function arenaEscort(boss, n, a, R) {
   const run = DATA.stageRuns.find(r => r.bosses.includes(boss.type)) || DATA.stageRuns[0];
-  const types = [...new Set(run.segs.filter(Boolean).flat())].filter(k => DATA.enemies[k] && !DATA.enemies[k].noElite);
+  const types = [...new Set(run.segs.filter(Boolean).flat(2))].filter(k => DATA.enemies[k] && !DATA.enemies[k].noElite);
   for (let i = 0; i < n; i++) {
     const b = a + (i - (n - 1) / 2) * 0.35 + (i % 2 ? 0.12 : -0.12), r = R * rand(0.85, 1.05);
     const x = Math.cos(b) * r, y = Math.sin(b) * r;
@@ -3625,7 +3669,7 @@ function horde() {
   UI.banner('HORDE INCOMING!!', '大群が迫ってくる…', 2000);
   AudioMan.warning(); shake(5);
   const cfg = S.spawnCfg || { types: ['zombie'] }, R = Math.hypot(GFX.VW, GFX.VH) / 2 + 20, n = 48;
-  for (let i = 0; i < n; i++) { const a = TAU / n * i; spawnEnemy(pick(cfg.types), { x: P.x + Math.cos(a) * R, y: P.y + Math.sin(a) * R }); }
+  for (let i = 0; i < n; i++) { const a = TAU / n * i; spawnEnemy(pickType(cfg.types), { x: P.x + Math.cos(a) * R, y: P.y + Math.sin(a) * R }); }
 }
 
 // ============================================================

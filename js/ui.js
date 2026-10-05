@@ -176,8 +176,9 @@ const UI = (() => {
   // 状態の札: クラスの状態 + ボス由来の状態異常 + 装備の効果。種類が変わったときだけ作り直し、毎フレーム残り時間を更新する
   function playerStatuses() {
     const d = DATA.debuff, out = clsStatuses();
-    if (P.slowT > 0 && P.cdSlowT <= 0) out.push({ id: 'slow', glyph: '鈍', name: '鈍足', fx: `移動速度 -${Math.round((1 - d.slow) * 100)}%`, t: P.slowT, kind: 'debuff' });
-    if (P.cdSlowT > 0) out.push({ id: 'cdslow', glyph: '遅', name: 'スロウタイム', fx: `移動 -${Math.round((1 - d.slow) * 100)}% CD回復 -${Math.round((1 - d.cdRate) * 100)}%`, t: P.cdSlowT, kind: 'debuff' });
+    const sk = P.slowK || d.slow; // 減速の強さ(時の歪みは ×0.7)
+    if (P.slowT > 0 && P.cdSlowT <= 0) out.push({ id: 'slow', glyph: '鈍', name: '鈍足', fx: `移動速度 -${Math.round((1 - sk) * 100)}%`, t: P.slowT, kind: 'debuff' });
+    if (P.cdSlowT > 0) out.push({ id: 'cdslow', glyph: '遅', name: 'スロウタイム', fx: `移動 -${Math.round((1 - sk) * 100)}% CD回復 -${Math.round((1 - d.cdRate) * 100)}%`, t: P.cdSlowT, kind: 'debuff' });
     if (P.burnT > 0) out.push({ id: 'burn', glyph: '炎', name: '炎上', fx: `毎${d.burnTick}秒 ${Math.round(P.burnDmg)} ダメージ`, t: P.burnT, max: d.burnDur, kind: 'debuff' });
     if (P.frost > 0) out.push({ id: 'pfrost', glyph: '凍', name: '凍傷', fx: `${P.frost}スタック ・ 移動速度 -${Math.round((1 - playerFrostMul()) * 100)}%(受けないでいると ${d.pDur}秒で消える)`, t: P.frostT, max: d.pDur, kind: 'debuff' });
     if (P.bleed > 0) out.push({ id: 'pbleed', glyph: '血', name: '出血', fx: `${P.bleed}スタック ・ 毎秒 最大HP の ${Math.round(P.bleed * d.pBleed * 100)}%`, t: P.bleedT, max: d.pDur, kind: 'debuff' });

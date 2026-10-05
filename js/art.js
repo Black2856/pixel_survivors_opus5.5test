@@ -1281,6 +1281,20 @@ const ART = (() => {
   S.flakeS = mk({ a: '#9ff7ff', b: '#ffffff' }, ['.a.', 'aba', '.a.'], { outline: false, emit: 'ab' });
   S.snowball = mk({ a: '#8aa0c8', b: '#ffffff', c: '#e8f4ff' }, ['.aa.', 'abca', 'acba', '.aa.']);
 
+  // ---------- 終刻の時計塔 ----------
+  // 歯車: 転がる真鍮の歯車(回転の 2コマ。歯の位置が半歯ずれる)
+  const gearPal = { a: '#3a2a18', b: '#8a6a30', c: '#c8a050', d: '#ffd27a', e: '#2a1e14' };
+  S.gear = [mk(gearPal, ['....ccc....', '..c.cdc.c..', '.ccbbbbbcc.', '..bbcccbb..', 'ccbcbbbcbcc', 'cdbcbebcbdc', 'ccbcbbbcbcc', '..bbcccbb..', '.ccbbbbbcc.', '..c.cbc.c..', '....ccc....'], { emit: 'd' }),
+    mk(gearPal, ['...c...c...', '..cccbccc..', '.cdbbbbbbc.', '..bbcccbb..', '.cbcbbbcbc.', '.dbcbebcbb.', '.cbcbbbcbc.', '..bbcccbb..', '.cbbbbbbdc.', '..cccbccc..', '...c...c...'], { emit: 'd' })];
+  // 時計兵: 頭が時計の文字盤になったブリキの兵隊(赤い上着に真鍮のボタン)
+  S.clockman = mk({ a: '#2a1e14', b: '#8a6a30', c: '#c8a050', d: '#fff0c8', e: '#241e1a', f: '#7a2a2a', g: '#ffd27a' }, [
+    '..ccccc..', '.cdddddc.', 'cdddedddc', 'cdddeeedc', 'cdddddddc', '.cdddddc.', '..cbbbc..', '.fffffff.', 'gfffcfffg', '.fffcfff.', '.fffffff.', '..bb.bb..', '..aa.aa..',
+  ], { emit: 'g' });
+  // 砂時計の精: 宙に浮く砂時計(砂が落ちる 2コマ)。足元に光る砂の粒
+  const hgPal = { a: '#5a4a30', b: '#c8a050', c: '#bff4ff', d: '#e8c88a', e: '#9ff7ff' };
+  S.hglass = [mk(hgPal, ['bbbbbbb', '.cdddc.', '.cdddc.', '..cdc..', '...d...', '..cdc..', '.c.d.c.', '.cdddc.', 'bbbbbbb', '.e...e.'], { emit: 'e' }),
+    mk(hgPal, ['bbbbbbb', '.c.d.c.', '.cdddc.', '..cdc..', '...d...', '..cdc..', '.cdddc.', '.cdddc.', 'bbbbbbb', '..e.e..'], { emit: 'e' })];
+
   // 炎魔イフリート: 黒い角と燃える髪、赤黒い筋骨の上半身、両手に炎。下半身は炎になって浮いている
   S.ifrit = mk({ h: '#2a1414', a: '#1e0a08', b: '#6a1a10', c: '#a8381a', e: '#ffff80', m: '#ffc34a', f: '#ff6a2a', g: '#ffc34a', w: '#fff0b0' }, sym([
     '..h.........',
