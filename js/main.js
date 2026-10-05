@@ -4,7 +4,7 @@
 // ============================================================
 // 画面遷移
 // ============================================================
-function startRun(mode = 'normal', stageNo = 1) {
+function startRun(mode = 'escalation', stageNo = 1) {
   AudioMan.unlock();
   initRun(mode, stageNo);
   GFX.fx.sat = 1; // 時間停止・変身の途中で終わったランの色あせを戻す
@@ -19,7 +19,7 @@ function startRun(mode = 'normal', stageNo = 1) {
   screenFlash(0.5);
   shockAt(P.x, P.y, 1.5);
 }
-// クリア記録のキー: normal / arena / stage1〜3
+// クリア記録のキー: escalation / arena / stage1〜7
 const runKey = () => (S.mode === 'stage' ? 'stage' + S.stageNo : S.mode);
 function pauseGame() { if (state !== 'play') return; state = 'pause'; UI.pause(true); AudioMan.pauseMusic(); }
 function resumeGame() { if (state !== 'pause') return; state = 'play'; UI.pause(false); AudioMan.resumeMusic(); }
@@ -43,14 +43,12 @@ function endRun(win) {
   UI.result(win, earned, loot, cxp);
 }
 function startEndless() {
-  // 勝利後もそのまま続行(ゴールドはリザルト時に精算済みなのでリセット)。エスカレーションは tier 1 のステージから
-  S.gold = 0; S.loop = 2;
-  if (S.mode === 'escalation') { escStage(1); S.won = false; UI.show(UI.$('hud')); UI.pause(false); state = 'play'; UI.announce('ENDLESS MODE', 'LOOP 2 — 敵はさらに強くなる'); return; }
-  S.schedIdx = 0; S.loopStart = S.time; setStage(1);
+  // エスカレーションのクリア後もそのまま続行(tier 1 のステージから。ゴールドはリザルト時に精算済みなのでリセット)
+  S.gold = 0; S.loop = 2; S.won = false;
+  escStage(1);
   UI.show(UI.$('hud')); UI.pause(false);
   state = 'play';
   UI.announce('ENDLESS MODE', 'LOOP 2 — 敵はさらに強くなる');
-  AudioMan.playMusic(DATA.stages[0].music);
 }
 function goTitle() {
   state = 'title';
@@ -59,7 +57,7 @@ function goTitle() {
   AudioMan.playMusic('title');
 }
 function demoWorld() {
-  initRun();
+  initRun('stage', 1); // タイトルの背景は草原
   S.demo = true;
   groundCache.clear();
 }
@@ -70,7 +68,7 @@ function onKey(e) {
   if (e.code === 'Escape') { if (state === 'play') pauseGame(); else if (state === 'pause') resumeGame(); else if (state === 'settings') { state = 'title'; UI.title(); } }
   if (state === 'title' && (e.code === 'Enter' || e.code === 'Space')) MetaUI.stageSelect();
   else if ((state === 'over' || state === 'victory') && e.code === 'KeyR') startRun(S.mode, S.stageNo);
-  else if (state === 'victory' && e.code === 'Enter' && (S.mode === 'normal' || S.mode === 'escalation')) startEndless();
+  else if (state === 'victory' && e.code === 'Enter' && S.mode === 'escalation') startEndless();
   UI.onKey(e);
   MetaUI.onKey(e);
   StatusUI.onKey(e);

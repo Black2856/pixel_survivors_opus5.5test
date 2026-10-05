@@ -80,28 +80,6 @@ const DATA = {
   // 敵の出血: 1スタックごとに毎秒 最大HP × bleedPct(ボス ×bleedBoss・エリート ×bleedElite)、bleedDur 秒
   bleed: { pct: 0.002, dur: 5, boss: 0.1, elite: 0.25 },
 
-  // ---------- 3ステージ通し(仮)の出現スケジュール(周回内の経過秒)。区間ごとに 草原 → 荒野 → 奈落 の敵 ----------
-  // boss: 候補からランダムに1体。final: 撃破で勝利/周回
-  schedule: [
-    { t: 0,   types: ['zombie'],                            interval: 0.95, max: 60 },
-    { t: 35,  types: ['zombie', 'bat'],                     interval: 0.75, max: 100 },
-    { t: 80,  types: ['bat', 'slime', 'zombie'],            interval: 0.6,  max: 130 },
-    { t: 130, types: ['bat', 'slime', 'brute'],             interval: 0.5,  max: 160 },
-    { t: 180, boss: ['king', 'gslime'] },
-    { t: 186, types: ['skeleton', 'archer', 'sandmage'],    interval: 0.55, max: 170 },
-    { t: 250, types: ['archer', 'sandmage', 'spear'],       interval: 0.48, max: 190 },
-    { t: 320, types: ['skeleton', 'archer', 'sandmage', 'spear'], interval: 0.45, max: 200 },
-    { t: 360, event: 'horde' },
-    { t: 420, boss: ['wyrm', 'golem'] },
-    { t: 426, types: ['imp', 'hound', 'onibi'],             interval: 0.42, max: 220 },
-    { t: 500, types: ['hound', 'onibi', 'lslime'],          interval: 0.38, max: 240 },
-    { t: 560, event: 'horde' },
-    { t: 600, types: ['imp', 'hound', 'onibi', 'lslime'],   interval: 0.33, max: 270 },
-    { t: 630, event: 'horde' },
-    { t: 660, boss: ['reaper', 'cdragon'], final: true },
-    { t: 666, types: ['imp', 'hound', 'onibi', 'lslime'],   interval: 0.4,  max: 240 },
-  ],
-
   // ---------- 武器 ----------
   // evo: 武器Lv5 で進化カードが出る(メイン武器はクラスLv10 で解放)
   // cut: 斬撃タイプの武器(刀・騎士剣・オービットブレード・スローイングアックス)。クラスは「斬撃タイプ」としてだけ参照する

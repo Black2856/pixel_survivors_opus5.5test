@@ -80,9 +80,9 @@ function escStage(tier, first) {
   UI.banner('TIER ' + tier, DATA.stages[R.stage - 1].label, 2200);
   screenFlash(0.4); shockAt(P.x, P.y, 1.5, 0.8);
 }
-function initRun(mode = 'normal', stageNo = 1) {
+function initRun(mode = 'escalation', stageNo = 1) {
   S = {
-    mode, arena: null, time: 0, kills: 0, totalDmg: 0, dmgBy: {}, stage: 1, loop: 1, loopStart: 0,
+    mode, arena: null, time: 0, kills: 0, totalDmg: 0, dmgBy: {}, stage: 1, loop: 1,
     combo: 0, comboT: 0, bestCombo: 0, gemStreak: 0, gemStreakT: 0,
     freeze: 0, ts: 1, tsBack: 0, schedIdx: 0, spawnT: 0, spawnCfg: null,
     eatk: 1, // 敵の攻撃力の倍率(敵ごとの処理の間だけ。ビッグクランチのブラックホールの中で下がる)
@@ -107,7 +107,7 @@ function initRun(mode = 'normal', stageNo = 1) {
   addWeapon(P.mainW); // 1枠目はクラスのメイン武器(固定)
   S.rerolls = st.v.reroll; S.weaponSlots = st.v.wslot;
   clsInit();
-  S.stageNo = stageNo; S.sched = mode === 'stage' ? stageSchedule(stageNo) : DATA.schedule;
+  S.stageNo = stageNo; S.sched = mode === 'stage' ? stageSchedule(stageNo) : []; // エスカレーションは下の escStage で、闘技場は使わない
   if (mode === 'arena') { S.stage = 4; S.elv = DATA.arena.elv[0]; S.arena = { idx: 0, restT: 3, warned: false }; } // 開始時の敵Lv(深い闇)は下で足す。ラウンドの敵Lv は arenaLv
   if (mode === 'stage') { const R = stageRun(stageNo); S.stage = R.stage; S.tier = R.tier; S.elv = DATA.flow.tierLv[R.tier - 1]; }
   if (mode === 'escalation') escStage(1, true); // エスカレーション: tier 1 のステージから
@@ -3573,24 +3573,17 @@ function onBossDeath(e) {
   S.bossKills++;
   if (S.mode === 'arena') return arenaBossDown(e);
   if (CHAOS.bossLv) { S.elv += CHAOS.bossLv; UI.enemyLvUp(); } // カオス: ボスを倒すたびに敵Lv アップ
-  const rk = S.mode === 'stage' || S.mode === 'escalation' ? S.tier : S.stage; // 撃破報酬: 通常モード・エスカレーションは tier、3ステージ通しはステージの番号で数える
+  const rk = S.tier; // 撃破報酬: tier で数える(通常モード・エスカレーション)
   for (let i = 0; i < 14; i++) dropGem(e.x + rand(-30, 30), e.y + rand(-30, 30), 20 * rk);
   for (let i = 0; i < 25; i++) dropItem('coin', e.x, e.y, 3 * rk);
   dropItem('meat', e.x + 14, e.y); dropItem('magnet', e.x - 14, e.y);
   dropItem('chest', e.x, e.y - 14); chestBeacon(e.x, e.y - 14); // 装備宝箱(フェーズのクリア)
   if (e.final) {
     if (S.mode === 'stage' || (S.loop === 1 && !S.won)) { S.won = true; S.victoryT = 2.4; AudioMan.stopMusic(1.5); return; }
-    if (S.mode === 'escalation') { S.loop++; escStage(1); UI.announce('LOOP ' + S.loop, '敵はさらに強くなる…'); return; } // エスカレーションの周回: tier 1 から
-    S.loop++; S.schedIdx = 0; S.loopStart = S.time; setStage(1);
-    UI.announce('LOOP ' + S.loop, '敵はさらに強くなる…');
-    AudioMan.playMusic(DATA.stages[0].music);
-    return;
+    S.loop++; escStage(1); UI.announce('LOOP ' + S.loop, '敵はさらに強くなる…'); return; // エスカレーションの周回: tier 1 から
   }
   if (S.mode === 'stage') { UI.announce('BOSS 1/2 撃破!', '次のボスに備えよ'); AudioMan.playMusic(DATA.stages[S.stage - 1].music); return; } // ステージ単体: ステージはそのまま
-  if (S.mode === 'escalation') { escStage(S.tier + 1); return; } // エスカレーション: 次の tier のステージへ
-  setStage(Math.min(3, S.stage + 1));
-  UI.announce('STAGE ' + S.stage, DATA.stages[S.stage - 1].label);
-  AudioMan.playMusic(DATA.stages[S.stage - 1].music);
+  escStage(S.tier + 1); // エスカレーション: 次の tier のステージへ
 }
 
 function setStage(n) {
@@ -3962,8 +3955,8 @@ function spawnPack(t) {
 }
 function updSpawner(dt) {
   if (S.mode === 'arena') return updArena(dt);
-  // 通常モードはフェーズの時計(ボス・エリート群の間は止まる)、3ステージ通しは周回内の経過時間
-  const stage = S.mode === 'stage', sc = S.sched, el = stage || S.mode === 'escalation' ? S.ptime : S.time - S.loopStart; // 通常モード・エスカレーションはフェーズの時計
+  // 出現のスケジュールはフェーズの時計(ボス・エリート群の間は止まる。エスカレーションはステージごとに 0 から)
+  const stage = S.mode === 'stage', sc = S.sched, el = S.ptime;
   while (S.schedIdx < sc.length && el >= sc[S.schedIdx].t) {
     const en = sc[S.schedIdx++];
     if (en.boss) spawnBoss(pick(en.boss), en.final);
@@ -3985,7 +3978,7 @@ function updSpawner(dt) {
       } else spawnPack(pickType(cfg.types));
     }
   }
-  // 自然発生のエリート・ゴブリン・篝火: 通常モードではフェーズの時計で進む(フェーズ中は止まる)
+  // 自然発生のエリート・ゴブリン・篝火: 通常モードではフェーズの時計で進む(フェーズ中は止まる)。エスカレーションは経過時間(ボス戦の間も進む)
   const tdt = stage && S.phase ? 0 : dt;
   if ((stage ? S.ptime : S.time) > 90) {
     S.eliteT -= tdt;
