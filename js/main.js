@@ -7,6 +7,7 @@
 function startRun(mode = 'normal', stageNo = 1) {
   AudioMan.unlock();
   initRun(mode, stageNo);
+  GFX.fx.sat = 1; // 時間停止・変身の途中で終わったランの色あせを戻す
   UI.bossBar(null); // 前のランでボス戦中に倒れたときのボスの HP バーを消す
   cam.fx = P.x - GFX.VW / 2; cam.fy = P.y - GFX.VH / 2;
   groundCache.clear();
@@ -78,6 +79,7 @@ function onKey(e) {
 // ============================================================
 function update(rdt) {
   if (S.freeze > 0) { S.freeze -= rdt; return; }
+  if (S.morph) { updMorph(rdt); return; } // 死神の変身: 時が止まる(すべて止まり、画面が色あせる)
   if (S.tsBack > 0) S.tsBack -= rdt; else S.ts = Math.min(1, S.ts + rdt * 1.5);
   const dt = rdt * S.ts;
   if (!P.dead) { S.time += dt; updPlayer(dt); }

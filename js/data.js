@@ -63,7 +63,8 @@ const DATA = {
     gslime:  { name: '巨大スライム GIANT SLIME',   hp: 1500, spd: 16, dmg: 20, r: 14, music: 'b_grass', col: '#4fd6a8' },
     wyrm:    { name: '白骨竜 BONE WYRM',           hp: 1700, spd: 19, dmg: 22, r: 14, music: 'b_wild', col: '#efe9d4' },
     golem:   { name: 'ゴーレム GOLEM',             hp: 1800, spd: 12, dmg: 22, r: 15, music: 'b_wild', col: '#6ee7ff' },
-    reaper:  { name: '死神 THE REAPER',            hp: 1800, spd: 22, dmg: 28, r: 12, music: 'b_clock2', col: '#c29bff', enrage: 0.3 }, // 段階3 で 1600 / 24 に
+    reaper:  { name: '死神 THE REAPER',            hp: 1600, spd: 22, dmg: 24, r: 12, music: 'b_clock2', col: '#c29bff', enrage: 0.3 }, // 倒すと終刻の死神に変身する
+    fhour:   { name: '終刻の死神 THE FINAL HOUR',   hp: 1700, spd: 20, dmg: 25, r: 14, music: 'b_clock2', col: '#ff3b5c', form2: true }, // 死神の第二形態(form2: 単独では出ない)
     cdragon: { name: 'カオスドラゴン CHAOS DRAGON', hp: 1700, spd: 20, dmg: 20, r: 16, music: 'b_hell', col: '#ff4a8a', enrage: 0.4 },
     ifrit:   { name: '炎魔イフリート IFRIT',        hp: 1600, spd: 18, dmg: 24, r: 13, music: 'b_hell', col: '#ff8a3d', enrage: 0.4 },
     stag:    { name: '晶角の大鹿 PRISM STAG',       hp: 1400, spd: 26, dmg: 20, r: 13, music: 'b_crystal', col: '#9ff7ff' },

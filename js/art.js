@@ -1153,6 +1153,11 @@ const ART = (() => {
     'bbgbfbbbbbbbbbgbb.',
     '.b.b.bb.bb.bb.b...',
   ], { emit: 'd' });
+  // 終刻の死神(死神の第二形態): 同じ姿を、赤い刃・金の柄・赤い縁取りの黒衣に
+  S.fhour = mk({ a: '#ff3b5c', b: '#1a0a14', c: '#e8e0d0', d: '#ff3b5c', f: '#c8a050', g: '#8a1020' }, [
+    'aaaaaaa...........', '.aaaaaaaa.........', '...aaa.aff........', '........ff........', '.....bbbbfb.......', '....bbbbbbfb......', '...bbcccccfb......', '...bccdcdcfcb.....', '...bcccccfccb.....', '...bbcccffcbb.....',
+    '...bbbbbfbbbb.....', '..bbgbbbfbbgbb....', '..bbgbbfbbbgbb....', '.bbbgbbfbbbgbbb...', '.bbgbbfbbbbbgbb...', '.bbgbbfbbbbbgbbb..', 'bbbgbfbbbbbbbgbb..', 'bbgbbfbbbbbbbgbbb.', 'bbgbfbbbbbbbbbgbb.', '.g.g.gg.gg.gg.g...',
+  ], { emit: 'ad' });
 
   // 左半分の行を左右対称に展開
   const sym = rows => rows.map(r => r + [...r].reverse().join(''));
@@ -1299,6 +1304,17 @@ const ART = (() => {
     '..........dd', '.........cdd', '........ccdd', '.......cccdd', '......ccccdd', '......cgcccc', '.....cccccdd', '....bbbbbbbb', '......aaaaaa', '..bbbbcccccc',
     '.bcccbceeeee', 'bccdcbeeeeff', 'bcdccbeeeeef', 'bccccbeeeeee', 'bcccb.beeeee', '.bcb..bbbbbb', '.dhd..bcccbb', '..h...bbb...', '.....bbbb...', '.....hhhh...',
   ]), { emit: 'g' });
+  // 秒針の弾(終刻の死神): 赤い秒針(右向き。回転フレームで描く)
+  S.tick = mk({ a: '#8a1020', b: '#ff3b5c', c: '#ffd0d8' }, ['a.....', 'abbbbc', 'a.....'], { emit: 'bc' });
+  // 死神の砂時計(壊せる物): 紫の枠の大きな砂時計
+  S.obj_sandglass = mk({ a: '#2b1b4a', b: '#6a4ab0', c: '#d8c8ff', d: '#e8c88a', e: '#c29bff' }, [
+    'abbbbbbba', '.ac...ca.', '.acdddca.', '.acdddca.', '..acdca..', '...ada...', '..ac.ca..', '.ac.d.ca.', '.acdddca.', '.addddda.', 'abbbbbbba',
+  ], { emit: 'e' });
+  // 終刻の時計(終刻の死神): 振り子のついた大きな柱時計。文字盤の数字は描画側で
+  S.obj_doom = mk({ a: '#1a0a14', b: '#5a1a2a', c: '#8a1020', d: '#e8e0d0', e: '#c8a050', f: '#ff3b5c' }, [
+    '....eeeee....', '..eebbbbbee..', '.ebddddddbe..', 'ebddddddddbe.', 'ebddddddddbe.', 'ebddddddddbe.', 'ebddddddddbe.', 'ebddddddddbe.', '.ebddddddbe..', '..ebbbbbbe...', '...bcccccb...',
+    '...bc.e.cb...', '...bc.e.cb...', '...bc.e.cb...', '...bc.f.cb...', '...bcfffcb...', '...bc.f.cb...', '...bcccccb...', '..bbbbbbbbb..', '..aaaaaaaaa..',
+  ], { emit: 'f' });
   // 歯車の絵を作る(半径 R・歯 n 枚・位相 ph)。大歯車(番人)は 2コマで回して見せる
   const gearRows = (R, n, ph) => {
     const rows = [], S2 = R + 3;
@@ -1457,6 +1473,7 @@ const ART = (() => {
   S.esand = mk({ a: '#8a5a2a', b: '#e8c88a', c: '#fff0c0' }, ['.ab.', 'abcb', 'bccb', '.bb.'], { emit: 'c' });
   S.espear = mk({ a: '#6b4a2a', b: '#dfe8f5', c: '#ffffff' }, ['.........b..', 'aaaaaaaaabbc', '.........b..']);
   S.scythe = mk({ a: '#c29bff', b: '#ffffff', c: '#5a3a9a' }, ['..aaa..', '.a...a.', 'b.....a', '.....ca', '....c..', '...c...'], { emit: 'ab' });
+  S.rscythe = mk({ a: '#ff3b5c', b: '#ffd0d8', c: '#5a1020' }, ['..aaa..', '.a...a.', 'b.....a', '.....ca', '....c..', '...c...'], { emit: 'a' }); // 終刻の死神の赤い鎌
   S.glob = mk({ a: '#23735f', b: '#4fd6a8', c: '#d8fff2' }, ['.aba.', 'abcba', 'bcccb', 'abcba', '.aba.'], { emit: 'bc' });
   S.rock = mk({ a: '#241f1c', b: '#544c44', c: '#7a6f60', d: '#6ee7ff' }, ['...aaaa...', '..abbcba..', '.abbccbba.', 'abbbbbbbba', 'abdbbbbcba', 'abbbbbdbba', '.abbbbbba.', '..aaaaaa..'], { emit: 'd' });
   S.rbit = mk({ b: '#7a7266', c: '#a89e8c' }, ['cb', 'bb']);
@@ -1527,7 +1544,7 @@ const ART = (() => {
 
   // 回転フレーム(16方向)
   const ROT = {};
-  for (const k of ['axe', 'blade', 'bladeEvo', 'arrow', 'scythe', 'espear', 'bspear', 'trident', 'needle', 'eice', 'ispear']) {
+  for (const k of ['axe', 'blade', 'bladeEvo', 'arrow', 'scythe', 'espear', 'bspear', 'trident', 'needle', 'eice', 'ispear', 'tick', 'rscythe']) {
     ROT[k] = rotFrames(S[k].c, 16);
     ROT[k + 'E'] = S[k].e ? rotFrames(S[k].e, 16) : null;
   }
