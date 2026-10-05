@@ -791,6 +791,19 @@ function render() {
         for (let k = 0; k < fh; k++) { const col = k === fh - 1 ? '#ffe9a0' : k > fh / 2 ? '#ffc34a' : '#ff6a2a'; sx.fillStyle = gx.fillStyle = col; sx.fillRect(fx, fy - k, 1, 1); gx.fillRect(fx, fy - k, 1, 1); }
       }
       addLight(h.x, h.y, R * 3, '#ff6a2a', 0.75 * fade * (h.lite || 1));
+    } else if (h.kind === 'fwall') { // 炎の壁: 赤熱した帯の上に炎の柱が揺らめく(縁は危険の赤)
+      const c = Math.cos(h.a), s = Math.sin(h.a), nx = -s * h.w / 2, ny = c * h.w / 2, L = h.len * Math.min(1, h.t * 6);
+      const band = (k, col, al) => { sx.globalAlpha = al; sx.fillStyle = col; sx.beginPath(); sx.moveTo(hx + nx * k, hy + ny * k); sx.lineTo(hx + c * L + nx * k, hy + s * L + ny * k); sx.lineTo(hx + c * L - nx * k, hy + s * L - ny * k); sx.lineTo(hx - nx * k, hy - ny * k); sx.fill(); };
+      band(1, '#4a1208', 0.6 * fade); band(0.6, '#c2401a', 0.5 * fade); sx.globalAlpha = 1;
+      for (const k of [-1, 1]) { sx.globalAlpha = fade; pLine(sx, hx + nx * k, hy + ny * k, hx + c * L + nx * k, hy + s * L + ny * k, warnBlink ? '#ff3b1a' : '#ff8a3d'); sx.globalAlpha = 1; }
+      const n = Math.floor(L / 3);
+      for (let i = 0; i < n; i++) { // 炎の柱: 位置は壁ごとに決まっていて、高さが揺らめく
+        const d = (i + hash2(i, h.seed)) * 3, off = (hash2(i + 7, h.seed) - 0.5) * h.w * 0.7;
+        const fx = Math.round(hx + c * d + nx * off * 2 / h.w), fy = Math.round(hy + s * d + ny * off * 2 / h.w);
+        const fh = Math.max(1, Math.round((3 + 5 * Math.abs(Math.sin(t * 8 + i * 1.3))) * fade));
+        for (let k = 0; k < fh; k++) { const col = k === fh - 1 ? '#fff0b0' : k > fh * 0.55 ? '#ffc34a' : '#ff6a2a'; sx.fillStyle = gx.fillStyle = col; sx.fillRect(fx, fy - k, 1, 1); if (k > 0) gx.fillRect(fx, fy - k, 1, 1); }
+      }
+      for (let d = 0; d < L; d += 40) addLight(h.x + c * d, h.y + s * d, 60, '#ff6a2a', 0.7 * fade);
     } else if (h.kind === 'quake') {
       pCircle(sx, hx, hy, Math.round(h.r), '#ffd0d8'); pCircle(sx, hx, hy, Math.round(h.r) - 1, '#ff3b5c');
       gx.globalAlpha = 0.8; pCircle(gx, hx, hy, Math.round(h.r), '#ff3b5c'); gx.globalAlpha = 1;
@@ -1328,6 +1341,29 @@ function drawBossFx(e) {
     }
     if (ai.overT > 0) addLight(e.x, e.y, 80, '#ff3b1a', 0.8);
   }
+  // 炎魔イフリート: 熱波の扇(ゆらめく橙の扇)/ 祭壇から流れ込む炎の筋 / 祭壇で強まった炎のオーラ
+  if (e.boss === 'ifrit') {
+    if (ai.act === 'heat' && ai.ha != null) {
+      const R = 150 * A, h = 0.524;
+      sx.globalAlpha = 0.2 + 0.06 * Math.sin(t * 20); sx.fillStyle = '#ff8a3d';
+      sx.beginPath(); sx.moveTo(ex, ey); sx.arc(ex, ey, R, ai.ha - h, ai.ha + h); sx.closePath(); sx.fill(); sx.globalAlpha = 1;
+      for (let i = 0; i < 3; i++) { // 熱気の波紋(外へ流れる弧)
+        const rr = R * ((t * 0.9 + i / 3) % 1), n = Math.ceil(rr * h * 2);
+        for (let j = 0; j <= n; j++) { const aa = ai.ha - h + 2 * h * j / Math.max(1, n); sx.fillStyle = '#ffc34a'; sx.globalAlpha = 0.5; sx.fillRect(Math.round(ex + Math.cos(aa) * rr), Math.round(ey + Math.sin(aa) * rr), 1, 1); }
+      }
+      sx.globalAlpha = 1;
+      for (const s of [-1, 1]) pLine(sx, ex, ey, ex + Math.cos(ai.ha + s * h) * R, ey + Math.sin(ai.ha + s * h) * R, '#ff8a3d');
+      addLight(e.x + Math.cos(ai.ha) * R * 0.5, e.y + Math.sin(ai.ha) * R * 0.5, R, '#ff8a3d', 0.8);
+    }
+    let n = 0;
+    for (const o of enemies) if (o.owner === e && o.obj === 'altar' && !o.dead) {
+      n++;
+      const ox = o.x - cam.x, oy = o.y - cam.y - 10, k = (t * 1.5 + o.seed) % 1;
+      sx.globalAlpha = 0.35; pLine(sx, ox, oy, ex, ey + yo, '#ff6a2a', 1); sx.globalAlpha = 1;
+      const px = ox + (ex - ox) * k, py = oy + (ey + yo - oy) * k; sx.fillStyle = gx.fillStyle = '#ffc34a'; sx.fillRect(Math.round(px), Math.round(py), 2, 2); gx.fillRect(Math.round(px), Math.round(py), 2, 2); // 流れる火の玉
+    }
+    if (n > 0) { gx.globalAlpha = 1; pCircle(gx, ex, ey + yo, Math.round(sp.w * 0.6 + Math.sin(t * 8) * 1.5), n > 2 ? '#ff6a2a' : '#7a2a0a', 1); addLight(e.x, e.y, 60 + n * 20, '#ff6a2a', 0.6 + n * 0.1); }
+  }
   // カオスドラゴン: 空襲の影(空の上の竜の影が地面を走る)
   if (e.boss === 'cdragon' && ai.act === 'raid' && ai.rd && ai.rd.ph === 'sky') {
     const R = 15 * A, x = ex, y = ey, c = Math.cos(ai.rd.th), s = Math.sin(ai.rd.th);
@@ -1383,6 +1419,15 @@ function drawBfx() {
       }
       if (!erupt) { sx.fillStyle = '#ffb347'; sx.fillRect(Math.round(px), Math.round(py), 2, 2); addLight(f.x + c * L, f.y + s * L, 40, '#ff8a3d', 0.8); } // 走る先端
       else if (fade > 0) addLight(f.x + c * f.len / 2, f.y + s * f.len / 2, f.len * 0.8, '#ffb347', fade);
+    } else if (f.kind === 'chain') { // 灼熱の鎖: 飛んでいく鎖 / つながった鎖(イフリートとプレイヤーの間。輪が流れる)
+      const tx = f.hold ? P.x - cam.x : fx + Math.cos(f.a) * f.len * Math.min(1, u * 1.6), ty = f.hold ? P.y - cam.y : fy + Math.sin(f.a) * f.len * Math.min(1, u * 1.6);
+      const L = Math.hypot(tx - fx, ty - fy), n = Math.floor(L / 4);
+      for (let i = 0; i <= n; i++) {
+        const k = i / Math.max(1, n), x = Math.round(fx + (tx - fx) * k), y = Math.round(fy + (ty - fy) * k), lit = (i + Math.floor(t * 20)) % 3 === 0;
+        sx.fillStyle = lit ? '#ffc34a' : '#a8381a'; sx.fillRect(x - 1, y, 3, 1); sx.fillRect(x, y - 1, 1, 3);
+        gx.fillStyle = lit ? '#ff8a3d' : '#3a0e04'; gx.fillRect(x, y, 1, 1);
+      }
+      addLight((f.x + tx + cam.x) / 2, (f.y + ty + cam.y) / 2, L * 0.6 + 20, '#ff6a2a', 0.6);
     }
   }
 }

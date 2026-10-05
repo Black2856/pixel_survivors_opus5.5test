@@ -1157,6 +1157,32 @@ const ART = (() => {
   // 左半分の行を左右対称に展開
   const sym = rows => rows.map(r => r + [...r].reverse().join(''));
 
+  // 炎魔イフリート: 黒い角と燃える髪、赤黒い筋骨の上半身、両手に炎。下半身は炎になって浮いている
+  S.ifrit = mk({ h: '#2a1414', a: '#1e0a08', b: '#6a1a10', c: '#a8381a', e: '#ffff80', m: '#ffc34a', f: '#ff6a2a', g: '#ffc34a', w: '#fff0b0' }, sym([
+    '..h.........',
+    '..hh........',
+    '..hh....f...',
+    '...hh..fgf..',
+    '...hhaafggf.',
+    '....abbbbaff',
+    '....abbbbbbb',
+    '...abbebbbbb',
+    '...abbbbbbbb',
+    '....abbbbmmm',
+    '..aaabbbbbbb',
+    '.abbbbabbbbb',
+    'abbcbbbabbbb',
+    'abcbbbbbabbb',
+    'abbb.abbbbgg',
+    '.ab..abbbbgw',
+    '.ff..abbbbgg',
+    'fgf...abbbbb',
+    '.f....affbbf',
+    '.......ffgff',
+    '........fgf.',
+    '.........ff.',
+  ]), { emit: 'emfgw' });
+
   S.gslime = mk({ a: '#1f6e58', b: '#4fd6a8', c: '#d8fff2', d: '#0f2a26', e: '#ffd23f', f: '#ff4a6a' }, sym([
     '........e.e',
     '........eee',
@@ -1258,7 +1284,11 @@ const ART = (() => {
   S.obj_pillar = mk({ a: '#8a8676', b: '#d8d0b8', c: '#efe9d4', d: '#6ee7ff', e: '#4a4638' }, [
     '..cc..', '.cbbc.', '.abba.', '..bb..', '..bd..', '.abba.', '..bb..', '..bb..', '..db..', '.abba.', '..bb..', '.abba.', 'eaccae',
   ], { emit: 'd' });
-  S.gore = mk(meatPal, ['.dbb.', 'bccbb', 'bcfcb', '.bba.']); // 腐肉の王が吐き出す肉塊(放物線で飛ぶ)
+  // 炎の祭壇(イフリート): 石の台の上で炎が揺らめく(2コマ)。台の紋が赤く光る
+  const altarPal = { a: '#2a1e1e', b: '#6a5050', c: '#ff6a2a', f: '#ff6a2a', g: '#ffc34a', w: '#fff0b0', d: '#4a3838' };
+  S.obj_altar = [mk(altarPal, ['...f...', '..fgf..', '.fgwgf.', '..fgf..', 'aaaaaaa', 'abdddba', '.abcba.', '..bcb..', '.abbba.', 'aaaaaaa'], { emit: 'cfgw' }),
+    mk(altarPal, ['..f....', '..fgf..', '.fgwgf.', '.fgf...', 'aaaaaaa', 'abdddba', '.abcba.', '..bcb..', '.abbba.', 'aaaaaaa'], { emit: 'cfgw' })];
+  S.gore = mk(meatPal,['.dbb.', 'bccbb', 'bcfcb', '.bba.']); // 腐肉の王が吐き出す肉塊(放物線で飛ぶ)
   S.bspear = mk({ a: '#efe9d4', b: '#b8b098', c: '#6ee7ff' }, ['..........a..', 'bbbbbbbbbbaac', '..........a..'], { emit: 'c' }); // 白骨竜の骨槍
 
   // 通常敵の弾: 火の小鬼の火の玉 / 砂術師の砂の弾 / 投槍兵の槍(右向き。回転フレームで描く)
