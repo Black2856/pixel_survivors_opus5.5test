@@ -3996,7 +3996,7 @@ function updArena(dt) {
   if (!A.warned && A.restT <= 2.5) { A.warned = true; UI.announce('ROUND ' + (A.idx + 1) + ' / ' + cfg.order.length, '次の挑戦者が入場する…'); AudioMan.warning(); }
   if (A.restT > 0) return;
   S.elv = arenaLv(A.idx); UI.enemyLvUp();
-  const e = spawnBoss(cfg.order[A.idx], A.idx === cfg.order.length - 1);
+  const ord = cfg.order[A.idx], e = spawnBoss(Array.isArray(ord) ? pick(ord) : ord, A.idx === cfg.order.length - 1); // 配列のラウンドはステージのボス2体のどちらか
   // 闘技場の中、プレイヤーと中心を挟んだ反対側から入場
   const a = Math.hypot(P.x, P.y) > 30 ? Math.atan2(-P.y, -P.x) : rand(0, TAU), R = cfg.r * 0.6;
   e.x = Math.cos(a) * R; e.y = Math.sin(a) * R;

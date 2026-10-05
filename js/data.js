@@ -1462,11 +1462,11 @@ const DATA = {
   },
 
   // ---------- 闘技場(ボスラッシュ) ----------
-  // order: 登場順 / elv: 各ラウンドの敵Lv(固定) / startLv: 開始時のレベルアップ回数
+  // order: 登場順(配列はその中からランダムに1体。ステージのボス2体のどちらか) / elv: 各ラウンドの敵Lv(固定) / startLv: 開始時のレベルアップ回数
   // rewardLv: ボス撃破で得るレベルアップ回数(ジェムで配布) / rest: 次のボスまでの休憩秒 / r: 闘技場の半径
   arena: {
     r: 250, rest: 8, startLv: 6, rewardLv: 5,
-    order: ['king', 'gslime', 'wyrm', 'golem', 'reaper', 'cdragon'],
-    elv:   [5,      10,       15,     20,      25,       30], // 5 から 5ずつ
+    order: [['king', 'gslime'], ['stag', 'pqueen'], ['golem', 'wyrm'], ['kraken', 'levia'], ['cdragon', 'ifrit'], ['fgiant', 'squeen'], 'warden', 'reaper'], // 草原 → 晶窟 → 荒野 → 海淵 → 奈落 → 霊峰 → 番人 → 死神(→ 終刻の死神)
+    elv:   [5, 10, 15, 20, 25, 30, 35, 40], // 5 から 5ずつ
   },
 };
