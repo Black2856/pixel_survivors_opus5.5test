@@ -1294,6 +1294,27 @@ const ART = (() => {
   const hgPal = { a: '#5a4a30', b: '#c8a050', c: '#bff4ff', d: '#e8c88a', e: '#9ff7ff' };
   S.hglass = [mk(hgPal, ['bbbbbbb', '.cdddc.', '.cdddc.', '..cdc..', '...d...', '..cdc..', '.c.d.c.', '.cdddc.', 'bbbbbbb', '.e...e.'], { emit: 'e' }),
     mk(hgPal, ['bbbbbbb', '.c.d.c.', '.cdddc.', '..cdc..', '...d...', '..cdc..', '.cdddc.', '.cdddc.', 'bbbbbbb', '..e.e..'], { emit: 'e' })];
+  // 時計仕掛けの番人: 鐘の頭(赤く光る目)、胸に文字盤、真鍮の体(背中のゼンマイは描画側で回す)
+  S.warden = mk({ a: '#2a1e14', b: '#5a4420', c: '#a8843c', d: '#d8b060', e: '#c8b890', f: '#241e1a', g: '#ff5d3a', h: '#5a5a6a' }, sym([
+    '..........dd', '.........cdd', '........ccdd', '.......cccdd', '......ccccdd', '......cgcccc', '.....cccccdd', '....bbbbbbbb', '......aaaaaa', '..bbbbcccccc',
+    '.bcccbceeeee', 'bccdcbeeeeff', 'bcdccbeeeeef', 'bccccbeeeeee', 'bcccb.beeeee', '.bcb..bbbbbb', '.dhd..bcccbb', '..h...bbb...', '.....bbbb...', '.....hhhh...',
+  ]), { emit: 'g' });
+  // 歯車の絵を作る(半径 R・歯 n 枚・位相 ph)。大歯車(番人)は 2コマで回して見せる
+  const gearRows = (R, n, ph) => {
+    const rows = [], S2 = R + 3;
+    for (let y = -S2; y <= S2; y++) {
+      let row = '';
+      for (let x = -S2; x <= S2; x++) {
+        const d = Math.hypot(x, y), an = Math.atan2(y, x), tooth = Math.cos(an * n + ph) > 0.25, out = tooth ? R + 2.5 : R;
+        const spoke = Math.abs(Math.sin((an + ph / n) * 3)) < 0.18;
+        row += d > out ? '.' : d > R - 1.5 ? (y < -R * 0.4 && x < 0 ? 'd' : 'c') : d < R * 0.22 ? 'a' : d < R * 0.32 ? 'c' : d > R - 4.5 ? 'b' : spoke ? 'c' : 'e'; // 光るのは縁の左上の照り返しだけ
+      }
+      rows.push(row);
+    }
+    return rows;
+  };
+  const bgPal = { a: '#241e1a', b: '#8a6a30', c: '#c8a050', d: '#ffd27a', e: '#3a2e1e' };
+  S.obj_biggear = [mk(bgPal, gearRows(27, 12, 0), { emit: 'd' }), mk(bgPal, gearRows(27, 12, Math.PI), { emit: 'd' })];
 
   // 炎魔イフリート: 黒い角と燃える髪、赤黒い筋骨の上半身、両手に炎。下半身は炎になって浮いている
   S.ifrit = mk({ h: '#2a1414', a: '#1e0a08', b: '#6a1a10', c: '#a8381a', e: '#ffff80', m: '#ffc34a', f: '#ff6a2a', g: '#ffc34a', w: '#fff0b0' }, sym([

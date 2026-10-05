@@ -933,8 +933,13 @@ function render() {
       }
       for (let d = 0; d < L; d += 40) addLight(h.x + c * d, h.y + s * d, 60, '#ff6a2a', 0.7 * fade);
     } else if (h.kind === 'quake') {
-      pCircle(sx, hx, hy, Math.round(h.r), '#ffd0d8'); pCircle(sx, hx, hy, Math.round(h.r) - 1, '#ff3b5c');
-      gx.globalAlpha = 0.8; pCircle(gx, hx, hy, Math.round(h.r), '#ff3b5c'); gx.globalAlpha = 1;
+      if (h.bell) { // 鐘の衝撃(ダメージなし・押すだけ): 金色の音の輪
+        pCircle(sx, hx, hy, Math.round(h.r), '#fff0c8'); pCircle(sx, hx, hy, Math.round(h.r) - 1, '#ffd27a'); pCircle(sx, hx, hy, Math.round(h.r) - 3, '#c8a050', 2);
+        pCircle(gx, hx, hy, Math.round(h.r), '#5a4010');
+      } else {
+        pCircle(sx, hx, hy, Math.round(h.r), '#ffd0d8'); pCircle(sx, hx, hy, Math.round(h.r) - 1, '#ff3b5c');
+        gx.globalAlpha = 0.8; pCircle(gx, hx, hy, Math.round(h.r), '#ff3b5c'); gx.globalAlpha = 1;
+      }
     } else if (h.kind === 'clock') { // 時計盤: 目盛りと逆回転する針
       const R = Math.round(h.r * Math.min(1, h.t * 4));
       sx.globalAlpha = 0.22 * fade; pDisc(sx, hx, hy, R, '#6a3aa0');
@@ -1034,6 +1039,17 @@ function render() {
       sx.globalAlpha = 1;
       for (let i = 0; i < 5; i++) { sx.fillStyle = '#ffffff'; sx.fillRect(Math.round(hx + Math.sin(t * 7 + i * 1.3) * R * 0.5), Math.round(hy - H - (i % 2)), 1, 1); } // 柱の先の白いしぶき
       addLight(h.x, h.y - H / 2, 50, '#7ad7ff', 0.5 * fade);
+    } else if (h.kind === 'gearfloor') { // 歯車の床: 床の上で回る真鍮の歯車(歯・スポーク・軸)と、回る向きの矢印
+      const R = Math.round(h.r * Math.min(1, h.t * 5)), rot = h.t * 1.0 * h.dir, n = 14;
+      sx.globalAlpha = 0.35 * fade; pDisc(sx, hx, hy, R, '#3a2e1e');
+      sx.globalAlpha = 0.85 * fade;
+      for (let i = 0; i < n; i++) { const a = rot + TAU / n * i; for (let k = 0; k < 3; k++) { const aa = a + (k - 1) * 0.06; sx.fillStyle = '#c8a050'; sx.fillRect(Math.round(hx + Math.cos(aa) * (R + 1)), Math.round(hy + Math.sin(aa) * (R + 1)), 2, 2); } } // 歯
+      pCircle(sx, hx, hy, R, '#c8a050'); pCircle(sx, hx, hy, Math.max(1, R - 1), '#8a6a30'); pCircle(sx, hx, hy, Math.round(R * 0.3), '#c8a050');
+      for (let i = 0; i < 6; i++) { const a = rot + TAU / 6 * i; pLine(sx, hx + Math.cos(a) * R * 0.3, hy + Math.sin(a) * R * 0.3, hx + Math.cos(a) * (R - 2), hy + Math.sin(a) * (R - 2), '#8a6a30', 2); } // スポーク
+      for (let i = 0; i < 4; i++) { const a = rot * 1.5 + TAU / 4 * i, r = R * 0.65, x = hx + Math.cos(a) * r, y = hy + Math.sin(a) * r, ta = a + h.dir * Math.PI / 2; for (const k of [-1, 1]) pLine(sx, x + Math.cos(ta) * 3, y + Math.sin(ta) * 3, x - Math.cos(ta) * 2 + Math.cos(ta + k * 1.6) * 3, y - Math.sin(ta) * 2 + Math.sin(ta + k * 1.6) * 3, '#ffd27a'); } // 回る向きの矢印
+      sx.fillStyle = '#ffd27a'; sx.fillRect(Math.round(hx) - 1, Math.round(hy) - 1, 3, 3); sx.globalAlpha = 1;
+      pCircle(gx, hx, hy, R, '#3a2a08');
+      addLight(h.x, h.y, R * 1.8, '#ffd27a', 0.35 * fade);
     } else if (h.kind === 'ice') { // 滑る床: 青白い氷の面に、反射の筋が流れる(ダメージはないので縁は赤くしない)
       const R = Math.round(h.r * Math.min(1, h.t * 6));
       sx.globalAlpha = 0.3 * fade; pDisc(sx, hx, hy, R, '#7ab0d8');
@@ -1485,6 +1501,7 @@ function render() {
     else if (p.kind === 'glob' || p.kind === 'rbit' || p.kind === 'efire' || p.kind === 'esand') drawSp(ART.S[p.kind], p.x, p.y, ol);
     else if (p.kind === 'arrow' || p.kind === 'espear' || p.kind === 'bspear' || p.kind === 'trident' || p.kind === 'needle' || p.kind === 'eice' || p.kind === 'ispear') drawRot(p.kind, a, p.x, p.y, ol);
     else if (p.kind === 'flake') drawSp(p.small ? ART.S.flakeS : ART.S.flake, p.x, p.y, ol); // 雪華弾(割れた後は小さな結晶)
+    else if (p.kind === 'cog') drawSp(ART.S.gear[Math.floor(p.spin || 0) % 2], p.x, p.y, ol); // 番人の歯車弾
     else if (p.kind === 'bigsnow') { // 大雪玉: 転がる白い雪の玉(凹凸が回る)
       const R = Math.round(p.r), x = p.x - cam.x, y = p.y - cam.y;
       shadow(p.x, p.y + R - 2, R * 2);
@@ -1741,6 +1758,47 @@ function drawBossFx(e) {
       pLine(sx, ex, ey, bx, by, '#ffffff', Math.max(1, Math.round(2 * A)));
       for (let r = 0; r < BL; r += 44) addLight(e.x + Math.cos(ai.ba) * r, e.y + Math.sin(ai.ba) * r, 60, '#7ad7ff', 0.7);
     }
+  }
+  // 時計仕掛けの番人: 背中のゼンマイ / 時針と分針 / 振り子 / 鐘の光 / ゼンマイ巻きのDPSチェックの輪 / 止まった火花の星 / 全速の赤い光
+  if (e.boss === 'warden') {
+    const kx = ex + 13, ky = ey + yo - 2, ka = ai.keyA || 0; // ゼンマイの鍵(背中から横に突き出て回る)
+    pLine(sx, ex + 8, ky, kx, ky, '#8a6a30', 2);
+    for (const s2 of [1, -1]) { const bx = kx + Math.cos(ka) * 4 * s2, by = ky + Math.sin(ka) * 2 * s2; pDisc(sx, bx, by, 2, '#c8a050'); sx.fillStyle = '#241e1a'; sx.fillRect(Math.round(bx), Math.round(by), 1, 1); }
+    if (ai.hands) { // 2本の針: 薄く出る → 真鍮の針が回る
+      const on = ai.hands.t > 1, L = 180 * A;
+      for (const [ha, w, col] of [[ai.hands.a1, 10, '#8a6a30'], [ai.hands.a2, 7, '#c8a050']]) {
+        const x1 = ex + Math.cos(ha) * L, y1 = ey + Math.sin(ha) * L;
+        if (!on) { sx.globalAlpha = 0.35; pLine(sx, ex, ey, x1, y1, '#c8a050', 3); sx.globalAlpha = 1; continue; }
+        const nx = -Math.sin(ha) * w * A * 0.3, ny = Math.cos(ha) * w * A * 0.3;
+        pLine(sx, ex, ey, x1, y1, '#241e1a', Math.round((w + 2) * A)); pLine(sx, ex, ey, x1, y1, col, Math.round(w * A));
+        pLine(sx, ex + nx, ey + ny, x1 + nx, y1 + ny, '#e8c880', 1); // 片側の照り返し
+        for (const k of [0.55, 0.85]) { const tx = ex + Math.cos(ha) * L * k, ty = ey + Math.sin(ha) * L * k; pDisc(sx, tx, ty, Math.round(w * 0.55 * A) + 1, '#241e1a'); pDisc(sx, tx, ty, Math.round(w * 0.55 * A), col); } // 針の飾り(透かしの輪)
+      }
+      if (on) { pDisc(sx, ex, ey, 5, '#241e1a'); pDisc(sx, ex, ey, 4, '#c8a050'); addLight(e.x, e.y, 90, '#ffd27a', 0.3); }
+    }
+    if (ai.hands || (ai.pend && ai.pend.t > 0.8)) drawSp(sp, e.x, e.y + yo, { flip: (e.face || 1) < 0, sy: e.sq || 1, sxk: 2 - (e.sq || 1), white: e.flash > 0 }); // 針・振り子の上に体を描き直す(軸は胸の文字盤)
+    if (ai.pend) { // 振り子: 棒の先に重り。振れた跡が残像で見える
+      const pd = ai.pend, on = pd.t > 0.8, L = 210 * A, x1 = ex + Math.cos(pd.a) * L, y1 = ey + Math.sin(pd.a) * L;
+      if (on) {
+        pLine(sx, ex, ey, x1, y1, '#241e1a', Math.round(5 * A)); pLine(sx, ex, ey, x1, y1, '#c8a050', Math.round(3 * A)); pLine(gx, ex, ey, x1, y1, '#3a2a08', 2);
+        const br = Math.round(9 * A); pDisc(sx, x1, y1, br + 1, '#241e1a'); pDisc(sx, x1, y1, br, '#c8a050'); pDisc(sx, x1 - 2, y1 - 2, Math.max(1, br - 4), '#ffd27a'); pDisc(gx, x1, y1, Math.max(1, br - 3), '#3a2a08');
+        addLight(e.x + Math.cos(pd.a) * L, e.y + Math.sin(pd.a) * L, 60, '#ffd27a', 0.6);
+      }
+    }
+    if (ai.bellT > 0) { const k = 1 - ai.bellT / 0.8; pCircle(gx, ex, ey + yo - sp.h / 2 + 4, Math.round(6 + 6 * k), '#7a5a10'); addLight(e.x, e.y + yo - sp.h / 2 + 4, 40 + 60 * k, '#ffd27a', 0.9); } // 鐘が光る
+    if (ai.act === 'spring') {
+      const R = 26, m = Math.ceil(TAU * R);
+      for (let i = 0; i < m; i++) { // DPSチェックの輪: 削った割合だけ金色に満ちる。残り時間で点滅
+        const u = i / m, a2 = -Math.PI / 2 + TAU * u, on = u <= ai.armK;
+        if (!on && i % 2) continue;
+        sx.fillStyle = on ? '#ffd23f' : ai.pt < 1.5 && Math.floor(t * 8) % 2 ? '#ff3b5c' : '#8a7a60';
+        sx.fillRect(Math.round(ex + Math.cos(a2) * R), Math.round(ey + Math.sin(a2) * R), 1, 1);
+        if (on) { gx.fillStyle = '#5a4a10'; gx.fillRect(Math.round(ex + Math.cos(a2) * R), Math.round(ey + Math.sin(a2) * R), 1, 1); }
+      }
+    } else if (ai.act === 'stall') {
+      for (let i = 0; i < 3; i++) { const a2 = t * 6 + TAU / 3 * i, x = Math.round(ex + Math.cos(a2) * 10), y = Math.round(ey + yo - sp.h / 2 - 4 + Math.sin(a2) * 3); sx.fillStyle = gx.fillStyle = '#ffe14a'; sx.fillRect(x - 1, y, 3, 1); sx.fillRect(x, y - 1, 1, 3); gx.fillRect(x, y, 1, 1); }
+    }
+    if (ai.fastT > 0) addLight(e.x, e.y, 80, '#ff8a3d', 0.8);
   }
   // 霜の巨人: 氷槌を振りかぶる間、頭上に氷が集まる / 地吹雪の前に体が白く光る
   if (e.boss === 'fgiant') {

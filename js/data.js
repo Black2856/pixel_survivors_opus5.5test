@@ -72,6 +72,7 @@ const DATA = {
     levia:   { name: '深淵の海竜 LEVIATHAN',        hp: 1700, spd: 21, dmg: 22, r: 15, music: 'b_sea', col: '#4ab8e8', enrage: 0.4 },
     fgiant:  { name: '霜の巨人 FROST GIANT',        hp: 2000, spd: 11, dmg: 24, r: 16, music: 'b_peak', col: '#9fd8ff' },
     squeen:  { name: '雪華の女王 SNOW QUEEN',       hp: 1500, spd: 18, dmg: 22, r: 12, music: 'b_peak', col: '#d8f0ff', enrage: 0.4 },
+    warden:  { name: '時計仕掛けの番人 CLOCKWORK WARDEN', hp: 1900, spd: 13, dmg: 22, r: 15, music: 'b_clock1', col: '#c8a050' },
   },
   // 状態異常(プレイヤー): 粘液・スロウタイムの移動速度倍率 / スロウタイムのCD回復倍率 / 炎上
   debuff: { slow: 0.6, cdRate: 0.5, burnTick: 0.5, burnDur: 3, frostSlow: 0.05, shockR: 60, pDur: 5, pBleed: 0.01, pBleedMax: 5 }, // frostSlow: 凍傷1スタックあたりの減速(敵・自分) / shockR: 感電の連鎖距離 / pDur: 自分の凍傷・出血が消えるまでの秒 / pBleed: 自分の出血1スタックの毎秒ダメージ(最大HP の割合)
@@ -1379,7 +1380,7 @@ const DATA = {
       amb: [0.66, 0.74, 0.92], tint: [0.96, 1.0, 1.08], motes: { col: '#ffffff', snow: true }, snow: true, light: 0.5 }, // light: 明るい雪原なので光源を弱める
     // 終刻の時計塔(tier 4): 石畳にはめこまれた真鍮の歯車、セピアの光、舞う砂
     { label: '終刻の時計塔', music: 'f_clock', ground: ['#38322e', '#403833', '#302a27', '#47403a'], deco: ['#1a1614', '#7a6a58', '#6a5228', '#94784a'],
-      amb: [0.64, 0.56, 0.48], tint: [1.05, 1.0, 0.9], motes: { col: '#ffd8a0', cols: ['#ffd8a0', '#e8c88a', '#fff0c8', '#c8a060'], rise: false }, clock: true },
+      amb: [0.64, 0.56, 0.48], tint: [1.05, 1.0, 0.9], motes: { col: '#ffd8a0', cols: ['#ffd8a0', '#e8c88a', '#fff0c8', '#c8a060'], rise: false }, clock: true, light: 0.75 },
   ],
 
   // ---------- カオス強化(db.xlsx「カオス強化」)----------
@@ -1439,6 +1440,8 @@ const DATA = {
     { no: 4, stage: 5, tier: 1, bosses: ['stag', 'pqueen'], segs: [['bat', 'jslime', 'beetle'], ['jslime', 'beetle', 'fairy'], null] }, // 七彩の晶窟
     { no: 6, stage: 6, tier: 2, bosses: ['kraken', 'levia'], segs: [['jelly', 'sahagin', 'puffer'], ['sahagin', 'puffer', 'angler'], null] }, // 沈黙の海淵
     { no: 5, stage: 7, tier: 3, bosses: ['fgiant', 'squeen'], segs: [['wolf', 'ghost', 'icesprite'], ['ghost', 'icesprite', 'yeti'], null] }, // 霜天の霊峰
+    // 終刻の時計塔: 3つ目の候補は「今までの敵」のまとまり(1枠として選ばれ、その中から1種)
+    { no: 7, stage: 8, tier: 4, bosses: ['warden', 'reaper'], segs: [['gear', 'clockman', ['skeleton', 'archer', 'imp', 'icesprite', 'sahagin', 'beetle']], ['clockman', 'hglass', ['skeleton', 'archer', 'imp', 'icesprite', 'sahagin', 'beetle']], null] },
   ],
   // 通常モードの流れ(フェーズの時計で進む。ボス・エリート群のフェーズの間は止まる)
   //   seg: 区間の長さ / waves: 区間ごとの出現の間隔・上限(t は区間の中の秒) / horde: 2つ目・3つ目の区間で大群を出す秒 / elites: エリート群の数

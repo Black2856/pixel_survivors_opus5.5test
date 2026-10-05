@@ -1678,6 +1678,22 @@ function updObj(e, dt) {
       burst(e.x, e.y - 8, 8, SNOW, { sp: 50, glow: true, life: 0.3 }); AudioMan.chime();
     }
     if (Math.random() < dt * 5) part(e.x + rand(-4, 4), e.y - rand(4, 16), 0, -rand(3, 8), 0.6, pick(SNOW), { glow: true, drag: 1 });
+  } else if (e.obj === 'biggear') { // 大歯車(番人): 転がって画面の縁(闘技場では壁)で 2回はね返る。触れると ×1.0・1秒 移動速度 ×0.6
+    e.x += e.vx * dt; e.y += e.vy * dt; e.spin = (e.spin || 0) + Math.hypot(e.vx, e.vy) * dt / e.r;
+    let hit = false;
+    if (S.mode === 'arena') {
+      const d = Math.hypot(e.x, e.y), m = DATA.arena.r - e.r;
+      if (d > m && (e.x * e.vx + e.y * e.vy) > 0) { const nx = e.x / d, ny = e.y / d, dot = e.vx * nx + e.vy * ny; e.vx -= 2 * dot * nx; e.vy -= 2 * dot * ny; hit = true; }
+    } else {
+      if ((e.x - e.r < cam.x && e.vx < 0) || (e.x + e.r > cam.x + GFX.VW && e.vx > 0)) { e.vx = -e.vx; hit = true; }
+      if ((e.y - e.r < cam.y && e.vy < 0) || (e.y + e.r > cam.y + GFX.VH && e.vy > 0)) { e.vy = -e.vy; hit = true; }
+    }
+    if (hit) {
+      if (e.bounce-- <= 0) { e.dead = true; objDown(e, false); return; } // 3回目の縁で崩れる
+      burst(e.x, e.y, 16, BRASS, { sp: 90, glow: true, life: 0.3 }); shake(4); AudioMan.thud();
+    }
+    if (d2(e.x, e.y, P.x, P.y) < Math.pow(e.r + 4, 2) && hurtPlayer(e.owner.dmg)) slowPlayer(0.6, 1);
+    if (Math.random() < dt * 20) part(e.x + rand(-e.r, e.r) * 0.5, e.y + e.r * 0.8, -e.vx * 0.2 + rand(-15, 15), -rand(10, 30), 0.35, pick(['#ffd27a', '#c8a050', '#8a7a60']), { glow: Math.random() < 0.3, g: 160 }); // 火花と砂ぼこり
   } else if (e.obj === 'iceblock') { // 氷塊(霜の巨人): 冷気が立ちのぼる
     if (Math.random() < dt * 4) part(e.x + rand(-8, 8), e.y - rand(0, 12), rand(-3, 3), -rand(3, 8), 0.8, pick(SNOW), { drag: 1 });
   } else if (e.obj === 'altar') { // 炎の祭壇: 炎が燃えさかり、火の粉がイフリートへ流れる
@@ -1711,6 +1727,9 @@ function objDown(e, broken) {
       for (const da of [-0.35, 0, 0.35]) Object.assign(eball(e.x, e.y - 6, a + da, 70, e.owner.dmg * 0.3, 'eice'), { r: 2.5 * CHAOS.area, life: 4 });
       addFlash(e.x, e.y, 60, '#bff4ff', 0.4); shake(3); AudioMan.chime(); AudioMan.thud();
     }
+  } else if (e.obj === 'biggear') { // 大歯車: 歯と真鍮のかけらが飛び散る
+    burst(e.x, e.y, Math.round(50 * k), [...BRASS, '#5a5a6a'], { sp: 150 * k, g: 220, life: 0.7 });
+    if (broken) { addFlash(e.x, e.y, 90, '#ffd27a', 0.5); shake(6); AudioMan.crush(); }
   } else if (e.obj === 'iceblock') { // 氷塊: 砕けて氷のかけら
     burst(e.x, e.y - 6, Math.round(30 * k), ['#bff4ff', '#7ad7ff', '#ffffff', '#5a8ab8'], { sp: 110 * k, g: 220, life: 0.6 });
     if (broken) { addFlash(e.x, e.y, 60, '#9fd8ff', 0.4); shake(3); AudioMan.frost(); AudioMan.thud(); }
@@ -1733,9 +1752,10 @@ const BOSS_AI0 = {
   levia: { current: 10, wave: 8, dive: 5, pillar: 7, tail: 0, side: 1 },
   fgiant: { hammer: 3, blizz: 9, aval: 7, ball: 5 },
   squeen: { flake: 2, ring: 6, mirror: 8, veil: 14, dance: 4, side: 1 },
+  warden: { spring: 12, handCd: 6, cog: 3, bell: 8, big: 5, floor: 9 },
   pqueen: { tp: 3, beam: 3, cageCd: 10, mirror: 8, chain: 5, blink: 6 },
 };
-const BOSS_ENRAGE = { king: { slam: 6 }, ifrit: { altar: true }, stag: { herd: 4 }, pqueen: { spiral: 3 }, levia: { breath: 4 }, fgiant: { drift: 5 }, squeen: { lance: 3 } };
+const BOSS_ENRAGE = { king: { slam: 6 }, ifrit: { altar: true }, stag: { herd: 4 }, pqueen: { spiral: 3 }, levia: { breath: 4 }, fgiant: { drift: 5 }, squeen: { lance: 3 }, warden: { pendCd: 6 } };
 
 function bossAI(e, dt) {
   const ai = e.ai, a = Math.atan2(P.y - e.y, P.x - e.x), dist = Math.sqrt(d2(e.x, e.y, P.x, P.y));
@@ -1815,6 +1835,7 @@ function bossAI(e, dt) {
     case 'levia': leviaAI(e, ai, dt, a, dist, slow); break;
     case 'fgiant': fgiantAI(e, ai, dt, a, dist, slow); break;
     case 'squeen': squeenAI(e, ai, dt, a, dist, slow); break;
+    case 'warden': wardenAI(e, ai, dt, a, dist, slow); break;
   }
 }
 
@@ -3120,6 +3141,110 @@ function iceLance(e, ai) {
   });
 }
 
+// ---------- 時計仕掛けの番人: プレイヤーへまっすぐ。ゼンマイ巻き(DPSチェック)/ 時針と分針 / 歯車弾 / 鐘の衝撃 / 大歯車 / 歯車の床 / 激昂: 振り子 ----------
+const BRASS = ['#c8a050', '#ffd27a', '#8a6a30', '#fff0c8'];
+function wardenAI(e, ai, dt, a, dist, slow) {
+  if (ai.fastT > 0) { // 全速(ゼンマイを止められなかった): 速さ ×1.6・技の間隔 ×0.6・針の回転 ×1.5。蒸気を噴く
+    ai.fastT -= dt;
+    if (Math.random() < dt * 26) part(e.x + rand(-10, 10), e.y - rand(6, 18), rand(-10, 10), -rand(20, 50), rand(0.4, 0.7), pick(['#fff0c8', '#c8b8a0', '#ff8a3d']), { drag: 1 });
+    if (ai.fastT <= 0) { e.spd /= 1.6; burst(e.x, e.y, 16, BRASS, { sp: 60 }); }
+  }
+  if (ai.bellT > 0) ai.bellT -= dt;
+  ai.keyA = (ai.keyA || 0) + dt * (ai.act === 'spring' ? 14 : ai.fastT > 0 ? 6 : 1.5); // 背中のゼンマイ(巻き上げ中は速く回る)
+  if (ai.act === 'spring' || ai.act === 'stall') { updSpring(e, ai, dt); return; }
+  const fast = ai.fastT > 0, R = CHAOS.rate / (fast ? 0.6 : 1);
+  e.x += Math.cos(a) * e.spd * slow * dt; e.y += Math.sin(a) * e.spd * slow * dt;
+  if (ai.hands) { // 時針と分針: 1秒 薄く出る → 4秒回る(短針 毎秒 0.8rad・長針 2.4rad)。当たると ×0.8
+    const hd = ai.hands, k = fast ? 1.5 : 1;
+    hd.t += dt;
+    if (hd.t > 1) {
+      hd.a1 += 0.8 * k * dt; hd.a2 += 2.4 * k * dt;
+      for (const ha of [hd.a1, hd.a2]) hitLine(e.x, e.y, ha, 180, 10, e.dmg * 0.8);
+      if ((hd.snd = (hd.snd || 0) - dt) <= 0) { hd.snd = 0.5; AudioMan.tick(4); }
+    }
+    if (hd.t >= 5) ai.hands = null;
+  }
+  if (ai.pend) { // 振り子(激昂): 0.8秒 薄い帯 → 帯(長さ 210・幅 14)が ±70° を 1.6秒周期で振れる。5秒、当たると ×0.9
+    const pd = ai.pend;
+    pd.t += dt;
+    pd.a = pd.base + (pd.t > 0.8 ? 1.2217 * Math.sin((pd.t - 0.8) * TAU / 1.6) : 0);
+    if (pd.t > 0.8) { hitLine(e.x, e.y, pd.a, 210, 14, e.dmg * 0.9); if (Math.abs(Math.cos((pd.t - 0.8) * TAU / 1.6)) > 0.98 && (pd.snd = (pd.snd || 0) - dt) <= 0) { pd.snd = 0.3; AudioMan.slash(); } }
+    if (pd.t >= 5.8) ai.pend = null;
+  }
+  ai.spring -= dt * R; ai.handCd -= dt * R; ai.cog -= dt * R; ai.bell -= dt * R; ai.big -= dt * R; ai.floor -= dt * R; if (ai.enraged) ai.pendCd -= dt * R;
+  if (ai.spring <= 0 && !ai.hands && !ai.pend) { ai.spring = ai.enraged ? 16 : 22; startSpring(e, ai); return; }
+  if (ai.cog <= 0) { ai.cog = ai.enraged ? 4 : 5; cogShot(e, ai); } // 弾はほかの技と並んで撃つ
+  if (ai.handCd <= 0 && !ai.hands && !ai.pend) { ai.handCd = ai.enraged ? 7 : 9; ai.hands = { t: 0, a1: a + Math.PI, a2: a + 0.9 }; for (const ha of [ai.hands.a1, ai.hands.a2]) pushWarn({ kind: 'line', x: e.x, y: e.y, a: ha, len: 180, w: 10, t: 0, life: 1, track: w => { w.x = e.x; w.y = e.y; } }); AudioMan.charge(1); hint('hands', '時針と分針', '2本の針が番人のまわりを回る'); }
+  else if (ai.big <= 0) { ai.big = ai.enraged ? 8 : 10; bigGear(e, ai, a); }
+  else if (ai.floor <= 0) { ai.floor = ai.enraged ? 9 : 12; gearFloors(e, ai); }
+  else if (ai.bell <= 0) { ai.bell = ai.enraged ? 8 : 10; bellShock(e, ai); }
+  else if (ai.enraged && ai.pendCd <= 0 && !ai.hands && !ai.pend) { ai.pendCd = 12; ai.pend = { t: 0, base: a, a }; pushWarn({ kind: 'line', x: e.x, y: e.y, a, len: 210, w: 14, t: 0, life: 0.8, track: w => { w.x = e.x; w.y = e.y; } }); AudioMan.charge(0.8); }
+}
+// ゼンマイ巻き: 背中のゼンマイが回り始める → 4秒 動かず巻き上げる(被ダメ ×1.3)。4秒で最大HP の 5% を削ると 2秒止まる。削れなければ 10秒 全速
+function startSpring(e, ai) {
+  ai.act = 'spring'; ai.pt = 4; ai.armHp = e.hp; ai.armK = 0; e.takeK = 1.3; ai.hands = null; ai.pend = null;
+  AudioMan.charge(0.6); shake(4);
+  hint('spring', 'ゼンマイ巻き', '4秒で最大HP の 5% を削ると止まる。削れないと全速になる');
+}
+function updSpring(e, ai, dt) {
+  ai.pt -= dt;
+  if (ai.act === 'spring') {
+    ai.armK = Math.min(1, (ai.armHp - e.hp) / (e.maxhp * 0.05));
+    if ((ai.ksnd = (ai.ksnd || 0) - dt) <= 0) { ai.ksnd = 0.18; AudioMan.tick(Math.floor(ai.armK * 8)); } // ギリギリと巻く音
+    if (ai.armK >= 1) { // 止めた: 2秒 止まる
+      ai.act = 'stall'; ai.pt = 2; e.takeK = 1;
+      burst(e.x, e.y - 8, 60, [...BRASS, '#5a5a6a'], { sp: 160, g: 240, life: 0.8 });
+      hitstop(0.08); shake(12); screenFlash(0.3, '#ffd27a'); shockAt(e.x, e.y, 2, 0.7); AudioMan.crush(); AudioMan.boom();
+      UI.announce('ゼンマイが止まった!', '2秒 動けない');
+    } else if (ai.pt <= 0) { // 巻き切った: 10秒 全速
+      ai.act = null; e.takeK = 1; ai.fastT = 10; e.spd *= 1.6;
+      burst(e.x, e.y, 40, ['#ff8a3d', '#fff0c8', '#c8a050'], { sp: 140, glow: true });
+      shake(9); AudioMan.roar(); screenFlash(0.25, '#ff8a3d');
+      UI.announce('番人が全速になった!', '10秒 速さ ×1.6・技の間隔 ×0.6');
+    }
+    return;
+  }
+  e.flash = Math.sin(ai.pt * 30) > 0.6 ? 0.04 : 0;
+  if (Math.random() < dt * 10) part(e.x + rand(-8, 8), e.y - rand(4, 16), rand(-20, 20), -rand(10, 30), 0.5, pick(['#ffd27a', '#c8a050']), { glow: true, g: 200 }); // 火花
+  if (ai.pt <= 0) { ai.act = null; e.takeK = 1; }
+}
+// 歯車弾: 大きな歯車 4個(激昂 6個)を全周へ(速さ 70、×0.6)。1回だけプレイヤーへ向きを変える
+function cogShot(e, ai) {
+  const n = ai.enraged ? 6 : 4, a0 = rand(0, TAU);
+  for (let i = 0; i < n; i++) Object.assign(eball(e.x, e.y - 6, a0 + TAU / n * i, 70, e.dmg * 0.6, 'cog'), { r: 7 * CHAOS.area, turnT: 1.0, keepSp: 70 });
+  burst(e.x, e.y - 6, 14, BRASS, { sp: 70, glow: true, life: 0.35 }); AudioMan.tick(2); AudioMan.dash();
+}
+// 鐘の衝撃: 0.8秒 鐘が光る → 衝撃の輪を 3つ、0.4秒おき(半径 30 → 150、毎秒 120)。触れると 50 外へ押す(ダメージなし)
+function bellShock(e, ai) {
+  ai.bellT = 0.8; AudioMan.charge(0.8);
+  for (let i = 0; i < 3; i++) later(ai, 0.8 + i * 0.4, () => {
+    addHazard('quake', e.x, e.y, { r: 30, spd: 120, max: 150, dur: 9, dmg: 0, push: 50, bell: true });
+    AudioMan.knell(); shockAt(e.x, e.y, 1.1, 0.8); shake(3);
+  });
+  hint('bell', '鐘の衝撃', '輪に触れると外へ押される');
+}
+// 大歯車: 0.7秒(経路の帯)→ 半径 30 の歯車が速さ 90 で転がり、画面の縁(闘技場では壁)で 2回はね返る(8秒)。×1.0・触れると 1秒 移動速度 ×0.6。HP 3% で壊せる
+function bigGear(e, ai, a) {
+  pushWarn({ kind: 'line', x: e.x, y: e.y, a, len: 260, w: 60, t: 0, life: 0.7, fixed: true });
+  e.sq = 1.25; AudioMan.charge(0.7);
+  windup(e, 0.7, () => {
+    const o = spawnObj(e, 'biggear', e.x + Math.cos(a) * 20, e.y + Math.sin(a) * 20, { pct: 0.03, r: 30, life: 8 });
+    o.vx = Math.cos(a) * 90; o.vy = Math.sin(a) * 90; o.bounce = 2; o.rise = 1;
+    shake(6); AudioMan.boom(); e.sq = 0.75;
+    hint('biggear', '大歯車', '縁ではね返る。壊すこともできる');
+  });
+}
+// 歯車の床: 0.8秒(床に歯車の模様)→ プレイヤーの位置と、そこから 120 離れた位置に、回る歯車の床(半径 50)を 8秒。上にいると回る向きへ流される(毎秒 50)
+function gearFloors(e, ai) {
+  const ga = rand(0, TAU), pts = [{ x: P.x, y: P.y }, { x: P.x + Math.cos(ga) * 120, y: P.y + Math.sin(ga) * 120 }];
+  pts.forEach((p, i) => {
+    pushWarn({ kind: 'circle', x: p.x, y: p.y, r: 50, t: 0, life: 0.8 });
+    addHazard('gearfloor', p.x, p.y, { r: 50, dur: 8, delay: 0.8, dir: i ? -1 : 1, seed: (Math.random() * 1e6) | 0 });
+  });
+  AudioMan.charge(0.8);
+  later(ai, 0.8, () => { AudioMan.tick(0); AudioMan.thud(); hint('gearfloor', '歯車の床', '回る向きへ流される'); });
+}
+
 // 空襲: 0.8秒で飛び上がる(この間に画面を横切る帯 = 影の通り道が出る)→ 空の上(攻撃が当たらない)を影が速さ 220 で走り、通った跡に燃える床(4秒)
 //   影に触れると ×1.0・炎上 → 影が抜けたら、プレイヤーのそばへ舞い降りる(0.4秒)
 function startRaid(e, ai) {
@@ -3328,6 +3453,12 @@ function updEprojs(dt0) {
     else if (p.kind === 'espear' && Math.random() < dt * 50) part(p.x - p.vx * 0.03, p.y - p.vy * 0.03, 0, 0, 0.12, '#ffffff', { drag: 0 });
     else if ((p.kind === 'eice' || p.kind === 'ispear' || p.kind === 'flake') && Math.random() < dt * (p.kind === 'ispear' ? 60 : 25)) part(p.x + rand(-1, 1), p.y + rand(-1, 1), -p.vx * 0.1, -p.vy * 0.1, 0.3, pick(['#bff4ff', '#ffffff', '#7ad7ff']), { glow: true, drag: 2 }); // 氷の弾: 霜のきらめき
     else if (p.kind === 'bigsnow') { p.spin = (p.spin || 0) + dt * Math.hypot(p.vx, p.vy) / 14; if (Math.random() < dt * 30) part(p.x + rand(-10, 10), p.y + 10, -p.vx * 0.2 + rand(-15, 15), -rand(10, 30), 0.5, pick(['#ffffff', '#e8f4ff']), { g: 120, drag: 1 }); } // 大雪玉: 転がって雪煙
+    if (p.kind === 'cog') p.spin = (p.spin || 0) + dt * 10;
+    if (p.turnT && p.t >= p.turnT) { // 歯車弾: 1回だけプレイヤーへ向きを変える
+      p.turnT = 0; const ta = Math.atan2(P.y - p.y, P.x - p.x), sp = Math.hypot(p.vx, p.vy);
+      p.vx = Math.cos(ta) * sp; p.vy = Math.sin(ta) * sp;
+      burst(p.x, p.y, 5, BRASS, { sp: 30, glow: true, life: 0.2 });
+    }
     if (p.splitT && p.t >= p.splitT) { // 雪華弾: 3つに割れる
       const a = Math.atan2(p.vy, p.vx), sp = Math.hypot(p.vx, p.vy);
       for (const da of [-0.45, 0, 0.45]) Object.assign(eball(p.x, p.y, a + da, sp * 1.15, 0, 'flake'), { dmg: p.dmg, frost: p.frost, small: true, life: 4 }); // ダメージは割れる前の弾と同じ
@@ -3380,10 +3511,10 @@ function updHazards(dt) {
     } else if (h.kind === 'quake') {
       h.r += h.spd * dt;
       if (Math.abs(Math.sqrt(dd) - h.r) < 5) { // 輪に触れると ×0.8(ゴーレムの衝撃波は外へ押し出す。1つの輪で1回)
-        hurtPlayer(h.dmg);
+        if (h.dmg > 0) hurtPlayer(h.dmg); // 鐘の衝撃はダメージなし(押すだけ)
         if (h.push && !h.pushed && pushPlayer(Math.atan2(P.y - h.y, P.x - h.x), h.push, 0.2)) h.pushed = true;
       }
-      for (let k = 0; k < 3; k++) { const pa = rand(0, TAU); part(h.x + Math.cos(pa) * h.r, h.y + Math.sin(pa) * h.r, 0, -rand(10, 40), 0.35, pick(['#a89e8c', '#6a6258', '#ffb347']), { g: 120, sz: pick([1, 2]) }); }
+      for (let k = 0; k < 3; k++) { const pa = rand(0, TAU); part(h.x + Math.cos(pa) * h.r, h.y + Math.sin(pa) * h.r, 0, -rand(10, 40), 0.35, h.bell ? pick(['#ffd27a', '#fff0c8', '#c8a050']) : pick(['#a89e8c', '#6a6258', '#ffb347']), { g: 120, sz: pick([1, 2]), glow: !!h.bell }); }
       if (h.r >= h.max) h.t = h.dur;
     } else if (h.kind === 'clock') {
       const R = h.r * Math.min(1, h.t * 4);
@@ -3434,6 +3565,10 @@ function updHazards(dt) {
         burst(h.x, h.y, 24, SPLASH, { sp: 110, up: 50, g: 200, life: 0.6 }); AudioMan.splash();
       }
       if (Math.random() < dt * 30) part(h.x + rand(-h.r, h.r) * 0.6, h.y - rand(0, 30), rand(-10, 10), -rand(20, 50), 0.5, pick(SPLASH), { drag: 1 });
+    } else if (h.kind === 'gearfloor') { // 歯車の床(番人): 上にいると回る向きへ流される(毎秒 50)
+      const d = Math.sqrt(dd);
+      if (d < h.r && d > 1 && h.t < h.dur - 0.2 && !P.dead && state === 'play' && P.invT <= 0) { const vx = -(P.y - h.y) / d * h.dir * 50, vy = (P.x - h.x) / d * h.dir * 50; P.x += vx * dt; P.y += vy * dt; }
+      if (Math.random() < dt * 6) { const pa = rand(0, TAU); part(h.x + Math.cos(pa) * h.r, h.y + Math.sin(pa) * h.r, -Math.sin(pa) * h.dir * 40, Math.cos(pa) * h.dir * 40, 0.3, '#ffd27a', { glow: true, drag: 2 }); } // 縁の火花
     } else if (h.kind === 'ice') { // 滑る床(霜の巨人): 上では向きを変えるのに慣性がかかる
       if (dd < h.r * h.r && h.t < h.dur - 0.2) P.iceT = 0.1;
       if (Math.random() < dt * 5) { const pa = rand(0, TAU), pr = Math.sqrt(Math.random()) * h.r; part(h.x + Math.cos(pa) * pr, h.y + Math.sin(pa) * pr * 0.8, 0, -2, 0.5, '#ffffff', { glow: true, drag: 1 }); }
