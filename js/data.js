@@ -40,9 +40,9 @@ const DATA = {
     king:    { name: '腐肉の王 ROT KING',          hp: 1500, spd: 14, dmg: 22, r: 13, music: 'boss1', col: '#8fce5e' },
     gslime:  { name: '巨大スライム GIANT SLIME',   hp: 1500, spd: 16, dmg: 20, r: 14, music: 'boss1', col: '#4fd6a8' },
     wyrm:    { name: '白骨竜 BONE WYRM',           hp: 1700, spd: 19, dmg: 22, r: 14, music: 'boss2', col: '#efe9d4' },
-    golem:   { name: 'ゴーレム GOLEM',             hp: 1900, spd: 12, dmg: 24, r: 15, music: 'boss2', col: '#6ee7ff' },
-    reaper:  { name: '死神 THE REAPER',            hp: 1800, spd: 22, dmg: 28, r: 12, music: 'boss3', col: '#c29bff', enrage: 0.3 },
-    cdragon: { name: 'カオスドラゴン CHAOS DRAGON', hp: 2000, spd: 20, dmg: 28, r: 16, music: 'boss3', col: '#ff4a8a', enrage: 0.4 },
+    golem:   { name: 'ゴーレム GOLEM',             hp: 1800, spd: 12, dmg: 22, r: 15, music: 'boss2', col: '#6ee7ff' },
+    reaper:  { name: '死神 THE REAPER',            hp: 1800, spd: 22, dmg: 28, r: 12, music: 'boss3', col: '#c29bff', enrage: 0.3 }, // 段階3 で 1600 / 24 に
+    cdragon: { name: 'カオスドラゴン CHAOS DRAGON', hp: 1700, spd: 20, dmg: 20, r: 16, music: 'boss3', col: '#ff4a8a', enrage: 0.4 },
   },
   // 状態異常(プレイヤー): 粘液・スロウタイムの移動速度倍率 / スロウタイムのCD回復倍率 / 炎上
   debuff: { slow: 0.6, cdRate: 0.5, burnTick: 0.5, burnDur: 3, frostSlow: 0.05, shockR: 60, pDur: 5, pBleed: 0.01, pBleedMax: 5 }, // frostSlow: 凍傷1スタックあたりの減速(敵・自分) / shockR: 感電の連鎖距離 / pDur: 自分の凍傷・出血が消えるまでの秒 / pBleed: 自分の出血1スタックの毎秒ダメージ(最大HP の割合)

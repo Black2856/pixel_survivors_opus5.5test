@@ -21,6 +21,7 @@ let S = null, P = null;
 let enemies = [], projs = [], eprojs = [], gems = [], drops = [], props = [];
 let parts = [], floats = [], rings = [], zones = [], slashes = [], bolts = [], warns = [], flashes = [];
 let hazards = []; // ボスが設置する床・フィールド(粘液 / 衝撃波 / スロウタイム)
+let bfx = []; // ボスの技の見た目だけの演出(死者の手・地割れの噴出・空襲の影など。render.js の drawBfx が kind ごとに描く)
 let nextId = 1;
 const cam = { x: 0, y: 0, shake: 0, sx: 0, sy: 0 };
 

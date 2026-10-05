@@ -1251,6 +1251,16 @@ const ART = (() => {
   S.wisp = mk({ a: '#2fbf8a', b: '#9dffcf', c: '#ffffff' }, ['.aba.', 'abcba', 'bcccb', 'abcba', '.aba.'], { outline: false, emit: 'abc' });
   S.ball = mk({ a: '#a0122a', b: '#ff3b5c', c: '#ffc0c8' }, ['.aba.', 'abcba', 'bcccb', 'abcba', '.aba.'], { outline: false, emit: 'abc' });
   S.arrow = mk({ a: '#8a6a3a', b: '#e8e6da', c: '#ffb13a' }, ['c.....', '.aaaab', 'c.....']);
+  // ボスが出す壊せる物: 腐肉の山(脈打つ肉塊。2コマ)/ 肋骨の盾の骨柱
+  const meatPal = { a: '#3a1a14', b: '#7a2a20', c: '#c2483a', d: '#7fae4e', e: '#b8d86a', f: '#e8e0c0', g: '#4a6e30' };
+  S.obj_meat = [mk(meatPal, ['....dd.d....', '..dbbccbd...', '.bccbbcccb..', 'bcccfbbcccb.', 'bcbcccbccbbd', 'abcccgccfcba', 'abbccbbccbba', '.aabbbbbbaa.'], { emit: 'e' }),
+    mk(meatPal, ['...d.dd.....', '..dbccbbd...', '.bcccbbccb..', 'bccfbbcccbb.', 'dbbcccbcccbd', 'abccgcccfcba', 'abbccbbccbba', '.aabbbbbbaa.'], { emit: 'e' })];
+  S.obj_pillar = mk({ a: '#8a8676', b: '#d8d0b8', c: '#efe9d4', d: '#6ee7ff', e: '#4a4638' }, [
+    '..cc..', '.cbbc.', '.abba.', '..bb..', '..bd..', '.abba.', '..bb..', '..bb..', '..db..', '.abba.', '..bb..', '.abba.', 'eaccae',
+  ], { emit: 'd' });
+  S.gore = mk(meatPal, ['.dbb.', 'bccbb', 'bcfcb', '.bba.']); // 腐肉の王が吐き出す肉塊(放物線で飛ぶ)
+  S.bspear = mk({ a: '#efe9d4', b: '#b8b098', c: '#6ee7ff' }, ['..........a..', 'bbbbbbbbbbaac', '..........a..'], { emit: 'c' }); // 白骨竜の骨槍
+
   // 通常敵の弾: 火の小鬼の火の玉 / 砂術師の砂の弾 / 投槍兵の槍(右向き。回転フレームで描く)
   S.efire = mk({ a: '#b8261a', b: '#ff6a2a', c: '#ffc34a', d: '#fff6c8' }, ['.aba.', 'abcba', 'bcdcb', 'abcba', '.aba.'], { outline: false, emit: 'bcd' });
   S.esand = mk({ a: '#8a5a2a', b: '#e8c88a', c: '#fff0c0' }, ['.ab.', 'abcb', 'bccb', '.bb.'], { emit: 'c' });
@@ -1326,7 +1336,7 @@ const ART = (() => {
 
   // 回転フレーム(16方向)
   const ROT = {};
-  for (const k of ['axe', 'blade', 'bladeEvo', 'arrow', 'scythe', 'espear']) {
+  for (const k of ['axe', 'blade', 'bladeEvo', 'arrow', 'scythe', 'espear', 'bspear']) {
     ROT[k] = rotFrames(S[k].c, 16);
     ROT[k + 'E'] = S[k].e ? rotFrames(S[k].e, 16) : null;
   }
