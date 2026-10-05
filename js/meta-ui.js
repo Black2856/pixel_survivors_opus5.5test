@@ -284,10 +284,11 @@ const MetaUI = (() => {
   $('btn-shop').onclick = () => { AudioMan.click(); shopScreen(); };
 
   // ---------- ステージ選択 ----------
-  // 上の段: 3ステージ通し(仮)・闘技場 / その下: 通常モードのステージ(ステージを1つ選ぶ。3分 → エリート群 → 3分 → ボス → 3分 → ボス)を tier の順に 2列。帯の色は tier
+  // いちばん上: エスカレーション(横いっぱい)/ 次の段: 3ステージ通し(仮)・闘技場 / その下: 通常モードのステージ(ステージを1つ選ぶ。3分 → エリート群 → 3分 → ボス → 3分 → ボス)を tier の順に 2列。帯の色は tier
   // クリアしたものに ★、カオス強化はクリアで解放
   const TIER_COL = ['#9ff7ff', '#7dff9a', '#ff8a3d', '#c78bff'];
   const STAGE_ITEMS = () => [
+    { key: 'escalation', mode: 'escalation', n: 1, wide: true, name: 'エスカレーション', sub: 'tier 1 → 4 を通す。tier ごとに同じ tier のステージからランダム(3分 → ボス)、最後は時計塔の死神', col: '#ffd23f' },
     { key: 'normal', mode: 'normal', n: 1, name: '3ステージ通し(仮)', sub: '草原 → 荒野 → 奈落 を進み、最終ボスを倒す(エスカレーションまでの仮)', col: '#ffd23f' },
     { key: 'arena', mode: 'arena', n: 1, name: '闘技場', sub: `ボス${DATA.arena.order.length}体の連戦`, col: '#ff3b5c' },
     ...DATA.stageRuns.map(R => ({ key: 'stage' + R.no, mode: 'stage', n: R.no, tier: R.tier, name: DATA.stages[R.stage - 1].label,
@@ -304,7 +305,7 @@ const MetaUI = (() => {
     $('stage-list').innerHTML = items.map((s, i) => {
       const clear = META.stageClear[s.key];
       const pt = clear ? chaosPoints(META.chaos[s.key] || {}, s.key) : 0;
-      const wide = nSt % 2 === 1 && i === items.length - 1; // 2列で余った最後のステージ(tier 4)は横いっぱい
+      const wide = s.wide || (nSt % 2 === 1 && i === items.length - 1); // エスカレーションと、2列で余った最後のステージ(tier 4)は横いっぱい
       return `<button class="stg${wide ? ' wide' : ''}" data-mode="${s.mode}" data-n="${s.n}" style="--sc:${s.col}">
         <span class="nm">${s.name}${clear ? ' <b class="clr">★ CLEAR</b>' : ''}</span><span class="sub">${s.sub}</span>
         <span class="chaos ${clear ? 'on' : ''}">${clear ? `カオス強化: <b>${pt} pt</b> <span class="cz-btn" data-chaos="${s.key}">設定 ▶</span>` : 'カオス強化: クリアで解放'}</span></button>`;

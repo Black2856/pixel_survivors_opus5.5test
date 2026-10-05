@@ -43,8 +43,10 @@ function endRun(win) {
   UI.result(win, earned, loot, cxp);
 }
 function startEndless() {
-  // 勝利後もそのまま続行(ゴールドはリザルト時に精算済みなのでリセット)
-  S.gold = 0; S.loop = 2; S.schedIdx = 0; S.loopStart = S.time; setStage(1);
+  // 勝利後もそのまま続行(ゴールドはリザルト時に精算済みなのでリセット)。エスカレーションは tier 1 のステージから
+  S.gold = 0; S.loop = 2;
+  if (S.mode === 'escalation') { escStage(1); S.won = false; UI.show(UI.$('hud')); UI.pause(false); state = 'play'; UI.announce('ENDLESS MODE', 'LOOP 2 — 敵はさらに強くなる'); return; }
+  S.schedIdx = 0; S.loopStart = S.time; setStage(1);
   UI.show(UI.$('hud')); UI.pause(false);
   state = 'play';
   UI.announce('ENDLESS MODE', 'LOOP 2 — 敵はさらに強くなる');
@@ -68,7 +70,7 @@ function onKey(e) {
   if (e.code === 'Escape') { if (state === 'play') pauseGame(); else if (state === 'pause') resumeGame(); else if (state === 'settings') { state = 'title'; UI.title(); } }
   if (state === 'title' && (e.code === 'Enter' || e.code === 'Space')) MetaUI.stageSelect();
   else if ((state === 'over' || state === 'victory') && e.code === 'KeyR') startRun(S.mode, S.stageNo);
-  else if (state === 'victory' && e.code === 'Enter' && S.mode === 'normal') startEndless();
+  else if (state === 'victory' && e.code === 'Enter' && (S.mode === 'normal' || S.mode === 'escalation')) startEndless();
   UI.onKey(e);
   MetaUI.onKey(e);
   StatusUI.onKey(e);

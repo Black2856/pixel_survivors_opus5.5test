@@ -62,6 +62,24 @@ function stageSchedule(n) {
   out.push({ t: L * 3, boss: [R.bosses[1]], final: true });
   return out;
 }
+// エスカレーション: tier 1 → 4 を通す。tier ごとに同じ tier のステージからランダムに1つ選び、3分(通常モードの最初の3分と同じ出方)→ ボス → 次の tier
+//   ボスはそのステージのボス2体からランダム。tier 4(時計塔)は死神(→ 終刻の死神)で、倒すとクリア。敵Lv は通して上がり続ける(ボスの間は止まる)
+function escSchedule(R, tier) {
+  const F = DATA.flow, s1 = R.segs[0];
+  const out = F.waves[0].map((w, i) => ({ t: w.t, types: s1.slice(0, i + 1), interval: w.interval, max: w.max }));
+  out.push(tier >= 4 ? { t: F.seg, boss: ['reaper'], final: true } : { t: F.seg, boss: R.bosses });
+  return out;
+}
+function escStage(tier, first) {
+  const R = pick(DATA.stageRuns.filter(r => r.tier === tier));
+  S.tier = tier; S.escRun = R.no; setStage(R.stage);
+  S.ptime = 0; S.schedIdx = 0; S.sched = escSchedule(R, tier);
+  if (first) return;
+  recalc(); // tier の報酬
+  AudioMan.playMusic(DATA.stages[R.stage - 1].music);
+  UI.banner('TIER ' + tier, DATA.stages[R.stage - 1].label, 2200);
+  screenFlash(0.4); shockAt(P.x, P.y, 1.5, 0.8);
+}
 function initRun(mode = 'normal', stageNo = 1) {
   S = {
     mode, arena: null, time: 0, kills: 0, totalDmg: 0, dmgBy: {}, stage: 1, loop: 1, loopStart: 0,
@@ -92,6 +110,7 @@ function initRun(mode = 'normal', stageNo = 1) {
   S.stageNo = stageNo; S.sched = mode === 'stage' ? stageSchedule(stageNo) : DATA.schedule;
   if (mode === 'arena') { S.stage = 4; S.elv = DATA.arena.elv[0]; S.arena = { idx: 0, restT: 3, warned: false }; } // 開始時の敵Lv(深い闇)は下で足す。ラウンドの敵Lv は arenaLv
   if (mode === 'stage') { const R = stageRun(stageNo); S.stage = R.stage; S.tier = R.tier; S.elv = DATA.flow.tierLv[R.tier - 1]; }
+  if (mode === 'escalation') escStage(1, true); // エスカレーション: tier 1 のステージから
   // カオス強化: クリア済みのモード・ステージだけ。設定は META.chaos[キー]
   const ck = mode === 'stage' ? 'stage' + stageNo : mode;
   S.chaos = META.stageClear[ck] && META.chaos && META.chaos[ck] ? Object.assign({}, META.chaos[ck]) : {};
@@ -3554,19 +3573,21 @@ function onBossDeath(e) {
   S.bossKills++;
   if (S.mode === 'arena') return arenaBossDown(e);
   if (CHAOS.bossLv) { S.elv += CHAOS.bossLv; UI.enemyLvUp(); } // カオス: ボスを倒すたびに敵Lv アップ
-  const rk = S.mode === 'stage' ? S.tier : S.stage; // 撃破報酬: 通常モードは tier、3ステージ通しはステージの番号で数える
+  const rk = S.mode === 'stage' || S.mode === 'escalation' ? S.tier : S.stage; // 撃破報酬: 通常モード・エスカレーションは tier、3ステージ通しはステージの番号で数える
   for (let i = 0; i < 14; i++) dropGem(e.x + rand(-30, 30), e.y + rand(-30, 30), 20 * rk);
   for (let i = 0; i < 25; i++) dropItem('coin', e.x, e.y, 3 * rk);
   dropItem('meat', e.x + 14, e.y); dropItem('magnet', e.x - 14, e.y);
   dropItem('chest', e.x, e.y - 14); chestBeacon(e.x, e.y - 14); // 装備宝箱(フェーズのクリア)
   if (e.final) {
     if (S.mode === 'stage' || (S.loop === 1 && !S.won)) { S.won = true; S.victoryT = 2.4; AudioMan.stopMusic(1.5); return; }
+    if (S.mode === 'escalation') { S.loop++; escStage(1); UI.announce('LOOP ' + S.loop, '敵はさらに強くなる…'); return; } // エスカレーションの周回: tier 1 から
     S.loop++; S.schedIdx = 0; S.loopStart = S.time; setStage(1);
     UI.announce('LOOP ' + S.loop, '敵はさらに強くなる…');
     AudioMan.playMusic(DATA.stages[0].music);
     return;
   }
   if (S.mode === 'stage') { UI.announce('BOSS 1/2 撃破!', '次のボスに備えよ'); AudioMan.playMusic(DATA.stages[S.stage - 1].music); return; } // ステージ単体: ステージはそのまま
+  if (S.mode === 'escalation') { escStage(S.tier + 1); return; } // エスカレーション: 次の tier のステージへ
   setStage(Math.min(3, S.stage + 1));
   UI.announce('STAGE ' + S.stage, DATA.stages[S.stage - 1].label);
   AudioMan.playMusic(DATA.stages[S.stage - 1].music);
@@ -3942,7 +3963,7 @@ function spawnPack(t) {
 function updSpawner(dt) {
   if (S.mode === 'arena') return updArena(dt);
   // 通常モードはフェーズの時計(ボス・エリート群の間は止まる)、3ステージ通しは周回内の経過時間
-  const stage = S.mode === 'stage', sc = S.sched, el = stage ? S.ptime : S.time - S.loopStart;
+  const stage = S.mode === 'stage', sc = S.sched, el = stage || S.mode === 'escalation' ? S.ptime : S.time - S.loopStart; // 通常モード・エスカレーションはフェーズの時計
   while (S.schedIdx < sc.length && el >= sc[S.schedIdx].t) {
     const en = sc[S.schedIdx++];
     if (en.boss) spawnBoss(pick(en.boss), en.final);

@@ -47,7 +47,7 @@ const UI = (() => {
     $('xpfill').style.width = (P.xp / P.xpNext * 100).toFixed(1) + '%';
     set('lvl', 'LV ' + P.level);
     set('timer', fmtTime(S.time));
-    const pre = S.mode === 'arena' ? 'ROUND ' + Math.min(S.arena.idx + 1, DATA.arena.order.length) + '/' + DATA.arena.order.length + ' · ' : S.loop > 1 ? 'LOOP ' + S.loop + ' · ' : '';
+    const pre = S.mode === 'arena' ? 'ROUND ' + Math.min(S.arena.idx + 1, DATA.arena.order.length) + '/' + DATA.arena.order.length + ' · ' : (S.loop > 1 ? 'LOOP ' + S.loop + ' · ' : '') + (S.mode === 'escalation' ? 'TIER ' + S.tier + ' · ' : '');
     const ph = phaseInfo();
     set('stage-name', pre + DATA.stages[S.stage - 1].label + (ph ? ' · ' + ph : ''));
     set('kills', '☠ ' + S.kills.toLocaleString());
@@ -75,8 +75,8 @@ const UI = (() => {
   // 通常モードのフェーズの表示: フェーズ中はその名前、外では次のフェーズまでの残り(フェーズの時計)
   function phaseInfo() {
     const ph = S.phase;
-    if (ph) return S.mode === 'stage' || ph.fogOn ? (ph.kind === 'elite' ? 'エリート戦' : 'ボス戦') + (ph.fogOn ? ' · 闇の霧' : '') : '';
-    if (S.mode !== 'stage' || !S.sched) return '';
+    if (ph) return S.mode === 'stage' || S.mode === 'escalation' || ph.fogOn ? (ph.kind === 'elite' ? 'エリート戦' : 'ボス戦') + (ph.fogOn ? ' · 闇の霧' : '') : '';
+    if ((S.mode !== 'stage' && S.mode !== 'escalation') || !S.sched) return '';
     const nx = S.sched.slice(S.schedIdx).find(x => x.elites || x.boss);
     return nx ? (nx.elites ? 'エリートまで ' : nx.final ? '最後のボスまで ' : 'ボスまで ') + fmtTime(Math.max(0, nx.t - S.ptime)) : '';
   }
@@ -695,7 +695,7 @@ const UI = (() => {
     const arena = S.mode === 'arena';
     $('result-title').textContent = win ? (arena ? 'ARENA CLEAR!' : 'VICTORY!') : 'YOU DIED';
     $('result-title').className = win ? 'win' : 'lose';
-    $('btn-endless').classList.toggle('hidden', !win || S.mode !== 'normal'); // エンドレスは通常モードのみ
+    $('btn-endless').classList.toggle('hidden', !win || (S.mode !== 'normal' && S.mode !== 'escalation')); // エンドレスは 3ステージ通し・エスカレーションのみ
     const rows = [arena ? ['撃破ボス', S.arena.idx + ' / ' + DATA.arena.order.length] : null, [arena ? 'タイム' : '生存時間', fmtTime(S.time)], ['レベル', P.level], ['撃破数', S.kills.toLocaleString()], ['最大コンボ', S.bestCombo], ['総ダメージ', Math.round(S.totalDmg).toLocaleString()], ['獲得ゴールド', '● ' + earned]];
     $('result-stats').innerHTML = rows.filter(Boolean).map(([a, b]) => `<div class="rs"><span>${a}</span><b>${b}</b></div>`).join('');
     const tot = Object.values(S.dmgBy).reduce((a, b) => a + b, 0) || 1;
