@@ -7,6 +7,7 @@ const ECOL = {
   imp: ['#ff6a3d', '#8a2a4a'], goblin: ['#8fd06a', '#ffcc33'], brazier: ['#ff6a2a', '#ffc34a'],
   sandmage: ['#e8c88a', '#8a5a2a'], spear: ['#c8b89a', '#7a3a2a'], hound: ['#ff6a2a', '#3a1a1a'], onibi: ['#7ad7ff', '#ffffff'], lslime: ['#ff6a2a', '#5a1a14'],
   jslime: ['#9ff7ff', '#ff8ad8'], beetle: ['#5a4a8a', '#9ff7ff'], fairy: ['#ffd0f0', '#9ff7ff'],
+  jelly: ['#ffb0e0', '#bff4ff'], sahagin: ['#3a9a8a', '#bff4ff'], puffer: ['#e8c86a', '#8a6a3a'], angler: ['#2a4a5a', '#fff6a0'],
 };
 const xpFor = l => Math.floor(4 + l * 2.6 + Math.pow(l, 1.72));
 
@@ -41,8 +42,9 @@ function pushWarn(w) {
 
 // 通常モード(ステージを1つ選ぶ)の出現スケジュール。t はフェーズの時計(ボス・エリート群の間は止まる)
 // 3分 → エリート群 → 3分 → ボス1 → 3分 → ボス2(倒すとクリア)。同じ t ではフェーズの開始を波の切り替えより先に処理する
+const stageRun = n => DATA.stageRuns.find(r => r.no === n); // ステージのキーの番号(stage1〜7)から
 function stageSchedule(n) {
-  const R = DATA.stageRuns[n - 1], F = DATA.flow, L = F.seg;
+  const R = stageRun(n), F = DATA.flow, L = F.seg;
   const s1 = R.segs[0], s2 = R.segs[1] || s1, s3 = R.segs[2] || [...new Set([...s1, ...s2])];
   const out = F.waves[0].map((w, i) => ({ t: w.t, types: s1.slice(0, i + 1), interval: w.interval, max: w.max }));
   out.push({ t: L, elites: F.elites });
@@ -70,7 +72,7 @@ function initRun(mode = 'normal', stageNo = 1) {
     ifr: 0, facing: 1, animT: 0, moving: false, hurtT: 0, dead: false,
     slowT: 0, cdSlowT: 0, burnT: 0, burnDmg: 0, burnTick: 0, shield: 0, oShield: 0, oChunks: [],
     frost: 0, frostT: 0, bleed: 0, bleedT: 0, bleedTick: 0, // 自分の凍傷・出血(スタック数と、消えるまでの秒)
-    push: null, heatT: 0, // ボスの押し出し・引き寄せ / 熱波で遅い(秒)
+    push: null, heatT: 0, rootT: 0, current: null, // ボスの押し出し・引き寄せ / 熱波で遅い(秒)/ 絡め取りで動けない(秒)/ 海流
   };
   enemies = []; projs = []; eprojs = []; gems = []; drops = []; props = []; hazards = [];
   parts = []; floats = []; rings = []; zones = []; slashes = []; bolts = []; warns = []; flashes = []; bfx = [];
@@ -82,7 +84,7 @@ function initRun(mode = 'normal', stageNo = 1) {
   clsInit();
   S.stageNo = stageNo; S.sched = mode === 'stage' ? stageSchedule(stageNo) : DATA.schedule;
   if (mode === 'arena') { S.stage = 4; S.elv = DATA.arena.elv[0]; S.arena = { idx: 0, restT: 3, warned: false }; } // 開始時の敵Lv(深い闇)は下で足す。ラウンドの敵Lv は arenaLv
-  if (mode === 'stage') { const R = DATA.stageRuns[stageNo - 1]; S.stage = R.stage; S.tier = R.tier; S.elv = DATA.flow.tierLv[R.tier - 1]; }
+  if (mode === 'stage') { const R = stageRun(stageNo); S.stage = R.stage; S.tier = R.tier; S.elv = DATA.flow.tierLv[R.tier - 1]; }
   // カオス強化: クリア済みのモード・ステージだけ。設定は META.chaos[キー]
   const ck = mode === 'stage' ? 'stage' + stageNo : mode;
   S.chaos = META.stageClear[ck] && META.chaos && META.chaos[ck] ? Object.assign({}, META.chaos[ck]) : {};
@@ -160,7 +162,8 @@ function heal(n, silent) {
 // プレイヤー
 // ============================================================
 function updPlayer(dt) {
-  const [mx, my] = moveInput();
+  let [mx, my] = moveInput();
+  if (P.rootT > 0) { P.rootT -= dt; if (P.invT > 0) P.rootT = 0; mx = my = 0; } // 絡め取り(クラーケン): 動けない。回避の無敵で抜けられる
   P.moving = mx !== 0 || my !== 0;
   if (P.moving) { P.dir = [mx, my]; if (mx) P.facing = mx > 0 ? 1 : -1; }
   const aim = mouseAimPt();
@@ -168,6 +171,10 @@ function updPlayer(dt) {
   clsUpdate(dt);
   const sp = P.speed * P.moveMul * (P.slowT > 0 ? DATA.debuff.slow : 1) * playerFrostMul() * (P.heatT > 0 ? 0.8 : 1); // 熱波(イフリート): ×0.8
   P.x += mx * sp * dt; P.y += my * sp * dt;
+  if (P.current && P.current.t > 0) { // 海流(深淵の海竜): 一定の向きへ流される(ダッシュなら逆らえる)
+    P.current.t -= dt; P.x += P.current.vx * dt; P.y += P.current.vy * dt;
+    if (Math.random() < dt * 20) part(P.x + rand(-6, 6), P.y + rand(-4, 6), P.current.vx * 1.5, P.current.vy * 1.5, 0.4, pick(['#bff4ff', '#7ad7ff']), { drag: 1 });
+  }
   if (P.push) { // ボスの押し出し・引き寄せ(回避の無敵で打ち消せる)
     if (P.invT > 0 || P.dead) P.push = null;
     else {
@@ -1195,7 +1202,7 @@ function spawnEnemy(type, o = {}) {
     id: nextId++, type, x, y, hp: d.hp * hpk, maxhp: d.hp * hpk, spd: d.spd * spk * rand(0.9, 1.1), dmg: d.dmg * enemyDmgK(),
     r: d.r * (o.elite ? 2 : 1), xp: d.xp * lvK('xp'), ai: d.ai, kbRes: o.elite ? 0.9 : d.kbRes || 0, ghost: d.ghost,
     t: rand(0, 5), seed: Math.random(), kx: 0, ky: 0, flash: 0, elite: !!o.elite, scale: o.elite ? 2 : 1,
-    frost: 0, frostT: 0, burns: [], burnT: 0, burnTick: 0, stun: 0, slowT: 0, bleed: 0, bleedT: 0, shotT: d.shot || d.throw || d.rush ? rand(1, (d.shot || d.throw || d.rush).cd) : 0, wind: 0, hopT: rand(0, 1),
+    frost: 0, frostT: 0, burns: [], burnT: 0, burnTick: 0, stun: 0, slowT: 0, bleed: 0, bleedT: 0, shotT: (d.shot || d.throw || d.rush || d.puff || d.lantern) ? rand(1, (d.shot || d.throw || d.rush || d.puff || d.lantern).cd) : 0, wind: 0, hopT: rand(0, 1),
     life: type === 'goblin' ? 16 : 0,
     noChest: !!o.noChest, phaseElite: !!o.phaseElite, // 宝箱を落とさない / エリート群のエリート
   };
@@ -1224,7 +1231,7 @@ function enemyShoot(e, s, a) {
 // 投槍兵: 予告の帯の長さだけ飛ぶ槍(帯と同じく攻撃範囲の倍率で伸びる。槍の判定の幅 = 帯の幅)
 function throwSpear(e, th) {
   const len = th.len * CHAOS.area;
-  eprojs.push({ kind: 'espear', x: e.x, y: e.y, vx: Math.cos(e.ta) * th.spd, vy: Math.sin(e.ta) * th.spd, dmg: e.dmg * th.n * S.eatk, life: len / th.spd, t: 0, r: th.w / 2 * CHAOS.area });
+  eprojs.push({ kind: th.kind || 'espear', x: e.x, y: e.y, vx: Math.cos(e.ta) * th.spd, vy: Math.sin(e.ta) * th.spd, dmg: e.dmg * th.n * S.eatk, sta: th.sta || 0, life: len / th.spd, t: 0, r: th.w / 2 * CHAOS.area }); // サハギンの三叉槍はスタミナも減らす
   e.kx -= Math.cos(e.ta) * 30; e.ky -= Math.sin(e.ta) * 30; // 投げた反動で少しのけぞる
   burst(e.x + Math.cos(e.ta) * 6, e.y + Math.sin(e.ta) * 6, 8, ['#c8b89a', '#ffffff', '#7a6a5a'], { sp: 70, life: 0.25 });
   AudioMan.spearThrow();
@@ -1238,6 +1245,13 @@ function onibiBlast(e, bl) {
   for (let i = 0; i < 12; i++) { const pa = TAU / 12 * i; part(e.x, e.y, Math.cos(pa) * R * 3.2, Math.sin(pa) * R * 3.2, 0.3, '#bff4ff', { glow: true, drag: 6, sz: 2 }); } // 炎の輪が半径いっぱいまで走る
   addRing(e.x, e.y, R, '#9fe8ff', { w: 2, life: 0.3 }); addFlash(e.x, e.y, R * 3, '#7ad7ff', 0.8);
   shockAt(e.x, e.y, 0.9, 0.8); shake(3); AudioMan.boom();
+}
+// スタミナを減らす攻撃(海淵): 0 未満にはならない。青いしずくが散る
+function drainSta(n) {
+  if (!(n > 0) || P.dead) return;
+  P.sta = Math.max(0, P.sta - n); S.hudDirty = true;
+  for (let i = 0; i < 8; i++) part(P.x + rand(-4, 4), P.y - 4 + rand(-3, 3), rand(-40, 40), rand(-50, -10), 0.5, pick(['#7ad7ff', '#bff4ff', '#2a8ac8']), { g: 160, drag: 1 });
+  AudioMan.drain();
 }
 // 溶岩スライム: 着地・倒れた場所に燃える床
 function lavaPool(e, f) {
@@ -1368,6 +1382,35 @@ function updEnemies(dt) {
           }
         }
       }
+      if (d.puff) { // ハリセンボン: 近づくとふくらんで、針を全周に飛ばす
+        const pf = d.puff;
+        if (e.wind > 0) {
+          mx = my = 0; e.wind -= dt * CHAOS.rate * tw; e.swell = 1 - e.wind / pf.wind;
+          if (e.wind <= 0) {
+            e.swell = 0;
+            for (let i = 0; i < pf.count; i++) { const na = TAU / pf.count * i + e.seed; eprojs.push({ kind: 'needle', x: e.x, y: e.y, vx: Math.cos(na) * pf.spd, vy: Math.sin(na) * pf.spd, dmg: e.dmg * pf.n * S.eatk, sta: pf.sta, life: 3, t: 0, r: 2 * CHAOS.area }); }
+            burst(e.x, e.y, 10, ['#e8c86a', '#fff0c0', '#bff4ff'], { sp: 60, life: 0.3 }); AudioMan.puff();
+          }
+        } else {
+          e.shotT -= dt * CHAOS.rate * tw;
+          if (e.shotT <= 0 && d2(e.x, e.y, P.x, P.y) < pf.range * pf.range) { e.shotT = pf.cd; e.wind = pf.wind; AudioMan.charge(pf.wind); }
+        }
+      }
+      if (d.lantern) { // チョウチンアンコウ: 提灯が光り(予告の円)、中にいるとスタミナを吸われる
+        const ln = d.lantern;
+        if (e.wind > 0) {
+          e.wind -= dt * CHAOS.rate * tw; e.glowL = 1 - Math.max(0, e.wind) / ln.wind;
+          if (e.wind <= 0) {
+            e.glowL = 0;
+            const R0 = ln.r * CHAOS.area;
+            if (d2(e.x, e.y, P.x, P.y) < (R0 + 3) * (R0 + 3) && P.invT <= 0) drainSta(ln.sta);
+            addRing(e.x, e.y, R0, '#fff6a0', { w: 2, life: 0.35 }); addFlash(e.x, e.y, R0 * 2.5, '#fff6a0', 0.9); AudioMan.chime();
+          }
+        } else {
+          e.shotT -= dt * CHAOS.rate * tw;
+          if (e.shotT <= 0 && d2(e.x, e.y, P.x, P.y) < 160 * 160) { e.shotT = ln.cd; e.wind = ln.wind; pushWarn({ kind: 'circle', x: e.x, y: e.y, r: ln.r, t: 0, life: ln.wind, owner: e, track: w => { w.x = e.x; w.y = e.y; } }); }
+        }
+      }
       if (d.blast) { // 鬼火: プレイヤーのそばで止まり、膨らみながら点滅して自爆する
         const bl = d.blast;
         if (e.wind > 0) {
@@ -1398,8 +1441,8 @@ function updEnemies(dt) {
         e.x = P.x + Math.cos(a2) * R; e.y = P.y + Math.sin(a2) * R;
       }
     }
-    const td = !e.boss && DATA.enemies[e.type]; // 触れたとき: 鬼火は当たらない / ヘルハウンドは噛みつくと炎上
-    if (e.dmg > 0 && !e.air && !(td && td.noTouch) && d2(e.x, e.y, P.x, P.y) < Math.pow(e.r + 4, 2) && hurtPlayer(e.dmg) && td && td.touchBurn) burnPlayer(e.dmg * td.touchBurn);
+    const td = !e.boss && DATA.enemies[e.type]; // 触れたとき: 鬼火は当たらない / ヘルハウンドは噛みつくと炎上 / クラゲはスタミナを吸う
+    if (e.dmg > 0 && !e.air && !(td && td.noTouch) && d2(e.x, e.y, P.x, P.y) < Math.pow(e.r + 4, 2) && hurtPlayer(e.dmg) && td) { if (td.touchBurn) burnPlayer(e.dmg * td.touchBurn); if (td.touchSta) drainSta(td.touchSta); }
   }
   S.eatk = 1;
   if (enemies.length > 40) enemies = enemies.filter(e => !e.dead);
@@ -1525,6 +1568,21 @@ function updObj(e, dt) {
     e.pulse = Math.max(0, (e.pulse || 0) - dt);
   } else if (e.obj === 'crystal' || e.obj === 'prism') { // 結晶: 七色のきらめき
     if (Math.random() < dt * 6) part(e.x + rand(-5, 5), e.y - rand(4, 18), 0, -rand(4, 10), 0.6, pick(PRISM), { glow: true, drag: 1 });
+  } else if (e.obj === 'tentacle') { // 触手(クラーケン): 2.5秒ごとにプレイヤーの方へ帯(長さ 90・幅 16)を予告して薙ぐ → ×0.8・スタミナ −15
+    if (e.swT > 0) {
+      e.swA += angDiff(Math.atan2(P.y - e.y, P.x - e.x), e.swA) * Math.min(1, dt * 1.5); // 予告の間、少しだけプレイヤーを追う
+      e.ta = e.swA;
+      if ((e.swT -= dt) <= 0) {
+        if (hitLine(e.x, e.y, e.swA, 90, 16, e.owner.dmg * 0.8)) drainSta(15);
+        bfx.push({ kind: 'tslap', x: e.x, y: e.y, a: e.swA, len: 90 * CHAOS.area, w: 12 * CHAOS.area, t: 0, life: 0.35 });
+        burst(e.x + Math.cos(e.swA) * 60, e.y + Math.sin(e.swA) * 60, 10, SPLASH, { sp: 80, up: 30, g: 200 }); AudioMan.dash();
+        e.sq = 0.5;
+      }
+    } else if ((e.spawnT -= dt) <= 0 && d2(e.x, e.y, P.x, P.y) < 120 * 120) {
+      e.spawnT = 2.5; e.swT = 0.6; e.swA = Math.atan2(P.y - e.y, P.x - e.x);
+      pushWarn({ kind: 'line', x: e.x, y: e.y, a: e.swA, len: 90, w: 16, t: 0, life: 0.6, ink: true, owner: e, track: w => { w.a = e.swA; } });
+    }
+    if (Math.random() < dt * 3) part(e.x + rand(-5, 5), e.y + rand(-1, 3), 0, -rand(6, 14), 0.6, '#bff4ff', { drag: 1 }); // 根元の泡
   } else if (e.obj === 'altar') { // 炎の祭壇: 炎が燃えさかり、火の粉がイフリートへ流れる
     if (Math.random() < dt * 16) part(e.x + rand(-3, 3), e.y - 10 + rand(-2, 2), rand(-6, 6), -rand(20, 40), rand(0.3, 0.6), pick(['#ff6a2a', '#ffc34a', '#fff0b0']), { glow: true, drag: 1 });
     if (Math.random() < dt * 6) { const o = e.owner, pa = Math.atan2(o.y - e.y, o.x - e.x); part(e.x, e.y - 10, Math.cos(pa) * 90, Math.sin(pa) * 90, 0.8, '#ffc34a', { glow: true, drag: 0 }); }
@@ -1545,6 +1603,10 @@ function objDown(e, broken) {
   } else if (e.obj === 'crystal' || e.obj === 'prism') { // 結晶: 七色のかけらになって砕ける
     burst(e.x, e.y - 8, Math.round(40 * k), [...PRISM, '#ffffff'], { sp: 130 * k, g: 180, glow: true, life: 0.6 });
     if (broken) { addFlash(e.x, e.y, 70, '#d88aff', 0.5); shake(3); AudioMan.chime(); AudioMan.thud(); }
+  } else if (e.obj === 'tentacle') { // 触手: ちぎれて海に沈む
+    burst(e.x, e.y - 8, Math.round(30 * k), ['#a8486a', '#d86a8a', '#5a2a4a', '#bff4ff'], { sp: 100 * k, g: 220, life: 0.6 });
+    burst(e.x, e.y, Math.round(14 * k), SPLASH, { sp: 70 * k, up: 40, g: 200 });
+    if (broken) { addFlash(e.x, e.y, 60, '#7ad7ff', 0.4); shake(3); AudioMan.splat(); AudioMan.splash(); }
   } else if (e.obj === 'clone') { // 鏡の分身: 鏡のように割れて消える
     burst(e.x, e.y - 6, 26, ['#ffffff', '#d8e8ff', '#ffd0f0', '#9ff7ff'], { sp: 110, glow: true, life: 0.45 });
     addRing(e.x, e.y, 14, '#ffffff', { life: 0.25 }); AudioMan.chime();
@@ -1560,9 +1622,11 @@ const BOSS_AI0 = {
   cdragon: { raidCd: 12, gustCd: 5 },
   ifrit: { wall: 8, whip: 3, chain: 4, blast: 6, heat: 5 },
   stag: { rush: 3, spike: 4, shard: 2, sweep: 0, side: 1 },
+  kraken: { forest: 6, slam: 3, ink: 7, grab: 5, tide: 10, water: 4 },
+  levia: { current: 10, wave: 8, dive: 5, pillar: 7, tail: 0, side: 1 },
   pqueen: { tp: 3, beam: 3, cageCd: 10, mirror: 8, chain: 5, blink: 6 },
 };
-const BOSS_ENRAGE = { king: { slam: 6 }, ifrit: { altar: true }, stag: { herd: 4 }, pqueen: { spiral: 3 } };
+const BOSS_ENRAGE = { king: { slam: 6 }, ifrit: { altar: true }, stag: { herd: 4 }, pqueen: { spiral: 3 }, levia: { breath: 4 } };
 
 function bossAI(e, dt) {
   const ai = e.ai, a = Math.atan2(P.y - e.y, P.x - e.x), dist = Math.sqrt(d2(e.x, e.y, P.x, P.y));
@@ -1638,6 +1702,8 @@ function bossAI(e, dt) {
     case 'ifrit': ifritAI(e, ai, dt, a, dist, slow); break;
     case 'stag': stagAI(e, ai, dt, a, dist, slow); break;
     case 'pqueen': pqueenAI(e, ai, dt, a, dist, slow); break;
+    case 'kraken': krakenAI(e, ai, dt, a, dist, slow); break;
+    case 'levia': leviaAI(e, ai, dt, a, dist, slow); break;
   }
 }
 
@@ -2585,6 +2651,203 @@ function queenBlink(e, ai) {
   });
 }
 
+// ---------- 大海魔クラーケン: 動かない固定砲台。触手の森(壊せる触手)/ 触手の叩きつけ / 墨 / 絡め取り / 潮の満ち引き / 水弾 ----------
+//   触手が 2本以上あると本体の被ダメ ×0.5。プレイヤーが 280 より離れると触手ごと潜り、2秒後にプレイヤーから 140 の位置に出直す
+const SPLASH = ['#bff4ff', '#7ad7ff', '#ffffff', '#2a8ac8'];
+function krakenAI(e, ai, dt, a, dist, slow) {
+  const R = CHAOS.rate, tents = enemies.filter(o => o.owner === e && o.obj === 'tentacle' && !o.dead);
+  e.takeK = tents.length >= 2 ? 0.5 : 1;
+  if (ai.grabT > 0) { // 絡め取り中: 回避の無敵で抜けられる。1.5秒動けなかったら最後に ×0.8
+    if (!(P.rootT > 0)) ai.grabT = 0;
+    else if ((ai.grabT -= dt) <= 0) { P.rootT = 0; hurtPlayer(e.dmg * 0.8); shake(5); burst(P.x, P.y, 16, SPLASH, { sp: 90 }); AudioMan.splat(); }
+  }
+  if (ai.act === 'dive') { // 潜っている: 2秒後に出直す(出る位置の予告 1秒)
+    ai.pt -= dt;
+    if (ai.pt <= 1 && !ai.warned) { ai.warned = true; const ta = rand(0, TAU); ai.tx = P.x + Math.cos(ta) * 140; ai.ty = P.y + Math.sin(ta) * 140; pushWarn({ kind: 'circle', x: ai.tx, y: ai.ty, r: 20, t: 0, life: 1, fixed: true }); bfx.push({ kind: 'ripple', x: ai.tx, y: ai.ty, t: 0, life: 1 }); }
+    if (ai.pt > 0) return;
+    e.x = ai.tx; e.y = ai.ty; e.flying = e.hidden = false; e.air = false; ai.act = null; e.sq = 0.6;
+    burst(e.x, e.y, 50, SPLASH, { sp: 150, up: 60, g: 200, life: 0.7 }); shockAt(e.x, e.y, 1.5, 0.8); shake(7); AudioMan.splash(); AudioMan.roar();
+    return;
+  }
+  if (!ai.act && ai.wind <= 0 && dist > 280) { // 触手ごと潜って、プレイヤーのそばへ
+    ai.act = 'dive'; ai.pt = 2; ai.warned = false; e.flying = e.hidden = true; e.air = true;
+    for (const o of tents) { o.dead = true; objDown(o, false); }
+    P.rootT = 0; ai.grabT = 0;
+    burst(e.x, e.y, 40, SPLASH, { sp: 120, up: 40, g: 200 }); AudioMan.splash();
+    return;
+  }
+  if (ai.wbN > 0 && (ai.wbGap -= dt) <= 0) { ai.wbGap = 0.3; ai.wbN--; eball(e.x, e.y - 8, Math.atan2(P.y - e.y + 8, P.x - e.x), 120, e.dmg * 0.4, 'water'); AudioMan.shoot(); } // 水弾: 0.3秒おきに 3発
+  ai.forest -= dt * R; ai.slam -= dt * R; ai.ink -= dt * R; ai.grab -= dt * R; ai.tide -= dt * R; ai.water -= dt * R;
+  const inkOn = hazards.some(h => h.kind === 'ink');
+  if (ai.forest <= 0) { ai.forest = ai.enraged ? 14 : 18; tentacleForest(e, ai); }
+  else if (ai.tide <= 0) { ai.tide = ai.enraged ? 10 : 14; tideStart(e, ai); }
+  else if (ai.ink <= 0) { ai.ink = ai.enraged ? 8 : 10; inkShot(e, ai); }
+  else if (ai.grab <= 0 && !inkOn && !(P.rootT > 0)) { ai.grab = ai.enraged ? 7 : 9; krakenGrab(e, ai, a); }
+  else if (ai.slam <= 0) { ai.slam = ai.enraged ? 3.5 : 4.5; tentacleSlam(e, ai); }
+  else if (ai.water <= 0) { ai.water = ai.enraged ? 4.5 : 6; ai.wbN = 3; ai.wbGap = 0; }
+}
+// 触手の森: 本体の周り 100〜160 に触手 3本(激昂 5本。HP 各 4%・半径 8・15秒)。触手は 2.5秒ごとに帯を予告して薙ぐ
+function tentacleForest(e, ai) {
+  const n = ai.enraged ? 5 : 3, a0 = rand(0, TAU);
+  for (let i = 0; i < n; i++) {
+    const ta = a0 + TAU / n * i + rand(-0.3, 0.3), tr = rand(100, 160), x = e.x + Math.cos(ta) * tr, y = e.y + Math.sin(ta) * tr;
+    bfx.push({ kind: 'ripple', x, y, t: 0, life: 0.8 }); // 地面(海底)が泡立つ
+    later(ai, 0.8, () => { spawnObj(e, 'tentacle', x, y, { pct: 0.04, r: 8, life: 15, spawnT: rand(1, 2.5) }); burst(x, y, 20, SPLASH, { sp: 90, up: 50, g: 200 }); AudioMan.splash(); });
+  }
+  AudioMan.roar();
+  hint('forest', '触手の森', '触手が 2本以上あると本体のダメージが半分。触手を壊せ');
+}
+// 触手の叩きつけ: プレイヤーの周りに帯(長さ 140・幅 18)を 3本(激昂 5本)→ ×1.0・スタミナ −20
+function tentacleSlam(e, ai) {
+  const n = ai.enraged ? 5 : 3, LA = 70 * CHAOS.area, bands = [];
+  for (let i = 0; i < n; i++) {
+    const ba = rand(0, Math.PI), oa = rand(0, TAU), off = rand(0, 25), cx = P.x + Math.cos(oa) * off, cy = P.y + Math.sin(oa) * off;
+    const b = { x: cx - Math.cos(ba) * LA, y: cy - Math.sin(ba) * LA, a: ba };
+    bands.push(b);
+    pushWarn({ kind: 'line', x: b.x, y: b.y, a: ba, len: 140, w: 18, t: 0, life: 0.9, ink: true });
+  }
+  AudioMan.charge(0.9);
+  later(ai, 0.9, () => {
+    for (const b of bands) {
+      if (hitLine(b.x, b.y, b.a, 140, 18, e.dmg)) drainSta(20);
+      bfx.push({ kind: 'tslap', x: b.x, y: b.y, a: b.a, len: 140 * CHAOS.area, w: 18 * CHAOS.area, t: 0, life: 0.4 });
+      burst(b.x + Math.cos(b.a) * LA, b.y + Math.sin(b.a) * LA, 14, SPLASH, { sp: 100, up: 40, g: 200 });
+    }
+    shake(7); AudioMan.splash(); AudioMan.boom();
+  });
+}
+// 墨: 墨の玉を放物線で(1秒)。墨だまり 5秒: 中にいる間スタミナが回復しない・周りが暗くなり触手の予告が見えない
+function inkShot(e, ai) {
+  const tx = P.x, ty = P.y;
+  pushWarn({ kind: 'circle', x: tx, y: ty, r: 50, t: 0, life: 1 });
+  lob('inkball', e.x, e.y - 10, tx, ty, 1, 60, p => {
+    addHazard('ink', p.x, p.y, { r: 50, dur: 5 });
+    burst(p.x, p.y, 30, ['#0a0a14', '#1a1a2a', '#2a2a4a'], { sp: 110, g: 160, life: 0.7 }); shockAt(p.x, p.y, 0.8, 0.9); AudioMan.splat();
+    hint('ink', '墨', '墨だまりの中ではスタミナが回復せず、触手の予告も見えない');
+  });
+  AudioMan.dash();
+}
+// 絡め取り: 0.7秒の予告(本体からプレイヤーへ帯)→ 当たると 1.5秒 動けない(回避の無敵で抜けられる)。つかんだ瞬間にスタミナ −20
+function krakenGrab(e, ai, a) {
+  pushWarn({ kind: 'line', x: e.x, y: e.y, a, len: 170, w: 14, t: 0, life: 0.7 });
+  AudioMan.charge(0.7);
+  windup(e, 0.7, () => {
+    bfx.push({ kind: 'tslap', x: e.x, y: e.y, a, len: 170 * CHAOS.area, w: 10 * CHAOS.area, t: 0, life: 0.25 });
+    AudioMan.dash();
+    if (inLine(e.x, e.y, a, 170, 14) && P.invT <= 0 && !P.dead) {
+      P.rootT = 1.6; ai.grabT = 1.5; drainSta(20); // 動けない時間は少し長めに持たせ、最後の ×0.8 を本体の側で判定する
+      bfx.push({ kind: 'grab', x: e.x, y: e.y, t: 0, life: 1.5, track: f => { if (!(P.rootT > 0)) f.t = f.life; } });
+      AudioMan.splat(); shake(4);
+      hint('grab', '絡め取り', '1.5秒動けない。回避の無敵で抜けられる');
+    }
+  });
+}
+// 潮の満ち引き: プレイヤーの位置に 円 半径 120(0.8秒)→ 2秒 中心へ毎秒 40 引く → 1秒 外へ毎秒 90 押す → 縁(半径 120〜135)に触手の輪 ×0.8
+function tideStart(e, ai) {
+  const tx = P.x, ty = P.y;
+  pushWarn({ kind: 'circle', x: tx, y: ty, r: 120, t: 0, life: 0.8 });
+  AudioMan.charge(0.8);
+  later(ai, 0.8, () => { addHazard('tide', tx, ty, { r: 120, dur: 3.4, dmg: e.dmg }); AudioMan.splash(); hint('tide', '潮の満ち引き', '引き寄せられたあと押し出される。最後に縁へ触手の輪'); });
+}
+
+// ---------- 深淵の海竜: 動き回る。海流(流され続ける → 大津波)/ 大津波(岩礁の陰に隠れる)/ 潜航・浮上(影が追う)/ 水柱 / 尾撃 / 激昂: 水流ブレス ----------
+function leviaAI(e, ai, dt, a, dist, slow) {
+  const R = CHAOS.rate;
+  if (ai.act === 'dive') { updLeviaDive(e, ai, dt); return; }
+  if (ai.act === 'breath') { // 水流ブレス: 1.5秒かけて 90° 薙ぐ。0.25秒ごとに ×0.3・スタミナ −5(被弾後の無敵時間を無視)
+    ai.pt += dt;
+    const k = Math.min(1, ai.pt / 1.5);
+    ai.ba = ai.ba0 + ai.bdir * (Math.PI / 2) * k;
+    if ((ai.btick -= dt) <= 0) { ai.btick = 0.25; if (hitLine(e.x, e.y, ai.ba, 220, 14, e.dmg * 0.3, { pierce: true })) drainSta(5); }
+    for (let i = 0; i < 2; i++) { const r = rand(10, 220 * CHAOS.area); part(e.x + Math.cos(ai.ba) * r, e.y + Math.sin(ai.ba) * r, rand(-30, 30), rand(-30, 30), 0.35, pick(SPLASH), { drag: 2 }); }
+    if (k >= 1) { ai.act = null; ai.ba = null; }
+    return;
+  }
+  if ((ai.flip = (ai.flip ?? 4) - dt) <= 0) { ai.flip = rand(3, 5); ai.side = -ai.side; }
+  const want = 130, dir = dist > want ? a : a + Math.PI, k = Math.abs(dist - want) > 20 ? 1 : 0.25;
+  e.x += (Math.cos(dir) * e.spd * k + Math.cos(a + Math.PI / 2) * 26 * ai.side) * slow * dt;
+  e.y += (Math.sin(dir) * e.spd * k + Math.sin(a + Math.PI / 2) * 26 * ai.side) * slow * dt;
+  ai.current -= dt * R; ai.wave -= dt * R; ai.dive -= dt * R; ai.pillar -= dt * R; ai.tail -= dt * R; if (ai.enraged) ai.breath -= dt * R;
+  if (ai.current <= 0) { ai.current = ai.enraged ? 12 : 16; seaCurrent(e, ai); }
+  else if (ai.wave <= 0) { ai.wave = ai.enraged ? 9 : 12; tsunami(e, rand(0, TAU)); }
+  else if (ai.tail <= 0 && dist < 60) { ai.tail = ai.enraged ? 4.5 : 6; leviaTail(e, ai, a); }
+  else if (ai.dive <= 0) { ai.dive = ai.enraged ? 6 : 8; startLeviaDive(e, ai); }
+  else if (ai.pillar <= 0) { ai.pillar = ai.enraged ? 9 : 12; waterPillars(e, ai); }
+  else if (ai.enraged && ai.breath <= 0) { ai.breath = 5; leviaBreath(e, ai, a); }
+}
+// 海流: 1秒の予告(画面に流れの矢印)→ 6秒 一定の向きに毎秒 35 流される。始まって 2秒で、流れと同じ向きの大津波
+function seaCurrent(e, ai) {
+  const th = rand(0, TAU);
+  bfx.push({ kind: 'flow', x: 0, y: 0, th, t: 0, life: 7 });
+  AudioMan.charge(1);
+  hint('current', '海流', '6秒 流され続ける(ダッシュなら逆らえる)。途中で大津波が来る');
+  later(ai, 1, () => { P.current = { vx: Math.cos(th) * 35, vy: Math.sin(th) * 35, t: 6 }; AudioMan.splash(); });
+  later(ai, 3, () => tsunami(e, th));
+}
+// 大津波: 1.2秒の予告(画面の端に帯と矢印)と同時に画面の中に岩礁 3個(半径 12・壊れない)→ 画面を横切る大波(速さ 150)
+//   波に触れると ×1.0・スタミナ −30。岩礁の陰(幅 26・長さ 60)には当たらない。波が通ると岩礁は消える
+function tsunami(e, th) {
+  const c = Math.cos(th), s = Math.sin(th), cx = cam.x + GFX.VW / 2, cy = cam.y + GFX.VH / 2;
+  const half = (Math.abs(c) * GFX.VW + Math.abs(s) * GFX.VH) / 2 + 20, span = (Math.abs(s) * GFX.VW + Math.abs(c) * GFX.VH) / 2 + 60;
+  const x0 = cx - c * half, y0 = cy - s * half, dur = 2 * half / 150, reefs = [];
+  for (let i = 0; i < 3; i++) { // 岩礁: 画面の中ほど(波の来る側から 30% 〜 80% の所)に。互いに少し離す
+    let along = 0, side = 0;
+    for (let k = 0; k < 8; k++) {
+      along = rand(0.3, 0.8) * 2 * half; side = rand(-0.8, 0.8) * Math.min(span - 60, GFX.VW / 2);
+      if (reefs.every(r => Math.abs(r.side - side) > 50 || Math.abs(r.along - along) > 70)) break;
+    }
+    const r = { kind: 'reef', x: x0 + c * along - s * side, y: y0 + s * along + c * side, along, side, th, r: 12, t: 0, dur: 1.2 + dur + 1, seed: (Math.random() * 1e6) | 0 };
+    reefs.push(r); hazards.push(r);
+    burst(r.x, r.y, 14, ['#3a4a50', '#5a6a6a', '#bff4ff'], { sp: 70, up: 40, g: 200 });
+  }
+  bfx.push({ kind: 'wavewarn', x: x0, y: y0, th, span, len: 2 * half, t: 0, life: 1.2 });
+  AudioMan.charge(1.2); AudioMan.warning();
+  hint('tsunami', '大津波', '岩礁の陰に入るか、ダッシュの無敵ですり抜けろ');
+  later(e.ai, 1.2, () => { hazards.push({ kind: 'tsunami', x: x0, y: y0, th, span, reefs, d: 0, pd: 0, t: 0, dur, dmg: e.dmg, seed: (Math.random() * 1e6) | 0 }); AudioMan.splash(); AudioMan.roar(); shake(5); });
+}
+// 潜航・浮上: 潜っている 2.5秒(攻撃が当たらない)、円 半径 40 の影がプレイヤーを追い(速さ 52)、浮上の 0.5秒前に止まる → 浮上で ×1.3
+function startLeviaDive(e, ai) {
+  ai.act = 'dive'; ai.pt = 2.5; e.flying = e.hidden = true; e.air = true;
+  ai.dw = chaseWarn({ kind: 'circle', x: e.x, y: e.y, r: 40, t: 0, life: 2.5 }, 2, 52);
+  pushWarn(ai.dw);
+  burst(e.x, e.y, 30, SPLASH, { sp: 110, up: 40, g: 200 }); AudioMan.splash();
+  hint('dive', '潜航・浮上', '影が追ってくる。歩けば離せる');
+}
+function updLeviaDive(e, ai, dt) {
+  ai.pt -= dt;
+  const w = ai.dw;
+  e.x = w.x; e.y = w.y; // 海竜は影の下を泳ぐ
+  if (Math.random() < dt * 25) part(w.x + rand(-20, 20), w.y + rand(-14, 14), 0, -rand(10, 25), 0.5, pick(['#bff4ff', '#ffffff']), { drag: 1 }); // 泡
+  if (ai.pt > 0) return;
+  e.flying = e.hidden = false; e.air = false; ai.act = null; e.sq = 0.6;
+  hitCircle(w.x, w.y, 40, e.dmg * 1.3);
+  const R0 = 40 * CHAOS.area;
+  burst(w.x, w.y, 60, SPLASH, { sp: 170, up: 80, g: 220, life: 0.8 }); addRing(w.x, w.y, R0, '#ffffff', { w: 3, life: 0.4 });
+  shockAt(w.x, w.y, 1.8, 0.75); shake(10); AudioMan.splash(); AudioMan.boom();
+}
+// 水柱: プレイヤーの周り 120 の 3方向に 円 半径 16(0.8秒)→ 水柱 3本が 5秒、プレイヤーへゆっくり寄る(速さ 40)。触れると ×0.6・スタミナ −15(1本につき 1回)
+function waterPillars(e, ai) {
+  const a0 = rand(0, TAU), pts = [0, 1, 2].map(i => ({ x: P.x + Math.cos(a0 + TAU / 3 * i) * 120, y: P.y + Math.sin(a0 + TAU / 3 * i) * 120 }));
+  for (const p of pts) pushWarn({ kind: 'circle', x: p.x, y: p.y, r: 16, t: 0, life: 0.8 });
+  AudioMan.charge(0.8);
+  later(ai, 0.8, () => { for (const p of pts) { addHazard('wpillar', p.x, p.y, { r: 16, dur: 5, dmg: e.dmg }); burst(p.x, p.y, 16, SPLASH, { sp: 80, up: 60, g: 160 }); } AudioMan.splash(); });
+}
+// 尾撃: 距離 60 以内で 0.5秒の扇(半径 70・±60°)→ ×0.9・スタミナ −20、海竜から 110 飛ばす
+function leviaTail(e, ai, a) {
+  pushWarn({ kind: 'fan', x: e.x, y: e.y, a, r: 70, h: 1.047, t: 0, life: 0.5 });
+  windup(e, 0.5, () => {
+    slashes.push({ x: e.x, y: e.y, a, r: 70 * CHAOS.area, t: 0, life: 0.26, span: 2.1, pal: SWING_PAL.enemy, enemy: true });
+    if (inFan(e.x, e.y, a, 70, 1.047)) { if (hurtPlayer(e.dmg * 0.9)) drainSta(20); pushPlayer(Math.atan2(P.y - e.y, P.x - e.x), 110, 0.35); }
+    burst(e.x + Math.cos(a) * 30, e.y + Math.sin(a) * 30, 18, SPLASH, { sp: 110 }); AudioMan.splash(); shake(5);
+  });
+}
+// 水流ブレス(激昂): 0.6秒の予告(プレイヤーへの帯)→ 1.5秒かけて 90° 薙ぐ
+function leviaBreath(e, ai, a) {
+  pushWarn({ kind: 'line', x: e.x, y: e.y, a, len: 220, w: 14, t: 0, life: 0.6, track: w => { w.x = e.x; w.y = e.y; } });
+  AudioMan.charge(0.6);
+  windup(e, 0.6, () => { ai.act = 'breath'; ai.pt = 0; ai.bdir = Math.random() < 0.5 ? 1 : -1; ai.ba0 = a - ai.bdir * Math.PI / 4; ai.btick = 0; AudioMan.roar(); });
+}
+
 // 空襲: 0.8秒で飛び上がる(この間に画面を横切る帯 = 影の通り道が出る)→ 空の上(攻撃が当たらない)を影が速さ 220 で走り、通った跡に燃える床(4秒)
 //   影に触れると ×1.0・炎上 → 影が抜けたら、プレイヤーのそばへ舞い降りる(0.4秒)
 function startRaid(e, ai) {
@@ -2656,7 +2919,7 @@ function onBossDeath(e) {
   addRing(e.x, e.y, 140, '#ffd23f', { w: 3, life: 0.8 }); addRing(e.x, e.y, 90, '#ffffff', { w: 2, life: 0.6 });
   addFlash(e.x, e.y, 260, '#ffd23f', 1.2);
   AudioMan.boom(); AudioMan.chest();
-  eprojs = []; warns = []; hazards = []; bfx = []; P.push = null;
+  eprojs = []; warns = []; hazards = []; bfx = []; P.push = null; P.current = null; P.rootT = 0;
   S.bossKills++;
   if (S.mode === 'arena') return arenaBossDown(e);
   if (CHAOS.bossLv) { S.elv += CHAOS.bossLv; UI.enemyLvUp(); } // カオス: ボスを倒すたびに敵Lv アップ
@@ -2800,7 +3063,7 @@ function updEprojs(dt0) {
     if (d2(p.x, p.y, P.x, P.y) < Math.pow(p.r + 3, 2)) {
       if (P.invT > 0) continue;
       if (!p.keep && clsBlockProj()) { burst(p.x, p.y, 8, ['#fff27a', '#ffffff'], { sp: 60, glow: true, life: 0.25 }); eprojs.splice(i, 1); continue; } // 静電気
-      if (hurtPlayer(p.dmg) && p.burn) burnPlayer(p.burn); // 火の玉: 当たると炎上
+      if (hurtPlayer(p.dmg)) { if (p.burn) burnPlayer(p.burn); if (p.sta) drainSta(p.sta); } // 火の玉: 炎上 / 海淵の弾: スタミナ
       if (p.keep) continue;
       burst(p.x, p.y, 6, p.kind === 'efire' ? ['#ff6a2a', '#ffc34a', '#ffffff'] : p.kind === 'esand' ? ['#e8c88a', '#fff0c0', '#ffffff'] : ['#ff3b5c', '#ffffff'], { sp: 50, glow: true });
       eprojs.splice(i, 1);
@@ -2810,6 +3073,7 @@ function updEprojs(dt0) {
 
 // ---------- 設置物(粘液床 / 燃える床 / 衝撃波 / スロウタイム / 渦) ----------
 function updHazards(dt) {
+  S.inInk = false;
   for (let i = hazards.length - 1; i >= 0; i--) {
     const h = hazards[i];
     h.t += dt;
@@ -2849,6 +3113,45 @@ function updHazards(dt) {
         P.x += (h.x - P.x) / d * k; P.y += (h.y - P.y) / d * k;
       }
       if (Math.random() < dt * 30) { const pa = rand(0, TAU), pr = rand(0.5, 1) * R; part(h.x + Math.cos(pa) * pr, h.y + Math.sin(pa) * pr, (Math.cos(pa + 1.2) * -pr) * 0.9, (Math.sin(pa + 1.2) * -pr) * 0.9, 0.6, pick(['#ff4a8a', '#c78bff', '#ffd0f0']), { glow: true, drag: 1 }); }
+    } else if (h.kind === 'ink') { // 墨だまり(クラーケン): 中にいる間スタミナが回復しない
+      const R = h.r * Math.min(1, h.t * 6);
+      if (dd < R * R && h.t < h.dur - 0.3) { P.staLockT = Math.max(P.staLockT, 0.1); S.inInk = true; }
+      if (Math.random() < dt * 8) { const pa = rand(0, TAU), pr = Math.sqrt(Math.random()) * R; part(h.x + Math.cos(pa) * pr, h.y + Math.sin(pa) * pr * 0.8, 0, -rand(4, 10), 0.8, pick(['#2a2a4a', '#3a3a5a', '#1a1a2a']), { drag: 1 }); }
+    } else if (h.kind === 'tide') { // 潮の満ち引き(クラーケン): 2秒 中心へ引く → 1秒 外へ押す → 縁に触手の輪
+      const d = Math.sqrt(dd), live = !P.dead && state === 'play' && P.invT <= 0;
+      if (h.t < 2 && d < h.r && d > 2 && live) { const k = Math.min(d, 40 * dt); P.x += (h.x - P.x) / d * k; P.y += (h.y - P.y) / d * k; }
+      else if (h.t >= 2 && h.t < 3 && d < h.r + 10 && live) { const a = d > 0.5 ? Math.atan2(P.y - h.y, P.x - h.x) : rand(0, TAU); P.x += Math.cos(a) * 90 * dt; P.y += Math.sin(a) * 90 * dt; }
+      if (h.t >= 3 && !h.rung) { // 縁(半径 120〜135)に触手がせり上がる
+        h.rung = true;
+        if (Math.abs(d - h.r * 1.06) < h.r * 0.07 + 6) hurtPlayer(h.dmg * 0.8);
+        for (let k = 0; k < 24; k++) { const pa = TAU / 24 * k; burst(h.x + Math.cos(pa) * h.r * 1.06, h.y + Math.sin(pa) * h.r * 1.06, 2, SPLASH, { sp: 60, up: 50, g: 200, life: 0.5 }); }
+        shake(6); AudioMan.splash(); AudioMan.boom();
+      }
+      if (h.t < 3 && Math.random() < dt * 40) { // 水の流れ(引き = 内向き / 押し = 外向き)
+        const pa = rand(0, TAU), pr = rand(0.3, 1) * h.r, v = h.t < 2 ? -50 : 90;
+        part(h.x + Math.cos(pa) * pr, h.y + Math.sin(pa) * pr, Math.cos(pa) * v, Math.sin(pa) * v, 0.5, pick(['#bff4ff', '#7ad7ff', '#ffffff']), { drag: 0.5 });
+      }
+    } else if (h.kind === 'tsunami') { // 大津波(深淵の海竜): 画面を横切る波。岩礁の陰(幅 26・長さ 60)には当たらない
+      const c = Math.cos(h.th), s = Math.sin(h.th);
+      h.pd = h.d; h.d = h.t * 150;
+      const along = (P.x - h.x) * c + (P.y - h.y) * s, side = -(P.x - h.x) * s + (P.y - h.y) * c;
+      if (!h.hit && along > h.pd - 8 && along < h.d + 4 && Math.abs(side) < h.span) {
+        const safe = h.reefs.some(r => along > r.along && along - r.along < 60 * CHAOS.area && Math.abs(side - r.side) < 13 * CHAOS.area);
+        if (!safe && hurtPlayer(h.dmg)) { h.hit = true; drainSta(30); pushPlayer(h.th, 50, 0.3); }
+      }
+      for (const r of h.reefs) if (!r.gone && h.d > r.along + 70) { // 波が通った岩礁は崩れる
+        r.gone = true; r.t = r.dur;
+        burst(r.x, r.y, 20, ['#3a4a50', '#5a6a6a', '#8a9a9a', '#bff4ff'], { sp: 90, up: 30, g: 220, life: 0.6 }); AudioMan.thud();
+      }
+      for (let k = 0; k < 6; k++) { const sd = rand(-h.span, h.span); part(h.x + c * h.d - s * sd, h.y + s * h.d + c * sd, c * rand(80, 160) + rand(-20, 20), s * rand(80, 160) - rand(20, 60), 0.5, pick(SPLASH), { g: 160, drag: 1 }); }
+    } else if (h.kind === 'wpillar') { // 水柱(深淵の海竜): プレイヤーへゆっくり寄る。触れると ×0.6・スタミナ −15 で崩れる
+      const d = Math.sqrt(dd);
+      if (d > 1 && h.t < h.dur - 0.3) { const k = Math.min(d, 40 * dt); h.x += (P.x - h.x) / d * k; h.y += (P.y - h.y) / d * k; }
+      if (d < h.r + 3 && h.t < h.dur - 0.3 && hurtPlayer(h.dmg * 0.6)) {
+        drainSta(15); h.t = h.dur - 0.3;
+        burst(h.x, h.y, 24, SPLASH, { sp: 110, up: 50, g: 200, life: 0.6 }); AudioMan.splash();
+      }
+      if (Math.random() < dt * 30) part(h.x + rand(-h.r, h.r) * 0.6, h.y - rand(0, 30), rand(-10, 10), -rand(20, 50), 0.5, pick(SPLASH), { drag: 1 });
     }
     if (h.t >= h.dur) hazards.splice(i, 1);
   }

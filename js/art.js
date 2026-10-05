@@ -1205,6 +1205,45 @@ const ART = (() => {
   ], { emit: 'cd' });
   S.obj_prism = mk({ a: '#2a2048', b: '#7ad7ff', c: '#ffffff', d: '#ff8ad8', e: '#8a7aff' }, ['..c..', '.cbd.', '.cbd.', 'cbbdd', 'cbedd', '.bed.', '.bed.', '.aaa.'], { emit: 'cbd' });
 
+  // ---------- 沈黙の海淵 ----------
+  // 深海クラゲ: 透きとおった傘と、ゆらぐ触手(2コマ)。傘のふちがほのかに光る
+  const jellyPal = { a: '#2a3a6a', b: '#4a6aa8', c: '#7aa8d8', d: '#ff8ad8', e: '#c8e8ff', f: '#8a5aa8' };
+  S.jelly = [mk(jellyPal, ['..aaaa..', '.abccba.', 'abceecba', 'abccccba', 'dbdbbdbd', '.f.f.f..', '.f..f.f.', 'f..f..f.'], { emit: 'd' }),
+    mk(jellyPal, ['..aaaa..', '.abccba.', 'abceecba', 'abccccba', 'dbdbbdbd', '..f.f.f.', '.f.f..f.', '.f..f..f'], { emit: 'd' })];
+  // サハギン: 緑青のうろこの半魚人。ひれの耳と、三叉の槍(右向き)
+  S.sahagin = mk({ a: '#0e2a2a', b: '#2a6a5a', c: '#4a9a7a', d: '#9ad8b8', e: '#ffd23f', f: '#dfe8f5', g: '#6b4a2a', h: '#1a4a6a' }, [
+    '..h.........f', '.hbbb......ff', '.abcbb...g.f.', '.abcecb..g...', '..abccb.g....', '..hbbbccg....', '.abcbdbbg....', 'abcbddbbg....', '.abbddbag....', '..abbbba.....', '..ab..ab.....', '.hh...hh.....',
+  ], { emit: 'e' });
+  // ハリセンボン: 黄色いまるい体に棘(ふくらむと棘が立つ)
+  S.puffer = mk({ a: '#5a4a1a', b: '#c8a03a', c: '#e8c86a', d: '#fff0c0', e: '#1a1a2a', f: '#ff8a5a' }, [
+    '..a.a.a..', '.abbbbba.', 'abccccdba', 'bcceccdcb', 'bcccccccf', 'abcdddcba', '.abbbbba.', '..a.a.a..',
+  ]);
+  // チョウチンアンコウ: 暗い体と大きな口、頭の上の提灯(提灯だけが光る)
+  S.angler = mk({ a: '#0a0a14', b: '#2a2a3a', c: '#3a3a52', d: '#5a5a7a', e: '#fff6a0', f: '#ffffff', g: '#6a5a8a' }, [
+    '........gge.', '.......g..ee', '..aaaaag....', '.abbbbbba...', 'abcccccbba..', 'gbcdccfcbba.', 'gbccccccaff.', 'gbcccccba.f.', 'abbbbbbbaaf.', '.aaaaaaaa...',
+  ], { emit: 'e' });
+  // 大海魔クラーケン: 赤紫の大きな頭と金の目。吸盤の並ぶ触手
+  S.kraken = mk({ a: '#1a0a1a', b: '#5a1a3a', c: '#8a2a4a', d: '#c2486a', e: '#ffd23f', g: '#e89aaa', k: '#2a0e1e' }, sym([
+    '.........aaaa', '.......aabbbb', '......abbcccc', '.....abccdccc', '.....abcddccc', '....abccccccc', '....abcccccbc', '....abcceekcc', '....abcckeecc', '....abbcccccc',
+    '.....abbcccbb', '...aabbbbbbbb', '..abbcbbcbbcb', '.abcb.abcb.bc', 'abcb..abcb.bc', 'abg...abg..bg', 'bcg..abcg..bg', 'bcg..bcg...bc', '.bcg.bcg...bg', '..bcgbcg..bcg', '...bb.bb..bb.',
+  ]), { emit: 'e' });
+  // 深淵の海竜: 青い長い体をうねらせ、頭を持ち上げた海の竜(右向き)。背に碧のひれ
+  S.levia = mk({ a: '#0a1a2a', b: '#1a4a7a', c: '#2a7ab8', d: '#4ab8e8', e: '#bff4ff', f: '#ffffff', g: '#ffd23f', h: '#7ad7c8' }, [
+    '.....................hh.......', '....................hhhh......', '...................ahhhhaa....', '..................abbbbbbbaa..', '.................abccccbbbgba.',
+    '.................abcdddccbbbba', '.........hh......abcdeeddccccf', '........hhhh......abceeeaaaaa.', '.......abbbba......abceea.f.f.', '......abccccba.....abceea.....',
+    '.....abcdddccba....abcdea.....', '....abcdeeedccba..abcdeea.....', '...abcdea.aedccbaabcdeea......', '..abcdea...aedcbbbcdeea.......', '.abcdea.....aeddcccdeaa.......',
+    'abcdea.......aaeeeeeaa........', 'abcea.........aaaaaa..........', '.abca.........................', '..aba.........................', '...a..........................',
+  ], { emit: 'gh' });
+  // クラーケンの触手(壊せる物): 赤紫の太い触手に吸盤
+  S.obj_tentacle = mk({ a: '#1a0a1a', b: '#5a1a3a', c: '#8a2a4a', d: '#c2486a', g: '#e89aaa', w: '#bff4ff' }, [
+    '...cd.', '..cdc.', '..cd..', '.bcg..', '.bcd..', '.bcg..', '..bcg.', '..bcd.', '..bcg.', '.bcdg.', '.bcdg.', 'bccdg.', 'bccdgb', 'w.bb.w', '.wwww.',
+  ]);
+  // 弾: サハギンの三叉槍(右向き。回転フレームで描く)/ ハリセンボンの針 / 水弾 / 墨の玉(放物線)
+  S.trident = mk({ a: '#6b4a2a', b: '#dfe8f5', c: '#ffffff', d: '#7ad7ff' }, ['.........bbc', 'aaaaaaaabbd.', '.........bbc'], { emit: 'd' });
+  S.needle = mk({ a: '#c8a03a', b: '#fff0c0' }, ['aab'], { outline: false });
+  S.water = mk({ a: '#2a8ac8', b: '#7ad7ff', c: '#ffffff' }, ['.aba.', 'abcba', 'bcccb', 'abcba', '.aba.'], { outline: false, emit: 'bc' });
+  S.inkball = mk({ a: '#0a0a14', b: '#2a2a4a', c: '#5a5a8a' }, ['.aa.', 'abca', 'abba', '.aa.']);
+
   // 炎魔イフリート: 黒い角と燃える髪、赤黒い筋骨の上半身、両手に炎。下半身は炎になって浮いている
   S.ifrit = mk({ h: '#2a1414', a: '#1e0a08', b: '#6a1a10', c: '#a8381a', e: '#ffff80', m: '#ffc34a', f: '#ff6a2a', g: '#ffc34a', w: '#fff0b0' }, sym([
     '..h.........',
@@ -1416,7 +1455,7 @@ const ART = (() => {
 
   // 回転フレーム(16方向)
   const ROT = {};
-  for (const k of ['axe', 'blade', 'bladeEvo', 'arrow', 'scythe', 'espear', 'bspear']) {
+  for (const k of ['axe', 'blade', 'bladeEvo', 'arrow', 'scythe', 'espear', 'bspear', 'trident', 'needle']) {
     ROT[k] = rotFrames(S[k].c, 16);
     ROT[k + 'E'] = S[k].e ? rotFrames(S[k].e, 16) : null;
   }

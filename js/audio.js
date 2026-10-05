@@ -190,6 +190,10 @@ const AudioMan = (() => {
     spearThrow() { if (this._ok('spearThrow', 0.08)) { this.noise(0.22, { vol: 0.12, f0: 900, f1: 4200, ftype: 'bandpass', rate: 1.3 }); this.tone(500, 260, 0.1, { vol: 0.03, type: 'sawtooth' }); } },
     // 晶窟: 結晶が鳴る音(澄んだ高い和音)
     chime()   { if (!this._ok('chime', 0.08)) return; const b = 1320 + Math.random() * 400; this.tone(b, b, 0.25, { vol: 0.035, type: 'sine' }); this.tone(b * 1.5, b * 1.5, 0.3, { vol: 0.025, type: 'sine', delay: 0.03 }); this.tone(b * 2, b * 2, 0.2, { vol: 0.015, type: 'triangle', delay: 0.06 }); },
+    // 海淵: スタミナを奪われる(泡がはじける)/ フグの針 / 水しぶき
+    drain()   { if (!this._ok('drain', 0.15)) return; this.tone(700, 260, 0.18, { vol: 0.05, type: 'sine' }); this.tone(520, 200, 0.16, { vol: 0.03, type: 'sine', delay: 0.06 }); this.noise(0.12, { vol: 0.05, f0: 1800, f1: 600, ftype: 'bandpass' }); },
+    puff()    { if (!this._ok('puff', 0.12)) return; this.noise(0.2, { vol: 0.1, f0: 600, f1: 2400, ftype: 'bandpass', rate: 1.2 }); this.tone(300, 900, 0.08, { vol: 0.03, type: 'triangle' }); },
+    splash()  { if (!this._ok('splash', 0.1)) return; this.noise(0.55, { vol: 0.18, f0: 3500, f1: 400, ftype: 'bandpass', rate: 0.8 }); this.tone(180, 70, 0.3, { vol: 0.07, type: 'sine' }); this.noise(0.3, { vol: 0.06, f0: 7000, f1: 3000, ftype: 'highpass', delay: 0.08 }); },
     fuse()    { if (this._ok('fuse', 0.12)) { this.noise(0.55, { vol: 0.08, f0: 7000, f1: 9000, ftype: 'highpass', rate: 1.8 }); this.tone(900, 1700, 0.55, { vol: 0.02, type: 'sine' }); } },
   };
   return A;

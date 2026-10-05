@@ -74,6 +74,7 @@ function buildChunk(cx, cy, st) {
     const hx = (hash2(cx * 97 + i, cy * 57) * (CH - 8)) | 0, hy = (hash2(cy * 89 + i, cx * 43 + i) * (CH - 8)) | 0;
     const kind = hash2(hx + ox, hy + oy);
     if (st.crystal) { crystalDeco(x, gx, hx, hy, kind, hash2(hx * 3 + ox, hy * 5 + oy)); continue; }
+    if (st.sea) { seaDeco(x, gx, hx, hy, kind, hash2(hx * 3 + ox, hy * 5 + oy), st.deco); continue; }
     if (kind < 0.45) { // 草むら
       x.fillStyle = d0; x.fillRect(hx, hy + 2, 1, 2); x.fillRect(hx + 2, hy + 1, 1, 3); x.fillRect(hx + 4, hy + 2, 1, 2);
       x.fillStyle = d1; x.fillRect(hx + 2, hy, 1, 1); x.fillRect(hx, hy + 1, 1, 1);
@@ -125,6 +126,37 @@ function crystalDeco(x, gx, hx, hy, kind, h2) {
   } else if (kind < 0.85) { // 光る小石
     x.fillStyle = cMain; x.fillRect(hx, hy, 1, 1); x.fillStyle = cDark; x.fillRect(hx + 1, hy, 1, 1);
     gx.fillStyle = cMain; gx.fillRect(hx, hy, 1, 1);
+  }
+}
+// 海淵の海底の装飾: 揺れる海藻 / 枝珊瑚(先がほのかに光る)/ 貝 / 岩 / 砂紋 / 光る夜光虫
+function seaDeco(x, gx, hx, hy, kind, h2, [d0, d1, d2c, d3]) {
+  if (kind < 0.3) { // 海藻: 高さの違う 2〜3本がうねる
+    const n = 2 + (h2 > 0.5 ? 1 : 0);
+    for (let k = 0; k < n; k++) { // 葉は同じ向きにゆるく曲がる(隣と交差しないように)
+      const H = 5 + (((h2 * 7 + k * 3) % 1) * 5 | 0), bx = hx + k * 4;
+      for (let j = 0; j < H; j++) { const sw = Math.round(Math.sin(j * 0.35 + h2 * 3) * 1.4); x.fillStyle = j > H - 3 ? d1 : d0; x.fillRect(bx + sw, hy + 8 - j, 1, 1); if (j < 2) x.fillRect(bx + sw + 1, hy + 8 - j, 1, 1); }
+    }
+  } else if (kind < 0.48) { // 枝珊瑚
+    const col = h2 < 0.5 ? d2c : d3, dark = h2 < 0.5 ? '#7a2a3a' : '#7a4a20';
+    x.fillStyle = '#0a1a1e'; x.fillRect(hx, hy + 7, 7, 1);
+    x.fillStyle = dark; x.fillRect(hx + 3, hy + 3, 1, 4);
+    x.fillStyle = col; x.fillRect(hx + 1, hy + 2, 1, 3); x.fillRect(hx + 5, hy + 1, 1, 4); x.fillRect(hx + 2, hy + 4, 1, 1); x.fillRect(hx + 4, hy + 3, 1, 1); x.fillRect(hx + 3, hy, 1, 3);
+    gx.fillStyle = h2 < 0.5 ? '#3a1a22' : '#3a2a14'; gx.fillRect(hx + 1, hy + 2, 1, 1); gx.fillRect(hx + 5, hy + 1, 1, 1); gx.fillRect(hx + 3, hy, 1, 1); // 光の層は暗い色で
+  } else if (kind < 0.6) { // 貝
+    x.fillStyle = '#0a1a1e'; x.fillRect(hx, hy + 3, 5, 1);
+    x.fillStyle = h2 < 0.5 ? '#e8d8c8' : '#ffc0c8'; x.fillRect(hx, hy + 1, 5, 2); x.fillRect(hx + 1, hy, 3, 1);
+    x.fillStyle = '#a89888'; x.fillRect(hx + 1, hy + 1, 1, 2); x.fillRect(hx + 3, hy + 1, 1, 2);
+  } else if (kind < 0.74) { // 岩
+    x.fillStyle = '#081418'; x.fillRect(hx, hy + 3, 7, 1);
+    x.fillStyle = '#2a4048'; x.fillRect(hx, hy + 1, 7, 2); x.fillRect(hx + 1, hy, 5, 1);
+    x.fillStyle = '#4a6a70'; x.fillRect(hx + 1, hy, 2, 1);
+    if (h2 > 0.6) { x.fillStyle = d0; x.fillRect(hx + 4, hy, 2, 1); } // 苔
+  } else if (kind < 0.86) { // 砂紋
+    x.fillStyle = '#1a3e48';
+    for (let k = 0; k < 7; k++) x.fillRect(hx + k, hy + Math.round(Math.sin(k * 0.9 + h2 * 6)), 1, 1);
+  } else { // 夜光虫
+    x.fillStyle = '#bff4ff'; x.fillRect(hx, hy, 1, 1);
+    gx.fillStyle = '#7ad7ff'; gx.fillRect(hx, hy, 1, 1);
   }
 }
 function drawGround() {
@@ -408,8 +440,8 @@ function render() {
 
   const st = DATA.stages[S ? S.stage - 1 : 0];
   // 環境光・グレーディングを滑らかに遷移。闇の霧は環境光を暗く、青紫に寄せる(光源のまわりだけが見える)
-  const fk = fogDarkK();
-  for (let i = 0; i < 3; i++) { GFX.ambient[i] = lerp(GFX.ambient[i], st.amb[i] * (1 - 0.55 * fk) * (i === 2 ? 1 + 0.3 * fk : 1), 0.03); GFX.tint[i] = lerp(GFX.tint[i], st.tint[i] * (i === 1 ? 1 - 0.12 * fk : 1), 0.03); }
+  const fk = fogDarkK(), ink = S && S.inInk ? 0.4 : 1; // 墨だまり(クラーケン)の中は暗い
+  for (let i = 0; i < 3; i++) { GFX.ambient[i] = lerp(GFX.ambient[i], st.amb[i] * (1 - 0.55 * fk) * (i === 2 ? 1 + 0.3 * fk : 1) * ink, ink < 1 ? 0.08 : 0.03); GFX.tint[i] = lerp(GFX.tint[i], st.tint[i] * (i === 1 ? 1 - 0.12 * fk : 1), 0.03); }
 
   drawGround();
   if (!S || S.demo) return drawMotes(st);
@@ -855,6 +887,82 @@ function render() {
       }
       gx.globalAlpha = 1;
       addLight(h.x, h.y, R * 2, '#ff4a8a', 0.45 * fade);
+    } else if (h.kind === 'ink') { // 墨だまり: 黒い墨がゆらぎ、ふちに飛沫。中で暗い紫のうずが回る(ダメージはないので縁は赤くしない)
+      const R = Math.round(h.r * Math.min(1, h.t * 6));
+      sx.globalAlpha = 0.72 * fade; pDisc(sx, hx, hy, R, '#0a0a14');
+      sx.globalAlpha = 0.5 * fade; pDisc(sx, hx, hy, Math.max(1, R - 4), '#04040a');
+      for (let i = 0; i < 12; i++) {
+        const a = hash2(i, h.seed) * TAU, r = R + Math.sin(t * 3 + i * 1.7) * 2;
+        sx.globalAlpha = 0.6 * fade; pDisc(sx, hx + Math.cos(a) * r, hy + Math.sin(a) * r, 1 + (i % 3), '#0a0a14');
+      }
+      sx.globalAlpha = 0.85 * fade; pCircle(sx, hx, hy, R, '#3a2a5a');
+      for (let i = 0; i < 3; i++) for (let k = 0; k < 7; k++) { const aa = t * 0.8 + TAU / 3 * i + k * 0.16, rr = R * (0.2 + 0.09 * k); sx.fillStyle = '#2a2a4a'; sx.fillRect(Math.round(hx + Math.cos(aa) * rr), Math.round(hy + Math.sin(aa) * rr), 1, 1); }
+      sx.globalAlpha = 1;
+    } else if (h.kind === 'tide') { // 潮の満ち引き: 引き(内へ縮む波紋)→ 押し(外へ広がる波紋)→ 縁に触手の輪(縁の予告は赤)
+      const R = Math.round(h.r), RR = Math.round(h.r * 1.06), pull = h.t < 2;
+      sx.globalAlpha = 0.16 * fade; pDisc(sx, hx, hy, R, '#2a8ac8'); sx.globalAlpha = 1;
+      if (h.t < 3) {
+        for (let j = 0; j < 4; j++) { const k = (t * (pull ? 0.7 : 1.5) + j / 4) % 1, rr = Math.round(R * (pull ? 1 - k : k)); if (rr > 2) pCircle(gx, hx, hy, rr, '#1a4a5a'); }
+        sx.globalAlpha = 0.8; pCircle(sx, hx, hy, R, '#7ad7ff'); sx.globalAlpha = 1;
+        if (h.t > 1.2) { const bw = Math.max(2, Math.round(h.r * 0.12)); sx.globalAlpha = 0.18 + 0.1 * warnBlink; sx.strokeStyle = '#ff3b5c'; sx.lineWidth = bw; sx.beginPath(); sx.arc(Math.round(hx), Math.round(hy), RR, 0, TAU); sx.stroke(); sx.globalAlpha = 1; pCircle(sx, hx, hy, RR + Math.ceil(bw / 2), warnBlink ? '#ff3b5c' : '#ffd0d8'); pCircle(gx, hx, hy, RR + Math.ceil(bw / 2), '#7a1020'); }
+      } else { // 触手の輪: せり上がって沈む
+        const u = (h.t - 3) / Math.max(0.01, h.dur - 3), k = u < 0.2 ? u / 0.2 : Math.max(0, 1 - (u - 0.2) / 0.8), H = Math.round(20 * k);
+        for (let i = 0; i < 28; i++) {
+          const a = TAU / 28 * i + 0.11, x0 = Math.round(hx + Math.cos(a) * RR), y0 = Math.round(hy + Math.sin(a) * RR);
+          sx.fillStyle = '#0a1a1e'; sx.fillRect(x0 - 3, y0 + 1, 7, 1);
+          for (let j = 0; j < H; j++) {
+            const sw = Math.round(Math.sin(j * 0.35 + i) * j / 5), w = j < H * 0.4 ? 3 : j < H - 3 ? 2 : 1;
+            sx.fillStyle = '#3a0e24'; sx.fillRect(x0 + sw - 1, y0 - j, w + 2, 1);
+            sx.fillStyle = j > H - 3 ? '#e89aaa' : j % 3 === 1 ? '#c2486a' : '#8a2a4a'; sx.fillRect(x0 + sw, y0 - j, w, 1);
+            if (j % 3 === 0 && w > 1) { sx.fillStyle = '#e89aaa'; sx.fillRect(x0 + sw, y0 - j, 1, 1); } // 吸盤
+          }
+        }
+      }
+      addLight(h.x, h.y, R * 1.6, '#2a8ac8', 0.35 * fade);
+    } else if (h.kind === 'reef') { // 岩礁: 苔むした黒い岩。波が来るまで、陰(波に当たらない所)を淡い緑で示す
+      const c = Math.cos(h.th), s = Math.sin(h.th), L = 60 * CHAOS.area, W = 13 * CHAOS.area, R = Math.round(h.r * Math.min(1, h.t * 5));
+      if (!h.gone) {
+        sx.globalAlpha = (0.16 + 0.06 * Math.sin(t * 6)) * fade; sx.fillStyle = '#7dffd0'; sx.beginPath();
+        sx.moveTo(hx - s * W, hy + c * W); sx.lineTo(hx + c * L - s * W, hy + s * L + c * W); sx.lineTo(hx + c * L + s * W, hy + s * L - c * W); sx.lineTo(hx + s * W, hy - c * W); sx.fill();
+        sx.globalAlpha = 0.7 * fade;
+        for (const k of [-1, 1]) for (let d = 0; d < L; d += 4) { const qx = Math.round(hx + c * d - s * W * k), qy = Math.round(hy + s * d + c * W * k); sx.fillStyle = '#bff4ff'; sx.fillRect(qx, qy, 2, 1); gx.fillStyle = '#1a4a3a'; gx.fillRect(qx, qy, 1, 1); }
+        sx.globalAlpha = 1;
+      }
+      pDisc(sx, hx, hy + 2, R, '#081418');
+      pDisc(sx, hx, hy, Math.max(1, R - 1), '#2a3e46');
+      pDisc(sx, hx - 2, hy - 3, Math.max(1, R - 5), '#4a6a70');
+      for (let i = 0; i < 6; i++) { const a = hash2(i, h.seed) * TAU, r = R * 0.6 * hash2(i + 5, h.seed); sx.fillStyle = i % 2 ? '#2f7a5a' : '#e8d8c8'; sx.fillRect(Math.round(hx + Math.cos(a) * r), Math.round(hy + Math.sin(a) * r * 0.7), 2, 1); } // 苔とフジツボ
+      gx.globalAlpha = 1; pCircle(gx, hx, hy + 1, R + 1, '#163a44'); // 波打ちぎわの白い泡
+    } else if (h.kind === 'tsunami') { // 大津波: 画面を横切る大波(白い波頭)。岩礁の陰では波が割れる
+      const c = Math.cos(h.th), s = Math.sin(h.th), d = h.d, A = CHAOS.area;
+      sx.save(); gx.save(); sx.translate(hx, hy); gx.translate(hx, hy); sx.rotate(h.th); gx.rotate(h.th);
+      for (let sd = -h.span; sd < h.span; sd += 4) {
+        const wob = Math.sin(t * 9 + sd * 0.15) * 2 + Math.sin(sd * 0.05 + t * 3) * 2;
+        if (h.reefs.some(r => d > r.along && d - r.along < 60 * A && Math.abs(sd + 2 - r.side) < 13 * A)) { sx.globalAlpha = 0.3; sx.fillStyle = '#0e3a5a'; sx.fillRect(d - 90 + wob, sd, 30, 4); continue; } // 陰: 波が割れて跡だけ
+        const fo = (Math.floor(sd / 4) + Math.floor(t * 12)) % 3;
+        sx.globalAlpha = 0.45; sx.fillStyle = '#0e3a5a'; sx.fillRect(d - 90 + wob, sd, 66, 4); // 波の背(深い水)
+        sx.globalAlpha = 0.7; sx.fillStyle = '#1a6a9a'; sx.fillRect(d - 24 + wob, sd, 14, 4);
+        sx.globalAlpha = 0.9; sx.fillStyle = '#4ab8e8'; sx.fillRect(d - 10 + wob, sd, 6, 4); // 波の面
+        sx.globalAlpha = 1; sx.fillStyle = fo ? '#ffffff' : '#bff4ff'; sx.fillRect(d - 4 + wob, sd, 4, 4); // 白い波頭
+        if (fo === 0) { sx.globalAlpha = 0.7; sx.fillRect(d + 1 + wob + (sd % 3), sd + 1, 1, 1); } // 前に散るしぶき
+        gx.fillStyle = '#163a4a'; gx.fillRect(d - 3 + wob, sd, 2, 4);
+      }
+      sx.restore(); gx.restore(); sx.globalAlpha = 1;
+      for (let k = -2; k <= 2; k++) addLight(h.x + c * d - s * k * h.span / 2.5, h.y + s * d + c * k * h.span / 2.5, 90, '#7ad7ff', 0.35);
+    } else if (h.kind === 'wpillar') { // 水柱: 足元の渦(縁は危険の赤)と、渦を巻いて立ちのぼる水の柱
+      const R = Math.round(h.r * Math.min(1, h.t * 6)), H = Math.round(36 * Math.min(1, h.t * 4) * fade);
+      sx.globalAlpha = 0.35 * fade; pDisc(sx, hx, hy, R, '#2a8ac8');
+      sx.globalAlpha = fade; pCircle(sx, hx, hy, R, warnBlink ? '#ff3b5c' : '#ffd0d8'); sx.globalAlpha = 1;
+      pCircle(gx, hx, hy, R, '#5a1020');
+      for (let j = 0; j < H; j++) {
+        const w = Math.max(1, Math.round(R * 0.55 * (1 - j / Math.max(1, H) * 0.35))), y = Math.round(hy - j), sw = Math.round(Math.sin(t * 10 + j * 0.45) * w * 0.8);
+        sx.globalAlpha = 0.5 * fade; sx.fillStyle = '#2a8ac8'; sx.fillRect(Math.round(hx - w), y, w * 2 + 1, 1);
+        sx.globalAlpha = 0.9 * fade; sx.fillStyle = j % 4 < 2 ? '#bff4ff' : '#7ad7ff'; sx.fillRect(Math.round(hx + sw), y, 2, 1);
+        gx.fillStyle = '#1a4a5a'; gx.fillRect(Math.round(hx + sw), y, 1, 1);
+      }
+      sx.globalAlpha = 1;
+      for (let i = 0; i < 5; i++) { sx.fillStyle = '#ffffff'; sx.fillRect(Math.round(hx + Math.sin(t * 7 + i * 1.3) * R * 0.5), Math.round(hy - H - (i % 2)), 1, 1); } // 柱の先の白いしぶき
+      addLight(h.x, h.y - H / 2, 50, '#7ad7ff', 0.5 * fade);
     }
   }
 
@@ -940,6 +1048,11 @@ function render() {
     if (e.boss) addLight(e.x, e.y, 90, e.col, 0.8);
     if (e.aim) { gx.fillStyle = '#ffb13a'; gx.fillRect(Math.round(e.x - cam.x), Math.round(e.y - cam.y - 10), 1, 3); }
     if (e.type === 'goblin') addLight(e.x, e.y, 40, '#ffcc33', 0.8);
+    else if (e.type === 'angler') { // チョウチンアンコウ: 提灯の光(光る予兆の間は大きく脈打つ)
+      const g = e.glowL || 0, lx = e.x + (flip ? -4 : 4) * sc, ly = e.y + yo - sp.h * sc / 2 + 1;
+      addLight(lx, ly, (26 + 80 * g) * (1 + 0.1 * Math.sin(t * 6 + e.seed * 9)), '#fff6a0', 0.7 + 0.3 * g);
+      if (g > 0) { gx.fillStyle = g > 0.7 && warnBlink ? '#ffffff' : '#fff6a0'; gx.fillRect(Math.round(lx - cam.x) - 1, Math.round(ly - cam.y) - 1, 3, 3); }
+    } else if (e.type === 'jelly') addLight(e.x, e.y, 20, '#ff8ad8', 0.25);
     if (e.disguise) addLight(e.x, e.y, 90, '#ff8ad8', 0.8); // 鏡の分身: 本物と同じ光(HP バーは出さない)
     else if (e.obj) { // ボスが出した物: いつも金色の HP バー(壊せることを示す)と、足元の金の輪
       const w = Math.max(10, Math.round(sp.w * sc)), bx = Math.round(e.x - cam.x - w / 2), by = Math.round(e.y - cam.y + sp.h * sc / 2 + 2);
@@ -1221,7 +1334,8 @@ function render() {
     if (al !== undefined) sx.globalAlpha = al; // drawRot は透明度を受け取らないので、ここで掛けて戻す
     if (p.kind === 'boomer') drawRot('scythe', p.t * 16, p.x, p.y, { scale: 2 * A, outline: oc });
     else if (p.kind === 'glob' || p.kind === 'rbit' || p.kind === 'efire' || p.kind === 'esand') drawSp(ART.S[p.kind], p.x, p.y, ol);
-    else if (p.kind === 'arrow' || p.kind === 'espear' || p.kind === 'bspear') drawRot(p.kind, a, p.x, p.y, ol);
+    else if (p.kind === 'arrow' || p.kind === 'espear' || p.kind === 'bspear' || p.kind === 'trident' || p.kind === 'needle') drawRot(p.kind, a, p.x, p.y, ol);
+    else if (p.kind === 'water') { drawSp(ART.S.water, p.x, p.y, ol); if (Math.random() < 0.3) part(p.x, p.y, rand(-8, 8), rand(-8, 8), 0.3, '#bff4ff', { drag: 2 }); } // 水弾: しずくの尾
     else if (p.kind === 'pshard') drawSp(ART.S.pshard[p.ci || 0], p.x, p.y, ol); // 七色の欠片
     else if (p.kind === 'phantom') { // 結晶の残像・幻の鹿: 透きとおった七色の大鹿
       const sp2 = ART.S.stag, img = ART.tint(p.face < 0 ? ART.variant(sp2, 'flip') : sp2.c, PRISM[Math.floor(p.t * 12) % 7]);
@@ -1239,6 +1353,7 @@ function render() {
   // 予兆: 赤い半透明の塗り(時間とともに内側が満ちる) + 点滅する縁
   const edge = warnBlink ? '#ff3b5c' : '#ffd0d8';
   for (const w of warns) {
+    if (w.ink && S.inInk) continue; // 墨だまりの中では触手の予告が見えない
     const k = w.t / w.life, wx = w.x - cam.x, wy = w.y - cam.y;
     if (w.kind === 'line') {
       const ca = Math.cos(w.a), sa = Math.sin(w.a), nx = -sa * w.w / 2, ny = ca * w.w / 2;
@@ -1321,7 +1436,7 @@ function drawBossFx(e) {
     addLight(f.x, f.y, 26 * A, '#6ee7ff', 0.5);
   }
   if (e.hold) drawSp(ART.S.rock, e.x, e.y + yo - sp.h / 2 - 5);
-  if (ai.act === 'breath') for (let r = 20; r < 125 * A; r += 26 * A) addLight(e.x + Math.cos(ai.ba) * r, e.y + Math.sin(ai.ba) * r, r * 0.9, '#ff6a2a', 0.7);
+  if (ai.act === 'breath' && e.boss === 'cdragon') for (let r = 20; r < 125 * A; r += 26 * A) addLight(e.x + Math.cos(ai.ba) * r, e.y + Math.sin(ai.ba) * r, r * 0.9, '#ff6a2a', 0.7);
   if (ai.act === 'beam' && ai.bA != null) {
     const BL = BEAM_LEN * A, bx = ex + Math.cos(ai.bA) * BL, by = ey + Math.sin(ai.bA) * BL, fl = Math.floor(GFX.fx.time * 30) % 2;
     pLine(gx, ex, ey, bx, by, '#ff4a8a', Math.round((9 + fl * 2) * A));
@@ -1438,6 +1553,38 @@ function drawBossFx(e) {
     }
     if (ai.clones && t % 0.5 < 0.12) { const gxp = Math.round(ex), gyp = Math.round(ey + yo - sp.h / 2 - 3); sx.fillStyle = gx.fillStyle = '#fff6c8'; sx.fillRect(gxp - 1, gyp, 3, 1); sx.fillRect(gxp, gyp - 1, 1, 3); gx.fillRect(gxp, gyp, 1, 1); } // 本物のしるし
   }
+  // クラーケン: 触手が 2本以上ある間は、触手から本体へ水の流れ(守り)と、本体を包む水の膜
+  if (e.boss === 'kraken' && e.takeK < 1 && !e.hidden) {
+    for (const o of enemies) {
+      if (o.owner !== e || o.obj !== 'tentacle' || o.dead) continue;
+      const ox = o.x - cam.x, oy = o.y - cam.y - 8, n = Math.floor(Math.hypot(ex - ox, ey - oy) / 4);
+      for (let i = 0; i <= n; i++) {
+        if ((i + Math.floor(t * 14)) % 3) continue;
+        const k = i / Math.max(1, n), x = Math.round(ox + (ex - ox) * k), y = Math.round(oy + (ey - oy) * k + Math.sin(k * Math.PI) * -6);
+        sx.fillStyle = '#7ad7ff'; sx.fillRect(x, y, 1, 1); gx.fillStyle = '#1a4a5a'; gx.fillRect(x, y, 1, 1);
+      }
+    }
+    const rr = Math.round(e.r + 8 + Math.sin(t * 4));
+    sx.globalAlpha = 0.5; pCircle(sx, ex, ey, rr, '#7ad7ff'); sx.globalAlpha = 1;
+    pCircle(gx, ex, ey, rr, '#1a4a5a', 2);
+  }
+  // 深淵の海竜: 潜航中は大きな影が水の下を泳ぐ / 水流ブレス
+  if (e.boss === 'levia') {
+    if (ai.act === 'dive') {
+      sx.globalAlpha = 0.45; sx.fillStyle = '#04121a';
+      sx.beginPath(); sx.ellipse(ex, ey, 26, 11, Math.sin(t * 2) * 0.35, 0, TAU); sx.fill();
+      sx.beginPath(); sx.ellipse(ex - 22 * Math.cos(Math.sin(t * 2) * 0.35), ey - 22 * Math.sin(Math.sin(t * 2) * 0.35) + Math.sin(t * 5) * 3, 12, 4, Math.sin(t * 2) * 0.35 + Math.sin(t * 5) * 0.3, 0, TAU); sx.fill(); // 尾
+      sx.globalAlpha = 1;
+    }
+    if (ai.act === 'breath' && ai.ba != null) {
+      const BL = 220 * A, bx = ex + Math.cos(ai.ba) * BL, by = ey + Math.sin(ai.ba) * BL, fl = Math.floor(t * 30) % 2;
+      pLine(gx, ex, ey, bx, by, '#1a5a7a', Math.round((10 + fl * 2) * A));
+      pLine(sx, ex, ey, bx, by, '#2a8ac8', Math.round(9 * A));
+      pLine(sx, ex, ey, bx, by, '#7ad7ff', Math.round(5 * A));
+      pLine(sx, ex, ey, bx, by, '#ffffff', Math.max(1, Math.round(2 * A)));
+      for (let r = 0; r < BL; r += 44) addLight(e.x + Math.cos(ai.ba) * r, e.y + Math.sin(ai.ba) * r, 60, '#7ad7ff', 0.7);
+    }
+  }
   // カオスドラゴン: 空襲の影(空の上の竜の影が地面を走る)
   if (e.boss === 'cdragon' && ai.act === 'raid' && ai.rd && ai.rd.ph === 'sky') {
     const R = 15 * A, x = ex, y = ey, c = Math.cos(ai.rd.th), s = Math.sin(ai.rd.th);
@@ -1518,6 +1665,54 @@ function drawBfx() {
         gx.fillStyle = lit ? '#ff8a3d' : '#3a0e04'; gx.fillRect(x, y, 1, 1);
       }
       addLight((f.x + tx + cam.x) / 2, (f.y + ty + cam.y) / 2, L * 0.6 + 20, '#ff6a2a', 0.6);
+    } else if (f.kind === 'ripple') { // 海底が泡立つ(何かが出てくる場所): 広がる波紋と、湧き上がる泡
+      for (let j = 0; j < 3; j++) { const k = (u * 2 + j / 3) % 1; pCircle(gx, fx, fy, Math.round(4 + k * 18), k < 0.5 ? '#2a6a7a' : '#163a44'); }
+      for (let i = 0; i < 7; i++) { const a = hash2(i, 5) * TAU + t * 2, r = 12 * hash2(i, 9), y = Math.round(fy + Math.sin(a) * r * 0.6 - ((t * 20 + i * 3) % 6)); sx.fillStyle = '#bff4ff'; sx.fillRect(Math.round(fx + Math.cos(a) * r), y, 1, 1); }
+    } else if (f.kind === 'tslap') { // 触手の叩きつけ・薙ぎ: 吸盤の並ぶ太い触手が帯の上に現れて沈む
+      const k = u < 0.2 ? u / 0.2 : Math.max(0, 1 - (u - 0.2) / 0.8), c = Math.cos(f.a), s = Math.sin(f.a), nx = -s, ny = c, L = f.len, n = 9;
+      sx.globalAlpha = k;
+      for (let i = 0; i < n; i++) {
+        const d0 = L * i / n, d1 = L * (i + 1) / n, w0 = Math.max(1, Math.round(f.w * 0.7 * (1 - i / n * 0.7)));
+        const v0 = Math.sin(d0 * 0.07 + f.t * 18) * 2, v1 = Math.sin(d1 * 0.07 + f.t * 18) * 2;
+        const x0 = fx + c * d0 + nx * v0, y0 = fy + s * d0 + ny * v0, x1 = fx + c * d1 + nx * v1, y1 = fy + s * d1 + ny * v1;
+        pLine(sx, x0, y0, x1, y1, '#3a0e24', w0 + 2);
+        pLine(sx, x0, y0, x1, y1, '#8a2a4a', w0);
+        if (w0 > 2) pLine(sx, x0 + nx * w0 * 0.25, y0 + ny * w0 * 0.25, x1 + nx * w0 * 0.25, y1 + ny * w0 * 0.25, '#c2486a', 1);
+        sx.fillStyle = '#e89aaa'; sx.fillRect(Math.round((x0 + x1) / 2 - nx * w0 * 0.25), Math.round((y0 + y1) / 2 - ny * w0 * 0.25), 1, 1); // 吸盤
+      }
+      sx.globalAlpha = 1;
+    } else if (f.kind === 'grab') { // 絡め取り: クラーケンからプレイヤーへ伸びて巻きつく触手
+      const px = P.x - cam.x, py = P.y - cam.y, L = Math.hypot(px - fx, py - fy) || 1, nx = -(py - fy) / L, ny = (px - fx) / L, n = Math.max(4, Math.floor(L / 6));
+      let lx = fx, ly = fy;
+      for (let i = 1; i <= n; i++) {
+        const k = i / n, wv = Math.sin(k * 9 - t * 8) * 3 * Math.sin(k * Math.PI), x = fx + (px - fx) * k + nx * wv, y = fy + (py - fy) * k + ny * wv, w = Math.max(2, Math.round(5 - k * 3));
+        pLine(sx, lx, ly, x, y, '#3a0e24', w + 2); pLine(sx, lx, ly, x, y, '#8a2a4a', w);
+        if (i % 2) { sx.fillStyle = '#e89aaa'; sx.fillRect(Math.round(x), Math.round(y), 1, 1); }
+        lx = x; ly = y;
+      }
+      for (let i = 0; i < 3; i++) { const yy = Math.round(py - 3 + i * 3), sh = Math.round(Math.sin(t * 6 + i) * 1); sx.fillStyle = '#3a0e24'; sx.fillRect(Math.round(px - 6) + sh, yy - 1, 13, 4); sx.fillStyle = '#8a2a4a'; sx.fillRect(Math.round(px - 5) + sh, yy, 11, 2); sx.fillStyle = '#e89aaa'; sx.fillRect(Math.round(px - 3 + i * 2) + sh, yy, 1, 1); } // 巻きつき
+    } else if (f.kind === 'flow') { // 海流: 始まる前は画面いっぱいに点滅する矢印、流れている間は流れの筋
+      const c = Math.cos(f.th), s = Math.sin(f.th), VW = GFX.VW, VH = GFX.VH, on = f.t >= 1, fade = Math.min(1, (f.life - f.t) * 2), W = VW + 40, H = VH + 40;
+      for (let i = 0; i < 22; i++) {
+        const h1 = hash2(i, 41), h2 = hash2(i, 59), sp = (on ? 70 : 25) * (1 + h2);
+        const x = ((h1 * W + c * f.t * sp) % W + W) % W - 20, y = ((h2 * H + s * f.t * sp) % H + H) % H - 20;
+        if (!on || i % 4 === 0) { // 矢印
+          if (!on && Math.floor(t * 6) % 2) continue;
+          for (const k of [-1, 1]) { const bx = x - c * 4 + s * 4 * k, by = y - s * 4 - c * 4 * k; sx.globalAlpha = on ? 0.6 * fade : 0.9; pLine(sx, bx, by, x + c * 2, y + s * 2, '#bff4ff'); pLine(gx, bx, by, x + c * 2, y + s * 2, '#2a6a7a'); }
+        } else { sx.globalAlpha = 0.45 * fade; pLine(sx, x, y, x - c * 14, y - s * 14, '#bff4ff'); pLine(gx, x, y, x - c * 6, y - s * 6, '#1a4a5a'); }
+      }
+      sx.globalAlpha = 1;
+    } else if (f.kind === 'wavewarn') { // 大津波の予告: 波の来る側の端に赤い帯、画面を横切って流れる矢印の列
+      const blink = Math.floor(t * 8) % 2;
+      sx.save(); gx.save(); sx.translate(fx, fy); gx.translate(fx, fy); sx.rotate(f.th); gx.rotate(f.th);
+      sx.globalAlpha = 0.22 + 0.12 * blink; sx.fillStyle = '#ff3b5c'; sx.fillRect(0, -f.span, 46, f.span * 2); // 端(画面の外 20)から画面の内側 26 まで
+      sx.globalAlpha = 1; sx.fillStyle = blink ? '#ff3b5c' : '#ffd0d8'; sx.fillRect(46, -f.span, 1, f.span * 2);
+      gx.fillStyle = '#7a1020'; gx.fillRect(46, -f.span, 1, f.span * 2);
+      for (let row = -f.span + 40; row < f.span; row += 70) for (let k = 0; k < 4; k++) {
+        const al = (t * 170 + k * f.len / 4 + row * 0.7) % f.len;
+        for (let j = 0; j < 6; j++) { sx.fillStyle = '#ff3b5c'; sx.fillRect(al - j, row - j, 2, 1); sx.fillRect(al - j, row + j, 2, 1); gx.fillStyle = '#5a1020'; gx.fillRect(al - j, row - j, 1, 1); gx.fillRect(al - j, row + j, 1, 1); }
+      }
+      sx.restore(); gx.restore(); sx.globalAlpha = 1;
     }
   }
 }
@@ -1531,10 +1726,21 @@ function drawMotes(st) {
     const wy = ((seedy + (m.rise ? -t * 14 : Math.sin(t + i) * 8) - cam.y * 0.9) % (VH + 20) + VH + 20) % (VH + 20) - 10;
     gx.globalAlpha = 0.4 + 0.6 * Math.max(0, Math.sin(t * 2 + i * 1.7));
     const col = m.cols ? m.cols[i % m.cols.length] : m.col; // 晶窟は色とりどりのきらめき
+    if (m.bubble && i % 2 === 0) { // 海淵: 揺れながら昇る泡(小さな輪)
+      const bx = Math.round(wx + Math.sin(t * 2.2 + i) * 2), by = Math.round(wy), big = i % 4 === 0;
+      gx.globalAlpha = 1; gx.fillStyle = '#4a8a9a';
+      if (big) { gx.fillRect(bx - 1, by - 2, 3, 1); gx.fillRect(bx - 1, by + 2, 3, 1); gx.fillRect(bx - 2, by - 1, 1, 3); gx.fillRect(bx + 2, by - 1, 1, 3); gx.fillStyle = '#bff4ff'; gx.fillRect(bx - 1, by - 1, 1, 1); }
+      else { gx.fillRect(bx - 1, by, 1, 1); gx.fillRect(bx + 1, by, 1, 1); gx.fillRect(bx, by - 1, 1, 1); gx.fillRect(bx, by + 1, 1, 1); }
+      continue;
+    }
     gx.fillStyle = col; gx.fillRect(Math.round(wx), Math.round(wy), 1, 1);
     if (i % 3 === 0) addLight(wx + cam.x, wy + cam.y, 14, col, 0.5);
   }
   gx.globalAlpha = 1;
+  if (m.bubble) for (let i = 0; i < 4; i++) { // 海面から差しこむ光のゆらぎ(ゆっくり動く大きな淡い光)
+    const lx = cam.x + VW * (0.5 + 0.45 * Math.sin(t * 0.13 + i * 1.9)), ly = cam.y + VH * (0.5 + 0.4 * Math.sin(t * 0.09 + i * 2.7));
+    addLight(lx, ly, 120 + 30 * Math.sin(t * 0.7 + i), '#5ab8d8', 0.22 + 0.08 * Math.sin(t * 1.3 + i * 2));
+  }
 }
 
 // アローレインの色(ふつう / 炎の矢)。光の層は色で明るさが決まるので、軌跡は暗い色を順に(先端に近いほど明るい)

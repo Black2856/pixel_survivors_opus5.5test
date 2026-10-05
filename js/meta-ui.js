@@ -290,7 +290,7 @@ const MetaUI = (() => {
   const STAGE_ITEMS = () => [
     { key: 'normal', mode: 'normal', n: 1, name: '3ステージ通し(仮)', sub: '草原 → 荒野 → 奈落 を進み、最終ボスを倒す(エスカレーションまでの仮)', col: '#ffd23f' },
     { key: 'arena', mode: 'arena', n: 1, name: '闘技場', sub: `ボス${DATA.arena.order.length}体の連戦`, col: '#ff3b5c' },
-    ...DATA.stageRuns.map((R, i) => ({ key: 'stage' + (i + 1), mode: 'stage', n: i + 1, tier: R.tier, name: DATA.stages[R.stage - 1].label,
+    ...DATA.stageRuns.map(R => ({ key: 'stage' + R.no, mode: 'stage', n: R.no, tier: R.tier, name: DATA.stages[R.stage - 1].label,
       sub: `tier ${R.tier} ・ 敵Lv ${DATA.flow.tierLv[R.tier - 1]} から ・ ${R.bosses.map(b => DATA.bosses[b].name.split(' ')[0]).join(' → ')}`, col: TIER_COL[R.tier - 1] }))
       .sort((a, b) => a.tier - b.tier), // 通常モード: tier の順
   ];

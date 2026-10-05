@@ -32,6 +32,13 @@ const DATA = {
     jslime:   { hp: 20, spd: 22, dmg: 8,  xp: 1, r: 4, ai: 'hop', hop: { every: 0.7, k: 3.0 } }, // 宝石スライム
     beetle:   { hp: 36, spd: 16, dmg: 10, xp: 1, r: 5, ai: 'chase', kbRes: 0.6, rush: { cd: 4, range: 120, wind: 0.5, len: 140, spd: 260 } }, // 晶甲虫(硬い殻: 押されにくい)
     fairy:    { hp: 14, spd: 48, dmg: 7,  xp: 1, r: 3, ai: 'flutter', wobble: 1.5 }, // プリズムフェアリー
+    // 沈黙の海淵 / touchSta: 触れると(当たったとき)スタミナ −n / shot.sta・throw.sta: 弾が当たるとスタミナ −n
+    // puff: 近づくとふくらんで針を全周に(射程 range 以内で wind 秒ふくらみ、count 本・速さ spd・×n・スタミナ −sta。cd 秒ごと)
+    // lantern: 提灯(cd 秒ごとに wind 秒の予告 円 半径 r → 中にいるとスタミナ −sta)
+    jelly:    { hp: 34, spd: 10, dmg: 8,  xp: 1, r: 6, ai: 'flutter', wobble: 1.1, touchSta: 20 }, // クラゲ
+    sahagin:  { hp: 32, spd: 17, dmg: 9,  xp: 1, r: 5, ai: 'chase', throw: { cd: 4.5, range: 130, wind: 0.6, len: 150, w: 8, spd: 170, n: 1.3, sta: 15, kind: 'trident' } }, // サハギン
+    puffer:   { hp: 28, spd: 12, dmg: 8,  xp: 1, r: 5, ai: 'chase', puff: { cd: 3, range: 40, wind: 0.5, count: 8, spd: 70, n: 0.8, sta: 5 } }, // ハリセンボン
+    angler:   { hp: 60, spd: 14, dmg: 13, xp: 2, r: 7, ai: 'chase', lantern: { cd: 5, wind: 0.6, r: 70, sta: 25 } }, // チョウチンアンコウ
     goblin:   { hp: 160, spd: 44, dmg: 0, xp: 12, r: 5, ai: 'flee', kbRes: 0.5, noElite: true },
   },
 
@@ -51,6 +58,8 @@ const DATA = {
     ifrit:   { name: '炎魔イフリート IFRIT',        hp: 1600, spd: 18, dmg: 24, r: 13, music: 'b_hell', col: '#ff8a3d', enrage: 0.4 },
     stag:    { name: '晶角の大鹿 PRISM STAG',       hp: 1400, spd: 26, dmg: 20, r: 13, music: 'b_crystal', col: '#9ff7ff' },
     pqueen:  { name: '七彩の女王 PRISM QUEEN',      hp: 1300, spd: 22, dmg: 20, r: 11, music: 'b_crystal', col: '#ff8ad8' },
+    kraken:  { name: '大海魔クラーケン KRAKEN',     hp: 2000, spd: 10, dmg: 22, r: 16, music: 'b_sea', col: '#7ad7c8' },
+    levia:   { name: '深淵の海竜 LEVIATHAN',        hp: 1700, spd: 21, dmg: 22, r: 15, music: 'b_sea', col: '#4ab8e8', enrage: 0.4 },
   },
   // 状態異常(プレイヤー): 粘液・スロウタイムの移動速度倍率 / スロウタイムのCD回復倍率 / 炎上
   debuff: { slow: 0.6, cdRate: 0.5, burnTick: 0.5, burnDur: 3, frostSlow: 0.05, shockR: 60, pDur: 5, pBleed: 0.01, pBleedMax: 5 }, // frostSlow: 凍傷1スタックあたりの減速(敵・自分) / shockR: 感電の連鎖距離 / pDur: 自分の凍傷・出血が消えるまでの秒 / pBleed: 自分の出血1スタックの毎秒ダメージ(最大HP の割合)
@@ -1350,6 +1359,9 @@ const DATA = {
     // 七彩の晶窟(tier 1): 暗い紫の洞窟。七色に光る結晶の群れと、色とりどりのきらめき(曲は用意されるまで草原の曲)
     { label: '七彩の晶窟', music: 'f_crystal', ground: ['#1c1530', '#231a3a', '#161026', '#2a2044'], deco: ['#3a2c5a', '#5a4a8a', '#9ff7ff', '#ff8ad8'],
       amb: [0.5, 0.44, 0.74], tint: [1.04, 0.98, 1.1], motes: { col: '#c78bff', cols: ['#ff6a8a', '#ffd23f', '#7dff9a', '#7ad7ff', '#c78bff', '#ff9a3d'], rise: false }, crystal: true },
+    // 沈黙の海淵(tier 2): 深い青緑の海の底。珊瑚と海藻、昇る泡、揺らめく光の筋
+    { label: '沈黙の海淵', music: 'f_sea', ground: ['#0e2a33', '#12323c', '#0b2229', '#163a45'], deco: ['#1f5a4a', '#2f7a5a', '#ff7a8a', '#ffb06a'],
+      amb: [0.38, 0.56, 0.66], tint: [0.92, 1.02, 1.08], motes: { col: '#bff4ff', rise: true, bubble: true }, sea: true },
   ],
 
   // ---------- カオス強化(db.xlsx「カオス強化」)----------
@@ -1400,13 +1412,14 @@ const DATA = {
   },
 
   // ---------- 通常モード(ステージを1つ選ぶ) ----------
-  // stage = DATA.stages の番号 / tier = 開始の敵Lv・報酬 / bosses = ボス1 → ボス2(倒すとクリア)
+  // no = ステージのキーの番号(stage1〜7。クリア記録・カオス強化) / stage = DATA.stages の番号 / tier = 開始の敵Lv・報酬 / bosses = ボス1 → ボス2(倒すとクリア)
   //   segs = 3分ごとの区間の出現の候補(1つ目は 0・60・120秒で1種ずつ足す / 2つ目 / 3つ目。null = その前の全部)
   stageRuns: [
-    { stage: 1, tier: 1, bosses: ['king', 'gslime'], segs: [['zombie', 'bat', 'slime'], ['bat', 'slime', 'brute'], null] },
-    { stage: 2, tier: 2, bosses: ['golem', 'wyrm'], segs: [['skeleton', 'archer', 'sandmage'], ['archer', 'sandmage', 'spear'], null] },
-    { stage: 3, tier: 3, bosses: ['cdragon', 'ifrit'], segs: [['imp', 'hound', 'onibi'], ['hound', 'onibi', 'lslime'], null] },
-    { stage: 5, tier: 1, bosses: ['stag', 'pqueen'], segs: [['bat', 'jslime', 'beetle'], ['jslime', 'beetle', 'fairy'], null] }, // stage4 = 七彩の晶窟
+    { no: 1, stage: 1, tier: 1, bosses: ['king', 'gslime'], segs: [['zombie', 'bat', 'slime'], ['bat', 'slime', 'brute'], null] },
+    { no: 2, stage: 2, tier: 2, bosses: ['golem', 'wyrm'], segs: [['skeleton', 'archer', 'sandmage'], ['archer', 'sandmage', 'spear'], null] },
+    { no: 3, stage: 3, tier: 3, bosses: ['cdragon', 'ifrit'], segs: [['imp', 'hound', 'onibi'], ['hound', 'onibi', 'lslime'], null] },
+    { no: 4, stage: 5, tier: 1, bosses: ['stag', 'pqueen'], segs: [['bat', 'jslime', 'beetle'], ['jslime', 'beetle', 'fairy'], null] }, // 七彩の晶窟
+    { no: 6, stage: 6, tier: 2, bosses: ['kraken', 'levia'], segs: [['jelly', 'sahagin', 'puffer'], ['sahagin', 'puffer', 'angler'], null] }, // 沈黙の海淵
   ],
   // 通常モードの流れ(フェーズの時計で進む。ボス・エリート群のフェーズの間は止まる)
   //   seg: 区間の長さ / waves: 区間ごとの出現の間隔・上限(t は区間の中の秒) / horde: 2つ目・3つ目の区間で大群を出す秒 / elites: エリート群の数
