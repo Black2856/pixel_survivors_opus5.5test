@@ -2,10 +2,10 @@
 // ゲーム内の計算とステータス画面の内訳は、どちらも computeStats() の結果を使う
 'use strict';
 
-const STAT_SRC = ['class', 'classLv', 'tree', 'equip', 'unique', 'chaos', 'run', 'micro'];
+const STAT_SRC = ['class', 'classLv', 'tree', 'equip', 'unique', 'chaos', 'tier', 'run', 'micro'];
 const STAT_SRC_LABEL = {
   class: 'クラス基礎', classLv: 'クラスLv', tree: '永続ツリー', equip: '装備',
-  unique: '固有効果', chaos: 'カオス強化', run: 'ラン中の強化', micro: '微強化',
+  unique: '固有効果', chaos: 'カオス強化', tier: 'ステージの tier', run: 'ラン中の強化', micro: '微強化',
 };
 
 // ---------- 永続ツリーのグラフ ----------
@@ -199,6 +199,8 @@ function computeStats({ cls = META.cls, run = false, eq = run ? 'run' : 'zero' }
 
   // カオス強化の報酬(そのランの合計ポイントに応じて)
   if (run && S && S.chaosReward) for (const k in S.chaosReward) if (k !== 'pt') add('chaos', k, S.chaosReward[k]);
+  // ステージの tier の報酬(通常モード。tier 1 を基準に、1つ上がるごと)
+  if (run && S && S.tier > 1) for (const k in DATA.flow.tierReward) add('tier', k, DATA.flow.tierReward[k] * (S.tier - 1));
 
   // 微強化(hpPct は最大HP の倍率)
   if (run && P) for (const k in P.micro) { if (k === 'hpPct') mul.hp *= 1 + P.micro[k]; else add('micro', k, P.micro[k]); }

@@ -382,8 +382,9 @@ function render() {
   lx.globalCompositeOperation = 'lighter';
 
   const st = DATA.stages[S ? S.stage - 1 : 0];
-  // 環境光・グレーディングを滑らかに遷移
-  for (let i = 0; i < 3; i++) { GFX.ambient[i] = lerp(GFX.ambient[i], st.amb[i], 0.03); GFX.tint[i] = lerp(GFX.tint[i], st.tint[i], 0.03); }
+  // 環境光・グレーディングを滑らかに遷移。闇の霧は環境光を暗く、青紫に寄せる(光源のまわりだけが見える)
+  const fk = fogDarkK();
+  for (let i = 0; i < 3; i++) { GFX.ambient[i] = lerp(GFX.ambient[i], st.amb[i] * (1 - 0.55 * fk) * (i === 2 ? 1 + 0.3 * fk : 1), 0.03); GFX.tint[i] = lerp(GFX.tint[i], st.tint[i] * (i === 1 ? 1 - 0.12 * fk : 1), 0.03); }
 
   drawGround();
   if (!S || S.demo) return drawMotes(st);
@@ -873,6 +874,12 @@ function render() {
     if (e.elite) {
       addLight(e.x, e.y, 50, '#ffd23f', 0.8);
     }
+    if (e.phaseElite) { // エリート群: 足元で脈打つ赤い輪
+      const rr = Math.round(sp.w * sc * 0.55 + 2 + Math.sin(t * 6 + e.seed * 7) * 1.5), fy = Math.round(e.y - cam.y + sp.h * sc / 2 - 1);
+      sx.globalAlpha = 0.55; pCircle(sx, Math.round(e.x - cam.x), fy, rr, '#ff3b5c'); sx.globalAlpha = 1;
+      pCircle(gx, Math.round(e.x - cam.x), fy, rr, '#7a1020');
+      addLight(e.x, e.y, 60, '#ff3b5c', 0.6);
+    }
     if (e.prop) addLight(e.x, e.y - 3, 70 + Math.sin(t * 13 + e.seed * 9) * 6, '#ff9b3d', 1);
     if (e.boss) addLight(e.x, e.y, 90, e.col, 0.8);
     if (e.aim) { gx.fillStyle = '#ffb13a'; gx.fillRect(Math.round(e.x - cam.x), Math.round(e.y - cam.y - 10), 1, 3); }
@@ -1177,6 +1184,22 @@ function render() {
       sx.globalAlpha = 0.18; pDisc(sx, wx, wy, R, '#ff3b5c');
       sx.globalAlpha = 0.22; pDisc(sx, wx, wy, Math.round(R * k), '#ff3b5c'); sx.globalAlpha = 1;
       pCircle(sx, wx, wy, R, edge); pCircle(gx, wx, wy, R, '#ff3b5c');
+    }
+  }
+  // エリート群: 画面の外にいるエリートの方向を、画面の縁に赤い二重の矢印で示す
+  if (S.phase && S.phase.kind === 'elite') {
+    const cx0 = VW / 2, cy0 = VH / 2, blink = Math.floor(t * 5) % 2;
+    for (const e of S.phase.elites) {
+      if (e.dead || onScreen(e.x, e.y, -10)) continue;
+      const a = Math.atan2(e.y - cam.y - cy0, e.x - cam.x - cx0), ca = Math.cos(a), sa = Math.sin(a);
+      const k = Math.min((cx0 - 14) / Math.max(1e-4, Math.abs(ca)), (cy0 - 14) / Math.max(1e-4, Math.abs(sa)));
+      for (let j = 0; j < 2; j++) {
+        const d = k - j * 5 + (blink ? 1 : 0), tx = cx0 + ca * d, ty = cy0 + sa * d;
+        for (const s of [-1, 1]) {
+          const wx = tx + Math.cos(a + s * 2.4) * 6, wy = ty + Math.sin(a + s * 2.4) * 6;
+          pLine(sx, tx, ty, wx, wy, j ? '#ffd0d8' : '#ff3b5c', 2); pLine(gx, tx, ty, wx, wy, '#a01828', 2);
+        }
+      }
     }
   }
 

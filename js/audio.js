@@ -159,6 +159,23 @@ const AudioMan = (() => {
     burstOpen(){ if (!this._ok()) return; this.noise(0.9, { vol: 0.35, f0: 6000, f1: 80 }); this.tone(80, 30, 0.7, { vol: 0.2, type: 'sine' }); [784, 988, 1175, 1568, 1976, 2349].forEach((f, i) => this.tone(f, f, 0.5, { vol: 0.06, delay: 0.1 + i * 0.05, type: 'triangle' })); },
     coinRain(n) { if (!this._ok()) return; for (let i = 0; i < n; i++) this.tone(1800 + Math.random() * 900, 2400 + Math.random() * 900, 0.05, { vol: 0.03, delay: i * 0.05 + Math.random() * 0.03, type: 'square' }); },
     death()   { if (!this._ok()) return; [440, 349, 262, 196, 131].forEach((f, i) => this.tone(f, f * 0.97, 0.3, { vol: 0.1, delay: i * 0.16, type: 'square' })); },
+    // ステージの流れ: 自分が凍みる「パキッ」/ エリート群の襲来(低い角笛と太鼓)/ フェーズクリアのファンファーレ
+    //   闇の霧が立ちこめる低いうねり / 霧の中の鼓動(k: 強さ)
+    frost()   { if (!this._ok('pfrost', 0.12)) return; this.noise(0.18, { vol: 0.12, f0: 9000, f1: 3000, ftype: 'highpass' }); this.tone(2600, 1700, 0.1, { vol: 0.04, type: 'triangle' }); this.tone(3400, 2900, 0.12, { vol: 0.025, type: 'sine', delay: 0.04 }); },
+    eliteHorn() {
+      if (!this._ok('eliteHorn', 1)) return;
+      this.tone(98, 92, 1.3, { vol: 0.13, type: 'sawtooth' }); this.tone(147, 139, 1.2, { vol: 0.06, type: 'sawtooth', delay: 0.06 });
+      this.tone(196, 185, 0.9, { vol: 0.04, type: 'square', delay: 0.5 });
+      for (let i = 0; i < 3; i++) { this.noise(0.35, { vol: 0.24, f0: 900, f1: 50, delay: 0.25 + i * 0.32 }); this.tone(90, 34, 0.3, { vol: 0.14, type: 'sine', delay: 0.25 + i * 0.32 }); }
+    },
+    phaseClear() {
+      if (!this._ok('phaseClear', 1)) return;
+      [523, 659, 784, 1047, 1319, 1568].forEach((f, i) => this.tone(f, f * 1.005, 0.32, { vol: 0.08, delay: i * 0.06, type: i % 2 ? 'square' : 'triangle' }));
+      [1047, 1319, 1568].forEach(f => this.tone(f, f, 1.1, { vol: 0.035, type: 'triangle', delay: 0.42 }));
+      this.noise(1.1, { vol: 0.1, f0: 9000, f1: 2500, ftype: 'highpass', delay: 0.35 });
+    },
+    fogRise() { if (!this._ok('fogRise', 2)) return; this.noise(2.6, { vol: 0.14, f0: 160, f1: 1400, ftype: 'bandpass' }); this.tone(55, 41, 2.6, { vol: 0.09, type: 'sawtooth' }); this.tone(82, 61, 2.2, { vol: 0.04, type: 'sine', delay: 0.3 }); },
+    heartbeat(k = 1) { if (!this._ok('heartbeat', 0.3)) return; this.tone(64, 40, 0.18, { vol: 0.14 * k, type: 'sine' }); this.tone(58, 36, 0.16, { vol: 0.11 * k, type: 'sine', delay: 0.21 }); },
   };
   return A;
 })();

@@ -37,13 +37,20 @@ function pushWarn(w) {
   warns.push(w);
 }
 
-// ステージ単体モードの出現スケジュール: そのステージの敵の波を 0 秒から並べ直し、180秒と360秒にボス
+// 通常モード(ステージを1つ選ぶ)の出現スケジュール。t はフェーズの時計(ボス・エリート群の間は止まる)
+// 3分 → エリート群 → 3分 → ボス1 → 3分 → ボス2(倒すとクリア)。同じ t ではフェーズの開始を波の切り替えより先に処理する
 function stageSchedule(n) {
-  const R = DATA.stageRuns[n - 1];
-  const waves = DATA.schedule.filter(e => !e.boss && e.t >= R.from && e.t < R.to && e.t - R.from < 180).map(e => Object.assign({}, e, { t: e.t - R.from }));
-  const again = waves.filter(e => e.t > 0).map(e => Object.assign({}, e, { t: e.t + 186 })).filter(e => e.t < 360);
-  // 時刻順に並べる(スポナーは先頭から順に処理するため)
-  return [...waves, { t: 180, boss: [R.bosses[0]] }, { t: 186, ...waves[0] }, ...again, { t: 360, boss: [R.bosses[1]], final: true }].sort((x, y) => x.t - y.t);
+  const R = DATA.stageRuns[n - 1], F = DATA.flow, L = F.seg;
+  const s1 = R.segs[0], s2 = R.segs[1] || s1, s3 = R.segs[2] || [...new Set([...s1, ...s2])];
+  const out = F.waves[0].map((w, i) => ({ t: w.t, types: s1.slice(0, i + 1), interval: w.interval, max: w.max }));
+  out.push({ t: L, elites: F.elites });
+  for (const w of F.waves[1]) out.push({ t: L + w.t, types: s2, interval: w.interval, max: w.max });
+  out.push({ t: L + F.horde, event: 'horde' });
+  out.push({ t: L * 2, boss: [R.bosses[0]] });
+  for (const w of F.waves[2]) out.push({ t: L * 2 + w.t, types: s3, interval: w.interval, max: w.max });
+  out.push({ t: L * 2 + F.horde, event: 'horde' });
+  out.push({ t: L * 3, boss: [R.bosses[1]], final: true });
+  return out;
 }
 function initRun(mode = 'normal', stageNo = 1) {
   S = {
@@ -52,6 +59,7 @@ function initRun(mode = 'normal', stageNo = 1) {
     freeze: 0, ts: 1, tsBack: 0, schedIdx: 0, spawnT: 0, spawnCfg: null,
     eatk: 1, // 敵の攻撃力の倍率(敵ごとの処理の間だけ。ビッグクランチのブラックホールの中で下がる)
     eliteT: 95, goblinT: 70, propT: 2, elv: 1, elvT: 0, boss: null, pendingLv: 0, lvFx: 0,
+    ptime: 0, phase: null, tier: 0, // ptime: フェーズの時計(通常モード) / phase: ボス・エリート群のフェーズ { kind, t } / tier: ステージの tier(通常モード)
     rerolls: 0, weaponSlots: 4, lvQueue: [],
     gold: 0, deathT: 0, victoryT: 0, hudDirty: true, won: false, hint: {}, decoy: null, bossKills: 0, loot: [],
   };
@@ -59,6 +67,7 @@ function initRun(mode = 'normal', stageNo = 1) {
     cls: META.cls, mainW: META.classes[META.cls].weapon, micro: {}, lvFx: classLvFx(META.cls), wm: {}, x: 0, y: 0, hp: 0, maxhp: 100, level: 1, xp: 0, xpNext: xpFor(1), weapons: {},
     ifr: 0, facing: 1, animT: 0, moving: false, hurtT: 0, dead: false,
     slowT: 0, cdSlowT: 0, burnT: 0, burnDmg: 0, burnTick: 0, shield: 0, oShield: 0, oChunks: [],
+    frost: 0, frostT: 0, bleed: 0, bleedT: 0, bleedTick: 0, // 自分の凍傷・出血(スタック数と、消えるまでの秒)
   };
   enemies = []; projs = []; eprojs = []; gems = []; drops = []; props = []; hazards = [];
   parts = []; floats = []; rings = []; zones = []; slashes = []; bolts = []; warns = []; flashes = [];
@@ -70,7 +79,7 @@ function initRun(mode = 'normal', stageNo = 1) {
   clsInit();
   S.stageNo = stageNo; S.sched = mode === 'stage' ? stageSchedule(stageNo) : DATA.schedule;
   if (mode === 'arena') { S.stage = 4; S.elv = DATA.arena.elv[0]; S.arena = { idx: 0, restT: 3, warned: false }; } // 開始時の敵Lv(深い闇)は下で足す。ラウンドの敵Lv は arenaLv
-  if (mode === 'stage') { const R = DATA.stageRuns[stageNo - 1]; S.stage = R.stage; S.elv = R.elv; }
+  if (mode === 'stage') { const R = DATA.stageRuns[stageNo - 1]; S.stage = R.stage; S.tier = R.tier; S.elv = DATA.flow.tierLv[R.tier - 1]; }
   // カオス強化: クリア済みのモード・ステージだけ。設定は META.chaos[キー]
   const ck = mode === 'stage' ? 'stage' + stageNo : mode;
   S.chaos = META.stageClear[ck] && META.chaos && META.chaos[ck] ? Object.assign({}, META.chaos[ck]) : {};
@@ -126,7 +135,7 @@ const lvK = (kind, lv = S.elv) => 1 + DATA.enemyLevel[kind] * (lv - 1);
 const hpK = (lv = S.elv) => DATA.enemyLevel.hpLin * (lv - 1) + Math.pow(DATA.enemyLevel.hpExp, lv - 1);
 const enemyDmgK = () => enemyBase() * lvK('dmg');
 function updEnemyLevel(dt) {
-  if (S.boss || S.mode === 'arena') return; // ボス出現中は停止(闘技場はラウンドごとに固定)
+  if (S.phase || S.mode === 'arena') return; // ボス・エリート群のフェーズ中は停止(闘技場はラウンドごとに固定)
   S.elvT += dt * CHAOS.lvSpeed; // カオス: 敵Lv の上昇速度
   if (S.elvT >= DATA.enemyLevel.interval) { S.elvT -= DATA.enemyLevel.interval; S.elv++; UI.enemyLvUp(); }
 }
@@ -154,7 +163,7 @@ function updPlayer(dt) {
   const aim = mouseAimPt();
   if (aim && aim.x !== P.x) P.facing = aim.x > P.x ? 1 : -1; // 照準中はマウス側を向く(アックスの投擲方向も追従)
   clsUpdate(dt);
-  const sp = P.speed * P.moveMul * (P.slowT > 0 ? DATA.debuff.slow : 1);
+  const sp = P.speed * P.moveMul * (P.slowT > 0 ? DATA.debuff.slow : 1) * playerFrostMul();
   P.x += mx * sp * dt; P.y += my * sp * dt;
   if (P.after) for (const a of P.after) a.t += dt;
   if (P.after) P.after = P.after.filter(a => a.t < 0.25);
@@ -172,6 +181,7 @@ function updPlayer(dt) {
 function updDebuffs(dt) {
   P.slowT -= dt; P.cdSlowT -= dt;
   if (P.slowT > 0 && Math.random() < dt * 8) part(P.x + rand(-3, 3), P.y + 6, 0, 8, 0.4, P.cdSlowT > 0 ? '#c29bff' : '#4fd6a8', { glow: P.cdSlowT > 0 });
+  updFrostBleed(dt);
   if (P.burnT <= 0) return;
   P.burnT -= dt; P.burnTick -= dt;
   if (Math.random() < dt * 16) part(P.x + rand(-4, 4), P.y + rand(-4, 4), 0, -26, 0.4, pick(['#ff6a2a', '#ffc34a']), { glow: true });
@@ -192,6 +202,42 @@ function burnPlayer(dmg) {
 function breakCombo() {
   if (S.combo >= 10) addFloat(P.x, P.y - 18, 'x' + S.combo, '#8a8098');
   S.combo = 0; S.comboT = 0;
+}
+// 自分の凍傷・出血(敵の技から)。どちらも最後に受けてから DATA.debuff.pDur 秒で全部消える
+//   凍傷: 1スタックにつき移動速度 −frostSlow(最大 ×0.2)。減速を受けない状態(不屈)では付かない
+//   出血: 1スタックにつき 1秒ごとに 最大HP × pBleed(最大 pBleedMax スタック)。防御力・シールドでは減らない
+const playerFrostMul = () => Math.max(0.2, 1 - DATA.debuff.frostSlow * P.frost);
+function frostPlayer(n) {
+  if (!(n > 0) || P.invT > 0 || P.dead || clsSlowImmune()) return;
+  const was = P.frost;
+  P.frost = Math.min(Math.round(0.8 / DATA.debuff.frostSlow), P.frost + n); P.frostT = DATA.debuff.pDur * CHAOS.debuff;
+  burst(P.x, P.y - 4, 6 + n * 3, ['#bff4ff', '#ffffff', '#7ad7ff'], { sp: 50, glow: true, life: 0.4 }); // 霜が弾ける
+  if (Math.floor(was / 4) < Math.floor(P.frost / 4)) { addRing(P.x, P.y, 14, '#9ff7ff', { life: 0.3 }); AudioMan.frost(); } // 4スタックごとに凍みる音
+  S.hudDirty = true;
+}
+function bleedPlayer(n) {
+  if (!(n > 0) || P.invT > 0 || P.dead) return;
+  if (P.bleed <= 0) P.bleedTick = 1;
+  P.bleed = Math.min(DATA.debuff.pBleedMax, P.bleed + n); P.bleedT = DATA.debuff.pDur * CHAOS.debuff;
+  for (let i = 0; i < 6 + n * 3; i++) part(P.x + rand(-3, 3), P.y - 4 + rand(-3, 3), rand(-50, 50), rand(-70, -20), rand(0.35, 0.6), pick(['#a0122a', '#ff3b5c', '#5a0a14']), { g: 240, drag: 1.5, sz: pick([1, 2]) }); // 血しぶき
+  S.hudDirty = true;
+}
+function updFrostBleed(dt) {
+  if (P.frost > 0) {
+    if ((P.frostT -= dt) <= 0) { P.frost = 0; burst(P.x, P.y, 10, ['#bff4ff', '#ffffff'], { sp: 40, life: 0.3 }); S.hudDirty = true; } // 溶けて消える
+    else if (Math.random() < dt * (3 + P.frost)) part(P.x + rand(-5, 5), P.y + rand(-8, 4), rand(-4, 4), rand(4, 12), 0.6, pick(['#ffffff', '#bff4ff', '#9ff7ff']), { glow: true, drag: 1 }); // 積むほど霜が舞う
+  }
+  if (P.bleed > 0) {
+    if ((P.bleedT -= dt) <= 0) { P.bleed = 0; S.hudDirty = true; return; }
+    if (Math.random() < dt * (4 + P.bleed * 2)) part(P.x + rand(-3, 3), P.y + rand(-4, 2), rand(-6, 6), 10, 0.5, pick(['#a0122a', '#5a0a14']), { g: 160, sz: pick([1, 2]) }); // したたる血
+    if ((P.bleedTick -= dt) > 0) return;
+    P.bleedTick = 1;
+    const dmg = Math.max(1, Math.round(P.maxhp * DATA.debuff.pBleed * P.bleed));
+    P.hp -= dmg; breakCombo(); S.hudDirty = true; GFX.fx.hurt = Math.max(GFX.fx.hurt, 0.35);
+    if (P.hp <= 0 && clsSaveLethal()) P.hp = 1;
+    addFloat(P.x, P.y - 10, String(dmg), '#c8102e');
+    if (P.hp <= 0) playerDown();
+  }
 }
 
 // シールド: P.shield(魔力障壁など。時間では消えない)+ P.oShield(時間で消える。聖盾の 10秒・守印 5秒など)。合計は最大HP まで
@@ -218,8 +264,9 @@ function takeOverShield(a) {
   P.oShield = Math.max(0, P.oShield - a);
   while (a > 0 && P.oChunks.length) { const c = P.oChunks[0], k = Math.min(c.v, a); c.v -= k; a -= k; if (c.v <= 1e-9) P.oChunks.shift(); }
 }
-function hurtPlayer(dmg) {
-  if (P.ifr > 0 || P.invT > 0 || P.dead || state !== 'play') return;
+// o.pierce: 被弾後の無敵(P.ifr)を無視する(連続技)。回避・防御スキルの無敵(P.invT)とガードでは防げる
+function hurtPlayer(dmg, o) {
+  if ((P.ifr > 0 && !(o && o.pierce)) || P.invT > 0 || P.dead || state !== 'play') return;
   dmg *= S.eatk ?? 1; // 攻撃してきた敵の攻撃力の倍率(ビッグクランチ)
   const r = clsOnHurt(dmg); // ガードなどでクラスが受けきった場合は null
   if (r === null) { S.hudDirty = true; return; }
@@ -1101,9 +1148,10 @@ function killEnemy(e, o = {}) {
   }
   AudioMan.kill();
   if (DATA.enemies[e.type].split && !e.elite) for (let i = 0; i < 2; i++) spawnEnemy(DATA.enemies[e.type].split, { x: e.x + rand(-4, 4), y: e.y + rand(-4, 4) });
+  if (e.phaseElite && S.phase && S.phase.kind === 'elite') { S.phase.lastX = e.x; S.phase.lastY = e.y; } // エリート群: 宝箱は最後の1体の位置に
   if (e.elite || e.type === 'goblin') {
     hitstop(0.06); shake(6); shockAt(e.x, e.y, 1.2, 0.8); addFlash(e.x, e.y, 100, '#ffd23f', 0.4);
-    dropItem('chest', e.x, e.y); // エリート・トレジャー(ゴブリン)も装備宝箱を落とす
+    if (!e.noChest) dropItem('chest', e.x, e.y); // 自然発生のエリート・トレジャー(ゴブリン)は装備宝箱を落とす(エリート群・親衛隊・ボス戦中のエリートは落とさない)
     const n = e.type === 'goblin' ? 18 : 4;
     for (let i = 0; i < n; i++) dropItem('coin', e.x, e.y, e.type === 'goblin' ? 3 : 2);
     AudioMan.boom();
@@ -1129,6 +1177,7 @@ function spawnEnemy(type, o = {}) {
     t: rand(0, 5), seed: Math.random(), kx: 0, ky: 0, flash: 0, elite: !!o.elite, scale: o.elite ? 2 : 1,
     frost: 0, frostT: 0, burns: [], burnT: 0, burnTick: 0, stun: 0, slowT: 0, bleed: 0, bleedT: 0, shotT: d.shot ? rand(1, d.shot.cd) : 0, hopT: rand(0, 1),
     life: type === 'goblin' ? 16 : 0,
+    noChest: !!o.noChest, phaseElite: !!o.phaseElite, // 宝箱を落とさない / エリート群のエリート
   };
   enemies.push(e);
   return e;
@@ -1203,7 +1252,7 @@ function updEnemies(dt) {
         if (e.shotT <= 0 && dd < 180) {
           const s = DATA.enemies.archer.shot;
           e.shotT = s.cd;
-          eprojs.push({ kind: 'arrow', x: e.x, y: e.y, vx: Math.cos(a) * s.spd, vy: Math.sin(a) * s.spd, dmg: s.dmg * enemyDmgK() * S.eatk, life: 4, t: 0, r: 2 * CHAOS.area });
+          eprojs.push({ kind: 'arrow', x: e.x, y: e.y, vx: Math.cos(a) * s.spd, vy: Math.sin(a) * s.spd, dmg: e.dmg * s.n * S.eatk, life: 4, t: 0, r: 2 * CHAOS.area }); // その敵のダメージ × n
         }
         e.aim = e.shotT < 0.4;
       } else if (e.ai === 'flee') {
@@ -1260,6 +1309,7 @@ function spawnBoss(key, final, companion) {
   S.boss = e;
   UI.bossBar(e);
   S.bosses = [e];
+  if (!S.phase || S.phase.kind !== 'boss') S.phase = { kind: 'boss', t: 0 }; // ボスのフェーズ(双王の2体目では始め直さない)
   if (CHAOS.twin && !companion) { // カオス: もう1体(このステージ以外のボスからランダム)
     const here = new Set(S.sched ? S.sched.filter(x => x.boss).flatMap(x => x.boss) : []);
     const pool = Object.keys(DATA.bosses).filter(k => k !== key && !here.has(k));
@@ -1270,8 +1320,9 @@ function spawnBoss(key, final, companion) {
   return e;
 }
 
+// dmg: 当たったときのダメージ(呼ぶ側で ボスの基礎ダメージ × n にする。e.dmg に敵Lv の倍率は入っている)
 function eball(x, y, a, spd, dmg, kind = 'ball') {
-  eprojs.push({ kind, x, y, vx: Math.cos(a) * spd, vy: Math.sin(a) * spd, dmg: dmg * enemyDmgK() * (S.eatk ?? 1), life: 7, t: 0, r: (kind === 'scythe' ? 4 : 3) * CHAOS.area });
+  eprojs.push({ kind, x, y, vx: Math.cos(a) * spd, vy: Math.sin(a) * spd, dmg: dmg * (S.eatk ?? 1), life: 7, t: 0, r: (kind === 'scythe' ? 4 : 3) * CHAOS.area });
 }
 // 放物線で飛ぶ弾(着弾まで当たり判定なし。着地で onLand)
 function lob(kind, x, y, tx, ty, T, H, onLand) {
@@ -1279,7 +1330,7 @@ function lob(kind, x, y, tx, ty, T, H, onLand) {
 }
 // 往復する大鎌(当たっても消えない)
 function boomerang(e, a) {
-  eprojs.push({ kind: 'boomer', x: e.x, y: e.y, a, v: 220, ret: false, owner: e, t: 0, life: 8, r: 7 * CHAOS.area, keep: true, dmg: 18 * enemyDmgK() * (S.eatk ?? 1) });
+  eprojs.push({ kind: 'boomer', x: e.x, y: e.y, a, v: 220, ret: false, owner: e, t: 0, life: 8, r: 7 * CHAOS.area, keep: true, dmg: e.dmg * 0.65 * (S.eatk ?? 1) });
 }
 function addHazard(kind, x, y, o) {
   if (kind === 'goo' && hazards.length > 40) hazards.splice(hazards.findIndex(h => h.kind === 'goo'), 1);
@@ -1342,7 +1393,7 @@ function bossAI(e, dt) {
         if (ai.pt <= 0) {
           ai.ph = 'chase'; ai.slam = 7;
           hitCircle(e.x, e.y, 70, e.dmg * 1.2);
-          for (let i = 0; i < 14; i++) eball(e.x, e.y, TAU / 14 * i, 55, 12);
+          for (let i = 0; i < 14; i++) eball(e.x, e.y, TAU / 14 * i, 55, e.dmg * 0.55);
           shockAt(e.x, e.y, 1.8, 0.8); shake(10); AudioMan.boom();
           burst(e.x, e.y, 50, ['#7fae4e', '#b8d86a', '#3a1a14'], { sp: 150, g: 200 });
         }
@@ -1363,14 +1414,14 @@ function bossAI(e, dt) {
       if (ai.ring <= 0) {
         ai.ring = ai.enraged ? 3.4 : 4.6;
         const off = rand(0, 0.4);
-        for (let i = 0; i < 18; i++) eball(e.x, e.y, TAU / 18 * i + off, 52, 13);
+        for (let i = 0; i < 18; i++) eball(e.x, e.y, TAU / 18 * i + off, 52, e.dmg * 0.6);
         AudioMan.boom(); shake(4); burst(e.x, e.y, 16, ['#efe9d4', '#6ee7ff'], { sp: 90, glow: true });
       }
       ai.aim -= dt * CHAOS.rate;
-      if (ai.aim <= 0) { ai.aim = 2.2; for (let i = -1; i <= 1; i++) eball(e.x, e.y, a + i * 0.22, 78, 13); AudioMan.shoot(); }
+      if (ai.aim <= 0) { ai.aim = 2.2; for (let i = -1; i <= 1; i++) eball(e.x, e.y, a + i * 0.22, 78, e.dmg * 0.6); AudioMan.shoot(); }
       if (ai.enraged) {
         ai.spiral -= dt * CHAOS.rate;
-        if (ai.spiral <= 0) { ai.spiral = 0.12; ai.spA += 0.5; eball(e.x, e.y, ai.spA, 60, 11); eball(e.x, e.y, ai.spA + Math.PI, 60, 11); }
+        if (ai.spiral <= 0) { ai.spiral = 0.12; ai.spA += 0.5; eball(e.x, e.y, ai.spA, 60, e.dmg * 0.5); eball(e.x, e.y, ai.spA + Math.PI, 60, e.dmg * 0.5); }
       }
       ai.sum -= dt * CHAOS.rate;
       if (ai.sum <= 0) { ai.sum = 11; for (let i = 0; i < 4; i++) spawnEnemy('bat', { x: e.x + rand(-20, 20), y: e.y + rand(-20, 20) }); }
@@ -1394,14 +1445,14 @@ function bossAI(e, dt) {
           ai.tp = ai.enraged ? 3.8 : 6;
           burst(e.x, e.y, 24, ['#c29bff', '#ffffff'], { sp: 100, glow: true });
           shockAt(e.x, e.y, 1, 1); AudioMan.zap(); screenFlash(0.1, '#c29bff');
-          for (let i = 0; i < 8; i++) eball(e.x, e.y, TAU / 8 * i, 45, 14, 'scythe');
+          for (let i = 0; i < 8; i++) eball(e.x, e.y, TAU / 8 * i, 45, e.dmg * 0.5, 'scythe');
         }
       }
       ai.spiral -= dt * CHAOS.rate;
       if (ai.spiral <= 0 && ai.spN <= 0) { ai.spiral = ai.enraged ? 2.4 : 4; ai.spN = ai.enraged ? 22 : 14; }
       if (ai.spN > 0) {
         ai.spGap -= dt;
-        if (ai.spGap <= 0) { ai.spGap = 0.07; ai.spN--; ai.spA += 0.55; eball(e.x, e.y, ai.spA, 63, 16, 'scythe'); }
+        if (ai.spGap <= 0) { ai.spGap = 0.07; ai.spN--; ai.spA += 0.55; eball(e.x, e.y, ai.spA, 63, e.dmg * 0.55, 'scythe'); }
       }
       // 鎌投げ: 投げた大鎌が減速して死神のもとへ戻ってくる
       ai.throw -= dt * CHAOS.rate;
@@ -1441,7 +1492,7 @@ function gslimeAI(e, ai, dt, a, dist, slow) {
     hitCircle(e.x, e.y, 40, e.dmg * 1.3);
     addHazard('goo', e.x, e.y, { r: 30, dur: 8 });
     const n = ai.enraged ? 16 : 10;
-    for (let i = 0; i < n; i++) eball(e.x, e.y, TAU / n * i, 50, 11, 'glob');
+    for (let i = 0; i < n; i++) eball(e.x, e.y, TAU / n * i, 50, e.dmg * 0.55, 'glob');
     shockAt(e.x, e.y, 1.6, 0.8); shake(9); AudioMan.boom(); AudioMan.splat();
     burst(e.x, e.y, 40, ['#4fd6a8', '#d8fff2', '#23735f'], { sp: 140, g: 200 });
     return;
@@ -1517,7 +1568,7 @@ function golemAI(e, ai, dt, a, dist, slow) {
     pushWarn({ kind: 'circle', x: tx, y: ty, r: 30, t: 0, life: 0.85 });
     windup(e, 0.85, () => {
       hitCircle(tx, ty, 30, e.dmg * 1.2);
-      if (ai.enraged) for (let i = 0; i < 6; i++) eball(tx, ty, TAU / 6 * i + rand(0, 1), 60, 12, 'rbit');
+      if (ai.enraged) for (let i = 0; i < 6; i++) eball(tx, ty, TAU / 6 * i + rand(0, 1), 60, e.dmg * 0.5, 'rbit');
       burst(tx, ty, 30, ['#a89e8c', '#6a6258', '#3a3530'], { sp: 120, g: 220 });
       shockAt(tx, ty, 1.2, 0.8); shake(7); AudioMan.boom();
     });
@@ -1542,7 +1593,7 @@ function golemThrow(e, ai) {
       pushWarn({ kind: 'circle', x: tx, y: ty, r: 24, t: 0, life: T });
       lob('rock', e.x, e.y - 16, tx, ty, T, 70, p => {
         hitCircle(p.x, p.y, 24, e.dmg * 1.1);
-        for (let k = 0; k < 8; k++) eball(p.x, p.y, TAU / 8 * k + rand(0, 0.4), 62, 12, 'rbit');
+        for (let k = 0; k < 8; k++) eball(p.x, p.y, TAU / 8 * k + rand(0, 0.4), 62, e.dmg * 0.5, 'rbit');
         burst(p.x, p.y, 26, ['#a89e8c', '#6a6258', '#3a3530'], { sp: 110, g: 220 });
         shockAt(p.x, p.y, 1, 0.9); shake(6); AudioMan.boom();
       });
@@ -1587,7 +1638,7 @@ function dragonAI(e, ai, dt, a, dist, slow) {
     for (let c = 0; c < 2; c++) later(ai, c * 0.14, () => {
       const ca = Math.atan2(P.y - e.y, P.x - e.x), R = 47 * CHAOS.area;
       slashes.push({ x: e.x, y: e.y, a: ai.la, r: R, t: 0, life: 0.22, flip: c % 2, span: 2.2, pal: SWING_PAL.enemy, enemy: true }); // 見た目 = 当たり判定(半径 R・角度 ±1.1)
-      if (d2(e.x, e.y, P.x, P.y) < R * R && Math.abs(angDiff(ca, ai.la)) < 1.1) hurtPlayer(e.dmg * 1.1);
+      if (d2(e.x, e.y, P.x, P.y) < R * R && Math.abs(angDiff(ca, ai.la)) < 1.1) hurtPlayer(e.dmg * 0.6, { pierce: true }); // 2回とも当たる(被弾後の無敵を無視。回避では防げる)
       AudioMan.slash();
     });
     return;
@@ -1653,13 +1704,13 @@ function onBossDeath(e) {
   if (rest.length) {
     S.bosses = rest; S.boss = rest[0]; UI.bossBar(rest[0]); S.bossKills++; S.twinFinal = S.twinFinal || e.final;
     burst(e.x, e.y, 90, [e.col, '#ffd23f', '#ffffff'], { sp: 180, glow: true, life: 1.2 }); addFlash(e.x, e.y, 200, '#ffd23f', 0.8); shake(10); AudioMan.boom();
-    dropItem('chest', e.x, e.y - 14);
-    UI.announce('1体 撃破!', 'もう1体を倒せ');
+    UI.announce('1体 撃破!', 'もう1体を倒せ'); // 宝箱はフェーズのクリア(2体目)で
     return;
   }
   if (S.twinFinal) { e.final = true; S.twinFinal = false; }
   S.bosses = [];
   S.boss = null;
+  S.phase = null; // ボスのフェーズのクリア(闇の霧も晴れる)
   UI.bossBar(null);
   hitstop(0.18); slowmo(0.2, 2); screenFlash(0.9); shake(16);
   shockAt(e.x, e.y, 3, 0.55);
@@ -1675,7 +1726,7 @@ function onBossDeath(e) {
   for (let i = 0; i < 14; i++) dropGem(e.x + rand(-30, 30), e.y + rand(-30, 30), 20 * S.stage);
   for (let i = 0; i < 25; i++) dropItem('coin', e.x, e.y, 3 * S.stage);
   dropItem('meat', e.x + 14, e.y); dropItem('magnet', e.x - 14, e.y);
-  dropItem('chest', e.x, e.y - 14); // 装備宝箱
+  dropItem('chest', e.x, e.y - 14); chestBeacon(e.x, e.y - 14); // 装備宝箱(フェーズのクリア)
   if (e.final) {
     if (S.mode === 'stage' || (S.loop === 1 && !S.won)) { S.won = true; S.victoryT = 2.4; AudioMan.stopMusic(1.5); return; }
     S.loop++; S.schedIdx = 0; S.loopStart = S.time; setStage(1);
@@ -1693,6 +1744,83 @@ function setStage(n) {
   S.stage = n;
   groundCache.clear();
   S.hudDirty = true;
+}
+
+// ============================================================
+// フェーズ(通常モード): エリート群 / ボス。フェーズの間はフェーズの時計が止まり、3分を超えると闇の霧
+// ============================================================
+// フェーズのクリアで落ちる宝箱の光の柱(上へ昇る光の粒と、地面の輪)
+function chestBeacon(x, y) {
+  addFlash(x, y, 120, '#ffd23f', 0.9);
+  for (let k = 0; k < 3; k++) addRing(x, y, 18 + k * 14, k ? '#ffd23f' : '#ffffff', { w: 2, life: 0.5 + k * 0.2 });
+  for (let i = 0; i < 46; i++) part(x + rand(-6, 6), y + rand(-2, 4), rand(-8, 8), -rand(60, 190), rand(0.6, 1.3), pick(['#ffd23f', '#fff6c8', '#ffffff', '#ffb347']), { glow: true, drag: 0.6, sz: pick([1, 2]) });
+}
+// エリート群の襲来: そのステージの今の候補から n 体を、画面の外の 3方向(120°おき)から一斉に
+function startElitePhase(n) {
+  const pool = ((S.spawnCfg && S.spawnCfg.types) || ['zombie']).filter(k => !DATA.enemies[k].noElite);
+  const R = Math.hypot(GFX.VW, GFX.VH) / 2 + 10, a0 = rand(0, TAU), elites = [];
+  for (let i = 0; i < n; i++) {
+    const a = a0 + TAU / n * i, x = P.x + Math.cos(a) * R, y = P.y + Math.sin(a) * R;
+    const e = spawnEnemy(pool[i % pool.length], { x, y, elite: true, noChest: true, phaseElite: true });
+    elites.push(e);
+    // 画面の端から入ってくる方向に、赤い光の帯(予告)と地響き
+    warns.push({ kind: 'line', x: P.x + Math.cos(a) * 26, y: P.y + Math.sin(a) * 26, a, len: R - 26, w: 10, t: 0, life: 1.2, fixed: true });
+  }
+  S.phase = { kind: 'elite', t: 0, elites, lastX: P.x, lastY: P.y };
+  UI.banner('ELITE 襲来!!', `エリート ${n}体を倒せ`, 2200);
+  AudioMan.eliteHorn(); shake(7); screenFlash(0.35, '#ff3b5c'); shockAt(P.x, P.y, 1.6, 0.7);
+  slowmo(0.35, 0.6);
+}
+function endElitePhase() {
+  const ph = S.phase, x = ph.lastX, y = ph.lastY;
+  S.phase = null;
+  dropItem('chest', x, y - 10); chestBeacon(x, y - 10);
+  hitstop(0.12); slowmo(0.3, 1.2); shake(10); screenFlash(0.5, '#ffd23f'); shockAt(x, y, 2.2, 0.6);
+  addRing(x, y, 120, '#ffd23f', { w: 3, life: 0.8 }); addRing(x, y, 70, '#ffffff', { w: 2, life: 0.6 });
+  UI.banner('PHASE CLEAR', 'エリート群を撃破!', 2200, 'gold');
+  AudioMan.phaseClear();
+}
+// 毎フレーム: フェーズの外ではフェーズの時計を進め、フェーズの中では経過を数えて闇の霧
+function updPhase(dt) {
+  const ph = S.phase;
+  if (!ph) { S.ptime += dt; return; }
+  ph.t += dt;
+  if (ph.kind === 'elite' && ph.elites.every(e => e.dead)) return endElitePhase();
+  const F = DATA.flow.fog;
+  if (ph.t >= F.start - 10 && !ph.fogWarn) { ph.fogWarn = true; UI.announce('闇の霧が迫る…', 'あと 10秒で HP が削られはじめる'); AudioMan.heartbeat(0.7); }
+  const fk = fogDarkK();
+  if (fk > 0) fogWisps(dt, fk);
+  if (ph.t < F.start) return;
+  if (!ph.fogOn) { ph.fogOn = true; ph.fogTick = 1; UI.banner('闇の霧', '早く倒さないと HP が削られ続ける', 2200, 'fog'); AudioMan.fogRise(); shake(5); }
+  ph.fogDmg = F.dmg * (1 + Math.floor((ph.t - F.start) / F.step)); // 1秒ごとのダメージ(10秒ごとに +1)
+  if ((ph.fogTick -= dt) > 0) return;
+  ph.fogTick += 1;
+  fogHurt(ph.fogDmg);
+}
+// 闇の霧の暗さ(0〜1): 霧の 10秒前(予告)から暗くなり始め、霧が出て 5秒で最も暗い
+function fogDarkK() {
+  if (!S || !S.phase) return 0;
+  return clamp((S.phase.t - (DATA.flow.fog.start - 10)) / 15, 0, 1);
+}
+// 霧のもや: 画面の縁から内側へ這い寄る暗い粒(光らせない。光の層は色が明るさになるため)
+function fogWisps(dt, k) {
+  const n = dt * 40 * k;
+  for (let i = 0; i < n || Math.random() < n - i; i++) {
+    const side = Math.random() * 4 | 0, u = Math.random();
+    const x = cam.x + (side === 0 ? 0 : side === 1 ? GFX.VW : u * GFX.VW), y = cam.y + (side === 2 ? 0 : side === 3 ? GFX.VH : u * GFX.VH);
+    const a = Math.atan2(P.y - y, P.x - x), sp = rand(10, 26);
+    part(x, y, Math.cos(a) * sp, Math.sin(a) * sp, rand(1.2, 2.2), pick(['#1a0a2a', '#2a1240', '#3a1a5a']), { drag: 0.3, sz: pick([2, 3, 3]) });
+  }
+}
+// 闇の霧のダメージ: 防御力・シールド・無敵では減らない(炎上と同じ)
+function fogHurt(n) {
+  if (P.dead) return;
+  P.hp -= n; breakCombo(); S.hudDirty = true; GFX.fx.hurt = Math.max(GFX.fx.hurt, 0.5);
+  AudioMan.heartbeat(Math.min(1.3, 0.6 + n * 0.08));
+  for (let i = 0; i < 10; i++) { const a = rand(0, TAU); part(P.x + Math.cos(a) * 12, P.y + Math.sin(a) * 12, -Math.cos(a) * 25, -Math.sin(a) * 25, 0.6, pick(['#2a1240', '#5a2a8a', '#8a5ad0']), { glow: true, drag: 1 }); } // 霧が体へまとわりつく
+  if (P.hp <= 0 && clsSaveLethal()) P.hp = 1;
+  addFloat(P.x, P.y - 10, String(n), '#b07aff');
+  if (P.hp <= 0) playerDown();
 }
 
 // ---------- 敵弾 ----------
@@ -1855,16 +1983,18 @@ function updDrops(dt) {
 // ============================================================
 function updSpawner(dt) {
   if (S.mode === 'arena') return updArena(dt);
-  const sc = S.sched, el = S.time - S.loopStart;
+  // 通常モードはフェーズの時計(ボス・エリート群の間は止まる)、3ステージ通しは周回内の経過時間
+  const stage = S.mode === 'stage', sc = S.sched, el = stage ? S.ptime : S.time - S.loopStart;
   while (S.schedIdx < sc.length && el >= sc[S.schedIdx].t) {
     const en = sc[S.schedIdx++];
     if (en.boss) spawnBoss(pick(en.boss), en.final);
+    else if (en.elites) startElitePhase(en.elites);
     else if (en.event === 'horde') horde();
     else S.spawnCfg = en;
   }
   const cfg = S.spawnCfg;
   if (!cfg) return;
-  const rate = (1 + (S.loop - 1) * 0.3) * (P.uq.clock ? 1.15 : 1) * (S.boss ? 0.6 : 1) * CHAOS.spawn; // 狂時の: 出現数 +15% / カオス: 出現率
+  const rate = (1 + (S.loop - 1) * 0.3) * (P.uq.clock ? 1.15 : 1) * (S.phase ? 0.6 : 1) * CHAOS.spawn; // 狂時の: 出現数 +15% / フェーズ中は減らす / カオス: 出現率
   S.spawnT -= dt;
   while (S.spawnT <= 0) {
     S.spawnT += cfg.interval / rate;
@@ -1876,18 +2006,25 @@ function updSpawner(dt) {
       } else spawnEnemy(pick(cfg.types));
     }
   }
-  if (S.time > 90) {
-    S.eliteT -= dt;
-    if (S.eliteT <= 0) { S.eliteT = 60; spawnEnemy(pick(cfg.types), { elite: true }); UI.banner('ELITE 出現!!', '倒すと宝箱を落とす', 1600); AudioMan.warning(); }
+  // 自然発生のエリート・ゴブリン・篝火: 通常モードではフェーズの時計で進む(フェーズ中は止まる)
+  const tdt = stage && S.phase ? 0 : dt;
+  if ((stage ? S.ptime : S.time) > 90) {
+    S.eliteT -= tdt;
+    if (S.eliteT <= 0) {
+      S.eliteT = 60;
+      const pool = cfg.types.filter(k => !DATA.enemies[k].noElite);
+      if (pool.length) spawnEnemy(pick(pool), { elite: true, noChest: !!S.phase }); // ボス戦中に出たエリートは宝箱を落とさない
+      UI.banner('ELITE 出現!!', S.phase ? 'ボス戦中のエリート' : '倒すと宝箱を落とす', 1600); AudioMan.warning();
+    }
   }
-  S.goblinT -= dt;
+  S.goblinT -= tdt;
   if (S.goblinT <= 0) {
     S.goblinT = 140;
     const a = rand(0, TAU);
     spawnEnemy('goblin', { x: P.x + Math.cos(a) * 110, y: P.y + Math.sin(a) * 110 });
     UI.announce('トレジャーゴブリン!', '逃がすな!');
   }
-  S.propT -= dt;
+  S.propT -= tdt;
   if (S.propT <= 0) { S.propT = 6; if (enemies.filter(e => e.prop && !e.dead).length < 5) spawnProp(); }
 }
 
@@ -1913,11 +2050,11 @@ const arenaLv = i => DATA.arena.elv[i] + CHAOS.startLv + CHAOS.bossLv * i;
 // カオス「親衛隊」: ボスの左右からエリートが n 体入場する(そのボスのステージの敵から)
 function arenaEscort(boss, n, a, R) {
   const run = DATA.stageRuns.find(r => r.bosses.includes(boss.type)) || DATA.stageRuns[0];
-  const types = [...new Set(DATA.schedule.filter(w => w.types && w.t >= run.from && w.t < run.to).flatMap(w => w.types))].filter(k => DATA.enemies[k] && !DATA.enemies[k].prop);
+  const types = [...new Set(run.segs.filter(Boolean).flat())].filter(k => DATA.enemies[k] && !DATA.enemies[k].noElite);
   for (let i = 0; i < n; i++) {
     const b = a + (i - (n - 1) / 2) * 0.35 + (i % 2 ? 0.12 : -0.12), r = R * rand(0.85, 1.05);
     const x = Math.cos(b) * r, y = Math.sin(b) * r;
-    spawnEnemy(pick(types.length ? types : ['skeleton']), { elite: true, x, y });
+    spawnEnemy(pick(types.length ? types : ['skeleton']), { elite: true, noChest: true, x, y }); // 親衛隊は宝箱を落とさない
     burst(x, y, 16, ['#ffd23f', '#ffffff'], { sp: 80, glow: true, life: 0.5 });
   }
 }

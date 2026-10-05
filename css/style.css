@@ -100,6 +100,8 @@ button { font: inherit; color: inherit; cursor: pointer; border: 0; background: 
 #banner { position: absolute; top: 42%; left: 0; right: 0; padding: 16px 0; text-align: center; pointer-events: none; opacity: 0;
   background: repeating-linear-gradient(135deg, rgba(160,18,42,.85) 0 24px, rgba(60,6,16,.85) 24px 48px); border-top: 4px solid var(--red); border-bottom: 4px solid var(--red); }
 #banner.on { animation: ban 2.6s cubic-bezier(.22,1,.36,1) forwards; }
+#banner.gold { background: repeating-linear-gradient(135deg, rgba(150,108,12,.85) 0 24px, rgba(66,42,0,.85) 24px 48px); border-color: var(--gold); }
+#banner.fog { background: repeating-linear-gradient(135deg, rgba(68,22,108,.85) 0 24px, rgba(20,6,38,.85) 24px 48px); border-color: #b07aff; }
 .ban-main { font: 26px 'Press Start 2P'; color: #fff; text-shadow: 4px 4px 0 var(--ink); animation: flick .25s ease-in-out infinite; }
 .ban-sub { margin-top: 10px; font-size: 18px; text-shadow: 2px 2px 0 var(--ink); }
 @keyframes ban { 0% { opacity: 0; clip-path: inset(50% 0); } 10% { opacity: 1; clip-path: inset(0 0); } 85% { opacity: 1; } 100% { opacity: 0; } }

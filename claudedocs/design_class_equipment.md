@@ -4,6 +4,7 @@
 - ステータス: **v5 仕様確定(実装前)**。数値の調整は実装後に行う(残りの課題 → 11章)
 - 参照データ: `claudedocs/db.xlsx`(ステータス+永続ツリー / 装備固有効果 / バフデバフ / クラス一覧 / クラスレベル)
 - クラス別の設計: `claudedocs/classes/samurai.md`、`claudedocs/classes/mage.md`
+- 敵(通常敵・ボス)とステージの仕様: `claudedocs/enemies.md`(今の実装の控え・過去の案は `claudedocs/enemies_history.md`)
 
 ---
 

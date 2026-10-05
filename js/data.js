@@ -13,11 +13,11 @@ const DATA = {
     slime:    { hp: 30, spd: 15, dmg: 9,  xp: 1, r: 5, ai: 'hop', split: 'slimelet' },
     slimelet: { hp: 12, spd: 22, dmg: 6,  xp: 1, r: 3, ai: 'hop' },
     skeleton: { hp: 36, spd: 18, dmg: 10, xp: 1, r: 5, ai: 'chase' },
-    archer:   { hp: 30, spd: 16, dmg: 9,  xp: 1, r: 5, ai: 'keep', shot: { cd: 3.2, spd: 70, dmg: 9 } },
+    archer:   { hp: 30, spd: 16, dmg: 9,  xp: 1, r: 5, ai: 'keep', shot: { cd: 4.0, spd: 70, n: 1.0 } }, // 矢: その敵のダメージ × n
     ghost:    { hp: 33, spd: 22, dmg: 10, xp: 1, r: 5, ai: 'chase', ghost: true },
     brute:    { hp: 60, spd: 11, dmg: 13, xp: 2, r: 8, ai: 'chase', kbRes: 0.8 },
     imp:      { hp: 27, spd: 34, dmg: 10, xp: 1, r: 4, ai: 'flutter' },
-    goblin:   { hp: 160, spd: 44, dmg: 0, xp: 12, r: 5, ai: 'flee', kbRes: 0.5 },
+    goblin:   { hp: 160, spd: 44, dmg: 0, xp: 12, r: 5, ai: 'flee', kbRes: 0.5, noElite: true }, // noElite: エリートにならない
   },
 
   // ---------- 敵レベル(時間経過で上昇・ボス出現中は停止・周回してもリセットしない) ----------
@@ -35,7 +35,7 @@ const DATA = {
     cdragon: { name: 'カオスドラゴン CHAOS DRAGON', hp: 2000, spd: 20, dmg: 28, r: 16, music: 'boss3', col: '#ff4a8a', enrage: 0.4 },
   },
   // 状態異常(プレイヤー): 粘液・スロウタイムの移動速度倍率 / スロウタイムのCD回復倍率 / 炎上
-  debuff: { slow: 0.6, cdRate: 0.5, burnTick: 0.5, burnDur: 3, frostSlow: 0.05, shockR: 60 }, // frostSlow: 敵の凍傷1スタックあたりの減速 / shockR: 感電の連鎖距離
+  debuff: { slow: 0.6, cdRate: 0.5, burnTick: 0.5, burnDur: 3, frostSlow: 0.05, shockR: 60, pDur: 5, pBleed: 0.01, pBleedMax: 5 }, // frostSlow: 凍傷1スタックあたりの減速(敵・自分) / shockR: 感電の連鎖距離 / pDur: 自分の凍傷・出血が消えるまでの秒 / pBleed: 自分の出血1スタックの毎秒ダメージ(最大HP の割合)
   // 敵の出血: 1スタックごとに毎秒 最大HP × bleedPct(ボス ×bleedBoss・エリート ×bleedElite)、bleedDur 秒
   bleed: { pct: 0.002, dur: 5, boss: 0.1, elite: 0.25 },
 
@@ -1381,11 +1381,29 @@ const DATA = {
   // ---------- ステージ単体モード ----------
   // stage: 対応するステージ / from, to: 通常モードの出現スケジュールから使う区間(秒)/ elv: 開始時の敵Lv
   // bosses: 1体目(180秒)・2体目(360秒)。2体目を倒したらクリア
+  // 通常モード(ステージを1つ選ぶ): stage = DATA.stages の番号 / tier = 開始の敵Lv・報酬 / bosses = ボス1 → ボス2(倒すとクリア)
+  //   segs = 3分ごとの区間の出現の候補(1つ目は 0・60・120秒で1種ずつ足す / 2つ目 / 3つ目。null = その前の全部)
   stageRuns: [
-    { stage: 1, from: 0,   to: 180, elv: 1,  bosses: ['king', 'gslime'] },
-    { stage: 2, from: 186, to: 420, elv: 7,  bosses: ['wyrm', 'golem'] },
-    { stage: 3, from: 426, to: 660, elv: 14, bosses: ['reaper', 'cdragon'] },
+    { stage: 1, tier: 1, bosses: ['king', 'gslime'], segs: [['zombie', 'bat', 'slime'], ['bat', 'slime', 'brute'], null] },
+    { stage: 2, tier: 2, bosses: ['golem', 'wyrm'], segs: [['skeleton', 'archer', 'ghost'], ['archer', 'ghost', 'brute'], null] }, // 仮(段階2 で砂術師・投槍兵に)
+    { stage: 3, tier: 3, bosses: ['cdragon', 'reaper'], segs: [['imp', 'ghost', 'brute'], ['ghost', 'brute', 'slime'], null] }, // 仮(段階2 で新しい敵と、2体目をイフリートに)
   ],
+  // 通常モードの流れ(フェーズの時計で進む。ボス・エリート群のフェーズの間は止まる)
+  //   seg: 区間の長さ / waves: 区間ごとの出現の間隔・上限(t は区間の中の秒) / horde: 2つ目・3つ目の区間で大群を出す秒 / elites: エリート群の数
+  //   fog: フェーズが始まって start 秒たつと闇の霧(1秒ごとに HP −dmg、step 秒ごとに +dmg。防御力・シールドでは減らない)
+  //   tierLv: 開始の敵Lv(tier 1〜4) / tierReward: tier が1つ上がるごとの報酬(カオス強化の報酬に足す)
+  flow: {
+    seg: 180,
+    waves: [
+      [{ t: 0, interval: 0.9, max: 60 }, { t: 60, interval: 0.7, max: 100 }, { t: 120, interval: 0.6, max: 130 }],
+      [{ t: 0, interval: 0.5, max: 160 }, { t: 90, interval: 0.45, max: 190 }],
+      [{ t: 0, interval: 0.42, max: 210 }, { t: 90, interval: 0.38, max: 240 }],
+    ],
+    horde: 150, elites: 3,
+    fog: { start: 180, dmg: 1, step: 10 },
+    tierLv: [1, 3, 5, 7],
+    tierReward: { eqQual: 0.15, chestQual: 0.10, gold: 0.30 },
+  },
 
   // ---------- 闘技場(ボスラッシュ) ----------
   // order: 登場順 / elv: 各ラウンドの敵Lv(固定) / startLv: 開始時のレベルアップ回数
@@ -1393,6 +1411,6 @@ const DATA = {
   arena: {
     r: 250, rest: 8, startLv: 6, rewardLv: 5,
     order: ['king', 'gslime', 'wyrm', 'golem', 'reaper', 'cdragon'],
-    elv:   [6,      9,        13,     16,      20,       23],
+    elv:   [5,      10,       15,     20,      25,       30], // 5 から 5ずつ
   },
 };

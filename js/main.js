@@ -7,6 +7,7 @@
 function startRun(mode = 'normal', stageNo = 1) {
   AudioMan.unlock();
   initRun(mode, stageNo);
+  UI.bossBar(null); // 前のランでボス戦中に倒れたときのボスの HP バーを消す
   cam.fx = P.x - GFX.VW / 2; cam.fy = P.y - GFX.VH / 2;
   groundCache.clear();
   UI.show(UI.$('hud'));
@@ -87,7 +88,7 @@ function update(rdt) {
   updZones(dt);
   FX_MINE = false;
   updEnemies(dt);
-  if (!P.dead) updEnemyLevel(dt);
+  if (!P.dead) { updEnemyLevel(dt); updPhase(dt); } // フェーズの時計 / エリート群の終わり / 闇の霧
   updEprojs(dt);
   updHazards(dt);
   if (S.mode === 'arena') confineArena();

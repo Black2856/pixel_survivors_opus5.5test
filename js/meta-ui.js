@@ -285,9 +285,12 @@ const MetaUI = (() => {
 
   // ---------- ステージ選択 ----------
   // 通常モード(3ステージを周回) / ステージ単体(ボス2体) / 闘技場(ボスラッシュ)。クリアしたものに ★、カオス強化はクリアで解放
+  // 通常モード: ステージを1つ選ぶ(3分 → エリート群 → 3分 → ボス → 3分 → ボス)。帯の色は tier
+  const TIER_COL = ['#9ff7ff', '#7dff9a', '#ff8a3d', '#c78bff'];
   const STAGE_ITEMS = () => [
-    { key: 'normal', mode: 'normal', n: 1, name: '通常モード', sub: '3つのステージを進み、最終ボスを倒す', col: '#ffd23f' },
-    ...DATA.stageRuns.map((R, i) => ({ key: 'stage' + (i + 1), mode: 'stage', n: i + 1, name: DATA.stages[R.stage - 1].label, sub: `ボス2体でクリア ・ 敵Lv ${R.elv} から ・ ${R.bosses.map(b => DATA.bosses[b].name.split(' ')[0]).join(' → ')}`, col: '#9ff7ff' })),
+    { key: 'normal', mode: 'normal', n: 1, name: '3ステージ通し(仮)', sub: '3つのステージを進み、最終ボスを倒す(エスカレーションができるまでの仮のモード)', col: '#ffd23f' },
+    ...DATA.stageRuns.map((R, i) => ({ key: 'stage' + (i + 1), mode: 'stage', n: i + 1, name: DATA.stages[R.stage - 1].label,
+      sub: `通常モード ・ tier ${R.tier} ・ 敵Lv ${DATA.flow.tierLv[R.tier - 1]} から ・ エリート群 → ${R.bosses.map(b => DATA.bosses[b].name.split(' ')[0]).join(' → ')}`, col: TIER_COL[R.tier - 1] })),
     { key: 'arena', mode: 'arena', n: 1, name: '闘技場', sub: `ボス${DATA.arena.order.length}体の連戦`, col: '#ff3b5c' },
   ];
   function stageSelect() {
