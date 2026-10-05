@@ -6,18 +6,28 @@ const DATA = {
   player: { hp: 100, speed: 58, magnet: 30, iframe: 0.5, comboTime: 3, staLock: 5, food: 0.2 },
 
   // ---------- 敵 ----------
-  // ai: chase / flutter / keep(距離を取り射撃) / flee(逃走)
+  // ai: chase / flutter(揺れて飛ぶ)/ hop(跳ねる)/ keep(距離を取って射撃)/ flee(逃走)
+  // keep: [これより近いと離れる, これより遠いと近づく] / shot: 射撃(射程 range 以内で cd 秒ごと。wind: 構える秒、count 発を spread rad おきに。
+  //   弾: 速さ spd、ダメージ = その敵のダメージ × n、kind: 見た目、burn: 当たると炎上(その敵のダメージ × burn を 0.5秒ごと))
+  // throw: 投擲(射程 range 以内で cd 秒ごとに、wind 秒の予告の帯(長さ len・幅 w)→ 帯の長さだけ飛ぶ槍)
+  // touchBurn: 触れると炎上 / noTouch: 触れても当たらない / blast: プレイヤーの range 以内で wind 秒点滅して自爆(半径 r に ×n・炎上)。倒されると爆発しない
+  // fireFloor: 跳ねて着地したとき chance で燃える床(半径 r・dur 秒)。倒れた場所にも / noElite: エリートにならない
   enemies: {
     zombie:   { hp: 30, spd: 13, dmg: 9,  xp: 1, r: 5, ai: 'chase' },
     bat:      { hp: 21, spd: 30, dmg: 8,  xp: 1, r: 4, ai: 'flutter' },
     slime:    { hp: 30, spd: 15, dmg: 9,  xp: 1, r: 5, ai: 'hop', split: 'slimelet' },
     slimelet: { hp: 12, spd: 22, dmg: 6,  xp: 1, r: 3, ai: 'hop' },
-    skeleton: { hp: 36, spd: 18, dmg: 10, xp: 1, r: 5, ai: 'chase' },
-    archer:   { hp: 30, spd: 16, dmg: 9,  xp: 1, r: 5, ai: 'keep', shot: { cd: 4.0, spd: 70, n: 1.0 } }, // 矢: その敵のダメージ × n
+    skeleton: { hp: 30, spd: 18, dmg: 9,  xp: 1, r: 5, ai: 'chase' },
+    archer:   { hp: 30, spd: 16, dmg: 9,  xp: 1, r: 5, ai: 'keep', keep: [70, 95], shot: { cd: 4.0, range: 180, spd: 70, n: 1.0, kind: 'arrow' } },
     ghost:    { hp: 33, spd: 22, dmg: 10, xp: 1, r: 5, ai: 'chase', ghost: true },
     brute:    { hp: 60, spd: 11, dmg: 13, xp: 2, r: 8, ai: 'chase', kbRes: 0.8 },
-    imp:      { hp: 27, spd: 34, dmg: 10, xp: 1, r: 4, ai: 'flutter' },
-    goblin:   { hp: 160, spd: 44, dmg: 0, xp: 12, r: 5, ai: 'flee', kbRes: 0.5, noElite: true }, // noElite: エリートにならない
+    imp:      { hp: 28, spd: 20, dmg: 9,  xp: 1, r: 4, ai: 'keep', keep: [80, 110], shot: { cd: 4.0, range: 170, spd: 75, n: 1.0, kind: 'efire', burn: 0.1 } }, // 火の小鬼
+    sandmage: { hp: 26, spd: 14, dmg: 9,  xp: 1, r: 5, ai: 'keep', keep: [100, 130], shot: { cd: 4.5, range: 200, spd: 60, n: 0.8, kind: 'esand', wind: 0.5, count: 3, spread: 0.3 } }, // 砂術師
+    spear:    { hp: 32, spd: 16, dmg: 9,  xp: 1, r: 5, ai: 'chase', throw: { cd: 5, range: 140, wind: 0.6, len: 160, w: 6, spd: 200, n: 1.3 } }, // 投槍兵
+    hound:    { hp: 22, spd: 38, dmg: 9,  xp: 1, r: 5, ai: 'chase', touchBurn: 0.1 }, // ヘルハウンド
+    onibi:    { hp: 14, spd: 30, dmg: 7,  xp: 1, r: 4, ai: 'flutter', noTouch: true, noElite: true, blast: { range: 20, wind: 0.6, r: 30, n: 2.0, burn: 0.1 } }, // 鬼火
+    lslime:   { hp: 32, spd: 14, dmg: 9,  xp: 1, r: 6, ai: 'hop', fireFloor: { chance: 0.3, r: 10, dur: 3 } }, // 溶岩スライム
+    goblin:   { hp: 160, spd: 44, dmg: 0, xp: 12, r: 5, ai: 'flee', kbRes: 0.5, noElite: true },
   },
 
   // ---------- 敵レベル(時間経過で上昇・ボス出現中は停止・周回してもリセットしない) ----------
@@ -39,26 +49,26 @@ const DATA = {
   // 敵の出血: 1スタックごとに毎秒 最大HP × bleedPct(ボス ×bleedBoss・エリート ×bleedElite)、bleedDur 秒
   bleed: { pct: 0.002, dur: 5, boss: 0.1, elite: 0.25 },
 
-  // ---------- 出現スケジュール(周回内の経過秒) ----------
+  // ---------- 3ステージ通し(仮)の出現スケジュール(周回内の経過秒)。区間ごとに 草原 → 荒野 → 奈落 の敵 ----------
   // boss: 候補からランダムに1体。final: 撃破で勝利/周回
   schedule: [
     { t: 0,   types: ['zombie'],                            interval: 0.95, max: 60 },
     { t: 35,  types: ['zombie', 'bat'],                     interval: 0.75, max: 100 },
     { t: 80,  types: ['bat', 'slime', 'zombie'],            interval: 0.6,  max: 130 },
-    { t: 130, types: ['skeleton', 'slime', 'bat'],          interval: 0.5,  max: 160 },
+    { t: 130, types: ['bat', 'slime', 'brute'],             interval: 0.5,  max: 160 },
     { t: 180, boss: ['king', 'gslime'] },
-    { t: 186, types: ['skeleton', 'archer', 'zombie'],      interval: 0.55, max: 170 },
-    { t: 250, types: ['ghost', 'skeleton', 'archer'],       interval: 0.48, max: 190 },
-    { t: 320, types: ['ghost', 'brute', 'bat', 'slime'],    interval: 0.45, max: 200 },
+    { t: 186, types: ['skeleton', 'archer', 'sandmage'],    interval: 0.55, max: 170 },
+    { t: 250, types: ['archer', 'sandmage', 'spear'],       interval: 0.48, max: 190 },
+    { t: 320, types: ['skeleton', 'archer', 'sandmage', 'spear'], interval: 0.45, max: 200 },
     { t: 360, event: 'horde' },
     { t: 420, boss: ['wyrm', 'golem'] },
-    { t: 426, types: ['brute', 'imp', 'ghost'],             interval: 0.42, max: 220 },
-    { t: 500, types: ['imp', 'brute', 'archer', 'skeleton'], interval: 0.38, max: 240 },
+    { t: 426, types: ['imp', 'hound', 'onibi'],             interval: 0.42, max: 220 },
+    { t: 500, types: ['hound', 'onibi', 'lslime'],          interval: 0.38, max: 240 },
     { t: 560, event: 'horde' },
-    { t: 600, types: ['imp', 'brute', 'ghost', 'archer'],   interval: 0.33, max: 270 },
+    { t: 600, types: ['imp', 'hound', 'onibi', 'lslime'],   interval: 0.33, max: 270 },
     { t: 630, event: 'horde' },
     { t: 660, boss: ['reaper', 'cdragon'], final: true },
-    { t: 666, types: ['imp', 'ghost', 'brute', 'slime'],    interval: 0.4,  max: 240 },
+    { t: 666, types: ['imp', 'hound', 'onibi', 'lslime'],   interval: 0.4,  max: 240 },
   ],
 
   // ---------- 武器 ----------
@@ -1378,15 +1388,13 @@ const DATA = {
     ],
   },
 
-  // ---------- ステージ単体モード ----------
-  // stage: 対応するステージ / from, to: 通常モードの出現スケジュールから使う区間(秒)/ elv: 開始時の敵Lv
-  // bosses: 1体目(180秒)・2体目(360秒)。2体目を倒したらクリア
-  // 通常モード(ステージを1つ選ぶ): stage = DATA.stages の番号 / tier = 開始の敵Lv・報酬 / bosses = ボス1 → ボス2(倒すとクリア)
+  // ---------- 通常モード(ステージを1つ選ぶ) ----------
+  // stage = DATA.stages の番号 / tier = 開始の敵Lv・報酬 / bosses = ボス1 → ボス2(倒すとクリア)
   //   segs = 3分ごとの区間の出現の候補(1つ目は 0・60・120秒で1種ずつ足す / 2つ目 / 3つ目。null = その前の全部)
   stageRuns: [
     { stage: 1, tier: 1, bosses: ['king', 'gslime'], segs: [['zombie', 'bat', 'slime'], ['bat', 'slime', 'brute'], null] },
-    { stage: 2, tier: 2, bosses: ['golem', 'wyrm'], segs: [['skeleton', 'archer', 'ghost'], ['archer', 'ghost', 'brute'], null] }, // 仮(段階2 で砂術師・投槍兵に)
-    { stage: 3, tier: 3, bosses: ['cdragon', 'reaper'], segs: [['imp', 'ghost', 'brute'], ['ghost', 'brute', 'slime'], null] }, // 仮(段階2 で新しい敵と、2体目をイフリートに)
+    { stage: 2, tier: 2, bosses: ['golem', 'wyrm'], segs: [['skeleton', 'archer', 'sandmage'], ['archer', 'sandmage', 'spear'], null] },
+    { stage: 3, tier: 3, bosses: ['cdragon', 'reaper'], segs: [['imp', 'hound', 'onibi'], ['hound', 'onibi', 'lslime'], null] }, // 2体目は炎魔イフリートができるまで死神
   ],
   // 通常モードの流れ(フェーズの時計で進む。ボス・エリート群のフェーズの間は止まる)
   //   seg: 区間の長さ / waves: 区間ごとの出現の間隔・上限(t は区間の中の秒) / horde: 2つ目・3つ目の区間で大群を出す秒 / elites: エリート群の数

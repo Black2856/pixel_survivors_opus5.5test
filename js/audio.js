@@ -176,6 +176,11 @@ const AudioMan = (() => {
     },
     fogRise() { if (!this._ok('fogRise', 2)) return; this.noise(2.6, { vol: 0.14, f0: 160, f1: 1400, ftype: 'bandpass' }); this.tone(55, 41, 2.6, { vol: 0.09, type: 'sawtooth' }); this.tone(82, 61, 2.2, { vol: 0.04, type: 'sine', delay: 0.3 }); },
     heartbeat(k = 1) { if (!this._ok('heartbeat', 0.3)) return; this.tone(64, 40, 0.18, { vol: 0.14 * k, type: 'sine' }); this.tone(58, 36, 0.16, { vol: 0.11 * k, type: 'sine', delay: 0.21 }); },
+    // 荒野・奈落の敵: 砂術師の詠唱(砂が巻く音)/ 投槍兵の構え(金属の擦れ)と投擲(風切り)/ 鬼火の導火(しゅうしゅう)
+    sand()    { if (this._ok('sand', 0.15)) { this.noise(0.45, { vol: 0.07, f0: 600, f1: 3200, ftype: 'bandpass', rate: 0.7 }); this.tone(330, 440, 0.3, { vol: 0.02, type: 'triangle' }); } },
+    spearReady() { if (this._ok('spearReady', 0.15)) { this.tone(2200, 1900, 0.06, { vol: 0.025, type: 'triangle' }); this.noise(0.08, { vol: 0.05, f0: 5000, f1: 2500, ftype: 'highpass' }); } },
+    spearThrow() { if (this._ok('spearThrow', 0.08)) { this.noise(0.22, { vol: 0.12, f0: 900, f1: 4200, ftype: 'bandpass', rate: 1.3 }); this.tone(500, 260, 0.1, { vol: 0.03, type: 'sawtooth' }); } },
+    fuse()    { if (this._ok('fuse', 0.12)) { this.noise(0.55, { vol: 0.08, f0: 7000, f1: 9000, ftype: 'highpass', rate: 1.8 }); this.tone(900, 1700, 0.55, { vol: 0.02, type: 'sine' }); } },
   };
   return A;
 })();

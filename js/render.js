@@ -777,6 +777,20 @@ function render() {
       sx.globalAlpha = 0.45 * fade; pDisc(sx, hx, hy, R, '#2f9c7c');
       sx.globalAlpha = fade; pCircle(sx, hx, hy, R, '#4fd6a8'); pCircle(sx, hx, hy, R + 1, '#ff3b5c', 2); sx.globalAlpha = 1;
       gx.globalAlpha = 0.3 * fade; pCircle(gx, hx, hy, R + 1, '#ff3b5c', 2); gx.globalAlpha = 1;
+    } else if (h.kind === 'fire') { // 燃える床: 赤熱した地面に炎の舌がちらつく(縁は危険を示す赤)
+      const R = Math.round(h.r * Math.min(1, h.t * 8));
+      sx.globalAlpha = 0.55 * fade; pDisc(sx, hx, hy, R, '#4a1208');
+      sx.globalAlpha = 0.45 * fade; pDisc(sx, hx, hy, Math.max(1, R - 2), '#a8321a');
+      sx.globalAlpha = fade; pCircle(sx, hx, hy, R, warnBlink ? '#ff3b1a' : '#ff8a3d'); sx.globalAlpha = 1;
+      pDisc(gx, hx, hy, Math.max(1, R - 2), fade > 0.6 ? '#3a0e04' : '#1e0602'); // 赤熱(光の層は色で明るさが決まるので暗い色で)
+      const n = 3 + R;
+      for (let i = 0; i < n; i++) { // 炎の舌: 床ごとに決まった位置で、高さが揺らめく
+        const pa = hash2(i, h.seed) * TAU, pr = Math.sqrt(hash2(i + 31, h.seed)) * R * 0.85;
+        const fx = Math.round(hx + Math.cos(pa) * pr), fy = Math.round(hy + Math.sin(pa) * pr * 0.8);
+        const fh = Math.max(1, Math.round((1 + 3 * Math.abs(Math.sin(t * 9 + i * 1.7))) * fade));
+        for (let k = 0; k < fh; k++) { const col = k === fh - 1 ? '#ffe9a0' : k > fh / 2 ? '#ffc34a' : '#ff6a2a'; sx.fillStyle = gx.fillStyle = col; sx.fillRect(fx, fy - k, 1, 1); gx.fillRect(fx, fy - k, 1, 1); }
+      }
+      addLight(h.x, h.y, R * 3, '#ff6a2a', 0.75 * fade);
     } else if (h.kind === 'quake') {
       pCircle(sx, hx, hy, Math.round(h.r), '#ffd0d8'); pCircle(sx, hx, hy, Math.round(h.r) - 1, '#ff3b5c');
       gx.globalAlpha = 0.8; pCircle(gx, hx, hy, Math.round(h.r), '#ff3b5c'); gx.globalAlpha = 1;
@@ -840,7 +854,8 @@ function render() {
     shadow(e.x, e.y + sp.h * sc / 2 - 1, sp.w * sc * 0.8);
     let sy = 1, sxk = 1, yo = 0;
     if (e.ai === 'hop') { const h = e.hopT < 0.35 ? Math.sin((e.hopT / 0.35) * Math.PI) : 0; yo = -h * 5; sy = 1 + h * 0.15 - (e.hopT > 0.9 ? 0.15 : 0); sxk = 2 - sy; }
-    else if (e.ai === 'flutter') yo = Math.sin(e.t * 12) * 1.5;
+    else if (e.ai === 'flutter' || e.type === 'imp') yo = Math.sin(e.t * 12) * 1.5; // 飛ぶ敵は上下に揺れる(火の小鬼は浮いたまま射撃)
+    if (e.swell > 0) { sy = sxk = 1 + 0.45 * e.swell; } // 鬼火の自爆: 膨らむ
     else if (!e.prop && !e.boss) { const w = Math.abs(Math.sin(e.t * 7 + e.seed * 6)); sy = 1 - w * 0.06; sxk = 1 + w * 0.04; }
     if (e.boss) { sy = (e.sq || 1) + Math.sin(e.t * 3) * 0.03; sxk = 2 - sy; yo = -(e.jz || 0); }
     const flip = (e.face || 1) < 0;
@@ -1156,12 +1171,12 @@ function render() {
     const A = CHAOS.area, ol = { outline: oc, alpha: al, scale: A };
     if (al !== undefined) sx.globalAlpha = al; // drawRot は透明度を受け取らないので、ここで掛けて戻す
     if (p.kind === 'boomer') drawRot('scythe', p.t * 16, p.x, p.y, { scale: 2 * A, outline: oc });
-    else if (p.kind === 'glob' || p.kind === 'rbit') drawSp(ART.S[p.kind], p.x, p.y, ol);
-    else if (p.kind === 'arrow') drawRot('arrow', a, p.x, p.y, ol);
+    else if (p.kind === 'glob' || p.kind === 'rbit' || p.kind === 'efire' || p.kind === 'esand') drawSp(ART.S[p.kind], p.x, p.y, ol);
+    else if (p.kind === 'arrow' || p.kind === 'espear') drawRot(p.kind, a, p.x, p.y, ol);
     else if (p.kind === 'scythe') drawRot('scythe', p.t * 14, p.x, p.y, ol);
     else drawSp(ART.S.ball, p.x, p.y, ol);
     sx.globalAlpha = 1;
-    addLight(p.x, p.y, (p.kind === 'boomer' ? 40 : 22) * A, oc, stop ? 0.2 : 0.6);
+    addLight(p.x, p.y, (p.kind === 'boomer' ? 40 : p.kind === 'efire' ? 34 : 22) * A, p.kind === 'efire' && !stop ? '#ff6a2a' : oc, stop ? 0.2 : 0.6);
   }
   // 予兆: 赤い半透明の塗り(時間とともに内側が満ちる) + 点滅する縁
   const edge = warnBlink ? '#ff3b5c' : '#ffd0d8';
@@ -1461,7 +1476,7 @@ function updFx(dt) {
     p.x += p.vx * dt; p.y += p.vy * dt;
   }
   for (let i = floats.length - 1; i >= 0; i--) { const f = floats[i]; f.t += dt; f.y += f.vy * dt; f.vy *= Math.exp(-5 * dt); if (f.t >= f.life) floats.splice(i, 1); }
-  for (const arr of [rings, slashes, bolts, warns, flashes]) for (let i = arr.length - 1; i >= 0; i--) { arr[i].t += dt; if (arr[i].t >= arr[i].life) arr.splice(i, 1); }
+  for (const arr of [rings, slashes, bolts, warns, flashes]) for (let i = arr.length - 1; i >= 0; i--) { arr[i].t += dt; if (arr[i].t >= arr[i].life || (arr === warns && arr[i].owner && arr[i].owner.dead)) arr.splice(i, 1); } // 予兆は出した敵が倒れたら消す
   // 斬撃のイベント(鬼神・村正の一閃など): 決まった時刻に一度だけ。処理中に slashes が増えてもいいように、集めてから実行する
   const due = [];
   for (const s of slashes) if (s.ev) for (const ev of s.ev) if (!ev.done && s.t >= ev.at) { ev.done = true; due.push(ev.fn); }

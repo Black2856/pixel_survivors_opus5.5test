@@ -990,8 +990,10 @@ const ART = (() => {
     '...hhh....hhh...',
   ], { emit: 'c' });
 
-  S.imp = mk({ a: '#2a1a1a', b: '#ff6a3d', c: '#8a2a4a', d: '#ffff80', e: '#5a1010' }, [
-    'a.........a',
+  // 火の小鬼: 頭に炎をともし、距離を取って火の玉を投げる(炎は2コマで揺らめく)
+  const impPal = { a: '#2a1a1a', b: '#ff6a3d', c: '#8a2a4a', d: '#ffff80', e: '#5a1010', f: '#ff6a2a', g: '#ffe14a' };
+  const impBody = [
+    'a...fgf...a',
     '.a..bbb..a.',
     '..abbbbba..',
     'c.bdbbbdb.c',
@@ -1000,7 +1002,73 @@ const ART = (() => {
     '...bbbbb...',
     '....b.b....',
     '...bb.bb...',
-  ], { emit: 'd' });
+  ];
+  S.imp = [mk(impPal, ['.....f.....', '....fgf....', ...impBody], { emit: 'dfg' }), mk(impPal, ['....f......', '....fgf....', ...impBody], { emit: 'dfg' })];
+
+  // 砂術師: 砂色の頭巾と衣、琥珀の珠をつけた杖
+  S.sandmage = mk({ a: '#5a3a1a', b: '#c8a060', c: '#e8c88a', d: '#2a1a10', e: '#ffd23f', f: '#8a5a2a', g: '#ffb347', h: '#fff0c0', i: '#7a2a1a' }, [
+    '........ghg.',
+    '....aaa..gg.',
+    '...abbba..f.',
+    '..abbbbba.f.',
+    '..abddddb.f.',
+    '..abdedeb.f.',
+    '..abbddbbaf.',
+    '..bccccccbf.',
+    '.bcciiiiccf.',
+    '.bcccccccbf.',
+    '..bcccccbbf.',
+    '..bbcccbb.f.',
+    '..aa...aa...',
+  ], { emit: 'egh' });
+
+  // 投槍兵: 青銅の兜と革鎧、長い槍を立てて持つ
+  S.spear = mk({ a: '#3a2a1a', b: '#a0703a', c: '#e8e6da', d: '#c8b89a', e: '#ff5a3a', f: '#6b4a2a', g: '#dfe8f5', h: '#7a3a2a' }, [
+    '..........g.',
+    '...ddd...gg.',
+    '..ddddd..f..',
+    '..dccccd.f..',
+    '..ceccec.f..',
+    '..cccccc.f..',
+    '...hhhh..f..',
+    '..bbbbbbbf..',
+    '.cbbhhbbcf..',
+    '.c.bbbbb.f..',
+    '...bb.bb.f..',
+    '...c...c.f..',
+    '..cc...cc...',
+  ], { emit: 'e' });
+
+  // ヘルハウンド: 背に炎のたてがみを燃やして走る黒い犬(2コマで走る)
+  const houndPal = { a: '#ffe14a', b: '#3a1a16', c: '#ff6a2a', d: '#ffc34a', e: '#ffff80', f: '#2a1210', g: '#5a2a20' };
+  const houndTop = [
+    '............cd..',
+    '...........bbcb.',
+    '..........bbbbbb',
+    '.c.c.c....bbebbb',
+    'cdcdcdcbbbbbbgaa',
+    '.cbbbbbbbbbbb...',
+    '..bbbbbbbbbb....',
+  ];
+  S.hound = [mk(houndPal, [...houndTop, '..bf.bf..bf.bf..', '..f..f...f..f...', '.ff.ff..ff.ff...'], { emit: 'acde' }),
+    mk(houndPal, [...houndTop, '...bf.bf.bf.bf..', '...f.f...f.f....', '..ff.ff.ff.ff...'], { emit: 'acde' })];
+
+  // 鬼火: 青白い炎の玉に暗い目(2コマで揺らめく)
+  const onibiPal = { a: '#1a4a8a', b: '#3a8ad0', c: '#7ad7ff', d: '#ffffff', e: '#0c1a3a' };
+  S.onibi = [mk(onibiPal, ['...c...', '..cc...', '..bcc..', '.bccb..', '.bcdcb.', 'bcdddcb', 'bcedecb', '.bcdcb.', '..bbb..'], { emit: 'bcd' }),
+    mk(onibiPal, ['....c..', '...cc..', '..ccb..', '..bccb.', '.bcdcb.', 'bcdddcb', 'bcedecb', '.bcdcb.', '..bbb..'], { emit: 'bcd' })];
+
+  // 溶岩スライム: 黒い殻の割れ目から溶岩が光る
+  S.lslime = mk({ a: '#3a120c', b: '#8a2a14', c: '#ffc34a', d: '#1a0604', e: '#ff6a2a' }, [
+    '....aaa....',
+    '..aabebaa..',
+    '.abbbebcba.',
+    '.abebbbbca.',
+    'abbdbbbdbba',
+    'abbdbebdbba',
+    'abebbbbbeba',
+    '.aaaaaaaaa.',
+  ], { emit: 'ce' });
 
   S.goblin = mk({ a: '#5a8a3a', b: '#8fd06a', c: '#ffffff', d: '#ffcc33', e: '#b8861a', m: '#2a1a1a', f: '#6a3a8a', g: '#3a2a1a' }, [
     '.aa...aa....',
@@ -1183,6 +1251,10 @@ const ART = (() => {
   S.wisp = mk({ a: '#2fbf8a', b: '#9dffcf', c: '#ffffff' }, ['.aba.', 'abcba', 'bcccb', 'abcba', '.aba.'], { outline: false, emit: 'abc' });
   S.ball = mk({ a: '#a0122a', b: '#ff3b5c', c: '#ffc0c8' }, ['.aba.', 'abcba', 'bcccb', 'abcba', '.aba.'], { outline: false, emit: 'abc' });
   S.arrow = mk({ a: '#8a6a3a', b: '#e8e6da', c: '#ffb13a' }, ['c.....', '.aaaab', 'c.....']);
+  // 通常敵の弾: 火の小鬼の火の玉 / 砂術師の砂の弾 / 投槍兵の槍(右向き。回転フレームで描く)
+  S.efire = mk({ a: '#b8261a', b: '#ff6a2a', c: '#ffc34a', d: '#fff6c8' }, ['.aba.', 'abcba', 'bcdcb', 'abcba', '.aba.'], { outline: false, emit: 'bcd' });
+  S.esand = mk({ a: '#8a5a2a', b: '#e8c88a', c: '#fff0c0' }, ['.ab.', 'abcb', 'bccb', '.bb.'], { emit: 'c' });
+  S.espear = mk({ a: '#6b4a2a', b: '#dfe8f5', c: '#ffffff' }, ['.........b..', 'aaaaaaaaabbc', '.........b..']);
   S.scythe = mk({ a: '#c29bff', b: '#ffffff', c: '#5a3a9a' }, ['..aaa..', '.a...a.', 'b.....a', '.....ca', '....c..', '...c...'], { emit: 'ab' });
   S.glob = mk({ a: '#23735f', b: '#4fd6a8', c: '#d8fff2' }, ['.aba.', 'abcba', 'bcccb', 'abcba', '.aba.'], { emit: 'bc' });
   S.rock = mk({ a: '#241f1c', b: '#544c44', c: '#7a6f60', d: '#6ee7ff' }, ['...aaaa...', '..abbcba..', '.abbccbba.', 'abbbbbbbba', 'abdbbbbcba', 'abbbbbdbba', '.abbbbbba.', '..aaaaaa..'], { emit: 'd' });
@@ -1254,7 +1326,7 @@ const ART = (() => {
 
   // 回転フレーム(16方向)
   const ROT = {};
-  for (const k of ['axe', 'blade', 'bladeEvo', 'arrow', 'scythe']) {
+  for (const k of ['axe', 'blade', 'bladeEvo', 'arrow', 'scythe', 'espear']) {
     ROT[k] = rotFrames(S[k].c, 16);
     ROT[k + 'E'] = S[k].e ? rotFrames(S[k].e, 16) : null;
   }

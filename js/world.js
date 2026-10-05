@@ -5,6 +5,7 @@ const ECOL = {
   zombie: ['#7fb069', '#6b5a8e'], bat: ['#8a4fc0', '#2a1838'], slime: ['#4fd6a8', '#d8fff2'], slimelet: ['#4fd6a8', '#d8fff2'],
   skeleton: ['#e8e6da', '#6b6a60'], archer: ['#e8e6da', '#35523d'], ghost: ['#c6f7f2', '#8fd9e0'], brute: ['#c46a4a', '#6b4a2a'],
   imp: ['#ff6a3d', '#8a2a4a'], goblin: ['#8fd06a', '#ffcc33'], brazier: ['#ff6a2a', '#ffc34a'],
+  sandmage: ['#e8c88a', '#8a5a2a'], spear: ['#c8b89a', '#7a3a2a'], hound: ['#ff6a2a', '#3a1a1a'], onibi: ['#7ad7ff', '#ffffff'], lslime: ['#ff6a2a', '#5a1a14'],
 };
 const xpFor = l => Math.floor(4 + l * 2.6 + Math.pow(l, 1.72));
 
@@ -265,11 +266,12 @@ function takeOverShield(a) {
   while (a > 0 && P.oChunks.length) { const c = P.oChunks[0], k = Math.min(c.v, a); c.v -= k; a -= k; if (c.v <= 1e-9) P.oChunks.shift(); }
 }
 // o.pierce: 被弾後の無敵(P.ifr)を無視する(連続技)。回避・防御スキルの無敵(P.invT)とガードでは防げる
+// 返り値: 当たった(シールドで受けた場合も含む)なら true。無敵・ガードで防いだら false(炎上などの追加効果はこれを見る)
 function hurtPlayer(dmg, o) {
-  if ((P.ifr > 0 && !(o && o.pierce)) || P.invT > 0 || P.dead || state !== 'play') return;
+  if ((P.ifr > 0 && !(o && o.pierce)) || P.invT > 0 || P.dead || state !== 'play') return false;
   dmg *= S.eatk ?? 1; // 攻撃してきた敵の攻撃力の倍率(ビッグクランチ)
   const r = clsOnHurt(dmg); // ガードなどでクラスが受けきった場合は null
-  if (r === null) { S.hudDirty = true; return; }
+  if (r === null) { S.hudDirty = true; return false; }
   dmg = Math.max(1, Math.round((r - P.armor) * (1 - P.dr)));
   // シールドが先に受ける
   const a = Math.min(Math.floor(shieldTotal()), dmg); // 整数で受ける。先に消える聖盾から
@@ -280,7 +282,7 @@ function hurtPlayer(dmg, o) {
     addFloat(P.x, P.y - 10, String(a), '#7ab8ff', 1);
     burst(P.x, P.y, 8, ['#9fd8ff', '#4f8ff0', '#ffffff'], { sp: 60, glow: true, life: 0.3 });
     if (shieldTotal() < 1) { P.shield = P.oShield = 0; P.oChunks = []; addRing(P.x, P.y, 20, '#4f8ff0', { w: 2, life: 0.3 }); AudioMan.hit(); clsOnShieldBreak(); } // 割れた
-    if (dmg <= 0) { P.ifr = P.iframe * clsIfrMul(); AudioMan.hit(); return; }
+    if (dmg <= 0) { P.ifr = P.iframe * clsIfrMul(); AudioMan.hit(); return true; }
   }
   P.hp -= dmg; P.ifr = P.iframe * clsIfrMul(); P.hurtT = 0.12; // 被弾後の無敵時間(クラスの倍率: アストロマンサーの不動)
   if (P.hp <= 0 && clsSaveLethal()) P.hp = 1; // 倒れるダメージをクラスが耐える(バーサーカーの不死の狂乱)
@@ -292,6 +294,7 @@ function hurtPlayer(dmg, o) {
   burst(P.x, P.y, 10, ['#ff4a5a', '#ffffff', '#8a1a2a'], { sp: 70 });
   S.hudDirty = true;
   if (P.hp <= 0) playerDown();
+  return true;
 }
 // 自分の技で受けるダメージ(HP を払う: ワイルドトマホークの代償・仁王立ちなど)。防御力・ダメージ軽減・シールドでは減らず、無敵時間も付かない
 //   被弾として扱うクラスは clsSelfHurt で量を変える(バーサーカー: 怒り・昂り、不屈などの軽減)。自分の技では倒れない(HP は 1 未満にならない)
@@ -1147,7 +1150,9 @@ function killEnemy(e, o = {}) {
     part(e.x, e.y, 0, -30, 0.5, '#9dffcf', { glow: true, sz: 2 });
   }
   AudioMan.kill();
-  if (DATA.enemies[e.type].split && !e.elite) for (let i = 0; i < 2; i++) spawnEnemy(DATA.enemies[e.type].split, { x: e.x + rand(-4, 4), y: e.y + rand(-4, 4) });
+  const ed = DATA.enemies[e.type];
+  if (ed.split && !e.elite) for (let i = 0; i < 2; i++) spawnEnemy(ed.split, { x: e.x + rand(-4, 4), y: e.y + rand(-4, 4) });
+  if (ed.fireFloor) lavaPool(e, ed.fireFloor); // 溶岩スライム: 倒れた場所に燃える床
   if (e.phaseElite && S.phase && S.phase.kind === 'elite') { S.phase.lastX = e.x; S.phase.lastY = e.y; } // エリート群: 宝箱は最後の1体の位置に
   if (e.elite || e.type === 'goblin') {
     hitstop(0.06); shake(6); shockAt(e.x, e.y, 1.2, 0.8); addFlash(e.x, e.y, 100, '#ffd23f', 0.4);
@@ -1175,7 +1180,7 @@ function spawnEnemy(type, o = {}) {
     id: nextId++, type, x, y, hp: d.hp * hpk, maxhp: d.hp * hpk, spd: d.spd * spk * rand(0.9, 1.1), dmg: d.dmg * enemyDmgK(),
     r: d.r * (o.elite ? 2 : 1), xp: d.xp * lvK('xp'), ai: d.ai, kbRes: o.elite ? 0.9 : d.kbRes || 0, ghost: d.ghost,
     t: rand(0, 5), seed: Math.random(), kx: 0, ky: 0, flash: 0, elite: !!o.elite, scale: o.elite ? 2 : 1,
-    frost: 0, frostT: 0, burns: [], burnT: 0, burnTick: 0, stun: 0, slowT: 0, bleed: 0, bleedT: 0, shotT: d.shot ? rand(1, d.shot.cd) : 0, hopT: rand(0, 1),
+    frost: 0, frostT: 0, burns: [], burnT: 0, burnTick: 0, stun: 0, slowT: 0, bleed: 0, bleedT: 0, shotT: d.shot || d.throw ? rand(1, (d.shot || d.throw).cd) : 0, wind: 0, hopT: rand(0, 1),
     life: type === 'goblin' ? 16 : 0,
     noChest: !!o.noChest, phaseElite: !!o.phaseElite, // 宝箱を落とさない / エリート群のエリート
   };
@@ -1187,6 +1192,42 @@ function spawnProp() {
   const a = rand(0, TAU), R = rand(180, 260);
   const e = spawnEnemy('zombie', { x: P.x + Math.cos(a) * R, y: P.y + Math.sin(a) * R });
   Object.assign(e, { type: 'brazier', prop: true, hidden: true, hp: 1, maxhp: 1, spd: 0, dmg: 0, r: 4, ai: 'none', xp: 0, kbRes: 1 });
+}
+
+// ---------- 通常敵の攻撃 ----------
+// 射撃(弓兵・火の小鬼・砂術師): 弾のダメージ = その敵のダメージ × n。count 発を spread rad おきの扇に
+const SHOT_R = { arrow: 2, efire: 3, esand: 2.5 }; // 弾の当たり判定の半径(見た目の大きさ。攻撃範囲の倍率で広がる)
+function enemyShoot(e, s, a) {
+  const n = s.count || 1;
+  for (let i = 0; i < n; i++) {
+    const aa = a + (i - (n - 1) / 2) * (s.spread || 0);
+    eprojs.push({ kind: s.kind, x: e.x, y: e.y - 2, vx: Math.cos(aa) * s.spd, vy: Math.sin(aa) * s.spd, dmg: e.dmg * s.n * S.eatk, burn: s.burn ? e.dmg * s.burn * S.eatk : 0, life: 4, t: 0, r: (SHOT_R[s.kind] || 3) * CHAOS.area });
+  }
+  if (s.kind === 'efire') { burst(e.x + Math.cos(a) * 4, e.y - 2 + Math.sin(a) * 4, 7, ['#ff6a2a', '#ffc34a', '#fff6c8'], { sp: 45, glow: true, life: 0.3 }); AudioMan.fire(); }
+  else if (s.kind === 'esand') { burst(e.x, e.y - 2, 12, ['#e8c88a', '#c8a060', '#fff0c0'], { sp: 60, life: 0.4, drag: 2 }); addRing(e.x, e.y + 3, 10, '#e8c88a', { life: 0.3 }); }
+}
+// 投槍兵: 予告の帯の長さだけ飛ぶ槍(帯と同じく攻撃範囲の倍率で伸びる。槍の判定の幅 = 帯の幅)
+function throwSpear(e, th) {
+  const len = th.len * CHAOS.area;
+  eprojs.push({ kind: 'espear', x: e.x, y: e.y, vx: Math.cos(e.ta) * th.spd, vy: Math.sin(e.ta) * th.spd, dmg: e.dmg * th.n * S.eatk, life: len / th.spd, t: 0, r: th.w / 2 * CHAOS.area });
+  e.kx -= Math.cos(e.ta) * 30; e.ky -= Math.sin(e.ta) * 30; // 投げた反動で少しのけぞる
+  burst(e.x + Math.cos(e.ta) * 6, e.y + Math.sin(e.ta) * 6, 8, ['#c8b89a', '#ffffff', '#7a6a5a'], { sp: 70, life: 0.25 });
+  AudioMan.spearThrow();
+}
+// 鬼火の自爆: 半径 r に ×n と炎上。倒した扱いにはしない(経験値・コンボなし)
+function onibiBlast(e, bl) {
+  e.dead = true;
+  if (hitCircle(e.x, e.y, bl.r, e.dmg * bl.n)) burnPlayer(e.dmg * bl.burn);
+  const R = bl.r * CHAOS.area;
+  burst(e.x, e.y, 30, ['#7ad7ff', '#ffffff', '#3a8ad0', '#ffc34a', '#ff6a2a'], { sp: 120, glow: true, life: 0.45 });
+  for (let i = 0; i < 12; i++) { const pa = TAU / 12 * i; part(e.x, e.y, Math.cos(pa) * R * 3.2, Math.sin(pa) * R * 3.2, 0.3, '#bff4ff', { glow: true, drag: 6, sz: 2 }); } // 炎の輪が半径いっぱいまで走る
+  addRing(e.x, e.y, R, '#9fe8ff', { w: 2, life: 0.3 }); addFlash(e.x, e.y, R * 3, '#7ad7ff', 0.8);
+  shockAt(e.x, e.y, 0.9, 0.8); shake(3); AudioMan.boom();
+}
+// 溶岩スライム: 着地・倒れた場所に燃える床
+function lavaPool(e, f) {
+  addHazard('fire', e.x, e.y + 2, { r: f.r, dur: f.dur, dmg: e.dmg });
+  burst(e.x, e.y + 2, 9, ['#ff6a2a', '#ffc34a', '#5a1a14'], { sp: 55, g: 180, life: 0.45 });
 }
 
 function updEnemies(dt) {
@@ -1240,29 +1281,64 @@ function updEnemies(dt) {
       const slow = Math.max(0.2, 1 - DATA.debuff.frostSlow * (e.frost || 0)) * (e.slowT > 0 ? 0.6 : 1) * tw; // 凍傷(時の歪みと掛け算)
       const sp = e.spd * slow;
       const dc = S.decoy && d2(e.x, e.y, S.decoy.x, S.decoy.y) < 200 * 200 ? S.decoy : P; // 空蝉の分身
-      const a = Math.atan2(dc.y - e.y, dc.x - e.x);
+      const a = Math.atan2(dc.y - e.y, dc.x - e.x), d = DATA.enemies[e.type];
       let mx = Math.cos(a), my = Math.sin(a);
       if (e.ai === 'flutter') { const w = Math.sin(e.t * 5 + e.seed * 10) * 0.8; mx -= Math.sin(a) * w; my += Math.cos(a) * w; }
-      else if (e.ai === 'hop') { e.hopT -= dt; const hop = e.hopT < 0.35; if (e.hopT <= 0) e.hopT = 1.1; mx *= hop ? 2.4 : 0.1; my *= hop ? 2.4 : 0.1; }
-      else if (e.ai === 'keep') {
-        const dd = Math.sqrt(d2(e.x, e.y, P.x, P.y));
-        const k = dd > 95 ? 1 : dd < 70 ? -1 : 0;
+      else if (e.ai === 'hop') {
+        e.hopT -= dt; const hop = e.hopT < 0.35;
+        if (e.hopT <= 0) { e.hopT = 1.1; if (d.fireFloor && Math.random() < d.fireFloor.chance) lavaPool(e, d.fireFloor); } // 着地(溶岩スライム: 燃える床)
+        mx *= hop ? 2.4 : 0.1; my *= hop ? 2.4 : 0.1;
+      } else if (e.ai === 'keep') { // 距離を取って射撃(弓兵・火の小鬼・砂術師)
+        const s = d.shot, dd = Math.sqrt(d2(e.x, e.y, P.x, P.y));
+        const k = e.wind > 0 ? 0 : dd > d.keep[1] ? 1 : dd < d.keep[0] ? -1 : 0; // 構えている間は止まる
         mx *= k; my *= k;
-        e.shotT -= dt * CHAOS.rate * tw; // カオス: 攻撃頻度 / 時の歪み
-        if (e.shotT <= 0 && dd < 180) {
-          const s = DATA.enemies.archer.shot;
-          e.shotT = s.cd;
-          eprojs.push({ kind: 'arrow', x: e.x, y: e.y, vx: Math.cos(a) * s.spd, vy: Math.sin(a) * s.spd, dmg: e.dmg * s.n * S.eatk, life: 4, t: 0, r: 2 * CHAOS.area }); // その敵のダメージ × n
+        if (e.wind > 0) { // 構え(砂術師): 足元で砂が渦を巻き、終わると撃つ
+          e.wind -= dt * CHAOS.rate * tw;
+          if (Math.random() < dt * 45) { const pa = rand(0, TAU), pr = rand(5, 10); part(e.x + Math.cos(pa) * pr, e.y + 4 + Math.sin(pa) * pr * 0.5, -Math.sin(pa) * 34, Math.cos(pa) * 16 - 10, 0.35, pick(['#e8c88a', '#c8a060', '#fff0c0']), { drag: 2 }); }
+          if (e.wind <= 0) enemyShoot(e, s, Math.atan2(dc.y - e.y, dc.x - e.x));
+        } else {
+          e.shotT -= dt * CHAOS.rate * tw; // カオス: 攻撃頻度 / 時の歪み
+          if (e.shotT <= 0 && dd < s.range) {
+            e.shotT = s.cd;
+            if (s.wind) { e.wind = s.wind; AudioMan.sand(); } else enemyShoot(e, s, a);
+          }
         }
-        e.aim = e.shotT < 0.4;
+        e.aim = s.wind ? e.wind > 0 : e.shotT < 0.4; // 撃つ前に構える(予兆)
       } else if (e.ai === 'flee') {
         mx = -mx; my = -my;
         e.life -= dt;
         if (Math.random() < dt * 20) part(e.x, e.y, rand(-10, 10), rand(-20, 0), 0.6, '#ffcc33', { glow: true });
         if (e.life <= 0) { e.dead = true; UI.announce('逃げられた…', ''); burst(e.x, e.y, 20, ['#ffffff', '#ffcc33'], { sp: 60 }); continue; }
       }
+      if (d.throw) { // 投槍兵: 射程に入ると止まって構え、予告の帯の向きへ槍を投げる(帯は投槍兵について動く)
+        const th = d.throw;
+        if (e.wind > 0) {
+          mx = my = 0; e.wind -= dt * CHAOS.rate * tw;
+          if (e.wind <= 0) throwSpear(e, th);
+        } else {
+          e.shotT -= dt * CHAOS.rate * tw;
+          if (e.shotT <= 0 && d2(e.x, e.y, P.x, P.y) < th.range * th.range) {
+            e.shotT = th.cd; e.wind = th.wind; e.ta = a;
+            pushWarn({ kind: 'line', x: e.x, y: e.y, a, len: th.len, w: th.w, t: 0, life: th.wind, owner: e, track: w => { w.x = e.x; w.y = e.y; } });
+            AudioMan.spearReady();
+          }
+        }
+        e.aim = e.wind > 0;
+      }
+      if (d.blast) { // 鬼火: プレイヤーのそばで止まり、膨らみながら点滅して自爆する
+        const bl = d.blast;
+        if (e.wind > 0) {
+          mx = my = 0; e.wind -= dt;
+          e.swell = 1 - e.wind / bl.wind; e.flash = Math.sin(e.wind * 45) > 0 ? 0.05 : 0;
+          if (e.wind <= 0) { onibiBlast(e, bl); continue; }
+        } else if (d2(e.x, e.y, P.x, P.y) < bl.range * bl.range) {
+          e.wind = bl.wind;
+          pushWarn({ kind: 'circle', x: e.x, y: e.y, r: bl.r, t: 0, life: bl.wind, owner: e });
+          AudioMan.fuse();
+        }
+      }
       e.x += mx * sp * dt; e.y += my * sp * dt;
-      e.face = mx < 0 ? -1 : 1;
+      e.face = (mx || dc.x - e.x) < 0 ? -1 : 1; // 止まっている間はプレイヤーの方を向く
       // 分離(重なり防止)
       if (!e.ghost) {
         let n = 0;
@@ -1279,7 +1355,8 @@ function updEnemies(dt) {
         e.x = P.x + Math.cos(a2) * R; e.y = P.y + Math.sin(a2) * R;
       }
     }
-    if (e.dmg > 0 && !e.air && d2(e.x, e.y, P.x, P.y) < Math.pow(e.r + 4, 2)) hurtPlayer(e.dmg);
+    const td = !e.boss && DATA.enemies[e.type]; // 触れたとき: 鬼火は当たらない / ヘルハウンドは噛みつくと炎上
+    if (e.dmg > 0 && !e.air && !(td && td.noTouch) && d2(e.x, e.y, P.x, P.y) < Math.pow(e.r + 4, 2) && hurtPlayer(e.dmg) && td && td.touchBurn) burnPlayer(e.dmg * td.touchBurn);
   }
   S.eatk = 1;
   if (enemies.length > 40) enemies = enemies.filter(e => !e.dead);
@@ -1333,8 +1410,8 @@ function boomerang(e, a) {
   eprojs.push({ kind: 'boomer', x: e.x, y: e.y, a, v: 220, ret: false, owner: e, t: 0, life: 8, r: 7 * CHAOS.area, keep: true, dmg: e.dmg * 0.65 * (S.eatk ?? 1) });
 }
 function addHazard(kind, x, y, o) {
-  if (kind === 'goo' && hazards.length > 40) hazards.splice(hazards.findIndex(h => h.kind === 'goo'), 1);
-  const h = Object.assign({ kind, x, y, t: 0, r: 10, dur: 6 }, o);
+  if ((kind === 'goo' || kind === 'fire') && hazards.length > 50) { const i = hazards.findIndex(h => h.kind === kind); if (i >= 0) hazards.splice(i, 1); } // 床が増えすぎたら古いものから
+  const h = Object.assign({ kind, x, y, t: 0, r: 10, dur: 6, seed: (Math.random() * 1e6) | 0 }, o);
   h.r *= CHAOS.area; if (h.max) h.max *= CHAOS.area; // カオス: 攻撃範囲
   hazards.push(h);
 }
@@ -1349,7 +1426,7 @@ function segD2(px, py, x0, y0, x1, y1) {
   const vx = x1 - x0, vy = y1 - y0, k = clamp(((px - x0) * vx + (py - y0) * vy) / (vx * vx + vy * vy || 1), 0, 1);
   return d2(px, py, x0 + vx * k, y0 + vy * k);
 }
-const hitCircle = (x, y, r, dmg) => { r *= CHAOS.area; if (d2(x, y, P.x, P.y) < (r + 3) * (r + 3)) hurtPlayer(dmg); };
+const hitCircle = (x, y, r, dmg) => { r *= CHAOS.area; return d2(x, y, P.x, P.y) < (r + 3) * (r + 3) && hurtPlayer(dmg); }; // 当たったら true
 const hitLine = (x, y, a, len, w, dmg) => { len *= CHAOS.area; w *= CHAOS.area; if (segD2(P.x, P.y, x, y, x + Math.cos(a) * len, y + Math.sin(a) * len) < Math.pow(w / 2 + 3, 2)) hurtPlayer(dmg); };
 const angDiff = (a, b) => Math.atan2(Math.sin(a - b), Math.cos(a - b));
 // 予備動作(停止して点滅 → fn)
@@ -1849,19 +1926,23 @@ function updEprojs(dt0) {
         if (p.owner.dead || d2(p.x, p.y, p.owner.x, p.owner.y) < 100) p.t = p.life + 1;
       }
     } else { p.x += p.vx * dt; p.y += p.vy * dt; }
-    if (p.t > p.life) { eprojs.splice(i, 1); continue; }
+    // 通常敵の弾の軌跡: 火の玉は火の粉、砂の弾は砂煙、槍は白い風切り
+    if (p.kind === 'efire' && Math.random() < dt * 40) part(p.x + rand(-1, 1), p.y + rand(-1, 1), -p.vx * 0.15 + rand(-6, 6), -p.vy * 0.15 - rand(4, 12), rand(0.2, 0.4), pick(['#ff6a2a', '#ffc34a', '#b8261a']), { glow: true, drag: 2 });
+    else if (p.kind === 'esand' && Math.random() < dt * 30) part(p.x, p.y, rand(-8, 8), rand(-8, 4), 0.35, pick(['#e8c88a', '#c8a060']), { drag: 3 });
+    else if (p.kind === 'espear' && Math.random() < dt * 50) part(p.x - p.vx * 0.03, p.y - p.vy * 0.03, 0, 0, 0.12, '#ffffff', { drag: 0 });
+    if (p.t > p.life) { if (p.kind === 'espear') burst(p.x, p.y, 5, ['#c8b89a', '#7a6a5a'], { sp: 30, life: 0.25 }); eprojs.splice(i, 1); continue; } // 槍は帯の端で地面に刺さる
     if (d2(p.x, p.y, P.x, P.y) < Math.pow(p.r + 3, 2)) {
       if (P.invT > 0) continue;
       if (!p.keep && clsBlockProj()) { burst(p.x, p.y, 8, ['#fff27a', '#ffffff'], { sp: 60, glow: true, life: 0.25 }); eprojs.splice(i, 1); continue; } // 静電気
-      hurtPlayer(p.dmg);
+      if (hurtPlayer(p.dmg) && p.burn) burnPlayer(p.burn); // 火の玉: 当たると炎上
       if (p.keep) continue;
-      burst(p.x, p.y, 6, ['#ff3b5c', '#ffffff'], { sp: 50, glow: true });
+      burst(p.x, p.y, 6, p.kind === 'efire' ? ['#ff6a2a', '#ffc34a', '#ffffff'] : p.kind === 'esand' ? ['#e8c88a', '#fff0c0', '#ffffff'] : ['#ff3b5c', '#ffffff'], { sp: 50, glow: true });
       eprojs.splice(i, 1);
     }
   }
 }
 
-// ---------- ボスの設置物(粘液床 / 衝撃波 / スロウタイム / 渦) ----------
+// ---------- 設置物(粘液床 / 燃える床 / 衝撃波 / スロウタイム / 渦) ----------
 function updHazards(dt) {
   for (let i = hazards.length - 1; i >= 0; i--) {
     const h = hazards[i];
@@ -1871,6 +1952,10 @@ function updHazards(dt) {
     if (h.kind === 'goo') {
       if (dd < h.r * h.r && h.t > 0.1 && !clsSlowImmune()) P.slowT = Math.max(P.slowT, 0.15 * CHAOS.debuff); // 減速を受けないクラスの状態(不屈)は除く
       if (Math.random() < dt * h.r * 0.15) part(h.x + rand(-h.r, h.r) * 0.7, h.y + rand(-h.r, h.r) * 0.7, 0, -6, 0.5, '#8affd8', { drag: 1 });
+    } else if (h.kind === 'fire') { // 燃える床: 上にいる間、炎上(その敵のダメージ × 0.1 を 0.5秒ごと)
+      const R = h.r * Math.min(1, h.t * 8);
+      if (dd < R * R && h.t > 0.05 && h.t < h.dur - 0.2) burnPlayer(h.dmg * 0.1);
+      if (Math.random() < dt * (4 + h.r * 0.9)) { const pa = rand(0, TAU), pr = Math.sqrt(Math.random()) * R; part(h.x + Math.cos(pa) * pr, h.y + Math.sin(pa) * pr * 0.8, rand(-4, 4), -rand(14, 34), rand(0.3, 0.6), pick(['#ff6a2a', '#ffc34a', '#ff3b1a', '#fff0b0']), { glow: true, drag: 1.5 }); }
     } else if (h.kind === 'quake') {
       h.r += h.spd * dt;
       if (Math.abs(Math.sqrt(dd) - h.r) < 5) hurtPlayer(h.dmg);
