@@ -75,6 +75,7 @@ function buildChunk(cx, cy, st) {
     const kind = hash2(hx + ox, hy + oy);
     if (st.crystal) { crystalDeco(x, gx, hx, hy, kind, hash2(hx * 3 + ox, hy * 5 + oy)); continue; }
     if (st.sea) { seaDeco(x, gx, hx, hy, kind, hash2(hx * 3 + ox, hy * 5 + oy), st.deco); continue; }
+    if (st.snow) { snowDeco(x, gx, hx, hy, kind, hash2(hx * 3 + ox, hy * 5 + oy), st.deco); continue; }
     if (kind < 0.45) { // 草むら
       x.fillStyle = d0; x.fillRect(hx, hy + 2, 1, 2); x.fillRect(hx + 2, hy + 1, 1, 3); x.fillRect(hx + 4, hy + 2, 1, 2);
       x.fillStyle = d1; x.fillRect(hx + 2, hy, 1, 1); x.fillRect(hx, hy + 1, 1, 1);
@@ -157,6 +158,34 @@ function seaDeco(x, gx, hx, hy, kind, h2, [d0, d1, d2c, d3]) {
   } else { // 夜光虫
     x.fillStyle = '#bff4ff'; x.fillRect(hx, hy, 1, 1);
     gx.fillStyle = '#7ad7ff'; gx.fillRect(hx, hy, 1, 1);
+  }
+}
+// 霊峰の地面の装飾: 雪の吹きだまり / 氷の割れ目(ほのかに光る)/ 雪をかぶった岩 / 針葉樹の若木 / 足跡 / 氷の結晶
+function snowDeco(x, gx, hx, hy, kind, h2, [d0, d1, d2c, d3]) {
+  if (kind < 0.3) { // 吹きだまり
+    x.fillStyle = d0; x.fillRect(hx + 1, hy + 4, 7, 1);
+    x.fillStyle = d1; x.fillRect(hx, hy + 2, 8, 2); x.fillRect(hx + 2, hy + 1, 4, 1);
+    x.fillStyle = '#ffffff'; x.fillRect(hx + 2, hy + 1, 2, 1); x.fillRect(hx + 1, hy + 2, 2, 1);
+  } else if (kind < 0.42) { // 氷の割れ目
+    let lx = hx, ly = hy;
+    for (let k = 0; k < 9; k++) {
+      x.fillStyle = '#9fd8ff'; x.fillRect(lx, ly, 1, 1); gx.fillStyle = '#16303e'; gx.fillRect(lx, ly, 1, 1);
+      lx = clamp(lx + 1, 0, CH - 1); ly = clamp(ly + (hash2(lx * 7, k + h2 * 50) < 0.5 ? 1 : 0), 0, CH - 1);
+    }
+  } else if (kind < 0.56) { // 雪をかぶった岩
+    x.fillStyle = '#1a2030'; x.fillRect(hx, hy + 4, 7, 1);
+    x.fillStyle = '#3a4458'; x.fillRect(hx, hy + 2, 7, 2); x.fillRect(hx + 1, hy + 1, 5, 1);
+    x.fillStyle = '#ffffff'; x.fillRect(hx + 1, hy, 4, 1); x.fillRect(hx, hy + 1, 3, 1);
+  } else if (kind < 0.66) { // 針葉樹の若木(枝に雪)
+    x.fillStyle = '#1a2030'; x.fillRect(hx, hy + 8, 7, 1);
+    x.fillStyle = '#4a3a2a'; x.fillRect(hx + 3, hy + 6, 1, 2);
+    x.fillStyle = d2c; for (const [ox, oy, w] of [[3, 0, 1], [2, 1, 3], [3, 2, 1], [2, 3, 3], [1, 4, 5], [2, 5, 3], [0, 6, 7]]) x.fillRect(hx + ox, hy + oy, w, 1);
+    x.fillStyle = '#ffffff'; x.fillRect(hx + 3, hy, 1, 1); x.fillRect(hx + 2, hy + 1, 1, 1); x.fillRect(hx + 2, hy + 3, 1, 1); x.fillRect(hx + 1, hy + 4, 2, 1); x.fillRect(hx, hy + 6, 2, 1);
+  } else if (kind < 0.78) { // 足跡
+    x.fillStyle = d0; for (let k = 0; k < 4; k++) x.fillRect(hx + k * 3, hy + (k % 2) * 2, 1, 1);
+  } else if (kind < 0.9) { // 氷の結晶(ほのかに光る)
+    x.fillStyle = d3; x.fillRect(hx + 1, hy, 1, 3); x.fillRect(hx, hy + 1, 3, 1);
+    gx.fillStyle = '#2a5a6a'; gx.fillRect(hx + 1, hy + 1, 1, 1);
   }
 }
 function drawGround() {
@@ -438,7 +467,8 @@ function render() {
   lx.fillStyle = '#000'; lx.fillRect(0, 0, GFX.light.width, GFX.light.height);
   lx.globalCompositeOperation = 'lighter';
 
-  const st = DATA.stages[S ? S.stage - 1 : 0];
+  const st = DATA.stages[S ? S.stage - 1 : 0], LM = st.light ?? 1; // light: 光源の強さ(明るい雪原では弱めないと白く飛ぶ)
+  GFX.lightMul = LM;
   // 環境光・グレーディングを滑らかに遷移。闇の霧は環境光を暗く、青紫に寄せる(光源のまわりだけが見える)
   const fk = fogDarkK(), ink = S && S.inInk ? 0.4 : 1; // 墨だまり(クラーケン)の中は暗い
   for (let i = 0; i < 3; i++) { GFX.ambient[i] = lerp(GFX.ambient[i], st.amb[i] * (1 - 0.55 * fk) * (i === 2 ? 1 + 0.3 * fk : 1) * ink, ink < 1 ? 0.08 : 0.03); GFX.tint[i] = lerp(GFX.tint[i], st.tint[i] * (i === 1 ? 1 - 0.12 * fk : 1), 0.03); }
@@ -451,13 +481,13 @@ function render() {
   // 自分の攻撃は専用レイヤーへ描き、「攻撃の濃さ」の透明度でまとめて合成する(重なっても濃くならない)
   const layered = SET.fxA < 0.999;
   const mineOn = () => {
-    GFX.lightMul = SET.fxA;
+    GFX.lightMul = SET.fxA * LM;
     if (!layered) return;
     GFX.msctx.clearRect(0, 0, VW, VH); GFX.mgctx.clearRect(0, 0, VW, VH);
     GFX.sctx = sx = GFX.msctx; GFX.gctx = gx = GFX.mgctx;
   };
   const mineOff = () => {
-    GFX.lightMul = 1;
+    GFX.lightMul = LM;
     if (!layered) return;
     GFX.sctx = sx = REAL_S; GFX.gctx = gx = REAL_G;
     sx.globalAlpha = gx.globalAlpha = SET.fxA;
@@ -963,6 +993,76 @@ function render() {
       sx.globalAlpha = 1;
       for (let i = 0; i < 5; i++) { sx.fillStyle = '#ffffff'; sx.fillRect(Math.round(hx + Math.sin(t * 7 + i * 1.3) * R * 0.5), Math.round(hy - H - (i % 2)), 1, 1); } // 柱の先の白いしぶき
       addLight(h.x, h.y - H / 2, 50, '#7ad7ff', 0.5 * fade);
+    } else if (h.kind === 'ice') { // 滑る床: 青白い氷の面に、反射の筋が流れる(ダメージはないので縁は赤くしない)
+      const R = Math.round(h.r * Math.min(1, h.t * 6));
+      sx.globalAlpha = 0.3 * fade; pDisc(sx, hx, hy, R, '#7ab0d8');
+      sx.globalAlpha = 0.12 * fade; pDisc(sx, Math.round(hx - R * 0.25), Math.round(hy - R * 0.25), Math.round(R * 0.5), '#ffffff');
+      sx.globalAlpha = 0.7 * fade; pCircle(sx, hx, hy, R, '#d8f0ff');
+      for (let i = 0; i < 3; i++) {
+        const k = ((t * 0.45 + i / 3) % 1) * 2 - 1, y0 = hy + k * R * 0.7, w = Math.sqrt(Math.max(0, R * R - Math.pow(y0 - hy, 2))) * 0.55;
+        sx.globalAlpha = 0.6 * fade * (1 - Math.abs(k)); pLine(sx, hx - w, y0 + w * 0.35, hx + w, y0 - w * 0.35, '#ffffff');
+      }
+      sx.globalAlpha = 1;
+      pCircle(gx, hx, hy, R, '#16303e');
+    } else if (h.kind === 'snow') { // 雪の床(イエティ): 白い雪だまり(縁は危険の赤)
+      const R = Math.round(h.r * Math.min(1, h.t * 6));
+      sx.globalAlpha = 0.8 * fade; pDisc(sx, hx, hy, R, '#e8f0fa');
+      for (let i = 0; i < 9; i++) { const a = hash2(i, h.seed) * TAU, r = R * 0.75 * hash2(i + 3, h.seed); sx.fillStyle = i % 2 ? '#ffffff' : '#b8c8de'; sx.fillRect(Math.round(hx + Math.cos(a) * r), Math.round(hy + Math.sin(a) * r * 0.8), 2, 1); }
+      sx.globalAlpha = fade; pCircle(sx, hx, hy, R, warnBlink ? '#ff3b5c' : '#ffd0d8'); sx.globalAlpha = 1;
+      pCircle(gx, hx, hy, R, '#5a1020');
+    } else if (h.kind === 'drift') { // 地吹雪(霜の巨人の周り): 渦を巻く雪(縁は危険の赤)
+      const R = Math.round(h.r * Math.min(1, h.t * 6));
+      sx.globalAlpha = 0.12 * fade; pDisc(sx, hx, hy, R, '#e8f4ff');
+      for (let j = 0; j < 4; j++) for (let s = 0; s < 14; s++) { const a = -t * 3 + TAU / 4 * j + s * 0.22, r = R * (0.25 + s / 18); sx.globalAlpha = 0.75 * fade; sx.fillStyle = s % 3 ? '#ffffff' : '#bff4ff'; sx.fillRect(Math.round(hx + Math.cos(a) * r), Math.round(hy + Math.sin(a) * r), 2, 1); }
+      sx.globalAlpha = fade; pCircle(sx, hx, hy, R, warnBlink ? '#ff3b5c' : '#ffd0d8'); sx.globalAlpha = 1;
+      pCircle(gx, hx, hy, R, '#5a1020');
+      addLight(h.x, h.y, R * 2, '#e8f4ff', 0.35 * fade);
+    } else if (h.kind === 'blizzard') { // 吹雪の風: 画面が白くかすみ、氷塊の風下(風も凍傷も受けない所)を淡い緑で示す
+      const c = Math.cos(h.th), s = Math.sin(h.th), L = 70 * CHAOS.area, W = 15 * CHAOS.area;
+      sx.globalAlpha = 0.1 * fade; sx.fillStyle = '#e8f4ff'; sx.fillRect(0, 0, VW, VH);
+      for (const o of enemies) {
+        if (o.obj !== 'iceblock' || o.dead) continue;
+        const ox = o.x - cam.x, oy = o.y - cam.y;
+        sx.globalAlpha = (0.18 + 0.06 * Math.sin(t * 6)) * fade; sx.fillStyle = '#7dffd0'; sx.beginPath();
+        sx.moveTo(ox - s * W, oy + c * W); sx.lineTo(ox + c * L - s * W, oy + s * L + c * W); sx.lineTo(ox + c * L + s * W, oy + s * L - c * W); sx.lineTo(ox + s * W, oy - c * W); sx.fill();
+        sx.globalAlpha = 0.7 * fade;
+        for (const k of [-1, 1]) for (let d = 0; d < L; d += 4) { const qx = Math.round(ox + c * d - s * W * k), qy = Math.round(oy + s * d + c * W * k); sx.fillStyle = '#d8fff0'; sx.fillRect(qx, qy, 2, 1); gx.fillStyle = '#1a4a3a'; gx.fillRect(qx, qy, 1, 1); }
+      }
+      sx.globalAlpha = 1;
+      if (S.lee) { pCircle(sx, P.x - cam.x, P.y - cam.y, 10, '#7dffd0'); pCircle(gx, P.x - cam.x, P.y - cam.y, 10, '#1a4a3a'); } // 風下にいる: 足元に緑の輪
+    } else if (h.kind === 'aval') { // 雪崩: 帯を転がる雪の塊と、後ろに残る雪の跡
+      const c = Math.cos(h.th), s = Math.sin(h.th), R = Math.round(h.w / 2), mx = hx + c * h.d, my = hy + s * h.d;
+      for (let k = 1; k < 7; k++) { sx.globalAlpha = 0.4 * (1 - k / 7); pDisc(sx, mx - c * k * 7, my - s * k * 7, Math.max(2, R - k), '#e8f0fa'); }
+      sx.globalAlpha = 0.5; pDisc(sx, mx, my + 3, R, '#2a3448'); sx.globalAlpha = 1; // 影
+      pDisc(sx, mx, my, R, '#dce8f6'); pDisc(sx, mx - R * 0.3, my - R * 0.3, Math.round(R * 0.55), '#ffffff');
+      for (let k = 0; k < 6; k++) { const a = h.d / Math.max(4, R) + TAU / 6 * k; sx.fillStyle = k % 2 ? '#b8c8e0' : '#ffffff'; sx.fillRect(Math.round(mx + Math.cos(a) * R * 0.7), Math.round(my + Math.sin(a) * R * 0.7), 2, 2); } // 転がる凹凸
+      pCircle(sx, mx, my, R, '#8aa0c8');
+      addLight(h.x + c * h.d, h.y + s * h.d, 50, '#e8f4ff', 0.4);
+    } else if (h.kind === 'icering') { // 縮む氷輪: 氷の棘の輪(外側に危険の赤)
+      const R = Math.round(h.rr ?? h.r0);
+      if (R > 1) {
+        pCircle(sx, hx, hy, R + 1, '#5ab8e8'); pCircle(sx, hx, hy, R, '#ffffff'); pCircle(sx, hx, hy, Math.max(1, R - 1), '#bff4ff');
+        pCircle(gx, hx, hy, R, '#2a5a6a');
+        const n = Math.max(6, Math.round(R / 3));
+        for (let i = 0; i < n; i++) { const a = TAU / n * i + t * 0.5, x = Math.round(hx + Math.cos(a) * R), y = Math.round(hy + Math.sin(a) * R); sx.fillStyle = '#ffffff'; sx.fillRect(x, y - 3, 1, 3); sx.fillStyle = '#9ff7ff'; sx.fillRect(x - 1, y - 1, 3, 1); } // 氷の棘
+        sx.globalAlpha = 0.7; pCircle(sx, hx, hy, R + 4, warnBlink ? '#ff3b5c' : '#ffd0d8', 2); sx.globalAlpha = 1;
+        addLight(h.x, h.y, R * 2 + 20, '#9ff7ff', 0.35);
+      }
+    } else if (h.kind === 'veil') { // 吹雪の帳: 画面の縁から白い霜が凍りつく(内側の縁は危険の赤)
+      const R = Math.round(h.cur ?? h.R), f2 = Math.min(1, (h.dur - h.t) * 2, h.t * 4);
+      sx.globalAlpha = 0.58 * f2; sx.fillStyle = '#d4ecff';
+      sx.beginPath(); sx.rect(0, 0, VW, VH); sx.arc(Math.round(hx), Math.round(hy), R, 0, TAU); sx.fill('evenodd');
+      sx.globalAlpha = 0.5 * f2; // 凍った面のひび
+      for (let i = 0; i < 40; i++) {
+        const a = hash2(i, h.seed + 1) * TAU, r = R + 8 + hash2(i, h.seed + 2) * 140, x = hx + Math.cos(a) * r, y = hy + Math.sin(a) * r;
+        if (x < -10 || y < -10 || x > VW + 10 || y > VH + 10) continue;
+        const ca = a + (hash2(i, h.seed + 3) - 0.5) * 2;
+        pLine(sx, x, y, x + Math.cos(ca) * 8, y + Math.sin(ca) * 8, '#8ab8e0');
+      }
+      const n = Math.round(R / 2.5);
+      for (let i = 0; i < n; i++) { const a = TAU / n * i, j = hash2(i, h.seed) * 7; sx.globalAlpha = 0.9 * f2; sx.fillStyle = i % 3 ? '#ffffff' : '#9ff7ff'; sx.fillRect(Math.round(hx + Math.cos(a) * (R + j)), Math.round(hy + Math.sin(a) * (R + j)), 2, 1); } // 霜の結晶
+      sx.globalAlpha = f2; pCircle(sx, hx, hy, R, warnBlink ? '#ff3b5c' : '#ffd0d8'); sx.globalAlpha = 1;
+      pCircle(gx, hx, hy, R, '#5a1020');
     }
   }
 
@@ -1053,6 +1153,14 @@ function render() {
       addLight(lx, ly, (26 + 80 * g) * (1 + 0.1 * Math.sin(t * 6 + e.seed * 9)), '#fff6a0', 0.7 + 0.3 * g);
       if (g > 0) { gx.fillStyle = g > 0.7 && warnBlink ? '#ffffff' : '#fff6a0'; gx.fillRect(Math.round(lx - cam.x) - 1, Math.round(ly - cam.y) - 1, 3, 3); }
     } else if (e.type === 'jelly') addLight(e.x, e.y, 20, '#ff8ad8', 0.25);
+    else if (e.type === 'icesprite') addLight(e.x, e.y, 26, '#9ff7ff', 0.5);
+    else if (e.type === 'ghost') addLight(e.x, e.y, 22, '#8ab8ff', 0.3); // 冷たい霊: 青白い光
+    else if (e.obj === 'mirror') { // 氷の鏡: 中心への細い光の線。撃つ前に白く光る
+      const mx = e.x - cam.x, my = e.y - cam.y - 6, tx = e.cx - cam.x, ty = e.cy - cam.y, n = Math.floor(Math.hypot(tx - mx, ty - my) / 5);
+      for (let i = 1; i < n; i++) { if ((i + Math.floor(t * 10)) % 2) continue; const k = i / n; gx.fillStyle = e.glint ? '#5a8aa0' : '#1a3a4a'; gx.fillRect(Math.round(mx + (tx - mx) * k), Math.round(my + (ty - my) * k), 1, 1); }
+      if (e.glint) { sx.fillStyle = gx.fillStyle = '#ffffff'; sx.fillRect(Math.round(mx) - 3, Math.round(my), 7, 1); sx.fillRect(Math.round(mx), Math.round(my) - 3, 1, 7); gx.fillRect(Math.round(mx) - 2, Math.round(my), 5, 1); addLight(e.x, e.y - 6, 50, '#ffffff', 0.9); }
+      else addLight(e.x, e.y - 6, 30, '#9ff7ff', 0.5);
+    }
     if (e.disguise) addLight(e.x, e.y, 90, '#ff8ad8', 0.8); // 鏡の分身: 本物と同じ光(HP バーは出さない)
     else if (e.obj) { // ボスが出した物: いつも金色の HP バー(壊せることを示す)と、足元の金の輪
       const w = Math.max(10, Math.round(sp.w * sc)), bx = Math.round(e.x - cam.x - w / 2), by = Math.round(e.y - cam.y + sp.h * sc / 2 + 2);
@@ -1334,7 +1442,15 @@ function render() {
     if (al !== undefined) sx.globalAlpha = al; // drawRot は透明度を受け取らないので、ここで掛けて戻す
     if (p.kind === 'boomer') drawRot('scythe', p.t * 16, p.x, p.y, { scale: 2 * A, outline: oc });
     else if (p.kind === 'glob' || p.kind === 'rbit' || p.kind === 'efire' || p.kind === 'esand') drawSp(ART.S[p.kind], p.x, p.y, ol);
-    else if (p.kind === 'arrow' || p.kind === 'espear' || p.kind === 'bspear' || p.kind === 'trident' || p.kind === 'needle') drawRot(p.kind, a, p.x, p.y, ol);
+    else if (p.kind === 'arrow' || p.kind === 'espear' || p.kind === 'bspear' || p.kind === 'trident' || p.kind === 'needle' || p.kind === 'eice' || p.kind === 'ispear') drawRot(p.kind, a, p.x, p.y, ol);
+    else if (p.kind === 'flake') drawSp(p.small ? ART.S.flakeS : ART.S.flake, p.x, p.y, ol); // 雪華弾(割れた後は小さな結晶)
+    else if (p.kind === 'bigsnow') { // 大雪玉: 転がる白い雪の玉(凹凸が回る)
+      const R = Math.round(p.r), x = p.x - cam.x, y = p.y - cam.y;
+      shadow(p.x, p.y + R - 2, R * 2);
+      pDisc(sx, x, y, R, '#dce8f6'); pDisc(sx, x - R * 0.3, y - R * 0.3, Math.round(R * 0.5), '#ffffff');
+      for (let k = 0; k < 6; k++) { const aa = (p.spin || 0) + TAU / 6 * k; sx.fillStyle = k % 2 ? '#b8c8e0' : '#ffffff'; sx.fillRect(Math.round(x + Math.cos(aa) * R * 0.65), Math.round(y + Math.sin(aa) * R * 0.65), 2, 2); }
+      pCircle(sx, x, y, R, '#8aa0c8');
+    }
     else if (p.kind === 'water') { drawSp(ART.S.water, p.x, p.y, ol); if (Math.random() < 0.3) part(p.x, p.y, rand(-8, 8), rand(-8, 8), 0.3, '#bff4ff', { drag: 2 }); } // 水弾: しずくの尾
     else if (p.kind === 'pshard') drawSp(ART.S.pshard[p.ci || 0], p.x, p.y, ol); // 七色の欠片
     else if (p.kind === 'phantom') { // 結晶の残像・幻の鹿: 透きとおった七色の大鹿
@@ -1585,6 +1701,17 @@ function drawBossFx(e) {
       for (let r = 0; r < BL; r += 44) addLight(e.x + Math.cos(ai.ba) * r, e.y + Math.sin(ai.ba) * r, 60, '#7ad7ff', 0.7);
     }
   }
+  // 霜の巨人: 氷槌を振りかぶる間、頭上に氷が集まる / 地吹雪の前に体が白く光る
+  if (e.boss === 'fgiant') {
+    if (ai.raise && ai.wind > 0) {
+      const k = 1 - ai.wind / ai.raise, R = Math.round(3 + 7 * k), hx = ex, hy = ey + yo - sp.h / 2 - 4 - R;
+      pDisc(sx, hx, hy, R, '#bff4ff'); pDisc(sx, hx - 1, hy - 1, Math.max(1, R - 3), '#ffffff'); pCircle(sx, hx, hy, R, '#5ab8e8');
+      pDisc(gx, hx, hy, Math.max(1, R - 2), k > 0.7 && Math.floor(GFX.fx.time * 16) % 2 ? '#7ab8d0' : '#3a6a80');
+      for (let i = 0; i < 3; i++) { const pa = rand(0, TAU), pr = R + rand(6, 14); part(e.x + Math.cos(pa) * pr, e.y + yo - sp.h / 2 - 4 - R + Math.sin(pa) * pr, -Math.cos(pa) * pr * 4, -Math.sin(pa) * pr * 4, 0.2, pick(['#ffffff', '#9ff7ff']), { glow: true, drag: 0 }); } // 冷気が吸い込まれる
+      addLight(e.x, e.y + yo - sp.h / 2 - 4 - R, 40 + 40 * k, '#9ff7ff', 0.8);
+    }
+    if (ai.glowT > 0) { const k = 1 - ai.glowT / 0.5; gx.globalAlpha = 1; pCircle(gx, ex, ey, Math.round(e.r + 4 + k * 60 * A), '#8aa0b8', 2); pCircle(sx, ex, ey, Math.round(e.r + 4 + k * 60 * A), '#ffffff'); addLight(e.x, e.y, 120, '#ffffff', 0.6); }
+  }
   // カオスドラゴン: 空襲の影(空の上の竜の影が地面を走る)
   if (e.boss === 'cdragon' && ai.act === 'raid' && ai.rd && ai.rd.ph === 'sky') {
     const R = 15 * A, x = ex, y = ey, c = Math.cos(ai.rd.th), s = Math.sin(ai.rd.th);
@@ -1702,6 +1829,29 @@ function drawBfx() {
         } else { sx.globalAlpha = 0.45 * fade; pLine(sx, x, y, x - c * 14, y - s * 14, '#bff4ff'); pLine(gx, x, y, x - c * 6, y - s * 6, '#1a4a5a'); }
       }
       sx.globalAlpha = 1;
+    } else if (f.kind === 'dance') { // 雪華の輪舞: 円が回る軌道(点線の輪)と、中心の雪の結晶
+      const R = 60, fade = Math.min(1, (f.life - f.t) * 3, f.t * 4), n = 40;
+      for (let i = 0; i < n; i++) { if ((i + Math.floor(t * 8)) % 2) continue; const a = TAU / n * i; sx.globalAlpha = 0.6 * fade; sx.fillStyle = '#d8f0ff'; sx.fillRect(Math.round(fx + Math.cos(a) * R), Math.round(fy + Math.sin(a) * R), 1, 1); }
+      sx.globalAlpha = fade; drawSp(ART.S.flake, f.x, f.y, { alpha: fade }); sx.globalAlpha = 1;
+    } else if (f.kind === 'icespike') { // 氷の棘: 地面から突き出て、砕けて沈む
+      const k = u < 0.15 ? u / 0.15 : u > 0.6 ? Math.max(0, 1 - (u - 0.6) / 0.4) : 1, H = Math.round(f.h * k), x0 = Math.round(fx), y0 = Math.round(fy);
+      for (let j = 0; j < H; j++) { const w = Math.max(1, Math.round((H - j) / Math.max(1, H) * 3)); sx.fillStyle = j > H - 3 ? '#ffffff' : j < 2 ? '#5ab8e8' : '#bff4ff'; sx.fillRect(x0 - (w >> 1), y0 - j, w, 1); if (j > H / 2) { gx.fillStyle = '#2a5a6a'; gx.fillRect(x0, y0 - j, 1, 1); } }
+      if (H > 0) { sx.fillStyle = '#2a3448'; sx.fillRect(x0 - 2, y0 + 1, 5, 1); }
+    } else if (f.kind === 'windwarn') { // 吹雪の風の予告: 画面いっぱいに風の線(点滅しながら風向きへ流れる)
+      const c = Math.cos(f.th), s = Math.sin(f.th), VW = GFX.VW, VH = GFX.VH, W = VW + 60, H = VH + 60, on = Math.floor(t * 8) % 2;
+      for (let i = 0; i < 26; i++) {
+        const h1 = hash2(i, 71), h2 = hash2(i, 83), sp = 160 * (1 + h2);
+        const x = ((h1 * W + c * f.t * sp) % W + W) % W - 30, y = ((h2 * H + s * f.t * sp) % H + H) % H - 30, L = 10 + h1 * 14;
+        sx.globalAlpha = on ? 0.8 : 0.45; pLine(sx, x, y, x - c * L, y - s * L, '#ffffff'); pLine(gx, x, y, x - c * L * 0.5, y - s * L * 0.5, '#3a4a5a');
+        if (i % 5 === 0) for (const k of [-1, 1]) pLine(sx, x + c * 3, y + s * 3, x - c * 2 + s * 4 * k, y - s * 2 - c * 4 * k, '#ff3b5c'); // 風向きの矢印(赤)
+      }
+      sx.globalAlpha = 1;
+    } else if (f.kind === 'veilwarn') { // 吹雪の帳の予告: 画面の縁が白く凍りはじめる
+      const VW = GFX.VW, VH = GFX.VH, bw = Math.round(6 + 10 * u), on = Math.floor(t * 8) % 2;
+      sx.globalAlpha = (on ? 0.55 : 0.35); sx.fillStyle = '#e8f4ff';
+      sx.fillRect(0, 0, VW, bw); sx.fillRect(0, VH - bw, VW, bw); sx.fillRect(0, bw, bw, VH - bw * 2); sx.fillRect(VW - bw, bw, bw, VH - bw * 2);
+      sx.globalAlpha = 1; sx.fillStyle = on ? '#ff3b5c' : '#ffd0d8';
+      sx.fillRect(bw, bw, VW - bw * 2, 1); sx.fillRect(bw, VH - bw - 1, VW - bw * 2, 1); sx.fillRect(bw, bw, 1, VH - bw * 2); sx.fillRect(VW - bw - 1, bw, 1, VH - bw * 2);
     } else if (f.kind === 'wavewarn') { // 大津波の予告: 波の来る側の端に赤い帯、画面を横切って流れる矢印の列
       const blink = Math.floor(t * 8) % 2;
       sx.save(); gx.save(); sx.translate(fx, fy); gx.translate(fx, fy); sx.rotate(f.th); gx.rotate(f.th);
@@ -1720,6 +1870,17 @@ function drawBfx() {
 // 環境パーティクル(ホタル・火の粉)。カメラに対して視差を付けて漂わせる
 function drawMotes(st) {
   const gx = GFX.gctx, VW = GFX.VW, VH = GFX.VH, t = GFX.fx.time, m = st.motes;
+  if (m.snow) { // 霊峰: 揺れながら降る雪(手前の大きな粒ほど速い)
+    const sx = GFX.sctx;
+    for (let i = 0; i < 48; i++) {
+      const near = i % 4 === 0, sp = near ? 26 : 12 + hash2(i, 5) * 8;
+      const wx = ((hash2(i, 7) * 1000 + Math.sin(t * 0.8 + i) * 6 - cam.x * (near ? 1.1 : 0.9)) % (VW + 20) + VW + 20) % (VW + 20) - 10;
+      const wy = ((hash2(i, 13) * 1000 + t * sp - cam.y * (near ? 1.1 : 0.9)) % (VH + 20) + VH + 20) % (VH + 20) - 10;
+      sx.fillStyle = '#ffffff'; sx.fillRect(Math.round(wx), Math.round(wy), near ? 2 : 1, near ? 2 : 1);
+      gx.fillStyle = near ? '#5a6a7a' : '#3a4450'; gx.fillRect(Math.round(wx), Math.round(wy), 1, 1);
+    }
+    return;
+  }
   for (let i = 0; i < 26; i++) {
     const seedx = hash2(i, 7) * 1000, seedy = hash2(i, 13) * 1000;
     const wx = ((seedx + t * (m.rise ? 4 : 6) * (hash2(i, 3) - 0.5) * 2 - cam.x * 0.9) % (VW + 20) + VW + 20) % (VW + 20) - 10;

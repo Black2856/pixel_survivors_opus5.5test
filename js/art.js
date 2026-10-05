@@ -958,7 +958,7 @@ const ART = (() => {
     '..aa...aa...',
   ], { emit: 'b' });
 
-  S.ghost = mk({ a: '#c6f7f2', b: '#16324a', c: '#8fd9e0' }, [
+  S.ghost = mk({ a: '#dcefff', b: '#1e3a7a', c: '#8ab8ff' }, [ // 冷たい霊(霊峰): 青白い
     '...aaaa...',
     '..aaaaaa..',
     '.aaaaaaaa.',
@@ -1244,6 +1244,43 @@ const ART = (() => {
   S.water = mk({ a: '#2a8ac8', b: '#7ad7ff', c: '#ffffff' }, ['.aba.', 'abcba', 'bcccb', 'abcba', '.aba.'], { outline: false, emit: 'bc' });
   S.inkball = mk({ a: '#0a0a14', b: '#2a2a4a', c: '#5a5a8a' }, ['.aa.', 'abca', 'abba', '.aa.']);
 
+  // ---------- 霜天の霊峰 ----------
+  // 雪狼: 青みがかった灰色の狼(右向き。走る 2コマ)。目が氷色に光る
+  const wolfPal = { a: '#2a3448', b: '#a8b8d0', c: '#e8f0ff', d: '#9ff7ff' };
+  S.wolf = [mk(wolfPal, ['........c.c.', '........cbbc', 'cc......bbdb', '.cbbbbbbbbbb', '..bbcccccb..', '..b.b..b.b..', '.b...b.b...b'], { emit: 'd' }),
+    mk(wolfPal, ['........c.c.', '........cbbc', '.cc.....bbdb', '..cbbbbbbbbb', '..bbcccccb..', '...bb..bb...', '...b.b..bb..'], { emit: 'd' })];
+  // 氷の精: 宙に浮く氷の結晶の精。まわりを氷のかけらが回る(2コマ)
+  const isPal = { a: '#1e3a7a', b: '#9ff7ff', c: '#ffffff', d: '#5ab8e8' };
+  S.icesprite = [mk(isPal, ['...c...', '..cbc..', '.cbbbc.', 'cbababc', '.cbbbc.', '..dbd..', '...d...', '.b...b.'], { emit: 'bc' }),
+    mk(isPal, ['...c...', '..cbc..', '.cbbbc.', 'cbababc', '.cbbbc.', '..dbd..', '.b.d.b.', '.......'], { emit: 'bc' })];
+  // イエティ: 白い毛むくじゃらの大男。青い顔と、氷色に光る目
+  S.yeti = mk({ a: '#3a4a6a', b: '#e8eef8', c: '#ffffff', d: '#8aa0c8', e: '#5a7ab8', f: '#1a2a4a', h: '#9ff7ff' }, sym([
+    '....bbb', '...bccc', '..bcccc', '..bceee', '..beehe', '..bdeee', '.bbdeff', 'bbcbbbb', 'bccbbbb', 'bcbbbbb', 'bdbbbbd', '.bbbbbd', '..bbbbb', '..bbb..', '.dddd..',
+  ]), { emit: 'h' });
+  // 霜の巨人: 青い肌の巨人。氷の冠と白いひげ、毛皮の腰巻き、氷をまとった拳
+  S.fgiant = mk({ a: '#141c34', b: '#34507e', c: '#5576a8', d: '#8aa8d8', e: '#9ff7ff', f: '#e8f0fc', g: '#232f4a', h: '#5a4a3a' }, sym([
+    '.......e....', '....e..ee..e', '....ee.eee.e', '.....eeeeeee', '.....abbbbbb', '....abcccccc', '....abcdeccc', '....abcccccc', '....abffffff', '...aabffffff', '.aabbbgffffg',
+    'abcdbbggfffg', 'abcddbgggggg', 'abccbbgggggg', 'abcbbhhhhhhh', '.abb.bgggggg', '.aee.bggggbg', '..e..bgggbbg', '.....bbbb...', '.....bbb....', '.....bbb....', '....gggg....',
+  ]), { emit: 'e' });
+  // 雪華の女王: 氷の冠と白銀の髪、青い氷の衣
+  S.squeen = mk({ a: '#9ff7ff', b: '#ffffff', c: '#a8ccf4', d: '#5a88c8', e: '#2e4a80', f: '#f4e8f0', h: '#d8ecff', k: '#1a2a5a', g: '#9ff7ff' }, sym([
+    '......a.a', '...a..aaa', '...aa.aba', '...aaaaaa', '..hhhhhhh', '.hhffffff', '.hhfkffff', '.hhffffff', '.hhhfffff', '.hhh.cbcc', '..h.cbbcb',
+    '...cdccbc', '..cddcccc', '..cdddccc', '.cdddedcc', '.cddeddcc', '.cdeedddc', 'cddedddcc', 'cdeddddcg', 'cdeedddgg', 'eeeeeeeee',
+  ]), { emit: 'a' }); // 光るのは冠だけ(白い衣まで光らせると白く飛ぶ)
+  // 氷塊(霜の巨人の氷槌の跡)/ 氷の鏡(雪華の女王)
+  S.obj_iceblock = mk({ a: '#2a4a7a', b: '#7ad7ff', c: '#bff4ff', d: '#ffffff', e: '#4a8ac8' }, [
+    '...cccccc...', '..cdddcccb..', '.cddccccbbb.', '.cdcccccbbe.', '.ccccccbbbe.', '.cccccbbbee.', '.cccbbbbbee.', '.bbbbbbbeee.', '.bbbbbbeeee.', '..beeeeeee..', '.aaaaaaaaaa.',
+  ], { emit: 'd' });
+  S.obj_mirror = mk({ a: '#2a4a7a', b: '#9ff7ff', c: '#ffffff', d: '#d8f0ff', e: '#7ab8e8' }, sym([
+    '..bb', '.bcd', 'bcdd', 'bdde', 'bdee', 'bdde', 'bcde', 'bdde', 'bdee', 'bdde', '.bdd', '..bb', '...b', '..aa', '.aaa',
+  ]), { emit: 'bc' });
+  // 弾: 氷の欠片(右向き。回転フレーム)/ 氷の槍 / 雪の結晶(大・小)/ 雪玉(放物線)
+  S.eice = mk({ a: '#5ab8e8', b: '#9ff7ff', c: '#ffffff' }, ['.ab.', 'aabc', '.ab.'], { emit: 'bc' });
+  S.ispear = mk({ a: '#7ab8e8', b: '#9ff7ff', c: '#ffffff' }, ['.......b..', 'abbbbbbbcc', '.......b..'], { emit: 'bc' });
+  S.flake = mk({ a: '#9ff7ff', b: '#ffffff' }, ['a.a.a', '.aba.', 'abbba', '.aba.', 'a.a.a'], { outline: false, emit: 'ab' });
+  S.flakeS = mk({ a: '#9ff7ff', b: '#ffffff' }, ['.a.', 'aba', '.a.'], { outline: false, emit: 'ab' });
+  S.snowball = mk({ a: '#8aa0c8', b: '#ffffff', c: '#e8f4ff' }, ['.aa.', 'abca', 'acba', '.aa.']);
+
   // 炎魔イフリート: 黒い角と燃える髪、赤黒い筋骨の上半身、両手に炎。下半身は炎になって浮いている
   S.ifrit = mk({ h: '#2a1414', a: '#1e0a08', b: '#6a1a10', c: '#a8381a', e: '#ffff80', m: '#ffc34a', f: '#ff6a2a', g: '#ffc34a', w: '#fff0b0' }, sym([
     '..h.........',
@@ -1455,7 +1492,7 @@ const ART = (() => {
 
   // 回転フレーム(16方向)
   const ROT = {};
-  for (const k of ['axe', 'blade', 'bladeEvo', 'arrow', 'scythe', 'espear', 'bspear', 'trident', 'needle']) {
+  for (const k of ['axe', 'blade', 'bladeEvo', 'arrow', 'scythe', 'espear', 'bspear', 'trident', 'needle', 'eice', 'ispear']) {
     ROT[k] = rotFrames(S[k].c, 16);
     ROT[k + 'E'] = S[k].e ? rotFrames(S[k].e, 16) : null;
   }

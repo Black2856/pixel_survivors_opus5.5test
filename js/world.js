@@ -3,11 +3,12 @@
 
 const ECOL = {
   zombie: ['#7fb069', '#6b5a8e'], bat: ['#8a4fc0', '#2a1838'], slime: ['#4fd6a8', '#d8fff2'], slimelet: ['#4fd6a8', '#d8fff2'],
-  skeleton: ['#e8e6da', '#6b6a60'], archer: ['#e8e6da', '#35523d'], ghost: ['#c6f7f2', '#8fd9e0'], brute: ['#c46a4a', '#6b4a2a'],
+  skeleton: ['#e8e6da', '#6b6a60'], archer: ['#e8e6da', '#35523d'], ghost: ['#dcefff', '#8ab8ff'], brute: ['#c46a4a', '#6b4a2a'],
   imp: ['#ff6a3d', '#8a2a4a'], goblin: ['#8fd06a', '#ffcc33'], brazier: ['#ff6a2a', '#ffc34a'],
   sandmage: ['#e8c88a', '#8a5a2a'], spear: ['#c8b89a', '#7a3a2a'], hound: ['#ff6a2a', '#3a1a1a'], onibi: ['#7ad7ff', '#ffffff'], lslime: ['#ff6a2a', '#5a1a14'],
   jslime: ['#9ff7ff', '#ff8ad8'], beetle: ['#5a4a8a', '#9ff7ff'], fairy: ['#ffd0f0', '#9ff7ff'],
   jelly: ['#ffb0e0', '#bff4ff'], sahagin: ['#3a9a8a', '#bff4ff'], puffer: ['#e8c86a', '#8a6a3a'], angler: ['#2a4a5a', '#fff6a0'],
+  wolf: ['#d8e4f4', '#6a7a9a'], icesprite: ['#9ff7ff', '#ffffff'], yeti: ['#f0f4ff', '#7a8aa8'],
 };
 const xpFor = l => Math.floor(4 + l * 2.6 + Math.pow(l, 1.72));
 
@@ -73,6 +74,7 @@ function initRun(mode = 'normal', stageNo = 1) {
     slowT: 0, cdSlowT: 0, burnT: 0, burnDmg: 0, burnTick: 0, shield: 0, oShield: 0, oChunks: [],
     frost: 0, frostT: 0, bleed: 0, bleedT: 0, bleedTick: 0, // 自分の凍傷・出血(スタック数と、消えるまでの秒)
     push: null, heatT: 0, rootT: 0, current: null, // ボスの押し出し・引き寄せ / 熱波で遅い(秒)/ 絡め取りで動けない(秒)/ 海流
+    chillT: 0, iceT: 0, ivx: 0, ivy: 0, // 氷の槍で ×0.3(秒)/ 滑る床の上(秒)と、そのときの速度
   };
   enemies = []; projs = []; eprojs = []; gems = []; drops = []; props = []; hazards = [];
   parts = []; floats = []; rings = []; zones = []; slashes = []; bolts = []; warns = []; flashes = []; bfx = [];
@@ -169,8 +171,15 @@ function updPlayer(dt) {
   const aim = mouseAimPt();
   if (aim && aim.x !== P.x) P.facing = aim.x > P.x ? 1 : -1; // 照準中はマウス側を向く(アックスの投擲方向も追従)
   clsUpdate(dt);
-  const sp = P.speed * P.moveMul * (P.slowT > 0 ? DATA.debuff.slow : 1) * playerFrostMul() * (P.heatT > 0 ? 0.8 : 1); // 熱波(イフリート): ×0.8
-  P.x += mx * sp * dt; P.y += my * sp * dt;
+  const sp = P.speed * P.moveMul * (P.slowT > 0 ? DATA.debuff.slow : 1) * playerFrostMul() * (P.heatT > 0 ? 0.8 : 1) * (P.chillT > 0 ? 0.3 : 1); // 熱波(イフリート): ×0.8 / 氷の槍(雪華の女王): ×0.3
+  let vx = mx * sp, vy = my * sp;
+  if (P.iceT > 0) { // 滑る床(霜の巨人): 向きを変えるのに 0.35秒の慣性がかかる
+    P.iceT -= dt;
+    const k = Math.min(1, dt / 0.35);
+    P.ivx += (vx - P.ivx) * k; P.ivy += (vy - P.ivy) * k; vx = P.ivx; vy = P.ivy;
+    if (Math.hypot(vx, vy) > 20 && Math.random() < dt * 20) part(P.x + rand(-3, 3), P.y + 7, -vx * 0.2, -rand(2, 8), 0.35, pick(['#ffffff', '#bff4ff']), { drag: 3 }); // 氷の上を滑る削りくず
+  } else { P.ivx = vx; P.ivy = vy; }
+  P.x += vx * dt; P.y += vy * dt;
   if (P.current && P.current.t > 0) { // 海流(深淵の海竜): 一定の向きへ流される(ダッシュなら逆らえる)
     P.current.t -= dt; P.x += P.current.vx * dt; P.y += P.current.vy * dt;
     if (Math.random() < dt * 20) part(P.x + rand(-6, 6), P.y + rand(-4, 6), P.current.vx * 1.5, P.current.vy * 1.5, 0.4, pick(['#bff4ff', '#7ad7ff']), { drag: 1 });
@@ -199,6 +208,7 @@ function updPlayer(dt) {
 // 状態異常(ボス由来): 粘液・スロウタイムの減速 / CD回復低下、炎上の継続ダメージ(無敵時間を無視)
 function updDebuffs(dt) {
   P.slowT -= dt; P.cdSlowT -= dt;
+  if (P.chillT > 0) { P.chillT -= dt; if (Math.random() < dt * 18) part(P.x + rand(-5, 5), P.y + rand(-6, 6), 0, 6, 0.5, pick(['#ffffff', '#9ff7ff']), { glow: true, drag: 1 }); } // 凍えて動けない: 氷の粒
   if (P.heatT > 0) { P.heatT -= dt; if (Math.random() < dt * 14) part(P.x + rand(-5, 5), P.y + rand(-6, 4), rand(-3, 3), -rand(10, 22), 0.5, pick(['#ff8a3d', '#ffc34a', '#c8a090']), { drag: 1 }); } // 熱波でのぼせた: 陽炎がたつ
   if (P.slowT > 0 && Math.random() < dt * 8) part(P.x + rand(-3, 3), P.y + 6, 0, 8, 0.4, P.cdSlowT > 0 ? '#c29bff' : '#4fd6a8', { glow: P.cdSlowT > 0 });
   updFrostBleed(dt);
@@ -234,6 +244,12 @@ function frostPlayer(n) {
   burst(P.x, P.y - 4, 6 + n * 3, ['#bff4ff', '#ffffff', '#7ad7ff'], { sp: 50, glow: true, life: 0.4 }); // 霜が弾ける
   if (Math.floor(was / 4) < Math.floor(P.frost / 4)) { addRing(P.x, P.y, 14, '#9ff7ff', { life: 0.3 }); AudioMan.frost(); } // 4スタックごとに凍みる音
   S.hudDirty = true;
+}
+// 氷の槍(雪華の女王): t 秒 移動速度 ×0.3。減速を受けない状態(不屈)では付かない
+function chillPlayer(t) {
+  if (P.invT > 0 || P.dead || clsSlowImmune()) return;
+  P.chillT = Math.max(P.chillT, t * CHAOS.debuff);
+  addRing(P.x, P.y, 12, '#9ff7ff', { life: 0.3 });
 }
 function bleedPlayer(n) {
   if (!(n > 0) || P.invT > 0 || P.dead) return;
@@ -1202,7 +1218,7 @@ function spawnEnemy(type, o = {}) {
     id: nextId++, type, x, y, hp: d.hp * hpk, maxhp: d.hp * hpk, spd: d.spd * spk * rand(0.9, 1.1), dmg: d.dmg * enemyDmgK(),
     r: d.r * (o.elite ? 2 : 1), xp: d.xp * lvK('xp'), ai: d.ai, kbRes: o.elite ? 0.9 : d.kbRes || 0, ghost: d.ghost,
     t: rand(0, 5), seed: Math.random(), kx: 0, ky: 0, flash: 0, elite: !!o.elite, scale: o.elite ? 2 : 1,
-    frost: 0, frostT: 0, burns: [], burnT: 0, burnTick: 0, stun: 0, slowT: 0, bleed: 0, bleedT: 0, shotT: (d.shot || d.throw || d.rush || d.puff || d.lantern) ? rand(1, (d.shot || d.throw || d.rush || d.puff || d.lantern).cd) : 0, wind: 0, hopT: rand(0, 1),
+    frost: 0, frostT: 0, burns: [], burnT: 0, burnTick: 0, stun: 0, slowT: 0, bleed: 0, bleedT: 0, shotT: (d.shot || d.throw || d.rush || d.puff || d.lantern || d.snowball) ? rand(1, (d.shot || d.throw || d.rush || d.puff || d.lantern || d.snowball).cd) : 0, wind: 0, hopT: rand(0, 1),
     life: type === 'goblin' ? 16 : 0,
     noChest: !!o.noChest, phaseElite: !!o.phaseElite, // 宝箱を落とさない / エリート群のエリート
   };
@@ -1218,13 +1234,14 @@ function spawnProp() {
 
 // ---------- 通常敵の攻撃 ----------
 // 射撃(弓兵・火の小鬼・砂術師): 弾のダメージ = その敵のダメージ × n。count 発を spread rad おきの扇に
-const SHOT_R = { arrow: 2, efire: 3, esand: 2.5 }; // 弾の当たり判定の半径(見た目の大きさ。攻撃範囲の倍率で広がる)
+const SHOT_R = { arrow: 2, efire: 3, esand: 2.5, eice: 2.5 }; // 弾の当たり判定の半径(見た目の大きさ。攻撃範囲の倍率で広がる)
 function enemyShoot(e, s, a) {
   const n = s.count || 1;
   for (let i = 0; i < n; i++) {
     const aa = a + (i - (n - 1) / 2) * (s.spread || 0);
-    eprojs.push({ kind: s.kind, x: e.x, y: e.y - 2, vx: Math.cos(aa) * s.spd, vy: Math.sin(aa) * s.spd, dmg: e.dmg * s.n * S.eatk, burn: s.burn ? e.dmg * s.burn * S.eatk : 0, life: 4, t: 0, r: (SHOT_R[s.kind] || 3) * CHAOS.area });
+    eprojs.push({ kind: s.kind, x: e.x, y: e.y - 2, vx: Math.cos(aa) * s.spd, vy: Math.sin(aa) * s.spd, dmg: e.dmg * s.n * S.eatk, burn: s.burn ? e.dmg * s.burn * S.eatk : 0, frost: s.frost || 0, life: 4, t: 0, r: (SHOT_R[s.kind] || 3) * CHAOS.area });
   }
+  if (s.kind === 'eice') { burst(e.x + Math.cos(a) * 4, e.y - 2 + Math.sin(a) * 4, 7, ['#9ff7ff', '#ffffff', '#7ad7ff'], { sp: 45, glow: true, life: 0.3 }); AudioMan.frost(); }
   if (s.kind === 'efire') { burst(e.x + Math.cos(a) * 4, e.y - 2 + Math.sin(a) * 4, 7, ['#ff6a2a', '#ffc34a', '#fff6c8'], { sp: 45, glow: true, life: 0.3 }); AudioMan.fire(); }
   else if (s.kind === 'esand') { burst(e.x, e.y - 2, 12, ['#e8c88a', '#c8a060', '#fff0c0'], { sp: 60, life: 0.4, drag: 2 }); addRing(e.x, e.y + 3, 10, '#e8c88a', { life: 0.3 }); }
 }
@@ -1252,6 +1269,18 @@ function drainSta(n) {
   P.sta = Math.max(0, P.sta - n); S.hudDirty = true;
   for (let i = 0; i < 8; i++) part(P.x + rand(-4, 4), P.y - 4 + rand(-3, 3), rand(-40, 40), rand(-50, -10), 0.5, pick(['#7ad7ff', '#bff4ff', '#2a8ac8']), { g: 160, drag: 1 });
   AudioMan.drain();
+}
+// イエティの雪玉: 1秒の放物線。着弾 半径 r に ×n・凍傷 +frost と、雪の床(floor 秒)
+function yetiThrow(e, sb) {
+  const dmg = e.dmg * sb.n;
+  lob('snowball', e.x, e.y - 8, e.tx, e.ty, 1.0, 45, p => {
+    if (hitCircle(p.x, p.y, sb.r, dmg)) frostPlayer(sb.frost);
+    addHazard('snow', p.x, p.y, { r: sb.r, dur: sb.floor, tick: 1 });
+    burst(p.x, p.y, 22, ['#ffffff', '#e8f4ff', '#bff4ff'], { sp: 90, up: 40, g: 200, life: 0.6 }); addRing(p.x, p.y, sb.r * CHAOS.area, '#ffffff', { life: 0.3 });
+    AudioMan.thud();
+  });
+  e.sq = 0.7; e.kx -= Math.cos(Math.atan2(e.ty - e.y, e.tx - e.x)) * 20;
+  burst(e.x, e.y - 8, 8, ['#ffffff', '#e8f4ff'], { sp: 40, life: 0.3 }); AudioMan.dash();
 }
 // 溶岩スライム: 着地・倒れた場所に燃える床
 function lavaPool(e, f) {
@@ -1411,6 +1440,20 @@ function updEnemies(dt) {
           if (e.shotT <= 0 && d2(e.x, e.y, P.x, P.y) < 160 * 160) { e.shotT = ln.cd; e.wind = ln.wind; pushWarn({ kind: 'circle', x: e.x, y: e.y, r: ln.r, t: 0, life: ln.wind, owner: e, track: w => { w.x = e.x; w.y = e.y; } }); }
         }
       }
+      if (d.snowball) { // イエティ: 止まって腕を振りかぶり(0.5秒)、雪玉を放物線で投げる(着弾点の円は投げる前から出る)
+        const sb = d.snowball;
+        if (e.wind > 0) {
+          mx = my = 0; e.wind -= dt * CHAOS.rate * tw;
+          if (e.wind <= 0) yetiThrow(e, sb);
+        } else {
+          e.shotT -= dt * CHAOS.rate * tw;
+          if (e.shotT <= 0 && d2(e.x, e.y, P.x, P.y) < sb.range * sb.range) {
+            e.shotT = sb.cd; e.wind = 0.5; e.tx = P.x; e.ty = P.y;
+            pushWarn({ kind: 'circle', x: P.x, y: P.y, r: sb.r, t: 0, life: 1.5, owner: e });
+          }
+        }
+        e.aim = e.wind > 0;
+      }
       if (d.blast) { // 鬼火: プレイヤーのそばで止まり、膨らみながら点滅して自爆する
         const bl = d.blast;
         if (e.wind > 0) {
@@ -1442,7 +1485,7 @@ function updEnemies(dt) {
       }
     }
     const td = !e.boss && DATA.enemies[e.type]; // 触れたとき: 鬼火は当たらない / ヘルハウンドは噛みつくと炎上 / クラゲはスタミナを吸う
-    if (e.dmg > 0 && !e.air && !(td && td.noTouch) && d2(e.x, e.y, P.x, P.y) < Math.pow(e.r + 4, 2) && hurtPlayer(e.dmg) && td) { if (td.touchBurn) burnPlayer(e.dmg * td.touchBurn); if (td.touchSta) drainSta(td.touchSta); }
+    if (e.dmg > 0 && !e.air && !(td && td.noTouch) && d2(e.x, e.y, P.x, P.y) < Math.pow(e.r + 4, 2) && hurtPlayer(e.dmg) && td) { if (td.touchBurn) burnPlayer(e.dmg * td.touchBurn); if (td.touchSta) drainSta(td.touchSta); if (td.touchFrost) frostPlayer(td.touchFrost); }
   }
   S.eatk = 1;
   if (enemies.length > 40) enemies = enemies.filter(e => !e.dead);
@@ -1583,6 +1626,17 @@ function updObj(e, dt) {
       pushWarn({ kind: 'line', x: e.x, y: e.y, a: e.swA, len: 90, w: 16, t: 0, life: 0.6, ink: true, owner: e, track: w => { w.a = e.swA; } });
     }
     if (Math.random() < dt * 3) part(e.x + rand(-5, 5), e.y + rand(-1, 3), 0, -rand(6, 14), 0.6, '#bff4ff', { drag: 1 }); // 根元の泡
+  } else if (e.obj === 'mirror') { // 氷の鏡(雪華の女王): 2秒ごとに中心へ氷の槍(撃つ 0.3秒前に光る)
+    e.spawnT -= dt; e.glint = e.spawnT < 0.3;
+    if (e.spawnT <= 0) {
+      e.spawnT = 2;
+      const a = Math.atan2(e.cy - e.y, e.cx - e.x), L = 190 * CHAOS.area;
+      eprojs.push({ kind: 'ispear', x: e.x, y: e.y - 6, vx: Math.cos(a) * 220, vy: Math.sin(a) * 220, dmg: e.owner.dmg * 0.5, frost: 1, life: L / 220, t: 0, r: 4 * CHAOS.area });
+      burst(e.x, e.y - 8, 8, SNOW, { sp: 50, glow: true, life: 0.3 }); AudioMan.chime();
+    }
+    if (Math.random() < dt * 5) part(e.x + rand(-4, 4), e.y - rand(4, 16), 0, -rand(3, 8), 0.6, pick(SNOW), { glow: true, drag: 1 });
+  } else if (e.obj === 'iceblock') { // 氷塊(霜の巨人): 冷気が立ちのぼる
+    if (Math.random() < dt * 4) part(e.x + rand(-8, 8), e.y - rand(0, 12), rand(-3, 3), -rand(3, 8), 0.8, pick(SNOW), { drag: 1 });
   } else if (e.obj === 'altar') { // 炎の祭壇: 炎が燃えさかり、火の粉がイフリートへ流れる
     if (Math.random() < dt * 16) part(e.x + rand(-3, 3), e.y - 10 + rand(-2, 2), rand(-6, 6), -rand(20, 40), rand(0.3, 0.6), pick(['#ff6a2a', '#ffc34a', '#fff0b0']), { glow: true, drag: 1 });
     if (Math.random() < dt * 6) { const o = e.owner, pa = Math.atan2(o.y - e.y, o.x - e.x); part(e.x, e.y - 10, Math.cos(pa) * 90, Math.sin(pa) * 90, 0.8, '#ffc34a', { glow: true, drag: 0 }); }
@@ -1607,6 +1661,16 @@ function objDown(e, broken) {
     burst(e.x, e.y - 8, Math.round(30 * k), ['#a8486a', '#d86a8a', '#5a2a4a', '#bff4ff'], { sp: 100 * k, g: 220, life: 0.6 });
     burst(e.x, e.y, Math.round(14 * k), SPLASH, { sp: 70 * k, up: 40, g: 200 });
     if (broken) { addFlash(e.x, e.y, 60, '#7ad7ff', 0.4); shake(3); AudioMan.splat(); AudioMan.splash(); }
+  } else if (e.obj === 'mirror') { // 氷の鏡: 割れて、破片 3発がプレイヤーへ(速さ 70、×0.3)
+    burst(e.x, e.y - 8, Math.round(34 * k), [...SNOW, '#ffffff'], { sp: 120 * k, g: 160, glow: true, life: 0.55 });
+    if (broken) {
+      const a = Math.atan2(P.y - e.y, P.x - e.x);
+      for (const da of [-0.35, 0, 0.35]) Object.assign(eball(e.x, e.y - 6, a + da, 70, e.owner.dmg * 0.3, 'eice'), { r: 2.5 * CHAOS.area, life: 4 });
+      addFlash(e.x, e.y, 60, '#bff4ff', 0.4); shake(3); AudioMan.chime(); AudioMan.thud();
+    }
+  } else if (e.obj === 'iceblock') { // 氷塊: 砕けて氷のかけら
+    burst(e.x, e.y - 6, Math.round(30 * k), ['#bff4ff', '#7ad7ff', '#ffffff', '#5a8ab8'], { sp: 110 * k, g: 220, life: 0.6 });
+    if (broken) { addFlash(e.x, e.y, 60, '#9fd8ff', 0.4); shake(3); AudioMan.frost(); AudioMan.thud(); }
   } else if (e.obj === 'clone') { // 鏡の分身: 鏡のように割れて消える
     burst(e.x, e.y - 6, 26, ['#ffffff', '#d8e8ff', '#ffd0f0', '#9ff7ff'], { sp: 110, glow: true, life: 0.45 });
     addRing(e.x, e.y, 14, '#ffffff', { life: 0.25 }); AudioMan.chime();
@@ -1624,9 +1688,11 @@ const BOSS_AI0 = {
   stag: { rush: 3, spike: 4, shard: 2, sweep: 0, side: 1 },
   kraken: { forest: 6, slam: 3, ink: 7, grab: 5, tide: 10, water: 4 },
   levia: { current: 10, wave: 8, dive: 5, pillar: 7, tail: 0, side: 1 },
+  fgiant: { hammer: 3, blizz: 9, aval: 7, ball: 5 },
+  squeen: { flake: 2, ring: 6, mirror: 8, veil: 14, dance: 4, side: 1 },
   pqueen: { tp: 3, beam: 3, cageCd: 10, mirror: 8, chain: 5, blink: 6 },
 };
-const BOSS_ENRAGE = { king: { slam: 6 }, ifrit: { altar: true }, stag: { herd: 4 }, pqueen: { spiral: 3 }, levia: { breath: 4 } };
+const BOSS_ENRAGE = { king: { slam: 6 }, ifrit: { altar: true }, stag: { herd: 4 }, pqueen: { spiral: 3 }, levia: { breath: 4 }, fgiant: { drift: 5 }, squeen: { lance: 3 } };
 
 function bossAI(e, dt) {
   const ai = e.ai, a = Math.atan2(P.y - e.y, P.x - e.x), dist = Math.sqrt(d2(e.x, e.y, P.x, P.y));
@@ -1704,6 +1770,8 @@ function bossAI(e, dt) {
     case 'pqueen': pqueenAI(e, ai, dt, a, dist, slow); break;
     case 'kraken': krakenAI(e, ai, dt, a, dist, slow); break;
     case 'levia': leviaAI(e, ai, dt, a, dist, slow); break;
+    case 'fgiant': fgiantAI(e, ai, dt, a, dist, slow); break;
+    case 'squeen': squeenAI(e, ai, dt, a, dist, slow); break;
   }
 }
 
@@ -2671,6 +2739,7 @@ function krakenAI(e, ai, dt, a, dist, slow) {
   }
   if (!ai.act && ai.wind <= 0 && dist > 280) { // 触手ごと潜って、プレイヤーのそばへ
     ai.act = 'dive'; ai.pt = 2; ai.warned = false; e.flying = e.hidden = true; e.air = true;
+    ai.q = []; // 出かかっていた触手・叩きつけ・潮は取りやめ(潜った後に元の場所で出ないように)
     for (const o of tents) { o.dead = true; objDown(o, false); }
     P.rootT = 0; ai.grabT = 0;
     burst(e.x, e.y, 40, SPLASH, { sp: 120, up: 40, g: 200 }); AudioMan.splash();
@@ -2846,6 +2915,166 @@ function leviaBreath(e, ai, a) {
   pushWarn({ kind: 'line', x: e.x, y: e.y, a, len: 220, w: 14, t: 0, life: 0.6, track: w => { w.x = e.x; w.y = e.y; } });
   AudioMan.charge(0.6);
   windup(e, 0.6, () => { ai.act = 'breath'; ai.pt = 0; ai.bdir = Math.random() < 0.5 ? 1 : -1; ai.ba0 = a - ai.bdir * Math.PI / 4; ai.btick = 0; AudioMan.roar(); });
+}
+
+// ---------- 霜の巨人: ゆっくり追う。凍傷を積んでから重い一撃。氷槌(凍て割り)/ 吹雪の風(氷塊の風下に隠れる)/ 雪崩 / 大雪玉 / 激昂: 地吹雪 ----------
+const SNOW = ['#ffffff', '#e8f4ff', '#bff4ff', '#9fd8ff'];
+function fgiantAI(e, ai, dt, a, dist, slow) {
+  const R = CHAOS.rate;
+  if (dist > 28) { e.x += Math.cos(a) * e.spd * slow * dt; e.y += Math.sin(a) * e.spd * slow * dt; }
+  if (Math.random() < dt * 6) part(e.x + rand(-10, 10), e.y + 12, rand(-6, 6), -rand(4, 10), 0.6, pick(SNOW), { drag: 1 }); // 足元の雪煙
+  if (ai.glowT > 0) ai.glowT -= dt;
+  ai.hammer -= dt * R; ai.blizz -= dt * R; ai.aval -= dt * R; ai.ball -= dt * R; if (ai.enraged) ai.drift -= dt * R;
+  if (ai.hammer <= 0 && dist < 80) { ai.hammer = ai.enraged ? 3.5 : 4.5; giantHammer(e, ai, a); }
+  else if (ai.blizz <= 0) { ai.blizz = ai.enraged ? 11 : 15; giantBlizzard(e, ai, a); }
+  else if (ai.aval <= 0) { ai.aval = ai.enraged ? 9 : 12; avalanche(e, ai); }
+  else if (ai.ball <= 0) { ai.ball = ai.enraged ? 7 : 9; bigSnowball(e, ai, a); }
+  else if (ai.enraged && ai.drift <= 0) { ai.drift = 12; groundBlizzard(e, ai); }
+}
+// 氷槌: 0.9秒 前方に円 半径 45 → ×1.3・凍傷 +3。跡に氷塊(半径 14・HP 2%・10秒)と滑る床(半径 45・6秒)
+// 凍て割り(プレイヤーの凍傷が 6 以上のとき、氷槌の代わりに): 1.1秒 前方に円 半径 60 → ×1.6・凍傷 +3
+function giantHammer(e, ai, a) {
+  const big = P.frost >= 6, R0 = big ? 60 : 45, off = big ? 34 : 28, T = big ? 1.1 : 0.9;
+  const cx = e.x + Math.cos(a) * off, cy = e.y + Math.sin(a) * off;
+  pushWarn({ kind: 'circle', x: cx, y: cy, r: R0, t: 0, life: T });
+  e.sq = 1.3; ai.raise = T; AudioMan.charge(T);
+  if (big) { hint('shatter', '凍て割り', '凍傷が 6 以上だと、氷槌がもっと重く広くなる'); AudioMan.frost(); }
+  windup(e, T, () => {
+    if (hitCircle(cx, cy, R0, e.dmg * (big ? 1.6 : 1.3))) frostPlayer(3);
+    const RR = R0 * CHAOS.area;
+    burst(cx, cy, big ? 70 : 45, [...SNOW, '#7ad7ff'], { sp: big ? 190 : 140, up: 60, g: 220, life: 0.7 });
+    for (let i = 0; i < 10; i++) { const pa = TAU / 10 * i; bfx.push({ kind: 'icespike', x: cx + Math.cos(pa) * RR * 0.75, y: cy + Math.sin(pa) * RR * 0.75, t: 0, life: 0.8, h: rand(8, 14) }); } // 氷の棘が突き出る
+    addRing(cx, cy, RR, '#bff4ff', { w: 3, life: 0.4 }); shockAt(cx, cy, big ? 2.2 : 1.6, 0.75); shake(big ? 12 : 8); hitstop(big ? 0.06 : 0.03);
+    AudioMan.boom(); AudioMan.frost(); e.sq = 0.7; ai.raise = 0;
+    addHazard('ice', cx, cy, { r: R0, dur: 6 });
+    spawnObj(e, 'iceblock', cx, cy, { pct: 0.02, r: 14, life: 10 });
+  });
+}
+// 吹雪の風: 1.0秒(画面に風の線)→ 5秒、巨人の向き(巨人 → プレイヤー)へ毎秒 45 押し、1秒ごとに凍傷 +1。氷塊の風下(幅 30・長さ 70)では受けない
+function giantBlizzard(e, ai, a) {
+  bfx.push({ kind: 'windwarn', x: 0, y: 0, th: a, t: 0, life: 1 });
+  AudioMan.charge(1); AudioMan.blizz();
+  hint('blizzard', '吹雪の風', '氷塊の風下に入れば、風も凍傷も受けない');
+  later(ai, 1, () => { hazards.push({ kind: 'blizzard', x: e.x, y: e.y, th: a, t: 0, dur: 5, tick: 1, seed: (Math.random() * 1e6) | 0 }); AudioMan.blizz(); e.sq = 1.2; });
+}
+// 吹雪の風の風下: 氷塊の後ろ(幅 30・長さ 70)にいるか
+function inLee(th) {
+  const c = Math.cos(th), s = Math.sin(th), L = 70 * CHAOS.area, W = 15 * CHAOS.area;
+  return enemies.some(o => o.obj === 'iceblock' && !o.dead && (() => { const al = (P.x - o.x) * c + (P.y - o.y) * s, sd = -(P.x - o.x) * s + (P.y - o.y) * c; return al > -o.r * 0.5 && al < L && Math.abs(sd) < W; })());
+}
+// 雪崩: 画面の片側から帯 5本(幅 28・すき間 26)が 0.3秒おきに順に光る(1.2秒)→ 各帯を雪の塊が速さ 130 で転がる。×1.0・凍傷 +3
+function avalanche(e, ai) {
+  const th = pick([0, Math.PI / 2, Math.PI, -Math.PI / 2]), c = Math.cos(th), s = Math.sin(th), A = CHAOS.area;
+  const cx = cam.x + GFX.VW / 2, cy = cam.y + GFX.VH / 2, half = (Math.abs(c) * GFX.VW + Math.abs(s) * GFX.VH) / 2 + 24;
+  const W = 28 * A, G = 26 * A, span = 5 * W + 4 * G, off = -span / 2 + W / 2 + rand(-(W + G) / 2, (W + G) / 2); // 帯の並びの位置は、プレイヤーを中心に少しずらす
+  const pside = -(P.x - cx) * s + (P.y - cy) * c;
+  const order = Math.random() < 0.5 ? [0, 1, 2, 3, 4] : [4, 3, 2, 1, 0];
+  order.forEach((li, k) => {
+    const side = pside + off + li * (W + G), x0 = cx - c * half - s * side, y0 = cy - s * half + c * side;
+    later(ai, 0.3 * k, () => { pushWarn({ kind: 'line', x: x0, y: y0, a: th, len: 2 * half, w: W, t: 0, life: 1.2, fixed: true }); AudioMan.thud(); });
+    later(ai, 0.3 * k + 1.2, () => { hazards.push({ kind: 'aval', x: x0, y: y0, th, len: 2 * half, w: W, d: 0, t: 0, dur: 2 * half / 130, dmg: e.dmg, seed: (Math.random() * 1e6) | 0 }); shake(3); AudioMan.boom(); });
+  });
+  AudioMan.warning();
+  hint('avalanche', '雪崩', '光った帯を雪の塊が転がる。すき間に立て');
+}
+// 大雪玉: 0.6秒(経路の帯)→ 雪玉(半径 14)がプレイヤーへ転がる(速さ 120)。×1.0・凍傷 +2。激昂は 2個
+function bigSnowball(e, ai, a) {
+  const angs = ai.enraged ? [a - 0.3, a + 0.3] : [a];
+  for (const aa of angs) pushWarn({ kind: 'line', x: e.x, y: e.y, a: aa, len: 300, w: 28, t: 0, life: 0.6 });
+  e.sq = 1.25; AudioMan.charge(0.6);
+  windup(e, 0.6, () => {
+    for (const aa of angs) eprojs.push({ kind: 'bigsnow', x: e.x + Math.cos(aa) * 14, y: e.y + Math.sin(aa) * 14, vx: Math.cos(aa) * 120, vy: Math.sin(aa) * 120, dmg: e.dmg * (S.eatk ?? 1), frost: 2, life: 300 * CHAOS.area / 120, t: 0, r: 14 * CHAOS.area });
+    e.sq = 0.75; shake(4); AudioMan.thud(); AudioMan.dash();
+  });
+}
+// 地吹雪(激昂): 0.5秒 巨人の周りが白く光る → 巨人の周り 半径 70 に 4秒。中にいると 1秒ごとに凍傷 +1
+function groundBlizzard(e, ai) {
+  ai.glowT = 0.5; AudioMan.charge(0.5);
+  later(ai, 0.5, () => { addHazard('drift', e.x, e.y, { r: 70, dur: 4, owner: e, tick: 1 }); AudioMan.blizz(); shockAt(e.x, e.y, 1.2, 0.9); });
+}
+
+// ---------- 雪華の女王: 距離 110 を保って滑るように回り込む。雪華弾 / 縮む氷輪 / 氷の鏡 / 吹雪の帳 / 雪華の輪舞 / 激昂: 氷の槍 ----------
+function squeenAI(e, ai, dt, a, dist, slow) {
+  const R = CHAOS.rate, mirrors = enemies.some(o => o.owner === e && o.obj === 'mirror' && !o.dead);
+  if (!mirrors) { // 鏡がある間は止まる
+    if ((ai.flip = (ai.flip ?? 4) - dt) <= 0) { ai.flip = rand(3, 5); ai.side = -ai.side; }
+    const dir = dist > 110 ? a : a + Math.PI, k = Math.abs(dist - 110) > 15 ? 1 : 0.2;
+    e.x += (Math.cos(dir) * e.spd * k + Math.cos(a + Math.PI / 2) * e.spd * 0.9 * ai.side) * slow * dt;
+    e.y += (Math.sin(dir) * e.spd * k + Math.sin(a + Math.PI / 2) * e.spd * 0.9 * ai.side) * slow * dt;
+    if (Math.random() < dt * 14) part(e.x + rand(-6, 6), e.y + 10, rand(-8, 8), -rand(2, 8), 0.6, pick(SNOW), { glow: true, drag: 1 }); // 裾から雪の結晶がこぼれる
+  }
+  ai.flake -= dt * R; ai.ring -= dt * R; ai.mirror -= dt * R; ai.veil -= dt * R; ai.dance -= dt * R; if (ai.enraged) ai.lance -= dt * R;
+  if (ai.flake <= 0) { ai.flake = ai.enraged ? 2.5 : 3.5; snowFlakes(e); } // 弾はほかの技と並んで撃つ
+  if (ai.mirror <= 0 && !mirrors) { ai.mirror = ai.enraged ? 10 : 14; iceMirrors(e, ai); }
+  else if (ai.veil <= 0) { ai.veil = ai.enraged ? 13 : 18; frostVeil(e, ai); }
+  else if (ai.ring <= 0) { ai.ring = ai.enraged ? 7 : 10; iceRing(e, ai); }
+  else if (ai.dance <= 0) { ai.dance = ai.enraged ? 6 : 9; snowDance(e, ai); }
+  else if (ai.enraged && ai.lance <= 0) { ai.lance = 6; iceLance(e, ai); }
+}
+// 雪華弾: 6方向に雪の結晶(速さ 55)。1秒後にそれぞれ 3つに割れる。×0.5・凍傷 +1
+function snowFlakes(e) {
+  const a0 = rand(0, TAU);
+  for (let i = 0; i < 6; i++) Object.assign(eball(e.x, e.y - 4, a0 + TAU / 6 * i, 55, e.dmg * 0.5, 'flake'), { frost: 1, splitT: 1 });
+  burst(e.x, e.y - 4, 12, SNOW, { sp: 50, glow: true, life: 0.35 }); AudioMan.chime();
+}
+// 縮む氷輪: 0.8秒 プレイヤーを中心に円 半径 90 → 氷の輪が 2秒かけて半径 90 → 0 へ縮む。輪に触れると ×0.8・凍傷 +2
+function iceRing(e, ai) {
+  const tx = P.x, ty = P.y;
+  pushWarn({ kind: 'circle', x: tx, y: ty, r: 90, t: 0, life: 0.8 });
+  AudioMan.charge(0.8);
+  later(ai, 0.8, () => { addHazard('icering', tx, ty, { r: 90, r0: 90 * CHAOS.area, dur: 2, dmg: e.dmg * 0.8 }); AudioMan.frost(); });
+}
+// 氷の鏡: 0.9秒 プレイヤーの周り 半径 90 の 4方向に鏡 → 鏡 4枚(HP 各 2%・8秒)。各鏡が 2秒ごとに中心へ氷の槍(速さ 220、×0.5・凍傷 +1)
+function iceMirrors(e, ai) {
+  const cx = P.x, cy = P.y, a0 = rand(0, TAU);
+  for (let i = 0; i < 4; i++) {
+    const ma = a0 + TAU / 4 * i, x = cx + Math.cos(ma) * 90, y = cy + Math.sin(ma) * 90;
+    pushWarn({ kind: 'circle', x, y, r: 10, t: 0, life: 0.9, fixed: true });
+    later(ai, 0.9, () => { const m = spawnObj(e, 'mirror', x, y, { pct: 0.02, r: 7, life: 8, spawnT: 1.2 + i * 0.2 }); m.cx = cx; m.cy = cy; burst(x, y - 8, 18, SNOW, { sp: 70, glow: true, life: 0.4 }); });
+  }
+  AudioMan.charge(0.9);
+  later(ai, 0.9, () => { AudioMan.chime(); hint('mirror', '氷の鏡', '鏡から中心へ氷の槍。鏡を壊せば止まる(女王は鏡がある間 動かない)'); });
+}
+// 吹雪の帳: 1.0秒 画面の縁が白く凍る → 6秒かけて凍った範囲が縁から毎秒 25 で迫る(最後はプレイヤーの周り 半径 110 が残る)。中にいると 1秒ごとに凍傷 +1・×0.2
+function frostVeil(e, ai) {
+  const cx = P.x, cy = P.y, R0 = Math.hypot(GFX.VW, GFX.VH) / 2;
+  bfx.push({ kind: 'veilwarn', x: cx, y: cy, R: R0, t: 0, life: 1 });
+  AudioMan.charge(1); AudioMan.blizz();
+  hint('veil', '吹雪の帳', '画面の縁から凍りつく。真ん中に残れ');
+  later(ai, 1, () => hazards.push({ kind: 'veil', x: cx, y: cy, R: R0, Rmin: 110, t: 0, dur: 6, tick: 1, dmg: e.dmg * 0.2, seed: (Math.random() * 1e6) | 0 }));
+}
+// 雪華の輪舞: 円 3個(半径 24)が、使ったときのプレイヤーの位置から 60 の距離を毎秒 1.5rad で 3秒回る → 止まって 0.3秒後に ×0.7・凍傷 +2
+//   回る中心は使ったときの位置に固定(プレイヤーについて回ると、円が重ならず当たらないため)
+function snowDance(e, ai) {
+  const a0 = rand(0, TAU), ws = [], cx = P.x, cy = P.y;
+  bfx.push({ kind: 'dance', x: cx, y: cy, t: 0, life: 3.3 });
+  for (let i = 0; i < 3; i++) {
+    const w = { kind: 'circle', x: cx, y: cy, r: 24, t: 0, life: 3.3, dance: true };
+    w.track = q => { if (q.t < 3) { const aa = a0 + TAU / 3 * i + q.t * 1.5; q.x = cx + Math.cos(aa) * 60; q.y = cy + Math.sin(aa) * 60; } };
+    w.track(w); pushWarn(w); ws.push(w);
+  }
+  AudioMan.chime();
+  later(ai, 3.3, () => {
+    let hit = false;
+    for (const w of ws) {
+      if (!hit && hitCircle(w.x, w.y, 24, e.dmg * 0.7)) { hit = true; frostPlayer(2); }
+      burst(w.x, w.y, 24, SNOW, { sp: 100, glow: true, life: 0.45 }); addRing(w.x, w.y, 24 * CHAOS.area, '#bff4ff', { w: 2, life: 0.3 });
+      for (let k = 0; k < 6; k++) { const pa = TAU / 6 * k; bfx.push({ kind: 'icespike', x: w.x + Math.cos(pa) * 12 * CHAOS.area, y: w.y + Math.sin(pa) * 12 * CHAOS.area, t: 0, life: 0.6, h: rand(6, 10) }); }
+    }
+    shake(4); AudioMan.frost(); AudioMan.thud();
+  });
+}
+// 氷の槍(激昂): 女王からプレイヤーへの帯(長さ 240・幅 10)が 0.9秒追い、0.3秒止まる → 氷の槍(速さ 300)。×1.0・凍傷 +3、当たると 1秒 移動速度 ×0.3
+function iceLance(e, ai) {
+  const w = { kind: 'line', x: e.x, y: e.y, a: Math.atan2(P.y - e.y, P.x - e.x), len: 240, w: 10, t: 0, life: 1.2 };
+  w.track = q => { if (q.t < 0.9) { q.x = e.x; q.y = e.y; q.a = Math.atan2(P.y - e.y, P.x - e.x); } };
+  pushWarn(w);
+  AudioMan.charge(1.2);
+  later(ai, 1.2, () => {
+    eprojs.push({ kind: 'ispear', x: w.x, y: w.y, vx: Math.cos(w.a) * 300, vy: Math.sin(w.a) * 300, dmg: e.dmg * (S.eatk ?? 1), frost: 3, chill: 1, life: w.len / 300, t: 0, r: 5 * CHAOS.area });
+    burst(w.x, w.y, 14, SNOW, { sp: 90, glow: true, life: 0.35 }); AudioMan.spearThrow(); AudioMan.frost();
+    hint('lance', '氷の槍', '当たると 1秒 ほとんど動けなくなる');
+  });
 }
 
 // 空襲: 0.8秒で飛び上がる(この間に画面を横切る帯 = 影の通り道が出る)→ 空の上(攻撃が当たらない)を影が速さ 220 で走り、通った跡に燃える床(4秒)
@@ -3054,6 +3283,14 @@ function updEprojs(dt0) {
     if (p.kind === 'efire' && Math.random() < dt * 40) part(p.x + rand(-1, 1), p.y + rand(-1, 1), -p.vx * 0.15 + rand(-6, 6), -p.vy * 0.15 - rand(4, 12), rand(0.2, 0.4), pick(['#ff6a2a', '#ffc34a', '#b8261a']), { glow: true, drag: 2 });
     else if (p.kind === 'esand' && Math.random() < dt * 30) part(p.x, p.y, rand(-8, 8), rand(-8, 4), 0.35, pick(['#e8c88a', '#c8a060']), { drag: 3 });
     else if (p.kind === 'espear' && Math.random() < dt * 50) part(p.x - p.vx * 0.03, p.y - p.vy * 0.03, 0, 0, 0.12, '#ffffff', { drag: 0 });
+    else if ((p.kind === 'eice' || p.kind === 'ispear' || p.kind === 'flake') && Math.random() < dt * (p.kind === 'ispear' ? 60 : 25)) part(p.x + rand(-1, 1), p.y + rand(-1, 1), -p.vx * 0.1, -p.vy * 0.1, 0.3, pick(['#bff4ff', '#ffffff', '#7ad7ff']), { glow: true, drag: 2 }); // 氷の弾: 霜のきらめき
+    else if (p.kind === 'bigsnow') { p.spin = (p.spin || 0) + dt * Math.hypot(p.vx, p.vy) / 14; if (Math.random() < dt * 30) part(p.x + rand(-10, 10), p.y + 10, -p.vx * 0.2 + rand(-15, 15), -rand(10, 30), 0.5, pick(['#ffffff', '#e8f4ff']), { g: 120, drag: 1 }); } // 大雪玉: 転がって雪煙
+    if (p.splitT && p.t >= p.splitT) { // 雪華弾: 3つに割れる
+      const a = Math.atan2(p.vy, p.vx), sp = Math.hypot(p.vx, p.vy);
+      for (const da of [-0.45, 0, 0.45]) Object.assign(eball(p.x, p.y, a + da, sp * 1.15, 0, 'flake'), { dmg: p.dmg, frost: p.frost, small: true, life: 4 }); // ダメージは割れる前の弾と同じ
+      burst(p.x, p.y, 6, ['#ffffff', '#bff4ff'], { sp: 40, glow: true, life: 0.25 });
+      eprojs.splice(i, 1); continue;
+    }
     if (p.t > p.life) { if (p.kind === 'espear' || p.kind === 'bspear') burst(p.x, p.y, 5, ['#c8b89a', '#7a6a5a'], { sp: 30, life: 0.25 }); eprojs.splice(i, 1); continue; } // 槍は帯の端で地面に刺さる
     if (p.blk) { // 白骨竜の弾は骨柱、大鹿の欠片・残像は結晶の柱に当たると砕けて消える
       let wall = null;
@@ -3063,9 +3300,10 @@ function updEprojs(dt0) {
     if (d2(p.x, p.y, P.x, P.y) < Math.pow(p.r + 3, 2)) {
       if (P.invT > 0) continue;
       if (!p.keep && clsBlockProj()) { burst(p.x, p.y, 8, ['#fff27a', '#ffffff'], { sp: 60, glow: true, life: 0.25 }); eprojs.splice(i, 1); continue; } // 静電気
-      if (hurtPlayer(p.dmg)) { if (p.burn) burnPlayer(p.burn); if (p.sta) drainSta(p.sta); } // 火の玉: 炎上 / 海淵の弾: スタミナ
+      if (hurtPlayer(p.dmg)) { if (p.burn) burnPlayer(p.burn); if (p.sta) drainSta(p.sta); if (p.frost) frostPlayer(p.frost); if (p.chill) chillPlayer(p.chill); } // 火の玉: 炎上 / 海淵の弾: スタミナ / 霊峰の弾: 凍傷・氷の槍の強い減速
       if (p.keep) continue;
-      burst(p.x, p.y, 6, p.kind === 'efire' ? ['#ff6a2a', '#ffc34a', '#ffffff'] : p.kind === 'esand' ? ['#e8c88a', '#fff0c0', '#ffffff'] : ['#ff3b5c', '#ffffff'], { sp: 50, glow: true });
+      const icy = p.frost > 0;
+      burst(p.x, p.y, icy ? 10 : 6, p.kind === 'efire' ? ['#ff6a2a', '#ffc34a', '#ffffff'] : p.kind === 'esand' ? ['#e8c88a', '#fff0c0', '#ffffff'] : icy ? ['#bff4ff', '#ffffff', '#7ad7ff'] : ['#ff3b5c', '#ffffff'], { sp: 50, glow: true });
       eprojs.splice(i, 1);
     }
   }
@@ -3073,7 +3311,7 @@ function updEprojs(dt0) {
 
 // ---------- 設置物(粘液床 / 燃える床 / 衝撃波 / スロウタイム / 渦) ----------
 function updHazards(dt) {
-  S.inInk = false;
+  S.inInk = false; S.lee = false;
   for (let i = hazards.length - 1; i >= 0; i--) {
     const h = hazards[i];
     h.t += dt;
@@ -3152,6 +3390,36 @@ function updHazards(dt) {
         burst(h.x, h.y, 24, SPLASH, { sp: 110, up: 50, g: 200, life: 0.6 }); AudioMan.splash();
       }
       if (Math.random() < dt * 30) part(h.x + rand(-h.r, h.r) * 0.6, h.y - rand(0, 30), rand(-10, 10), -rand(20, 50), 0.5, pick(SPLASH), { drag: 1 });
+    } else if (h.kind === 'ice') { // 滑る床(霜の巨人): 上では向きを変えるのに慣性がかかる
+      if (dd < h.r * h.r && h.t < h.dur - 0.2) P.iceT = 0.1;
+      if (Math.random() < dt * 5) { const pa = rand(0, TAU), pr = Math.sqrt(Math.random()) * h.r; part(h.x + Math.cos(pa) * pr, h.y + Math.sin(pa) * pr * 0.8, 0, -2, 0.5, '#ffffff', { glow: true, drag: 1 }); }
+    } else if (h.kind === 'snow' || h.kind === 'drift') { // 雪の床(イエティ)/ 地吹雪(霜の巨人の周り): 中にいると 1秒ごとに凍傷 +1
+      const R = h.r * Math.min(1, h.t * 6);
+      if (dd < R * R && h.t < h.dur - 0.2 && (h.tick -= dt) <= 0) { h.tick = 1; frostPlayer(1); }
+      if (h.kind === 'drift') for (let k = 0; k < 2; k++) { const pa = rand(0, TAU), pr = rand(0.2, 1) * R; part(h.x + Math.cos(pa) * pr, h.y + Math.sin(pa) * pr, -Math.sin(pa) * 70, Math.cos(pa) * 70 - 10, 0.5, pick(SNOW), { drag: 1.5 }); } // 渦を巻く雪
+    } else if (h.kind === 'blizzard') { // 吹雪の風(霜の巨人): 巨人の向きへ毎秒 45 押し、1秒ごとに凍傷 +1。氷塊の風下では受けない
+      const lee = inLee(h.th), c = Math.cos(h.th), s = Math.sin(h.th);
+      S.lee = lee;
+      if (!lee && !P.dead && state === 'play' && P.invT <= 0) { P.x += c * 45 * dt; P.y += s * 45 * dt; }
+      if ((h.tick -= dt) <= 0) { h.tick = 1; if (!lee) frostPlayer(1); }
+      for (let k = 0; k < 5; k++) { // 画面を吹き抜ける雪
+        const x = cam.x + rand(-20, GFX.VW + 20) - c * 40, y = cam.y + rand(-20, GFX.VH + 20) - s * 40;
+        part(x, y, c * rand(140, 220) + rand(-10, 10), s * rand(140, 220) + rand(-10, 10), rand(0.4, 0.8), pick(SNOW), { drag: 0 });
+      }
+    } else if (h.kind === 'aval') { // 雪崩(霜の巨人): 帯を雪の塊が転がる。×1.0・凍傷 +3
+      const c = Math.cos(h.th), s = Math.sin(h.th);
+      h.d = h.t * 130;
+      const along = (P.x - h.x) * c + (P.y - h.y) * s, side = -(P.x - h.x) * s + (P.y - h.y) * c;
+      if (!h.hit && Math.abs(side) < h.w / 2 + 3 && Math.abs(along - h.d) < h.w / 2 + 2 && hurtPlayer(h.dmg)) { h.hit = true; frostPlayer(3); }
+      for (let k = 0; k < 3; k++) { const sd = rand(-h.w / 2, h.w / 2); part(h.x + c * (h.d - 6) - s * sd, h.y + s * (h.d - 6) + c * sd, -c * rand(20, 60) + rand(-20, 20), -s * rand(20, 60) - rand(10, 40), 0.6, pick(SNOW), { g: 120, drag: 1 }); } // 巻き上がる雪煙
+    } else if (h.kind === 'icering') { // 縮む氷輪(雪華の女王): 輪に触れると ×0.8・凍傷 +2
+      h.rr = h.r0 * Math.max(0, 1 - h.t / h.dur);
+      if (!h.hit && Math.abs(Math.sqrt(dd) - h.rr) < 5 && hurtPlayer(h.dmg)) { h.hit = true; frostPlayer(2); }
+      for (let k = 0; k < 3; k++) { const pa = rand(0, TAU); part(h.x + Math.cos(pa) * h.rr, h.y + Math.sin(pa) * h.rr, 0, -rand(6, 14), 0.4, pick(SNOW), { glow: true, drag: 1 }); }
+    } else if (h.kind === 'veil') { // 吹雪の帳(雪華の女王): 縁から凍りつく。凍った所にいると 1秒ごとに凍傷 +1・×0.2
+      h.cur = Math.max(h.Rmin, h.R - 25 * h.t);
+      if (dd > h.cur * h.cur && h.t < h.dur - 0.3 && (h.tick -= dt) <= 0) { h.tick = 1; frostPlayer(1); hurtPlayer(h.dmg); }
+      for (let k = 0; k < 3; k++) { const pa = rand(0, TAU), pr = h.cur + rand(0, 40); part(h.x + Math.cos(pa) * pr, h.y + Math.sin(pa) * pr, -Math.cos(pa) * 20, -Math.sin(pa) * 20, 0.6, pick(SNOW), { glow: true, drag: 1 }); } // 凍った縁から吹きこむ雪
     }
     if (h.t >= h.dur) hazards.splice(i, 1);
   }
@@ -3247,6 +3515,13 @@ function updDrops(dt) {
 // ============================================================
 // スポナー
 // ============================================================
+// 通常の出現: 群れで出る敵(雪狼)は pack の数をまとめて同じ方向から(エリート・大群は1体ずつ)
+function spawnPack(t) {
+  const pk = DATA.enemies[t].pack;
+  if (!pk) return spawnEnemy(t);
+  const a = rand(0, TAU), R = Math.hypot(GFX.VW, GFX.VH) / 2 + 16, n = pk[0] + Math.floor(Math.random() * (pk[1] - pk[0] + 1));
+  for (let i = 0; i < n; i++) spawnEnemy(t, { x: P.x + Math.cos(a) * R + rand(-12, 12), y: P.y + Math.sin(a) * R + rand(-12, 12) });
+}
 function updSpawner(dt) {
   if (S.mode === 'arena') return updArena(dt);
   // 通常モードはフェーズの時計(ボス・エリート群の間は止まる)、3ステージ通しは周回内の経過時間
@@ -3269,7 +3544,7 @@ function updSpawner(dt) {
       if (Math.random() < 0.12) {
         const t = pick(cfg.types), a = rand(0, TAU), R = Math.hypot(GFX.VW, GFX.VH) / 2 + 16;
         for (let i = 0; i < 6; i++) spawnEnemy(t, { x: P.x + Math.cos(a) * R + rand(-14, 14), y: P.y + Math.sin(a) * R + rand(-14, 14) });
-      } else spawnEnemy(pick(cfg.types));
+      } else spawnPack(pick(cfg.types));
     }
   }
   // 自然発生のエリート・ゴブリン・篝火: 通常モードではフェーズの時計で進む(フェーズ中は止まる)

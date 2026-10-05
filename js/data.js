@@ -19,7 +19,7 @@ const DATA = {
     slimelet: { hp: 12, spd: 22, dmg: 6,  xp: 1, r: 3, ai: 'hop' },
     skeleton: { hp: 30, spd: 18, dmg: 9,  xp: 1, r: 5, ai: 'chase' },
     archer:   { hp: 30, spd: 16, dmg: 9,  xp: 1, r: 5, ai: 'keep', keep: [70, 95], shot: { cd: 4.0, range: 180, spd: 70, n: 1.0, kind: 'arrow' } },
-    ghost:    { hp: 33, spd: 22, dmg: 10, xp: 1, r: 5, ai: 'chase', ghost: true },
+    ghost:    { hp: 30, spd: 22, dmg: 9,  xp: 1, r: 5, ai: 'chase', ghost: true, touchFrost: 1 }, // 冷たい霊(霊峰): 触れると凍傷 +1
     brute:    { hp: 60, spd: 11, dmg: 13, xp: 2, r: 8, ai: 'chase', kbRes: 0.8 },
     imp:      { hp: 28, spd: 20, dmg: 9,  xp: 1, r: 4, ai: 'keep', keep: [80, 110], shot: { cd: 4.0, range: 170, spd: 75, n: 1.0, kind: 'efire', burn: 0.1 } }, // 火の小鬼
     sandmage: { hp: 26, spd: 14, dmg: 9,  xp: 1, r: 5, ai: 'keep', keep: [100, 130], shot: { cd: 4.5, range: 200, spd: 60, n: 0.8, kind: 'esand', wind: 0.5, count: 3, spread: 0.3 } }, // 砂術師
@@ -39,6 +39,11 @@ const DATA = {
     sahagin:  { hp: 32, spd: 17, dmg: 9,  xp: 1, r: 5, ai: 'chase', throw: { cd: 4.5, range: 130, wind: 0.6, len: 150, w: 8, spd: 170, n: 1.3, sta: 15, kind: 'trident' } }, // サハギン
     puffer:   { hp: 28, spd: 12, dmg: 8,  xp: 1, r: 5, ai: 'chase', puff: { cd: 3, range: 40, wind: 0.5, count: 8, spd: 70, n: 0.8, sta: 5 } }, // ハリセンボン
     angler:   { hp: 60, spd: 14, dmg: 13, xp: 2, r: 7, ai: 'chase', lantern: { cd: 5, wind: 0.6, r: 70, sta: 25 } }, // チョウチンアンコウ
+    // 霜天の霊峰 / touchFrost: 触れると(当たったとき)凍傷 +n / shot.frost: 弾が当たると凍傷 +n / pack: [最少, 最多] 体の群れで出る(エリートは1体)
+    // snowball: 雪玉(射程 range 以内で cd 秒ごとに放物線。着弾 半径 r に ×n・凍傷 +frost、雪の床 floor 秒: 上にいると 1秒ごとに凍傷 +1)
+    wolf:     { hp: 20, spd: 36, dmg: 8,  xp: 1, r: 5, ai: 'chase', touchFrost: 2, pack: [3, 4] }, // 雪狼
+    icesprite:{ hp: 24, spd: 16, dmg: 8,  xp: 1, r: 4, ai: 'keep', keep: [90, 120], shot: { cd: 3.5, range: 180, spd: 75, n: 1.0, kind: 'eice', frost: 1 } }, // 氷の精
+    yeti:     { hp: 70, spd: 10, dmg: 14, xp: 2, r: 8, ai: 'chase', snowball: { cd: 5, range: 150, r: 18, n: 1.0, frost: 2, floor: 3 } }, // イエティ
     goblin:   { hp: 160, spd: 44, dmg: 0, xp: 12, r: 5, ai: 'flee', kbRes: 0.5, noElite: true },
   },
 
@@ -60,6 +65,8 @@ const DATA = {
     pqueen:  { name: '七彩の女王 PRISM QUEEN',      hp: 1300, spd: 22, dmg: 20, r: 11, music: 'b_crystal', col: '#ff8ad8' },
     kraken:  { name: '大海魔クラーケン KRAKEN',     hp: 2000, spd: 10, dmg: 22, r: 16, music: 'b_sea', col: '#7ad7c8' },
     levia:   { name: '深淵の海竜 LEVIATHAN',        hp: 1700, spd: 21, dmg: 22, r: 15, music: 'b_sea', col: '#4ab8e8', enrage: 0.4 },
+    fgiant:  { name: '霜の巨人 FROST GIANT',        hp: 2000, spd: 11, dmg: 24, r: 16, music: 'b_peak', col: '#9fd8ff' },
+    squeen:  { name: '雪華の女王 SNOW QUEEN',       hp: 1500, spd: 18, dmg: 22, r: 12, music: 'b_peak', col: '#d8f0ff', enrage: 0.4 },
   },
   // 状態異常(プレイヤー): 粘液・スロウタイムの移動速度倍率 / スロウタイムのCD回復倍率 / 炎上
   debuff: { slow: 0.6, cdRate: 0.5, burnTick: 0.5, burnDur: 3, frostSlow: 0.05, shockR: 60, pDur: 5, pBleed: 0.01, pBleedMax: 5 }, // frostSlow: 凍傷1スタックあたりの減速(敵・自分) / shockR: 感電の連鎖距離 / pDur: 自分の凍傷・出血が消えるまでの秒 / pBleed: 自分の出血1スタックの毎秒ダメージ(最大HP の割合)
@@ -1362,6 +1369,9 @@ const DATA = {
     // 沈黙の海淵(tier 2): 深い青緑の海の底。珊瑚と海藻、昇る泡、揺らめく光の筋
     { label: '沈黙の海淵', music: 'f_sea', ground: ['#0e2a33', '#12323c', '#0b2229', '#163a45'], deco: ['#1f5a4a', '#2f7a5a', '#ff7a8a', '#ffb06a'],
       amb: [0.38, 0.56, 0.66], tint: [0.92, 1.02, 1.08], motes: { col: '#bff4ff', rise: true, bubble: true }, sea: true },
+    // 霜天の霊峰(tier 3): 雪と氷の山。青白い光、降る雪、氷の割れ目
+    { label: '霜天の霊峰', music: 'f_peak', ground: ['#56647e', '#5e6e8a', '#4c5a72', '#6a7a96'], deco: ['#8a9ab8', '#c8d8f0', '#2a4a3a', '#9ff7ff'],
+      amb: [0.66, 0.74, 0.92], tint: [0.96, 1.0, 1.08], motes: { col: '#ffffff', snow: true }, snow: true, light: 0.5 }, // light: 明るい雪原なので光源を弱める
   ],
 
   // ---------- カオス強化(db.xlsx「カオス強化」)----------
@@ -1420,6 +1430,7 @@ const DATA = {
     { no: 3, stage: 3, tier: 3, bosses: ['cdragon', 'ifrit'], segs: [['imp', 'hound', 'onibi'], ['hound', 'onibi', 'lslime'], null] },
     { no: 4, stage: 5, tier: 1, bosses: ['stag', 'pqueen'], segs: [['bat', 'jslime', 'beetle'], ['jslime', 'beetle', 'fairy'], null] }, // 七彩の晶窟
     { no: 6, stage: 6, tier: 2, bosses: ['kraken', 'levia'], segs: [['jelly', 'sahagin', 'puffer'], ['sahagin', 'puffer', 'angler'], null] }, // 沈黙の海淵
+    { no: 5, stage: 7, tier: 3, bosses: ['fgiant', 'squeen'], segs: [['wolf', 'ghost', 'icesprite'], ['ghost', 'icesprite', 'yeti'], null] }, // 霜天の霊峰
   ],
   // 通常モードの流れ(フェーズの時計で進む。ボス・エリート群のフェーズの間は止まる)
   //   seg: 区間の長さ / waves: 区間ごとの出現の間隔・上限(t は区間の中の秒) / horde: 2つ目・3つ目の区間で大群を出す秒 / elites: エリート群の数
