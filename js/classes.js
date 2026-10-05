@@ -464,7 +464,7 @@ function flameSuck(X, x, y, dmg, blue) {
       if (e.prop) return;
       const dd = Math.sqrt(d2(x, y, e.x, e.y));
       if (dd <= R) hitEnemy(e, dmg, { src: 'flamer', noNum: Math.random() < 0.6, col: blue ? '#7ad7ff' : '#ff8a3d', eHit: true, cl: X.cl });
-      if (e.boss || e.dead) return;
+      if (e.boss || e.obj || e.dead) return; // ボスが出した物は吸い込まれない
       const a = Math.atan2(y - e.y, x - e.x), k = Math.min(dd, sk.suckPull * (1 - (e.kbRes || 0) * 0.6));
       e.x += Math.cos(a) * k; e.y += Math.sin(a) * k;
     });
@@ -3932,7 +3932,7 @@ function astSings(dt) {
     if (s.t < q.dur) {
       const R = s.pullR * Math.min(1, s.t * 4);
       forEachNear(s.x, s.y, R, e => {
-        if (e.boss || e.prop) return;
+        if (e.boss || e.prop || e.obj) return; // ボスが出した物は吸い込まれない
         const dd = Math.sqrt(d2(s.x, s.y, e.x, e.y)), u = 1 - Math.min(1, dd / s.pullR), ang = Math.atan2(s.y - e.y, s.x - e.x);
         const k = Math.min(dd, (q.pullMin + (q.pullMax - q.pullMin) * u) * (1 - (e.kbRes || 0) * 0.6) * dt);
         e.x += Math.cos(ang) * k; e.y += Math.sin(ang) * k;

@@ -955,7 +955,7 @@ function updZones(dt) {
         AudioMan.boom(); AudioMan.zap();
       }
       if (z.field && z.boomed) forEachNear(z.x, z.y, z.r, e => { // 残留磁場
-        if (e.boss || e.prop) return;
+        if (e.boss || e.prop || e.obj) return; // ボスが出した物は動かない
         const a = Math.atan2(z.y - e.y, z.x - e.x), dd = Math.sqrt(d2(z.x, z.y, e.x, e.y)), k = Math.min(dd, DATA.weapons.thunder.skill.fieldPull * dt);
         e.x += Math.cos(a) * k; e.y += Math.sin(a) * k;
       });
@@ -1066,7 +1066,7 @@ function updZones(dt) {
       const R = z.r * Math.min(1, z.t * 5);
       if (z.evo) forEachNear(z.x, z.y, R, e => { e.atkDownT = S.time + 0.15; }); // ビッグクランチ: 中の敵(ボスも)は攻撃力が下がる
       forEachNear(z.x, z.y, R * 1.6, e => {
-        if (e.boss) return;
+        if (e.boss || e.obj) return; // ボスが出した物は吸い込まれない
         const a = Math.atan2(z.y - e.y, z.x - e.x), dd = Math.sqrt(d2(z.x, z.y, e.x, e.y));
         const k = Math.min(dd, z.pull * dt * (1 - (e.kbRes || 0) * 0.6));
         e.x += Math.cos(a) * k; e.y += Math.sin(a) * k;
@@ -1151,7 +1151,7 @@ function killEnemy(e, o = {}) {
   burst(e.x, e.y, e.elite ? 40 : 7, [col[0], col[1], '#ffffff'], { sp: e.elite ? 120 : 60, up: 15, g: 120, drag: 3 });
   part(e.x, e.y, 0, -20, 0.45, '#ffffff', { glow: true, sz: 2, drag: 1 });
   addRing(e.x, e.y, e.r + 4, col[0], { life: 0.18 });
-  dropGem(e.x, e.y, e.xp * (e.elite ? 12 : 1));
+  if (e.xp > 0) dropGem(e.x, e.y, e.xp * (e.elite ? 12 : 1)); // 経験値のない敵(巨大スライムの中スライム)はジェムを落とさない
   if (Math.random() < 0.035) dropItem('coin', e.x, e.y, 1);
   if (Math.random() < 0.004) dropItem('meat', e.x, e.y);
   clsOnKill(e, o); // o: 倒した一撃の指定(o.cl: 分身など自分以外の使い手の武器スキル)
@@ -1284,11 +1284,11 @@ function updEnemies(dt) {
     }
     if (e.bleedT > 0) { e.bleedT -= dt; if (e.bleedT <= 0) e.bleed = 0; if (Math.random() < dt * Math.min(e.bleed, 10) * 0.6) part(e.x + rand(-2, 2), e.y, 0, 15, 0.4, '#a0122a', { g: 60 }); }
     e.slowT -= dt;
+    if (e.obj) { e.kx = e.ky = 0; updObj(e, dt); continue; } // ボスが出した物: 動かない(押されない。炎上・出血などのダメージは受ける)
     // ノックバック
     e.x += e.kx * dt; e.y += e.ky * dt;
     const damp = Math.exp(-9 * dt);
     e.kx *= damp; e.ky *= damp;
-    if (e.obj) { updObj(e, dt); continue; } // ボスが出した物: 動かない(炎上・出血などのダメージは受ける)
     if (e.pulled) { // 巨大スライムの吸収: 光の線に引かれて本体へ(届くと吸われる)
       const b = e.pulled;
       if (b.dead || S.time > e.pullT) e.pulled = null;
