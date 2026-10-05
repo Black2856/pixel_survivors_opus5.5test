@@ -27,6 +27,11 @@ const DATA = {
     hound:    { hp: 22, spd: 38, dmg: 9,  xp: 1, r: 5, ai: 'chase', touchBurn: 0.1 }, // ヘルハウンド
     onibi:    { hp: 14, spd: 30, dmg: 7,  xp: 1, r: 4, ai: 'flutter', noTouch: true, noElite: true, blast: { range: 20, wind: 0.6, r: 30, n: 2.0, burn: 0.1 } }, // 鬼火
     lslime:   { hp: 32, spd: 14, dmg: 9,  xp: 1, r: 6, ai: 'hop', fireFloor: { chance: 0.3, r: 10, dur: 3 } }, // 溶岩スライム
+    // 七彩の晶窟 / hop: 跳ねる間隔 every 秒・跳んでいる間の速さ ×k / rush: 突進(射程 range 以内で cd 秒ごとに wind 秒止まって光り、帯の長さ len を速さ spd で)
+    // wobble: 揺れて飛ぶ振れ幅(既定 0.8)
+    jslime:   { hp: 20, spd: 22, dmg: 8,  xp: 1, r: 4, ai: 'hop', hop: { every: 0.7, k: 3.0 } }, // 宝石スライム
+    beetle:   { hp: 36, spd: 16, dmg: 10, xp: 1, r: 5, ai: 'chase', kbRes: 0.6, rush: { cd: 4, range: 120, wind: 0.5, len: 140, spd: 260 } }, // 晶甲虫(硬い殻: 押されにくい)
+    fairy:    { hp: 14, spd: 48, dmg: 7,  xp: 1, r: 3, ai: 'flutter', wobble: 1.5 }, // プリズムフェアリー
     goblin:   { hp: 160, spd: 44, dmg: 0, xp: 12, r: 5, ai: 'flee', kbRes: 0.5, noElite: true },
   },
 
@@ -44,6 +49,8 @@ const DATA = {
     reaper:  { name: '死神 THE REAPER',            hp: 1800, spd: 22, dmg: 28, r: 12, music: 'b_clock2', col: '#c29bff', enrage: 0.3 }, // 段階3 で 1600 / 24 に
     cdragon: { name: 'カオスドラゴン CHAOS DRAGON', hp: 1700, spd: 20, dmg: 20, r: 16, music: 'b_hell', col: '#ff4a8a', enrage: 0.4 },
     ifrit:   { name: '炎魔イフリート IFRIT',        hp: 1600, spd: 18, dmg: 24, r: 13, music: 'b_hell', col: '#ff8a3d', enrage: 0.4 },
+    stag:    { name: '晶角の大鹿 PRISM STAG',       hp: 1400, spd: 26, dmg: 20, r: 13, music: 'b_crystal', col: '#9ff7ff' },
+    pqueen:  { name: '七彩の女王 PRISM QUEEN',      hp: 1300, spd: 22, dmg: 20, r: 11, music: 'b_crystal', col: '#ff8ad8' },
   },
   // 状態異常(プレイヤー): 粘液・スロウタイムの移動速度倍率 / スロウタイムのCD回復倍率 / 炎上
   debuff: { slow: 0.6, cdRate: 0.5, burnTick: 0.5, burnDur: 3, frostSlow: 0.05, shockR: 60, pDur: 5, pBleed: 0.01, pBleedMax: 5 }, // frostSlow: 凍傷1スタックあたりの減速(敵・自分) / shockR: 感電の連鎖距離 / pDur: 自分の凍傷・出血が消えるまでの秒 / pBleed: 自分の出血1スタックの毎秒ダメージ(最大HP の割合)
@@ -1340,6 +1347,9 @@ const DATA = {
     // 闘技場モード専用(石畳 + 円形の壁と観客席)
     { label: '血戦の闘技場', music: 'f_wild',   ground: ['#5a4838', '#65513f', '#4d3d30', '#6f5a45'], deco: ['#3a2c22', '#8a7058', '#7a1e24', '#cfc2a8'],
       amb: [0.6, 0.52, 0.5], tint: [1.06, 0.98, 0.94], motes: { col: '#ffcf8a', rise: true }, tiles: true },
+    // 七彩の晶窟(tier 1): 暗い紫の洞窟。七色に光る結晶の群れと、色とりどりのきらめき(曲は用意されるまで草原の曲)
+    { label: '七彩の晶窟', music: 'f_crystal', ground: ['#1c1530', '#231a3a', '#161026', '#2a2044'], deco: ['#3a2c5a', '#5a4a8a', '#9ff7ff', '#ff8ad8'],
+      amb: [0.5, 0.44, 0.74], tint: [1.04, 0.98, 1.1], motes: { col: '#c78bff', cols: ['#ff6a8a', '#ffd23f', '#7dff9a', '#7ad7ff', '#c78bff', '#ff9a3d'], rise: false }, crystal: true },
   ],
 
   // ---------- カオス強化(db.xlsx「カオス強化」)----------
@@ -1396,6 +1406,7 @@ const DATA = {
     { stage: 1, tier: 1, bosses: ['king', 'gslime'], segs: [['zombie', 'bat', 'slime'], ['bat', 'slime', 'brute'], null] },
     { stage: 2, tier: 2, bosses: ['golem', 'wyrm'], segs: [['skeleton', 'archer', 'sandmage'], ['archer', 'sandmage', 'spear'], null] },
     { stage: 3, tier: 3, bosses: ['cdragon', 'ifrit'], segs: [['imp', 'hound', 'onibi'], ['hound', 'onibi', 'lslime'], null] },
+    { stage: 5, tier: 1, bosses: ['stag', 'pqueen'], segs: [['bat', 'jslime', 'beetle'], ['jslime', 'beetle', 'fairy'], null] }, // stage4 = 七彩の晶窟
   ],
   // 通常モードの流れ(フェーズの時計で進む。ボス・エリート群のフェーズの間は止まる)
   //   seg: 区間の長さ / waves: 区間ごとの出現の間隔・上限(t は区間の中の秒) / horde: 2つ目・3つ目の区間で大群を出す秒 / elites: エリート群の数

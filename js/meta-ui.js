@@ -284,14 +284,15 @@ const MetaUI = (() => {
   $('btn-shop').onclick = () => { AudioMan.click(); shopScreen(); };
 
   // ---------- ステージ選択 ----------
-  // 通常モード(3ステージを周回) / ステージ単体(ボス2体) / 闘技場(ボスラッシュ)。クリアしたものに ★、カオス強化はクリアで解放
-  // 通常モード: ステージを1つ選ぶ(3分 → エリート群 → 3分 → ボス → 3分 → ボス)。帯の色は tier
+  // 上の段: 3ステージ通し(仮)・闘技場 / その下: 通常モードのステージ(ステージを1つ選ぶ。3分 → エリート群 → 3分 → ボス → 3分 → ボス)を tier の順に 2列。帯の色は tier
+  // クリアしたものに ★、カオス強化はクリアで解放
   const TIER_COL = ['#9ff7ff', '#7dff9a', '#ff8a3d', '#c78bff'];
   const STAGE_ITEMS = () => [
-    { key: 'normal', mode: 'normal', n: 1, name: '3ステージ通し(仮)', sub: '3つのステージを進み、最終ボスを倒す(エスカレーションができるまでの仮のモード)', col: '#ffd23f' },
-    ...DATA.stageRuns.map((R, i) => ({ key: 'stage' + (i + 1), mode: 'stage', n: i + 1, name: DATA.stages[R.stage - 1].label,
-      sub: `通常モード ・ tier ${R.tier} ・ 敵Lv ${DATA.flow.tierLv[R.tier - 1]} から ・ エリート群 → ${R.bosses.map(b => DATA.bosses[b].name.split(' ')[0]).join(' → ')}`, col: TIER_COL[R.tier - 1] })),
+    { key: 'normal', mode: 'normal', n: 1, name: '3ステージ通し(仮)', sub: '草原 → 荒野 → 奈落 を進み、最終ボスを倒す(エスカレーションまでの仮)', col: '#ffd23f' },
     { key: 'arena', mode: 'arena', n: 1, name: '闘技場', sub: `ボス${DATA.arena.order.length}体の連戦`, col: '#ff3b5c' },
+    ...DATA.stageRuns.map((R, i) => ({ key: 'stage' + (i + 1), mode: 'stage', n: i + 1, tier: R.tier, name: DATA.stages[R.stage - 1].label,
+      sub: `tier ${R.tier} ・ 敵Lv ${DATA.flow.tierLv[R.tier - 1]} から ・ ${R.bosses.map(b => DATA.bosses[b].name.split(' ')[0]).join(' → ')}`, col: TIER_COL[R.tier - 1] }))
+      .sort((a, b) => a.tier - b.tier), // 通常モード: tier の順
   ];
   function stageSelect() {
     state = 'stage';
@@ -299,10 +300,12 @@ const MetaUI = (() => {
     const c = DATA.classes[META.cls], m = META.classes[META.cls];
     $('st-class').style.setProperty('--cc', c.col);
     $('st-class').innerHTML = `<img src="${portrait(META.cls)}" alt=""><span><b>${c.name}</b> Lv${m.lv} ・ ${DATA.weapons[m.weapon].name}</span><small>クラス変更 ▶</small>`;
-    $('stage-list').innerHTML = STAGE_ITEMS().map(s => {
+    const items = STAGE_ITEMS(), nSt = items.filter(s => s.mode === 'stage').length;
+    $('stage-list').innerHTML = items.map((s, i) => {
       const clear = META.stageClear[s.key];
       const pt = clear ? chaosPoints(META.chaos[s.key] || {}, s.key) : 0;
-      return `<button class="stg" data-mode="${s.mode}" data-n="${s.n}" style="--sc:${s.col}">
+      const wide = nSt % 2 === 1 && i === items.length - 1; // 2列で余った最後のステージ(tier 4)は横いっぱい
+      return `<button class="stg${wide ? ' wide' : ''}" data-mode="${s.mode}" data-n="${s.n}" style="--sc:${s.col}">
         <span class="nm">${s.name}${clear ? ' <b class="clr">★ CLEAR</b>' : ''}</span><span class="sub">${s.sub}</span>
         <span class="chaos ${clear ? 'on' : ''}">${clear ? `カオス強化: <b>${pt} pt</b> <span class="cz-btn" data-chaos="${s.key}">設定 ▶</span>` : 'カオス強化: クリアで解放'}</span></button>`;
     }).join('');

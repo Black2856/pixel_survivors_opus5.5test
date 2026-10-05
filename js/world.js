@@ -6,6 +6,7 @@ const ECOL = {
   skeleton: ['#e8e6da', '#6b6a60'], archer: ['#e8e6da', '#35523d'], ghost: ['#c6f7f2', '#8fd9e0'], brute: ['#c46a4a', '#6b4a2a'],
   imp: ['#ff6a3d', '#8a2a4a'], goblin: ['#8fd06a', '#ffcc33'], brazier: ['#ff6a2a', '#ffc34a'],
   sandmage: ['#e8c88a', '#8a5a2a'], spear: ['#c8b89a', '#7a3a2a'], hound: ['#ff6a2a', '#3a1a1a'], onibi: ['#7ad7ff', '#ffffff'], lslime: ['#ff6a2a', '#5a1a14'],
+  jslime: ['#9ff7ff', '#ff8ad8'], beetle: ['#5a4a8a', '#9ff7ff'], fairy: ['#ffd0f0', '#9ff7ff'],
 };
 const xpFor = l => Math.floor(4 + l * 2.6 + Math.pow(l, 1.72));
 
@@ -1194,7 +1195,7 @@ function spawnEnemy(type, o = {}) {
     id: nextId++, type, x, y, hp: d.hp * hpk, maxhp: d.hp * hpk, spd: d.spd * spk * rand(0.9, 1.1), dmg: d.dmg * enemyDmgK(),
     r: d.r * (o.elite ? 2 : 1), xp: d.xp * lvK('xp'), ai: d.ai, kbRes: o.elite ? 0.9 : d.kbRes || 0, ghost: d.ghost,
     t: rand(0, 5), seed: Math.random(), kx: 0, ky: 0, flash: 0, elite: !!o.elite, scale: o.elite ? 2 : 1,
-    frost: 0, frostT: 0, burns: [], burnT: 0, burnTick: 0, stun: 0, slowT: 0, bleed: 0, bleedT: 0, shotT: d.shot || d.throw ? rand(1, (d.shot || d.throw).cd) : 0, wind: 0, hopT: rand(0, 1),
+    frost: 0, frostT: 0, burns: [], burnT: 0, burnTick: 0, stun: 0, slowT: 0, bleed: 0, bleedT: 0, shotT: d.shot || d.throw || d.rush ? rand(1, (d.shot || d.throw || d.rush).cd) : 0, wind: 0, hopT: rand(0, 1),
     life: type === 'goblin' ? 16 : 0,
     noChest: !!o.noChest, phaseElite: !!o.phaseElite, // 宝箱を落とさない / エリート群のエリート
   };
@@ -1308,11 +1309,12 @@ function updEnemies(dt) {
       const dc = S.decoy && d2(e.x, e.y, S.decoy.x, S.decoy.y) < 200 * 200 ? S.decoy : P; // 空蝉の分身
       const a = Math.atan2(dc.y - e.y, dc.x - e.x), d = DATA.enemies[e.type];
       let mx = Math.cos(a), my = Math.sin(a);
-      if (e.ai === 'flutter') { const w = Math.sin(e.t * 5 + e.seed * 10) * 0.8; mx -= Math.sin(a) * w; my += Math.cos(a) * w; }
-      else if (e.ai === 'hop') {
-        e.hopT -= dt; const hop = e.hopT < 0.35;
-        if (e.hopT <= 0) { e.hopT = 1.1; if (d.fireFloor && Math.random() < d.fireFloor.chance) lavaPool(e, d.fireFloor); } // 着地(溶岩スライム: 燃える床)
-        mx *= hop ? 2.4 : 0.1; my *= hop ? 2.4 : 0.1;
+      if (e.ai === 'flutter') { const w = Math.sin(e.t * 5 + e.seed * 10) * (d.wobble || 0.8); mx -= Math.sin(a) * w; my += Math.cos(a) * w; }
+      else if (e.ai === 'hop') { // 跳ねる(宝石スライムは速い間隔で大きく跳ぶ)
+        const hp = d.hop, every = e.hopEvery = hp ? hp.every : 1.1, air = e.hopAir = hp ? every * 0.45 : 0.35, k = hp ? hp.k : 2.4;
+        e.hopT -= dt; const hop = e.hopT < air;
+        if (e.hopT <= 0) { e.hopT = every; if (d.fireFloor && Math.random() < d.fireFloor.chance) lavaPool(e, d.fireFloor); } // 着地(溶岩スライム: 燃える床)
+        mx *= hop ? k : 0.1; my *= hop ? k : 0.1;
       } else if (e.ai === 'keep') { // 距離を取って射撃(弓兵・火の小鬼・砂術師)
         const s = d.shot, dd = Math.sqrt(d2(e.x, e.y, P.x, P.y));
         const k = e.wind > 0 ? 0 : dd > d.keep[1] ? 1 : dd < d.keep[0] ? -1 : 0; // 構えている間は止まる
@@ -1349,6 +1351,22 @@ function updEnemies(dt) {
           }
         }
         e.aim = e.wind > 0;
+      }
+      if (d.rush) { // 晶甲虫: 射程に入ると止まって光り(帯の予告)、帯の向きへ突進する
+        const ru = d.rush;
+        if (e.dash > 0) {
+          e.dash -= dt; mx = Math.cos(e.ta) * ru.spd / e.spd; my = Math.sin(e.ta) * ru.spd / e.spd;
+          if (Math.random() < dt * 40) part(e.x + rand(-3, 3), e.y + rand(-3, 3), -Math.cos(e.ta) * 40, -Math.sin(e.ta) * 40, 0.3, pick(['#9ff7ff', '#ff8ad8', '#ffd23f']), { glow: true, drag: 3 });
+        } else if (e.wind > 0) {
+          mx = my = 0; e.wind -= dt * CHAOS.rate * tw; e.flash = Math.sin(e.wind * 40) > 0 ? 0.05 : 0;
+          if (e.wind <= 0) { e.dash = ru.len / ru.spd; AudioMan.dash(); }
+        } else {
+          e.shotT -= dt * CHAOS.rate * tw;
+          if (e.shotT <= 0 && d2(e.x, e.y, P.x, P.y) < ru.range * ru.range) {
+            e.shotT = ru.cd; e.wind = ru.wind; e.ta = a;
+            pushWarn({ kind: 'line', x: e.x, y: e.y, a, len: ru.len, w: e.r * 2 + 2, t: 0, life: ru.wind, fixed: true, owner: e, track: w => { w.x = e.x; w.y = e.y; } }); // 突進の経路(体当たりなので広げない)
+          }
+        }
       }
       if (d.blast) { // 鬼火: プレイヤーのそばで止まり、膨らみながら点滅して自爆する
         const bl = d.blast;
@@ -1505,6 +1523,8 @@ function updObj(e, dt) {
       AudioMan.splat();
     }
     e.pulse = Math.max(0, (e.pulse || 0) - dt);
+  } else if (e.obj === 'crystal' || e.obj === 'prism') { // 結晶: 七色のきらめき
+    if (Math.random() < dt * 6) part(e.x + rand(-5, 5), e.y - rand(4, 18), 0, -rand(4, 10), 0.6, pick(PRISM), { glow: true, drag: 1 });
   } else if (e.obj === 'altar') { // 炎の祭壇: 炎が燃えさかり、火の粉がイフリートへ流れる
     if (Math.random() < dt * 16) part(e.x + rand(-3, 3), e.y - 10 + rand(-2, 2), rand(-6, 6), -rand(20, 40), rand(0.3, 0.6), pick(['#ff6a2a', '#ffc34a', '#fff0b0']), { glow: true, drag: 1 });
     if (Math.random() < dt * 6) { const o = e.owner, pa = Math.atan2(o.y - e.y, o.x - e.x); part(e.x, e.y - 10, Math.cos(pa) * 90, Math.sin(pa) * 90, 0.8, '#ffc34a', { glow: true, drag: 0 }); }
@@ -1522,6 +1542,13 @@ function objDown(e, broken) {
   } else if (e.obj === 'altar') {
     burst(e.x, e.y - 6, Math.round(36 * k), ['#3a2a2a', '#6a5050', '#ff6a2a', '#ffc34a'], { sp: 110 * k, g: 200, life: 0.7 });
     if (broken) { addFlash(e.x, e.y, 80, '#ff8a3d', 0.6); shake(5); AudioMan.boom(); UI.announce('祭壇の火が消えた', ''); }
+  } else if (e.obj === 'crystal' || e.obj === 'prism') { // 結晶: 七色のかけらになって砕ける
+    burst(e.x, e.y - 8, Math.round(40 * k), [...PRISM, '#ffffff'], { sp: 130 * k, g: 180, glow: true, life: 0.6 });
+    if (broken) { addFlash(e.x, e.y, 70, '#d88aff', 0.5); shake(3); AudioMan.chime(); AudioMan.thud(); }
+  } else if (e.obj === 'clone') { // 鏡の分身: 鏡のように割れて消える
+    burst(e.x, e.y - 6, 26, ['#ffffff', '#d8e8ff', '#ffd0f0', '#9ff7ff'], { sp: 110, glow: true, life: 0.45 });
+    addRing(e.x, e.y, 14, '#ffffff', { life: 0.25 }); AudioMan.chime();
+    return;
   }
   if (broken) addRing(e.x, e.y, e.r + 10, '#ffe14a', { life: 0.3 });
 }
@@ -1532,8 +1559,10 @@ const BOSS_AI0 = {
   wyrm: { shield: 9, aim: 2, tail: 4, spear: 3, sum: 7 },
   cdragon: { raidCd: 12, gustCd: 5 },
   ifrit: { wall: 8, whip: 3, chain: 4, blast: 6, heat: 5 },
+  stag: { rush: 3, spike: 4, shard: 2, sweep: 0, side: 1 },
+  pqueen: { tp: 3, beam: 3, cageCd: 10, mirror: 8, chain: 5, blink: 6 },
 };
-const BOSS_ENRAGE = { king: { slam: 6 }, ifrit: { altar: true } };
+const BOSS_ENRAGE = { king: { slam: 6 }, ifrit: { altar: true }, stag: { herd: 4 }, pqueen: { spiral: 3 } };
 
 function bossAI(e, dt) {
   const ai = e.ai, a = Math.atan2(P.y - e.y, P.x - e.x), dist = Math.sqrt(d2(e.x, e.y, P.x, P.y));
@@ -1607,6 +1636,8 @@ function bossAI(e, dt) {
     case 'golem': golemAI(e, ai, dt, a, dist, slow); break;
     case 'cdragon': dragonAI(e, ai, dt, a, dist, slow); break;
     case 'ifrit': ifritAI(e, ai, dt, a, dist, slow); break;
+    case 'stag': stagAI(e, ai, dt, a, dist, slow); break;
+    case 'pqueen': pqueenAI(e, ai, dt, a, dist, slow); break;
   }
 }
 
@@ -1727,11 +1758,11 @@ function wyrmAI(e, ai, dt, a, dist, slow) {
   e.y += (Math.sin(dir) * e.spd * k + Math.sin(a + Math.PI / 2) * 22) * slow * dt;
   if (ai.spN > 0 && (ai.spGap -= dt * R) <= 0) { // 螺旋(肋骨の盾の直後だけ): 反対向きに 2発ずつ回しながら
     ai.spGap = ai.enraged ? 0.09 : 0.12; ai.spN--; ai.spA += 0.5;
-    for (const o of [0, Math.PI]) eball(e.x, e.y - 4, ai.spA + o, 60, e.dmg * 0.5).blk = true;
+    for (const o of [0, Math.PI]) eball(e.x, e.y - 4, ai.spA + o, 60, e.dmg * 0.5).blk = 'pillar';
     if (ai.spN % 4 === 0) AudioMan.shoot();
   }
   if (ai.aiming > 0 && (ai.aiming -= dt) <= 0) { // 狙い撃ち: 頭が光ったあと 3発の扇
-    for (let i = -1; i <= 1; i++) eball(e.x, e.y - 8, a + i * 0.22, 78, e.dmg * 0.6).blk = true;
+    for (let i = -1; i <= 1; i++) eball(e.x, e.y - 8, a + i * 0.22, 78, e.dmg * 0.6).blk = 'pillar';
     AudioMan.shoot(); burst(e.x + Math.cos(a) * 8, e.y - 8 + Math.sin(a) * 8, 8, ['#6ee7ff', '#efe9d4', '#ffffff'], { sp: 60, glow: true, life: 0.25 });
   }
   ai.shield -= dt * R; ai.aim -= dt * R; ai.tail -= dt * R; ai.spear -= dt * R; ai.sum -= dt * R;
@@ -1779,7 +1810,7 @@ function boneSpear(e, ai) {
   AudioMan.charge(1.3);
   later(ai, 1.3, () => {
     const len = 260 * CHAOS.area, spd = 280;
-    for (const w of ws) eprojs.push({ kind: 'bspear', x: e.x, y: e.y, vx: Math.cos(w.a) * spd, vy: Math.sin(w.a) * spd, dmg: e.dmg * 1.2 * (S.eatk ?? 1), life: len / spd, t: 0, r: 4 * CHAOS.area, keep: true, blk: true });
+    for (const w of ws) eprojs.push({ kind: 'bspear', x: e.x, y: e.y, vx: Math.cos(w.a) * spd, vy: Math.sin(w.a) * spd, dmg: e.dmg * 1.2 * (S.eatk ?? 1), life: len / spd, t: 0, r: 4 * CHAOS.area, keep: true, blk: 'pillar' });
     AudioMan.spearThrow(); shake(3);
     burst(e.x, e.y, 14, ['#efe9d4', '#6ee7ff', '#ffffff'], { sp: 90, glow: true, life: 0.3 });
   });
@@ -2287,6 +2318,273 @@ function fireAltars(e) {
   UI.announce('炎の祭壇', '燃えている祭壇 1つにつき、イフリートの与ダメージ +10%・技が速くなる。壊せる');
 }
 
+// ---------- 晶角の大鹿: 連続突進(終点に結晶の柱)→ 残像の突進 / 晶棘の列 / 七色の欠片 / 角の薙ぎ払い(押し出し → 突進)/ 激昂: 群れの疾走 ----------
+//   結晶の柱は大鹿の欠片と残像を遮る。大鹿が突進で柱にぶつかると柱が砕け、1.5秒ひるむ(受けるダメージ ×1.5)
+const PRISM = ['#ff5d73', '#ff9a3d', '#ffd23f', '#7dff9a', '#7ad7ff', '#8a7aff', '#d88aff']; // 七色(弾・棘・光線の色)
+function stagAI(e, ai, dt, a, dist, slow) {
+  const R = CHAOS.rate;
+  if (ai.act === 'stun') { e.flash = Math.sin(ai.pt * 30) > 0.6 ? 0.04 : 0; if ((ai.pt -= dt) <= 0) { ai.act = null; e.takeK = 1; } return; }
+  if (ai.act === 'rush') { updStagRush(e, ai, dt); return; }
+  // 距離 120 を保って速く回り込む(ときどき回る向きを変える)
+  if ((ai.flip = (ai.flip ?? 3) - dt) <= 0) { ai.flip = rand(2.5, 4.5); ai.side = -ai.side; }
+  const want = 120, dir = dist > want ? a : a + Math.PI, k = Math.abs(dist - want) > 20 ? 1 : 0.25;
+  e.x += (Math.cos(dir) * e.spd * k + Math.cos(a + Math.PI / 2) * 30 * ai.side) * slow * dt;
+  e.y += (Math.sin(dir) * e.spd * k + Math.sin(a + Math.PI / 2) * 30 * ai.side) * slow * dt;
+  ai.rush -= dt * R; ai.spike -= dt * R; ai.shard -= dt * R; ai.sweep -= dt * R; if (ai.enraged) ai.herd -= dt * R;
+  if (ai.shard <= 0) { ai.shard = ai.enraged ? 3 : 4; prismShards(e, 0); if (ai.enraged) later(ai, 0.3, () => prismShards(e, Math.PI / 7)); } // 七色の欠片(ほかの技と並んで撃つ)
+  if (dist < 50 && ai.sweep <= 0) { // 角の薙ぎ払い: 押し飛ばして、続けて突進 1回(どちらも無敵無視)
+    ai.sweep = 3;
+    const ba = a;
+    pushWarn({ kind: 'fan', x: e.x, y: e.y, a: ba, r: 55, h: 1.22, t: 0, life: 0.4 });
+    windup(e, 0.4, () => {
+      slashes.push({ x: e.x, y: e.y, a: ba, r: 55 * CHAOS.area, t: 0, life: 0.24, span: 2.44, pal: SWING_PAL.enemy, enemy: true });
+      if (inFan(e.x, e.y, ba, 55, 1.22)) { hurtPlayer(e.dmg * 1.1, { pierce: true }); pushPlayer(ba, 100, 0.3); }
+      AudioMan.slash(); shake(4);
+      startStagRush(e, ai, 1, { pierce: true, k: 0.9 });
+    });
+  } else if (ai.rush <= 0) { ai.rush = ai.enraged ? 4.5 : 6; startStagRush(e, ai, ai.enraged ? 4 : 3, {}); }
+  else if (ai.enraged && ai.herd <= 0) { ai.herd = 7; stagHerd(e, ai); }
+  else if (ai.spike <= 0) { ai.spike = ai.enraged ? 4 : 5; crystalSpikes(e, ai, a); }
+}
+// 連続突進: 各 0.45秒の予告(最初の 0.3秒はプレイヤーを追い、残りは止まる)→ 速さ 380 で 220。終点に結晶の柱
+//   o.pierce: 角の薙ぎ払いのあとの突進(×0.9・無敵無視・柱は立てない・残像なし)
+function startStagRush(e, ai, n, o) {
+  ai.act = 'rush'; ai.rs = { n, i: 0, segs: [], pierce: !!o.pierce, k: o.k || 1, mine: new Set() }; // mine: この連続突進で立てた柱(ぶつからない。次の突進から当たる)
+  stagTele(e, ai);
+}
+function stagTele(e, ai) {
+  const rs = ai.rs;
+  rs.ph = 'tele'; rs.t = 0; rs.dir = Math.atan2(P.y - e.y, P.x - e.x); rs.hit = false;
+  pushWarn({ kind: 'line', x: e.x, y: e.y, a: rs.dir, len: 220, w: e.r * 2, t: 0, life: 0.45, fixed: true, track: q => { q.x = e.x; q.y = e.y; if (q.t < 0.3) rs.dir = q.a = Math.atan2(P.y - e.y, P.x - e.x); } }); // 突進の経路(体当たりなので広げない)
+}
+function updStagRush(e, ai, dt) {
+  const rs = ai.rs;
+  rs.t += dt;
+  if (rs.ph === 'tele') { // 角が光り、前脚で地面をかく
+    e.flash = Math.sin(rs.t * 40) > 0 ? 0.04 : 0; e.face = Math.cos(rs.dir) < 0 ? -1 : 1;
+    if (Math.random() < dt * 30) part(e.x + rand(-6, 6), e.y + 10, -Math.cos(rs.dir) * 30 + rand(-10, 10), -rand(10, 25), 0.4, pick(['#5a4a8a', '#3a2c5a', '#9ff7ff']), { drag: 2 });
+    if (rs.t < 0.45) return;
+    rs.ph = 'dash'; rs.t = 0; rs.x0 = e.x; rs.y0 = e.y; e.air = rs.pierce; // 無敵無視の突進は自分で当たりを判定する
+    rs.ignore = new Set([...rs.mine, ...enemies.filter(o => o.obj === 'crystal' && !o.dead && d2(o.x, o.y, e.x, e.y) < Math.pow(o.r + e.r + 2, 2))]); // 走り出す場所の柱と、この連続突進で立てた柱は無視
+    AudioMan.dash(); AudioMan.roar();
+    return;
+  }
+  const step = 380 * dt;
+  e.x += Math.cos(rs.dir) * step; e.y += Math.sin(rs.dir) * step; e.face = Math.cos(rs.dir) < 0 ? -1 : 1;
+  for (let i = 0; i < 2; i++) part(e.x + rand(-8, 8), e.y + rand(-6, 6), -Math.cos(rs.dir) * 60, -Math.sin(rs.dir) * 60, 0.35, pick(PRISM), { glow: true, drag: 3 }); // 七色の光の尾
+  if (rs.pierce && !rs.hit && d2(e.x, e.y, P.x, P.y) < Math.pow(e.r + 4, 2)) { rs.hit = true; hurtPlayer(e.dmg * rs.k, { pierce: true }); }
+  for (const o of enemies) { // 結晶の柱にぶつかった: 柱が砕けて、大鹿は 1.5秒ひるむ
+    if (o.obj !== 'crystal' || o.dead || rs.ignore.has(o) || d2(o.x, o.y, e.x, e.y) > Math.pow(o.r + e.r, 2)) continue;
+    o.dead = true; objDown(o, true); e.air = false;
+    ai.act = 'stun'; ai.pt = 1.5; e.takeK = 1.5;
+    hitstop(0.08); shake(10); shockAt(e.x, e.y, 1.6, 0.8); AudioMan.crush();
+    burst(e.x, e.y, 50, [...PRISM, '#ffffff'], { sp: 160, glow: true, life: 0.7 });
+    UI.announce('柱にぶつかった!', 'ひるんでいる間は 1.5倍のダメージ');
+    return;
+  }
+  if (rs.t * 380 < 220) return;
+  rs.segs.push({ x0: rs.x0, y0: rs.y0, x1: e.x, y1: e.y });
+  e.air = false;
+  if (!rs.pierce) rs.mine.add(crystalPillar(e, e.x, e.y));
+  if (++rs.i < rs.n) { stagTele(e, ai); return; }
+  ai.act = null;
+  if (!rs.pierce) stagAfterimage(e, ai, rs.segs, rs.mine);
+}
+// 結晶の柱(HP 2%・半径 10・12秒・最大 5本。多いときは古いものから崩れる)
+function crystalPillar(e, x, y) {
+  const mine = enemies.filter(o => o.owner === e && o.obj === 'crystal' && !o.dead);
+  if (mine.length >= 5) { mine[0].dead = true; objDown(mine[0], false); }
+  const o = spawnObj(e, 'crystal', x, y, { pct: 0.02, r: 10, life: 12 });
+  burst(x, y, 24, [...PRISM, '#ffffff'], { sp: 90, up: 40, glow: true, life: 0.5 }); shockAt(x, y, 0.7, 0.85); AudioMan.chime();
+  hint('crystal', '結晶の柱', '次の突進を柱へ誘うと、大鹿がぶつかってひるむ。柱は欠片と残像も遮る');
+  return o;
+}
+// 残像の突進: 突進の経路が光の線で残り、1秒後に同じ経路を結晶の残像が同じ速さで走る(×0.6。柱で消える)
+function stagAfterimage(e, ai, segs, mine) { // mine: この連続突進で立てた柱(残像はすり抜ける)
+  let delay = 1, total = 0;
+  for (const g of segs) total += Math.hypot(g.x1 - g.x0, g.y1 - g.y0) / 380;
+  bfx.push({ kind: 'trail', x: 0, y: 0, segs, t: 0, life: 1 + total + 0.2 });
+  for (const g of segs) {
+    const L = Math.hypot(g.x1 - g.x0, g.y1 - g.y0), ang = Math.atan2(g.y1 - g.y0, g.x1 - g.x0);
+    later(ai, delay, () => { eprojs.push({ kind: 'phantom', x: g.x0, y: g.y0, vx: Math.cos(ang) * 380, vy: Math.sin(ang) * 380, dmg: e.dmg * 0.6 * (S.eatk ?? 1), life: L / 380, t: 0, r: e.r, keep: true, blk: 'crystal', ignore: mine, face: Math.cos(ang) < 0 ? -1 : 1 }); AudioMan.dash(); });
+    delay += L / 380;
+  }
+}
+// 七色の欠片: 全周へ 7発(速さ 95・×0.45)
+function prismShards(e, off) {
+  for (let i = 0; i < 7; i++) { const p = eball(e.x, e.y - 6, TAU / 7 * i + off, 95, e.dmg * 0.45, 'pshard'); p.ci = i; p.blk = 'crystal'; }
+  burst(e.x, e.y - 6, 14, PRISM, { sp: 70, glow: true, life: 0.3 }); AudioMan.chime();
+}
+// 晶棘の列: 大鹿からプレイヤーへ 円 半径 12 を 6個(0.6秒の予告)→ 根元から順に 0.08秒おきに結晶の棘 ×0.8
+function crystalSpikes(e, ai, a) {
+  const pts = [1, 2, 3, 4, 5, 6].map(i => ({ x: e.x + Math.cos(a) * 22 * i, y: e.y + Math.sin(a) * 22 * i }));
+  pts.forEach((p, i) => pushWarn({ kind: 'circle', x: p.x, y: p.y, r: 12, t: 0, life: 0.6 + 0.08 * i }));
+  e.sq = 1.2; AudioMan.charge(0.6);
+  pts.forEach((p, i) => later(ai, 0.6 + 0.08 * i, () => {
+    hitCircle(p.x, p.y, 12, e.dmg * 0.8);
+    bfx.push({ kind: 'spike', x: p.x, y: p.y, r: 12 * CHAOS.area, t: 0, life: 0.7, ci: i % 7, seed: (Math.random() * 1e6) | 0 });
+    burst(p.x, p.y, 8, [PRISM[i % 7], '#ffffff'], { sp: 60, up: 30, glow: true, life: 0.35 });
+    if (i % 2 === 0) { AudioMan.chime(); shake(2); }
+  }));
+}
+// 群れの疾走(激昂): 画面を横切る帯 5本(幅 20・50 おき)が 0.4秒おきに順に光り、各帯の 0.6秒後に幻の鹿が走る(速さ 400・×0.8)
+function stagHerd(e, ai) {
+  const th = rand(0, TAU), L = Math.min(480, Math.hypot(GFX.VW, GFX.VH) + 60), c = Math.cos(th), s = Math.sin(th), nx = -s, ny = c;
+  hint('herd', '群れの疾走', '光った帯を幻の鹿が駆け抜ける。帯のすき間へ');
+  AudioMan.roar();
+  for (let i = 0; i < 5; i++) {
+    const off = (i - 2) * 50, x0 = P.x + nx * off - c * L / 2, y0 = P.y + ny * off - s * L / 2;
+    later(ai, 0.4 * i, () => {
+      pushWarn({ kind: 'line', x: x0, y: y0, a: th, len: L, w: 20 * CHAOS.area, t: 0, life: 0.6, fixed: true });
+      later(ai, 0.6, () => { eprojs.push({ kind: 'phantom', x: x0, y: y0, vx: c * 400, vy: s * 400, dmg: e.dmg * 0.8 * (S.eatk ?? 1), life: L / 400, t: 0, r: 10 * CHAOS.area, keep: true, face: c < 0 ? -1 : 1 }); AudioMan.dash(); });
+    });
+  }
+}
+
+// ---------- 七彩の女王: 3秒ごとに瞬間移動 / 七彩の光線 / 虹の檻(壊せる結晶)/ 鏡の分身(本物を探す)/ 光の鎖 / 瞬き / 激昂: 虹の螺旋 ----------
+function pqueenAI(e, ai, dt, a, dist, slow) {
+  const R = CHAOS.rate;
+  updCage(e, ai, dt); updTether(e, ai, dt); updClones(e, ai, dt);
+  if (ai.spT > 0) { // 虹の螺旋(激昂): 3本の腕
+    ai.spT -= dt; ai.spGap -= dt;
+    if (ai.spGap <= 0) { ai.spGap = 0.12; ai.spA += 0.32; for (let i = 0; i < 3; i++) { const p = eball(e.x, e.y - 6, ai.spA + TAU / 3 * i, 70, e.dmg * 0.4, 'pshard'); p.ci = (i * 2 + Math.floor(ai.spA * 3)) % 7; } if (Math.floor(ai.spT * 8) % 2) AudioMan.shoot(); }
+  }
+  if (ai.act === 'beams') { updBeams(e, ai, dt); return; }
+  // ゆっくり漂う(距離はおよそ 120)
+  const want = 120, dir = dist > want ? a : a + Math.PI, k = Math.abs(dist - want) > 25 ? 0.6 : 0;
+  e.x += (Math.cos(dir) * e.spd * k + Math.cos(a + Math.PI / 2) * 8) * slow * dt; e.y += (Math.sin(dir) * e.spd * k + Math.sin(a + Math.PI / 2) * 8) * slow * dt;
+  ai.tp -= dt; ai.beam -= dt * R; ai.cageCd -= dt * R; ai.mirror -= dt * R; ai.chain -= dt * R; ai.blink -= dt * R; if (ai.enraged) ai.spiral -= dt * R;
+  if (ai.tp <= 0 && !ai.clones && !ai.cage) { ai.tp = 3; const ta = rand(0, TAU), tr = rand(100, 140); queenWarp(e, P.x + Math.cos(ta) * tr, P.y + Math.sin(ta) * tr); return; }
+  if (ai.enraged && ai.spiral <= 0) { ai.spiral = 5; ai.spT = 2.5; ai.spGap = 0; ai.spA = rand(0, TAU); }
+  if (ai.cageCd <= 0 && !ai.clones && !ai.cage) { ai.cageCd = ai.enraged ? 12 : 16; startCage(e, ai); }
+  else if (ai.mirror <= 0 && !ai.cage) { ai.mirror = ai.enraged ? 10 : 14; startClones(e, ai); }
+  else if (ai.beam <= 0) { ai.beam = ai.enraged ? 4.5 : 6; startBeams(e, ai, a); }
+  else if (ai.chain <= 0 && !ai.tether) { ai.chain = ai.enraged ? 8 : 11; queenChain(e, ai); }
+  else if (ai.blink <= 0 && !ai.clones && !ai.cage) { ai.blink = ai.enraged ? 6 : 8; queenBlink(e, ai); }
+}
+// 瞬間移動: 七色の光の粒になって消え、別の場所に現れる
+function queenWarp(e, x, y) {
+  burst(e.x, e.y - 6, 22, [...PRISM, '#ffffff'], { sp: 80, glow: true, life: 0.45 });
+  e.x = x; e.y = y;
+  burst(e.x, e.y - 6, 22, [...PRISM, '#ffffff'], { sp: 80, glow: true, life: 0.45 }); addRing(e.x, e.y, 16, '#ffd0f0', { life: 0.3 });
+  AudioMan.chime();
+}
+// 七彩の光線: プレイヤーの方向に扇状の帯 7本(±54°)を 0.9秒予告 → 2秒の光線 ×0.8。真ん中の 1本は毎秒 1.0rad で追う。激昂は残り 6本も 1秒で 30° 回る
+function startBeams(e, ai, a) {
+  const offs = [-3, -2, -1, 0, 1, 2, 3].map(i => i * 0.314);
+  for (const o of offs) pushWarn({ kind: 'line', x: e.x, y: e.y, a: a + o, len: 200, w: 8, t: 0, life: 0.9 });
+  AudioMan.charge(0.9);
+  windup(e, 0.9, () => { ai.act = 'beams'; ai.bt = 0; ai.bAng = offs.map(o => a + o); ai.bRot = Math.random() < 0.5 ? 1 : -1; AudioMan.zap(); shake(3); });
+}
+function updBeams(e, ai, dt) {
+  ai.bt += dt;
+  const m = 3;
+  ai.bAng[m] += clamp(angDiff(Math.atan2(P.y - e.y, P.x - e.x), ai.bAng[m]), -dt, dt);
+  if (ai.enraged && ai.bt < 1) for (let i = 0; i < 7; i++) if (i !== m) ai.bAng[i] += ai.bRot * 0.524 * dt;
+  for (const ba of ai.bAng) hitLine(e.x, e.y - 6, ba, 200, 8, e.dmg * 0.8);
+  if (Math.random() < dt * 30) { const i = (Math.random() * 7) | 0, r = rand(10, 200 * CHAOS.area); part(e.x + Math.cos(ai.bAng[i]) * r, e.y - 6 + Math.sin(ai.bAng[i]) * r, rand(-20, 20), rand(-20, 20), 0.35, PRISM[i], { glow: true, drag: 2 }); }
+  if (ai.bt >= 2) { ai.act = null; ai.bAng = null; }
+}
+// 虹の檻: プレイヤーの周り 半径 85 に結晶 4個(HP 各 2%)。1秒後、隣どうしを結ぶ 4辺の光線(幅 10)が 5秒
+//   辺に触れると ×0.6(0.5秒ごと)、檻の中にいる間は 1秒ごとに ×0.2。結晶を壊すとその 2辺が消え、檻が開く
+function startCage(e, ai) {
+  const a0 = rand(0, TAU), pts = [0, 1, 2, 3].map(i => ({ x: P.x + Math.cos(a0 + i * Math.PI / 2) * 85, y: P.y + Math.sin(a0 + i * Math.PI / 2) * 85 }));
+  for (const p of pts) pushWarn({ kind: 'circle', x: p.x, y: p.y, r: 6, t: 0, life: 1, fixed: true }); // 結晶が立つ場所
+  AudioMan.charge(1);
+  ai.cage = { t: -1, objs: null, pts, tick: 0 };
+  hint('cage', '虹の檻', '結晶を1つ壊すと檻が開く。光の辺に触れると痛い');
+}
+function updCage(e, ai, dt) {
+  const c = ai.cage;
+  if (!c) return;
+  c.t += dt;
+  if (!c.objs && c.t >= 0) { // 結晶が立つ
+    c.objs = c.pts.map(p => spawnObj(e, 'prism', p.x, p.y, { pct: 0.02, r: 6, life: 6.2 }));
+    for (const p of c.pts) burst(p.x, p.y, 16, [...PRISM, '#ffffff'], { sp: 80, up: 30, glow: true, life: 0.45 });
+    AudioMan.chime(); shake(3);
+  }
+  if (c.t > 6) { ai.cage = null; return; }
+  if (c.t < 1) return;
+  const o = c.objs, W = 10 * CHAOS.area;
+  for (let i = 0; i < 4; i++) {
+    const A = o[i], B = o[(i + 1) % 4];
+    if (!A.dead && !B.dead && segD2(P.x, P.y, A.x, A.y, B.x, B.y) < Math.pow(W / 2 + 3, 2)) hurtPlayer(e.dmg * 0.6);
+  }
+  const closed = o.every(x => !x.dead);
+  if (closed && inQuad(P.x, P.y, o)) { if ((c.tick -= dt) <= 0) { c.tick = 1; hurtPlayer(e.dmg * 0.2); } } else c.tick = 0;
+}
+// 点が4点の多角形の中か(外積の符号がそろうか)
+function inQuad(x, y, q) {
+  let sg = 0;
+  for (let i = 0; i < q.length; i++) {
+    const A = q[i], B = q[(i + 1) % q.length], cr = (B.x - A.x) * (y - A.y) - (B.y - A.y) * (x - A.x);
+    if (cr !== 0) { if (sg && Math.sign(cr) !== sg) return false; sg = Math.sign(cr); }
+  }
+  return true;
+}
+// 鏡の分身: 女王と同じ姿の分身 3体(激昂 4体)が 6秒。全員が 1.5秒ごとに光の弾。分身は 1撃で消え、本物だけ HP が減る(本物は 0.5秒ごとに弱く光る)
+function startClones(e, ai) {
+  const n = ai.enraged ? 4 : 3, total = n + 1, a0 = rand(0, TAU), R0 = rand(110, 130), real = (Math.random() * total) | 0;
+  const spots = [...Array(total)].map((_, i) => ({ x: P.x + Math.cos(a0 + TAU / total * i) * R0, y: P.y + Math.sin(a0 + TAU / total * i) * R0 }));
+  queenWarp(e, spots[real].x, spots[real].y);
+  const list = spots.filter((_, i) => i !== real).map(p => {
+    const c = spawnObj(e, 'clone', p.x, p.y, { pct: 0, r: e.r, life: 6 });
+    c.hp = c.maxhp = 1; c.disguise = true;
+    burst(p.x, p.y - 6, 22, [...PRISM, '#ffffff'], { sp: 80, glow: true, life: 0.45 });
+    return c;
+  });
+  ai.clones = { t: 0, list, shot: 1.5 };
+  screenFlash(0.25, '#ffd0f0'); AudioMan.chime(); AudioMan.zap();
+  hint('mirror', '鏡の分身', '分身は1撃で消える。弱く光るのが本物');
+}
+function updClones(e, ai, dt) {
+  const c = ai.clones;
+  if (!c) return;
+  c.t += dt; c.shot -= dt * CHAOS.rate;
+  if (c.shot <= 0) {
+    c.shot = 1.5;
+    for (const s of [e, ...c.list.filter(x => !x.dead)]) { const p = eball(s.x, s.y - 6, Math.atan2(P.y - s.y, P.x - s.x), 80, e.dmg * 0.4, 'pshard'); p.ci = (Math.random() * 7) | 0; }
+    AudioMan.shoot();
+  }
+  for (const s of c.list) if (!s.dead) s.face = P.x < s.x ? -1 : 1;
+  if (c.t >= 6) { for (const s of c.list) if (!s.dead) { s.dead = true; objDown(s, false); } ai.clones = null; }
+}
+// 光の鎖: 0.5秒の予告(女王からプレイヤーへ細い帯)→ 当たると 3秒、女王から 130 より離れると毎秒 50 引き戻され、0.5秒ごとに ×0.2
+function queenChain(e, ai) {
+  const a = Math.atan2(P.y - (e.y - 6), P.x - e.x), len = Math.sqrt(d2(e.x, e.y - 6, P.x, P.y)) + 12; // 鎖は女王の胸元から
+  pushWarn({ kind: 'line', x: e.x, y: e.y - 6, a, len, w: 4, t: 0, life: 0.5, fixed: true });
+  windup(e, 0.5, () => {
+    bfx.push({ kind: 'lchain', x: e.x, y: e.y - 6, a, len, t: 0, life: 0.2 });
+    AudioMan.zap();
+    if (inLine(e.x, e.y - 6, a, len, 6) && P.invT <= 0) { ai.tether = { t: 3, tick: 0 }; hint('lchain', '光の鎖', '女王から離れすぎると引き戻されて痛い'); }
+  });
+}
+function updTether(e, ai, dt) {
+  const th = ai.tether;
+  if (!th) return;
+  if ((th.t -= dt) <= 0 || P.dead) { ai.tether = null; return; }
+  const d = Math.sqrt(d2(e.x, e.y, P.x, P.y));
+  if (d > 130 && P.invT <= 0) {
+    const k = Math.min(d - 130, 50 * dt);
+    P.x += (e.x - P.x) / d * k; P.y += (e.y - P.y) / d * k;
+    if ((th.tick -= dt) <= 0) { th.tick = 0.5; hurtPlayer(e.dmg * 0.2); }
+  }
+}
+// 瞬き: プレイヤーの隣に 円 半径 40(0.4秒)→ そこに現れて光の爆発 ×0.9
+function queenBlink(e, ai) {
+  const ba = rand(0, TAU), tx = P.x + Math.cos(ba) * 20, ty = P.y + Math.sin(ba) * 20;
+  pushWarn({ kind: 'circle', x: tx, y: ty, r: 40, t: 0, life: 0.4 });
+  AudioMan.charge(0.4);
+  windup(e, 0.4, () => {
+    queenWarp(e, tx, ty);
+    hitCircle(tx, ty, 40, e.dmg * 0.9);
+    const R0 = 40 * CHAOS.area;
+    burst(tx, ty, 40, [...PRISM, '#ffffff'], { sp: 150, glow: true, life: 0.5 });
+    addRing(tx, ty, R0, '#ffffff', { w: 3, life: 0.35 }); addFlash(tx, ty, R0 * 3, '#ffd0f0', 0.9);
+    shockAt(tx, ty, 1.4, 0.8); shake(7); AudioMan.boom();
+  });
+}
+
 // 空襲: 0.8秒で飛び上がる(この間に画面を横切る帯 = 影の通り道が出る)→ 空の上(攻撃が当たらない)を影が速さ 220 で走り、通った跡に燃える床(4秒)
 //   影に触れると ×1.0・炎上 → 影が抜けたら、プレイヤーのそばへ舞い降りる(0.4秒)
 function startRaid(e, ai) {
@@ -2362,8 +2660,9 @@ function onBossDeath(e) {
   S.bossKills++;
   if (S.mode === 'arena') return arenaBossDown(e);
   if (CHAOS.bossLv) { S.elv += CHAOS.bossLv; UI.enemyLvUp(); } // カオス: ボスを倒すたびに敵Lv アップ
-  for (let i = 0; i < 14; i++) dropGem(e.x + rand(-30, 30), e.y + rand(-30, 30), 20 * S.stage);
-  for (let i = 0; i < 25; i++) dropItem('coin', e.x, e.y, 3 * S.stage);
+  const rk = S.mode === 'stage' ? S.tier : S.stage; // 撃破報酬: 通常モードは tier、3ステージ通しはステージの番号で数える
+  for (let i = 0; i < 14; i++) dropGem(e.x + rand(-30, 30), e.y + rand(-30, 30), 20 * rk);
+  for (let i = 0; i < 25; i++) dropItem('coin', e.x, e.y, 3 * rk);
   dropItem('meat', e.x + 14, e.y); dropItem('magnet', e.x - 14, e.y);
   dropItem('chest', e.x, e.y - 14); chestBeacon(e.x, e.y - 14); // 装備宝箱(フェーズのクリア)
   if (e.final) {
@@ -2493,9 +2792,9 @@ function updEprojs(dt0) {
     else if (p.kind === 'esand' && Math.random() < dt * 30) part(p.x, p.y, rand(-8, 8), rand(-8, 4), 0.35, pick(['#e8c88a', '#c8a060']), { drag: 3 });
     else if (p.kind === 'espear' && Math.random() < dt * 50) part(p.x - p.vx * 0.03, p.y - p.vy * 0.03, 0, 0, 0.12, '#ffffff', { drag: 0 });
     if (p.t > p.life) { if (p.kind === 'espear' || p.kind === 'bspear') burst(p.x, p.y, 5, ['#c8b89a', '#7a6a5a'], { sp: 30, life: 0.25 }); eprojs.splice(i, 1); continue; } // 槍は帯の端で地面に刺さる
-    if (p.blk) { // 白骨竜の弾: 骨柱(肋骨の盾)に当たると砕けて消える
+    if (p.blk) { // 白骨竜の弾は骨柱、大鹿の欠片・残像は結晶の柱に当たると砕けて消える
       let wall = null;
-      forEachNear(p.x, p.y, p.r, o => { if (o.obj === 'pillar') { wall = o; return false; } });
+      forEachNear(p.x, p.y, p.r, o => { if (o.obj === p.blk && !(p.ignore && p.ignore.has(o))) { wall = o; return false; } }); // blk: 遮る物の種類(骨柱 / 結晶の柱)
       if (wall) { burst(p.x, p.y, 7, ['#efe9d4', '#6ee7ff', '#ffffff'], { sp: 45, glow: true, life: 0.25 }); wall.flash = 0.06; eprojs.splice(i, 1); continue; }
     }
     if (d2(p.x, p.y, P.x, P.y) < Math.pow(p.r + 3, 2)) {

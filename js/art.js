@@ -1157,6 +1157,54 @@ const ART = (() => {
   // 左半分の行を左右対称に展開
   const sym = rows => rows.map(r => r + [...r].reverse().join(''));
 
+  // ---------- 七彩の晶窟 ----------
+  // 宝石スライム: 面のある宝石の体(水色と桃色の面)
+  S.jslime = mk({ a: '#3a2a6a', b: '#7ad7ff', c: '#d8f8ff', d: '#ff8ad8', e: '#1a1030' }, ['...aba...', '..abcba..', '.abccbda.', 'abbebebda', 'abddbbbda', '.aaaaaaa.'], { emit: 'c' });
+  // 晶甲虫: 紫の殻の背に結晶が生えた甲虫(右向き)
+  S.beetle = mk({ a: '#1a1028', b: '#3a2c5a', c: '#5a4a8a', d: '#9ff7ff', e: '#ff8ad8', f: '#ffffff' }, [
+    '...d...e...', '..dd..ee.d.', '.abbcbbcbdd', 'abbcbbbcbbf', 'abcbbbcbbba', '.abbbbbbba.', '.a.a.a.a...', 'a.a.a.a....',
+  ], { emit: 'def' });
+  // プリズムフェアリー: 光る小さな妖精(羽ばたきの 2コマ)
+  const fairyPal = { a: '#ffd0f0', b: '#ffffff', c: '#9ff7ff', d: '#ff8ad8' };
+  S.fairy = [mk(fairyPal, ['a.....c', 'aa.b.cc', '.aabcc.', '..bbb..', '...b...', '..d.d..'], { emit: 'abcd' }),
+    mk(fairyPal, ['.......', '...b...', '.aabcc.', 'aa.b.cc', 'a.bbb.c', '..d.d..'], { emit: 'abcd' })];
+  // 晶角の大鹿: 七色の結晶の角を持つ紫の大鹿(右向き)
+  S.stag = mk({ a: '#1a1028', b: '#4a3c7a', c: '#6a5aa8', d: '#9ff7ff', e: '#ff8ad8', f: '#ffd23f', g: '#ffffff', h: '#2a2048' }, [
+    '.................d...e....',
+    '................dd..ee....',
+    '.................d.ee..f..',
+    '..............f..ddd..ff..',
+    '..............ff..dd.ff...',
+    '...............ff.dd.f....',
+    '.................ddff.....',
+    '.................abbba....',
+    '................abbbbba...',
+    '................abgbbbbaa.',
+    '................abbbbbbbba',
+    '.....aaaaaaaaaaabbbbaaaa..',
+    '...aabbbbbbbbbbbbbbba.....',
+    '..abcbbbbbcccbbbbbbba.....',
+    '..abbbcccbbbbbbbccbba.....',
+    '..abbbbbbbbbbbbbbbbba.....',
+    '...abbbbbbbbbbbbbbba......',
+    '....abb.abb....abb.abb....',
+    '....ab..ab.....ab..ab.....',
+    '....ab..ab.....ab..ab.....',
+    '....ab..ab.....ab..ab.....',
+    '...hh..hh.....hh..hh......',
+  ], { emit: 'defg' });
+  // 七彩の女王: 結晶の冠と銀の髪、七色の裾の衣
+  S.pqueen = mk({ a: '#ffd23f', c: '#9ff7ff', d: '#ff8ad8', h: '#d8c8ff', f: '#f4e0e8', e: '#3a1a5a', g: '#6a4ab0', k: '#2a1a4a', r: '#ff5d73', o: '#ff9a3d', y: '#ffd23f', n: '#7dff9a', b: '#7ad7ff', v: '#8a7aff' }, sym([
+    '.......dc', '...c..ddc', '...cc.dcc', '...aaaaaa', '..hhhhhhh', '.hhffffff', '.hhfeffff', '.hhffffff', '.hhhfffff', '.hhh.kfff',
+    '..h.kgggg', '...kggggg', '..kgggrgg', '..kggrogg', '.kggroyyg', '.kgroyynn', '.kgoynnbb', 'kggynnbbv', 'kgynnbbvv', 'kgnbbbvvv', 'kkkkkkkkk',
+  ]), { emit: 'cdy' }); // 光るのは冠と金の縁(衣まで光らせると白く飛ぶ)
+  S.obj_clone = S.pqueen; // 鏡の分身は女王と同じ姿
+  // 結晶の柱(大鹿)/ 虹の檻の結晶(女王)
+  S.obj_crystal = mk({ a: '#2a2048', b: '#7ad7ff', c: '#d8f8ff', d: '#ff8ad8', e: '#8a7aff' }, [
+    '...c....', '..cbc...', '..cbbd..', '.cbbbd..', '.cbbbdd.', '.cbbbed.', 'cbbbeedd', 'cbbbeedd', 'cbbeeedd', '.bbeeed.', '.bbeeed.', '..beed..', '.abeeda.', 'aaaaaaaa',
+  ], { emit: 'cd' });
+  S.obj_prism = mk({ a: '#2a2048', b: '#7ad7ff', c: '#ffffff', d: '#ff8ad8', e: '#8a7aff' }, ['..c..', '.cbd.', '.cbd.', 'cbbdd', 'cbedd', '.bed.', '.bed.', '.aaa.'], { emit: 'cbd' });
+
   // 炎魔イフリート: 黒い角と燃える髪、赤黒い筋骨の上半身、両手に炎。下半身は炎になって浮いている
   S.ifrit = mk({ h: '#2a1414', a: '#1e0a08', b: '#6a1a10', c: '#a8381a', e: '#ffff80', m: '#ffc34a', f: '#ff6a2a', g: '#ffc34a', w: '#fff0b0' }, sym([
     '..h.........',
@@ -1292,6 +1340,8 @@ const ART = (() => {
   S.bspear = mk({ a: '#efe9d4', b: '#b8b098', c: '#6ee7ff' }, ['..........a..', 'bbbbbbbbbbaac', '..........a..'], { emit: 'c' }); // 白骨竜の骨槍
 
   // 通常敵の弾: 火の小鬼の火の玉 / 砂術師の砂の弾 / 投槍兵の槍(右向き。回転フレームで描く)
+  // 七色の欠片(大鹿・女王の弾): 色ごとの菱形
+  S.pshard = ['#ff5d73', '#ff9a3d', '#ffd23f', '#7dff9a', '#7ad7ff', '#8a7aff', '#d88aff'].map(c => mk({ a: c, b: '#ffffff' }, ['.a.', 'aba', '.a.'], { outline: false, emit: 'ab' }));
   S.efire = mk({ a: '#b8261a', b: '#ff6a2a', c: '#ffc34a', d: '#fff6c8' }, ['.aba.', 'abcba', 'bcdcb', 'abcba', '.aba.'], { outline: false, emit: 'bcd' });
   S.esand = mk({ a: '#8a5a2a', b: '#e8c88a', c: '#fff0c0' }, ['.ab.', 'abcb', 'bccb', '.bb.'], { emit: 'c' });
   S.espear = mk({ a: '#6b4a2a', b: '#dfe8f5', c: '#ffffff' }, ['.........b..', 'aaaaaaaaabbc', '.........b..']);

@@ -187,6 +187,8 @@ const AudioMan = (() => {
     sand()    { if (this._ok('sand', 0.15)) { this.noise(0.45, { vol: 0.07, f0: 600, f1: 3200, ftype: 'bandpass', rate: 0.7 }); this.tone(330, 440, 0.3, { vol: 0.02, type: 'triangle' }); } },
     spearReady() { if (this._ok('spearReady', 0.15)) { this.tone(2200, 1900, 0.06, { vol: 0.025, type: 'triangle' }); this.noise(0.08, { vol: 0.05, f0: 5000, f1: 2500, ftype: 'highpass' }); } },
     spearThrow() { if (this._ok('spearThrow', 0.08)) { this.noise(0.22, { vol: 0.12, f0: 900, f1: 4200, ftype: 'bandpass', rate: 1.3 }); this.tone(500, 260, 0.1, { vol: 0.03, type: 'sawtooth' }); } },
+    // 晶窟: 結晶が鳴る音(澄んだ高い和音)
+    chime()   { if (!this._ok('chime', 0.08)) return; const b = 1320 + Math.random() * 400; this.tone(b, b, 0.25, { vol: 0.035, type: 'sine' }); this.tone(b * 1.5, b * 1.5, 0.3, { vol: 0.025, type: 'sine', delay: 0.03 }); this.tone(b * 2, b * 2, 0.2, { vol: 0.015, type: 'triangle', delay: 0.06 }); },
     fuse()    { if (this._ok('fuse', 0.12)) { this.noise(0.55, { vol: 0.08, f0: 7000, f1: 9000, ftype: 'highpass', rate: 1.8 }); this.tone(900, 1700, 0.55, { vol: 0.02, type: 'sine' }); } },
   };
   return A;
