@@ -2679,7 +2679,7 @@ function pqueenAI(e, ai, dt, a, dist, slow) {
   updClones(e, ai, dt); updReflect(e, ai, dt);
   if (ai.spT > 0) { // 虹の螺旋(激昂): 3本の腕
     ai.spT -= dt; ai.spGap -= dt;
-    if (ai.spGap <= 0) { ai.spGap = 0.12; ai.spA += 0.32; for (let i = 0; i < 3; i++) { const p = eball(e.x, e.y - 6, ai.spA + TAU / 3 * i, 70, e.dmg * 0.4, 'pshard'); p.ci = (i * 2 + Math.floor(ai.spA * 3)) % 7; p.qb = true; } if (Math.floor(ai.spT * 8) % 2) AudioMan.shoot(); }
+    if (ai.spGap <= 0) { ai.spGap = 0.12; ai.spA += 0.32; for (let i = 0; i < 3; i++) { const p = eball(e.x, e.y - 6, ai.spA + TAU / 3 * i, 70, e.dmg * 0.7, 'pshard'); p.ci = (i * 2 + Math.floor(ai.spA * 3)) % 7; p.qb = true; } if (Math.floor(ai.spT * 8) % 2) AudioMan.shoot(); }
   }
   // ゆっくり漂う(距離はおよそ 120)
   const want = 120, dir = dist > want ? a : a + Math.PI, k = Math.abs(dist - want) > 25 ? 0.6 : 0;
@@ -2741,14 +2741,14 @@ function updReflect(e, ai, dt) {
 }
 // 乱反射: 0.4秒(女王が白く光る)→ 速い光の弾(速さ 320)を 2発(激昂 3発。0.12秒おき)女王の弾へ撃つ。当たるたびに 0.06秒きらめいて、次の一番近い女王の弾(または鏡)へ跳ねる
 //   2発目以降は、前の光が最初に向かった弾には向かわない(同じ道をなぞらないように)
-//   8回(激昂 10回)跳ねたら最後はプレイヤーへ(跳ね先がなくなったらその時点で)。×0.6
+//   8回(激昂 10回)跳ねたら最後はプレイヤーへ(跳ね先がなくなったらその時点で)。×0.9
 const rayTargets = (e, ai) => eprojs.some(q => q.qb) || (ai.mirrors || []).some(m => !m.dead);
 function prismScatter(e, ai) {
   AudioMan.charge(0.4);
   windup(e, 0.4, () => {
     const taken = new Set(); // 前の光が最初に向かった弾
     for (let k = 0; k < (ai.enraged ? 3 : 2); k++) later(ai, k * 0.12, () => {
-      const p = { kind: 'ray', x: e.x, y: e.y - 6, vx: 0, vy: 0, dmg: e.dmg * 0.6 * (S.eatk ?? 1), life: 12, t: 0, r: 3 * CHAOS.area, spd: 320, bounces: ai.enraged ? 10 : 8, used: new Set(taken), trail: [], owner: e, pause: 0 };
+      const p = { kind: 'ray', x: e.x, y: e.y - 6, vx: 0, vy: 0, dmg: e.dmg * 0.9 * (S.eatk ?? 1), life: 12, t: 0, r: 3 * CHAOS.area, spd: 320, bounces: ai.enraged ? 10 : 8, used: new Set(taken), trail: [], owner: e, pause: 0 };
       eprojs.push(p); rayNext(p); if (p.tgt) taken.add(p.tgt);
       burst(e.x, e.y - 6, 14, ['#ffffff', '#fff6c8'], { sp: 80, glow: true, life: 0.3 }); AudioMan.zap();
     });
@@ -2783,10 +2783,10 @@ function updRay(p, dt) {
   }
   p.vx = (tx - p.x) / d * p.spd; p.vy = (ty - p.y) / d * p.spd;
 }
-// 光の屈折弾: 遅い大きな光の玉(速さ 50、×0.6)をプレイヤーへ。1.5秒たつか、プレイヤーの 60 以内で 7つの欠片に割れてプレイヤーへ扇状に(±0.6rad、速さ 120、×0.4)
+// 光の屈折弾: 遅い大きな光の玉(速さ 50、×1.0)をプレイヤーへ。1.5秒たつか、プレイヤーの 60 以内で 7つの欠片に割れてプレイヤーへ扇状に(±0.6rad、速さ 120、×0.7)
 function refractOrb(e) {
   const a = Math.atan2(P.y - (e.y - 6), P.x - e.x);
-  eprojs.push({ kind: 'prismorb', x: e.x, y: e.y - 6, vx: Math.cos(a) * 50, vy: Math.sin(a) * 50, dmg: e.dmg * 0.6 * (S.eatk ?? 1), sdmg: e.dmg * 0.4, life: 6, t: 0, r: 6 * CHAOS.area, qb: true });
+  eprojs.push({ kind: 'prismorb', x: e.x, y: e.y - 6, vx: Math.cos(a) * 50, vy: Math.sin(a) * 50, dmg: e.dmg * (S.eatk ?? 1), sdmg: e.dmg * 0.7, life: 6, t: 0, r: 6 * CHAOS.area, qb: true });
   burst(e.x, e.y - 6, 10, [...PRISM, '#ffffff'], { sp: 50, glow: true, life: 0.3 }); AudioMan.chime();
 }
 function splitOrb(p) {
@@ -2815,13 +2815,13 @@ function updClones(e, ai, dt) {
   c.t += dt; c.shot -= dt * CHAOS.rate;
   if (c.shot <= 0) {
     c.shot = 1.5;
-    for (const s of [e, ...c.list.filter(x => !x.dead)]) { const p = eball(s.x, s.y - 6, Math.atan2(P.y - s.y, P.x - s.x), 80, e.dmg * 0.4, 'pshard'); p.ci = (Math.random() * 7) | 0; p.qb = true; }
+    for (const s of [e, ...c.list.filter(x => !x.dead)]) { const p = eball(s.x, s.y - 6, Math.atan2(P.y - s.y, P.x - s.x), 80, e.dmg * 0.7, 'pshard'); p.ci = (Math.random() * 7) | 0; p.qb = true; }
     AudioMan.shoot();
   }
   for (const s of c.list) if (!s.dead) s.face = P.x < s.x ? -1 : 1;
   if (c.t >= 6) { for (const s of c.list) if (!s.dead) { s.dead = true; objDown(s, false); } ai.clones = null; }
 }
-// 瞬き: プレイヤーの隣に 円 半径 40(0.4秒)→ そこに現れて光の爆発 ×0.9。移る前にいた位置に女王の鏡を残す
+// 瞬き: プレイヤーの隣に 円 半径 40(0.4秒)→ そこに現れて光の爆発 ×1.2。移る前にいた位置に女王の鏡を残す
 function queenBlink(e, ai) {
   const ba = rand(0, TAU), tx = P.x + Math.cos(ba) * 20, ty = P.y + Math.sin(ba) * 20;
   pushWarn({ kind: 'circle', x: tx, y: ty, r: 40, t: 0, life: 0.4 });
@@ -2830,7 +2830,7 @@ function queenBlink(e, ai) {
     const ox = e.x, oy = e.y;
     queenWarp(e, tx, ty);
     placeMirror(e, ai, ox, oy);
-    hitCircle(tx, ty, 40, e.dmg * 0.9);
+    hitCircle(tx, ty, 40, e.dmg * 1.2);
     const R0 = 40 * CHAOS.area;
     burst(tx, ty, 40, [...PRISM, '#ffffff'], { sp: 150, glow: true, life: 0.5 });
     addRing(tx, ty, R0, '#ffffff', { w: 3, life: 0.35 }); addFlash(tx, ty, R0 * 3, '#ffd0f0', 0.9);
