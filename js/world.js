@@ -2835,12 +2835,12 @@ function updClones(e, ai, dt) {
   for (const s of c.list) if (!s.dead) s.face = P.x < s.x ? -1 : 1;
   if (c.t >= 6) { for (const s of c.list) if (!s.dead) { s.dead = true; objDown(s, false); } ai.clones = null; }
 }
-// 瞬き: プレイヤーの隣に 円 半径 40(0.4秒)→ そこに現れて光の爆発 ×1.2。移る前にいた位置に女王の鏡を残す
+// 瞬き: プレイヤーの隣に 円 半径 40(0.6秒)→ そこに現れて光の爆発 ×1.2。移る前にいた位置に女王の鏡を残す
 function queenBlink(e, ai) {
   const ba = rand(0, TAU), tx = P.x + Math.cos(ba) * 20, ty = P.y + Math.sin(ba) * 20;
-  pushWarn({ kind: 'circle', x: tx, y: ty, r: 40, t: 0, life: 0.4 });
-  AudioMan.charge(0.4);
-  windup(e, 0.4, () => {
+  pushWarn({ kind: 'circle', x: tx, y: ty, r: 40, t: 0, life: 0.6 });
+  AudioMan.charge(0.6);
+  windup(e, 0.6, () => {
     const ox = e.x, oy = e.y;
     queenWarp(e, tx, ty);
     placeMirror(e, ai, ox, oy);
