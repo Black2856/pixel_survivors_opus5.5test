@@ -3412,8 +3412,10 @@ function fhourAI(e, ai, dt, a, dist, slow) {
   const R = CHAOS.rate;
   if (!ai.finale && e.hp < e.maxhp * 0.5) { ai.finale = true; startFinale(e, ai); }
   if (ai.healT > 0) { const k = Math.min(ai.healT, dt); e.hp = Math.min(e.maxhp, e.hp + e.maxhp * 0.3 * k / 1.5); ai.healT -= dt; S.hudDirty = true; } // 逆戻し: 1.5秒で HP 30% を取り戻す
-  e.x += Math.cos(a) * e.spd * slow * dt; e.y += Math.sin(a) * e.spd * slow * dt;
-  if (Math.random() < dt * 10) part(e.x + rand(-6, 6), e.y + rand(-4, 10), rand(-6, 6), -rand(10, 25), 0.6, pick(['#ff3b5c', '#1a0a14', '#c8a050']), { glow: Math.random() < 0.4, drag: 1 }); // 赤黒い霧
+  if (!e.hidden) { // 十二の刻印で消えている間は動かず、霧も出さない
+    e.x += Math.cos(a) * e.spd * slow * dt; e.y += Math.sin(a) * e.spd * slow * dt;
+    if (Math.random() < dt * 10) part(e.x + rand(-6, 6), e.y + rand(-4, 10), rand(-6, 6), -rand(10, 25), 0.6, pick(['#ff3b5c', '#1a0a14', '#c8a050']), { glow: Math.random() < 0.4, drag: 1 }); // 赤黒い霧
+  }
   ai.scy -= dt * R; ai.rev -= dt * R; ai.stop -= dt * R; ai.marks -= dt * R; ai.sec -= dt * R; if (ai.enraged) ai.cross -= dt * R;
   if (ai.busy > 0) { if ((ai.busy -= dt) <= 0) ai.gap = ai.enraged ? 0.7 : 1; return; } // 技の途中
   if (ai.gap > 0) { ai.gap -= dt; return; } // 技のあとの間
@@ -3476,31 +3478,35 @@ function timeStop(e, ai) {
   later(ai, 2.5, () => maybeMadClock(e, ai));
 }
 // 十二の刻印: 死神が消える → プレイヤーのいた位置に 円 半径 30(1秒)→ 死神がそこに現れて斬る(×1.2)
-//   → 0.5秒、死神から時計の 12方向へ帯(長さ 150・幅 12)→ 12時の方向(上)から時計回りに 0.1秒おきに炸裂(×0.8)
+//   → 斬り終えたら(0.35秒)、0.5秒 死神から時計の 12方向へ帯(長さ 150・幅 12)→ 12時の方向(上)から時計回りに 0.1秒おきに炸裂(×0.8)
 function twelveMarks(e, ai) {
-  ai.busy = 2.9;
+  ai.busy = 3.25;
   const x0 = P.x, y0 = P.y;
+  bfx.push({ kind: 'afterimg', spr: 'fhour', x: e.x, y: e.y - (e.jz || 0), flip: (e.face || 1) < 0, t: 0, life: 0.4 }); // 溶けるように消える残像
   e.flying = e.hidden = e.air = true; // 消える(攻撃が当たらない・触れても当たらない)
-  burst(e.x, e.y, 40, ['#ff3b5c', '#1a0a14', '#c8a050'], { sp: 120, glow: true, life: 0.5 }); AudioMan.dash(); AudioMan.knell();
+  burst(e.x, e.y, 40, ['#ff3b5c', '#1a0a14', '#c8a050'], { sp: 120, glow: true, life: 0.5 }); addFlash(e.x, e.y, 80, '#ff3b5c', 0.5); AudioMan.dash(); AudioMan.knell();
   pushWarn({ kind: 'circle', x: x0, y: y0, r: 30, t: 0, life: 1 });
   AudioMan.charge(1);
   hint('marks', '十二の刻印', '死神が円に現れて斬る。そのあと 12方向の帯が 12時から順に炸裂する');
-  later(ai, 1, () => { // 現れて斬る
-    e.x = x0; e.y = y0; e.flying = e.hidden = e.air = false; e.sq = 0.6;
+  later(ai, 0.7, () => { for (let i = 0; i < 28; i++) { const pa = TAU / 28 * i, r = rand(40, 55); part(x0 + Math.cos(pa) * r, y0 + Math.sin(pa) * r, -Math.cos(pa) * r / 0.3, -Math.sin(pa) * r / 0.3, 0.3, pick(['#ff3b5c', '#1a0a14', '#c8a050']), { glow: true, drag: 0 }); } }); // 現れる前: 赤黒い霧が円へ集まる
+  later(ai, 1, () => { // 現れて、大鎌を一回転させて斬る
+    e.x = x0; e.y = y0; e.flying = e.hidden = e.air = false; e.sq = 0.6; e.flash = 0.12;
     const R0 = 30 * CHAOS.area;
     hitCircle(x0, y0, 30, e.dmg * 1.2);
-    slashes.push({ x: x0, y: y0, a: rand(0, TAU), r: R0 * 1.3, t: 0, life: 0.26, span: TAU * 0.9, pal: SWING_PAL.enemy, enemy: true });
-    burst(x0, y0, 30, ['#ff3b5c', '#ffffff', '#c8a050'], { sp: 140, glow: true, life: 0.4 }); shockAt(x0, y0, 1.4, 0.8); shake(6); AudioMan.slash(); AudioMan.boom();
-    for (let i = 0; i < 12; i++) {
-      const ma = -Math.PI / 2 + TAU / 12 * i;
-      pushWarn({ kind: 'line', x: x0, y: y0, a: ma, len: 150, w: 12, t: 0, life: 0.5 + 0.1 * i });
-      later(ai, 0.5 + 0.1 * i, () => {
-        hitLine(x0, y0, ma, 150, 12, e.dmg * 0.8);
-        bfx.push({ kind: 'pillar', x: x0, y: y0, a: ma, len: 150 * CHAOS.area, w: 12 * CHAOS.area, t: 0, life: 0.35 });
-        AudioMan.tick(i); if (i % 3 === 0) { AudioMan.boom(); shake(3); }
-      });
-    }
-    AudioMan.charge(0.5);
+    bfx.push({ kind: 'spincut', x: x0, y: y0, a0: rand(0, TAU), dir: Math.random() < 0.5 ? 1 : -1, r: R0 + 8, t: 0, life: 0.45 });
+    burst(x0, y0, 30, ['#ff3b5c', '#ffffff', '#8e0016'], { sp: 150, glow: true, life: 0.4 }); shockAt(x0, y0, 1.4, 0.8); shake(7); hitstop(0.04); AudioMan.slash(); AudioMan.cutHit(); AudioMan.boom();
+    later(ai, 0.35, () => { // 斬り終えてから 12方向の帯
+      for (let i = 0; i < 12; i++) {
+        const ma = -Math.PI / 2 + TAU / 12 * i;
+        pushWarn({ kind: 'line', x: x0, y: y0, a: ma, len: 150, w: 12, t: 0, life: 0.5 + 0.1 * i });
+        later(ai, 0.5 + 0.1 * i, () => {
+          hitLine(x0, y0, ma, 150, 12, e.dmg * 0.8);
+          bfx.push({ kind: 'pillar', x: x0, y: y0, a: ma, len: 150 * CHAOS.area, w: 12 * CHAOS.area, t: 0, life: 0.35 });
+          AudioMan.tick(i); if (i % 3 === 0) { AudioMan.boom(); shake(3); }
+        });
+      }
+      AudioMan.charge(0.5);
+    });
   });
 }
 // 秒針の弾幕: 2秒(周りに時計の目盛り 12個が光る)→ 12方向に弾を 0.2秒おきに 5回(激昂 8回)。1回ごとに 6°ずつ時計回りにずらす(速さ 65、×0.8)

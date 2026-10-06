@@ -1812,7 +1812,7 @@ function drawBossFx(e) {
     addLight(e.x, e.y, 60 + 120 * k, '#ff3b5c', 0.4 + 0.6 * k);
   }
   // 終刻の死神: 背後に回る時計の光輪(12の目盛りと針)/ 秒針の弾幕の前に目盛りが光る / 時間停止中は止まった時計
-  if (e.boss === 'fhour') {
+  if (e.boss === 'fhour' && !e.hidden) { // 十二の刻印で消えている間は描かない
     const R = 22, frozen = S.tstop > 0, rv = S.rewind > 0 ? -4 : 1;
     for (let i = 0; i < 12; i++) {
       const a = -Math.PI / 2 + TAU / 12 * i, glow = ai.secGlow > 0 && Math.floor(t * 12 + i) % 2 === 0, rr = ai.secGlow > 0 ? R + 10 : R;
@@ -2016,6 +2016,25 @@ function drawBfx() {
       const R = DANCE_R, fade = Math.min(1, (f.life - f.t) * 3, f.t * 4), n = 40;
       for (let i = 0; i < n; i++) { if ((i + Math.floor(t * 8)) % 2) continue; const a = TAU / n * i; sx.globalAlpha = 0.6 * fade; sx.fillStyle = '#d8f0ff'; sx.fillRect(Math.round(fx + Math.cos(a) * R), Math.round(fy + Math.sin(a) * R), 1, 1); }
       sx.globalAlpha = fade; drawSp(ART.S.flake, f.x, f.y, { alpha: fade }); sx.globalAlpha = 1;
+    } else if (f.kind === 'afterimg') { // 消える残像: 縦に伸びて細くなりながら溶ける
+      sx.globalAlpha = Math.max(0, 1 - u); drawSp(ART.S[f.spr], f.x, f.y, { flip: f.flip, sy: 1 + u * 0.5, sxk: Math.max(0.1, 1 - u * 0.8), white: u < 0.15 }); sx.globalAlpha = 1;
+    } else if (f.kind === 'spincut') { // 十二の刻印の回転斬り: 大鎌が一回転する三日月の斬撃(白い刃先・赤い軌跡・黒い縁)
+      const k = 1 - Math.pow(1 - Math.min(1, u / 0.55), 3), head = f.a0 + f.dir * TAU * k;
+      const tail = 2.6 * Math.min(1, k * 3) * (1 - Math.max(0, (u - 0.55) / 0.45)); // 軌跡の長さ(rad): 振り始めに伸び、振り切ったあと縮んで消える
+      const n = Math.ceil(tail * f.r);
+      for (let i = 0; i <= n; i++) {
+        const s = i / Math.max(1, n), a = head - f.dir * tail * s, w = Math.max(1, Math.round((1 - s) * 7)); // 刃先ほど太い
+        for (let j = 0; j < w; j++) {
+          const rr = f.r - j + 1, x = Math.round(fx + Math.cos(a) * rr), y = Math.round(fy + Math.sin(a) * rr);
+          sx.fillStyle = j === 0 && s < 0.5 ? '#000000' : s < 0.1 ? '#ffffff' : s < 0.45 ? '#ff3b5c' : '#8e0016';
+          sx.globalAlpha = 1 - s * 0.6; sx.fillRect(x, y, 1, 1);
+          if (j > 0 && s < 0.45) { gx.fillStyle = s < 0.1 ? '#ffffff' : '#5a000c'; gx.fillRect(x, y, 1, 1); }
+        }
+      }
+      sx.globalAlpha = 1;
+      const hx2 = f.x + Math.cos(head) * f.r, hy2 = f.y + Math.sin(head) * f.r;
+      if (u < 0.55) drawRot('rscythe', head + f.dir * Math.PI / 2, hx2, hy2, { scale: 1.6 }); // 刃先の大鎌
+      addLight(hx2, hy2, 50, '#ff3b5c', 0.9 * (1 - u)); addLight(f.x, f.y, f.r * 2.5, '#ff3b5c', 0.4 * (1 - u));
     } else if (f.kind === 'skyspear') { // 氷柱の墓標の氷柱: 女王の頭上から空へ飛ぶ(up)/ 空から落ちてくる(down)
       const H = 200, y = f.up ? f.y - 10 - H * u * u : f.y - 18 - H * (1 - u) * (1 - u);
       drawSp(f.up ? ART.S.icespireUp : ART.S.obj_tomb, f.x, y, { alpha: f.up ? Math.max(0, 1 - u * 0.6) : 1 });
