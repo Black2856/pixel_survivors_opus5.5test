@@ -3429,7 +3429,7 @@ function fhourAI(e, ai, dt, a, dist, slow) {
   else if (ai.scy <= 0 && dist < 90) { ai.scy = ai.enraged ? 2.5 : 3.5; hourScythe(e, ai, a); chronoEcho(e, ai, e.x, e.y, (g, ga) => hourScythe(g, ga, a)); }
 }
 // クロノ・エコー(激昂・間隔 20): 刻の大鎌・十二の刻印・秒針の弾幕が終わってから 3秒後に、同じ位置で灰色の死神が同じ技をもう一度(向き・狙った位置も同じ)
-//   技の終わり = 技の長さ(ai.busy: 刻の大鎌 1.2秒・十二の刻印 3.15秒・秒針の弾幕 3.6秒(激昂))
+//   技の終わり = 技の長さ(ai.busy: 刻の大鎌 1.2秒・十二の刻印 2.9秒・秒針の弾幕 3.6秒(激昂))
 //   灰色の死神は 0.4秒で現れてから技を始め、終わると 0.4秒で消える。攻撃は当たらない(ただの姿)。技の当たり判定は本物と同じ
 function chronoEcho(e, ai, x, y, fn) {
   if (!ai.enraged || ai.echo > 0) return;
@@ -3503,10 +3503,10 @@ function timeStop(e, ai) {
   later(ai, 2.5, () => maybeMadClock(e, ai));
 }
 // 十二の刻印: 死神が消える → プレイヤーのいた位置に 円 半径 50(1秒)→ 死神がそこに現れて斬る(×1.2)
-//   → 斬り終えた瞬間(回転斬りを振り切る 0.25秒後)から、0.5秒 死神から時計の 12方向へ帯(長さ 150・幅 16)→ 12時の方向(上)から時計回りに 0.1秒おきに炸裂(×0.8)
+//   → 赤い円が消えた瞬間(現れて斬るのと同時)から、0.5秒 死神から時計の 12方向へ帯(長さ 150・幅 16)→ 12時の方向(上)から時計回りに 0.1秒おきに炸裂(×0.8)
 //   at: 現れる位置(クロノ・エコーは本物と同じ位置)。返り値は現れた位置
 function twelveMarks(e, ai, at) {
-  ai.busy = 3.15;
+  ai.busy = 2.9;
   const x0 = at ? at.x : P.x, y0 = at ? at.y : P.y;
   if (!e.echo) bfx.push({ kind: 'afterimg', spr: 'fhour', x: e.x, y: e.y - (e.jz || 0), flip: (e.face || 1) < 0, t: 0, life: 0.4 }); // 溶けるように消える残像
   e.flying = e.hidden = e.air = true; // 消える(攻撃が当たらない・触れても当たらない)
@@ -3521,7 +3521,7 @@ function twelveMarks(e, ai, at) {
     hitCircle(x0, y0, 50, e.dmg * 1.2);
     bfx.push({ kind: 'spincut', x: x0, y: y0, a0: rand(0, TAU), dir: Math.random() < 0.5 ? 1 : -1, r: R0 + 8, t: 0, life: 0.45 });
     burst(x0, y0, 30, ['#ff3b5c', '#ffffff', '#8e0016'], { sp: 150, glow: true, life: 0.4 }); shockAt(x0, y0, 1.4, 0.8); shake(7); hitstop(0.04); AudioMan.slash(); AudioMan.cutHit(); AudioMan.boom();
-    later(ai, 0.25, () => { // 斬り終えた瞬間から 12方向の帯
+    later(ai, 0, () => { // 赤い円が消えた瞬間から 12方向の帯
       for (let i = 0; i < 12; i++) {
         const ma = -Math.PI / 2 + TAU / 12 * i;
         pushWarn({ kind: 'line', x: x0, y: y0, a: ma, len: 150, w: 16, t: 0, life: 0.5 + 0.1 * i });
