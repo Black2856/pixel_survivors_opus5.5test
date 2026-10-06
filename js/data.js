@@ -59,22 +59,22 @@ const DATA = {
   // elite: エリートの HP の倍率 / eliteDmg: 攻撃力 / eliteRate: 攻撃速度(攻撃の間隔が 1/n。予告の長さは同じ)/ eliteArea: 攻撃範囲(予告・当たり判定・弾・床)
   enemyLevel: { interval: 30, hpLin: 0.2, hpExp: 1.03, dmg: 0.03, spd: 0.005, spdMax: 1.5, xp: 0.04, elite: 14, eliteDmg: 1.25, eliteRate: 2.0, eliteArea: 1.5 },
 
-  // hp: 基礎HP(1500〜2000。Lv倍率は雑魚と共通) / enrage: 激昂する残りHP割合(省略時 0.5)
+  // hp: 基礎HP(1500〜2000。Lv倍率は雑魚と共通) / enrage: 激昂する残りHP割合(省略時 0.6 = 全ボス共通)
   bosses: {
     king:    { name: '腐肉の王 ROT KING',          hp: 1500, spd: 14, dmg: 22, r: 13, music: 'b_grass', col: '#8fce5e' },
     gslime:  { name: '巨大スライム GIANT SLIME',   hp: 1500, spd: 16, dmg: 20, r: 14, music: 'b_grass', col: '#4fd6a8' },
     wyrm:    { name: '白骨竜 BONE WYRM',           hp: 1700, spd: 19, dmg: 22, r: 14, music: 'b_wild', col: '#efe9d4' },
     golem:   { name: 'ゴーレム GOLEM',             hp: 1800, spd: 12, dmg: 22, r: 15, music: 'b_wild', col: '#6ee7ff' },
-    reaper:  { name: '死神 THE REAPER',            hp: 1600, spd: 22, dmg: 24, r: 12, music: 'b_clock1', col: '#c29bff', enrage: 0.3 }, // 倒すと終刻の死神に変身する(曲は第一形態がボス1・第二形態がボス2)
+    reaper:  { name: '死神 THE REAPER',            hp: 1600, spd: 22, dmg: 24, r: 12, music: 'b_clock1', col: '#c29bff' }, // 倒すと終刻の死神に変身する(曲は第一形態がボス1・第二形態がボス2)
     fhour:   { name: '終刻の死神 THE FINAL HOUR',   hp: 1700, spd: 20, dmg: 25, r: 14, music: 'b_clock2', col: '#ff3b5c', form2: true }, // 死神の第二形態(form2: 単独では出ない)
-    cdragon: { name: 'カオスドラゴン CHAOS DRAGON', hp: 1700, spd: 20, dmg: 20, r: 16, music: 'b_hell', col: '#ff4a8a', enrage: 0.4 },
-    ifrit:   { name: '炎魔イフリート IFRIT',        hp: 1600, spd: 18, dmg: 24, r: 13, music: 'b_hell', col: '#ff8a3d', enrage: 0.4 },
+    cdragon: { name: 'カオスドラゴン CHAOS DRAGON', hp: 1700, spd: 20, dmg: 20, r: 16, music: 'b_hell', col: '#ff4a8a' },
+    ifrit:   { name: '炎魔イフリート IFRIT',        hp: 1600, spd: 18, dmg: 24, r: 13, music: 'b_hell', col: '#ff8a3d' },
     stag:    { name: '晶角の大鹿 PRISM STAG',       hp: 1400, spd: 26, dmg: 20, r: 13, music: 'b_crystal', col: '#9ff7ff' },
     pqueen:  { name: '七彩の女王 PRISM QUEEN',      hp: 1300, spd: 22, dmg: 20, r: 11, music: 'b_crystal', col: '#ff8ad8' },
     kraken:  { name: '大海魔クラーケン KRAKEN',     hp: 2000, spd: 10, dmg: 22, r: 16, music: 'b_sea', col: '#7ad7c8' },
-    levia:   { name: '深淵の海竜 LEVIATHAN',        hp: 1700, spd: 21, dmg: 22, r: 15, music: 'b_sea', col: '#4ab8e8', enrage: 0.7 },
+    levia:   { name: '深淵の海竜 LEVIATHAN',        hp: 1700, spd: 21, dmg: 22, r: 15, music: 'b_sea', col: '#4ab8e8' },
     fgiant:  { name: '霜の巨人 FROST GIANT',        hp: 2000, spd: 11, dmg: 24, r: 16, music: 'b_peak', col: '#9fd8ff' },
-    squeen:  { name: '雪華の女王 SNOW QUEEN',       hp: 1500, spd: 18, dmg: 22, r: 12, music: 'b_peak', col: '#d8f0ff', enrage: 0.4 },
+    squeen:  { name: '雪華の女王 SNOW QUEEN',       hp: 1500, spd: 18, dmg: 22, r: 12, music: 'b_peak', col: '#d8f0ff' },
     warden:  { name: '時計仕掛けの番人 CLOCKWORK WARDEN', hp: 1900, spd: 13, dmg: 22, r: 15, music: 'b_clock1', col: '#c8a050' },
   },
   // 状態異常(プレイヤー): 粘液・スロウタイムの移動速度倍率 / スロウタイムのCD回復倍率 / 炎上

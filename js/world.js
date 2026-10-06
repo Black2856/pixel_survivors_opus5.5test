@@ -1581,7 +1581,7 @@ function spawnBoss(key, final, companion) {
   const a = rand(0, TAU), R = Math.hypot(GFX.VW, GFX.VH) / 2 + 30;
   const hp = b.hp * enemyBase() * hpK() * CHAOS.bossHp; // カオス: ボスの基礎体力(闘技場)
   const e = {
-    id: nextId++, type: key, boss: key, name: b.name, final: !!final, enrage: b.enrage ?? 0.5, x: P.x + Math.cos(a) * R, y: P.y + Math.sin(a) * R,
+    id: nextId++, type: key, boss: key, name: b.name, final: !!final, enrage: b.enrage ?? 0.6, x: P.x + Math.cos(a) * R, y: P.y + Math.sin(a) * R,
     hp, maxhp: hp, spd: b.spd * Math.min(DATA.enemyLevel.spdMax, lvK('spd')), dmg: b.dmg * enemyDmgK(), r: b.r, col: b.col, xp: 0, kbRes: 1,
     t: 0, seed: 0, kx: 0, ky: 0, flash: 0, frost: 0, frostT: 0, burns: [], burnT: 0, burnTick: 0, stun: 0, slowT: 0, scale: 1, jz: 0, sq: 1,
     ai: {
@@ -2523,12 +2523,12 @@ function flameWalls(e, ai, a) {
     ai.act = 'wallwait'; ai.pt = 1;
   });
 }
-// 炎の祭壇(激昂したときに1回): プレイヤーから 150 の 4方向に祭壇(HP 各 3%)
+// 炎の祭壇(激昂したときに1回): プレイヤーから 150 の 4方向に祭壇(HP 各 10%)
 function fireAltars(e) {
   const a0 = rand(0, TAU);
   for (let i = 0; i < 4; i++) {
     const aa = a0 + TAU / 4 * i, x = P.x + Math.cos(aa) * 150, y = P.y + Math.sin(aa) * 150;
-    spawnObj(e, 'altar', x, y, { pct: 0.03, r: 7, life: Infinity });
+    spawnObj(e, 'altar', x, y, { pct: 0.1, r: 7, life: Infinity });
     burst(x, y, 30, ['#ff6a2a', '#ffc34a', '#fff0b0', '#3a2a2a'], { sp: 90, up: 80, glow: true, life: 0.7 }); shockAt(x, y, 0.8, 0.85);
   }
   shake(8); AudioMan.roar(); AudioMan.fire(); screenFlash(0.3, '#ff6a2a');
@@ -2844,7 +2844,7 @@ function tentacleForest(e, ai) {
   for (let i = 0; i < n; i++) {
     const ta = a0 + TAU / n * i + rand(-0.3, 0.3), tr = rand(100, 160), x = e.x + Math.cos(ta) * tr, y = e.y + Math.sin(ta) * tr;
     bfx.push({ kind: 'ripple', x, y, t: 0, life: 0.8 }); // 地面(海底)が泡立つ
-    later(ai, 0.8, () => { spawnObj(e, 'tentacle', x, y, { pct: 0.04, r: 8, life: 15, spawnT: rand(1, 2.5) }); burst(x, y, 20, SPLASH, { sp: 90, up: 50, g: 200 }); AudioMan.splash(); });
+    later(ai, 0.8, () => { spawnObj(e, 'tentacle', x, y, { pct: 0.08, r: 8, life: 15, spawnT: rand(1, 2.5) }); burst(x, y, 20, SPLASH, { sp: 90, up: 50, g: 200 }); AudioMan.splash(); });
   }
   AudioMan.roar();
   hint('forest', '触手の森', '触手が 2本以上あると本体のダメージが半分。触手を壊せ');
@@ -3525,13 +3525,13 @@ function deadCrossHit(cx, cy, angs) {
   burst(P.x, P.y, 40, ['#ff3b5c', '#8e0016', '#0a0002', '#ffffff'], { sp: 160, life: 0.6 }); AudioMan.hurt();
 }
 
-// 空襲: 0.8秒で飛び上がる(この間に画面を横切る帯 = 影の通り道が出る)→ 空の上(攻撃が当たらない)を影が速さ 220 で走り、通った跡に燃える床(4秒)
-//   影に触れると ×1.0・炎上 → 影が抜けたら、プレイヤーのそばへ舞い降りる(0.4秒)
+// 空襲: 0.8秒で飛び上がる(この間に画面を横切る帯 = 影の通り道が出る)→ 空の上(攻撃が当たらない)を影が速さ 280 で走り、通った跡に燃える床(8秒)
+//   影(帯と同じ幅 60)に触れると ×1.0・炎上 → 影が抜けたら、プレイヤーのそばへ舞い降りる(0.4秒)。激昂は降りてすぐもう1回
 function startRaid(e, ai) {
-  const th = rand(0, TAU), L = Math.min(440, Math.hypot(GFX.VW, GFX.VH) + 40), W = 30 * CHAOS.area; // 影が横切るのは約2秒(速さ 220)
+  const th = rand(0, TAU), L = Math.min(440, Math.hypot(GFX.VW, GFX.VH) + 40), W = 60 * CHAOS.area; // 影が横切るのは約1.6秒(速さ 280)
   const rd = ai.rd = { ph: 'up', t: 0, th, L, sx: P.x - Math.cos(th) * L / 2, sy: P.y - Math.sin(th) * L / 2, fire: 0 };
   ai.act = 'raid';
-  pushWarn({ kind: 'line', x: rd.sx, y: rd.sy, a: th, len: L, w: W, t: 0, life: 0.8 + L / 220, fixed: true }); // 影の通り道(帯の幅は攻撃範囲の倍率で広がる)
+  pushWarn({ kind: 'line', x: rd.sx, y: rd.sy, a: th, len: L, w: W, t: 0, life: 0.8 + L / 280, fixed: true }); // 影の通り道(帯の幅は攻撃範囲の倍率で広がる)
   AudioMan.roar(); shake(5); e.sq = 0.7;
   hint('raid', '空襲', '空を横切る影に触れると炎上。影の跡は燃える床になる');
 }
@@ -3548,10 +3548,10 @@ function updRaid(e, ai, dt) {
     return;
   }
   if (rd.ph === 'sky') { // 影が帯を走る。跡に燃える床
-    const run = Math.min(rd.L, rd.t * 220), c = Math.cos(rd.th), s = Math.sin(rd.th);
+    const run = Math.min(rd.L, rd.t * 280), c = Math.cos(rd.th), s = Math.sin(rd.th);
     e.x = rd.sx + c * run; e.y = rd.sy + s * run; // 竜は影の真上を飛ぶ
-    while (rd.fire + 14 <= run) { rd.fire += 14; addHazard('fire', rd.sx + c * rd.fire, rd.sy + s * rd.fire, { r: 13, dur: 4, dmg: e.dmg, lite: 0.35 }); } // 重なって並ぶので光は控えめに
-    const R0 = 15 * CHAOS.area;
+    while (rd.fire + 14 <= run) { rd.fire += 14; addHazard('fire', rd.sx + c * rd.fire, rd.sy + s * rd.fire, { r: 13, dur: 8, dmg: e.dmg, lite: 0.35 }); } // 重なって並ぶので光は控えめに
+    const R0 = 30 * CHAOS.area; // 影の当たり判定 = 帯の幅の半分
     if (d2(e.x, e.y, P.x, P.y) < (R0 + 3) * (R0 + 3) && hurtPlayer(e.dmg)) burnPlayer(e.dmg * 0.03);
     if (Math.random() < dt * 30) part(e.x + rand(-12, 12), e.y + rand(-6, 6), c * 60 + rand(-20, 20), s * 60 - rand(10, 30), 0.5, pick(['#ff6a2a', '#ffc34a', '#ff4a8a']), { glow: true, drag: 1 }); // 炎の粉が降る
     rd.wind = (rd.wind || 0) - dt;
@@ -3570,6 +3570,7 @@ function updRaid(e, ai, dt) {
   shockAt(e.x, e.y, 1.6, 0.8); shake(9); AudioMan.boom();
   burst(e.x, e.y, 36, ['#8a6a5a', '#c8a090', '#ff6a2a', '#ffc34a'], { sp: 130, g: 200 });
   addRing(e.x, e.y, 40, '#ff4a8a', { w: 2, life: 0.4 });
+  if (ai.enraged && !rd.again) { startRaid(e, ai); ai.rd.again = true; } // 激昂: 降りてすぐもう1回(2回まで)
 }
 
 function onBossDeath(e) {
