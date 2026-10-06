@@ -285,7 +285,8 @@ const MetaUI = (() => {
 
   // ---------- ステージ選択 ----------
   // 1列で、枠の中をスクロール: エスカレーション / 闘技場 / 通常モードのステージ(ステージを1つ選ぶ。3分 → エリート群 → 3分 → ボス → 3分 → ボス)を tier の順に。帯の色は tier
-  // クリアしたものに ★。カオス強化はクリアするまで tier の値で固定(見るだけ)、クリアすると変えられる。通常モードのステージは tier 1 が最初から、tier N は tier N−1 のステージを1つクリアすると解放
+  // クリアしたものに ★。カオス強化はクリアするまで tier の値で固定(見るだけ)、クリアすると変えられる
+  // 解放: 通常モードのステージは tier 1 が最初から、tier N は tier N−1 のステージを1つクリアすると。エスカレーション・闘技場は tier 4 のステージをクリアすると
   const TIER_COL = ['#9ff7ff', '#7dff9a', '#ff8a3d', '#c78bff'];
   const startLvOf = key => { const m = chaosMods(key).find(x => x.k === 'startLv'); return 1 + chaosLv(chaosSetting(key), m) * m.per; }; // 開始の敵Lv(深い闇)
   const STAGE_ITEMS = () => [
@@ -305,16 +306,17 @@ const MetaUI = (() => {
     $('stage-list').innerHTML = items.map(s => {
       const clear = META.stageClear[s.key], open = stageUnlocked(s);
       const pt = open ? chaosPoints(chaosSetting(s.key), s.key) : 0;
-      const right = !open ? `<span class="lock">未解放: tier ${s.tier - 1} のステージを1つクリア</span>`
+      const right = !open ? `<span class="lock">未解放: tier ${needTier(s)} のステージを1つクリア</span>`
         : clear ? `<span class="chaos on">カオス強化 <b>${pt} pt</b> <span class="cz-btn" data-chaos="${s.key}">設定 ▶</span></span>`
         : `<span class="chaos">カオス強化 ${pt ? `<b>${pt} pt</b>` : 'なし'}(クリアまで固定)<span class="cz-btn" data-chaos="${s.key}">見る ▶</span></span>`;
       return `<button class="stg${open ? '' : ' locked'}" data-mode="${s.mode}" data-n="${s.n}" style="--sc:${s.col}">
         <span class="nm">${s.name}${clear ? ' <b class="clr">★ CLEAR</b>' : ''}</span>${right}<span class="sub">${s.sub}</span></button>`;
     }).join('');
   }
-  // 通常モードのステージの解放: tier 1 は最初から、tier N は tier N−1 のステージを1つクリアすると(エスカレーション・闘技場はいつでも)
+  // 解放に必要な tier(そのクリアが要る。0 = 最初から): 通常モードは tier − 1、エスカレーション・闘技場は tier 4
   const tierCleared = t => DATA.stageRuns.some(R => R.tier === t && META.stageClear['stage' + R.no]);
-  const stageUnlocked = s => s.mode !== 'stage' || s.tier <= 1 || tierCleared(s.tier - 1);
+  const needTier = s => (s.mode === 'stage' ? s.tier - 1 : 4);
+  const stageUnlocked = s => needTier(s) < 1 || tierCleared(needTier(s));
   $('stage-list').onclick = e => {
     const c = e.target.closest('[data-chaos]');
     if (c) { AudioMan.click(); chaosPanel(c.dataset.chaos); return; } // カオス強化の設定(出撃はしない)
