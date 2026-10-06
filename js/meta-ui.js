@@ -285,7 +285,7 @@ const MetaUI = (() => {
 
   // ---------- ステージ選択 ----------
   // 1列で、枠の中をスクロール: エスカレーション / 闘技場 / 通常モードのステージ(ステージを1つ選ぶ。3分 → エリート群 → 3分 → ボス → 3分 → ボス)を tier の順に。帯の色は tier
-  // クリアしたものに ★、カオス強化はクリアで解放
+  // クリアしたものに ★、カオス強化はクリアで解放。通常モードのステージは tier 1 が最初から、tier N は tier N−1 のステージを1つクリアすると解放
   const TIER_COL = ['#9ff7ff', '#7dff9a', '#ff8a3d', '#c78bff'];
   const STAGE_ITEMS = () => [
     { key: 'escalation', mode: 'escalation', n: 1, name: 'エスカレーション', sub: 'tier 1 → 4 を通す。tier ごとに同じ tier のステージからランダム(3分 → ボス)、最後は時計塔の死神', col: '#ffd23f' },
@@ -301,18 +301,24 @@ const MetaUI = (() => {
     $('st-class').style.setProperty('--cc', c.col);
     $('st-class').innerHTML = `<img src="${portrait(META.cls)}" alt=""><span><b>${c.name}</b> Lv${m.lv} ・ ${DATA.weapons[m.weapon].name}</span><small>クラス変更 ▶</small>`;
     const items = STAGE_ITEMS();
-    $('stage-list').innerHTML = items.map((s, i) => {
-      const clear = META.stageClear[s.key];
+    $('stage-list').innerHTML = items.map(s => {
+      const clear = META.stageClear[s.key], open = stageUnlocked(s);
       const pt = clear ? chaosPoints(META.chaos[s.key] || {}, s.key) : 0;
-      return `<button class="stg" data-mode="${s.mode}" data-n="${s.n}" style="--sc:${s.col}">
-        <span class="nm">${s.name}${clear ? ' <b class="clr">★ CLEAR</b>' : ''}</span><span class="sub">${s.sub}</span>
-        <span class="chaos ${clear ? 'on' : ''}">${clear ? `カオス強化: <b>${pt} pt</b> <span class="cz-btn" data-chaos="${s.key}">設定 ▶</span>` : 'カオス強化: クリアで解放'}</span></button>`;
+      const right = !open ? `<span class="lock">未解放: tier ${s.tier - 1} のステージを1つクリア</span>`
+        : `<span class="chaos ${clear ? 'on' : ''}">${clear ? `カオス強化 <b>${pt} pt</b> <span class="cz-btn" data-chaos="${s.key}">設定 ▶</span>` : 'カオス強化: クリアで解放'}</span>`;
+      return `<button class="stg${open ? '' : ' locked'}" data-mode="${s.mode}" data-n="${s.n}" style="--sc:${s.col}">
+        <span class="nm">${s.name}${clear ? ' <b class="clr">★ CLEAR</b>' : ''}</span>${right}<span class="sub">${s.sub}</span></button>`;
     }).join('');
   }
+  // 通常モードのステージの解放: tier 1 は最初から、tier N は tier N−1 のステージを1つクリアすると(エスカレーション・闘技場はいつでも)
+  const tierCleared = t => DATA.stageRuns.some(R => R.tier === t && META.stageClear['stage' + R.no]);
+  const stageUnlocked = s => s.mode !== 'stage' || s.tier <= 1 || tierCleared(s.tier - 1);
   $('stage-list').onclick = e => {
     const c = e.target.closest('[data-chaos]');
     if (c) { AudioMan.click(); chaosPanel(c.dataset.chaos); return; } // カオス強化の設定(出撃はしない)
-    const b = e.target.closest('.stg'); if (!b) return; AudioMan.click(); startRun(b.dataset.mode, +b.dataset.n);
+    const b = e.target.closest('.stg'); if (!b) return;
+    if (b.classList.contains('locked')) { AudioMan.hurt(); b.classList.remove('deny'); void b.offsetWidth; b.classList.add('deny'); return; } // 未解放: 小さく揺れるだけ
+    AudioMan.click(); startRun(b.dataset.mode, +b.dataset.n);
   };
   // ---------- カオス強化の設定 ----------
   // 項目ごとに Lv を上げ下げ。合計ポイントと、その報酬(そのランの間だけ効く)を表示する
