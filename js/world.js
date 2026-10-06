@@ -1807,7 +1807,7 @@ const BOSS_AI0 = {
   fhour: { scy: 1.5, rev: 8, stop: 10, marks: 5, sec: 3, busy: 0.6 },
   pqueen: { tp: 3, beam: 3, cageCd: 10, mirror: 8, chain: 5, blink: 6 },
 };
-const BOSS_ENRAGE = { king: { slam: 6 }, ifrit: { altar: true }, stag: { herd: 4 }, pqueen: { spiral: 3 }, levia: { breath: 4 }, fgiant: { drift: 5 }, squeen: { lance: 3 }, warden: { pendCd: 6 }, reaper: { sum: 7 }, fhour: { cross: 4 } };
+const BOSS_ENRAGE = { king: { slam: 6 }, ifrit: { altar: true }, stag: { herd: 4 }, pqueen: { spiral: 3 }, levia: { breath: 4 }, fgiant: { drift: 5 }, squeen: { lance: 3 }, warden: { pendCd: 6 }, reaper: { sum: 7 }, fhour: { cross: 4, echo: 0 } };
 
 function bossAI(e, dt) {
   const ai = e.ai, a = Math.atan2(P.y - e.y, P.x - e.x), dist = Math.sqrt(d2(e.x, e.y, P.x, P.y));
@@ -1819,6 +1819,7 @@ function bossAI(e, dt) {
     UI.announce(e.name.split(' ')[0] + ' が激昂した!!', ''); AudioMan.roar(); shake(8); screenFlash(0.25, '#ff3b5c');
   }
   runLater(ai, dt);
+  if (ai.echoes) updEchoes(ai, dt); // クロノ・エコー(終刻の死神)の灰色の分身: 本体の構えの間も動かす
   e.sq = lerp(e.sq, 1, Math.min(1, dt * 6));
   if (ai.wind > 0) {
     ai.wind -= dt;
@@ -3416,20 +3417,43 @@ function fhourAI(e, ai, dt, a, dist, slow) {
     e.x += Math.cos(a) * e.spd * slow * dt; e.y += Math.sin(a) * e.spd * slow * dt;
     if (Math.random() < dt * 10) part(e.x + rand(-6, 6), e.y + rand(-4, 10), rand(-6, 6), -rand(10, 25), 0.6, pick(['#ff3b5c', '#1a0a14', '#c8a050']), { glow: Math.random() < 0.4, drag: 1 }); // 赤黒い霧
   }
-  ai.scy -= dt * R; ai.rev -= dt * R; ai.stop -= dt * R; ai.marks -= dt * R; ai.sec -= dt * R; if (ai.enraged) ai.cross -= dt * R;
+  ai.scy -= dt * R; ai.rev -= dt * R; ai.stop -= dt * R; ai.marks -= dt * R; ai.sec -= dt * R; if (ai.enraged) { ai.cross -= dt * R; ai.echo -= dt * R; }
   if (ai.busy > 0) { if ((ai.busy -= dt) <= 0) ai.gap = ai.enraged ? 0.7 : 1; return; } // 技の途中
   if (ai.gap > 0) { ai.gap -= dt; return; } // 技のあとの間
   const doom = enemies.some(o => o.owner === e && o.obj === 'doom' && !o.dead);
   if (ai.enraged && ai.cross <= 0 && !doom) { ai.cross = 15; deadCross(e, ai); }
   else if (ai.stop <= 0 && !doom) { ai.stop = ai.enraged ? 12 : 16; timeStop(e, ai); } // 逆戻し(終刻の時計を壊せなかった)の間も使う
-  else if (ai.marks <= 0) { ai.marks = ai.enraged ? 12 : 15; twelveMarks(e, ai); }
+  else if (ai.marks <= 0) { ai.marks = ai.enraged ? 12 : 15; const x = e.x, y = e.y, tg = twelveMarks(e, ai); chronoEcho(e, ai, x, y, (g, ga) => twelveMarks(g, ga, tg)); }
   else if (ai.rev <= 0) { ai.rev = ai.enraged ? 10 : 14; slowReverse(e, ai); }
-  else if (ai.sec <= 0) { ai.sec = ai.enraged ? 5 : 7; secondHand(e, ai); }
-  else if (ai.scy <= 0 && dist < 90) { ai.scy = ai.enraged ? 2.5 : 3.5; hourScythe(e, ai, a); }
+  else if (ai.sec <= 0) { ai.sec = ai.enraged ? 5 : 7; secondHand(e, ai); chronoEcho(e, ai, e.x, e.y, (g, ga) => secondHand(g, ga)); }
+  else if (ai.scy <= 0 && dist < 90) { ai.scy = ai.enraged ? 2.5 : 3.5; hourScythe(e, ai, a); chronoEcho(e, ai, e.x, e.y, (g, ga) => hourScythe(g, ga, a)); }
+}
+// クロノ・エコー(激昂・間隔 20): 刻の大鎌・十二の刻印・秒針の弾幕のあと、3秒後に同じ位置で灰色の死神が同じ技をもう一度(向き・狙った位置も同じ)
+//   灰色の死神は 0.4秒で現れてから技を始め、終わると 0.4秒で消える。攻撃は当たらない(ただの姿)。技の当たり判定は本物と同じ
+function chronoEcho(e, ai, x, y, fn) {
+  if (!ai.enraged || ai.echo > 0) return;
+  ai.echo = 20;
+  const face = e.face;
+  later(ai, 2.6, () => {
+    const g = { echo: true, x, y, face, dmg: e.dmg, sq: 1, jz: 0, t: 0, ai: { q: [], wind: 0, enraged: true, echo: true } };
+    (ai.echoes = ai.echoes || []).push(g);
+    burst(x, y, 24, ['#9a9aaa', '#d8d8e0', '#5a5a6a'], { sp: 70, glow: true, life: 0.5 }); AudioMan.hum(0.6); AudioMan.tick(6);
+    hint('echo', 'クロノ・エコー', '3秒前の技を、灰色の死神が同じ場所でもう一度くり返す');
+    later(g.ai, 0.4, () => { g.started = true; fn(g, g.ai); });
+  });
+}
+function updEchoes(ai, dt) {
+  for (let i = ai.echoes.length - 1; i >= 0; i--) {
+    const g = ai.echoes[i], ga = g.ai;
+    g.t += dt; g.sq = lerp(g.sq, 1, Math.min(1, dt * 6));
+    runLater(ga, dt);
+    if (ga.wind > 0) { ga.wind -= dt; if (ga.wind <= 0) ga.fire(); } // 構え(windup)
+    if (g.started && !ga.q.length && !(ga.wind > 0)) { g.out = (g.out || 0) + dt; if (g.out >= 0.4) ai.echoes.splice(i, 1); } // 技が終わったら消える
+  }
 }
 // 狂い時計: 弾を飛ばす技のあと 50%(激昂 70%)で続く。0.4秒(針が狂ったように回る・画面の縁が紫に揺れる)→ 6秒、画面にある敵の弾すべての進みを不規則に
 function maybeMadClock(e, ai) {
-  if (Math.random() >= (ai.enraged ? 0.7 : 0.5)) return;
+  if (ai.echo === true || Math.random() >= (ai.enraged ? 0.7 : 0.5)) return; // クロノ・エコーの分身からは続かない
   ai.busy = Math.max(ai.busy, 0.5);
   bfx.push({ kind: 'madwarn', x: 0, y: 0, t: 0, life: 0.4 });
   for (let i = 0; i < 8; i++) later(ai, i * 0.05, () => AudioMan.tick(8 + i));
@@ -3477,37 +3501,39 @@ function timeStop(e, ai) {
   });
   later(ai, 2.5, () => maybeMadClock(e, ai));
 }
-// 十二の刻印: 死神が消える → プレイヤーのいた位置に 円 半径 30(1秒)→ 死神がそこに現れて斬る(×1.2)
-//   → 斬り終えたら(0.35秒)、0.5秒 死神から時計の 12方向へ帯(長さ 150・幅 12)→ 12時の方向(上)から時計回りに 0.1秒おきに炸裂(×0.8)
-function twelveMarks(e, ai) {
+// 十二の刻印: 死神が消える → プレイヤーのいた位置に 円 半径 50(1秒)→ 死神がそこに現れて斬る(×1.2)
+//   → 斬り終えたら(0.35秒)、0.5秒 死神から時計の 12方向へ帯(長さ 150・幅 16)→ 12時の方向(上)から時計回りに 0.1秒おきに炸裂(×0.8)
+//   at: 現れる位置(クロノ・エコーは本物と同じ位置)。返り値は現れた位置
+function twelveMarks(e, ai, at) {
   ai.busy = 3.25;
-  const x0 = P.x, y0 = P.y;
-  bfx.push({ kind: 'afterimg', spr: 'fhour', x: e.x, y: e.y - (e.jz || 0), flip: (e.face || 1) < 0, t: 0, life: 0.4 }); // 溶けるように消える残像
+  const x0 = at ? at.x : P.x, y0 = at ? at.y : P.y;
+  if (!e.echo) bfx.push({ kind: 'afterimg', spr: 'fhour', x: e.x, y: e.y - (e.jz || 0), flip: (e.face || 1) < 0, t: 0, life: 0.4 }); // 溶けるように消える残像
   e.flying = e.hidden = e.air = true; // 消える(攻撃が当たらない・触れても当たらない)
   burst(e.x, e.y, 40, ['#ff3b5c', '#1a0a14', '#c8a050'], { sp: 120, glow: true, life: 0.5 }); addFlash(e.x, e.y, 80, '#ff3b5c', 0.5); AudioMan.dash(); AudioMan.knell();
-  pushWarn({ kind: 'circle', x: x0, y: y0, r: 30, t: 0, life: 1 });
+  pushWarn({ kind: 'circle', x: x0, y: y0, r: 50, t: 0, life: 1 });
   AudioMan.charge(1);
   hint('marks', '十二の刻印', '死神が円に現れて斬る。そのあと 12方向の帯が 12時から順に炸裂する');
   later(ai, 0.7, () => { for (let i = 0; i < 28; i++) { const pa = TAU / 28 * i, r = rand(40, 55); part(x0 + Math.cos(pa) * r, y0 + Math.sin(pa) * r, -Math.cos(pa) * r / 0.3, -Math.sin(pa) * r / 0.3, 0.3, pick(['#ff3b5c', '#1a0a14', '#c8a050']), { glow: true, drag: 0 }); } }); // 現れる前: 赤黒い霧が円へ集まる
   later(ai, 1, () => { // 現れて、大鎌を一回転させて斬る
     e.x = x0; e.y = y0; e.flying = e.hidden = e.air = false; e.sq = 0.6; e.flash = 0.12;
-    const R0 = 30 * CHAOS.area;
-    hitCircle(x0, y0, 30, e.dmg * 1.2);
+    const R0 = 50 * CHAOS.area;
+    hitCircle(x0, y0, 50, e.dmg * 1.2);
     bfx.push({ kind: 'spincut', x: x0, y: y0, a0: rand(0, TAU), dir: Math.random() < 0.5 ? 1 : -1, r: R0 + 8, t: 0, life: 0.45 });
     burst(x0, y0, 30, ['#ff3b5c', '#ffffff', '#8e0016'], { sp: 150, glow: true, life: 0.4 }); shockAt(x0, y0, 1.4, 0.8); shake(7); hitstop(0.04); AudioMan.slash(); AudioMan.cutHit(); AudioMan.boom();
     later(ai, 0.35, () => { // 斬り終えてから 12方向の帯
       for (let i = 0; i < 12; i++) {
         const ma = -Math.PI / 2 + TAU / 12 * i;
-        pushWarn({ kind: 'line', x: x0, y: y0, a: ma, len: 150, w: 12, t: 0, life: 0.5 + 0.1 * i });
+        pushWarn({ kind: 'line', x: x0, y: y0, a: ma, len: 150, w: 16, t: 0, life: 0.5 + 0.1 * i });
         later(ai, 0.5 + 0.1 * i, () => {
-          hitLine(x0, y0, ma, 150, 12, e.dmg * 0.8);
-          bfx.push({ kind: 'pillar', x: x0, y: y0, a: ma, len: 150 * CHAOS.area, w: 12 * CHAOS.area, t: 0, life: 0.35 });
+          hitLine(x0, y0, ma, 150, 16, e.dmg * 0.8);
+          bfx.push({ kind: 'pillar', x: x0, y: y0, a: ma, len: 150 * CHAOS.area, w: 16 * CHAOS.area, t: 0, life: 0.35 });
           AudioMan.tick(i); if (i % 3 === 0) { AudioMan.boom(); shake(3); }
         });
       }
       AudioMan.charge(0.5);
     });
   });
+  return { x: x0, y: y0 };
 }
 // 秒針の弾幕: 2秒(周りに時計の目盛り 12個が光る)→ 12方向に弾を 0.2秒おきに 5回(激昂 8回)。1回ごとに 6°ずつ時計回りにずらす(速さ 65、×0.8)
 function secondHand(e, ai) {
@@ -3521,10 +3547,10 @@ function secondHand(e, ai) {
   });
   later(ai, W + n * 0.2, () => maybeMadClock(e, ai));
 }
-// 終刻(残りHP 50% を下回ったときに 1回): プレイヤーから 120、死神と反対側に時計(HP 12%)。12秒以内に壊すと死神が 3秒ひるむ。壊せないと逆戻し(1.5秒)で HP 30% 回復
+// 終刻(残りHP 50% を下回ったときに 1回): プレイヤーから 120、死神と反対側に時計(HP 24%)。12秒以内に壊すと死神が 3秒ひるむ。壊せないと逆戻し(1.5秒)で HP 30% 回復
 function startFinale(e, ai) {
   const d = Math.sqrt(d2(e.x, e.y, P.x, P.y)) || 1, x = P.x + (P.x - e.x) / d * 120, y = P.y + (P.y - e.y) / d * 120;
-  const o = spawnObj(e, 'doom', x, y, { pct: 0.12, r: 16, life: 12 }); o.scale = 2; // 大きな柱時計
+  const o = spawnObj(e, 'doom', x, y, { pct: 0.24, r: 16, life: 12 }); o.scale = 2; // 大きな柱時計
   burst(x, y, 40, ['#ff3b5c', '#c8a050', '#ffffff'], { sp: 120, glow: true, life: 0.6 }); shockAt(x, y, 1.6, 0.8); shake(8); AudioMan.knell(); AudioMan.warning();
   UI.announce('終刻', '12秒以内に時計を壊せ');
   return o;

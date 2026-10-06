@@ -1648,6 +1648,18 @@ function render() {
   }
 }
 
+// 灰色にした絵(クロノ・エコーの姿)。元の絵ごとに一度だけ作る
+const GRAY_IMG = new Map();
+function grayOf(img) {
+  let c = GRAY_IMG.get(img);
+  if (c) return c;
+  c = document.createElement('canvas'); c.width = img.width; c.height = img.height;
+  const x = c.getContext('2d'); x.drawImage(img, 0, 0);
+  const d = x.getImageData(0, 0, c.width, c.height), p = d.data;
+  for (let i = 0; i < p.length; i += 4) { const v = Math.min(255, (p[i] * 0.3 + p[i + 1] * 0.59 + p[i + 2] * 0.11) * 0.8 + 40); p[i] = v; p[i + 1] = v; p[i + 2] = Math.min(255, v + 10); }
+  x.putImageData(d, 0, 0); GRAY_IMG.set(img, c);
+  return c;
+}
 // ボス固有の付随表現(ゴーレムの拳・掲げた岩 / ドラゴンのブレス・ビーム・溜め)
 function drawBossFx(e) {
   const sx = GFX.sctx, gx = GFX.gctx, ai = e.ai, ex = e.x - cam.x, ey = e.y - cam.y, sp = ART.S[e.boss], yo = -(e.jz || 0);
@@ -1823,6 +1835,15 @@ function drawBossFx(e) {
     sx.globalAlpha = 0.7; pLine(sx, ex, ey + yo - 4, ex + Math.cos(ha) * (R - 3), ey + yo - 4 + Math.sin(ha) * (R - 3), '#ff3b5c'); pLine(sx, ex, ey + yo - 4, ex + Math.cos(ma) * (R - 8), ey + yo - 4 + Math.sin(ma) * (R - 8), '#c8a050', 2); sx.globalAlpha = 1;
     if (ai.secGlow > 0) addLight(e.x, e.y, 100, '#ff3b5c', 0.7);
     drawSp(sp, e.x, e.y + yo, { flip: (e.face || 1) < 0, sy: e.sq || 1, sxk: 2 - (e.sq || 1), white: e.flash > 0 }); // 光輪の上に体を描き直す
+  }
+  // クロノ・エコー(終刻の死神): 灰色の死神。0.4秒で現れ、技が終わると 0.4秒で消える。秒針の弾幕の構えでは目盛りが光る
+  if (e.boss === 'fhour' && ai.echoes) for (const g of ai.echoes) {
+    if (g.hidden) continue;
+    const a = Math.min(1, g.t / 0.4) * (g.out ? Math.max(0, 1 - g.out / 0.4) : 1), gx0 = g.x - cam.x, gy0 = g.y - cam.y;
+    sx.globalAlpha = 0.75 * a; sx.drawImage(grayOf((g.face || 1) < 0 ? ART.variant(sp, 'flip') : sp.c), Math.round(gx0 - sp.w / 2), Math.round(gy0 - sp.h / 2));
+    if (g.ai.secGlow > 0) for (let i = 0; i < 12; i++) { const ta = -Math.PI / 2 + TAU / 12 * i; if (Math.floor(t * 12 + i) % 2) continue; sx.fillStyle = '#e8e8f0'; sx.fillRect(Math.round(gx0 + Math.cos(ta) * 32), Math.round(gy0 - 4 + Math.sin(ta) * 32), 2, 2); }
+    sx.globalAlpha = 1;
+    addLight(g.x, g.y, 46, '#9a9aaa', 0.5 * a);
   }
   // 時計仕掛けの番人: 背中のゼンマイ / 時針と分針 / 振り子 / 鐘の光 / ゼンマイ巻きのDPSチェックの輪 / 止まった火花の星 / 全速の赤い光
   if (e.boss === 'warden') {
