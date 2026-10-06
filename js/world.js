@@ -1992,14 +1992,14 @@ function wyrmAI(e, ai, dt, a, dist, slow) {
     AudioMan.summon();
   }
 }
-// 肋骨の魔弾: プレイヤーの周り 半径 80 に骨柱 4本(HP 各 2%・10秒)。骨柱はプレイヤーへ弾を撃ち続ける(最初の1発は 1 / 1.5 / 2 / 2.5秒後とずらす)。立った直後に螺旋
+// 肋骨の魔弾: プレイヤーの周り 半径 80 に骨柱 4本(HP 各 5%・10秒)。骨柱はプレイヤーへ弾を撃ち続ける(最初の1発は 1 / 1.5 / 2 / 2.5秒後とずらす)。立った直後に螺旋
 function ribShield(e, ai) {
   const a0 = rand(0, TAU), pts = [0, 1, 2, 3].map(i => ({ x: P.x + Math.cos(a0 + i * Math.PI / 2) * 80, y: P.y + Math.sin(a0 + i * Math.PI / 2) * 80 }));
   for (const p of pts) pushWarn({ kind: 'circle', x: p.x, y: p.y, r: 6, t: 0, life: 0.8, fixed: true }); // 骨柱が立つ場所(攻撃ではないので広げない)
   AudioMan.charge(0.8);
   later(ai, 0.8, () => {
     pts.forEach((p, i) => {
-      spawnObj(e, 'pillar', p.x, p.y, { pct: 0.02, r: 6, life: 10, spawnT: 1 + i * 0.5 });
+      spawnObj(e, 'pillar', p.x, p.y, { pct: 0.05, r: 6, life: 10, spawnT: 1 + i * 0.5 });
       burst(p.x, p.y, 18, ['#efe9d4', '#8a8676', '#5a4030', '#6ee7ff'], { sp: 90, g: 220 }); shockAt(p.x, p.y, 0.6, 0.9);
     });
     shake(6); AudioMan.thud(); AudioMan.boom();
@@ -2461,11 +2461,11 @@ function ifritAI(e, ai, dt, a, dist, slow) {
   if (ai.wall <= 0) { ai.wall = ai.enraged ? 11 : 15; flameWalls(e, ai, a); }
   else if (ai.blast <= 0 && dist < 100) { // 爆炎: 周りを吹き飛ばす
     ai.blast = ai.enraged ? 7 : 9;
-    pushWarn({ kind: 'circle', x: e.x, y: e.y, r: 65, t: 0, life: 0.7, track: w => { w.x = e.x; w.y = e.y; } });
+    pushWarn({ kind: 'circle', x: e.x, y: e.y, r: 80, t: 0, life: 0.7, track: w => { w.x = e.x; w.y = e.y; } });
     e.sq = 1.25; AudioMan.charge(0.7);
     windup(e, 0.7, () => {
-      const R0 = 65 * CHAOS.area, inside = d2(e.x, e.y, P.x, P.y) < (R0 + 3) * (R0 + 3), d = e.dmg * e.altK;
-      if (hitCircle(e.x, e.y, 65, d * 1.2)) burnPlayer(d * 0.03);
+      const R0 = 80 * CHAOS.area, inside = d2(e.x, e.y, P.x, P.y) < (R0 + 3) * (R0 + 3), d = e.dmg * e.altK;
+      if (hitCircle(e.x, e.y, 80, d)) burnPlayer(d * 0.03); // 爆炎: 半径 80 に ×1.0・炎上
       if (inside) pushPlayer(Math.atan2(P.y - e.y, P.x - e.x), 100, 0.35);
       burst(e.x, e.y, 60, ['#ff6a2a', '#ffc34a', '#fff0b0', '#ff3b1a'], { sp: 200, glow: true, life: 0.6 });
       addRing(e.x, e.y, R0, '#ffc34a', { w: 3, life: 0.4 }); addRing(e.x, e.y, R0 * 1.3, '#ff6a2a', { w: 2, life: 0.55 }); addFlash(e.x, e.y, R0 * 3, '#ff8a3d', 1);
@@ -2930,11 +2930,11 @@ function tideStart(e, ai) {
 function leviaAI(e, ai, dt, a, dist, slow) {
   const R = CHAOS.rate;
   if (ai.act === 'dive') { updLeviaDive(e, ai, dt); return; }
-  if (ai.act === 'breath') { // 水流ブレス: 1.5秒かけて 90° 薙ぐ。0.25秒ごとに ×0.3・スタミナ −5(被弾後の無敵時間を無視)
+  if (ai.act === 'breath') { // 水流ブレス: 1.5秒かけて 90° 薙ぐ。当たると ×1.0・スタミナ −20(1回の薙ぎで 1回まで。回避の無敵・被弾後の無敵で防げる)
     ai.pt += dt;
     const k = Math.min(1, ai.pt / 1.5);
     ai.ba = ai.ba0 + ai.bdir * (Math.PI / 2) * k;
-    if ((ai.btick -= dt) <= 0) { ai.btick = 0.25; if (hitLine(e.x, e.y, ai.ba, 220, 14, e.dmg * 0.3, { pierce: true })) drainSta(5); }
+    if (!ai.bhit && hitLine(e.x, e.y, ai.ba, 220, 14, e.dmg)) { ai.bhit = true; drainSta(20); }
     for (let i = 0; i < 2; i++) { const r = rand(10, 220 * CHAOS.area); part(e.x + Math.cos(ai.ba) * r, e.y + Math.sin(ai.ba) * r, rand(-30, 30), rand(-30, 30), 0.35, pick(SPLASH), { drag: 2 }); }
     if (k >= 1) { ai.act = null; ai.ba = null; }
     return;
@@ -3021,7 +3021,7 @@ function leviaTail(e, ai, a) {
 function leviaBreath(e, ai, a) {
   pushWarn({ kind: 'line', x: e.x, y: e.y, a, len: 220, w: 14, t: 0, life: 0.6, track: w => { w.x = e.x; w.y = e.y; } });
   AudioMan.charge(0.6);
-  windup(e, 0.6, () => { ai.act = 'breath'; ai.pt = 0; ai.bdir = Math.random() < 0.5 ? 1 : -1; ai.ba0 = a - ai.bdir * Math.PI / 4; ai.btick = 0; AudioMan.roar(); });
+  windup(e, 0.6, () => { ai.act = 'breath'; ai.pt = 0; ai.bdir = Math.random() < 0.5 ? 1 : -1; ai.ba0 = a - ai.bdir * Math.PI / 4; ai.bhit = false; AudioMan.roar(); });
 }
 
 // ---------- 霜の巨人: ゆっくり追う。凍傷を積んでから重い一撃。氷槌(凍て割り)/ 吹雪の風(氷塊の風下に隠れる)/ 雪崩 / 大雪玉 / 激昂: 地吹雪 ----------
