@@ -2530,15 +2530,15 @@ function flameWalls(e, ai, a) {
     ai.act = 'wallwait'; ai.pt = 1;
   });
 }
-// 爆炎の熱された岩: 爆発と同時に n 個がランダムな方向へ飛ぶ(イフリートから 60〜150、0.9秒。着弾点に 円 半径 20 の予告)
-//   → 着弾点にマグマ溜まり(半径 20・6秒。上にいると炎上。燃える床と同じ)
+// 爆炎の熱された岩: 爆発と同時に n 個がランダムな方向へ飛ぶ(イフリートから 60〜150、0.9秒。着弾点に 円 半径 30 の予告)
+//   → 着弾点にマグマ溜まり(半径 30・6秒。上にいると炎上。燃える床と同じ)
 function heatedRocks(e, n) {
   const a0 = rand(0, TAU), d = e.dmg * e.altK;
   for (let i = 0; i < n; i++) {
     const a = a0 + TAU / n * i + rand(-0.35, 0.35), r = rand(60, 150), tx = e.x + Math.cos(a) * r, ty = e.y + Math.sin(a) * r;
-    pushWarn({ kind: 'circle', x: tx, y: ty, r: 20, t: 0, life: 0.9 });
+    pushWarn({ kind: 'circle', x: tx, y: ty, r: 30, t: 0, life: 0.9 });
     lob('hrock', e.x, e.y - 10, tx, ty, 0.9, 60, p => {
-      addHazard('magma', p.x, p.y, { r: 20, dur: 6, dmg: d });
+      addHazard('magma', p.x, p.y, { r: 30, dur: 6, dmg: d });
       burst(p.x, p.y, 18, ['#2a1410', '#ff6a2a', '#ffc34a', '#fff0b0'], { sp: 90, up: 30, g: 200, glow: true, life: 0.5 }); shake(2); AudioMan.thud();
     });
   }
