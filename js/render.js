@@ -959,7 +959,15 @@ function render() {
       }
     } else if (h.kind === 'clock') { // 時計盤: 目盛りと逆回転する針
       const R = Math.round(h.r * Math.min(1, h.t * 4));
-      sx.globalAlpha = 0.22 * fade; pDisc(sx, hx, hy, R, '#6a3aa0');
+      // スロウタイム・リバース: 遅くなる側を紫で塗る。反転の 1秒前から、中の紫が薄れて外の紫が濃くなっていく(sw: 0 = 中が遅い、1 = 外が遅い)
+      const sw = h.rev ? clamp(h.t - (h.rev - 1), 0, 1) : 0;
+      sx.globalAlpha = 0.22 * fade * (1 - sw); pDisc(sx, hx, hy, R, '#6a3aa0');
+      if (sw > 0) {
+        sx.globalAlpha = 0.32 * fade * sw; sx.fillStyle = '#3a1460';
+        sx.beginPath(); sx.rect(0, 0, VW, VH); sx.arc(Math.round(hx), Math.round(hy), R, 0, TAU); sx.fill('evenodd');
+        sx.globalAlpha = 0.1 * fade * sw; pDisc(sx, hx, hy, R, '#ffffff'); // 中は安全: うっすら明るく
+        for (let i = 0; i < 24; i++) { const a = TAU / 24 * i - t * 0.6, r0 = R + 6 + ((t * 30 + i * 7) % 40); sx.globalAlpha = 0.5 * fade * sw * (1 - (r0 - R - 6) / 40); sx.fillStyle = '#c29bff'; sx.fillRect(Math.round(hx + Math.cos(a) * r0), Math.round(hy + Math.sin(a) * r0), 1, 1); } // 外へ流れ出る時の粒
+      }
       sx.globalAlpha = fade; pCircle(sx, hx, hy, R, warnBlink ? '#ff3b5c' : '#c29bff'); sx.globalAlpha = 1;
       gx.globalAlpha = 0.6 * fade; pCircle(gx, hx, hy, R, '#c29bff');
       for (let i = 0; i < 12; i++) { const a = TAU / 12 * i; gx.fillStyle = '#c29bff'; gx.fillRect(Math.round(hx + Math.cos(a) * (R - 4)), Math.round(hy + Math.sin(a) * (R - 4)), 2, 2); }
@@ -967,9 +975,10 @@ function render() {
       pLine(gx, hx, hy, hx + Math.cos(-t * 3 * rv) * R * 0.8, hy + Math.sin(-t * 3 * rv) * R * 0.8, '#ffffff');
       pLine(gx, hx, hy, hx + Math.cos(-t * 0.5 * rv) * R * 0.5, hy + Math.sin(-t * 0.5 * rv) * R * 0.5, '#c29bff', 2);
       if (h.rev && h.t >= h.rev - 1 && h.t < h.rev && Math.floor(t * 10) % 2) { gx.globalAlpha = 1; pCircle(gx, hx, hy, R + 2, '#ffffff', 1); pCircle(sx, hx, hy, R + 2, '#ff3b5c'); } // 反転の前に縁が点滅
-      if (h.rev && h.t >= h.rev) { // 反転後: 範囲の外が遅くなる(外を紫にかすませる)
-        gx.globalAlpha = 1; sx.globalAlpha = 0.18 * fade; sx.fillStyle = '#6a3aa0';
-        sx.beginPath(); sx.rect(0, 0, VW, VH); sx.arc(Math.round(hx), Math.round(hy), R, 0, TAU); sx.fill('evenodd'); sx.globalAlpha = 1;
+      if (h.rev && h.t >= h.rev) { // 反転後: 縁に外向きの矢印(外が遅い)
+        sx.globalAlpha = fade;
+        for (let i = 0; i < 8; i++) { const a = TAU / 8 * i + t * 0.4, x0 = hx + Math.cos(a) * (R + 4), y0 = hy + Math.sin(a) * (R + 4); pLine(sx, x0, y0, x0 + Math.cos(a) * 6, y0 + Math.sin(a) * 6, '#c29bff'); pLine(sx, x0 + Math.cos(a) * 6, y0 + Math.sin(a) * 6, x0 + Math.cos(a + 2.5) * 3 + Math.cos(a) * 6, y0 + Math.sin(a + 2.5) * 3 + Math.sin(a) * 6, '#c29bff'); pLine(sx, x0 + Math.cos(a) * 6, y0 + Math.sin(a) * 6, x0 + Math.cos(a - 2.5) * 3 + Math.cos(a) * 6, y0 + Math.sin(a - 2.5) * 3 + Math.sin(a) * 6, '#c29bff'); }
+        sx.globalAlpha = 1;
       }
       gx.globalAlpha = 1;
       addLight(h.x, h.y, R * 2, '#c29bff', 0.4 * fade);
