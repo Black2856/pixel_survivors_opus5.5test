@@ -1333,7 +1333,7 @@ const ART = (() => {
   S.obj_biggear = [mk(bgPal, gearRows(27, 12, 0), { emit: 'd' }), mk(bgPal, gearRows(27, 12, Math.PI), { emit: 'd' })];
 
   // 炎魔イフリート: 黒い角と燃える髪、赤黒い筋骨の上半身、両手に炎。下半身は炎になって浮いている
-  S.ifrit = mk({ h: '#2a1414', a: '#1e0a08', b: '#6a1a10', c: '#a8381a', e: '#ffff80', m: '#ffc34a', f: '#ff6a2a', g: '#ffc34a', w: '#fff0b0' }, sym([
+  const ifritRows = sym([
     '..h.........',
     '..hh........',
     '..hh....f...',
@@ -1356,7 +1356,10 @@ const ART = (() => {
     '.......ffgff',
     '........fgf.',
     '.........ff.',
-  ]), { emit: 'emfgw' });
+  ]);
+  S.ifrit = mk({ h: '#2a1414', a: '#1e0a08', b: '#6a1a10', c: '#a8381a', e: '#ffff80', m: '#ffc34a', f: '#ff6a2a', g: '#ffc34a', w: '#fff0b0' }, ifritRows, { emit: 'emfgw' });
+  // 激昂: 赤熱した体。角と筋が光り、炎は白く燃える
+  S.ifritRage = mk({ h: '#ff3b1a', a: '#3a0a04', b: '#a8281a', c: '#ff8a3d', e: '#ffffff', m: '#fff0b0', f: '#ffc34a', g: '#fff0b0', w: '#ffffff' }, ifritRows, { emit: 'hcemfgw' });
 
   S.gslime = mk({ a: '#1f6e58', b: '#4fd6a8', c: '#d8fff2', d: '#0f2a26', e: '#ffd23f', f: '#ff4a6a' }, sym([
     '........e.e',

@@ -107,7 +107,7 @@ function initRun(mode = 'escalation', stageNo = 1) {
     ifr: 0, facing: 1, animT: 0, moving: false, hurtT: 0, dead: false,
     slowT: 0, cdSlowT: 0, burnT: 0, burnDmg: 0, burnTick: 0, shield: 0, oShield: 0, oChunks: [],
     frost: 0, frostT: 0, bleed: 0, bleedT: 0, bleedTick: 0, // 自分の凍傷・出血(スタック数と、消えるまでの秒)
-    push: null, heatT: 0, rootT: 0, current: null, // ボスの押し出し・引き寄せ / 熱波で遅い(秒)/ 絡め取りで動けない(秒)/ 海流
+    push: null, rootT: 0, current: null, // ボスの押し出し・引き寄せ / 絡め取りで動けない(秒)/ 海流
     chillT: 0, iceT: 0, ivx: 0, ivy: 0, // 氷の槍で ×0.3(秒)/ 滑る床の上(秒)と、そのときの速度
     fatigueT: 0, // 疲労(スタミナを減らす攻撃を受けた): スタミナ回復 -50% の残り秒
   };
@@ -208,7 +208,7 @@ function updPlayer(dt) {
   const aim = mouseAimPt();
   if (aim && aim.x !== P.x) P.facing = aim.x > P.x ? 1 : -1; // 照準中はマウス側を向く(アックスの投擲方向も追従)
   clsUpdate(dt);
-  const sp = P.speed * P.moveMul * (P.slowT > 0 ? P.slowK || DATA.debuff.slow : 1) * playerFrostMul() * (P.heatT > 0 ? 0.8 : 1) * (P.chillT > 0 ? 0.3 : 1); // 熱波(イフリート): ×0.8 / 氷の槍(雪華の女王): ×0.3
+  const sp = P.speed * P.moveMul * (P.slowT > 0 ? P.slowK || DATA.debuff.slow : 1) * playerFrostMul() * (P.chillT > 0 ? 0.3 : 1); // 氷の槍(雪華の女王): ×0.3
   let vx = mx * sp, vy = my * sp;
   if (P.iceT > 0) { // 滑る床(霜の巨人): 向きを変えるのに 0.35秒の慣性がかかる
     P.iceT -= dt;
@@ -247,7 +247,6 @@ function updDebuffs(dt) {
   P.slowT -= dt; P.cdSlowT -= dt;
   if (P.fatigueT > 0) { P.fatigueT -= dt; if (Math.random() < dt * 6) part(P.x + rand(-5, 5), P.y - 8 + rand(-2, 2), rand(-6, 6), rand(4, 12), 0.5, pick(['#7ad7ff', '#bff4ff']), { g: 80 }); } // 疲労: 汗のしずく
   if (P.chillT > 0) { P.chillT -= dt; if (Math.random() < dt * 18) part(P.x + rand(-5, 5), P.y + rand(-6, 6), 0, 6, 0.5, pick(['#ffffff', '#9ff7ff']), { glow: true, drag: 1 }); } // 凍えて動けない: 氷の粒
-  if (P.heatT > 0) { P.heatT -= dt; if (Math.random() < dt * 14) part(P.x + rand(-5, 5), P.y + rand(-6, 4), rand(-3, 3), -rand(10, 22), 0.5, pick(['#ff8a3d', '#ffc34a', '#c8a090']), { drag: 1 }); } // 熱波でのぼせた: 陽炎がたつ
   if (P.slowT > 0 && Math.random() < dt * 8) part(P.x + rand(-3, 3), P.y + 6, 0, 8, 0.4, P.cdSlowT > 0 ? '#c29bff' : '#4fd6a8', { glow: P.cdSlowT > 0 });
   updFrostBleed(dt);
   if (P.burnT <= 0) return;
@@ -1806,7 +1805,7 @@ const BOSS_AI0 = {
   king: { atk: 3, mound: 5, roar: 6, hands: 4, bite: 0 },
   wyrm: { shield: 9, aim: 2, tail: 4, spear: 3, sum: 7 },
   cdragon: { raidCd: 12, gustCd: 5 },
-  ifrit: { wall: 8, whip: 3, chain: 4, blast: 6, heat: 5 },
+  ifrit: { wall: 8, whip: 3, chain: 4, blast: 6, lunge: 2 },
   stag: { rush: 3, spike: 4, shard: 2, sweep: 0, side: 1 },
   kraken: { forest: 6, slam: 3, ink: 7, grab: 5, tide: 10, water: 4 },
   levia: { current: 10, wave: 8, dive: 5, pillar: 7, tail: 0, side: 1 },
@@ -2412,15 +2411,30 @@ function dragonAI(e, ai, dt, a, dist, slow) {
   }
 }
 
-// ---------- 炎魔イフリート: 炎の壁 → 炎の突進 / 炎の鞭(二振り)/ 灼熱の鎖(引き寄せ → 鞭)/ 爆炎(押し出し)/ 熱波(回る扇)/ 激昂: 炎の祭壇 ----------
+// ---------- 炎魔イフリート: 炎の踏み込み → 炎の鞭(攻めの中心)/ 炎の壁(越えられない)→ 炎の突進 / 灼熱の鎖(引き寄せ → 鞭)/ 爆炎(押し出し)/ 激昂: 炎の祭壇・姿が変わる・踏み込みが 2連続 ----------
 //   燃えている祭壇 1つにつき 与ダメージ +10%・技の間隔 ×0.95。炎上は ボスのダメージ × 0.03(カオスドラゴンと同じ)
 function ifritAI(e, ai, dt, a, dist, slow) {
   e.jz = 3 + Math.sin(e.t * 3) * 2; // 浮いている
-  if (ai.altar) { ai.altar = false; fireAltars(e); }
+  if (ai.altar) { ai.altar = false; ifritRage(e); fireAltars(e); }
   const nAlt = enemies.filter(o => o.owner === e && o.obj === 'altar' && !o.dead).length;
   e.altK = 1 + 0.1 * nAlt;
-  const D = e.dmg * e.altK, R = CHAOS.rate / Math.pow(0.95, nAlt);
-  if (Math.random() < dt * 14) part(e.x + rand(-8, 8), e.y + 6 + rand(-2, 4), rand(-6, 6), -rand(20, 45), rand(0.3, 0.6), pick(['#ff6a2a', '#ffc34a', '#ff3b1a']), { glow: true, drag: 1 }); // 下半身の炎
+  const R = CHAOS.rate / Math.pow(0.95, nAlt);
+  const hot = ai.enraged; // 激昂: 炎が白く強くなる
+  if (Math.random() < dt * (hot ? 32 : 14)) part(e.x + rand(-8, 8), e.y + 6 + rand(-2, 4), rand(-6, 6), -rand(20, hot ? 70 : 45), rand(0.3, 0.6), pick(hot ? ['#ffc34a', '#fff0b0', '#ffffff', '#ff6a2a'] : ['#ff6a2a', '#ffc34a', '#ff3b1a']), { glow: true, drag: 1 }); // 下半身の炎
+  if (hot && Math.random() < dt * 10) { const pa = rand(0, TAU), pr = rand(14, 22); part(e.x + Math.cos(pa) * pr, e.y + Math.sin(pa) * pr * 0.6, 0, -rand(15, 35), 0.5, pick(['#ff6a2a', '#ffc34a']), { glow: true, drag: 1 }); } // 激昂: まわりに火の粉
+  if (ai.act === 'lunge') { // 炎の踏み込み: 予告の帯の端まで速さ 420(体当たり ×1.0 = 接触のダメージ)→ 着いたらすぐ炎の鞭
+    const step = 420 * dt;
+    e.x += Math.cos(ai.la) * step; e.y += Math.sin(ai.la) * step;
+    if (hot && (ai.trail += step) >= 14) { ai.trail -= 14; addHazard('fire', e.x, e.y + 4, { r: 10, dur: 3, dmg: e.dmg, lite: 0.5 }); } // 激昂: 跡に燃える床
+    for (let i = 0; i < 3; i++) part(e.x + rand(-8, 8), e.y + rand(-6, 8), -Math.cos(ai.la) * 90 + rand(-20, 20), -Math.sin(ai.la) * 90 - rand(10, 30), rand(0.25, 0.45), pick(['#ff6a2a', '#ffc34a', '#fff0b0']), { glow: true, drag: 2 });
+    if ((ai.pt -= dt) <= 0) {
+      ai.act = null; shake(3);
+      ai.whip = hot ? 3 : 4; fireWhip(e, ai, Math.atan2(P.y - e.y, P.x - e.x), 0.3);
+      if (hot && !ai.second) ai.again = 0.3; // 激昂: 鞭を振り終えたら、もう一度踏み込む
+    }
+    return;
+  }
+  if (ai.again > 0) { if ((ai.again -= dt) <= 0) ifritLunge(e, ai, true); return; }
   if (ai.act === 'pull') { // 灼熱の鎖で引き寄せている間は待ち、終わったら(鎖が切れても)炎の鞭
     if ((ai.pt -= dt) <= 0 || !P.push) { ai.act = null; ai.whip = ai.enraged ? 3 : 4; fireWhip(e, ai, Math.atan2(P.y - e.y, P.x - e.x)); }
     return;
@@ -2442,17 +2456,8 @@ function ifritAI(e, ai, dt, a, dist, slow) {
     if ((ai.pt -= dt) <= 0) { ai.act = null; shake(4); }
     return;
   }
-  if (ai.act === 'heat') { // 熱波: 扇が 2.5秒かけて 120° 回る。触れると炎上・2秒 移動速度 ×0.8(ダメージなし)
-    ai.pt += dt;
-    const k = Math.min(1, ai.pt / 2.5);
-    ai.ha = ai.h0 + ai.hdir * (TAU / 3) * k;
-    if (inFan(e.x, e.y, ai.ha, 150, 0.524) && P.invT <= 0) { burnPlayer(D * 0.03); if (!clsSlowImmune()) P.heatT = 2 * CHAOS.debuff; }
-    for (let i = 0; i < 3; i++) { const aa = ai.ha + rand(-0.52, 0.52), r = rand(15, 150 * CHAOS.area); part(e.x + Math.cos(aa) * r, e.y + Math.sin(aa) * r, Math.cos(aa) * 20, Math.sin(aa) * 20 - 10, 0.35, pick(['#ff8a3d', '#ffc34a', '#ff6a2a']), { glow: Math.random() < 0.4, drag: 2 }); } // ゆらめく熱気
-    if (k >= 1) { ai.act = null; }
-    return;
-  }
   e.x += Math.cos(a) * e.spd * slow * dt; e.y += Math.sin(a) * e.spd * slow * dt;
-  ai.wall -= dt * R; ai.whip -= dt * R; ai.chain -= dt * R; ai.blast -= dt * R; ai.heat -= dt * R;
+  ai.wall -= dt * R; ai.whip -= dt * R; ai.chain -= dt * R; ai.blast -= dt * R; ai.lunge -= dt * R;
   if (ai.wall <= 0) { ai.wall = ai.enraged ? 11 : 15; flameWalls(e, ai, a); }
   else if (ai.blast <= 0 && dist < 100) { // 爆炎: 周りを吹き飛ばす
     ai.blast = ai.enraged ? 7 : 9;
@@ -2467,18 +2472,14 @@ function ifritAI(e, ai, dt, a, dist, slow) {
       shockAt(e.x, e.y, 2.2, 0.7); shake(11); hitstop(0.05); AudioMan.boom(); AudioMan.fire(); e.sq = 0.7;
       hint('blast', '爆炎', '吹き飛ばされる。燃える床・炎の壁へ押し込まれないように');
     });
-  } else if (ai.heat <= 0 && dist < 160) { // 熱波: 前方の扇が回る
-    ai.heat = ai.enraged ? 9 : 12;
-    pushWarn({ kind: 'fan', x: e.x, y: e.y, a, r: 150, h: 0.524, t: 0, life: 0.6 });
-    AudioMan.charge(0.6);
-    windup(e, 0.6, () => { ai.act = 'heat'; ai.pt = 0; ai.h0 = a; ai.hdir = Math.random() < 0.5 ? 1 : -1; ai.ha = a; AudioMan.fire(); });
-    hint('heat', '熱波', '触れると炎上して足が遅くなる(ダメージはない)');
-  } else if (ai.chain <= 0 && dist > 50 && dist < 180) { // 灼熱の鎖: 当たると引き寄せ → 炎の鞭
+  } else if (ai.chain <= 0 && dist > 50 && dist < 180) { // 灼熱の鎖: 当たると引き寄せ → 炎の鞭。予告の帯は 0.35秒 プレイヤーを追い、0.15秒止まる
     ai.chain = ai.enraged ? 7 : 10;
-    const ca = a;
-    pushWarn({ kind: 'line', x: e.x, y: e.y, a: ca, len: 180, w: 10, t: 0, life: 0.5 });
+    const cw = { kind: 'line', x: e.x, y: e.y, a, len: 180, w: 10, t: 0, life: 0.5 };
+    cw.track = q => { q.x = e.x; q.y = e.y; if (q.t < 0.35) q.a = Math.atan2(P.y - e.y, P.x - e.x); };
+    pushWarn(cw);
     AudioMan.charge(0.5);
     windup(e, 0.5, () => {
+      const ca = cw.a;
       bfx.push({ kind: 'chain', x: e.x, y: e.y, a: ca, len: 180 * CHAOS.area, t: 0, life: 0.25 }); // 鎖が飛ぶ
       AudioMan.spearThrow();
       if (inLine(e.x, e.y, ca, 180, 10) && P.invT <= 0) { // 当たった: 1秒かけて手前 40 まで引き寄せる(ダメージなし)
@@ -2489,15 +2490,28 @@ function ifritAI(e, ai, dt, a, dist, slow) {
         ai.act = 'pull'; ai.pt = 1;
       }
     });
+  } else if (ai.lunge <= 0 && dist > 70) { // 炎の踏み込み: 離れていると踏み込んで、そのまま炎の鞭(攻めの中心)
+    ai.lunge = ai.enraged ? 2.5 : 3.5;
+    ifritLunge(e, ai, false);
   } else if (ai.whip <= 0 && dist < 70) { // 炎の鞭: 二振り(2回目は無敵無視)
     ai.whip = ai.enraged ? 3 : 4;
     fireWhip(e, ai, a);
   }
 }
-// 炎の鞭: 前方の扇(半径 60・±60°)に ×1.0・炎上 → 0.2秒後に反対向きにもう一振り ×0.6(無敵無視。全部当たると ×1.6)
-function fireWhip(e, ai, a) {
-  pushWarn({ kind: 'fan', x: e.x, y: e.y, a, r: 60, h: 1.047, t: 0, life: 0.5 });
-  windup(e, 0.5, () => {
+// 炎の踏み込み: 0.5秒の予告(経路の帯。長さ = プレイヤーまでの距離 − 25、40〜220。最初の 0.35秒はプレイヤーを追い、0.15秒止まる)
+//   → 帯の端まで速さ 420 で踏み込み、着いたらすぐ炎の鞭(予告 0.3秒)。second: 激昂の 2回目
+function ifritLunge(e, ai, second) {
+  const w = { kind: 'line', x: e.x, y: e.y, a: 0, len: 40, w: e.r * 2, t: 0, life: 0.5, fixed: true }; // 体当たりの経路なので広げない
+  w.track = q => { q.x = e.x; q.y = e.y; if (q.t < 0.35) { q.a = Math.atan2(P.y - e.y, P.x - e.x); q.len = clamp(Math.sqrt(d2(e.x, e.y, P.x, P.y)) - 25, 40, 220); } };
+  w.track(w); pushWarn(w);
+  AudioMan.charge(0.5); e.sq = 0.85;
+  hint('lunge', '炎の踏み込み', '離れていても踏み込んでくる。着いたらすぐ炎の鞭');
+  windup(e, 0.5, () => { ai.act = 'lunge'; ai.la = w.a; ai.pt = w.len / 420; ai.trail = 0; ai.second = second; AudioMan.dash(); AudioMan.fire(); shake(3); });
+}
+// 炎の鞭: 前方の扇(半径 60・±60°)に ×1.0・炎上 → 0.2秒後に反対向きにもう一振り ×0.6(無敵無視。全部当たると ×1.6)。wind: 予告の秒(踏み込みのあとは 0.3)
+function fireWhip(e, ai, a, wind = 0.5) {
+  pushWarn({ kind: 'fan', x: e.x, y: e.y, a, r: 60, h: 1.047, t: 0, life: wind });
+  windup(e, wind, () => {
     const R0 = 60 * CHAOS.area, d = e.dmg * e.altK, wa = a;
     for (const [c, k, o] of [[0, 1, undefined], [1, 0.6, { pierce: true }]]) later(ai, c * 0.2, () => {
       slashes.push({ x: e.x, y: e.y, a: wa, r: R0, t: 0, life: 0.24, flip: c, span: 2.1, pal: SWING_PAL.fire, enemy: true });
@@ -2507,12 +2521,12 @@ function fireWhip(e, ai, a) {
     });
   });
 }
-// 炎の壁: プレイヤーをはさむ平行な帯 2本(長さ 320・幅 16、左右 ±70。向きはイフリート → プレイヤー)が 0.9秒の予告のあと 7秒燃える
-//   上にいると 0.5秒ごとに ×0.4・炎上。立った 1秒後に、壁の間を炎の突進
+// 炎の壁: プレイヤーをはさむ平行な帯 2本(長さ 320・幅 24、左右 ±70。向きはイフリート → プレイヤー)が 0.9秒の予告のあと 7秒燃える
+//   上にいると 0.5秒ごとに ×0.4・炎上。越えられない(ダッシュ・瞬間移動でも。壁の端を回れば出られる)。立った 1秒後に、壁の間を炎の突進
 function flameWalls(e, ai, a) {
   const cx = P.x, cy = P.y, nx = -Math.sin(a), ny = Math.cos(a), L = 320;
   const walls = [-1, 1].map(s => ({ x: cx + nx * 70 * s - Math.cos(a) * L / 2, y: cy + ny * 70 * s - Math.sin(a) * L / 2 }));
-  const W = 16 * CHAOS.area; // 壁の幅は攻撃範囲の倍率で広がる(長さと間隔はそのまま)
+  const W = 24 * CHAOS.area; // 壁の幅は攻撃範囲の倍率で広がる(長さと間隔はそのまま)
   for (const w of walls) pushWarn({ kind: 'line', x: w.x, y: w.y, a, len: L, w: W, t: 0, life: 0.9, fixed: true });
   ai.wa = a; AudioMan.charge(0.9);
   hint('fwall', '炎の壁', '壁の上は燃える。壁の間を炎の突進が走る');
@@ -2522,6 +2536,14 @@ function flameWalls(e, ai, a) {
     for (const w of walls) for (let d = 0; d < L; d += 10) burst(w.x + Math.cos(a) * d, w.y + Math.sin(a) * d, 2, ['#ff6a2a', '#ffc34a', '#fff0b0'], { sp: 50, up: 60, glow: true, life: 0.5 });
     ai.act = 'wallwait'; ai.pt = 1;
   });
+}
+// 激昂の変身: 炎が白く燃え上がり、姿が大きく赤熱する(角と筋が光る)。このあと踏み込みが 2連続・跡に燃える床
+function ifritRage(e) {
+  e.spr = 'ifritRage'; e.scale = 1.15;
+  burst(e.x, e.y, 90, ['#ffffff', '#fff0b0', '#ffc34a', '#ff6a2a'], { sp: 200, up: 80, glow: true, life: 0.9 });
+  for (let i = 0; i < 40; i++) part(e.x + rand(-10, 10), e.y + rand(-4, 8), rand(-15, 15), -rand(80, 200), rand(0.5, 1), pick(['#fff0b0', '#ffc34a', '#ff6a2a']), { glow: true, drag: 1.5 }); // 火柱
+  addRing(e.x, e.y, 70, '#ffc34a', { w: 3, life: 0.6 }); addFlash(e.x, e.y, 220, '#ff8a3d', 1.2);
+  shockAt(e.x, e.y, 2.4, 0.7); hitstop(0.08);
 }
 // 炎の祭壇(激昂したときに1回): プレイヤーから 150 の 4方向に祭壇(HP 各 10%)
 function fireAltars(e) {
@@ -3781,6 +3803,12 @@ function updHazards(dt) {
       if (Math.random() < dt * (4 + h.r * 0.9)) { const pa = rand(0, TAU), pr = Math.sqrt(Math.random()) * R; part(h.x + Math.cos(pa) * pr, h.y + Math.sin(pa) * pr * 0.8, rand(-4, 4), -rand(14, 34), rand(0.3, 0.6), pick(['#ff6a2a', '#ffc34a', '#ff3b1a', '#fff0b0']), { glow: true, drag: 1.5 }); }
     } else if (h.kind === 'fwall') { // 炎の壁(イフリート): 上にいると 0.5秒ごとに ×0.4・炎上(祭壇の強化も乗る)
       const c = Math.cos(h.a), s = Math.sin(h.a);
+      if (!P.dead) { // 越えられない: 壁の長さの範囲では、立ったときにいた側の縁で止まる(ダッシュ・瞬間移動・押し出しでも)。壁の端を回れば反対側へ行ける
+        const ox = P.x - h.x, oy = P.y - h.y, along = ox * c + oy * s, sd = -ox * s + oy * c, half = h.w / 2;
+        if (!h.side) h.side = Math.sign(sd) || 1;
+        if (along < -4 || along > h.len + 4) { if (Math.abs(sd) > half) h.side = Math.sign(sd); }
+        else if (sd * h.side < half) { const k = h.side * half - sd; P.x -= s * k; P.y += c * k; }
+      }
       h.tick -= dt;
       if (h.tick <= 0 && h.t > 0.1 && segD2(P.x, P.y, h.x, h.y, h.x + c * h.len, h.y + s * h.len) < Math.pow(h.w / 2 + 3, 2)) {
         h.tick = 0.5;

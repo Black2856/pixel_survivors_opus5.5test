@@ -1159,7 +1159,7 @@ function render() {
   vis.sort((a, b) => a.y - b.y);
   for (const e of vis) {
     if (e.flying) continue; // 空襲で空高く飛んでいるボスは影だけ(drawBossFx)
-    const sp = e.boss ? ART.S[e.boss] : e.prop ? ART.S.brazier[Math.floor(t * 6 + e.seed * 5) % 2] : spriteOf(e);
+    const sp = e.boss ? ART.S[e.spr || e.boss] : e.prop ? ART.S.brazier[Math.floor(t * 6 + e.seed * 5) % 2] : spriteOf(e);
     const sc = e.scale;
     shadow(e.x, e.y + sp.h * sc / 2 - 1, sp.w * sc * 0.8);
     let sy = 1, sxk = 1, yo = 0;
@@ -1688,19 +1688,13 @@ function drawBossFx(e) {
     }
     if (ai.overT > 0) addLight(e.x, e.y, 80, '#ff3b1a', 0.8);
   }
-  // 炎魔イフリート: 熱波の扇(ゆらめく橙の扇)/ 祭壇から流れ込む炎の筋 / 祭壇で強まった炎のオーラ
+  // 炎魔イフリート: 激昂の熱(足元の赤熱した輪と強い光)/ 祭壇から流れ込む炎の筋 / 祭壇で強まった炎のオーラ
   if (e.boss === 'ifrit') {
-    if (ai.act === 'heat' && ai.ha != null) {
-      const R = 150 * A, h = 0.524;
-      sx.globalAlpha = 0.2 + 0.06 * Math.sin(t * 20); sx.fillStyle = '#ff8a3d';
-      sx.beginPath(); sx.moveTo(ex, ey); sx.arc(ex, ey, R, ai.ha - h, ai.ha + h); sx.closePath(); sx.fill(); sx.globalAlpha = 1;
-      for (let i = 0; i < 3; i++) { // 熱気の波紋(外へ流れる弧)
-        const rr = R * ((t * 0.9 + i / 3) % 1), n = Math.ceil(rr * h * 2);
-        for (let j = 0; j <= n; j++) { const aa = ai.ha - h + 2 * h * j / Math.max(1, n); sx.fillStyle = '#ffc34a'; sx.globalAlpha = 0.5; sx.fillRect(Math.round(ex + Math.cos(aa) * rr), Math.round(ey + Math.sin(aa) * rr), 1, 1); }
-      }
-      sx.globalAlpha = 1;
-      for (const s of [-1, 1]) pLine(sx, ex, ey, ex + Math.cos(ai.ha + s * h) * R, ey + Math.sin(ai.ha + s * h) * R, '#ff8a3d');
-      addLight(e.x + Math.cos(ai.ha) * R * 0.5, e.y + Math.sin(ai.ha) * R * 0.5, R, '#ff8a3d', 0.8);
+    if (ai.enraged) {
+      const rr = Math.round(sp.w * 0.75 + Math.sin(t * 10) * 1.5), fy = Math.round(ey + sp.h * 0.55);
+      sx.globalAlpha = 0.6; pCircle(sx, ex, fy, rr, '#ffc34a'); sx.globalAlpha = 1;
+      pCircle(gx, ex, fy, rr, '#6a2a08'); // 光の層は暗い色で
+      addLight(e.x, e.y, 90 + Math.sin(t * 8) * 10, '#ff8a3d', 0.85);
     }
     let n = 0;
     for (const o of enemies) if (o.owner === e && o.obj === 'altar' && !o.dead) {
