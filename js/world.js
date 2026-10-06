@@ -1280,10 +1280,10 @@ function spawnProp() {
 }
 
 // ---------- 通常敵の攻撃 ----------
-// 射撃(弓兵・火の小鬼・砂術師): 弾のダメージ = その敵のダメージ × n。count 発を spread rad おきの扇に
+// 射撃(弓兵・火の小鬼・砂術師): 弾のダメージ = その敵のダメージ × n。count 発を spread rad おきの扇に(count が [最小, 最大] なら1回ごとにランダム)
 const SHOT_R = { arrow: 2, efire: 3, esand: 2.5, eice: 2.5 }; // 弾の当たり判定の半径(見た目の大きさ。攻撃範囲の倍率で広がる)
 function enemyShoot(e, s, a) {
-  const n = s.count || 1;
+  const n = Array.isArray(s.count) ? randi(s.count[0], s.count[1]) : s.count || 1;
   for (let i = 0; i < n; i++) {
     const aa = a + (i - (n - 1) / 2) * (s.spread || 0);
     eprojs.push({ kind: s.kind, x: e.x, y: e.y - 2, vx: Math.cos(aa) * s.spd, vy: Math.sin(aa) * s.spd, dmg: e.dmg * s.n * S.eatk, burn: s.burn ? e.dmg * s.burn * S.eatk : 0, frost: s.frost || 0, life: 4, t: 0, r: (SHOT_R[s.kind] || 3) * CHAOS.area * e.areaK, sk: e.areaK }); // sk: 弾の見た目の大きさ(エリートは範囲 ×1.5)
@@ -1712,6 +1712,14 @@ function updObj(e, dt) {
     if (Math.ceil(e.life) !== e.lastSec) { e.lastSec = Math.ceil(e.life); AudioMan.tick(12 - e.lastSec); if (e.lastSec <= 3) AudioMan.heartbeat(1); e.pulse = 0.25; }
     e.pulse = Math.max(0, (e.pulse || 0) - dt);
     if (Math.random() < dt * 10) part(e.x + rand(-8, 8), e.y - rand(4, 24), 0, -rand(6, 14), 0.6, pick(['#ff3b5c', '#c8a050']), { glow: true, drag: 1 });
+  } else if (e.obj === 'pillar') { // 肋骨の魔弾(白骨竜)の骨柱: 2秒ごと(激昂 1.5秒)にプレイヤーへ骨の魔弾(撃つ 0.3秒前に光る。攻撃頻度のカオス強化が効く)
+    e.spawnT -= dt * CHAOS.rate; e.glint = e.spawnT < 0.3;
+    if (e.spawnT <= 0) {
+      e.spawnT = e.owner.ai.enraged ? 1.5 : 2;
+      eball(e.x, e.y - 10, Math.atan2(P.y - (e.y - 10), P.x - e.x), 75, e.owner.dmg * 0.4, 'bball'); // 骨柱と同じ青白い弾(竜の赤い弾と見分ける)
+      burst(e.x, e.y - 10, 7, ['#efe9d4', '#6ee7ff', '#ffffff'], { sp: 45, glow: true, life: 0.25 }); AudioMan.shoot();
+    }
+    if (Math.random() < dt * 4) part(e.x + rand(-3, 3), e.y - rand(4, 14), 0, -rand(4, 10), 0.6, pick(['#6ee7ff', '#efe9d4']), { glow: true, drag: 1 }); // 骨の隙間から青い光
   } else if (e.obj === 'mirror') { // 氷の鏡(雪華の女王): 2秒ごとに中心へ氷の槍(撃つ 0.3秒前に光る)
     e.spawnT -= dt; e.glint = e.spawnT < 0.3;
     if (e.spawnT <= 0) {
@@ -1942,8 +1950,7 @@ function deadHands(e, ai) {
   });
 }
 
-// ---------- 白骨竜: 肋骨の盾(骨柱 → 螺旋)/ 狙い撃ち(頭が光る)/ 尾の薙ぎ払い(回る帯)/ 骨槍(追う帯)/ 弓兵召喚 ----------
-//   竜の弾(螺旋・狙い撃ち・骨槍)は骨柱に当たると消える(p.blk)
+// ---------- 白骨竜: 肋骨の魔弾(撃ち続ける骨柱 → 螺旋)/ 狙い撃ち(頭が光る)/ 尾の薙ぎ払い(回る帯)/ 骨槍(追う帯)/ 弓兵召喚 ----------
 function wyrmAI(e, ai, dt, a, dist, slow) {
   const R = CHAOS.rate;
   if (ai.act === 'tail') { // 尾の薙ぎ払い: 0.8秒の予告(止まって身構える)→ 同じ軌道を 0.4秒で薙ぐ
@@ -1964,13 +1971,13 @@ function wyrmAI(e, ai, dt, a, dist, slow) {
   const want = 110, dir = dist > want ? a : a + Math.PI, k = Math.abs(dist - want) > 20 ? 1 : 0.2;
   e.x += (Math.cos(dir) * e.spd * k + Math.cos(a + Math.PI / 2) * 22) * slow * dt;
   e.y += (Math.sin(dir) * e.spd * k + Math.sin(a + Math.PI / 2) * 22) * slow * dt;
-  if (ai.spN > 0 && (ai.spGap -= dt * R) <= 0) { // 螺旋(肋骨の盾の直後だけ): 反対向きに 2発ずつ回しながら
+  if (ai.spN > 0 && (ai.spGap -= dt * R) <= 0) { // 螺旋(肋骨の魔弾の直後だけ): 反対向きに 2発ずつ回しながら
     ai.spGap = ai.enraged ? 0.09 : 0.12; ai.spN--; ai.spA += 0.5;
-    for (const o of [0, Math.PI]) eball(e.x, e.y - 4, ai.spA + o, 60, e.dmg * 0.5).blk = 'pillar';
+    for (const o of [0, Math.PI]) eball(e.x, e.y - 4, ai.spA + o, 60, e.dmg * 0.5);
     if (ai.spN % 4 === 0) AudioMan.shoot();
   }
   if (ai.aiming > 0 && (ai.aiming -= dt) <= 0) { // 狙い撃ち: 頭が光ったあと 3発の扇
-    for (let i = -1; i <= 1; i++) eball(e.x, e.y - 8, a + i * 0.22, 78, e.dmg * 0.6).blk = 'pillar';
+    for (let i = -1; i <= 1; i++) eball(e.x, e.y - 8, a + i * 0.22, 78, e.dmg * 0.6);
     AudioMan.shoot(); burst(e.x + Math.cos(a) * 8, e.y - 8 + Math.sin(a) * 8, 8, ['#6ee7ff', '#efe9d4', '#ffffff'], { sp: 60, glow: true, life: 0.25 });
   }
   ai.shield -= dt * R; ai.aim -= dt * R; ai.tail -= dt * R; ai.spear -= dt * R; ai.sum -= dt * R;
@@ -1984,19 +1991,19 @@ function wyrmAI(e, ai, dt, a, dist, slow) {
     AudioMan.summon();
   }
 }
-// 肋骨の盾: プレイヤーの周り 半径 80 に骨柱 4本(HP 各 2%・10秒)。竜の弾を遮る。立った直後に螺旋
+// 肋骨の魔弾: プレイヤーの周り 半径 80 に骨柱 4本(HP 各 2%・10秒)。骨柱はプレイヤーへ弾を撃ち続ける(最初の1発は 1 / 1.5 / 2 / 2.5秒後とずらす)。立った直後に螺旋
 function ribShield(e, ai) {
   const a0 = rand(0, TAU), pts = [0, 1, 2, 3].map(i => ({ x: P.x + Math.cos(a0 + i * Math.PI / 2) * 80, y: P.y + Math.sin(a0 + i * Math.PI / 2) * 80 }));
   for (const p of pts) pushWarn({ kind: 'circle', x: p.x, y: p.y, r: 6, t: 0, life: 0.8, fixed: true }); // 骨柱が立つ場所(攻撃ではないので広げない)
   AudioMan.charge(0.8);
   later(ai, 0.8, () => {
-    for (const p of pts) {
-      spawnObj(e, 'pillar', p.x, p.y, { pct: 0.02, r: 6, life: 10 });
+    pts.forEach((p, i) => {
+      spawnObj(e, 'pillar', p.x, p.y, { pct: 0.02, r: 6, life: 10, spawnT: 1 + i * 0.5 });
       burst(p.x, p.y, 18, ['#efe9d4', '#8a8676', '#5a4030', '#6ee7ff'], { sp: 90, g: 220 }); shockAt(p.x, p.y, 0.6, 0.9);
-    }
+    });
     shake(6); AudioMan.thud(); AudioMan.boom();
     ai.spN = Math.round((ai.enraged ? 4 : 3) / (ai.enraged ? 0.09 : 0.12)); ai.spGap = 0.25; ai.spA = rand(0, TAU);
-    hint('ribs', '肋骨の盾', '骨柱は竜の弾を遮る。陰に隠れるか、壊すか');
+    hint('ribs', '肋骨の魔弾', '骨柱は弾を撃ち続ける。壊して止めよう');
   });
 }
 // 尾の薙ぎ払い: 尾の帯(長さ 130・幅 20)が 0.8秒かけて 180° 回りながら薙ぐ範囲を示す
@@ -2007,9 +2014,9 @@ function startTail(e, ai, a) {
   pushWarn({ kind: 'line', x: e.x, y: e.y, a: a0, len: 130, w: 20, t: 0, life: 0.8, track: w => { w.a = a0 + dir * Math.PI * Math.min(1, w.t / 0.8); } });
   AudioMan.charge(0.8);
 }
-// 骨槍: 竜からプレイヤーへの帯が 1.0秒追い、0.3秒止まってから、帯の長さだけ飛ぶ骨槍(貫通)。激昂は 2本
+// 骨槍: 竜からプレイヤーへの帯が 1.0秒追い、0.3秒止まってから、帯の長さだけ飛ぶ骨槍(貫通)。3本(±0.2rad)、激昂は 5本(±0.2rad の中に 0.1rad おき)
 function boneSpear(e, ai) {
-  const offs = ai.enraged ? [-0.2, 0.2] : [0];
+  const offs = ai.enraged ? [-0.2, -0.1, 0, 0.1, 0.2] : [-0.2, 0, 0.2];
   const ws = offs.map(o => {
     const w = { kind: 'line', x: e.x, y: e.y, a: Math.atan2(P.y - e.y, P.x - e.x) + o, len: 260, w: 8, t: 0, life: 1.3, track: q => { q.x = e.x; q.y = e.y; if (q.t < 1) q.a = Math.atan2(P.y - e.y, P.x - e.x) + o; } };
     pushWarn(w);
@@ -2018,7 +2025,7 @@ function boneSpear(e, ai) {
   AudioMan.charge(1.3);
   later(ai, 1.3, () => {
     const len = 260 * CHAOS.area, spd = 280;
-    for (const w of ws) eprojs.push({ kind: 'bspear', x: e.x, y: e.y, vx: Math.cos(w.a) * spd, vy: Math.sin(w.a) * spd, dmg: e.dmg * 1.2 * (S.eatk ?? 1), life: len / spd, t: 0, r: 4 * CHAOS.area, keep: true, blk: 'pillar' });
+    for (const w of ws) eprojs.push({ kind: 'bspear', x: e.x, y: e.y, vx: Math.cos(w.a) * spd, vy: Math.sin(w.a) * spd, dmg: e.dmg * 1.2 * (S.eatk ?? 1), life: len / spd, t: 0, r: 4 * CHAOS.area, keep: true });
     AudioMan.spearThrow(); shake(3);
     burst(e.x, e.y, 14, ['#efe9d4', '#6ee7ff', '#ffffff'], { sp: 90, glow: true, life: 0.3 });
   });
@@ -3733,9 +3740,9 @@ function updEprojs(dt0) {
       eprojs.splice(i, 1); continue;
     }
     if (p.t > p.life) { if (p.kind === 'espear' || p.kind === 'bspear') burst(p.x, p.y, 5, ['#c8b89a', '#7a6a5a'], { sp: 30, life: 0.25 }); eprojs.splice(i, 1); continue; } // 槍は帯の端で地面に刺さる
-    if (p.blk) { // 白骨竜の弾は骨柱、大鹿の欠片・残像は結晶の柱に当たると砕けて消える
+    if (p.blk) { // 大鹿の欠片・残像は結晶の柱に当たると砕けて消える
       let wall = null;
-      forEachNear(p.x, p.y, p.r, o => { if (o.obj === p.blk && !(p.ignore && p.ignore.has(o))) { wall = o; return false; } }); // blk: 遮る物の種類(骨柱 / 結晶の柱)
+      forEachNear(p.x, p.y, p.r, o => { if (o.obj === p.blk && !(p.ignore && p.ignore.has(o))) { wall = o; return false; } }); // blk: 遮る物の種類(結晶の柱)
       if (wall) { burst(p.x, p.y, 7, ['#efe9d4', '#6ee7ff', '#ffffff'], { sp: 45, glow: true, life: 0.25 }); wall.flash = 0.06; eprojs.splice(i, 1); continue; }
     }
     if (d2(p.x, p.y, P.x, P.y) < Math.pow(p.r + 3, 2)) {

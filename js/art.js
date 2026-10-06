@@ -1451,8 +1451,9 @@ const ART = (() => {
   S.fire = mk({ a: '#b8261a', b: '#ff6a2a', c: '#ffc34a', d: '#fff6c8' }, ['..aa..', '.abba.', 'abccba', 'abcdcb', '.bcdc.', '..cc..'], { outline: false, emit: 'abcd' });
   S.wisp = mk({ a: '#2fbf8a', b: '#9dffcf', c: '#ffffff' }, ['.aba.', 'abcba', 'bcccb', 'abcba', '.aba.'], { outline: false, emit: 'abc' });
   S.ball = mk({ a: '#a0122a', b: '#ff3b5c', c: '#ffc0c8' }, ['.aba.', 'abcba', 'bcccb', 'abcba', '.aba.'], { outline: false, emit: 'abc' });
+  S.bball = mk({ a: '#2a6a8a', b: '#6ee7ff', c: '#efe9d4' }, ['.aba.', 'abcba', 'bcccb', 'abcba', '.aba.'], { outline: false, emit: 'bc' }); // 肋骨の魔弾(骨柱の弾): 骨柱と同じ青白い光
   S.arrow = mk({ a: '#8a6a3a', b: '#e8e6da', c: '#ffb13a' }, ['c.....', '.aaaab', 'c.....']);
-  // ボスが出す壊せる物: 腐肉の山(脈打つ肉塊。2コマ)/ 肋骨の盾の骨柱
+  // ボスが出す壊せる物: 腐肉の山(脈打つ肉塊。2コマ)/ 肋骨の魔弾の骨柱
   const meatPal = { a: '#3a1a14', b: '#7a2a20', c: '#c2483a', d: '#7fae4e', e: '#b8d86a', f: '#e8e0c0', g: '#4a6e30' };
   S.obj_meat = [mk(meatPal, ['....dd.d....', '..dbbccbd...', '.bccbbcccb..', 'bcccfbbcccb.', 'bcbcccbccbbd', 'abcccgccfcba', 'abbccbbccbba', '.aabbbbbbaa.'], { emit: 'e' }),
     mk(meatPal, ['...d.dd.....', '..dbccbbd...', '.bcccbbccb..', 'bccfbbcccbb.', 'dbbcccbcccbd', 'abccgcccfcba', 'abbccbbccbba', '.aabbbbbbaa.'], { emit: 'e' })];

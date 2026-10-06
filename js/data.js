@@ -22,7 +22,7 @@ const DATA = {
     ghost:    { hp: 30, spd: 22, dmg: 9,  xp: 1, r: 5, ai: 'chase', ghost: true, touchFrost: 1 }, // 冷たい霊(霊峰): 触れると凍傷 +1
     brute:    { hp: 60, spd: 11, dmg: 13, xp: 2, r: 8, ai: 'chase', kbRes: 0.8 },
     imp:      { hp: 28, spd: 20, dmg: 9,  xp: 1, r: 4, ai: 'keep', keep: [80, 110], shot: { cd: 4.0, range: 170, spd: 75, n: 1.0, kind: 'efire', burn: 0.1 } }, // 火の小鬼
-    sandmage: { hp: 26, spd: 14, dmg: 9,  xp: 1, r: 5, ai: 'keep', keep: [100, 130], shot: { cd: 4.5, range: 200, spd: 60, n: 0.8, kind: 'esand', wind: 0.5, count: 3, spread: 0.3 } }, // 砂術師
+    sandmage: { hp: 26, spd: 14, dmg: 9,  xp: 1, r: 5, ai: 'keep', keep: [100, 130], shot: { cd: 4.5, range: 200, spd: 60, n: 0.8, kind: 'esand', wind: 0.5, count: [1, 3], spread: 0.3 } }, // 砂術師(1〜3方向。1回ごとにランダム)
     spear:    { hp: 32, spd: 16, dmg: 9,  xp: 1, r: 5, ai: 'chase', throw: { cd: 5, range: 140, wind: 0.6, len: 160, w: 6, spd: 200, n: 1.3 } }, // 投槍兵
     hound:    { hp: 22, spd: 38, dmg: 9,  xp: 1, r: 5, ai: 'chase', touchBurn: 0.1 }, // ヘルハウンド
     onibi:    { hp: 14, spd: 30, dmg: 7,  xp: 1, r: 4, ai: 'flutter', noTouch: true, noElite: true, blast: { range: 20, wind: 0.6, r: 30, n: 2.0, burn: 0.1 } }, // 鬼火

@@ -1228,6 +1228,10 @@ function render() {
       addLight(e.x, e.y - 8, 60 + (e.pulse || 0) * 120, '#ff3b5c', n <= 3 ? 0.9 : 0.5);
     }
     else if (e.obj === 'sandglass') addLight(e.x, e.y - 6, 40, '#c29bff', 0.5);
+    else if (e.obj === 'pillar') { // 肋骨の魔弾の骨柱: 青く光り、撃つ前に白く光る
+      if (e.glint) { const mx = Math.round(e.x - cam.x), my = Math.round(e.y + yo - cam.y - 10); sx.fillStyle = gx.fillStyle = '#ffffff'; sx.fillRect(mx - 3, my, 7, 1); sx.fillRect(mx, my - 3, 1, 7); gx.fillRect(mx - 2, my, 5, 1); addLight(e.x, e.y - 10, 46, '#ffffff', 0.9); }
+      else addLight(e.x, e.y - 8, 24, '#6ee7ff', 0.45);
+    }
     else if (e.obj === 'mirror') { // 氷の鏡: 中心への細い光の線。撃つ前に白く光る
       const mx = e.x - cam.x, my = e.y - cam.y - 6, tx = e.cx - cam.x, ty = e.cy - cam.y, n = Math.floor(Math.hypot(tx - mx, ty - my) / 5);
       for (let i = 1; i < n; i++) { if ((i + Math.floor(t * 10)) % 2) continue; const k = i / n; gx.fillStyle = e.glint ? '#5a8aa0' : '#1a3a4a'; gx.fillRect(Math.round(mx + (tx - mx) * k), Math.round(my + (ty - my) * k), 1, 1); }
@@ -1515,7 +1519,7 @@ function render() {
     const A = CHAOS.area, ol = { outline: oc, alpha: al, scale: A * (p.sk || 1) }; // sk: エリートの弾は範囲 ×1.5 で大きい
     if (al !== undefined) sx.globalAlpha = al; // drawRot は透明度を受け取らないので、ここで掛けて戻す
     if (p.kind === 'boomer') drawRot('scythe', p.t * 16, p.x, p.y, { scale: 2 * A, outline: oc });
-    else if (p.kind === 'glob' || p.kind === 'rbit' || p.kind === 'efire' || p.kind === 'esand') drawSp(ART.S[p.kind], p.x, p.y, ol);
+    else if (p.kind === 'glob' || p.kind === 'rbit' || p.kind === 'efire' || p.kind === 'esand' || p.kind === 'bball') drawSp(ART.S[p.kind], p.x, p.y, ol);
     else if (p.kind === 'arrow' || p.kind === 'espear' || p.kind === 'bspear' || p.kind === 'trident' || p.kind === 'needle' || p.kind === 'eice' || p.kind === 'ispear' || p.kind === 'tick') drawRot(p.kind, a, p.x, p.y, ol);
     else if (p.kind === 'flake') drawSp(p.small ? ART.S.flakeS : ART.S.flake, p.x, p.y, ol); // 雪華弾(割れた後は小さな結晶)
     else if (p.kind === 'cog') drawSp(ART.S.gear[Math.floor(p.spin || 0) % 2], p.x, p.y, ol); // 番人の歯車弾
