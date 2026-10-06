@@ -35,9 +35,9 @@ const DATA = {
     // 沈黙の海淵 / touchSta: 触れると(当たったとき)スタミナ −n / shot.sta・throw.sta: 弾が当たるとスタミナ −n
     // puff: 近づくとふくらんで針を全周に(射程 range 以内で wind 秒ふくらみ、count 本・速さ spd・×n・スタミナ −sta。cd 秒ごと)
     // lantern: 提灯(cd 秒ごとに wind 秒の予告 円 半径 r → 中にいるとスタミナ −sta)
-    jelly:    { hp: 34, spd: 10, dmg: 8,  xp: 1, r: 6, ai: 'flutter', wobble: 1.1, touchSta: 20 }, // クラゲ
-    sahagin:  { hp: 32, spd: 17, dmg: 9,  xp: 1, r: 5, ai: 'chase', throw: { cd: 4.5, range: 130, wind: 0.6, len: 150, w: 8, spd: 170, n: 1.3, sta: 15, kind: 'trident' } }, // サハギン
-    puffer:   { hp: 28, spd: 12, dmg: 8,  xp: 1, r: 5, ai: 'chase', puff: { cd: 3, range: 40, wind: 0.5, count: 8, spd: 70, n: 0.8, sta: 5 } }, // ハリセンボン
+    jelly:    { hp: 34, spd: 15, dmg: 13,  xp: 1, r: 6, ai: 'flutter', wobble: 1.1, touchSta: 20 }, // クラゲ
+    sahagin:  { hp: 32, spd: 16, dmg: 10,  xp: 1, r: 5, ai: 'chase', throw: { cd: 4.5, range: 130, wind: 0.6, len: 150, w: 8, spd: 170, n: 1.3, sta: 15, kind: 'trident' } }, // サハギン
+    puffer:   { hp: 28, spd: 20, dmg: 9,  xp: 1, r: 5, ai: 'chase', puff: { cd: 3, range: 40, wind: 0.5, count: 8, spd: 70, n: 0.8, sta: 5 } }, // ハリセンボン
     angler:   { hp: 60, spd: 14, dmg: 13, xp: 2, r: 7, ai: 'chase', lantern: { cd: 5, wind: 0.6, r: 70, sta: 25 } }, // チョウチンアンコウ
     // 霜天の霊峰 / touchFrost: 触れると(当たったとき)凍傷 +n / shot.frost: 弾が当たると凍傷 +n / pack: [最少, 最多] 体の群れで出る(エリートは1体)
     // snowball: 雪玉(射程 range 以内で cd 秒ごとに放物線。着弾 半径 r に ×n・凍傷 +frost、雪の床 floor 秒: 上にいると 1秒ごとに凍傷 +1)
