@@ -46,7 +46,19 @@ function pushWarn(w) {
 // 3分 → エリート群 → 3分 → ボス1 → 3分 → ボス2(倒すとクリア)。同じ t ではフェーズの開始を波の切り替えより先に処理する
 const stageRun = n => DATA.stageRuns.find(r => r.no === n); // ステージのキーの番号(stage1〜7)から
 // 出現の候補には「敵のまとまり」(配列)が入ることがある(時計塔の「今までの敵」)。まとまりは 1枠として選ばれ、その中から1種
-const pickType = types => { const t = pick(types); return Array.isArray(t) ? pick(t) : t; };
+// spawnW: 選ばれやすさ(既定 1)/ group: 6体の小集団(noGroup の敵は出ない)/ maxAlive: 同時にいられる数(超えるなら選ばない)。選べないときは null
+function pickType(types, group) {
+  const ok = t => { const d = DATA.enemies[t]; return !(group && d.noGroup) && !(d.maxAlive && enemies.filter(e => !e.dead && e.type === t).length >= d.maxAlive); };
+  const slots = [];
+  for (const t of types) {
+    if (Array.isArray(t)) { const m = t.filter(ok); if (m.length) slots.push({ w: 1, ts: m }); }
+    else if (ok(t)) slots.push({ w: DATA.enemies[t].spawnW ?? 1, ts: [t] });
+  }
+  if (!slots.length) return null;
+  let r = Math.random() * slots.reduce((a, s) => a + s.w, 0);
+  for (const s of slots) if ((r -= s.w) <= 0) return pick(s.ts);
+  return pick(slots[slots.length - 1].ts);
+}
 const flatTypes = types => [...new Set(types.flat())];
 function stageSchedule(n) {
   const R = stageRun(n), F = DATA.flow, L = F.seg;
@@ -98,6 +110,7 @@ function initRun(mode = 'escalation', stageNo = 1) {
     frost: 0, frostT: 0, bleed: 0, bleedT: 0, bleedTick: 0, // 自分の凍傷・出血(スタック数と、消えるまでの秒)
     push: null, heatT: 0, rootT: 0, current: null, // ボスの押し出し・引き寄せ / 熱波で遅い(秒)/ 絡め取りで動けない(秒)/ 海流
     chillT: 0, iceT: 0, ivx: 0, ivy: 0, // 氷の槍で ×0.3(秒)/ 滑る床の上(秒)と、そのときの速度
+    fatigueT: 0, // 疲労(スタミナを減らす攻撃を受けた): スタミナ回復 -50% の残り秒
   };
   enemies = []; projs = []; eprojs = []; gems = []; drops = []; props = []; hazards = [];
   parts = []; floats = []; rings = []; zones = []; slashes = []; bolts = []; warns = []; flashes = []; bfx = [];
@@ -173,6 +186,7 @@ function updEnemyLevel(dt) {
 function heal(n, silent) {
   if (P.uq.mercy) n *= 1.25;
   n *= clsHealMul(); // クラスの被回復量の補正(クレリック)
+  if (P.burnT > 0) n *= DATA.debuff.burnHeal; // 炎上中は HP回復 -50%
   S.healed = (S.healed || 0) + n; // 回復した量の合計(聖痕)
   const before = P.hp;
   overheal(P.hp + n - P.maxhp);
@@ -223,7 +237,7 @@ function updPlayer(dt) {
   P.ifr -= dt; P.hurtT -= dt;
   updDebuffs(dt);
   const rg = P.regen + clsRegen(); // クラスの一時的な HP回復速度(バーサーカーの昂り・狂乱など)
-  if (rg > 0) { const n = rg * dt * clsHealMul(); S.healed = (S.healed || 0) + n; overheal(P.hp + n - P.maxhp); P.hp = Math.min(P.maxhp, P.hp + n); } // 満タンで余った分は超過回復
+  if (rg > 0) { const n = rg * dt * clsHealMul() * (P.burnT > 0 ? DATA.debuff.burnHeal : 1); S.healed = (S.healed || 0) + n; overheal(P.hp + n - P.maxhp); P.hp = Math.min(P.maxhp, P.hp + n); } // 満タンで余った分は超過回復
   updOverShield(dt); // 聖盾のシールドは得た分ごとに時間で消える
   if (P.moving && Math.random() < dt * 10) part(P.x + rand(-2, 2), P.y + 6, rand(-6, 6), rand(-8, -2), 0.35, '#8a8098', { drag: 4 });
   GFX.fx.lowhp = lerp(GFX.fx.lowhp, P.hp / P.maxhp < 0.3 ? 1 : 0, dt * 3);
@@ -232,6 +246,7 @@ function updPlayer(dt) {
 // 状態異常(ボス由来): 粘液・スロウタイムの減速 / CD回復低下、炎上の継続ダメージ(無敵時間を無視)
 function updDebuffs(dt) {
   P.slowT -= dt; P.cdSlowT -= dt;
+  if (P.fatigueT > 0) { P.fatigueT -= dt; if (Math.random() < dt * 6) part(P.x + rand(-5, 5), P.y - 8 + rand(-2, 2), rand(-6, 6), rand(4, 12), 0.5, pick(['#7ad7ff', '#bff4ff']), { g: 80 }); } // 疲労: 汗のしずく
   if (P.chillT > 0) { P.chillT -= dt; if (Math.random() < dt * 18) part(P.x + rand(-5, 5), P.y + rand(-6, 6), 0, 6, 0.5, pick(['#ffffff', '#9ff7ff']), { glow: true, drag: 1 }); } // 凍えて動けない: 氷の粒
   if (P.heatT > 0) { P.heatT -= dt; if (Math.random() < dt * 14) part(P.x + rand(-5, 5), P.y + rand(-6, 4), rand(-3, 3), -rand(10, 22), 0.5, pick(['#ff8a3d', '#ffc34a', '#c8a090']), { drag: 1 }); } // 熱波でのぼせた: 陽炎がたつ
   if (P.slowT > 0 && Math.random() < dt * 8) part(P.x + rand(-3, 3), P.y + 6, 0, 8, 0.4, P.cdSlowT > 0 ? '#c29bff' : '#4fd6a8', { glow: P.cdSlowT > 0 });
@@ -1295,10 +1310,11 @@ function onibiBlast(e, bl) {
   addRing(e.x, e.y, R, '#9fe8ff', { w: 2, life: 0.3 }); addFlash(e.x, e.y, R * 3, '#7ad7ff', 0.8);
   shockAt(e.x, e.y, 0.9, 0.8); shake(3); AudioMan.boom();
 }
-// スタミナを減らす攻撃(海淵): 0 未満にはならない。青いしずくが散る
+// スタミナを減らす攻撃(海淵): 0 未満にはならない。青いしずくが散る。受けると 3秒 疲労(スタミナ回復 -50%)
 function drainSta(n) {
   if (!(n > 0) || P.dead) return;
   P.sta = Math.max(0, P.sta - n); S.hudDirty = true;
+  P.fatigueT = Math.max(P.fatigueT || 0, DATA.debuff.fatigueDur * CHAOS.debuff);
   for (let i = 0; i < 8; i++) part(P.x + rand(-4, 4), P.y - 4 + rand(-3, 3), rand(-40, 40), rand(-50, -10), 0.5, pick(['#7ad7ff', '#bff4ff', '#2a8ac8']), { g: 160, drag: 1 });
   AudioMan.drain();
 }
@@ -3948,6 +3964,7 @@ function updDrops(dt) {
 // ============================================================
 // 通常の出現: 群れで出る敵(雪狼)は pack の数をまとめて同じ方向から(エリート・大群は1体ずつ)
 function spawnPack(t) {
+  if (!t) return;
   const pk = DATA.enemies[t].pack;
   if (!pk) return spawnEnemy(t);
   const a = rand(0, TAU), R = Math.hypot(GFX.VW, GFX.VH) / 2 + 16, n = pk[0] + Math.floor(Math.random() * (pk[1] - pk[0] + 1));
@@ -3973,8 +3990,8 @@ function updSpawner(dt) {
     if (enemies.length < cfg.max * (P.uq.clock ? 1.15 : 1) * CHAOS.spawn) {
       // 時々小集団で出現
       if (Math.random() < 0.12) {
-        const t = pickType(cfg.types), a = rand(0, TAU), R = Math.hypot(GFX.VW, GFX.VH) / 2 + 16;
-        for (let i = 0; i < 6; i++) spawnEnemy(t, { x: P.x + Math.cos(a) * R + rand(-14, 14), y: P.y + Math.sin(a) * R + rand(-14, 14) });
+        const t = pickType(cfg.types, true), a = rand(0, TAU), R = Math.hypot(GFX.VW, GFX.VH) / 2 + 16;
+        if (t) for (let i = 0; i < 6; i++) spawnEnemy(t, { x: P.x + Math.cos(a) * R + rand(-14, 14), y: P.y + Math.sin(a) * R + rand(-14, 14) });
       } else spawnPack(pickType(cfg.types));
     }
   }
@@ -4056,7 +4073,7 @@ function horde() {
   UI.banner('HORDE INCOMING!!', '大群が迫ってくる…', 2000);
   AudioMan.warning(); shake(5);
   const cfg = S.spawnCfg || { types: ['zombie'] }, R = Math.hypot(GFX.VW, GFX.VH) / 2 + 20, n = 48;
-  for (let i = 0; i < n; i++) { const a = TAU / n * i; spawnEnemy(pickType(cfg.types), { x: P.x + Math.cos(a) * R, y: P.y + Math.sin(a) * R }); }
+  for (let i = 0; i < n; i++) { const a = TAU / n * i, t = pickType(cfg.types); if (t) spawnEnemy(t, { x: P.x + Math.cos(a) * R, y: P.y + Math.sin(a) * R }); }
 }
 
 // ============================================================

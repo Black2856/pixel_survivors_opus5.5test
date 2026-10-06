@@ -45,10 +45,11 @@ const DATA = {
     icesprite:{ hp: 24, spd: 16, dmg: 8,  xp: 1, r: 4, ai: 'keep', keep: [90, 120], shot: { cd: 3.5, range: 180, spd: 75, n: 1.0, kind: 'eice', frost: 1 } }, // 氷の精
     yeti:     { hp: 70, spd: 10, dmg: 14, xp: 2, r: 8, ai: 'chase', snowball: { cd: 5, range: 150, r: 18, n: 1.0, frost: 2, floor: 3 } }, // イエティ
     // 終刻の時計塔 / roll: 出たときのプレイヤーの位置へ一直線に転がり、通り過ぎると消える(遠くても移し直さない)
+    // spawnW: 出現の候補から選ばれやすさ(既定 1)/ noGroup: 6体の小集団で出ない / maxAlive: 同時にいられる数
     // blink: cd 秒ごとに wind 秒光って、プレイヤーの方向へ dist 瞬間移動 / warp: cd 秒ごとに、プレイヤーの位置に wind 秒の予告 → 時の歪み(半径 r・dur 秒。移動速度 ×slow・クールダウンの回復 ×0.5)
     gear:     { hp: 40, spd: 110, dmg: 10, xp: 1, r: 6, ai: 'roll', kbRes: 1, noElite: true }, // 歯車(金属で硬い: 押されない)
     clockman: { hp: 34, spd: 14, dmg: 10, xp: 1, r: 5, ai: 'chase', blink: { cd: 2.5, wind: 0.3, dist: 35 } }, // 時計兵
-    hglass:   { hp: 26, spd: 14, dmg: 8,  xp: 1, r: 5, ai: 'keep', keep: [90, 110], warp: { cd: 8, range: 200, wind: 0.8, r: 45, dur: 4, slow: 0.7 } }, // 砂時計の精
+    hglass:   { hp: 26, spd: 14, dmg: 8,  xp: 1, r: 5, ai: 'keep', keep: [90, 110], spawnW: 0.25, noGroup: true, maxAlive: 3, warp: { cd: 8, range: 200, wind: 0.8, r: 45, dur: 4, slow: 0.7 } }, // 砂時計の精
     goblin:   { hp: 160, spd: 44, dmg: 0, xp: 12, r: 5, ai: 'flee', kbRes: 0.5, noElite: true },
   },
 
@@ -76,7 +77,7 @@ const DATA = {
     warden:  { name: '時計仕掛けの番人 CLOCKWORK WARDEN', hp: 1900, spd: 13, dmg: 22, r: 15, music: 'b_clock1', col: '#c8a050' },
   },
   // 状態異常(プレイヤー): 粘液・スロウタイムの移動速度倍率 / スロウタイムのCD回復倍率 / 炎上
-  debuff: { slow: 0.6, cdRate: 0.5, burnTick: 0.5, burnDur: 3, frostSlow: 0.05, shockR: 60, pDur: 5, pBleed: 0.01, pBleedMax: 5 }, // frostSlow: 凍傷1スタックあたりの減速(敵・自分) / shockR: 感電の連鎖距離 / pDur: 自分の凍傷・出血が消えるまでの秒 / pBleed: 自分の出血1スタックの毎秒ダメージ(最大HP の割合)
+  debuff: { slow: 0.6, cdRate: 0.5, burnTick: 0.5, burnDur: 3, burnHeal: 0.5, fatigueDur: 3, fatigue: 0.5, frostSlow: 0.05, shockR: 60, pDur: 5, pBleed: 0.01, pBleedMax: 5 }, // burnHeal: 炎上中の HP回復の倍率 / fatigueDur・fatigue: 疲労(スタミナを減らされた)の秒とスタミナ回復の倍率 / frostSlow: 凍傷1スタックあたりの減速(敵・自分) / shockR: 感電の連鎖距離 / pDur: 自分の凍傷・出血が消えるまでの秒 / pBleed: 自分の出血1スタックの毎秒ダメージ(最大HP の割合)
   // 敵の出血: 1スタックごとに毎秒 最大HP × bleedPct(ボス ×bleedBoss・エリート ×bleedElite)、bleedDur 秒
   bleed: { pct: 0.002, dur: 5, boss: 0.1, elite: 0.25 },
 
