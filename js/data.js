@@ -1438,7 +1438,7 @@ const DATA = {
     ],
     horde: 150, elites: 3,
     fog: { start: 180, dmg: 1, step: 10 },
-    tierChaos: [{}, { lvSpeed: 1, startLv: 1, bossLv: 1 }, { lvSpeed: 2, startLv: 2, bossLv: 2 }, { lvSpeed: 3, startLv: 3, bossLv: 3 }],
+    tierChaos: [{}, { lvSpeed: 1, startLv: 1, bossLv: 1, spawn: 1 }, { lvSpeed: 2, startLv: 2, bossLv: 2, spawn: 2 }, { lvSpeed: 3, startLv: 3, bossLv: 3, spawn: 3 }],
   },
 
   // ---------- 闘技場(ボスラッシュ) ----------
