@@ -3460,7 +3460,7 @@ function slowReverse(e, ai) {
   AudioMan.charge(0.5); shockAt(e.x, e.y, 1.2, 0.6); screenFlash(0.15, '#c29bff');
   hint('reverse', 'スロウタイム・リバース', '3秒たつと逆に、時計盤の外が遅くなる');
 }
-// 時間停止: 1秒(時計の音・画面が白く光る)→ 1.5秒 敵の弾が止まり、その間にプレイヤーの周り(半径 90)に鎌 12本が並ぶ。時が動き出すと中心へ飛ぶ(×0.7)
+// 時間停止: 1秒(時計の音・画面が白く光る)→ 1.5秒 敵の弾が止まり、その間にプレイヤーの周り(半径 90)に鎌 12本が並ぶ。時が動き出すと中心へ飛ぶ(×0.7、射程 約 975)
 function timeStop(e, ai) {
   ai.busy = 3.2;
   for (let i = 0; i < 4; i++) later(ai, i * 0.25, () => AudioMan.tick(i * 3));
@@ -3470,7 +3470,7 @@ function timeStop(e, ai) {
     const cx = P.x, cy = P.y, a0 = rand(0, TAU);
     for (let i = 0; i < 12; i++) later(ai, i * 0.08, () => { // 止まった時の中で、鎌が 1本ずつ並ぶ
       const sa = a0 + TAU / 12 * i, x = cx + Math.cos(sa) * 90, y = cy + Math.sin(sa) * 90;
-      Object.assign(eball(x, y, sa + Math.PI, 150, e.dmg * 0.7, 'rscythe'), { life: 1.3 });
+      Object.assign(eball(x, y, sa + Math.PI, 150, e.dmg * 0.7, 'rscythe'), { life: 6.5 }); // 射程 約 975(前の 5倍)
       burst(x, y, 6, ['#ff3b5c', '#ffffff'], { sp: 30, glow: true, life: 0.3 }); AudioMan.tick(10);
     });
     hint('timestop', '時間停止', '時が動き出すと、並んだ鎌が中心へ飛ぶ');
@@ -3510,14 +3510,13 @@ function twelveMarks(e, ai) {
   });
 }
 // 秒針の弾幕: 2秒(周りに時計の目盛り 12個が光る)→ 12方向に弾を 0.2秒おきに 5回(激昂 8回)。1回ごとに 6°ずつ時計回りにずらす(速さ 65、×0.8)
-//   射程は約 2300(弾の寿命 35秒。ほかの弾の 5倍)
 function secondHand(e, ai) {
   const n = ai.enraged ? 8 : 5, a0 = -Math.PI / 2, W = 2;
   ai.busy = W + n * 0.2; ai.secGlow = W;
   AudioMan.charge(W);
   later(ai, W, () => { ai.secGlow = 0; });
   for (let k = 0; k < n; k++) later(ai, W + k * 0.2, () => {
-    for (let i = 0; i < 12; i++) eball(e.x, e.y - 4, a0 + TAU / 12 * i + k * 0.1047, 65, e.dmg * 0.8, 'tick').life = 35;
+    for (let i = 0; i < 12; i++) eball(e.x, e.y - 4, a0 + TAU / 12 * i + k * 0.1047, 65, e.dmg * 0.8, 'tick');
     AudioMan.tick(k);
   });
   later(ai, W + n * 0.2, () => maybeMadClock(e, ai));
