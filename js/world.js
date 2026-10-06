@@ -3150,9 +3150,9 @@ function frostVeil(e, ai) {
   hint('veil', '吹雪の帳', '画面の縁から凍りつく。真ん中に残れ');
   later(ai, 1, () => hazards.push({ kind: 'veil', x: cx, y: cy, R: R0, Rmin: 110, spd: ai.enraged ? 30 : 25, t: 0, dur: 6, tick: 0.5, dmg: e.dmg * 0.2, seed: (Math.random() * 1e6) | 0 }));
 }
-// 雪華の輪舞: 円 3個(半径 30)が、使ったときのプレイヤーの位置から 100 の距離を回る(毎秒 1.5rad で 2秒、最後の 1秒でイージングで止まる)→ 止まって 0.3秒後に ×1.0・凍傷 +2
+// 雪華の輪舞: 円 3個(半径 30)が、使ったときのプレイヤーの位置から 75 の距離を回る(毎秒 1.5rad で 2秒、最後の 1秒でイージングで止まる)→ 止まって 0.3秒後に ×1.0・凍傷 +2
 //   回る中心は使ったときの位置に固定(プレイヤーについて回ると、円が重ならず当たらないため)
-const DANCE_R = 100, danceAng = t => (t < 2 ? 1.5 * t : 3 + 1.5 * (Math.min(1, t - 2) - Math.pow(Math.min(1, t - 2), 2) / 2)); // 回った角度(最後の 1秒は速さが 1.5 → 0 へ)
+const DANCE_R = 75, danceAng = t => (t < 2 ? 1.5 * t : 3 + 1.5 * (Math.min(1, t - 2) - Math.pow(Math.min(1, t - 2), 2) / 2)); // 回った角度(最後の 1秒は速さが 1.5 → 0 へ)
 function snowDance(e, ai) {
   const a0 = rand(0, TAU), ws = [], cx = P.x, cy = P.y;
   bfx.push({ kind: 'dance', x: cx, y: cy, t: 0, life: 3.3 });
