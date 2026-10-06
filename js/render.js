@@ -1249,12 +1249,7 @@ function render() {
       if (e.glint) { const mx = Math.round(e.x - cam.x), my = Math.round(e.y + yo - cam.y - 10); sx.fillStyle = gx.fillStyle = '#ffffff'; sx.fillRect(mx - 3, my, 7, 1); sx.fillRect(mx, my - 3, 1, 7); gx.fillRect(mx - 2, my, 5, 1); addLight(e.x, e.y - 10, 46, '#ffffff', 0.9); }
       else addLight(e.x, e.y - 8, 24, '#6ee7ff', 0.45);
     }
-    else if (e.obj === 'mirror') { // 氷の鏡: 中心への細い光の線。撃つ前に白く光る
-      const mx = e.x - cam.x, my = e.y - cam.y - 6, tx = e.cx - cam.x, ty = e.cy - cam.y, n = Math.floor(Math.hypot(tx - mx, ty - my) / 5);
-      for (let i = 1; i < n; i++) { if ((i + Math.floor(t * 10)) % 2) continue; const k = i / n; gx.fillStyle = e.glint ? '#5a8aa0' : '#1a3a4a'; gx.fillRect(Math.round(mx + (tx - mx) * k), Math.round(my + (ty - my) * k), 1, 1); }
-      if (e.glint) { sx.fillStyle = gx.fillStyle = '#ffffff'; sx.fillRect(Math.round(mx) - 3, Math.round(my), 7, 1); sx.fillRect(Math.round(mx), Math.round(my) - 3, 1, 7); gx.fillRect(Math.round(mx) - 2, Math.round(my), 5, 1); addLight(e.x, e.y - 6, 50, '#ffffff', 0.9); }
-      else addLight(e.x, e.y - 6, 30, '#9ff7ff', 0.5);
-    }
+    else if (e.obj === 'tomb') addLight(e.x, e.y - 10, 50 + Math.sin(t * 3 + e.seed * 6) * 6, '#9ff7ff', 0.6); // 氷柱の墓標: 青白く光る
     if (e.disguise) addLight(e.x, e.y, 90, '#ff8ad8', 0.8); // 鏡の分身: 本物と同じ光(HP バーは出さない)
     else if (e.obj) { // ボスが出した物: いつも金色の HP バー(壊せることを示す)と、足元の金の輪
       const w = Math.max(10, Math.round(sp.w * sc)), bx = Math.round(e.x - cam.x - w / 2), by = Math.round(e.y - cam.y + sp.h * sc / 2 + 2);
@@ -1304,6 +1299,12 @@ function render() {
       if (dimE && psp.e) { gx.globalAlpha = 0.9; gx.drawImage(dimEmit(P.facing < 0 ? ART.variant(psp, 'flipE') : psp.e, bkPaintLv()), Math.round(P.x - cam.x - psp.w / 2), Math.round(py - cam.y - psp.h / 2)); gx.globalAlpha = 1; }
     }
     drawAstroBody(t, true); // アストロマンサー: 質量の塵・手前を回る星
+    if (P.frzT > 0) { // 凍結(氷の槍): 体が氷に閉じ込められる
+      const ix = Math.round(P.x - cam.x), iy = Math.round(py - cam.y), a0 = Math.min(1, P.frzT * 4);
+      sx.globalAlpha = 0.25 * a0; sx.fillStyle = '#9ff7ff'; sx.fillRect(ix - 7, iy - 10, 15, 19);
+      sx.globalAlpha = 0.7 * a0; sx.fillStyle = '#ffffff'; sx.fillRect(ix - 7, iy - 10, 15, 1); sx.fillRect(ix - 7, iy + 8, 15, 1); sx.fillRect(ix - 7, iy - 10, 1, 19); sx.fillRect(ix + 7, iy - 10, 1, 19); sx.fillRect(ix - 4, iy - 7, 1, 4); sx.fillRect(ix - 3, iy - 8, 2, 1);
+      sx.globalAlpha = 1; gx.fillStyle = '#16303e'; gx.fillRect(ix - 6, iy - 9, 13, 17); // 光の層は暗い色で
+    }
     // ガード(見切り): 正面に光る弧。ジャスト受付中は白く明るい
     if (P.guard && P.cls === 'knight') { // 大盾: 全方向を守る金の輪(ゆっくり回る光)
       const cx = P.x - cam.x, cy = P.y - cam.y - 2, R = 13;
@@ -2003,9 +2004,14 @@ function drawBfx() {
       for (let i = 0; i < 4; i++) { const w = Math.round(4 + 4 * Math.abs(Math.sin(t * 30 + i))); sx.globalAlpha = 0.35; sx.fillStyle = '#8a4ae0'; if (i === 0) sx.fillRect(0, 0, VW, w); else if (i === 1) sx.fillRect(0, VH - w, VW, w); else if (i === 2) sx.fillRect(0, 0, w, VH); else sx.fillRect(VW - w, 0, w, VH); }
       sx.globalAlpha = 1;
     } else if (f.kind === 'dance') { // 雪華の輪舞: 円が回る軌道(点線の輪)と、中心の雪の結晶
-      const R = 60, fade = Math.min(1, (f.life - f.t) * 3, f.t * 4), n = 40;
+      const R = DANCE_R, fade = Math.min(1, (f.life - f.t) * 3, f.t * 4), n = 40;
       for (let i = 0; i < n; i++) { if ((i + Math.floor(t * 8)) % 2) continue; const a = TAU / n * i; sx.globalAlpha = 0.6 * fade; sx.fillStyle = '#d8f0ff'; sx.fillRect(Math.round(fx + Math.cos(a) * R), Math.round(fy + Math.sin(a) * R), 1, 1); }
       sx.globalAlpha = fade; drawSp(ART.S.flake, f.x, f.y, { alpha: fade }); sx.globalAlpha = 1;
+    } else if (f.kind === 'skyspear') { // 氷柱の墓標の氷柱: 女王の頭上から空へ飛ぶ(up)/ 空から落ちてくる(down)
+      const H = 200, y = f.up ? f.y - 10 - H * u * u : f.y - 18 - H * (1 - u) * (1 - u);
+      drawSp(f.up ? ART.S.icespireUp : ART.S.obj_tomb, f.x, y, { alpha: f.up ? Math.max(0, 1 - u * 0.6) : 1 });
+      addLight(f.x, y, 50, '#bff4ff', 0.8);
+      if (Math.random() < 0.6) part(f.x + rand(-3, 3), y + (f.up ? 12 : -12), 0, f.up ? 30 : -30, 0.3, pick(['#ffffff', '#bff4ff']), { glow: true, drag: 2 }); // 尾を引く冷気
     } else if (f.kind === 'icespike') { // 氷の棘: 地面から突き出て、砕けて沈む
       const k = u < 0.15 ? u / 0.15 : u > 0.6 ? Math.max(0, 1 - (u - 0.6) / 0.4) : 1, H = Math.round(f.h * k), x0 = Math.round(fx), y0 = Math.round(fy);
       for (let j = 0; j < H; j++) { const w = Math.max(1, Math.round((H - j) / Math.max(1, H) * 3)); sx.fillStyle = j > H - 3 ? '#ffffff' : j < 2 ? '#5ab8e8' : '#bff4ff'; sx.fillRect(x0 - (w >> 1), y0 - j, w, 1); if (j > H / 2) { gx.fillStyle = '#2a5a6a'; gx.fillRect(x0, y0 - j, 1, 1); } }

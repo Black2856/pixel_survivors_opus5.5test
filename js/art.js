@@ -1276,9 +1276,11 @@ const ART = (() => {
   S.obj_iceblock = mk({ a: '#2a4a7a', b: '#7ad7ff', c: '#bff4ff', d: '#ffffff', e: '#4a8ac8' }, [
     '...cccccc...', '..cdddcccb..', '.cddccccbbb.', '.cdcccccbbe.', '.ccccccbbbe.', '.cccccbbbee.', '.cccbbbbbee.', '.bbbbbbbeee.', '.bbbbbbeeee.', '..beeeeeee..', '.aaaaaaaaaa.',
   ], { emit: 'd' });
-  S.obj_mirror = mk({ a: '#2a4a7a', b: '#9ff7ff', c: '#ffffff', d: '#d8f0ff', e: '#7ab8e8' }, sym([
-    '..bb', '.bcd', 'bcdd', 'bdde', 'bdee', 'bdde', 'bcde', 'bdde', 'bdee', 'bdde', '.bdd', '..bb', '...b', '..aa', '.aaa',
-  ]), { emit: 'bc' });
+  // 氷柱の墓標(雪華の女王): 大きな氷の槍。空へ飛ぶときは穂先が上(icespireUp)、落ちて刺さったら穂先が下(obj_tomb)
+  const spirePal = { a: '#2a4a7a', b: '#9ff7ff', c: '#ffffff', d: '#d8f0ff', e: '#7ab8e8' };
+  const spireRows = ['....c....', '...cdc...', '...cdc...', '..cbdbc..', '..cbdbc..', '..bbdbb..', '..bbdbb..', '.abbdbba.', '.abbdbba.', '..abdba..', '..abdba..', '...bdb...', '...bdb...', '..ebdbe..', '.eebdbee.', '..ebdbe..', '...bdb...', '...bdb...', '...aba...', '....a....'];
+  S.icespireUp = mk(spirePal, spireRows, { emit: 'cd' });
+  S.obj_tomb = mk(spirePal, spireRows.slice().reverse().map((r, i) => (i > 15 ? r.replace(/[a-e]/g, m => (m === 'c' ? 'd' : m)) : r)), { emit: 'cd' });
   // 弾: 氷の欠片(右向き。回転フレーム)/ 氷の槍 / 雪の結晶(大・小)/ 雪玉(放物線)
   S.eice = mk({ a: '#5ab8e8', b: '#9ff7ff', c: '#ffffff' }, ['.ab.', 'aabc', '.ab.'], { emit: 'bc' });
   S.ispear = mk({ a: '#7ab8e8', b: '#9ff7ff', c: '#ffffff' }, ['.......b..', 'abbbbbbbcc', '.......b..'], { emit: 'bc' });

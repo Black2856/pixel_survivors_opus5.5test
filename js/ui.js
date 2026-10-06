@@ -182,6 +182,7 @@ const UI = (() => {
     if (P.burnT > 0) out.push({ id: 'burn', glyph: '炎', name: '炎上', fx: `毎${d.burnTick}秒 ${Math.round(P.burnDmg)} ダメージ ・ HP回復 -${Math.round((1 - d.burnHeal) * 100)}%`, t: P.burnT, max: d.burnDur, kind: 'debuff' });
     if (P.fatigueT > 0) out.push({ id: 'fatigue', glyph: '疲', name: '疲労', fx: `スタミナ回復 -${Math.round((1 - d.fatigue) * 100)}%`, t: P.fatigueT, max: d.fatigueDur, kind: 'debuff' });
     if (P.frost > 0) out.push({ id: 'pfrost', glyph: '凍', name: '凍傷', fx: `${P.frost}スタック ・ 移動速度 -${Math.round((1 - playerFrostMul()) * 100)}%(受けないでいると ${d.pDur}秒で消える)`, t: P.frostT, max: d.pDur, kind: 'debuff' });
+    if (P.frzT > 0) out.push({ id: 'pfrz', glyph: '氷', name: '凍結', fx: '歩けない(回避とスキルは使える)', t: P.frzT, max: 1, kind: 'debuff' });
     if (P.bleed > 0) out.push({ id: 'pbleed', glyph: '血', name: '出血', fx: `${P.bleed}スタック ・ 毎秒 最大HP の ${Math.round(P.bleed * d.pBleed * 100)}%`, t: P.bleedT, max: d.pDur, kind: 'debuff' });
     if (S.phase && S.phase.fogOn) out.push({ id: 'fog', glyph: '霧', name: '闇の霧', fx: `毎秒 HP -${S.phase.fogDmg}(10秒ごとに +1)。フェーズをクリアすると晴れる`, kind: 'debuff' });
     if (P.shield >= 1) out.push({ id: 'shield', glyph: '盾', name: 'シールド', fx: `${Math.floor(P.shield)} のダメージを先に受ける`, kind: 'buff' });
