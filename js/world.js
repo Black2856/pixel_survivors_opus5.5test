@@ -3428,13 +3428,14 @@ function fhourAI(e, ai, dt, a, dist, slow) {
   else if (ai.sec <= 0) { ai.sec = ai.enraged ? 5 : 7; secondHand(e, ai); chronoEcho(e, ai, e.x, e.y, (g, ga) => secondHand(g, ga)); }
   else if (ai.scy <= 0 && dist < 90) { ai.scy = ai.enraged ? 2.5 : 3.5; hourScythe(e, ai, a); chronoEcho(e, ai, e.x, e.y, (g, ga) => hourScythe(g, ga, a)); }
 }
-// クロノ・エコー(激昂・間隔 20): 刻の大鎌・十二の刻印・秒針の弾幕のあと、3秒後に同じ位置で灰色の死神が同じ技をもう一度(向き・狙った位置も同じ)
+// クロノ・エコー(激昂・間隔 20): 刻の大鎌・十二の刻印・秒針の弾幕が終わってから 3秒後に、同じ位置で灰色の死神が同じ技をもう一度(向き・狙った位置も同じ)
+//   技の終わり = 技の長さ(ai.busy: 刻の大鎌 1.2秒・十二の刻印 3.25秒・秒針の弾幕 3.6秒(激昂))
 //   灰色の死神は 0.4秒で現れてから技を始め、終わると 0.4秒で消える。攻撃は当たらない(ただの姿)。技の当たり判定は本物と同じ
 function chronoEcho(e, ai, x, y, fn) {
   if (!ai.enraged || ai.echo > 0) return;
   ai.echo = 20;
-  const face = e.face;
-  later(ai, 2.6, () => {
+  const face = e.face, dur = ai.busy || 0; // 呼ぶのは技を始めた直後なので、ai.busy = 技の長さ
+  later(ai, dur + 2.6, () => {
     const g = { echo: true, x, y, face, dmg: e.dmg, sq: 1, jz: 0, t: 0, ai: { q: [], wind: 0, enraged: true, echo: true } };
     (ai.echoes = ai.echoes || []).push(g);
     burst(x, y, 24, ['#9a9aaa', '#d8d8e0', '#5a5a6a'], { sp: 70, glow: true, life: 0.5 }); AudioMan.hum(0.6); AudioMan.tick(6);
