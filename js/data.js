@@ -41,14 +41,14 @@ const DATA = {
     angler:   { hp: 60, spd: 14, dmg: 13, xp: 2, r: 7, ai: 'chase', lantern: { cd: 5, wind: 0.6, r: 70, sta: 25 } }, // チョウチンアンコウ
     // 霜天の霊峰 / touchFrost: 触れると(当たったとき)凍傷 +n / shot.frost: 弾が当たると凍傷 +n / pack: [最少, 最多] 体の群れで出る(エリートは1体)
     // snowball: 雪玉(射程 range 以内で cd 秒ごとに放物線。着弾 半径 r に ×n・凍傷 +frost、雪の床 floor 秒: 上にいると 1秒ごとに凍傷 +1)
-    wolf:     { hp: 20, spd: 36, dmg: 8,  xp: 1, r: 5, ai: 'chase', touchFrost: 2, pack: [3, 4] }, // 雪狼
+    wolf:     { hp: 20, spd: 36, dmg: 8,  xp: 1, r: 5, ai: 'chase', touchFrost: 1, pack: [3, 4] }, // 雪狼
     icesprite:{ hp: 24, spd: 16, dmg: 8,  xp: 1, r: 4, ai: 'keep', keep: [90, 120], shot: { cd: 3.5, range: 180, spd: 75, n: 1.0, kind: 'eice', frost: 1 } }, // 氷の精
     yeti:     { hp: 70, spd: 10, dmg: 14, xp: 2, r: 8, ai: 'chase', snowball: { cd: 5, range: 150, r: 18, n: 1.0, frost: 2, floor: 3 } }, // イエティ
     // 終刻の時計塔 / roll: 出たときのプレイヤーの位置へ一直線に転がり、通り過ぎると消える(遠くても移し直さない)
     // spawnW: 出現の候補から選ばれやすさ(既定 1)/ noGroup: 6体の小集団で出ない / maxAlive: 同時にいられる数
     // blink: cd 秒ごとに wind 秒光って、プレイヤーの方向へ dist 瞬間移動 / warp: cd 秒ごとに、プレイヤーの位置に wind 秒の予告 → 時の歪み(半径 r・dur 秒。移動速度 ×slow・クールダウンの回復 ×0.5)
-    gear:     { hp: 40, spd: 110, dmg: 10, xp: 1, r: 6, ai: 'roll', kbRes: 1, noElite: true }, // 歯車(金属で硬い: 押されない)
-    clockman: { hp: 34, spd: 14, dmg: 10, xp: 1, r: 5, ai: 'chase', blink: { cd: 2.5, wind: 0.3, dist: 35 } }, // 時計兵
+    gear:     { hp: 34, spd: 110, dmg: 13, xp: 1, r: 6, ai: 'roll', kbRes: 1, noElite: true }, // 歯車(金属で硬い: 押されない)
+    clockman: { hp: 28, spd: 22, dmg: 11, xp: 1, r: 5, ai: 'chase', blink: { cd: 2.5, wind: 0.3, dist: 45 } }, // 時計兵
     hglass:   { hp: 26, spd: 14, dmg: 8,  xp: 1, r: 5, ai: 'keep', keep: [90, 110], spawnW: 0.25, noGroup: true, maxAlive: 3, warp: { cd: 8, range: 200, wind: 0.8, r: 45, dur: 4, slow: 0.7 } }, // 砂時計の精
     goblin:   { hp: 160, spd: 44, dmg: 0, xp: 12, r: 5, ai: 'flee', kbRes: 0.5, noElite: true },
   },
@@ -1421,7 +1421,7 @@ const DATA = {
     { no: 6, stage: 6, tier: 2, bosses: ['kraken', 'levia'], segs: [['jelly', 'sahagin', 'puffer'], ['sahagin', 'puffer', 'angler'], null] }, // 沈黙の海淵
     { no: 5, stage: 7, tier: 3, bosses: ['fgiant', 'squeen'], segs: [['wolf', 'ghost', 'icesprite'], ['ghost', 'icesprite', 'yeti'], null] }, // 霜天の霊峰
     // 終刻の時計塔: 3つ目の候補は「今までの敵」のまとまり(1枠として選ばれ、その中から1種)
-    { no: 7, stage: 8, tier: 4, bosses: ['warden', 'reaper'], segs: [['gear', 'clockman', ['skeleton', 'archer', 'imp', 'icesprite', 'sahagin', 'beetle']], ['clockman', 'hglass', ['skeleton', 'archer', 'imp', 'icesprite', 'sahagin', 'beetle']], null] },
+    { no: 7, stage: 8, tier: 4, bosses: ['warden', 'reaper'], segs: [['gear', 'clockman', ['skeleton', 'archer', 'lslime', 'wolf', 'sahagin', 'beetle']], ['clockman', 'hglass', ['skeleton', 'archer', 'lslime', 'wolf', 'sahagin', 'beetle']], null] },
   ],
   // 通常モードの流れ(フェーズの時計で進む。ボス・エリート群のフェーズの間は止まる)
   //   seg: 区間の長さ / waves: 区間ごとの出現の間隔・上限(t は区間の中の秒) / horde: 2つ目・3つ目の区間で大群を出す秒 / elites: エリート群の数
