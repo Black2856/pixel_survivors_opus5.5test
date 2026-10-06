@@ -11,7 +11,7 @@ function staUse(n, lock = 0) {
 }
 function updStamina(dt) {
   P.staLockT -= dt;
-  if (P.staLockT <= 0 && P.sta < P.maxSta) P.sta = Math.min(P.maxSta, P.sta + P.staRegen * dt * (P.fatigueT > 0 ? DATA.debuff.fatigue : 1)); // 疲労中はスタミナ回復 -50%
+  if (P.staLockT <= 0 && P.sta < P.maxSta) P.sta = Math.min(P.maxSta, P.sta + P.staRegen * dt * (P.fatigueT > 0 ? DATA.debuff.fatigue : 1) * (P.slowTimeT > 0 ? DATA.debuff.slowRegen : 1)); // 疲労中・スロウタイム中はスタミナ回復 -50%(重なると掛け算)
 }
 
 // ---------- ラン中の強化(強化ツリー) ----------

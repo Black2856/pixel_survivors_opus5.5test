@@ -65,7 +65,7 @@ const DATA = {
     gslime:  { name: '巨大スライム GIANT SLIME',   hp: 1500, spd: 16, dmg: 20, r: 14, music: 'b_grass', col: '#4fd6a8' },
     wyrm:    { name: '白骨竜 BONE WYRM',           hp: 1700, spd: 19, dmg: 22, r: 14, music: 'b_wild', col: '#efe9d4' },
     golem:   { name: 'ゴーレム GOLEM',             hp: 1800, spd: 12, dmg: 22, r: 15, music: 'b_wild', col: '#6ee7ff' },
-    reaper:  { name: '死神 THE REAPER',            hp: 1600, spd: 22, dmg: 24, r: 12, music: 'b_clock2', col: '#c29bff', enrage: 0.3 }, // 倒すと終刻の死神に変身する
+    reaper:  { name: '死神 THE REAPER',            hp: 1600, spd: 22, dmg: 24, r: 12, music: 'b_clock1', col: '#c29bff', enrage: 0.3 }, // 倒すと終刻の死神に変身する(曲は第一形態がボス1・第二形態がボス2)
     fhour:   { name: '終刻の死神 THE FINAL HOUR',   hp: 1700, spd: 20, dmg: 25, r: 14, music: 'b_clock2', col: '#ff3b5c', form2: true }, // 死神の第二形態(form2: 単独では出ない)
     cdragon: { name: 'カオスドラゴン CHAOS DRAGON', hp: 1700, spd: 20, dmg: 20, r: 16, music: 'b_hell', col: '#ff4a8a', enrage: 0.4 },
     ifrit:   { name: '炎魔イフリート IFRIT',        hp: 1600, spd: 18, dmg: 24, r: 13, music: 'b_hell', col: '#ff8a3d', enrage: 0.4 },
@@ -78,7 +78,7 @@ const DATA = {
     warden:  { name: '時計仕掛けの番人 CLOCKWORK WARDEN', hp: 1900, spd: 13, dmg: 22, r: 15, music: 'b_clock1', col: '#c8a050' },
   },
   // 状態異常(プレイヤー): 粘液・スロウタイムの移動速度倍率 / スロウタイムのCD回復倍率 / 炎上
-  debuff: { slow: 0.6, cdRate: 0.5, burnTick: 0.5, burnDur: 3, burnHeal: 0.5, fatigueDur: 3, fatigue: 0.5, frostSlow: 0.05, shockR: 60, pDur: 5, pBleed: 0.01, pBleedMax: 5 }, // burnHeal: 炎上中の HP回復の倍率 / fatigueDur・fatigue: 疲労(スタミナを減らされた)の秒とスタミナ回復の倍率 / frostSlow: 凍傷1スタックあたりの減速(敵・自分) / shockR: 感電の連鎖距離 / pDur: 自分の凍傷・出血が消えるまでの秒 / pBleed: 自分の出血1スタックの毎秒ダメージ(最大HP の割合)
+  debuff: { slow: 0.6, cdRate: 0.5, burnTick: 0.5, burnDur: 3, burnHeal: 0.5, fatigueDur: 3, fatigue: 0.5, slowRegen: 0.5, frostSlow: 0.05, shockR: 60, pDur: 5, pBleed: 0.01, pBleedMax: 5 }, // burnHeal: 炎上中の HP回復の倍率 / slowRegen: スロウタイム中のスタミナ回復・HP回復速度の倍率 / fatigueDur・fatigue: 疲労(スタミナを減らされた)の秒とスタミナ回復の倍率 / frostSlow: 凍傷1スタックあたりの減速(敵・自分) / shockR: 感電の連鎖距離 / pDur: 自分の凍傷・出血が消えるまでの秒 / pBleed: 自分の出血1スタックの毎秒ダメージ(最大HP の割合)
   // 敵の出血: 1スタックごとに毎秒 最大HP × bleedPct(ボス ×bleedBoss・エリート ×bleedElite)、bleedDur 秒
   bleed: { pct: 0.002, dur: 5, boss: 0.1, elite: 0.25 },
 

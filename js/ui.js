@@ -178,7 +178,7 @@ const UI = (() => {
     const d = DATA.debuff, out = clsStatuses();
     const sk = P.slowK || d.slow; // 減速の強さ(時の歪みは ×0.7)
     if (P.slowT > 0 && P.cdSlowT <= 0) out.push({ id: 'slow', glyph: '鈍', name: '鈍足', fx: `移動速度 -${Math.round((1 - sk) * 100)}%`, t: P.slowT, kind: 'debuff' });
-    if (P.cdSlowT > 0) out.push({ id: 'cdslow', glyph: '遅', name: 'スロウタイム', fx: `移動 -${Math.round((1 - sk) * 100)}% CD回復 -${Math.round((1 - d.cdRate) * 100)}%`, t: P.cdSlowT, kind: 'debuff' });
+    if (P.cdSlowT > 0) { const st = P.slowTimeT > 0, rg = Math.round((1 - d.slowRegen) * 100); out.push({ id: 'cdslow', glyph: '遅', name: st ? 'スロウタイム' : '時の歪み', fx: `移動 -${Math.round((1 - sk) * 100)}% CD回復 -${Math.round((1 - d.cdRate) * 100)}%` + (st ? ` スタミナ回復 -${rg}% HP回復速度 -${rg}%` : ''), t: P.cdSlowT, kind: 'debuff' }); } // 砂時計の精の時の歪みはスタミナ・HP の回復を下げない
     if (P.burnT > 0) out.push({ id: 'burn', glyph: '炎', name: '炎上', fx: `毎${d.burnTick}秒 ${Math.round(P.burnDmg)} ダメージ ・ HP回復 -${Math.round((1 - d.burnHeal) * 100)}%`, t: P.burnT, max: d.burnDur, kind: 'debuff' });
     if (P.fatigueT > 0) out.push({ id: 'fatigue', glyph: '疲', name: '疲労', fx: `スタミナ回復 -${Math.round((1 - d.fatigue) * 100)}%`, t: P.fatigueT, max: d.fatigueDur, kind: 'debuff' });
     if (P.frost > 0) out.push({ id: 'pfrost', glyph: '凍', name: '凍傷', fx: `${P.frost}スタック ・ 移動速度 -${Math.round((1 - playerFrostMul()) * 100)}%(受けないでいると ${d.pDur}秒で消える)`, t: P.frostT, max: d.pDur, kind: 'debuff' });

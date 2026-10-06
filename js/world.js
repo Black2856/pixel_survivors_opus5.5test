@@ -111,6 +111,7 @@ function initRun(mode = 'escalation', stageNo = 1) {
     push: null, heatT: 0, rootT: 0, current: null, // ボスの押し出し・引き寄せ / 熱波で遅い(秒)/ 絡め取りで動けない(秒)/ 海流
     chillT: 0, iceT: 0, ivx: 0, ivy: 0, // 氷の槍で ×0.3(秒)/ 滑る床の上(秒)と、そのときの速度
     fatigueT: 0, // 疲労(スタミナを減らす攻撃を受けた): スタミナ回復 -50% の残り秒
+    slowTimeT: 0, // スロウタイム(死神・終刻の死神)の中: スタミナ回復・HP回復速度 -50% の残り秒(砂時計の精の時の歪みは含まない)
   };
   enemies = []; projs = []; eprojs = []; gems = []; drops = []; props = []; hazards = [];
   parts = []; floats = []; rings = []; zones = []; slashes = []; bolts = []; warns = []; flashes = []; bfx = [];
@@ -237,7 +238,7 @@ function updPlayer(dt) {
   P.ifr -= dt; P.hurtT -= dt;
   updDebuffs(dt);
   const rg = P.regen + clsRegen(); // クラスの一時的な HP回復速度(バーサーカーの昂り・狂乱など)
-  if (rg > 0) { const n = rg * dt * clsHealMul() * (P.burnT > 0 ? DATA.debuff.burnHeal : 1); S.healed = (S.healed || 0) + n; overheal(P.hp + n - P.maxhp); P.hp = Math.min(P.maxhp, P.hp + n); } // 満タンで余った分は超過回復
+  if (rg > 0) { const n = rg * dt * clsHealMul() * (P.burnT > 0 ? DATA.debuff.burnHeal : 1) * (P.slowTimeT > 0 ? DATA.debuff.slowRegen : 1); S.healed = (S.healed || 0) + n; overheal(P.hp + n - P.maxhp); P.hp = Math.min(P.maxhp, P.hp + n); } // 満タンで余った分は超過回復
   updOverShield(dt); // 聖盾のシールドは得た分ごとに時間で消える
   if (P.moving && Math.random() < dt * 10) part(P.x + rand(-2, 2), P.y + 6, rand(-6, 6), rand(-8, -2), 0.35, '#8a8098', { drag: 4 });
   GFX.fx.lowhp = lerp(GFX.fx.lowhp, P.hp / P.maxhp < 0.3 ? 1 : 0, dt * 3);
@@ -245,7 +246,7 @@ function updPlayer(dt) {
 
 // 状態異常(ボス由来): 粘液・スロウタイムの減速 / CD回復低下、炎上の継続ダメージ(無敵時間を無視)
 function updDebuffs(dt) {
-  P.slowT -= dt; P.cdSlowT -= dt;
+  P.slowT -= dt; P.cdSlowT -= dt; P.slowTimeT -= dt;
   if (P.fatigueT > 0) { P.fatigueT -= dt; if (Math.random() < dt * 6) part(P.x + rand(-5, 5), P.y - 8 + rand(-2, 2), rand(-6, 6), rand(4, 12), 0.5, pick(['#7ad7ff', '#bff4ff']), { g: 80 }); } // 疲労: 汗のしずく
   if (P.chillT > 0) { P.chillT -= dt; if (Math.random() < dt * 18) part(P.x + rand(-5, 5), P.y + rand(-6, 6), 0, 6, 0.5, pick(['#ffffff', '#9ff7ff']), { glow: true, drag: 1 }); } // 凍えて動けない: 氷の粒
   if (P.heatT > 0) { P.heatT -= dt; if (Math.random() < dt * 14) part(P.x + rand(-5, 5), P.y + rand(-6, 4), rand(-3, 3), -rand(10, 22), 0.5, pick(['#ff8a3d', '#ffc34a', '#c8a090']), { drag: 1 }); } // 熱波でのぼせた: 陽炎がたつ
@@ -3787,7 +3788,10 @@ function updHazards(dt) {
     } else if (h.kind === 'clock') {
       const R = h.r * Math.min(1, h.t * 4);
       const out = h.rev && h.t >= h.rev; // スロウタイム・リバース(終刻の死神): 反転したあとは範囲の外が遅くなる
-      if (out ? dd >= R * R : dd < R * R) slowPlayer(h.slow || DATA.debuff.slow, 0.15 * CHAOS.debuff, true); // スロウタイム(死神)/ 時の歪み(砂時計の精: ×0.7)
+      if (out ? dd >= R * R : dd < R * R) {
+        slowPlayer(h.slow || DATA.debuff.slow, 0.15 * CHAOS.debuff, true); // スロウタイム(死神)/ 時の歪み(砂時計の精: ×0.7)
+        if (!h.slow && !clsSlowImmune()) P.slowTimeT = Math.max(P.slowTimeT, 0.15 * CHAOS.debuff); // スロウタイムだけ: スタミナ回復・HP回復速度 -50%
+      }
     } else if (h.kind === 'vortex') { // 中心へ引き寄せる(移動速度より弱いので歩いて脱出できる)
       const R = h.r * Math.min(1, h.t * 4), d = Math.sqrt(dd);
       if (d < R && d > 2 && !P.dead && state === 'play') {
