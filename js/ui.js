@@ -355,8 +355,8 @@ const UI = (() => {
   // 選択カード(レベルアップ: 武器カード / クラス強化カード)
   // ============================================================
   let mode = 'level', choices = [], chosen = false, curLv = 1;
-  // 進化の条件(メイン武器は、その武器を持つクラスの Lv10 で解放)
-  const evoCond = k => 'Lv5' + (k === P.mainW ? ` + ${DATA.classes[weaponOwner(k)].name}Lv10` + (P.wm[k].evo ? ' ✔' : '') : '');
+  // 進化の条件(メイン武器もサブ武器も、その武器を持つクラスの Lv10 で解放)
+  const evoCond = k => `Lv5 + ${DATA.classes[weaponOwner(k)].name}Lv10` + ((P.wm[k] || weaponMastery(k)).evo ? ' ✔' : ''); // まだ持っていない武器(NEW のカード)は熟練をその場で計算
   function statDiff(k, from, to) {
     const a = from ? (from.evo ? DATA.weapons[k].evo.st : DATA.weapons[k].lv[from.lv - 1]) : null, b = DATA.weapons[k].lv[to - 1];
     if (!a) return '';

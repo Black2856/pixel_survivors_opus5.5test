@@ -4113,11 +4113,11 @@ function applyChoice(c) {
   else if (c.type === 'item') { /* 宝箱を開けた時点でインベントリに入っている */ }
   S.hudDirty = true;
 }
-// 進化: 武器Lv5。メイン武器は熟練(その武器を持つクラスの Lv10)で解放
+// 進化: 武器Lv5 かつ 熟練で解放済み(その武器を持つクラスの Lv10。メイン武器もサブ武器も)
 function evolvable() {
   return Object.keys(P.weapons).filter(k => {
     const w = P.weapons[k];
-    return w.lv >= 5 && !w.evo && (k !== P.mainW || !!P.wm[k].evo);
+    return w.lv >= 5 && !w.evo && !!(P.wm[k] && P.wm[k].evo);
   });
 }
 // 微強化: 武器カードを取り切った後のレベルアップ(ランダムに1つ、浮き文字で通知)
