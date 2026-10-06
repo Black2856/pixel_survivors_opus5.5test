@@ -2463,6 +2463,7 @@ function ifritAI(e, ai, dt, a, dist, slow) {
       addRing(e.x, e.y, R0, '#ffc34a', { w: 3, life: 0.4 }); addRing(e.x, e.y, R0 * 1.3, '#ff6a2a', { w: 2, life: 0.55 }); addFlash(e.x, e.y, R0 * 3, '#ff8a3d', 1);
       shockAt(e.x, e.y, 2.2, 0.7); shake(11); hitstop(0.05); AudioMan.boom(); AudioMan.fire(); e.sq = 0.7;
       hint('blast', '爆炎', '吹き飛ばされる。燃える床・炎の壁へ押し込まれないように');
+      heatedRocks(e, ai.enraged ? 6 : 4);
     });
   } else if (ai.chain <= 0 && dist > 50 && dist < 180) { // 灼熱の鎖: 当たると引き寄せ → 炎の鞭。予告の帯は 0.35秒 プレイヤーを追い、0.15秒止まる
     ai.chain = ai.enraged ? 7 : 10;
@@ -2528,6 +2529,19 @@ function flameWalls(e, ai, a) {
     for (const w of walls) for (let d = 0; d < L; d += 10) burst(w.x + Math.cos(a) * d, w.y + Math.sin(a) * d, 2, ['#ff6a2a', '#ffc34a', '#fff0b0'], { sp: 50, up: 60, glow: true, life: 0.5 });
     ai.act = 'wallwait'; ai.pt = 1;
   });
+}
+// 爆炎の熱された岩: 爆発と同時に n 個がランダムな方向へ飛ぶ(イフリートから 60〜150、0.9秒。着弾点に 円 半径 20 の予告)
+//   → 着弾点にマグマ溜まり(半径 20・6秒。上にいると炎上。燃える床と同じ)
+function heatedRocks(e, n) {
+  const a0 = rand(0, TAU), d = e.dmg * e.altK;
+  for (let i = 0; i < n; i++) {
+    const a = a0 + TAU / n * i + rand(-0.35, 0.35), r = rand(60, 150), tx = e.x + Math.cos(a) * r, ty = e.y + Math.sin(a) * r;
+    pushWarn({ kind: 'circle', x: tx, y: ty, r: 20, t: 0, life: 0.9 });
+    lob('hrock', e.x, e.y - 10, tx, ty, 0.9, 60, p => {
+      addHazard('magma', p.x, p.y, { r: 20, dur: 6, dmg: d });
+      burst(p.x, p.y, 18, ['#2a1410', '#ff6a2a', '#ffc34a', '#fff0b0'], { sp: 90, up: 30, g: 200, glow: true, life: 0.5 }); shake(2); AudioMan.thud();
+    });
+  }
 }
 // 激昂の変身: 炎が白く燃え上がり、姿が大きく赤熱する(角と筋が光る)。このあと踏み込みが 2連続・跡に燃える床
 function ifritRage(e) {
@@ -3804,6 +3818,7 @@ function updEprojs(dt0) {
       if (p.follow) p.follow(p); // 落下点が動く(墨の玉)
       const k = clamp(p.t / p.T, 0, 1); // 巻き戻しでは戻る
       p.x = lerp(p.x0, p.tx, k); p.y = lerp(p.y0, p.ty, k); p.z = Math.sin(k * Math.PI) * p.H;
+      if (p.kind === 'hrock' && Math.random() < dt * 40) part(p.x + rand(-2, 2), p.y - p.z + rand(-2, 2), rand(-10, 10), rand(-10, 10), 0.35, pick(['#ff6a2a', '#ffc34a', '#3a1a10']), { glow: true, drag: 2 }); // 熱された岩: 火の粉の尾
       if (k >= 1) { eprojs.splice(i, 1); p.onLand(p); }
       continue;
     }
@@ -3873,6 +3888,10 @@ function updHazards(dt) {
       const R = h.r * Math.min(1, h.t * 8);
       if (dd < R * R && h.t > 0.05 && h.t < h.dur - 0.2) burnPlayer(h.dmg * 0.1);
       if (Math.random() < dt * (4 + h.r * 0.9)) { const pa = rand(0, TAU), pr = Math.sqrt(Math.random()) * R; part(h.x + Math.cos(pa) * pr, h.y + Math.sin(pa) * pr * 0.8, rand(-4, 4), -rand(14, 34), rand(0.3, 0.6), pick(['#ff6a2a', '#ffc34a', '#ff3b1a', '#fff0b0']), { glow: true, drag: 1.5 }); }
+    } else if (h.kind === 'magma') { // マグマ溜まり(イフリートの爆炎の岩): 上にいる間、炎上(燃える床と同じ)
+      const R = h.r * Math.min(1, h.t * 6);
+      if (dd < R * R && h.t > 0.05 && h.t < h.dur - 0.2) burnPlayer(h.dmg * 0.1);
+      if (Math.random() < dt * 10) { const pa = rand(0, TAU), pr = Math.sqrt(Math.random()) * R * 0.8; part(h.x + Math.cos(pa) * pr, h.y + Math.sin(pa) * pr * 0.8, rand(-4, 4), -rand(10, 30), rand(0.3, 0.6), pick(['#ff6a2a', '#ffc34a', '#ff3b1a']), { glow: true, drag: 1.5 }); }
     } else if (h.kind === 'fband') { // 空襲の燃える床(カオスドラゴン): 影の通り道と同じ幅の帯。先は影と同じ速さで伸び、後ろは通ってから stay 秒で消える。上にいる間、炎上
       const c = Math.cos(h.a), s = Math.sin(h.a), head = Math.min(h.L, h.t * h.spd), tail = Math.max(0, (h.t - h.stay) * h.spd);
       if (head > tail && segD2(P.x, P.y, h.x + c * tail, h.y + s * tail, h.x + c * head, h.y + s * head) < Math.pow(h.w / 2, 2)) burnPlayer(h.dmg * 0.1);

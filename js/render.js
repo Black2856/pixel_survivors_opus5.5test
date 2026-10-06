@@ -919,6 +919,19 @@ function render() {
         for (let k = 0; k < fh; k++) { const col = k === fh - 1 ? '#ffe9a0' : k > fh / 2 ? '#ffc34a' : '#ff6a2a'; sx.fillStyle = gx.fillStyle = col; sx.fillRect(fx, fy - k, 1, 1); gx.fillRect(fx, fy - k, 1, 1); }
       }
       addLight(h.x, h.y, R * 3, '#ff6a2a', 0.75 * fade * (h.lite || 1));
+    } else if (h.kind === 'magma') { // マグマ溜まり: 黒い岩の縁の中で赤く煮えたつ溶岩。泡がはじける(縁は危険を示す赤)
+      const R = Math.round(h.r * Math.min(1, h.t * 6));
+      sx.globalAlpha = 0.85 * fade; pDisc(sx, hx, hy, R, '#2a1008');
+      sx.globalAlpha = 0.9 * fade; pDisc(sx, hx, hy, Math.max(1, R - 3), '#a8281a');
+      sx.globalAlpha = 0.8 * fade; pDisc(sx, hx + Math.round(Math.sin(t * 1.3 + h.seed) * 2), hy + Math.round(Math.cos(t * 1.1 + h.seed) * 2), Math.max(1, R - 7), '#ff6a2a');
+      sx.globalAlpha = fade; pCircle(sx, hx, hy, R, warnBlink ? '#ff3b1a' : '#ff8a3d'); sx.globalAlpha = 1;
+      pDisc(gx, hx, hy, Math.max(1, R - 4), fade > 0.6 ? '#3a1004' : '#1e0602'); // 赤熱(光の層は暗い色で)
+      for (let i = 0; i < 5; i++) { // 泡: 決まった位置でふくらんではじける
+        const u2 = (t * 0.9 + hash2(i, h.seed)) % 1, pa = hash2(i + 9, h.seed) * TAU, pr = Math.sqrt(hash2(i + 17, h.seed)) * (R - 5);
+        const bx = Math.round(hx + Math.cos(pa) * pr), by = Math.round(hy + Math.sin(pa) * pr * 0.8), br = Math.round(u2 * 2.5);
+        if (u2 < 0.85) { sx.globalAlpha = fade; pCircle(sx, bx, by, Math.max(1, br), '#ffc34a'); sx.globalAlpha = 1; }
+      }
+      addLight(h.x, h.y, R * 3, '#ff6a2a', 0.7 * fade);
     } else if (h.kind === 'fband') { // 空襲の燃える床: 影の通り道と同じ幅の赤熱した帯に炎の舌がちらつく(縁は危険の赤)
       const c = Math.cos(h.a), s = Math.sin(h.a), nx = -s * h.w / 2, ny = c * h.w / 2;
       const head = Math.min(h.L, h.t * h.spd), tail = Math.max(0, (h.t - h.stay) * h.spd);

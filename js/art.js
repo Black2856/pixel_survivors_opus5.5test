@@ -1484,6 +1484,7 @@ const ART = (() => {
   S.scythe = mk({ a: '#c29bff', b: '#ffffff', c: '#5a3a9a' }, ['..aaa..', '.a...a.', 'b.....a', '.....ca', '....c..', '...c...'], { emit: 'ab' });
   S.rscythe = mk({ a: '#ff3b5c', b: '#ffd0d8', c: '#5a1020' }, ['..aaa..', '.a...a.', 'b.....a', '.....ca', '....c..', '...c...'], { emit: 'a' }); // 終刻の死神の赤い鎌
   S.glob = mk({ a: '#23735f', b: '#4fd6a8', c: '#d8fff2' }, ['.aba.', 'abcba', 'bcccb', 'abcba', '.aba.'], { emit: 'bc' });
+  S.hrock = mk({ a: '#2a1410', b: '#5a2a1a', c: '#ff6a2a', d: '#ffc34a' }, ['..aaaa..', '.abcbba.', 'abbccbba', 'acbbbbca', 'abbdcbba', '.abbcba.', '..aaaa..'], { emit: 'cd' }); // イフリートの爆炎の熱された岩(赤熱したひび)
   S.rock = mk({ a: '#241f1c', b: '#544c44', c: '#7a6f60', d: '#6ee7ff' }, ['...aaaa...', '..abbcba..', '.abbccbba.', 'abbbbbbbba', 'abdbbbbcba', 'abbbbbdbba', '.abbbbbba.', '..aaaaaa..'], { emit: 'd' });
   S.rbit = mk({ b: '#7a7266', c: '#a89e8c' }, ['cb', 'bb']);
   S.fist = mk({ a: '#241f1c', b: '#544c44', c: '#7a6f60', d: '#6ee7ff' }, ['.aaaa.', 'abccba', 'acccca', 'acddca', 'abccba', '.aaaa.'], { emit: 'd' });
