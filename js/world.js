@@ -3547,7 +3547,7 @@ function deadCrossHit(cx, cy, angs) {
   burst(P.x, P.y, 40, ['#ff3b5c', '#8e0016', '#0a0002', '#ffffff'], { sp: 160, life: 0.6 }); AudioMan.hurt();
 }
 
-// 空襲: 0.8秒で飛び上がる(この間に画面を横切る帯 = 影の通り道が出る)→ 空の上(攻撃が当たらない)を影が速さ 280 で走り、通った跡に燃える床(8秒)
+// 空襲: 0.8秒で飛び上がる(この間に画面を横切る帯 = 影の通り道が出る)→ 空の上(攻撃が当たらない)を影が速さ 280 で走り、通った跡に燃える床(帯と同じ幅 60。通ってから 8秒)
 //   影(帯と同じ幅 60)に触れると ×1.0・炎上 → 影が抜けたら、プレイヤーのそばへ舞い降りる(0.4秒)。激昂は降りてすぐもう1回
 function startRaid(e, ai) {
   const th = rand(0, TAU), L = Math.min(440, Math.hypot(GFX.VW, GFX.VH) + 40), W = 60 * CHAOS.area; // 影が横切るのは約1.6秒(速さ 280)
@@ -3572,7 +3572,7 @@ function updRaid(e, ai, dt) {
   if (rd.ph === 'sky') { // 影が帯を走る。跡に燃える床
     const run = Math.min(rd.L, rd.t * 280), c = Math.cos(rd.th), s = Math.sin(rd.th);
     e.x = rd.sx + c * run; e.y = rd.sy + s * run; // 竜は影の真上を飛ぶ
-    while (rd.fire + 14 <= run) { rd.fire += 14; addHazard('fire', rd.sx + c * rd.fire, rd.sy + s * rd.fire, { r: 13, dur: 8, dmg: e.dmg, lite: 0.35 }); } // 重なって並ぶので光は控えめに
+    if (!rd.band) { rd.band = true; addHazard('fband', rd.sx, rd.sy, { a: rd.th, L: rd.L, spd: 280, stay: 8, w: 60 * CHAOS.area, dur: 8 + rd.L / 280, dmg: e.dmg }); } // 燃える床: 影と同じ速さで伸び、通ってから 8秒で消える
     const R0 = 30 * CHAOS.area; // 影の当たり判定 = 帯の幅の半分
     if (d2(e.x, e.y, P.x, P.y) < (R0 + 3) * (R0 + 3) && hurtPlayer(e.dmg)) burnPlayer(e.dmg * 0.03);
     if (Math.random() < dt * 30) part(e.x + rand(-12, 12), e.y + rand(-6, 6), c * 60 + rand(-20, 20), s * 60 - rand(10, 30), 0.5, pick(['#ff6a2a', '#ffc34a', '#ff4a8a']), { glow: true, drag: 1 }); // 炎の粉が降る
@@ -3801,6 +3801,10 @@ function updHazards(dt) {
       const R = h.r * Math.min(1, h.t * 8);
       if (dd < R * R && h.t > 0.05 && h.t < h.dur - 0.2) burnPlayer(h.dmg * 0.1);
       if (Math.random() < dt * (4 + h.r * 0.9)) { const pa = rand(0, TAU), pr = Math.sqrt(Math.random()) * R; part(h.x + Math.cos(pa) * pr, h.y + Math.sin(pa) * pr * 0.8, rand(-4, 4), -rand(14, 34), rand(0.3, 0.6), pick(['#ff6a2a', '#ffc34a', '#ff3b1a', '#fff0b0']), { glow: true, drag: 1.5 }); }
+    } else if (h.kind === 'fband') { // 空襲の燃える床(カオスドラゴン): 影の通り道と同じ幅の帯。先は影と同じ速さで伸び、後ろは通ってから stay 秒で消える。上にいる間、炎上
+      const c = Math.cos(h.a), s = Math.sin(h.a), head = Math.min(h.L, h.t * h.spd), tail = Math.max(0, (h.t - h.stay) * h.spd);
+      if (head > tail && segD2(P.x, P.y, h.x + c * tail, h.y + s * tail, h.x + c * head, h.y + s * head) < Math.pow(h.w / 2, 2)) burnPlayer(h.dmg * 0.1);
+      if (Math.random() < dt * (head - tail) * 0.12) { const d = rand(tail, head), o = rand(-0.45, 0.45) * h.w; part(h.x + c * d - s * o, h.y + s * d + c * o, rand(-4, 4), -rand(14, 34), rand(0.3, 0.6), pick(['#ff6a2a', '#ffc34a', '#ff3b1a', '#fff0b0']), { glow: true, drag: 1.5 }); }
     } else if (h.kind === 'fwall') { // 炎の壁(イフリート): 上にいると 0.5秒ごとに ×0.4・炎上(祭壇の強化も乗る)
       const c = Math.cos(h.a), s = Math.sin(h.a);
       if (!P.dead) { // 越えられない: 壁の長さの範囲では、立ったときにいた側の縁で止まる(ダッシュ・瞬間移動・押し出しでも)。壁の端を回れば反対側へ行ける

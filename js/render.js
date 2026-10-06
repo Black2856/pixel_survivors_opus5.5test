@@ -919,6 +919,23 @@ function render() {
         for (let k = 0; k < fh; k++) { const col = k === fh - 1 ? '#ffe9a0' : k > fh / 2 ? '#ffc34a' : '#ff6a2a'; sx.fillStyle = gx.fillStyle = col; sx.fillRect(fx, fy - k, 1, 1); gx.fillRect(fx, fy - k, 1, 1); }
       }
       addLight(h.x, h.y, R * 3, '#ff6a2a', 0.75 * fade * (h.lite || 1));
+    } else if (h.kind === 'fband') { // 空襲の燃える床: 影の通り道と同じ幅の赤熱した帯に炎の舌がちらつく(縁は危険の赤)
+      const c = Math.cos(h.a), s = Math.sin(h.a), nx = -s * h.w / 2, ny = c * h.w / 2;
+      const head = Math.min(h.L, h.t * h.spd), tail = Math.max(0, (h.t - h.stay) * h.spd);
+      if (head > tail) {
+        const x0 = hx + c * tail, y0 = hy + s * tail, x1 = hx + c * head, y1 = hy + s * head;
+        const band = (ctx, k, col, al) => { ctx.globalAlpha = al; ctx.fillStyle = col; ctx.beginPath(); ctx.moveTo(x0 + nx * k, y0 + ny * k); ctx.lineTo(x1 + nx * k, y1 + ny * k); ctx.lineTo(x1 - nx * k, y1 - ny * k); ctx.lineTo(x0 - nx * k, y0 - ny * k); ctx.fill(); ctx.globalAlpha = 1; };
+        band(sx, 1, '#4a1208', 0.55 * fade); band(sx, 0.85, '#a8321a', 0.45 * fade);
+        band(gx, 0.85, '#120401', fade); // 赤熱(光の層は色で明るさが決まるので、広い帯はとても暗い色で)
+        for (const k of [-1, 1]) { sx.globalAlpha = fade; pLine(sx, x0 + nx * k, y0 + ny * k, x1 + nx * k, y1 + ny * k, warnBlink ? '#ff3b1a' : '#ff8a3d'); sx.globalAlpha = 1; }
+        for (let i = Math.floor(tail / 2); i < Math.ceil(head / 2); i++) { // 炎の舌: 位置は帯ごとに決まっていて、高さが揺らめく
+          const d = (i + hash2(i, h.seed)) * 2; if (d < tail || d > head) continue;
+          const off = (hash2(i + 7, h.seed) - 0.5) * 0.9, fx = Math.round(hx + c * d + nx * off * 2), fy = Math.round(hy + s * d + ny * off * 2);
+          const fh = Math.max(1, Math.round((1 + 3 * Math.abs(Math.sin(t * 9 + i * 1.7))) * fade * Math.min(1, (d - tail) / 16 + 0.3)));
+          for (let k = 0; k < fh; k++) { const col = k === fh - 1 ? '#ffe9a0' : k > fh / 2 ? '#ffc34a' : '#ff6a2a'; sx.fillStyle = gx.fillStyle = col; sx.fillRect(fx, fy - k, 1, 1); gx.fillRect(fx, fy - k, 1, 1); }
+        }
+        for (let d = tail; d < head; d += 50) addLight(h.x + c * d, h.y + s * d, 55, '#ff6a2a', 0.3 * fade);
+      }
     } else if (h.kind === 'fwall') { // 炎の壁: 赤熱した帯の上に炎の柱が揺らめく(縁は危険の赤)
       const c = Math.cos(h.a), s = Math.sin(h.a), nx = -s * h.w / 2, ny = c * h.w / 2, L = h.len * Math.min(1, h.t * 6);
       const band = (k, col, al) => { sx.globalAlpha = al; sx.fillStyle = col; sx.beginPath(); sx.moveTo(hx + nx * k, hy + ny * k); sx.lineTo(hx + c * L + nx * k, hy + s * L + ny * k); sx.lineTo(hx + c * L - nx * k, hy + s * L - ny * k); sx.lineTo(hx - nx * k, hy - ny * k); sx.fill(); };
