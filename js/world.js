@@ -2711,7 +2711,7 @@ function placeMirror(e, ai, x, y) {
 }
 // ★反射光線: 0.8秒、女王 → 鏡(古い順に最大 2枚)→ プレイヤーへの折れ線の帯(プレイヤー側の 1本は 0.6秒追って止まる)
 //   → 0.45秒の光線 ×1.0。鏡がなければ女王から直接プレイヤーへ。撃つまでに鏡が壊れたら、光線はその鏡の位置で止まる
-const RBEAM_LEN = 260; // 最後の 1本(プレイヤー側)の長さ
+const RBEAM_LEN = 390; // 最後の 1本(プレイヤー側)の長さ
 function reflectBeam(e, ai) {
   const ms = (ai.mirrors || []).filter(m => !m.dead);
   const pts = [{ x: e.x, y: e.y - 6 }, ...ms.map(m => ({ x: m.x, y: m.y - 10, m }))], W = 10 * CHAOS.area;
