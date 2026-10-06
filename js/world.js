@@ -1691,7 +1691,7 @@ function updObj(e, dt) {
       AudioMan.splat();
     }
     e.pulse = Math.max(0, (e.pulse || 0) - dt);
-  } else if (e.obj === 'crystal' || e.obj === 'prism') { // 結晶: 七色のきらめき
+  } else if (e.obj === 'crystal' || e.obj === 'qmirror') { // 結晶・女王の鏡: 七色のきらめき
     if (Math.random() < dt * 6) part(e.x + rand(-5, 5), e.y - rand(4, 18), 0, -rand(4, 10), 0.6, pick(PRISM), { glow: true, drag: 1 });
   } else if (e.obj === 'tentacle') { // 触手(クラーケン): 2.5秒ごとにプレイヤーの方へ帯(長さ 90・幅 16)を予告して薙ぐ → ×0.8・スタミナ −15
     if (e.swT > 0) {
@@ -1760,7 +1760,7 @@ function objDown(e, broken) {
   } else if (e.obj === 'altar') {
     burst(e.x, e.y - 6, Math.round(36 * k), ['#3a2a2a', '#6a5050', '#ff6a2a', '#ffc34a'], { sp: 110 * k, g: 200, life: 0.7 });
     if (broken) { addFlash(e.x, e.y, 80, '#ff8a3d', 0.6); shake(5); AudioMan.boom(); UI.announce('祭壇の火が消えた', ''); }
-  } else if (e.obj === 'crystal' || e.obj === 'prism') { // 結晶: 七色のかけらになって砕ける
+  } else if (e.obj === 'crystal' || e.obj === 'qmirror') { // 結晶・女王の鏡: 七色のかけらになって砕ける
     burst(e.x, e.y - 8, Math.round(40 * k), [...PRISM, '#ffffff'], { sp: 130 * k, g: 180, glow: true, life: 0.6 });
     if (broken) { addFlash(e.x, e.y, 70, '#d88aff', 0.5); shake(3); AudioMan.chime(); AudioMan.thud(); }
   } else if (e.obj === 'tentacle') { // 触手: ちぎれて海に沈む
@@ -1805,7 +1805,7 @@ const BOSS_AI0 = {
   warden: { spring: 12, handCd: 6, cog: 3, bell: 8, big: 5, floor: 9 },
   reaper: { tp: 5, mark: 8, throw: 3, reap: 2, clock: 7, glass: 12 },
   fhour: { scy: 1.5, rev: 8, stop: 10, marks: 5, sec: 3, busy: 0.6 },
-  pqueen: { tp: 3, beam: 3, cageCd: 10, mirror: 8, chain: 5, blink: 6 },
+  pqueen: { tp: 3, beam: 3, mirror: 8, scatter: 6, orb: 4, blink: 6 },
 };
 const BOSS_ENRAGE = { king: { slam: 6 }, ifrit: { altar: true }, stag: { herd: 4 }, pqueen: { spiral: 3 }, levia: { breath: 4 }, fgiant: { drift: 5 }, squeen: { lance: 3 }, warden: { pendCd: 6 }, reaper: { sum: 7 }, fhour: { cross: 4, echo: 0 } };
 
@@ -2672,26 +2672,26 @@ function stagHerd(e, ai) {
   }
 }
 
-// ---------- 七彩の女王: 3秒ごとに瞬間移動 / 七彩の光線 / 虹の檻(壊せる結晶)/ 鏡の分身(本物を探す)/ 光の鎖 / 瞬き / 激昂: 虹の螺旋 ----------
+// ---------- 七彩の女王: 3秒ごとに瞬間移動 / ★反射光線(鏡で折れる)/ 乱反射(女王の弾を渡り歩く光)/ 光の屈折弾 / 鏡の分身(本物を探す)/ 瞬き(移る前の位置に鏡)/ 激昂: 虹の螺旋 ----------
+//   女王の弾(qb: 屈折弾とその欠片・分身の弾・虹の螺旋)と女王の鏡は、乱反射の光が跳ねる先になる
 function pqueenAI(e, ai, dt, a, dist, slow) {
   const R = CHAOS.rate;
-  updCage(e, ai, dt); updTether(e, ai, dt); updClones(e, ai, dt);
+  updClones(e, ai, dt); updReflect(e, ai, dt);
   if (ai.spT > 0) { // 虹の螺旋(激昂): 3本の腕
     ai.spT -= dt; ai.spGap -= dt;
-    if (ai.spGap <= 0) { ai.spGap = 0.12; ai.spA += 0.32; for (let i = 0; i < 3; i++) { const p = eball(e.x, e.y - 6, ai.spA + TAU / 3 * i, 70, e.dmg * 0.4, 'pshard'); p.ci = (i * 2 + Math.floor(ai.spA * 3)) % 7; } if (Math.floor(ai.spT * 8) % 2) AudioMan.shoot(); }
+    if (ai.spGap <= 0) { ai.spGap = 0.12; ai.spA += 0.32; for (let i = 0; i < 3; i++) { const p = eball(e.x, e.y - 6, ai.spA + TAU / 3 * i, 70, e.dmg * 0.4, 'pshard'); p.ci = (i * 2 + Math.floor(ai.spA * 3)) % 7; p.qb = true; } if (Math.floor(ai.spT * 8) % 2) AudioMan.shoot(); }
   }
-  if (ai.act === 'beams') { updBeams(e, ai, dt); return; }
   // ゆっくり漂う(距離はおよそ 120)
   const want = 120, dir = dist > want ? a : a + Math.PI, k = Math.abs(dist - want) > 25 ? 0.6 : 0;
   e.x += (Math.cos(dir) * e.spd * k + Math.cos(a + Math.PI / 2) * 8) * slow * dt; e.y += (Math.sin(dir) * e.spd * k + Math.sin(a + Math.PI / 2) * 8) * slow * dt;
-  ai.tp -= dt; ai.beam -= dt * R; ai.cageCd -= dt * R; ai.mirror -= dt * R; ai.chain -= dt * R; ai.blink -= dt * R; if (ai.enraged) ai.spiral -= dt * R;
-  if (ai.tp <= 0 && !ai.clones && !ai.cage) { ai.tp = 3; const ta = rand(0, TAU), tr = rand(100, 140); queenWarp(e, P.x + Math.cos(ta) * tr, P.y + Math.sin(ta) * tr); return; }
+  ai.tp -= dt; ai.beam -= dt * R; ai.mirror -= dt * R; ai.scatter -= dt * R; ai.orb -= dt * R; ai.blink -= dt * R; if (ai.enraged) ai.spiral -= dt * R;
+  if (ai.orb <= 0) { ai.orb = ai.enraged ? 4 : 5; refractOrb(e); } // 光の屈折弾はほかの技と並んで撃つ
+  if (ai.tp <= 0 && !ai.clones) { ai.tp = 3; const ta = rand(0, TAU), tr = rand(100, 140); queenWarp(e, P.x + Math.cos(ta) * tr, P.y + Math.sin(ta) * tr); return; }
   if (ai.enraged && ai.spiral <= 0) { ai.spiral = 5; ai.spT = 2.5; ai.spGap = 0; ai.spA = rand(0, TAU); }
-  if (ai.cageCd <= 0 && !ai.clones && !ai.cage) { ai.cageCd = ai.enraged ? 12 : 16; startCage(e, ai); }
-  else if (ai.mirror <= 0 && !ai.cage) { ai.mirror = ai.enraged ? 10 : 14; startClones(e, ai); }
-  else if (ai.beam <= 0) { ai.beam = ai.enraged ? 4.5 : 6; startBeams(e, ai, a); }
-  else if (ai.chain <= 0 && !ai.tether) { ai.chain = ai.enraged ? 8 : 11; queenChain(e, ai); }
-  else if (ai.blink <= 0 && !ai.clones && !ai.cage) { ai.blink = ai.enraged ? 6 : 8; queenBlink(e, ai); }
+  if (ai.mirror <= 0) { ai.mirror = ai.enraged ? 10 : 14; startClones(e, ai); }
+  else if (ai.beam <= 0) { ai.beam = ai.enraged ? 4.5 : 6; reflectBeam(e, ai); }
+  else if (ai.scatter <= 0 && rayTargets(e, ai)) { ai.scatter = ai.enraged ? 5 : 7; prismScatter(e, ai); } // 跳ねる先(女王の弾・鏡)があるときだけ
+  else if (ai.blink <= 0 && !ai.clones) { ai.blink = ai.enraged ? 6 : 8; queenBlink(e, ai); }
 }
 // 瞬間移動: 七色の光の粒になって消え、別の場所に現れる
 function queenWarp(e, x, y) {
@@ -2700,58 +2700,95 @@ function queenWarp(e, x, y) {
   burst(e.x, e.y - 6, 22, [...PRISM, '#ffffff'], { sp: 80, glow: true, life: 0.45 }); addRing(e.x, e.y, 16, '#ffd0f0', { life: 0.3 });
   AudioMan.chime();
 }
-// 七彩の光線: プレイヤーの方向に扇状の帯 7本(±54°)を 0.9秒予告 → 2秒の光線 ×0.8。真ん中の 1本は毎秒 1.0rad で追う。激昂は残り 6本も 1秒で 30° 回る
-function startBeams(e, ai, a) {
-  const offs = [-3, -2, -1, 0, 1, 2, 3].map(i => i * 0.314);
-  for (const o of offs) pushWarn({ kind: 'line', x: e.x, y: e.y, a: a + o, len: 200, w: 8, t: 0, life: 0.9 });
-  AudioMan.charge(0.9);
-  windup(e, 0.9, () => { ai.act = 'beams'; ai.bt = 0; ai.bAng = offs.map(o => a + o); ai.bRot = Math.random() < 0.5 ? 1 : -1; AudioMan.zap(); shake(3); });
+// 女王の鏡(瞬きで置く): HP 20%・20秒、最大 2枚(3枚目を置くと古い鏡が消える)。反射光線が折れ、乱反射の光が跳ねる
+function placeMirror(e, ai, x, y) {
+  const m = spawnObj(e, 'qmirror', x, y, { pct: 0.2, r: 8, life: 20 });
+  burst(x, y - 10, 24, [...PRISM, '#ffffff'], { sp: 80, up: 30, glow: true, life: 0.5 }); AudioMan.chime();
+  ai.mirrors = (ai.mirrors || []).filter(o => !o.dead); ai.mirrors.push(m);
+  if (ai.mirrors.length > 2) { const old = ai.mirrors.shift(); old.dead = true; objDown(old, false); }
+  hint('qmirror', '女王の鏡', '反射光線は鏡で折れてプレイヤーへ飛ぶ。乱反射の光も鏡で跳ねる');
+  return m;
 }
-function updBeams(e, ai, dt) {
-  ai.bt += dt;
-  const m = 3;
-  ai.bAng[m] += clamp(angDiff(Math.atan2(P.y - e.y, P.x - e.x), ai.bAng[m]), -dt, dt);
-  if (ai.enraged && ai.bt < 1) for (let i = 0; i < 7; i++) if (i !== m) ai.bAng[i] += ai.bRot * 0.524 * dt;
-  for (const ba of ai.bAng) hitLine(e.x, e.y - 6, ba, 200, 8, e.dmg * 0.8);
-  if (Math.random() < dt * 30) { const i = (Math.random() * 7) | 0, r = rand(10, 200 * CHAOS.area); part(e.x + Math.cos(ai.bAng[i]) * r, e.y - 6 + Math.sin(ai.bAng[i]) * r, rand(-20, 20), rand(-20, 20), 0.35, PRISM[i], { glow: true, drag: 2 }); }
-  if (ai.bt >= 2) { ai.act = null; ai.bAng = null; }
+// ★反射光線: 0.8秒、女王 → 鏡(古い順に最大 2枚)→ プレイヤーへの折れ線の帯(プレイヤー側の 1本は 0.6秒追って止まる)
+//   → 0.45秒の光線 ×1.0。鏡がなければ女王から直接プレイヤーへ。撃つまでに鏡が壊れたら、光線はその鏡の位置で止まる
+const RBEAM_LEN = 260; // 最後の 1本(プレイヤー側)の長さ
+function reflectBeam(e, ai) {
+  const ms = (ai.mirrors || []).filter(m => !m.dead);
+  const pts = [{ x: e.x, y: e.y - 6 }, ...ms.map(m => ({ x: m.x, y: m.y - 10, m }))], W = 10 * CHAOS.area;
+  for (let i = 0; i + 1 < pts.length; i++) { const A = pts[i], B = pts[i + 1]; pushWarn({ kind: 'line', x: A.x, y: A.y, a: Math.atan2(B.y - A.y, B.x - A.x), len: Math.hypot(B.x - A.x, B.y - A.y), w: W, t: 0, life: 0.8, fixed: true }); }
+  const last = pts[pts.length - 1];
+  const lw = { kind: 'line', x: last.x, y: last.y, a: Math.atan2(P.y - last.y, P.x - last.x), len: RBEAM_LEN * CHAOS.area, w: W, t: 0, life: 0.8, fixed: true };
+  lw.track = q => { if (q.t < 0.6) q.a = Math.atan2(P.y - last.y, P.x - last.x); };
+  pushWarn(lw);
+  AudioMan.charge(0.8);
+  hint('reflect', '反射光線', ms.length ? '光線は鏡で折れてプレイヤーへ飛ぶ。撃つ前に鏡を壊すと、そこで止まる' : '鏡がないときは、女王からまっすぐ飛ぶ');
+  windup(e, 0.8, () => {
+    const path = [pts[0]];
+    let cutAt = false;
+    for (const p of pts.slice(1)) { path.push(p); if (p.m.dead) { cutAt = true; break; } } // 壊れた鏡で止まる
+    if (!cutAt) path.push({ x: last.x + Math.cos(lw.a) * RBEAM_LEN * CHAOS.area, y: last.y + Math.sin(lw.a) * RBEAM_LEN * CHAOS.area });
+    ai.rbeam = { pts: path, t: 0.45, W };
+    bfx.push({ kind: 'rbeam', pts: path, x: path[0].x, y: path[0].y, w: W, t: 0, life: 0.45 });
+    for (const p of path.slice(1, -1)) { burst(p.x, p.y, 16, [...PRISM, '#ffffff'], { sp: 90, glow: true, life: 0.35 }); if (p.m) p.m.flash = 0.1; } // 鏡で折れる所
+    AudioMan.zap(); shake(3);
+  });
 }
-// 虹の檻: プレイヤーの周り 半径 85 に結晶 4個(HP 各 2%)。1秒後、隣どうしを結ぶ 4辺の光線(幅 10)が 5秒
-//   辺に触れると ×0.6(0.5秒ごと)、檻の中にいる間は 1秒ごとに ×0.2。結晶を壊すとその 2辺が消え、檻が開く
-function startCage(e, ai) {
-  const a0 = rand(0, TAU), pts = [0, 1, 2, 3].map(i => ({ x: P.x + Math.cos(a0 + i * Math.PI / 2) * 85, y: P.y + Math.sin(a0 + i * Math.PI / 2) * 85 }));
-  for (const p of pts) pushWarn({ kind: 'circle', x: p.x, y: p.y, r: 6, t: 0, life: 1, fixed: true }); // 結晶が立つ場所
-  AudioMan.charge(1);
-  ai.cage = { t: -1, objs: null, pts, tick: 0 };
-  hint('cage', '虹の檻', '結晶を1つ壊すと檻が開く。光の辺に触れると痛い');
+function updReflect(e, ai, dt) {
+  const b = ai.rbeam;
+  if (!b) return;
+  for (let i = 0; i + 1 < b.pts.length; i++) { const A = b.pts[i], B = b.pts[i + 1]; if (segD2(P.x, P.y, A.x, A.y, B.x, B.y) < Math.pow(b.W / 2 + 3, 2)) { hurtPlayer(e.dmg); break; } }
+  if ((b.t -= dt) <= 0) ai.rbeam = null;
 }
-function updCage(e, ai, dt) {
-  const c = ai.cage;
-  if (!c) return;
-  c.t += dt;
-  if (!c.objs && c.t >= 0) { // 結晶が立つ
-    c.objs = c.pts.map(p => spawnObj(e, 'prism', p.x, p.y, { pct: 0.02, r: 6, life: 6.2 }));
-    for (const p of c.pts) burst(p.x, p.y, 16, [...PRISM, '#ffffff'], { sp: 80, up: 30, glow: true, life: 0.45 });
-    AudioMan.chime(); shake(3);
+// 乱反射: 0.4秒(女王が白く光る)→ 速い光の弾(速さ 320)を女王の弾へ撃つ。当たるたびに 0.06秒きらめいて、次の一番近い女王の弾(または鏡)へ跳ねる
+//   8回(激昂 10回)跳ねたら最後はプレイヤーへ(跳ね先がなくなったらその時点で)。×0.6
+const rayTargets = (e, ai) => eprojs.some(q => q.qb) || (ai.mirrors || []).some(m => !m.dead);
+function prismScatter(e, ai) {
+  AudioMan.charge(0.4);
+  windup(e, 0.4, () => {
+    const p = { kind: 'ray', x: e.x, y: e.y - 6, vx: 0, vy: 0, dmg: e.dmg * 0.6 * (S.eatk ?? 1), life: 12, t: 0, r: 3 * CHAOS.area, spd: 320, bounces: ai.enraged ? 10 : 8, used: new Set(), trail: [], owner: e, pause: 0 };
+    eprojs.push(p); rayNext(p);
+    burst(e.x, e.y - 6, 14, ['#ffffff', '#fff6c8'], { sp: 80, glow: true, life: 0.3 }); AudioMan.zap();
+    hint('scatter', '乱反射', '光の弾が女王の弾を渡り歩き、最後にこちらへ飛んでくる');
+  });
+}
+function rayNext(p) {
+  if (p.bounces <= 0) return rayFinal(p);
+  let best = null, bd = 260 * 260;
+  for (const q of eprojs) if (q.qb && !p.used.has(q)) { const d = d2(q.x, q.y, p.x, p.y); if (d < bd) { bd = d; best = q; } }
+  for (const m of p.owner.ai.mirrors || []) if (!m.dead && !p.used.has(m)) { const d = d2(m.x, m.y - 10, p.x, p.y); if (d < bd) { bd = d; best = m; } }
+  if (!best) return rayFinal(p);
+  p.tgt = best;
+}
+function rayFinal(p) { // 最後はプレイヤーへまっすぐ(2秒で消える)
+  p.final = true; p.tgt = null;
+  const a = Math.atan2(P.y - p.y, P.x - p.x); p.vx = Math.cos(a) * p.spd; p.vy = Math.sin(a) * p.spd; p.life = p.t + 2;
+}
+function updRay(p, dt) {
+  p.trail.push({ x: p.x, y: p.y }); if (p.trail.length > 12) p.trail.shift();
+  if (p.pause > 0) { p.pause -= dt; p.vx = p.vy = 0; if (p.pause <= 0 && p.final) rayFinal(p); return; }
+  if (p.final) return;
+  const T = p.tgt;
+  if (!T || T.dead || (T.kind && !eprojs.includes(T))) { rayNext(p); if (p.final) return; return updRay(p, 0); } // 跳ね先が消えた: 次へ
+  const tx = T.x, ty = T.y - (T.obj ? 10 : 0), d = Math.hypot(tx - p.x, ty - p.y);
+  if (d <= p.spd * dt + 3) { // 当たった: きらめいて次へ
+    p.x = tx; p.y = ty; p.vx = p.vy = 0; p.bounces--; p.pause = 0.06; p.used.add(T);
+    if (T.obj) T.flash = 0.08;
+    burst(tx, ty, 8, ['#ffffff', ...PRISM], { sp: 70, glow: true, life: 0.25 }); addFlash(tx, ty, 30, '#ffffff', 0.5); AudioMan.tick(10 - p.bounces);
+    rayNext(p);
+    return;
   }
-  if (c.t > 6) { ai.cage = null; return; }
-  if (c.t < 1) return;
-  const o = c.objs, W = 10 * CHAOS.area;
-  for (let i = 0; i < 4; i++) {
-    const A = o[i], B = o[(i + 1) % 4];
-    if (!A.dead && !B.dead && segD2(P.x, P.y, A.x, A.y, B.x, B.y) < Math.pow(W / 2 + 3, 2)) hurtPlayer(e.dmg * 0.6);
-  }
-  const closed = o.every(x => !x.dead);
-  if (closed && inQuad(P.x, P.y, o)) { if ((c.tick -= dt) <= 0) { c.tick = 1; hurtPlayer(e.dmg * 0.2); } } else c.tick = 0;
+  p.vx = (tx - p.x) / d * p.spd; p.vy = (ty - p.y) / d * p.spd;
 }
-// 点が4点の多角形の中か(外積の符号がそろうか)
-function inQuad(x, y, q) {
-  let sg = 0;
-  for (let i = 0; i < q.length; i++) {
-    const A = q[i], B = q[(i + 1) % q.length], cr = (B.x - A.x) * (y - A.y) - (B.y - A.y) * (x - A.x);
-    if (cr !== 0) { if (sg && Math.sign(cr) !== sg) return false; sg = Math.sign(cr); }
-  }
-  return true;
+// 光の屈折弾: 遅い大きな光の玉(速さ 50、×0.6)をプレイヤーへ。1.5秒たつか、プレイヤーの 60 以内で 7つの欠片に割れてプレイヤーへ扇状に(±0.6rad、速さ 120、×0.4)
+function refractOrb(e) {
+  const a = Math.atan2(P.y - (e.y - 6), P.x - e.x);
+  eprojs.push({ kind: 'prismorb', x: e.x, y: e.y - 6, vx: Math.cos(a) * 50, vy: Math.sin(a) * 50, dmg: e.dmg * 0.6 * (S.eatk ?? 1), sdmg: e.dmg * 0.4, life: 6, t: 0, r: 6 * CHAOS.area, qb: true });
+  burst(e.x, e.y - 6, 10, [...PRISM, '#ffffff'], { sp: 50, glow: true, life: 0.3 }); AudioMan.chime();
+}
+function splitOrb(p) {
+  const a = Math.atan2(P.y - p.y, P.x - p.x);
+  for (let i = 0; i < 7; i++) { const s = eball(p.x, p.y, a + (i - 3) * 0.2, 120, p.sdmg, 'pshard'); s.ci = i; s.qb = true; }
+  burst(p.x, p.y, 20, [...PRISM, '#ffffff'], { sp: 90, glow: true, life: 0.35 }); addFlash(p.x, p.y, 40, '#ffffff', 0.5); AudioMan.chime();
 }
 // 鏡の分身: 女王と同じ姿の分身 3体(激昂 4体)が 6秒。全員が 1.5秒ごとに光の弾。分身は 1撃で消え、本物だけ HP が減る(本物は 0.5秒ごとに弱く光る)
 function startClones(e, ai) {
@@ -2774,40 +2811,21 @@ function updClones(e, ai, dt) {
   c.t += dt; c.shot -= dt * CHAOS.rate;
   if (c.shot <= 0) {
     c.shot = 1.5;
-    for (const s of [e, ...c.list.filter(x => !x.dead)]) { const p = eball(s.x, s.y - 6, Math.atan2(P.y - s.y, P.x - s.x), 80, e.dmg * 0.4, 'pshard'); p.ci = (Math.random() * 7) | 0; }
+    for (const s of [e, ...c.list.filter(x => !x.dead)]) { const p = eball(s.x, s.y - 6, Math.atan2(P.y - s.y, P.x - s.x), 80, e.dmg * 0.4, 'pshard'); p.ci = (Math.random() * 7) | 0; p.qb = true; }
     AudioMan.shoot();
   }
   for (const s of c.list) if (!s.dead) s.face = P.x < s.x ? -1 : 1;
   if (c.t >= 6) { for (const s of c.list) if (!s.dead) { s.dead = true; objDown(s, false); } ai.clones = null; }
 }
-// 光の鎖: 0.5秒の予告(女王からプレイヤーへ細い帯)→ 当たると 3秒、女王から 130 より離れると毎秒 50 引き戻され、0.5秒ごとに ×0.2
-function queenChain(e, ai) {
-  const a = Math.atan2(P.y - (e.y - 6), P.x - e.x), len = Math.sqrt(d2(e.x, e.y - 6, P.x, P.y)) + 12; // 鎖は女王の胸元から
-  pushWarn({ kind: 'line', x: e.x, y: e.y - 6, a, len, w: 4, t: 0, life: 0.5, fixed: true });
-  windup(e, 0.5, () => {
-    bfx.push({ kind: 'lchain', x: e.x, y: e.y - 6, a, len, t: 0, life: 0.2 });
-    AudioMan.zap();
-    if (inLine(e.x, e.y - 6, a, len, 6) && P.invT <= 0) { ai.tether = { t: 3, tick: 0 }; hint('lchain', '光の鎖', '女王から離れすぎると引き戻されて痛い'); }
-  });
-}
-function updTether(e, ai, dt) {
-  const th = ai.tether;
-  if (!th) return;
-  if ((th.t -= dt) <= 0 || P.dead) { ai.tether = null; return; }
-  const d = Math.sqrt(d2(e.x, e.y, P.x, P.y));
-  if (d > 130 && P.invT <= 0) {
-    const k = Math.min(d - 130, 50 * dt);
-    P.x += (e.x - P.x) / d * k; P.y += (e.y - P.y) / d * k;
-    if ((th.tick -= dt) <= 0) { th.tick = 0.5; hurtPlayer(e.dmg * 0.2); }
-  }
-}
-// 瞬き: プレイヤーの隣に 円 半径 40(0.4秒)→ そこに現れて光の爆発 ×0.9
+// 瞬き: プレイヤーの隣に 円 半径 40(0.4秒)→ そこに現れて光の爆発 ×0.9。移る前にいた位置に女王の鏡を残す
 function queenBlink(e, ai) {
   const ba = rand(0, TAU), tx = P.x + Math.cos(ba) * 20, ty = P.y + Math.sin(ba) * 20;
   pushWarn({ kind: 'circle', x: tx, y: ty, r: 40, t: 0, life: 0.4 });
   AudioMan.charge(0.4);
   windup(e, 0.4, () => {
+    const ox = e.x, oy = e.y;
     queenWarp(e, tx, ty);
+    placeMirror(e, ai, ox, oy);
     hitCircle(tx, ty, 40, e.dmg * 0.9);
     const R0 = 40 * CHAOS.area;
     burst(tx, ty, 40, [...PRISM, '#ffffff'], { sp: 150, glow: true, life: 0.5 });
@@ -3796,7 +3814,7 @@ function updEprojs(dt0) {
         p.x += Math.cos(ta) * p.v * dt; p.y += Math.sin(ta) * p.v * dt;
         if (p.owner.dead || d2(p.x, p.y, p.owner.x, p.owner.y) < 100) p.t = p.life + 1;
       }
-    } else { p.x += p.vx * dt; p.y += p.vy * dt; }
+    } else { if (p.kind === 'ray') updRay(p, dt); p.x += p.vx * dt; p.y += p.vy * dt; } // 乱反射の光: 跳ね先へ向きを変える
     // 通常敵の弾の軌跡: 火の玉は火の粉、砂の弾は砂煙、槍は白い風切り
     if (p.kind === 'efire' && Math.random() < dt * 40) part(p.x + rand(-1, 1), p.y + rand(-1, 1), -p.vx * 0.15 + rand(-6, 6), -p.vy * 0.15 - rand(4, 12), rand(0.2, 0.4), pick(['#ff6a2a', '#ffc34a', '#b8261a']), { glow: true, drag: 2 });
     else if (p.kind === 'esand' && Math.random() < dt * 30) part(p.x, p.y, rand(-8, 8), rand(-8, 4), 0.35, pick(['#e8c88a', '#c8a060']), { drag: 3 });
@@ -3809,6 +3827,8 @@ function updEprojs(dt0) {
       p.vx = Math.cos(ta) * sp; p.vy = Math.sin(ta) * sp;
       burst(p.x, p.y, 5, BRASS, { sp: 30, glow: true, life: 0.2 });
     }
+    if (p.kind === 'prismorb' && (p.t >= 1.5 || d2(p.x, p.y, P.x, P.y) < 60 * 60)) { splitOrb(p); eprojs.splice(i, 1); continue; } // 光の屈折弾: 7つの欠片に割れる
+    if (p.kind === 'prismorb' && Math.random() < dt * 30) part(p.x + rand(-3, 3), p.y + rand(-3, 3), -p.vx * 0.2, -p.vy * 0.2, 0.3, pick(PRISM), { glow: true, drag: 2 });
     if (p.splitT && p.t >= p.splitT) { // 雪華弾: 3つに割れる
       const a = Math.atan2(p.vy, p.vx), sp = Math.hypot(p.vx, p.vy);
       for (const da of [-0.45, 0, 0.45]) Object.assign(eball(p.x, p.y, a + da, sp * 1.15, 0, 'flake'), { dmg: p.dmg, frost: p.frost, small: true, life: 4 }); // ダメージは割れる前の弾と同じ

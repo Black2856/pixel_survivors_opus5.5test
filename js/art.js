@@ -1208,7 +1208,10 @@ const ART = (() => {
   S.obj_crystal = mk({ a: '#2a2048', b: '#7ad7ff', c: '#d8f8ff', d: '#ff8ad8', e: '#8a7aff' }, [
     '...c....', '..cbc...', '..cbbd..', '.cbbbd..', '.cbbbdd.', '.cbbbed.', 'cbbbeedd', 'cbbbeedd', 'cbbeeedd', '.bbeeed.', '.bbeeed.', '..beed..', '.abeeda.', 'aaaaaaaa',
   ], { emit: 'cd' });
-  S.obj_prism = mk({ a: '#2a2048', b: '#7ad7ff', c: '#ffffff', d: '#ff8ad8', e: '#8a7aff' }, ['..c..', '.cbd.', '.cbd.', 'cbbdd', 'cbedd', '.bed.', '.bed.', '.aaa.'], { emit: 'cbd' });
+  // 女王の鏡(瞬きで置く): 金の枠の楕円の鏡。鏡面は淡い七色
+  S.obj_qmirror = mk({ a: '#2a2048', b: '#ffd23f', c: '#ffffff', d: '#d8c8ff', e: '#ff8ad8', f: '#7ad7ff' }, sym([
+    '..bb', '.bcd', 'bcdd', 'bdde', 'bdfe', 'bdde', 'bcde', 'bdfe', 'bdee', 'bdde', '.bdd', '..bb', '...b', '..aa', '.aaa',
+  ]), { emit: 'bc' });
 
   // ---------- 沈黙の海淵 ----------
   // 深海クラゲ: 透きとおった傘と、ゆらぐ触手(2コマ)。傘のふちがほのかに光る

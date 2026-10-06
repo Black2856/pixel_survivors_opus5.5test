@@ -1258,6 +1258,7 @@ function render() {
       if (e.glint) { const mx = Math.round(e.x - cam.x), my = Math.round(e.y + yo - cam.y - 10); sx.fillStyle = gx.fillStyle = '#ffffff'; sx.fillRect(mx - 3, my, 7, 1); sx.fillRect(mx, my - 3, 1, 7); gx.fillRect(mx - 2, my, 5, 1); addLight(e.x, e.y - 10, 46, '#ffffff', 0.9); }
       else addLight(e.x, e.y - 8, 24, '#6ee7ff', 0.45);
     }
+    else if (e.obj === 'qmirror') addLight(e.x, e.y - 10, 44 + Math.sin(t * 4 + e.seed * 6) * 6, PRISM[Math.floor(t * 4 + e.seed * 7) % 7], 0.6); // 女王の鏡: 七色に移ろう光
     else if (e.obj === 'tomb') addLight(e.x, e.y - 10, 50 + Math.sin(t * 3 + e.seed * 6) * 6, '#9ff7ff', 0.6); // 氷柱の墓標: 青白く光る
     if (e.disguise) addLight(e.x, e.y, 90, '#ff8ad8', 0.8); // 鏡の分身: 本物と同じ光(HP バーは出さない)
     else if (e.obj) { // ボスが出した物: いつも金色の HP バー(壊せることを示す)と、足元の金の輪
@@ -1559,6 +1560,17 @@ function render() {
     }
     else if (p.kind === 'water') { drawSp(ART.S.water, p.x, p.y, ol); if (Math.random() < 0.3) part(p.x, p.y, rand(-8, 8), rand(-8, 8), 0.3, '#bff4ff', { drag: 2 }); } // 水弾: しずくの尾
     else if (p.kind === 'pshard') drawSp(ART.S.pshard[p.ci || 0], p.x, p.y, ol); // 七色の欠片
+    else if (p.kind === 'ray') { // 乱反射の光: 白い頭と、七色に移ろう尾
+      for (let i = 1; i < p.trail.length; i++) { const A = p.trail[i - 1], B = p.trail[i], k = i / p.trail.length; sx.globalAlpha = k; pLine(sx, A.x - cam.x, A.y - cam.y, B.x - cam.x, B.y - cam.y, PRISM[(i + Math.floor(t * 20)) % 7], 2); gx.globalAlpha = 1; pLine(gx, A.x - cam.x, A.y - cam.y, B.x - cam.x, B.y - cam.y, '#3a2a5a', 1); }
+      sx.globalAlpha = 1; const hx = Math.round(p.x - cam.x), hy = Math.round(p.y - cam.y);
+      sx.fillStyle = oc; sx.fillRect(hx - 2, hy - 2, 5, 5); sx.fillStyle = gx.fillStyle = '#ffffff'; sx.fillRect(hx - 1, hy - 1, 3, 3); gx.fillRect(hx, hy, 1, 1);
+      addLight(p.x, p.y, 34, '#ffffff', 0.9);
+    }
+    else if (p.kind === 'prismorb') { // 光の屈折弾: 七色に移ろう大きな光の玉(白い芯)
+      const R = Math.round(p.r), x = p.x - cam.x, y = p.y - cam.y, c = PRISM[Math.floor(t * 12) % 7];
+      pCircle(sx, x, y, R + 1, oc); pDisc(sx, x, y, R, c); pDisc(sx, x, y, Math.max(1, R - 2), '#ffffff'); pDisc(gx, x, y, Math.max(1, R - 3), '#3a2a5a');
+      addLight(p.x, p.y, 40, c, 0.8);
+    }
     else if (p.kind === 'phantom') { // 結晶の残像・幻の鹿: 透きとおった七色の大鹿
       const sp2 = ART.S.stag, img = ART.tint(p.face < 0 ? ART.variant(sp2, 'flip') : sp2.c, PRISM[Math.floor(p.t * 12) % 7]);
       const w = sp2.w, h = sp2.h, dx = Math.round(p.x - cam.x - w / 2), dy = Math.round(p.y - cam.y - h / 2);
@@ -1748,38 +1760,8 @@ function drawBossFx(e) {
   if (e.boss === 'stag' && ai.act === 'stun') {
     for (let i = 0; i < 3; i++) { const a = t * 6 + TAU / 3 * i, x = Math.round(ex + Math.cos(a) * 9), y = Math.round(ey + yo - sp.h / 2 - 3 + Math.sin(a) * 3); sx.fillStyle = gx.fillStyle = PRISM[(i * 2) % 7]; sx.fillRect(x - 1, y, 3, 1); sx.fillRect(x, y - 1, 1, 3); gx.fillRect(x, y, 1, 1); }
   }
-  // 七彩の女王: 七彩の光線 / 虹の檻の辺 / 光の鎖 / 分身の間、本物だけ 0.5秒ごとに弱く光る
+  // 七彩の女王: 分身の間、本物だけ 0.5秒ごとに弱く光る
   if (e.boss === 'pqueen') {
-    const oy = ey - 6;
-    if (ai.act === 'beams' && ai.bAng) {
-      const L = 200 * A, fl = Math.floor(t * 30) % 2;
-      ai.bAng.forEach((ba, i) => {
-        const bx = ex + Math.cos(ba) * L, by = oy + Math.sin(ba) * L;
-        pLine(gx, ex, oy, bx, by, PRISM[i], Math.round((2 + fl) * A)); // 光は細く(太いと白く飛んで色が見えない)
-        pLine(sx, ex, oy, bx, by, PRISM[i], Math.round(6 * A));
-        pLine(sx, ex, oy, bx, by, '#ffffff', 1);
-        for (let r = 30; r < L; r += 50) addLight(e.x + Math.cos(ba) * r, e.y - 6 + Math.sin(ba) * r, 40, PRISM[i], 0.5);
-      });
-    }
-    const cg = ai.cage;
-    if (cg && cg.objs && cg.t >= 0.6) {
-      const on = cg.t >= 1, o = cg.objs;
-      for (let i = 0; i < 4; i++) {
-        const P0 = o[i], P1 = o[(i + 1) % 4];
-        if (P0.dead || P1.dead) continue;
-        const x0 = P0.x - cam.x, y0 = P0.y - cam.y - 6, x1 = P1.x - cam.x, y1 = P1.y - cam.y - 6;
-        if (!on) { sx.globalAlpha = 0.5; pLine(sx, x0, y0, x1, y1, PRISM[(i * 2) % 7], 1); sx.globalAlpha = 1; continue; } // つながる直前
-        const c = PRISM[(i * 2 + Math.floor(t * 8)) % 7];
-        pLine(gx, x0, y0, x1, y1, c, Math.round(5 * A)); pLine(sx, x0, y0, x1, y1, c, Math.round(3 * A)); pLine(sx, x0, y0, x1, y1, '#ffffff', 1);
-        addLight((P0.x + P1.x) / 2, (P0.y + P1.y) / 2, 60, c, 0.6);
-      }
-      if (on && o.every(x => !x.dead)) { sx.globalAlpha = 0.08 + 0.04 * Math.sin(t * 6); sx.fillStyle = '#ffd0f0'; sx.beginPath(); o.forEach((q, i) => (i ? sx.lineTo : sx.moveTo).call(sx, q.x - cam.x, q.y - cam.y - 6)); sx.closePath(); sx.fill(); sx.globalAlpha = 1; } // 閉じた檻の中がうっすら光る
-    }
-    if (ai.tether) {
-      const n = 14, px = P.x - cam.x, py = P.y - cam.y - 4, far = d2(e.x, e.y, P.x, P.y) > 130 * 130;
-      for (let i = 0; i <= n; i++) { const k = i / n, x = Math.round(ex + (px - ex) * k), y = Math.round(oy + (py - oy) * k + Math.sin(k * Math.PI) * (far ? 0 : 6)); sx.fillStyle = gx.fillStyle = PRISM[(i + Math.floor(t * 12)) % 7]; sx.fillRect(x, y, 2, 1); gx.fillRect(x, y, 1, 1); }
-      if (far) addLight(P.x, P.y, 40, '#ff8ad8', 0.8);
-    }
     if (ai.clones && t % 0.5 < 0.12) { const gxp = Math.round(ex), gyp = Math.round(ey + yo - sp.h / 2 - 3); sx.fillStyle = gx.fillStyle = '#fff6c8'; sx.fillRect(gxp - 1, gyp, 3, 1); sx.fillRect(gxp, gyp - 1, 1, 3); gx.fillRect(gxp, gyp, 1, 1); } // 本物のしるし
   }
   // クラーケン: 触手が 2本以上ある間は、触手から本体へ水の流れ(守り)と、本体を包む水の膜
@@ -1965,9 +1947,17 @@ function drawBfx() {
       for (let i = 0; i < 2; i++) { const sxp = x0 + (i ? 4 : -5), H2 = Math.round(H * 0.6); for (let j = 0; j < H2; j++) { sx.fillStyle = j > H2 - 2 ? '#ffffff' : c; sx.fillRect(sxp, y0 - j, 1, 1); } } // 脇の小さな棘
       sx.fillStyle = '#0c0913'; sx.fillRect(x0 - 5, y0 + 1, 11, 1);
       addLight(f.x, f.y - 6, 40, c, 0.8 * k);
-    } else if (f.kind === 'lchain') { // 光の鎖が飛ぶ
-      const L = f.len * Math.min(1, u * 1.5), n = Math.floor(L / 3);
-      for (let i = 0; i <= n; i++) { const x = Math.round(fx + Math.cos(f.a) * i * 3), y = Math.round(fy + Math.sin(f.a) * i * 3); sx.fillStyle = gx.fillStyle = PRISM[i % 7]; sx.fillRect(x, y, 2, 1); gx.fillRect(x, y, 1, 1); }
+    } else if (f.kind === 'rbeam') { // 反射光線: 鏡で折れる七色の光線(白い芯)。折れる所が白く光る
+      const fl = Math.floor(t * 30) % 2, k = 1 - u;
+      for (let i = 0; i + 1 < f.pts.length; i++) {
+        const A = f.pts[i], B = f.pts[i + 1], x0 = A.x - cam.x, y0 = A.y - cam.y, x1 = B.x - cam.x, y1 = B.y - cam.y, c = PRISM[(i * 2 + Math.floor(t * 10)) % 7];
+        pLine(gx, x0, y0, x1, y1, c, Math.max(1, Math.round((2 + fl) * k + 1))); // 光は細く(太いと白く飛んで色が見えない)
+        pLine(sx, x0, y0, x1, y1, c, Math.max(1, Math.round(f.w * 0.7 * k + 1)));
+        pLine(sx, x0, y0, x1, y1, '#ffffff', 1);
+        const L = Math.hypot(B.x - A.x, B.y - A.y);
+        for (let r = 20; r < L; r += 50) addLight(A.x + (B.x - A.x) * r / L, A.y + (B.y - A.y) * r / L, 40, c, 0.5 * k);
+      }
+      for (const p of f.pts.slice(1, -1)) addLight(p.x, p.y, 60, '#ffffff', 0.8 * k);
     } else if (f.kind === 'chain') { // 灼熱の鎖: 飛んでいく鎖 / つながった鎖(イフリートとプレイヤーの間。輪が流れる)
       const tx = f.hold ? P.x - cam.x : fx + Math.cos(f.a) * f.len * Math.min(1, u * 1.6), ty = f.hold ? P.y - cam.y : fy + Math.sin(f.a) * f.len * Math.min(1, u * 1.6);
       const L = Math.hypot(tx - fx, ty - fy), n = Math.floor(L / 4);
