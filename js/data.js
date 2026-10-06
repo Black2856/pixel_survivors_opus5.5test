@@ -72,7 +72,7 @@ const DATA = {
     stag:    { name: '晶角の大鹿 PRISM STAG',       hp: 1400, spd: 26, dmg: 20, r: 13, music: 'b_crystal', col: '#9ff7ff' },
     pqueen:  { name: '七彩の女王 PRISM QUEEN',      hp: 1300, spd: 22, dmg: 20, r: 11, music: 'b_crystal', col: '#ff8ad8' },
     kraken:  { name: '大海魔クラーケン KRAKEN',     hp: 2000, spd: 10, dmg: 22, r: 16, music: 'b_sea', col: '#7ad7c8' },
-    levia:   { name: '深淵の海竜 LEVIATHAN',        hp: 1700, spd: 21, dmg: 22, r: 15, music: 'b_sea', col: '#4ab8e8', enrage: 0.4 },
+    levia:   { name: '深淵の海竜 LEVIATHAN',        hp: 1700, spd: 21, dmg: 22, r: 15, music: 'b_sea', col: '#4ab8e8', enrage: 0.7 },
     fgiant:  { name: '霜の巨人 FROST GIANT',        hp: 2000, spd: 11, dmg: 24, r: 16, music: 'b_peak', col: '#9fd8ff' },
     squeen:  { name: '雪華の女王 SNOW QUEEN',       hp: 1500, spd: 18, dmg: 22, r: 12, music: 'b_peak', col: '#d8f0ff', enrage: 0.4 },
     warden:  { name: '時計仕掛けの番人 CLOCKWORK WARDEN', hp: 1900, spd: 13, dmg: 22, r: 15, music: 'b_clock1', col: '#c8a050' },

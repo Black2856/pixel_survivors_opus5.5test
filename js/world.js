@@ -2959,10 +2959,10 @@ function tsunami(e, th) {
   hint('tsunami', '大津波', '岩礁の陰に入るか、ダッシュの無敵ですり抜けろ');
   later(e.ai, 1.2, () => { hazards.push({ kind: 'tsunami', x: x0, y: y0, th, span, reefs, d: 0, pd: 0, t: 0, dur, dmg: e.dmg, seed: (Math.random() * 1e6) | 0 }); AudioMan.splash(); AudioMan.roar(); shake(5); });
 }
-// 潜航・浮上: 潜っている 2.5秒(攻撃が当たらない)、円 半径 40 の影がプレイヤーを追い(速さ 52)、浮上の 0.5秒前に止まる → 浮上で ×1.3
+// 潜航・浮上: 潜っている 2.5秒(攻撃が当たらない)、円 半径 40 の影がプレイヤーを追い(速さ 60)、浮上の 0.5秒前に止まる → 浮上で ×1.3
 function startLeviaDive(e, ai) {
   ai.act = 'dive'; ai.pt = 2.5; e.flying = e.hidden = true; e.air = true;
-  ai.dw = chaseWarn({ kind: 'circle', x: e.x, y: e.y, r: 40, t: 0, life: 2.5 }, 2, 52);
+  ai.dw = chaseWarn({ kind: 'circle', x: e.x, y: e.y, r: 40, t: 0, life: 2.5 }, 2, 60);
   pushWarn(ai.dw);
   burst(e.x, e.y, 30, SPLASH, { sp: 110, up: 40, g: 200 }); AudioMan.splash();
   hint('dive', '潜航・浮上', '影が追ってくる。歩けば離せる');
@@ -2979,12 +2979,12 @@ function updLeviaDive(e, ai, dt) {
   burst(w.x, w.y, 60, SPLASH, { sp: 170, up: 80, g: 220, life: 0.8 }); addRing(w.x, w.y, R0, '#ffffff', { w: 3, life: 0.4 });
   shockAt(w.x, w.y, 1.8, 0.75); shake(10); AudioMan.splash(); AudioMan.boom();
 }
-// 水柱: プレイヤーの周り 120 の 3方向に 円 半径 16(0.8秒)→ 水柱 3本が 5秒、プレイヤーへゆっくり寄る(速さ 40)。触れると ×0.6・スタミナ −15(1本につき 1回)
+// 水柱: プレイヤーの周り 120 の 3方向に 円 半径 16(0.8秒)→ 水柱 3本が 7秒、プレイヤーへゆっくり寄る(速さ 40)。触れると ×0.6・スタミナ −15(1本につき 1回)
 function waterPillars(e, ai) {
   const a0 = rand(0, TAU), pts = [0, 1, 2].map(i => ({ x: P.x + Math.cos(a0 + TAU / 3 * i) * 120, y: P.y + Math.sin(a0 + TAU / 3 * i) * 120 }));
   for (const p of pts) pushWarn({ kind: 'circle', x: p.x, y: p.y, r: 16, t: 0, life: 0.8 });
   AudioMan.charge(0.8);
-  later(ai, 0.8, () => { for (const p of pts) { addHazard('wpillar', p.x, p.y, { r: 16, dur: 5, dmg: e.dmg }); burst(p.x, p.y, 16, SPLASH, { sp: 80, up: 60, g: 160 }); } AudioMan.splash(); });
+  later(ai, 0.8, () => { for (const p of pts) { addHazard('wpillar', p.x, p.y, { r: 16, dur: 7, dmg: e.dmg }); burst(p.x, p.y, 16, SPLASH, { sp: 80, up: 60, g: 160 }); } AudioMan.splash(); });
 }
 // 尾撃: 距離 60 以内で 0.5秒の扇(半径 70・±60°)→ ×0.9・スタミナ −20、海竜から 110 飛ばす
 function leviaTail(e, ai, a) {
