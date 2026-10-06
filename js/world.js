@@ -3353,12 +3353,12 @@ function reaperReap(e, ai, a) {
     AudioMan.slash(); shake(3);
   });
 }
-// 砂時計: プレイヤーから 110 に砂時計が落ちてくる(HP 8%・12秒)。立っている間 死神の技の間隔 ×0.75。壊すと死神が 1.5秒ひるむ
+// 砂時計: プレイヤーから 110 に砂時計が落ちてくる(HP 12%・12秒)。立っている間 死神の技の間隔 ×0.75。壊すと死神が 1.5秒ひるむ
 function sandglassDrop(e, ai) {
   const ga = rand(0, TAU), x = P.x + Math.cos(ga) * 110, y = P.y + Math.sin(ga) * 110;
   pushWarn({ kind: 'circle', x, y, r: 12, t: 0, life: 0.6, fixed: true });
   later(ai, 0.6, () => {
-    const o = spawnObj(e, 'sandglass', x, y, { pct: 0.08, r: 9, life: 12 }); o.dropT = 0.35;
+    const o = spawnObj(e, 'sandglass', x, y, { pct: 0.12, r: 9, life: 12 }); o.dropT = 0.35;
     hint('sandglass', '砂時計', '立っている間 死神の技が速くなる。壊すと死神がひるむ');
   });
   AudioMan.charge(0.6);
