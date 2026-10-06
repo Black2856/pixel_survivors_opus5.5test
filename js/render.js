@@ -1512,7 +1512,7 @@ function render() {
       continue;
     }
     // 敵弾は形に沿った赤いアウトラインで自分の弾と区別する。大きさは当たり判定(p.r)と同じく攻撃範囲の倍率を掛ける
-    const A = CHAOS.area, ol = { outline: oc, alpha: al, scale: A };
+    const A = CHAOS.area, ol = { outline: oc, alpha: al, scale: A * (p.sk || 1) }; // sk: エリートの弾は範囲 ×1.5 で大きい
     if (al !== undefined) sx.globalAlpha = al; // drawRot は透明度を受け取らないので、ここで掛けて戻す
     if (p.kind === 'boomer') drawRot('scythe', p.t * 16, p.x, p.y, { scale: 2 * A, outline: oc });
     else if (p.kind === 'glob' || p.kind === 'rbit' || p.kind === 'efire' || p.kind === 'esand') drawSp(ART.S[p.kind], p.x, p.y, ol);

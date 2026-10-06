@@ -1262,7 +1262,8 @@ function spawnEnemy(type, o = {}) {
   const hpk = base * hpK() * (o.elite ? EL.elite : 1);
   const spk = base * Math.min(EL.spdMax, lvK('spd')) * (P.uq.clock ? 1.15 : 1) * (o.elite ? 1.1 : 1); // 狂時の: 速度 +15%
   const e = {
-    id: nextId++, type, x, y, hp: d.hp * hpk, maxhp: d.hp * hpk, spd: d.spd * spk * rand(0.9, 1.1), dmg: d.dmg * enemyDmgK(),
+    id: nextId++, type, x, y, hp: d.hp * hpk, maxhp: d.hp * hpk, spd: d.spd * spk * rand(0.9, 1.1), dmg: d.dmg * enemyDmgK() * (o.elite ? EL.eliteDmg : 1),
+    rateK: o.elite ? EL.eliteRate : 1, areaK: o.elite ? EL.eliteArea : 1, // エリート: 攻撃速度・攻撃範囲
     r: d.r * (o.elite ? 2 : 1), xp: d.xp * lvK('xp'), ai: d.ai, kbRes: o.elite ? 0.9 : d.kbRes || 0, ghost: d.ghost,
     t: rand(0, 5), seed: Math.random(), kx: 0, ky: 0, flash: 0, elite: !!o.elite, scale: o.elite ? 2 : 1,
     frost: 0, frostT: 0, burns: [], burnT: 0, burnTick: 0, stun: 0, slowT: 0, bleed: 0, bleedT: 0, shotT: (d.shot || d.throw || d.rush || d.puff || d.lantern || d.snowball || d.blink || d.warp) ? rand(1, (d.shot || d.throw || d.rush || d.puff || d.lantern || d.snowball || d.blink || d.warp).cd) : 0, wind: 0, hopT: rand(0, 1),
@@ -1286,7 +1287,7 @@ function enemyShoot(e, s, a) {
   const n = s.count || 1;
   for (let i = 0; i < n; i++) {
     const aa = a + (i - (n - 1) / 2) * (s.spread || 0);
-    eprojs.push({ kind: s.kind, x: e.x, y: e.y - 2, vx: Math.cos(aa) * s.spd, vy: Math.sin(aa) * s.spd, dmg: e.dmg * s.n * S.eatk, burn: s.burn ? e.dmg * s.burn * S.eatk : 0, frost: s.frost || 0, life: 4, t: 0, r: (SHOT_R[s.kind] || 3) * CHAOS.area });
+    eprojs.push({ kind: s.kind, x: e.x, y: e.y - 2, vx: Math.cos(aa) * s.spd, vy: Math.sin(aa) * s.spd, dmg: e.dmg * s.n * S.eatk, burn: s.burn ? e.dmg * s.burn * S.eatk : 0, frost: s.frost || 0, life: 4, t: 0, r: (SHOT_R[s.kind] || 3) * CHAOS.area * e.areaK, sk: e.areaK }); // sk: 弾の見た目の大きさ(エリートは範囲 ×1.5)
   }
   if (s.kind === 'eice') { burst(e.x + Math.cos(a) * 4, e.y - 2 + Math.sin(a) * 4, 7, ['#9ff7ff', '#ffffff', '#7ad7ff'], { sp: 45, glow: true, life: 0.3 }); AudioMan.frost(); }
   if (s.kind === 'efire') { burst(e.x + Math.cos(a) * 4, e.y - 2 + Math.sin(a) * 4, 7, ['#ff6a2a', '#ffc34a', '#fff6c8'], { sp: 45, glow: true, life: 0.3 }); AudioMan.fire(); }
@@ -1294,8 +1295,8 @@ function enemyShoot(e, s, a) {
 }
 // 投槍兵: 予告の帯の長さだけ飛ぶ槍(帯と同じく攻撃範囲の倍率で伸びる。槍の判定の幅 = 帯の幅)
 function throwSpear(e, th) {
-  const len = th.len * CHAOS.area;
-  eprojs.push({ kind: th.kind || 'espear', x: e.x, y: e.y, vx: Math.cos(e.ta) * th.spd, vy: Math.sin(e.ta) * th.spd, dmg: e.dmg * th.n * S.eatk, sta: th.sta || 0, life: len / th.spd, t: 0, r: th.w / 2 * CHAOS.area }); // サハギンの三叉槍はスタミナも減らす
+  const len = th.len * CHAOS.area * e.areaK;
+  eprojs.push({ kind: th.kind || 'espear', x: e.x, y: e.y, vx: Math.cos(e.ta) * th.spd, vy: Math.sin(e.ta) * th.spd, dmg: e.dmg * th.n * S.eatk, sta: th.sta || 0, life: len / th.spd, t: 0, r: th.w / 2 * CHAOS.area * e.areaK, sk: e.areaK }); // サハギンの三叉槍はスタミナも減らす
   e.kx -= Math.cos(e.ta) * 30; e.ky -= Math.sin(e.ta) * 30; // 投げた反動で少しのけぞる
   burst(e.x + Math.cos(e.ta) * 6, e.y + Math.sin(e.ta) * 6, 8, ['#c8b89a', '#ffffff', '#7a6a5a'], { sp: 70, life: 0.25 });
   AudioMan.spearThrow();
@@ -1303,8 +1304,8 @@ function throwSpear(e, th) {
 // 鬼火の自爆: 半径 r に ×n と炎上。倒した扱いにはしない(経験値・コンボなし)
 function onibiBlast(e, bl) {
   e.dead = true;
-  if (hitCircle(e.x, e.y, bl.r, e.dmg * bl.n)) burnPlayer(e.dmg * bl.burn);
-  const R = bl.r * CHAOS.area;
+  if (hitCircle(e.x, e.y, bl.r * e.areaK, e.dmg * bl.n)) burnPlayer(e.dmg * bl.burn);
+  const R = bl.r * CHAOS.area * e.areaK;
   burst(e.x, e.y, 30, ['#7ad7ff', '#ffffff', '#3a8ad0', '#ffc34a', '#ff6a2a'], { sp: 120, glow: true, life: 0.45 });
   for (let i = 0; i < 12; i++) { const pa = TAU / 12 * i; part(e.x, e.y, Math.cos(pa) * R * 3.2, Math.sin(pa) * R * 3.2, 0.3, '#bff4ff', { glow: true, drag: 6, sz: 2 }); } // 炎の輪が半径いっぱいまで走る
   addRing(e.x, e.y, R, '#9fe8ff', { w: 2, life: 0.3 }); addFlash(e.x, e.y, R * 3, '#7ad7ff', 0.8);
@@ -1322,9 +1323,9 @@ function drainSta(n) {
 function yetiThrow(e, sb) {
   const dmg = e.dmg * sb.n;
   lob('snowball', e.x, e.y - 8, e.tx, e.ty, 1.0, 45, p => {
-    if (hitCircle(p.x, p.y, sb.r, dmg)) frostPlayer(sb.frost);
-    addHazard('snow', p.x, p.y, { r: sb.r, dur: sb.floor, tick: 1 });
-    burst(p.x, p.y, 22, ['#ffffff', '#e8f4ff', '#bff4ff'], { sp: 90, up: 40, g: 200, life: 0.6 }); addRing(p.x, p.y, sb.r * CHAOS.area, '#ffffff', { life: 0.3 });
+    if (hitCircle(p.x, p.y, sb.r * e.areaK, dmg)) frostPlayer(sb.frost);
+    addHazard('snow', p.x, p.y, { r: sb.r * e.areaK, dur: sb.floor, tick: 1 });
+    burst(p.x, p.y, 22, ['#ffffff', '#e8f4ff', '#bff4ff'], { sp: 90, up: 40, g: 200, life: 0.6 }); addRing(p.x, p.y, sb.r * CHAOS.area * e.areaK, '#ffffff', { life: 0.3 });
     AudioMan.thud();
   });
   e.sq = 0.7; e.kx -= Math.cos(Math.atan2(e.ty - e.y, e.tx - e.x)) * 20;
@@ -1332,7 +1333,7 @@ function yetiThrow(e, sb) {
 }
 // 溶岩スライム: 着地・倒れた場所に燃える床
 function lavaPool(e, f) {
-  addHazard('fire', e.x, e.y + 2, { r: f.r, dur: f.dur, dmg: e.dmg });
+  addHazard('fire', e.x, e.y + 2, { r: f.r * e.areaK, dur: f.dur, dmg: e.dmg });
   burst(e.x, e.y + 2, 9, ['#ff6a2a', '#ffc34a', '#5a1a14'], { sp: 55, g: 180, life: 0.45 });
 }
 
@@ -1416,7 +1417,7 @@ function updEnemies(dt) {
           if (Math.random() < dt * 45) { const pa = rand(0, TAU), pr = rand(5, 10); part(e.x + Math.cos(pa) * pr, e.y + 4 + Math.sin(pa) * pr * 0.5, -Math.sin(pa) * 34, Math.cos(pa) * 16 - 10, 0.35, pick(['#e8c88a', '#c8a060', '#fff0c0']), { drag: 2 }); }
           if (e.wind <= 0) enemyShoot(e, s, Math.atan2(dc.y - e.y, dc.x - e.x));
         } else {
-          e.shotT -= dt * CHAOS.rate * tw; // カオス: 攻撃頻度 / 時の歪み
+          e.shotT -= dt * CHAOS.rate * tw * e.rateK; // カオス: 攻撃頻度 / 時の歪み
           if (e.shotT <= 0 && dd < s.range) {
             e.shotT = s.cd;
             if (s.wind) { e.wind = s.wind; AudioMan.sand(); } else enemyShoot(e, s, a);
@@ -1442,10 +1443,10 @@ function updEnemies(dt) {
           mx = my = 0; e.wind -= dt * CHAOS.rate * tw;
           if (e.wind <= 0) throwSpear(e, th);
         } else {
-          e.shotT -= dt * CHAOS.rate * tw;
+          e.shotT -= dt * CHAOS.rate * tw * e.rateK;
           if (e.shotT <= 0 && d2(e.x, e.y, P.x, P.y) < th.range * th.range) {
             e.shotT = th.cd; e.wind = th.wind; e.ta = a;
-            pushWarn({ kind: 'line', x: e.x, y: e.y, a, len: th.len, w: th.w, t: 0, life: th.wind, owner: e, track: w => { w.x = e.x; w.y = e.y; } });
+            pushWarn({ kind: 'line', x: e.x, y: e.y, a, len: th.len * e.areaK, w: th.w * e.areaK, t: 0, life: th.wind, owner: e, track: w => { w.x = e.x; w.y = e.y; } });
             AudioMan.spearReady();
           }
         }
@@ -1460,7 +1461,7 @@ function updEnemies(dt) {
           mx = my = 0; e.wind -= dt * CHAOS.rate * tw; e.flash = Math.sin(e.wind * 40) > 0 ? 0.05 : 0;
           if (e.wind <= 0) { e.dash = ru.len / ru.spd; AudioMan.dash(); }
         } else {
-          e.shotT -= dt * CHAOS.rate * tw;
+          e.shotT -= dt * CHAOS.rate * tw * e.rateK;
           if (e.shotT <= 0 && d2(e.x, e.y, P.x, P.y) < ru.range * ru.range) {
             e.shotT = ru.cd; e.wind = ru.wind; e.ta = a;
             pushWarn({ kind: 'line', x: e.x, y: e.y, a, len: ru.len, w: e.r * 2 + 2, t: 0, life: ru.wind, fixed: true, owner: e, track: w => { w.x = e.x; w.y = e.y; } }); // 突進の経路(体当たりなので広げない)
@@ -1473,11 +1474,11 @@ function updEnemies(dt) {
           mx = my = 0; e.wind -= dt * CHAOS.rate * tw; e.swell = 1 - e.wind / pf.wind;
           if (e.wind <= 0) {
             e.swell = 0;
-            for (let i = 0; i < pf.count; i++) { const na = TAU / pf.count * i + e.seed; eprojs.push({ kind: 'needle', x: e.x, y: e.y, vx: Math.cos(na) * pf.spd, vy: Math.sin(na) * pf.spd, dmg: e.dmg * pf.n * S.eatk, sta: pf.sta, life: 3, t: 0, r: 2 * CHAOS.area }); }
+            for (let i = 0; i < pf.count; i++) { const na = TAU / pf.count * i + e.seed; eprojs.push({ kind: 'needle', x: e.x, y: e.y, vx: Math.cos(na) * pf.spd, vy: Math.sin(na) * pf.spd, dmg: e.dmg * pf.n * S.eatk, sta: pf.sta, life: 3, t: 0, r: 2 * CHAOS.area * e.areaK, sk: e.areaK }); }
             burst(e.x, e.y, 10, ['#e8c86a', '#fff0c0', '#bff4ff'], { sp: 60, life: 0.3 }); AudioMan.puff();
           }
         } else {
-          e.shotT -= dt * CHAOS.rate * tw;
+          e.shotT -= dt * CHAOS.rate * tw * e.rateK;
           if (e.shotT <= 0 && d2(e.x, e.y, P.x, P.y) < pf.range * pf.range) { e.shotT = pf.cd; e.wind = pf.wind; AudioMan.charge(pf.wind); }
         }
       }
@@ -1487,13 +1488,13 @@ function updEnemies(dt) {
           e.wind -= dt * CHAOS.rate * tw; e.glowL = 1 - Math.max(0, e.wind) / ln.wind;
           if (e.wind <= 0) {
             e.glowL = 0;
-            const R0 = ln.r * CHAOS.area;
+            const R0 = ln.r * CHAOS.area * e.areaK;
             if (d2(e.x, e.y, P.x, P.y) < (R0 + 3) * (R0 + 3) && P.invT <= 0) drainSta(ln.sta);
             addRing(e.x, e.y, R0, '#fff6a0', { w: 2, life: 0.35 }); addFlash(e.x, e.y, R0 * 2.5, '#fff6a0', 0.9); AudioMan.chime();
           }
         } else {
-          e.shotT -= dt * CHAOS.rate * tw;
-          if (e.shotT <= 0 && d2(e.x, e.y, P.x, P.y) < 160 * 160) { e.shotT = ln.cd; e.wind = ln.wind; pushWarn({ kind: 'circle', x: e.x, y: e.y, r: ln.r, t: 0, life: ln.wind, owner: e, track: w => { w.x = e.x; w.y = e.y; } }); }
+          e.shotT -= dt * CHAOS.rate * tw * e.rateK;
+          if (e.shotT <= 0 && d2(e.x, e.y, P.x, P.y) < 160 * 160) { e.shotT = ln.cd; e.wind = ln.wind; pushWarn({ kind: 'circle', x: e.x, y: e.y, r: ln.r * e.areaK, t: 0, life: ln.wind, owner: e, track: w => { w.x = e.x; w.y = e.y; } }); }
         }
       }
       if (d.blink) { // 時計兵: 光って(wind 秒)、プレイヤーの方向へ dist 瞬間移動する(時を飛ばす)
@@ -1506,15 +1507,15 @@ function updEnemies(dt) {
             for (let k = 0; k < 6; k++) { const u = k / 5; part(lerp(x0, e.x, u), lerp(y0, e.y, u) - 2, 0, -4, 0.35, pick(['#ffd27a', '#c8a050', '#fff0c8']), { glow: true, drag: 1 }); } // 飛ばした時の跡
             addRing(e.x, e.y, 8, '#ffd27a', { life: 0.25 }); AudioMan.tick(6);
           }
-        } else if ((e.shotT -= dt * CHAOS.rate * tw) <= 0) { e.shotT = bl.cd; e.wind = bl.wind; }
+        } else if ((e.shotT -= dt * CHAOS.rate * tw * e.rateK) <= 0) { e.shotT = bl.cd; e.wind = bl.wind; }
       }
       if (d.warp) { // 砂時計の精: プレイヤーの位置に予告(wind 秒)→ 時の歪み(時計盤の床)
         const wp = d.warp;
-        if ((e.shotT -= dt * CHAOS.rate * tw) <= 0 && d2(e.x, e.y, P.x, P.y) < wp.range * wp.range) {
+        if ((e.shotT -= dt * CHAOS.rate * tw * e.rateK) <= 0 && d2(e.x, e.y, P.x, P.y) < wp.range * wp.range) {
           e.shotT = wp.cd;
           const tx = P.x, ty = P.y;
-          pushWarn({ kind: 'circle', x: tx, y: ty, r: wp.r, t: 0, life: wp.wind });
-          addHazard('clock', tx, ty, { r: wp.r, dur: wp.dur, slow: wp.slow, delay: wp.wind });
+          pushWarn({ kind: 'circle', x: tx, y: ty, r: wp.r * e.areaK, t: 0, life: wp.wind });
+          addHazard('clock', tx, ty, { r: wp.r * e.areaK, dur: wp.dur, slow: wp.slow, delay: wp.wind });
           burst(e.x, e.y - 4, 10, ['#e8c88a', '#fff0c8', '#9ff7ff'], { sp: 40, glow: true, life: 0.4 }); AudioMan.tick(10);
         }
         e.aim = e.shotT < 0.5;
@@ -1525,10 +1526,10 @@ function updEnemies(dt) {
           mx = my = 0; e.wind -= dt * CHAOS.rate * tw;
           if (e.wind <= 0) yetiThrow(e, sb);
         } else {
-          e.shotT -= dt * CHAOS.rate * tw;
+          e.shotT -= dt * CHAOS.rate * tw * e.rateK;
           if (e.shotT <= 0 && d2(e.x, e.y, P.x, P.y) < sb.range * sb.range) {
             e.shotT = sb.cd; e.wind = 0.5; e.tx = P.x; e.ty = P.y;
-            pushWarn({ kind: 'circle', x: P.x, y: P.y, r: sb.r, t: 0, life: 1.5, owner: e });
+            pushWarn({ kind: 'circle', x: P.x, y: P.y, r: sb.r * e.areaK, t: 0, life: 1.5, owner: e });
           }
         }
         e.aim = e.wind > 0;
@@ -1541,7 +1542,7 @@ function updEnemies(dt) {
           if (e.wind <= 0) { onibiBlast(e, bl); continue; }
         } else if (d2(e.x, e.y, P.x, P.y) < bl.range * bl.range) {
           e.wind = bl.wind;
-          pushWarn({ kind: 'circle', x: e.x, y: e.y, r: bl.r, t: 0, life: bl.wind, owner: e });
+          pushWarn({ kind: 'circle', x: e.x, y: e.y, r: bl.r * e.areaK, t: 0, life: bl.wind, owner: e });
           AudioMan.fuse();
         }
       }

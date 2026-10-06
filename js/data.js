@@ -56,7 +56,8 @@ const DATA = {
   // ---------- 敵レベル(時間経過で上昇・ボス出現中は停止・周回してもリセットしない) ----------
   // dmg/spd/xp: Lv が 1 上がるごとの増加率(Lv1 = 基本値)
   // HP倍率 = hpLin × (Lv-1) + hpExp^(Lv-1)。雑魚・ボスで共通
-  enemyLevel: { interval: 30, hpLin: 0.2, hpExp: 1.03, dmg: 0.03, spd: 0.005, spdMax: 1.5, xp: 0.04, elite: 14 },
+  // elite: エリートの HP の倍率 / eliteDmg: 攻撃力 / eliteRate: 攻撃速度(攻撃の間隔が 1/n。予告の長さは同じ)/ eliteArea: 攻撃範囲(予告・当たり判定・弾・床)
+  enemyLevel: { interval: 30, hpLin: 0.2, hpExp: 1.03, dmg: 0.03, spd: 0.005, spdMax: 1.5, xp: 0.04, elite: 14, eliteDmg: 1.25, eliteRate: 2.0, eliteArea: 1.5 },
 
   // hp: 基礎HP(1500〜2000。Lv倍率は雑魚と共通) / enrage: 激昂する残りHP割合(省略時 0.5)
   bosses: {
