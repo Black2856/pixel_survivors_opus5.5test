@@ -3429,7 +3429,7 @@ function fhourAI(e, ai, dt, a, dist, slow) {
   else if (ai.scy <= 0 && dist < 90) { ai.scy = ai.enraged ? 2.5 : 3.5; hourScythe(e, ai, a); chronoEcho(e, ai, e.x, e.y, (g, ga) => hourScythe(g, ga, a)); }
 }
 // クロノ・エコー(激昂・間隔 20): 刻の大鎌・十二の刻印・秒針の弾幕が終わってから 3秒後に、同じ位置で灰色の死神が同じ技をもう一度(向き・狙った位置も同じ)
-//   技の終わり = 技の長さ(ai.busy: 刻の大鎌 1.2秒・十二の刻印 3.25秒・秒針の弾幕 3.6秒(激昂))
+//   技の終わり = 技の長さ(ai.busy: 刻の大鎌 1.2秒・十二の刻印 3.15秒・秒針の弾幕 3.6秒(激昂))
 //   灰色の死神は 0.4秒で現れてから技を始め、終わると 0.4秒で消える。攻撃は当たらない(ただの姿)。技の当たり判定は本物と同じ
 function chronoEcho(e, ai, x, y, fn) {
   if (!ai.enraged || ai.echo > 0) return;
@@ -3503,10 +3503,10 @@ function timeStop(e, ai) {
   later(ai, 2.5, () => maybeMadClock(e, ai));
 }
 // 十二の刻印: 死神が消える → プレイヤーのいた位置に 円 半径 50(1秒)→ 死神がそこに現れて斬る(×1.2)
-//   → 斬り終えたら(0.35秒)、0.5秒 死神から時計の 12方向へ帯(長さ 150・幅 16)→ 12時の方向(上)から時計回りに 0.1秒おきに炸裂(×0.8)
+//   → 斬り終えた瞬間(回転斬りを振り切る 0.25秒後)から、0.5秒 死神から時計の 12方向へ帯(長さ 150・幅 16)→ 12時の方向(上)から時計回りに 0.1秒おきに炸裂(×0.8)
 //   at: 現れる位置(クロノ・エコーは本物と同じ位置)。返り値は現れた位置
 function twelveMarks(e, ai, at) {
-  ai.busy = 3.25;
+  ai.busy = 3.15;
   const x0 = at ? at.x : P.x, y0 = at ? at.y : P.y;
   if (!e.echo) bfx.push({ kind: 'afterimg', spr: 'fhour', x: e.x, y: e.y - (e.jz || 0), flip: (e.face || 1) < 0, t: 0, life: 0.4 }); // 溶けるように消える残像
   e.flying = e.hidden = e.air = true; // 消える(攻撃が当たらない・触れても当たらない)
@@ -3521,7 +3521,7 @@ function twelveMarks(e, ai, at) {
     hitCircle(x0, y0, 50, e.dmg * 1.2);
     bfx.push({ kind: 'spincut', x: x0, y: y0, a0: rand(0, TAU), dir: Math.random() < 0.5 ? 1 : -1, r: R0 + 8, t: 0, life: 0.45 });
     burst(x0, y0, 30, ['#ff3b5c', '#ffffff', '#8e0016'], { sp: 150, glow: true, life: 0.4 }); shockAt(x0, y0, 1.4, 0.8); shake(7); hitstop(0.04); AudioMan.slash(); AudioMan.cutHit(); AudioMan.boom();
-    later(ai, 0.35, () => { // 斬り終えてから 12方向の帯
+    later(ai, 0.25, () => { // 斬り終えた瞬間から 12方向の帯
       for (let i = 0; i < 12; i++) {
         const ma = -Math.PI / 2 + TAU / 12 * i;
         pushWarn({ kind: 'line', x: x0, y: y0, a: ma, len: 150, w: 16, t: 0, life: 0.5 + 0.1 * i });
@@ -3563,14 +3563,14 @@ function finaleRewind(e) {
   screenFlash(0.6, '#c29bff'); shake(10); AudioMan.knell(); AudioMan.hum(1.5);
   UI.announce('時が巻き戻る…', '死神の HP が回復する');
 }
-// デッドクロス(激昂): 1.5秒、プレイヤーの位置を中心に X字の帯 2本(長さ 280・幅 20)が速く回りながら減速して止まる → 0.3秒後に斬る。当たると HP が 1 になる
+// デッドクロス(激昂): 0.8秒、プレイヤーの位置を中心に X字の帯 2本(長さ 280・幅 20)が速く回りながら減速して止まる → 0.2秒後に斬る。当たると HP が 1 になる
 function deadCross(e, ai) {
-  ai.busy = 2.1;
-  const cx = P.x, cy = P.y, a0 = rand(0, TAU), ang = (i, t) => a0 + i * Math.PI / 2 + 3 * Math.PI * (1 - Math.pow(1 - Math.min(1, t / 1.5), 3)); // 1.5回転してイージングで止まる
-  for (let i = 0; i < 2; i++) pushWarn({ kind: 'line', x: cx, y: cy, a: ang(i, 0), len: 280, w: 20, t: 0, life: 1.8, cross: true, track: q => { q.a = ang(i, q.t); q.x = cx - Math.cos(q.a) * q.len / 2; q.y = cy - Math.sin(q.a) * q.len / 2; } });
-  AudioMan.charge(1.5); AudioMan.warning();
+  ai.busy = 1.3;
+  const cx = P.x, cy = P.y, a0 = rand(0, TAU), ang = (i, t) => a0 + i * Math.PI / 2 + 3 * Math.PI * (1 - Math.pow(1 - Math.min(1, t / 0.8), 3)); // 0.8秒で 1.5回転してイージングで止まる
+  for (let i = 0; i < 2; i++) pushWarn({ kind: 'line', x: cx, y: cy, a: ang(i, 0), len: 280, w: 20, t: 0, life: 1.0, cross: true, track: q => { q.a = ang(i, q.t); q.x = cx - Math.cos(q.a) * q.len / 2; q.y = cy - Math.sin(q.a) * q.len / 2; } });
+  AudioMan.charge(0.8); AudioMan.warning();
   hint('deadcross', 'デッドクロス', '当たると HP が 1 になる。回避かガードで防げ');
-  later(ai, 1.8 - CUT_HIT, () => { // 村正の一閃と同じ作りの、赤黒い X の斬撃(炸裂の時刻に当たり判定)
+  later(ai, 1.0 - CUT_HIT, () => { // 村正の一閃と同じ作りの、赤黒い X の斬撃(止まってから 0.2秒後の炸裂の時刻に当たり判定)
     const L = 140 * CHAOS.area, fa = [ang(0, 2), ang(1, 2)];
     let done = false;
     for (const sa of fa) {
