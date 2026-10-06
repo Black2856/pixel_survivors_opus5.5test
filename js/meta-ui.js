@@ -285,13 +285,14 @@ const MetaUI = (() => {
 
   // ---------- ステージ選択 ----------
   // 1列で、枠の中をスクロール: エスカレーション / 闘技場 / 通常モードのステージ(ステージを1つ選ぶ。3分 → エリート群 → 3分 → ボス → 3分 → ボス)を tier の順に。帯の色は tier
-  // クリアしたものに ★、カオス強化はクリアで解放。通常モードのステージは tier 1 が最初から、tier N は tier N−1 のステージを1つクリアすると解放
+  // クリアしたものに ★。カオス強化はクリアするまで tier の値で固定(見るだけ)、クリアすると変えられる。通常モードのステージは tier 1 が最初から、tier N は tier N−1 のステージを1つクリアすると解放
   const TIER_COL = ['#9ff7ff', '#7dff9a', '#ff8a3d', '#c78bff'];
+  const startLvOf = key => { const m = chaosMods(key).find(x => x.k === 'startLv'); return 1 + chaosLv(chaosSetting(key), m) * m.per; }; // 開始の敵Lv(深い闇)
   const STAGE_ITEMS = () => [
     { key: 'escalation', mode: 'escalation', n: 1, name: 'エスカレーション', sub: 'tier 1 → 4 を通す。tier ごとに同じ tier のステージからランダム(3分 → ボス)、最後は時計塔の死神', col: '#ffd23f' },
     { key: 'arena', mode: 'arena', n: 1, name: '闘技場', sub: `ボス${DATA.arena.order.length}体の連戦`, col: '#ff3b5c' },
     ...DATA.stageRuns.map(R => ({ key: 'stage' + R.no, mode: 'stage', n: R.no, tier: R.tier, name: DATA.stages[R.stage - 1].label,
-      sub: `tier ${R.tier} ・ 敵Lv ${DATA.flow.tierLv[R.tier - 1]} から ・ ${R.bosses.map(b => DATA.bosses[b].name.split(' ')[0]).join(' → ')}`, col: TIER_COL[R.tier - 1] }))
+      sub: `tier ${R.tier} ・ 敵Lv ${startLvOf('stage' + R.no)} から ・ ${R.bosses.map(b => DATA.bosses[b].name.split(' ')[0]).join(' → ')}`, col: TIER_COL[R.tier - 1] }))
       .sort((a, b) => a.tier - b.tier), // 通常モード: tier の順
   ];
   function stageSelect() {
@@ -303,9 +304,10 @@ const MetaUI = (() => {
     const items = STAGE_ITEMS();
     $('stage-list').innerHTML = items.map(s => {
       const clear = META.stageClear[s.key], open = stageUnlocked(s);
-      const pt = clear ? chaosPoints(META.chaos[s.key] || {}, s.key) : 0;
+      const pt = open ? chaosPoints(chaosSetting(s.key), s.key) : 0;
       const right = !open ? `<span class="lock">未解放: tier ${s.tier - 1} のステージを1つクリア</span>`
-        : `<span class="chaos ${clear ? 'on' : ''}">${clear ? `カオス強化 <b>${pt} pt</b> <span class="cz-btn" data-chaos="${s.key}">設定 ▶</span>` : 'カオス強化: クリアで解放'}</span>`;
+        : clear ? `<span class="chaos on">カオス強化 <b>${pt} pt</b> <span class="cz-btn" data-chaos="${s.key}">設定 ▶</span></span>`
+        : `<span class="chaos">カオス強化 ${pt ? `<b>${pt} pt</b>` : 'なし'}(クリアまで固定)<span class="cz-btn" data-chaos="${s.key}">見る ▶</span></span>`;
       return `<button class="stg${open ? '' : ' locked'}" data-mode="${s.mode}" data-n="${s.n}" style="--sc:${s.col}">
         <span class="nm">${s.name}${clear ? ' <b class="clr">★ CLEAR</b>' : ''}</span>${right}<span class="sub">${s.sub}</span></button>`;
     }).join('');
@@ -321,26 +323,26 @@ const MetaUI = (() => {
     AudioMan.click(); startRun(b.dataset.mode, +b.dataset.n);
   };
   // ---------- カオス強化の設定 ----------
-  // 項目ごとに Lv を上げ下げ。合計ポイントと、その報酬(そのランの間だけ効く)を表示する
+  // 項目ごとに Lv を上げ下げ。合計ポイントと、その報酬(そのランの間だけ効く)を表示する。クリアするまでは tier の値で固定(見るだけ)
   let czKey = null;
   // 報酬の一覧(右の欄に1行ずつ)
   const rewardRows = r => (r ? [['装備ロール上限', `+${Math.round(r.eqMaxVal * 100)}%`], ['装備Lv上限', r.eqMaxLv ? `+${r.eqMaxLv}` : '—'], ['装備品質', `+${Math.round(r.eqQual * 100)}%`], ['宝箱品質', `+${Math.round(r.chestQual * 100)}%`], ['獲得ゴールド', `+${Math.round(r.gold * 100)}%`]]
     .map(([a, b]) => `<div class="cz-rw"><span>${a}</span><b>${b}</b></div>`).join('') : '<div class="dim">なし(5 pt から)</div>');
   function chaosPanel(key) {
-    czKey = key; const lv = META.chaos[key] || (META.chaos[key] = {});
+    czKey = key; const lv = chaosSetting(key), fixed = chaosFixed(key);
     const pt = chaosPoints(lv, key), r = chaosReward(pt), next = DATA.chaos.rewards.find(x => x.pt > pt);
     const item = STAGE_ITEMS().find(s => s.key === key);
     $('chaos-panel').innerHTML = `<div class="cz">
-      <div class="cz-head"><b>カオス強化</b> ${item ? item.name : ''}<button class="cz-x" data-cz="close">×</button></div>
+      <div class="cz-head"><b>カオス強化</b> ${item ? item.name : ''}${fixed ? '<span class="cz-fix">クリアするまで固定(見るだけ)</span>' : ''}<button class="cz-x" data-cz="close">×</button></div>
       <div class="cz-body"><div class="cz-list">${chaosMods(key).map(m => { const l = chaosLv(lv, m); return `<div class="cz-row ${l ? 'on' : ''}">
         <span class="nm">${m.name}<small>${chaosDesc(m, Math.max(1, l))}${m.max > 1 ? ` (1Lv ${m.per}${m.unit ?? '%'})` : ''}</small></span>
         <span class="pt">${m.pt} pt/Lv</span>
-        <button data-cz="-" data-k="${m.k}" ${l ? '' : 'disabled'}>−</button><b>${l} / ${m.max}</b><button data-cz="+" data-k="${m.k}" ${l < m.max ? '' : 'disabled'}>+</button></div>`; }).join('')}</div>
+        <button data-cz="-" data-k="${m.k}" ${l && !fixed ? '' : 'disabled'}>−</button><b>${l} / ${m.max}</b><button data-cz="+" data-k="${m.k}" ${l < m.max && !fixed ? '' : 'disabled'}>+</button></div>`; }).join('')}</div>
       <div class="cz-sum">
         <div class="cz-pt">合計<b>${pt}</b><small>pt</small></div>
         <div class="cz-h">報酬${r ? `(${r.pt} pt)` : ''}</div><div class="cz-rws now">${rewardRows(r)}</div>
         ${next ? `<div class="cz-h dim">次の報酬(${next.pt} pt)</div><div class="cz-rws">${rewardRows(next)}</div>` : '<div class="cz-h dim">報酬は最大</div>'}
-        <div class="dim cz-note">報酬はこのモード・ステージのランの間だけ効く。敵が強くなる分、装備とゴールドが増える</div>
+        <div class="dim cz-note">${fixed ? (item && item.tier ? `クリアするまで tier ${item.tier} のカオス強化で固定。` : 'クリアするまでカオス強化なし。') + 'クリアすると変えられる。' : ''}報酬はこのモード・ステージのランの間だけ効く。敵が強くなる分、装備とゴールドが増える</div>
       </div></div>
     </div>`;
     UI.show($('chaos-panel'));
@@ -349,7 +351,8 @@ const MetaUI = (() => {
     if (e.target === $('chaos-panel')) { closeChaos(); return; }
     const b = e.target.closest('[data-cz]'); if (!b || b.disabled) return;
     if (b.dataset.cz === 'close') { closeChaos(); return; }
-    const lv = META.chaos[czKey], m = chaosMods(czKey).find(x => x.k === b.dataset.k);
+    if (chaosFixed(czKey)) return; // クリアするまでは見るだけ
+    const lv = chaosSetting(czKey), m = chaosMods(czKey).find(x => x.k === b.dataset.k);
     lv[m.k] = clamp(chaosLv(lv, m) + (b.dataset.cz === '+' ? 1 : -1), 0, m.max);
     saveMeta(); AudioMan.click(); chaosPanel(czKey);
   };

@@ -17,18 +17,18 @@ const xpFor = l => Math.floor(4 + l * 2.6 + Math.pow(l, 1.72));
 // ラン初期化 / ステータス
 // ============================================================
 // ---------- カオス強化の効果(ラン開始時に S.chaos から計算) ----------
-// area: 敵の攻撃範囲の倍率 / rate: 敵の攻撃頻度の倍率 / debuff: デバフの時間の倍率 / その他は Lv
+// area: 敵の攻撃範囲の倍率 / rate: 敵の攻撃頻度の倍率 / debuff: デバフの時間の倍率 / bossLv・startLv: 敵Lv(Lv × per)
 // bossHp: ボスの HP の倍率 / escort: ボスと一緒に入場するエリートの数(闘技場)
 let CHAOS = { area: 1, rate: 1, debuff: 1, lvSpeed: 1, spawn: 1, loot: 0, bossLv: 0, rage: false, twin: false, bossHp: 1, escort: 0 };
 // key: モード・ステージのキー(闘技場は闘技場の項目だけを見る)
 function setupChaos(lv, key) {
   const mods = chaosMods(key), M = k => mods.find(m => m.k === k);
-  const L = k => (M(k) ? chaosLv(lv, M(k)) : 0), per = k => (M(k) ? M(k).per / 100 : 0);
+  const L = k => (M(k) ? chaosLv(lv, M(k)) : 0), per = k => (M(k) ? M(k).per / 100 : 0), n = k => (M(k) ? L(k) * M(k).per : 0);
   CHAOS = {
     area: 1 + L('area') * per('area'), rate: 1 + L('rate') * per('rate'), debuff: 1 + L('debuff') * per('debuff'),
     lvSpeed: 1 + L('lvSpeed') * per('lvSpeed'), spawn: 1 + L('spawn') * per('spawn'), loot: L('loot') * per('loot'),
-    bossLv: L('bossLv'), startLv: L('startLv'), rage: !!L('rage'), twin: !!L('twin'),
-    bossHp: 1 + L('bossHp') * per('bossHp'), escort: L('escort'),
+    bossLv: n('bossLv'), startLv: n('startLv'), rage: !!L('rage'), twin: !!L('twin'),
+    bossHp: 1 + L('bossHp') * per('bossHp'), escort: n('escort'),
   };
 }
 // 敵の攻撃の予告(攻撃範囲の倍率で広げる。当たり判定の hitCircle / hitLine と揃える)
@@ -87,7 +87,6 @@ function escStage(tier, first) {
   S.tier = tier; S.escRun = R.no; setStage(R.stage);
   S.ptime = 0; S.schedIdx = 0; S.sched = escSchedule(R, tier);
   if (first) return;
-  recalc(); // tier の報酬
   AudioMan.playMusic(DATA.stages[R.stage - 1].music);
   UI.banner('TIER ' + tier, DATA.stages[R.stage - 1].label, 2200);
   screenFlash(0.4); shockAt(P.x, P.y, 1.5, 0.8);
@@ -122,11 +121,11 @@ function initRun(mode = 'escalation', stageNo = 1) {
   clsInit();
   S.stageNo = stageNo; S.sched = mode === 'stage' ? stageSchedule(stageNo) : []; // エスカレーションは下の escStage で、闘技場は使わない
   if (mode === 'arena') { S.stage = 4; S.elv = DATA.arena.elv[0]; S.arena = { idx: 0, restT: 3, warned: false }; } // 開始時の敵Lv(深い闇)は下で足す。ラウンドの敵Lv は arenaLv
-  if (mode === 'stage') { const R = stageRun(stageNo); S.stage = R.stage; S.tier = R.tier; S.elv = DATA.flow.tierLv[R.tier - 1]; }
+  if (mode === 'stage') { const R = stageRun(stageNo); S.stage = R.stage; S.tier = R.tier; } // 開始の敵Lv は 1 + 深い闇(tier のカオス強化)
   if (mode === 'escalation') escStage(1, true); // エスカレーション: tier 1 のステージから
-  // カオス強化: クリア済みのモード・ステージだけ。設定は META.chaos[キー]
+  // カオス強化: クリアするまでは tier の値で固定(エスカレーション・闘技場は無し)。クリア後は META.chaos[キー]
   const ck = mode === 'stage' ? 'stage' + stageNo : mode;
-  S.chaos = META.stageClear[ck] && META.chaos && META.chaos[ck] ? Object.assign({}, META.chaos[ck]) : {};
+  S.chaos = Object.assign({}, chaosSetting(ck));
   S.chaosPt = chaosPoints(S.chaos, ck); S.chaosReward = chaosReward(S.chaosPt);
   setupChaos(S.chaos, ck);
   S.elv += CHAOS.startLv;

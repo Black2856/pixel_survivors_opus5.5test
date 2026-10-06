@@ -56,6 +56,11 @@ const META = (() => {
   if (!DATA.classes[m.cls]) m.cls = 'samurai';
   // 永続ツリー: 守護の先端を 無敵時間 → 食べ物の効果 に変えた。取得済みならそのまま引き継ぐ
   m.tree = m.tree.map(id => (id === 'iframe#1' ? 'food#1' : id));
+  // tier の開始の敵Lv・報酬をカオス強化に置き換えた: クリア済みのステージの設定は、tier の値を下回る項目だけ tier の値まで上げる(1回だけ)
+  if (!m.tierChaos) {
+    for (const R of DATA.stageRuns) { const k = 'stage' + R.no, c = m.chaos[k], T = DATA.flow.tierChaos[R.tier - 1]; if (m.stageClear[k] && c) for (const s in T) c[s] = Math.max(c[s] || 0, T[s]); }
+    m.tierChaos = true;
+  }
   return m;
 })();
 function saveMeta() { try { localStorage.setItem(META_KEY, JSON.stringify(META)); } catch (e) { /* 保存不可でも続行 */ } }

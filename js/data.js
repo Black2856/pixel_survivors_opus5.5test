@@ -1366,6 +1366,7 @@ const DATA = {
 
   // ---------- カオス強化(db.xlsx「カオス強化」)----------
   // クリア済みのモード・ステージごとに、出撃前に各項目の Lv を選ぶ。合計ポイント = Σ(Lv × pt)
+  // クリアするまでは tier の値(flow.tierChaos)で固定(見るだけ)。エスカレーション・闘技場はクリアするまで無し
   // 合計ポイントに応じた報酬(rewards: pt 以上で一番上の行)が、そのランの間だけ「カオス強化」としてステータスに入る
   // per: Lv 1 あたりの効果量(desc の {v} に入る)/ unit: 設定画面の「1Lv あたり」の単位(無ければ %)。名前は仮
   // mods: 通常モード・ステージ単体 / arenaMods: 闘技場(敵Lv の上昇・出現率・アイテムの項目は闘技場にないので、代わりにボスの項目)
@@ -1373,7 +1374,7 @@ const DATA = {
     mods: [
       { k: 'lvSpeed', name: '加速する夜',   max: 5, pt: 2,  per: 20, desc: '敵Lv の上昇速度 +{v}%' },
       { k: 'bossLv',  name: '復讐の連鎖',   max: 5, pt: 1,  per: 1,  unit: '', desc: 'ボスを倒すたびに敵Lv +{v}' },
-      { k: 'startLv', name: '深い闇',       max: 4, pt: 1,  per: 1,  unit: '', desc: '開始時の敵Lv +{v}' },
+      { k: 'startLv', name: '深い闇',       max: 4, pt: 1,  per: 2,  unit: '', desc: '開始時の敵Lv +{v}' },
       { k: 'spawn',   name: '群れの目覚め', max: 5, pt: 1,  per: 5,  desc: '敵の出現率 +{v}%' },
       { k: 'area',    name: '膨れる殺意',   max: 5, pt: 1,  per: 10, desc: '敵の攻撃範囲 +{v}%' },
       { k: 'rate',    name: '狂騒',         max: 3, pt: 2,  per: 10, desc: '敵の攻撃頻度 +{v}%' },
@@ -1427,7 +1428,7 @@ const DATA = {
   // 通常モードの流れ(フェーズの時計で進む。ボス・エリート群のフェーズの間は止まる)
   //   seg: 区間の長さ / waves: 区間ごとの出現の間隔・上限(t は区間の中の秒) / horde: 2つ目・3つ目の区間で大群を出す秒 / elites: エリート群の数
   //   fog: フェーズが始まって start 秒たつと闇の霧(1秒ごとに HP −dmg、step 秒ごとに +dmg。防御力・シールドでは減らない)
-  //   tierLv: 開始の敵Lv(tier 1〜4) / tierReward: tier が1つ上がるごとの報酬(カオス強化の報酬に足す)
+  //   tierChaos: tier 1〜4 のカオス強化(そのステージをクリアするまでこの値で固定。開始の敵Lv は 1 + 深い闇 = 1 / 3 / 5 / 7。報酬はカオス強化のポイントから)
   flow: {
     seg: 180,
     waves: [
@@ -1437,8 +1438,7 @@ const DATA = {
     ],
     horde: 150, elites: 3,
     fog: { start: 180, dmg: 1, step: 10 },
-    tierLv: [1, 3, 5, 7],
-    tierReward: { eqQual: 0.15, chestQual: 0.10, gold: 0.30 },
+    tierChaos: [{}, { lvSpeed: 1, startLv: 1, bossLv: 1 }, { lvSpeed: 2, startLv: 2, bossLv: 2 }, { lvSpeed: 3, startLv: 3, bossLv: 3 }],
   },
 
   // ---------- 闘技場(ボスラッシュ) ----------

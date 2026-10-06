@@ -2,10 +2,10 @@
 // ゲーム内の計算とステータス画面の内訳は、どちらも computeStats() の結果を使う
 'use strict';
 
-const STAT_SRC = ['class', 'classLv', 'tree', 'equip', 'unique', 'chaos', 'tier', 'run', 'micro'];
+const STAT_SRC = ['class', 'classLv', 'tree', 'equip', 'unique', 'chaos', 'run', 'micro'];
 const STAT_SRC_LABEL = {
   class: 'クラス基礎', classLv: 'クラスLv', tree: '永続ツリー', equip: '装備',
-  unique: '固有効果', chaos: 'カオス強化', tier: 'ステージの tier', run: 'ラン中の強化', micro: '微強化',
+  unique: '固有効果', chaos: 'カオス強化', run: 'ラン中の強化', micro: '微強化',
 };
 
 // ---------- 永続ツリーのグラフ ----------
@@ -130,6 +130,10 @@ const chaosLv = (lv, m) => Math.min(m.max, (lv && lv[m.k]) || 0);
 const chaosPoints = (lv, key) => chaosMods(key).reduce((a, m) => a + chaosLv(lv, m) * m.pt, 0);
 const chaosReward = pt => DATA.chaos.rewards.filter(r => pt >= r.pt).pop() || null;
 const chaosDesc = (m, lv) => m.desc.replace('{v}', (lv || 1) * m.per);
+// そのモード・ステージで使う設定: クリアするまでは tier の値で固定(エスカレーション・闘技場は無し)。クリア後は META.chaos[key](最初は tier の値)
+const chaosBase = key => { const R = DATA.stageRuns.find(r => 'stage' + r.no === key); return Object.assign({}, R ? DATA.flow.tierChaos[R.tier - 1] : {}); };
+const chaosFixed = key => !META.stageClear[key];
+const chaosSetting = key => (chaosFixed(key) ? chaosBase(key) : META.chaos[key] || (META.chaos[key] = chaosBase(key)));
 
 // ---------- クラスLv の効果 ----------
 // 専用 = クラスの lv 表(そのクラスの Lv)/ 共通 = 武器の mastery 表(その武器を持つクラスの Lv)
@@ -199,8 +203,6 @@ function computeStats({ cls = META.cls, run = false, eq = run ? 'run' : 'zero' }
 
   // カオス強化の報酬(そのランの合計ポイントに応じて)
   if (run && S && S.chaosReward) for (const k in S.chaosReward) if (k !== 'pt') add('chaos', k, S.chaosReward[k]);
-  // ステージの tier の報酬(通常モード。tier 1 を基準に、1つ上がるごと)
-  if (run && S && S.tier > 1) for (const k in DATA.flow.tierReward) add('tier', k, DATA.flow.tierReward[k] * (S.tier - 1));
 
   // 微強化(hpPct は最大HP の倍率)
   if (run && P) for (const k in P.micro) { if (k === 'hpPct') mul.hp *= 1 + P.micro[k]; else add('micro', k, P.micro[k]); }
