@@ -1418,9 +1418,9 @@ const DATA = {
   //   segs = 3分ごとの区間の出現の候補(1つ目は 0・60・120秒で1種ずつ足す / 2つ目 / 3つ目。null = その前の全部)
   stageRuns: [
     { no: 1, stage: 1, tier: 1, bosses: ['king', 'gslime'], segs: [['zombie', 'bat', 'slime'], ['bat', 'slime', 'brute'], null] },
-    { no: 2, stage: 2, tier: 2, bosses: ['golem', 'wyrm'], segs: [['skeleton', 'archer', 'sandmage'], ['archer', 'sandmage', 'spear'], null] },
+    { no: 2, stage: 2, tier: 1, bosses: ['golem', 'wyrm'], segs: [['skeleton', 'archer', 'sandmage'], ['archer', 'sandmage', 'spear'], null] },
     { no: 3, stage: 3, tier: 3, bosses: ['cdragon', 'ifrit'], segs: [['imp', 'hound', 'onibi'], ['hound', 'onibi', 'lslime'], null] },
-    { no: 4, stage: 5, tier: 1, bosses: ['stag', 'pqueen'], segs: [['bat', 'jslime', 'beetle'], ['jslime', 'beetle', 'fairy'], null] }, // 七彩の晶窟
+    { no: 4, stage: 5, tier: 2, bosses: ['stag', 'pqueen'], segs: [['bat', 'jslime', 'beetle'], ['jslime', 'beetle', 'fairy'], null] }, // 七彩の晶窟
     { no: 6, stage: 6, tier: 2, bosses: ['kraken', 'levia'], segs: [['jelly', 'sahagin', 'puffer'], ['sahagin', 'puffer', 'angler'], null] }, // 沈黙の海淵
     { no: 5, stage: 7, tier: 3, bosses: ['fgiant', 'squeen'], segs: [['wolf', 'ghost', 'icesprite'], ['ghost', 'icesprite', 'yeti'], null] }, // 霜天の霊峰
     // 終刻の時計塔: 3つ目の候補は「今までの敵」のまとまり(1枠として選ばれ、その中から1種)
@@ -1447,7 +1447,7 @@ const DATA = {
   // rewardLv: ボス撃破で得るレベルアップ回数(ジェムで配布) / rest: 次のボスまでの休憩秒 / r: 闘技場の半径
   arena: {
     r: 250, rest: 8, startLv: 6, rewardLv: 5,
-    order: [['king', 'gslime'], ['stag', 'pqueen'], ['golem', 'wyrm'], ['kraken', 'levia'], ['cdragon', 'ifrit'], ['fgiant', 'squeen'], 'warden', 'reaper'], // 草原 → 晶窟 → 荒野 → 海淵 → 奈落 → 霊峰 → 番人 → 死神(→ 終刻の死神)
+    order: [['king', 'gslime'], ['golem', 'wyrm'], ['stag', 'pqueen'], ['kraken', 'levia'], ['cdragon', 'ifrit'], ['fgiant', 'squeen'], 'warden', 'reaper'], // tier の順: 草原 → 荒野 → 晶窟 → 海淵 → 奈落 → 霊峰 → 番人 → 死神(→ 終刻の死神)
     elv:   [5, 10, 15, 20, 25, 30, 35, 40], // 5 から 5ずつ
   },
 };
