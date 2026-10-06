@@ -704,8 +704,9 @@ const DATA = {
       //   1段につき 攻撃速度 +focusAtkSpd・クリティカル率 +focusCrit
       // バックステップ: 移動と逆へ backDist を backTime 秒で跳ぶ(無敵 backIfr 秒、スタミナ backCost)。着地で集中 +backFocus
       // 狩りの連鎖: 印を持つ敵を倒すと一斉射撃の CD -chainCd。縮む量は 1秒あたり chainMax まで(chainMax 分の枠が 1秒で溜まる)
+      // 守印: 印を持つ敵を倒すと 印の数 × guardK のシールド(guardT 秒)。得られるのは 1秒あたり 最大HP × guardMax まで(同じく枠が 1秒で溜まる)
       params: {
-        markMax: 10, markPct: 0.04, markT: 3, weakT: 3, weakCrit: 0.15, spreadR: 60, guardT: 5, chainCd: 0.1, chainMax: 0.5,
+        markMax: 10, markPct: 0.04, markT: 3, weakT: 3, weakCrit: 0.15, spreadR: 60, guardT: 5, guardK: 0.5, guardMax: 0.1, chainCd: 0.1, chainMax: 0.5,
         focusMax: 5, focusStep: 0.5, focusDecay: 1, focusAtkSpd: 0.04, focusCrit: 0.02, focusHurt: 2,
         backDist: 80, backTime: 0.15, backIfr: 0.25, backCost: 100, backFocus: 1,
       },
@@ -716,7 +717,7 @@ const DATA = {
       tree: {
         trait: { name: '狩人の印', paths: {
           deep:   { name: '深手', desc: ['印の持続 +2秒', '印の持続 +4秒', '印の持続 +7秒'], v: [2, 4, 7], sp: { name: '急所', desc: '弱点露出中の敵へのクリティカルダメージ +30%' } },
-          carve:  { name: '刻印', desc: ['印の上限 +3', '印の上限 +6', '印の上限 +10'], v: [3, 6, 10], sp: { name: '守印', desc: '印を持つ敵を倒すと、その印の数だけシールドを得る(5秒)' } },
+          carve:  { name: '刻印', desc: ['印の上限 +3', '印の上限 +6', '印の上限 +10'], v: [3, 6, 10], sp: { name: '守印', desc: '印を持つ敵を倒すと、印の数 × 0.5 のシールドを得る(5秒。1秒あたり最大HP の 10% まで)' } },
           spread: { name: '伝播', desc: ['印を持つ敵を倒すと、印の 20% を近くの敵に移す', '印を持つ敵を倒すと、印の 40% を近くの敵に移す', '印を持つ敵を倒すと、印の 75% を近くの敵に移す'], v: [0.2, 0.4, 0.75], sp: { name: '狩りの連鎖', desc: '印を持つ敵を倒すと、一斉射撃の CD -0.1秒(縮むのは 1秒あたり 0.5秒まで)' } },
         } },
         passive: { name: '集中', paths: {

@@ -1536,10 +1536,11 @@ const CLASS_RT = {
 
   archer: {
     skills: ['q'],
-    init() { P.focus = 0; P.dash = null; P.backHeld = false; P.chainB = AR().chainMax; },
+    init() { P.focus = 0; P.dash = null; P.backHeld = false; P.chainB = AR().chainMax; P.sealB = P.maxhp * AR().guardMax; },
     update(dt) {
       const p = AR(), max = focusMax();
       P.chainB = Math.min(p.chainMax, P.chainB + p.chainMax * dt); // 狩りの連鎖: 縮められる量の枠(1秒で chainMax 溜まる)
+      P.sealB = Math.min(P.maxhp * p.guardMax, (P.sealB || 0) + P.maxhp * p.guardMax * dt); // 守印: 得られるシールドの枠(1秒で 最大HP × guardMax 溜まる)
       // 集中: 止まっている間(E / Q の予備動作中も)に溜まり、動くとゆっくり下がる
       const still = !P.moving || (P.act && P.act.ph === 'wind');
       if (still) P.focus = Math.min(max, (P.focus || 0) + dt / p.focusStep * (1 + cuV('passive', 'calm')));
@@ -1572,8 +1573,9 @@ const CLASS_RT = {
     onKill(e) {
       if (!markOn(e)) return;
       const p = AR();
-      if (hasSp('trait', 'carve')) { // 守印: 倒した敵の印の数だけシールド(5秒)
-        timedShield(e.mark, p.guardT);
+      const g = hasSp('trait', 'carve') ? Math.min(e.mark * p.guardK, P.sealB) : 0;
+      if (g > 0) { // 守印: 倒した敵の印の数 × guardK のシールド(5秒。枠が残っている分だけ)
+        P.sealB -= g; timedShield(g, p.guardT);
         part(e.x, e.y, (P.x - e.x) * 3, (P.y - e.y) * 3, 0.3, '#7ab8ff', { glow: true, sz: 2, drag: 0 });
       }
       const k = cuV('trait', 'spread');
