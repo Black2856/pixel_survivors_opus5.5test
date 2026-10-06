@@ -1614,7 +1614,9 @@ function eball(x, y, a, spd, dmg, kind = 'ball') {
 }
 // 放物線で飛ぶ弾(着弾まで当たり判定なし。着地で onLand)
 function lob(kind, x, y, tx, ty, T, H, onLand) {
-  eprojs.push({ kind, lob: true, x, y, x0: x, y0: y, tx, ty, T, H, z: 0, t: 0, onLand });
+  const p = { kind, lob: true, x, y, x0: x, y0: y, tx, ty, T, H, z: 0, t: 0, onLand };
+  eprojs.push(p);
+  return p; // follow(p) を付けると、飛んでいる間に落下点(tx, ty)を動かせる
 }
 // 往復する大鎌(当たっても消えない)
 function boomerang(e, a) {
@@ -2866,15 +2868,17 @@ function tentacleSlam(e, ai) {
     shake(7); AudioMan.splash(); AudioMan.boom();
   });
 }
-// 墨: 墨の玉を放物線で(1秒)。墨だまり 5秒: 中にいる間スタミナが回復しない・周りが暗くなり触手の予告が見えない
+// 墨: 墨の玉を放物線で(1秒)。墨だまり(半径 75)5秒: 中にいる間スタミナが回復しない・周りが暗くなり触手の予告が見えない
+//   予告の円と墨の玉の落下点は、最初の 0.7秒 プレイヤーを追い、着弾までの 0.3秒は止まる
 function inkShot(e, ai) {
-  const tx = P.x, ty = P.y;
-  pushWarn({ kind: 'circle', x: tx, y: ty, r: 50, t: 0, life: 1 });
-  lob('inkball', e.x, e.y - 10, tx, ty, 1, 60, p => {
-    addHazard('ink', p.x, p.y, { r: 50, dur: 5 });
+  const R = 75, w = { kind: 'circle', x: P.x, y: P.y, r: R, t: 0, life: 1 };
+  pushWarn(w);
+  const ball = lob('inkball', e.x, e.y - 10, w.x, w.y, 1, 60, p => {
+    addHazard('ink', p.x, p.y, { r: R, dur: 5 });
     burst(p.x, p.y, 30, ['#0a0a14', '#1a1a2a', '#2a2a4a'], { sp: 110, g: 160, life: 0.7 }); shockAt(p.x, p.y, 0.8, 0.9); AudioMan.splat();
     hint('ink', '墨', '墨だまりの中ではスタミナが回復せず、触手の予告も見えない');
   });
+  ball.follow = b => { if (b.t < 0.7) { b.tx = P.x; b.ty = P.y; } w.x = b.tx; w.y = b.ty; };
   AudioMan.dash();
 }
 // 絡め取り: 0.7秒の予告(本体からプレイヤーへ帯)→ 当たると 1.5秒 動けない(回避の無敵で抜けられる)。つかんだ瞬間にスタミナ −20
@@ -3704,6 +3708,7 @@ function updEprojs(dt0) {
     p.tk = tk;
     p.t += dt;
     if (p.lob) {
+      if (p.follow) p.follow(p); // 落下点が動く(墨の玉)
       const k = clamp(p.t / p.T, 0, 1); // 巻き戻しでは戻る
       p.x = lerp(p.x0, p.tx, k); p.y = lerp(p.y0, p.ty, k); p.z = Math.sin(k * Math.PI) * p.H;
       if (k >= 1) { eprojs.splice(i, 1); p.onLand(p); }
