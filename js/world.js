@@ -2739,15 +2739,19 @@ function updReflect(e, ai, dt) {
   for (let i = 0; i + 1 < b.pts.length; i++) { const A = b.pts[i], B = b.pts[i + 1]; if (segD2(P.x, P.y, A.x, A.y, B.x, B.y) < Math.pow(b.W / 2 + 3, 2)) { hurtPlayer(e.dmg); break; } }
   if ((b.t -= dt) <= 0) ai.rbeam = null;
 }
-// 乱反射: 0.4秒(女王が白く光る)→ 速い光の弾(速さ 320)を女王の弾へ撃つ。当たるたびに 0.06秒きらめいて、次の一番近い女王の弾(または鏡)へ跳ねる
+// 乱反射: 0.4秒(女王が白く光る)→ 速い光の弾(速さ 320)を 2発(激昂 3発。0.12秒おき)女王の弾へ撃つ。当たるたびに 0.06秒きらめいて、次の一番近い女王の弾(または鏡)へ跳ねる
+//   2発目以降は、前の光が最初に向かった弾には向かわない(同じ道をなぞらないように)
 //   8回(激昂 10回)跳ねたら最後はプレイヤーへ(跳ね先がなくなったらその時点で)。×0.6
 const rayTargets = (e, ai) => eprojs.some(q => q.qb) || (ai.mirrors || []).some(m => !m.dead);
 function prismScatter(e, ai) {
   AudioMan.charge(0.4);
   windup(e, 0.4, () => {
-    const p = { kind: 'ray', x: e.x, y: e.y - 6, vx: 0, vy: 0, dmg: e.dmg * 0.6 * (S.eatk ?? 1), life: 12, t: 0, r: 3 * CHAOS.area, spd: 320, bounces: ai.enraged ? 10 : 8, used: new Set(), trail: [], owner: e, pause: 0 };
-    eprojs.push(p); rayNext(p);
-    burst(e.x, e.y - 6, 14, ['#ffffff', '#fff6c8'], { sp: 80, glow: true, life: 0.3 }); AudioMan.zap();
+    const taken = new Set(); // 前の光が最初に向かった弾
+    for (let k = 0; k < (ai.enraged ? 3 : 2); k++) later(ai, k * 0.12, () => {
+      const p = { kind: 'ray', x: e.x, y: e.y - 6, vx: 0, vy: 0, dmg: e.dmg * 0.6 * (S.eatk ?? 1), life: 12, t: 0, r: 3 * CHAOS.area, spd: 320, bounces: ai.enraged ? 10 : 8, used: new Set(taken), trail: [], owner: e, pause: 0 };
+      eprojs.push(p); rayNext(p); if (p.tgt) taken.add(p.tgt);
+      burst(e.x, e.y - 6, 14, ['#ffffff', '#fff6c8'], { sp: 80, glow: true, life: 0.3 }); AudioMan.zap();
+    });
     hint('scatter', '乱反射', '光の弾が女王の弾を渡り歩き、最後にこちらへ飛んでくる');
   });
 }
