@@ -1193,7 +1193,7 @@ function hitEnemy(e, base, o = {}) {
     if (!o.quiet) AudioMan.hit();
   }
   if (e.boss) S.hudDirty = true;
-  if (e.hp <= 0) killEnemy(e, o);
+  if (e.hp <= 0) { if (o.noKill) e.hp = 1; else killEnemy(e, o); } // noKill: 倒さずに HP 1 で残す(爆弾のエリート)
   return dmg;
 }
 
@@ -3950,7 +3950,7 @@ function updDrops(dt) {
       case 'bomb': {
         screenFlash(0.85, '#fff4d0'); shockAt(P.x, P.y, 2.5, 0.7); shake(12); hitstop(0.08); AudioMan.boom();
         addFlash(P.x, P.y, 300, '#ffb347', 0.8);
-        for (const e of enemies) if (!e.dead && !e.prop && onScreen(e.x, e.y, 10)) { if (e.boss || e.obj || e.owner) hitEnemy(e, 250, { src: 'bomb', noCrit: true }); else killEnemy(e, {}); } // ボス・ボスの出した物は一撃では壊れない
+        for (const e of enemies) if (!e.dead && !e.prop && onScreen(e.x, e.y, 10)) { if (e.boss || e.obj || e.owner || e.elite) hitEnemy(e, 250, { src: 'bomb', noCrit: true, noKill: e.elite }); else killEnemy(e, {}); } // ボス・ボスの出した物は一撃では壊れない / エリートは倒れない(HP 1 で残る)
         UI.announce('BOOM!!', '');
         break;
       }
