@@ -3563,14 +3563,14 @@ function finaleRewind(e) {
   screenFlash(0.6, '#c29bff'); shake(10); AudioMan.knell(); AudioMan.hum(1.5);
   UI.announce('時が巻き戻る…', '死神の HP が回復する');
 }
-// デッドクロス(激昂): 0.8秒、プレイヤーの位置を中心に X字の帯 2本(長さ 280・幅 20)が速く回りながら減速して止まる → 0.2秒後に斬る。当たると HP が 1 になる
+// デッドクロス(激昂): 1秒、プレイヤーの位置を中心に X字の帯 2本(長さ 280・幅 20)が速く回りながら減速して止まる → 止まった瞬間に斬る。当たると HP が 1 になる
 function deadCross(e, ai) {
   ai.busy = 1.3;
-  const cx = P.x, cy = P.y, a0 = rand(0, TAU), ang = (i, t) => a0 + i * Math.PI / 2 + 3 * Math.PI * (1 - Math.pow(1 - Math.min(1, t / 0.8), 3)); // 0.8秒で 1.5回転してイージングで止まる
+  const cx = P.x, cy = P.y, a0 = rand(0, TAU), ang = (i, t) => a0 + i * Math.PI / 2 + 3 * Math.PI * (1 - Math.pow(1 - Math.min(1, t / 1), 3)); // 1秒で 1.5回転してイージングで止まる
   for (let i = 0; i < 2; i++) pushWarn({ kind: 'line', x: cx, y: cy, a: ang(i, 0), len: 280, w: 20, t: 0, life: 1.0, cross: true, track: q => { q.a = ang(i, q.t); q.x = cx - Math.cos(q.a) * q.len / 2; q.y = cy - Math.sin(q.a) * q.len / 2; } });
-  AudioMan.charge(0.8); AudioMan.warning();
+  AudioMan.charge(1); AudioMan.warning();
   hint('deadcross', 'デッドクロス', '当たると HP が 1 になる。回避かガードで防げ');
-  later(ai, 1.0 - CUT_HIT, () => { // 村正の一閃と同じ作りの、赤黒い X の斬撃(止まってから 0.2秒後の炸裂の時刻に当たり判定)
+  later(ai, 1.0 - CUT_HIT, () => { // 村正の一閃と同じ作りの、赤黒い X の斬撃(帯が止まった瞬間の炸裂の時刻に当たり判定)
     const L = 140 * CHAOS.area, fa = [ang(0, 2), ang(1, 2)];
     let done = false;
     for (const sa of fa) {
