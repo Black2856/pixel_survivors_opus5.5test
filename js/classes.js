@@ -2045,6 +2045,7 @@ const CLASS_RT = {
       if (P.elT > 0 && !e.dead) addShock(e, dmg, cuV('passive', 'shock', EL().wearShock) + (P.lvFx.wearShock || 0));
     },
     shockMod: e => elShockMod(e),
+    shockOrigin: true, // 帯電: 感電は起点の敵(攻撃が当たった敵)にも入る
     onShock(o) { P.chargeT = S.time; if (!o.noCharge) elGain(1); },
     critDmgBonus: () => (hasSp('trait', 'store') && P.charge >= elMax() ? EL().overCrit : 0), // 過電流
     blockProj: () => P.elT > 0 && hasSp('passive', 'wear') && Math.random() < EL().static, // 静電気
@@ -4300,6 +4301,7 @@ function clsOnFrost(e) { if (clsRT() && clsRT().onFrost) clsRT().onFrost(e); }
 const clsBossRate = e => (clsRT() && clsRT().bossRate ? clsRT().bossRate(e) : 1);
 // 感電(共通の仕組み)へのクラスの補正(n: 連鎖の追加 / nMul: 連鎖数の倍率 / r: 距離の倍率 / dmg: ダメージの倍率)と、起きたとき
 const clsShockMod = e => (clsRT() && clsRT().shockMod ? clsRT().shockMod(e) : null);
+const clsShockOrigin = () => !!(clsRT() && clsRT().shockOrigin); // 感電が起点の敵にも入るか(エレクトロマンサーの帯電)
 function clsOnShock(o) { if (clsRT() && clsRT().onShock) clsRT().onShock(o); }
 const clsBlockProj = () => !!(clsRT() && clsRT().blockProj && clsRT().blockProj()); // 敵の弾を消す(静電気)
 // 回復(共通)へのクラスの補正: 被回復量の倍率 / 超過回復したとき(クレリックの祈り)/ 命中の追加ダメージ(祈りの一撃)
@@ -4319,6 +4321,7 @@ const clsSlowImmune = () => !!(clsRT() && clsRT().slowImmune && clsRT().slowImmu
 const clsRegen = () => (clsRT() && clsRT().regen ? clsRT().regen() : 0);
 const clsHpAdd = () => (P && P.cu && clsRT() && clsRT().hpAdd ? clsRT().hpAdd() : 0); // 最大HP の追加(applyStats が読む。ラン開始の最初の計算ではまだ強化ツリーがない)
 // 感電: 命中した敵 e から近くの敵へ雷が連鎖し、与えたダメージ dealt の pct を与える(同じ敵には戻らない)
+//   帯電を持つクラス(エレクトロマンサー)は、起点の敵 e にも同じだけ入る(連鎖先がいなくても無駄にならない)
 //   o.n: 連鎖数(基本 1)/ o.r: 連鎖距離 / o.src: ダメージの出どころ / o.noCharge: 帯電を増やさない(放電)
 function addShock(e, dealt, pct, o = {}) {
   if (!(pct > 0) || !(dealt > 0)) return;
@@ -4327,6 +4330,10 @@ function addShock(e, dealt, pct, o = {}) {
   const done = new Set([e]);
   let cur = e;
   asMine(() => {
+    if (clsShockOrigin() && !e.dead && !e.prop) { // 帯電: 起点の敵にも感電のダメージ(小さな火花)
+      hitEnemy(e, dmg, { src: o.src || 'shock', noNum: Math.random() < 0.5, col: '#fff27a', dot: true });
+      bolts.push({ x0: e.x - 3, y0: e.y - 12, x1: e.x + 2, y1: e.y, t: 0, life: 0.15, w: 1 });
+    }
     for (let i = 0; i < n; i++) {
       let best = null, bd = R * R;
       const cx = cur.x, cy = cur.y;
