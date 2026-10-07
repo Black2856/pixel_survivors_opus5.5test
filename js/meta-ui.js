@@ -5,10 +5,10 @@ const MetaUI = (() => {
   const $ = UI.$;
   let filter = 'all', sel = null, sellArm = null;
 
-  // ロール品質の表示: 範囲の最小 = 0%、最大 = 100%(強化の上限)。100% は金色
-  const qualHTML = q => {
+  // ロール品質の表示: 範囲の最小 = 0%、最大 = 100%(強化の上限)。100% は金色。gauge: ゲージも出す(装備画面の詳細は数値だけ)
+  const qualHTML = (q, gauge = true) => {
     const p = Math.round(q * 100);
-    return `<span class="q ${p >= 100 ? 'over' : ''}"><i style="width:${Math.min(100, Math.max(0, p))}%"></i></span><b class="${p >= 100 ? 'over' : ''}">${p >= 100 ? 'MAX' : p + '%'}</b>`;
+    return (gauge ? `<span class="q ${p >= 100 ? 'over' : ''}"><i style="width:${Math.min(100, Math.max(0, p))}%"></i></span>` : '') + `<b class="${p >= 100 ? 'over' : ''}">${p >= 100 ? 'MAX' : p + '%'}</b>`;
   };
   const icon = (it, cls = 'icon') => `<img class="${cls}" src="${ART.S.eqIcons[it.type].c.toDataURL()}" alt="">`;
   const rcol = it => DATA.equip.rarity[it.rarity].col;
@@ -51,7 +51,7 @@ const MetaUI = (() => {
     const R = DATA.equip.rarity[it.rarity], eq = isEquipped(it);
     box.innerHTML = `
       <div class="eq-head" style="--rc:${R.col}">${icon(it, 'big')}<div><div class="rar">${R.name} ・ ${DATA.equip.slots[itemSlot(it)]}</div><div class="nm">${itemName(it)}</div></div></div>
-      <div class="eq-opts">${it.opts.map(o => `<div class="eq-opt"><span>${optHTML(o)}</span><em>〜Lv${o.max}</em>${qualHTML(o.q)}</div>`).join('')}</div>
+      <div class="eq-opts">${it.opts.map(o => `<div class="eq-opt nog"><span>${optHTML(o)}</span><em>〜Lv${o.max}</em>${qualHTML(o.q, false)}</div>`).join('')}</div>
       ${it.uq ? `<div class="eq-uq">★ ${DATA.uniques[it.uq].desc}</div>` : ''}
       <div class="dim eq-note">ラン開始時は全オプション Lv0。レベルアップの装備カードで選んだオプションが +1Lv</div>
       <div class="eq-enh">強化 ${it.enh} / ${R.enh}</div>
