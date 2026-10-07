@@ -54,6 +54,7 @@ const META = (() => {
   }
   for (const k in DATA.classes) m.classes[k] = Object.assign({ lv: 1, xp: 0, weapon: DATA.classes[k].weapon || DATA.classes[k].startW }, m.classes[k]); // 専用武器がないクラスは startW から
   if (!DATA.classes[m.cls]) m.cls = 'samurai';
+  if (DATA.classUnlock[m.cls] && !m.stageClear[DATA.classUnlock[m.cls]]) m.cls = 'samurai'; // まだ解放されていないクラス(解放の条件を後から足した)
   // 永続ツリー: 守護の先端を 無敵時間 → 食べ物の効果 に変えた。取得済みならそのまま引き継ぐ
   m.tree = m.tree.map(id => (id === 'iframe#1' ? 'food#1' : id));
   // tier の開始の敵Lv・報酬をカオス強化に置き換えた: クリア済みのステージの設定は、tier の値を下回る項目だけ tier の値まで上げる(1回だけ)

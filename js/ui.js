@@ -715,7 +715,8 @@ const UI = (() => {
     const list = Object.entries(S.dmgBy).filter(([k]) => DATA.weapons[k]).sort((a, b) => b[1] - a[1]);
     // 獲得した装備(ボスの宝箱 + ラン終了時の報酬)とクラス経験値
     const cl = DATA.classes[P.cls], lvUp = cxp.lv > cxp.lv0;
-    $('result-cls').innerHTML = `<b style="color:${cl.col}">${cl.name}</b> クラス経験値 +${cxp.xp}` + (lvUp ? ` <em>Lv ${cxp.lv0} → ${cxp.lv}!</em>` : ` <span class="dim">Lv ${cxp.lv}</span>`);
+    $('result-cls').innerHTML = `<b style="color:${cl.col}">${cl.name}</b> クラス経験値 +${cxp.xp}` + (lvUp ? ` <em>Lv ${cxp.lv0} → ${cxp.lv}!</em>` : ` <span class="dim">Lv ${cxp.lv}</span>`)
+      + (cxp.newCls && cxp.newCls.length ? `<div class="unl-new">NEW CLASS! ${cxp.newCls.map(k => `<b style="color:${DATA.classes[k].col}">${DATA.classes[k].name}</b>`).join('・')} が使えるようになりました(クラス画面で選べます)</div>` : '');
     $('result-loot').innerHTML = (loot.chests ? `<div class="dim">ラン終了の報酬: 宝箱 ×${loot.chests}</div>` : '') +
       (S.loot.length ? S.loot.map(it => `<span class="loot" style="--rc:${DATA.equip.rarity[it.rarity].col}">${icon('equip', it.type)}${itemName(it)}</span>`).join('') : '<div class="dim">装備の入手なし</div>');
     $('result-dmg').innerHTML = list.map(([k, v]) => `<div class="dm">${icon('weapon', k)}<div class="dm-bar"><i style="width:${(v / tot * 100).toFixed(1)}%;background:${DATA.weapons[k].col}"></i></div><span>${Math.round(v).toLocaleString()}</span></div>`).join('');

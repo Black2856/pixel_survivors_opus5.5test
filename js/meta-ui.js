@@ -90,9 +90,9 @@ const MetaUI = (() => {
     const st = $('cl-list').scrollTop; // 描き直してもスクロール位置を保つ
     $('cl-list').innerHTML = Object.keys(DATA.classes).map(k => {
       const c = DATA.classes[k], m = META.classes[k];
-      return `<button class="cl-card ${clSel === k ? 'sel' : ''} ${clsReady(k) ? '' : 'off'}" data-k="${k}" style="--cc:${c.col}">
+      return `<button class="cl-card ${clSel === k ? 'sel' : ''} ${clsReady(k) ? '' : 'off'} ${clsUnlocked(k) ? '' : 'locked'}" data-k="${k}" style="--cc:${c.col}">
         <span class="en">${c.en}</span><img src="${portrait(k)}" alt=""><span class="nm">${c.name}</span>
-        <span class="lv">${clsReady(k) ? 'Lv ' + m.lv : '準備中'}</span>${META.cls === k ? '<span class="use">使用中</span>' : ''}</button>`;
+        <span class="lv">${!clsReady(k) ? '準備中' : !clsUnlocked(k) ? '🔒 未解放' : 'Lv ' + m.lv}</span>${META.cls === k ? '<span class="use">使用中</span>' : ''}</button>`;
     }).join('');
     $('cl-list').scrollTop = st;
     const k = clSel, c = DATA.classes[k], m = META.classes[k], need = DATA.classLevel.need, max = need.length + 1;
@@ -104,12 +104,13 @@ const MetaUI = (() => {
       : '<span class="tag">専用</span>このクラスだけ(専用の武器がないので全て専用。武器の熟練は、その武器を専用にしているクラスの Lv で決まる)';
     $('cl-detail').innerHTML = `
       <div class="cl-head" style="--cc:${c.col}"><span class="nm">${c.name}</span><span class="lv">Lv ${m.lv}${m.lv >= max ? ' MAX' : ''}</span></div>
+      ${clsUnlocked(k) ? '' : `<div class="cl-lock">🔒 ${runKeyLabel(DATA.classUnlock[k])} をクリアすると使えるようになります</div>`}
       <div class="cl-xp"><i style="width:${xpP.toFixed(1)}%"></i><span>${m.lv >= max ? 'MAX' : `${m.xp.toLocaleString()} / ${need[m.lv - 1].toLocaleString()} EXP`}</span></div>
       <div class="dim cl-note">クラス経験値 = 討伐数 + 撃破ボス数 × ${DATA.classLevel.bossK}(ラン終了時)。${note}</div>
       <div class="cl-rows">${rows}</div>
       <div class="cl-sub">メイン武器 ${swap ? '' : '<span class="dim">(Lv15 で切り替え解放)</span>'}</div>
       <button class="cl-wsel">${UI.weaponIcon(cw)}<span>${DATA.weapons[cw].name}${cw === c.weapon ? '<small>専用</small>' : ''}</span><em>${swap ? '変更 ▸' : '一覧 ▸'}</em></button>
-      <button class="btn cl-go" ${clsReady(k) ? '' : 'disabled'}>${META.cls === k ? '使用中' : 'このクラスにする'}</button>`;
+      <button class="btn cl-go" ${clsReady(k) && clsUnlocked(k) ? '' : 'disabled'}>${META.cls === k ? '使用中' : clsUnlocked(k) ? 'このクラスにする' : '🔒 未解放'}</button>`;
     Help.glossify($('cl-detail'), { cls: k, per: '.cl-row, .cl-note' });
     statusPanel('cl-status', k);
   }
@@ -312,7 +313,7 @@ const MetaUI = (() => {
         : clear ? `<span class="chaos on">カオス強化 <b>${pt} pt</b> <span class="cz-btn" data-chaos="${s.key}">設定 ▶</span></span>`
         : `<span class="chaos">カオス強化 ${pt ? `<b>${pt} pt</b>` : 'なし'}(クリアまで固定)<span class="cz-btn" data-chaos="${s.key}">見る ▶</span></span>`;
       return `<button class="stg${open ? '' : ' locked'}" data-mode="${s.mode}" data-n="${s.n}" style="--sc:${s.col}">
-        <span class="nm">${s.name}${clear ? ' <b class="clr">★ CLEAR</b>' : ''}</span>${right}<span class="sub">${s.sub}</span></button>`;
+        <span class="nm">${s.name}${clear ? ' <b class="clr">★ CLEAR</b>' : ''}</span>${right}<span class="sub">${s.sub}${clsUnlockedBy(s.key).filter(k => !clsUnlocked(k)).map(k => ` <b class="unl" style="--cc:${DATA.classes[k].col}">クリアで ${DATA.classes[k].name} 解放</b>`).join('')}</span></button>`;
     }).join('');
   }
   // 解放に必要な tier(そのクリアが要る。0 = 最初から): 通常モードは tier − 1、エスカレーション・闘技場は tier 4

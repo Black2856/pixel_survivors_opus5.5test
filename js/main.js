@@ -34,8 +34,10 @@ function endRun(win) {
     META.best.kills = Math.max(META.best.kills, S.kills);
     META.best.level = Math.max(META.best.level, P.level);
   }
-  if (win) META.stageClear[runKey()] = true; // クリアしたモード・ステージ(カオス強化の解放条件)
+  const locked = Object.keys(DATA.classes).filter(k => !clsUnlocked(k));
+  if (win) META.stageClear[runKey()] = true; // クリアしたモード・ステージ(カオス強化・クラスの解放条件)
   const loot = runEndLoot(win), cxp = gainClassXp(); // 装備の報酬(インベントリへ)とクラス経験値
+  cxp.newCls = locked.filter(clsUnlocked); // このクリアで解放されたクラス
   META.shop = null; // ショップの商品はランごとに入れ替える
   saveMeta();
   state = win ? 'victory' : 'over';

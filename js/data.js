@@ -1235,6 +1235,9 @@ const DATA = {
     },
   },
   // クラスLv: need[i] = Lv(i+1) → Lv(i+2) に必要な経験値。獲得量 = 討伐数 × killK + 撃破ボス数 × bossK
+  // クラスの解放: このモード・ステージを初めてクリアすると使える(書いていないクラスは最初から: サムライ・メイジ・アーチャー・ネクロマンサー)
+  //   キーは runKey(escalation / arena / stage1〜7。stage の番号は stageRuns の no)
+  classUnlock: { knight: 'stage1', electro: 'stage2', pyro: 'stage3', cleric: 'stage4', cryo: 'stage5', assassin: 'stage6', astro: 'stage7', weaponmaster: 'escalation', berserker: 'arena' },
   classLevel: {
     need: [100, 150, 200, 300, 400, 500, 650, 800, 1000, 1250, 1500, 1750, 2000, 2500, 3000, 4000, 5000, 7500, 10000],
     killK: 1, bossK: 100,
