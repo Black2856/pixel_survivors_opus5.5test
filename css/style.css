@@ -126,6 +126,11 @@ button { font: inherit; color: inherit; cursor: pointer; border: 0; background: 
 /* ---------- タイトル ---------- */
 #title-screen { background: radial-gradient(ellipse at center, rgba(8,5,16,.1) 0%, rgba(8,5,16,.75) 80%); }
 .title-wrap { display: flex; flex-direction: column; align-items: center; gap: 22px; }
+/* タイトルのメニュー: START は1行、ほかは2列。ガイド・設定は補助の色(水色) */
+.title-menu { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; align-items: stretch; }
+.title-menu #btn-start { grid-column: 1 / -1; justify-self: center; margin-bottom: 4px; }
+.btn.sub { --line: #2a6a80; color: var(--cyan); background: #12203a; }
+.btn.sub:hover:not(:disabled) { --line: var(--cyan); color: #fff; }
 .logo { display: flex; flex-direction: column; align-items: center; margin-bottom: 18px; }
 .logo .l1, .logo .l2 { font-family: 'Press Start 2P'; line-height: 1.1; letter-spacing: 4px; }
 .logo .l1 { font-size: clamp(34px, 7vw, 76px); color: #fff; text-shadow: 6px 6px 0 #4c3a86, 12px 12px 0 var(--ink), 0 0 40px rgba(159,247,255,.6); animation: bob 2s ease-in-out infinite; }
