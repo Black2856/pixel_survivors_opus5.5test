@@ -445,13 +445,13 @@ function dimEmit(e, lv, n = 6) {
 }
 // バーサーカーの戦化粧の光り方の段階: 怒りが溜まるほど明るい(狂乱中は最大)。目(怒りが上限・狂乱中だけ赤い)も同じ絵なので一緒に明るくなる
 const bkPaintLv = () => (P.frenzy ? 5 : Math.round(5 * Math.min(1, P.rage / bkRageMax())));
-// ウェポンマスター: 影の追撃の影と、武神降臨の分身(自分の後ろに描く)
+// ウェポンマスター: 影の追撃の影と、武神降臨の分身(自分の後ろに描く)。shades = true: 影だけ(自分の攻撃なので「攻撃の濃さ」の層に描く)/ false: 分身だけ
 //   影: 黒い影が一瞬現れ、まねた武器を手に前へ突き出して、薄れて消える(銅色の縁取り)
 //   分身: 半透明の自分(銅色の縁取り。光の層には暗い銅の縁だけ)。今使っている武器を手に持つ(持ち替えた直後は少し掲げる)。現れるとき・消えるときは薄く
-function drawWm(rig, t) {
+function drawWm(rig, t, shades) {
   if (P.cls !== 'weaponmaster' || !rig) return;
   const sx = GFX.sctx, base = rig.base, foot = y => y - (base.h - ART.S.player.h) / 2; // 足元の位置を旧プレイヤーと揃える
-  for (const s of P.shades) {
+  if (shades) for (const s of P.shades) {
     const u = s.t / WM_SHADE_LIFE, a = s.t < 0.06 ? s.t / 0.06 : 1 - Math.max(0, (u - 0.45) / 0.55), flip = s.face < 0, y = foot(s.y);
     const pose = weaponmasterPose(s.t < 0.2 ? 1 : 0, { L: s.t < 0.2 ? 1 : 0, arm: s.t < 0.25 ? 'forward' : 'base', legs: s.t < 0.25 ? 'stepA' : 'base' }), sp = rig.pose(pose.p);
     shadow(s.x, s.y + 7, 7 * a);
@@ -460,6 +460,7 @@ function drawWm(rig, t) {
     const hx = s.x + (flip ? -1 : 1) * (pose.hand[0] + 1 - sp.w / 2 + rig.padX), hy = y - sp.h / 2 + pose.hand[1] + 1;
     drawHeld(s.k, hx, hy, flip, 0.9 * a);
   }
+  if (shades) return;
   const c = P.wmClone;
   if (!c) return;
   const end = c.i >= c.list.length && !c.chans.length ? Math.min(1, Math.max(0, Math.max(c.stay, c.lastT + 0.35) - c.t) / 0.25) : 1;
@@ -531,9 +532,13 @@ function render() {
     GFX.lightMul = LM;
     if (!layered) return;
     GFX.sctx = sx = REAL_S; GFX.gctx = gx = REAL_G;
-    sx.globalAlpha = gx.globalAlpha = SET.fxA;
-    sx.drawImage(GFX.mscene, 0, 0); gx.drawImage(GFX.mglow, 0, 0);
-    sx.globalAlpha = gx.globalAlpha = 1;
+    sx.globalAlpha = SET.fxA; sx.drawImage(GFX.mscene, 0, 0); sx.globalAlpha = 1;
+    // 光の層は透明度が効かない(シェーダーは色だけを足す。透明な所に薄く重ねても明るさは落ちない)ので、色を暗くしてから加算で重ねる
+    const mg = GFX.mgctx;
+    mg.save(); mg.setTransform(1, 0, 0, 1, 0, 0);
+    mg.globalCompositeOperation = 'source-atop'; mg.globalAlpha = 1 - SET.fxA; mg.fillStyle = '#000'; mg.fillRect(0, 0, VW, VH);
+    mg.restore();
+    gx.globalCompositeOperation = 'lighter'; gx.drawImage(GFX.mglow, 0, 0); gx.globalCompositeOperation = 'source-over';
   };
   const drawParts = mine => {
     for (const p of parts) {
@@ -1317,7 +1322,8 @@ function render() {
       sx.drawImage(ART.tint(src, a.col || DATA.classes[P.cls].col), ax, ay); // col: 残像ごとの色(バーサーカーの狂乱は暗い赤)
       sx.globalAlpha = 1;
     }
-    drawWm(rig, t); // ウェポンマスター: 影の追撃の影・武神降臨の分身(自分の後ろに描く)
+    if (P.shades && P.shades.length && P.cls === 'weaponmaster') { mineOn(); drawWm(rig, t, true); mineOff(); } // ウェポンマスター: 影の追撃の影(自分の攻撃。自分の後ろに描く)
+    drawWm(rig, t, false); // 武神降臨の分身
     shadow(P.x, P.y + 7, 9);
     drawAstroBody(t, false); // アストロマンサー: 足元の暗い輪・奥側を回る星
     drawBerserkRings(t);     // バーサーカー: 足元の昂りの輪
@@ -1357,6 +1363,8 @@ function render() {
       }
       gx.globalAlpha = 1;
     }
+    const fireOn = !!(S.flamePuffs && S.flamePuffs.length) || !!P.flame || !!(P.wmClone && P.wmClone.chans.some(ch => ch.flame));
+    if (fireOn) mineOn(); // 火炎放射は自分の攻撃(「攻撃の濃さ」の層に描く)
     if (S.flamePuffs && S.flamePuffs.length) { // 火炎放射: 炎の塊。進むほど膨らみ、白 → 黄 → 橙 → 赤 → 煙(古いものから描いて、芯が上に来る)
       const PAL = [[0.05, '#fff6c8', '#dff8ff'], [0.2, '#ffc34a', '#7ad7ff'], [0.4, '#ff9a2a', '#4aa8f0'], [0.62, '#e8501a', '#2f6fd8'], [0.82, '#9a1e14', '#1f3f9a'], [1, '#3a2a2a', '#2a2a3a']];
       for (const f of S.flamePuffs) {
@@ -1381,6 +1389,7 @@ function render() {
         addLight(o.x + Math.cos(a) * f.len * 0.5, o.y + Math.sin(a) * f.len * 0.5, f.len * 1.8, f.blue ? '#7ad7ff' : '#ff8a3d', 0.9 + 0.1 * Math.sin(t * 25));
       }
     }
+    if (fireOn) mineOff();
     addLight(P.x, P.y, 105, DATA.classes[P.cls].light || '#ffe2b8', 0.95);
   }
 
@@ -2342,8 +2351,8 @@ function updFx(dt) {
   for (const arr of [rings, slashes, bolts, warns, flashes, bfx]) for (let i = arr.length - 1; i >= 0; i--) { arr[i].t += dt; if (arr[i].t >= arr[i].life || (arr === warns && arr[i].owner && arr[i].owner.dead)) arr.splice(i, 1); } // 予兆は出した敵が倒れたら消す
   // 斬撃のイベント(鬼神・村正の一閃など): 決まった時刻に一度だけ。処理中に slashes が増えてもいいように、集めてから実行する
   const due = [];
-  for (const s of slashes) if (s.ev) for (const ev of s.ev) if (!ev.done && s.t >= ev.at) { ev.done = true; due.push(ev.fn); }
-  for (const fn of due) fn();
+  for (const s of slashes) if (s.ev) for (const ev of s.ev) if (!ev.done && s.t >= ev.at) { ev.done = true; due.push([ev.fn, !s.enemy]); }
+  for (const [fn, mine] of due) if (mine) asMine(fn); else fn(); // 自分の斬撃のイベントの演出は「攻撃の濃さ」の対象
   for (const w of warns) if (w.track) w.track(w); // 追随する予兆(発生源・向きを毎フレーム更新)
   for (const f of bfx) if (f.track) f.track(f, dt); // ボスの技の演出(動く影など)
 }

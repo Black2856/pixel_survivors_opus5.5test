@@ -208,7 +208,7 @@ function updPlayer(dt) {
   if (P.moving) { P.dir = [mx, my]; if (mx) P.facing = mx > 0 ? 1 : -1; }
   const aim = mouseAimPt();
   if (aim && aim.x !== P.x) P.facing = aim.x > P.x ? 1 : -1; // 照準中はマウス側を向く(アックスの投擲方向も追従)
-  clsUpdate(dt);
+  asMine(() => clsUpdate(dt)); // クラス・スキルの処理(Q・E・回避・乱れ桜・火炎放射など)の演出は自分の攻撃(「攻撃の濃さ」の対象)
   const sp = P.speed * P.moveMul * (P.slowT > 0 ? P.slowK || DATA.debuff.slow : 1) * playerFrostMul();
   let vx = mx * sp, vy = my * sp;
   if (P.iceT > 0) { // 滑る床(霜の巨人): 向きを変えるのに 0.35秒の慣性がかかる
@@ -385,7 +385,9 @@ function selfHurt(n) {
   if (d <= 0) return 0;
   P.hp -= d; P.hurtT = 0.12; S.hudDirty = true;
   addFloat(P.x, P.y - 10, String(d), '#ff4a5a', 1);
+  const pm = FX_MINE; FX_MINE = false; // 被弾の表示なので「攻撃の濃さ」の対象にしない
   burst(P.x, P.y - 4, 8, ['#8e0016', '#5a000c', '#3a0008'], { sp: 60, life: 0.35 });
+  FX_MINE = pm;
   return d;
 }
 
@@ -1360,7 +1362,8 @@ function updEnemies(dt) {
     S.eatk = e.atkDownT > S.time ? 1 - DATA.weapons.bhole.evo.atkDown : 1; // ビッグクランチ: ブラックホールの中の敵は攻撃力が下がる(体当たり・矢・ボスの攻撃)
     e.t += dt; e.flash -= dt;
     if (e.prop) { if (d2(e.x, e.y, P.x, P.y) > R2 * 2) e.dead = true; continue; }
-    // 状態異常
+    // 状態異常: 自分の攻撃で付いたものなので、火の粉・しずく・継続ダメージの火花などは「攻撃の濃さ」の対象(途中で倒れて continue しても、次の敵・ループの後で戻す)
+    FX_MINE = true;
     if (e.burnT > 0) { // 炎上(スタック): 積んだ炎上の合計を 0.5秒ごとに、出どころごとにまとめて
       e.burnT -= dt; e.burnTick -= dt;
       const bs = e.burns || [];
@@ -1392,6 +1395,7 @@ function updEnemies(dt) {
       if (e.dead) continue;
     }
     if (e.bleedT > 0) { e.bleedT -= dt; if (e.bleedT <= 0) e.bleed = 0; if (Math.random() < dt * Math.min(e.bleed, 10) * 0.6) part(e.x + rand(-2, 2), e.y, 0, 15, 0.4, '#a0122a', { g: 60 }); }
+    FX_MINE = false;
     e.slowT -= dt;
     if (e.obj) { e.kx = e.ky = 0; updObj(e, dt); continue; } // ボスが出した物: 動かない(押されない。炎上・出血などのダメージは受ける)
     // ノックバック
@@ -1604,7 +1608,7 @@ function updEnemies(dt) {
     const td = !e.boss && DATA.enemies[e.type]; // 触れたとき: 鬼火は当たらない / ヘルハウンドは噛みつくと炎上 / クラゲはスタミナを吸う
     if (e.dmg > 0 && !e.air && !(td && td.noTouch) && d2(e.x, e.y, P.x, P.y) < Math.pow(e.r + 4, 2) && hurtPlayer(e.dmg) && td) { if (td.touchBurn) burnPlayer(e.dmg * td.touchBurn); if (td.touchSta) drainSta(td.touchSta); if (td.touchFrost) frostPlayer(td.touchFrost); }
   }
-  S.eatk = 1;
+  S.eatk = 1; FX_MINE = false;
   if (enemies.length > 40) enemies = enemies.filter(e => !e.dead);
 }
 
