@@ -77,7 +77,7 @@ const WEAPON_SKILL = {
       const sk = DATA.weapons.katana.skill, m = c.wm;
       const cd = sk.cd * (1 - c.cuV('e', 'cd')) * (1 - (m.cd || 0)) * c.cdMul, one = dmg * sk.pow * (1 + c.cuV('e', 'pow')) * (1 + (m.ePow || 0));
       return { name: sk.name, cat: 'e', desc: [
-        `構え ${sk.windup}秒(動けない)→ ${sk.dur}秒間、周り(半径 ${sk.radius})を連続で斬る`,
+        `構え ${sk.windup}秒 → ${sk.dur}秒間、周り(半径 ${sk.radius})を連続で斬る`,
         `1回の威力: 武器の威力 × ${Math.round(sk.pow * 100)}%`,
         '使っている間も動ける',
       ], rows: [
@@ -130,7 +130,7 @@ WEAPON_SKILL.bolt = {
   info(c, dmg) {
     const sk = DATA.weapons.bolt.skill, m = c.wm, dur = sk.dur + c.cuV('e', 'dur') + (m.eDur || 0), one = dmg * sk.pow * (1 + c.cuV('e', 'pow')) * (1 + (m.ePow || 0));
     return { name: sk.name, cat: 'e', desc: [
-      `構え ${sk.windup}秒(動けない)→ ${sk.dur}秒間、照準方向へ毎秒 ${sk.rate}発の魔弾を連射`,
+      `構え ${sk.windup}秒 → ${sk.dur}秒間、照準方向へ毎秒 ${sk.rate}発の魔弾を連射`,
       `1発の威力: 武器の威力 × ${Math.round(sk.pow * 100)}%`,
       '連射中も普通に動ける',
       `弾数は通常攻撃の ${Math.round(sk.countMul * 100)}%。弾速・貫通・追尾は通常攻撃と同じ`,
@@ -236,7 +236,7 @@ WEAPON_SKILL.longbow = {
     const sk = DATA.weapons.longbow.skill, m = c.wm, heavy = c.hasSp('e', 'pow'), dur = (sk.dur + (m.eDur || 0)) * (c.hasSp('e', 'cd') ? 1.5 : 1);
     const one = dmg * sk.pow * (1 + c.cuV('e', 'pow')) * (1 + (m.ePow || 0)) * (heavy ? 0.6 : 1);
     return { name: sk.name, cat: 'e', desc: [
-      `構え ${sk.windup}秒(動けない)→ 照準位置の半径 ${sk.radius} に ${sk.dur}秒間、矢が降り注ぐ`,
+      `構え ${sk.windup}秒 → 照準位置の半径 ${sk.radius} に ${sk.dur}秒間、矢が降り注ぐ`,
       `${sk.every}秒ごとに、範囲内の敵全員へ 武器の威力 × ${Math.round(sk.pow * 100)}%`,
       '放った後は自由に動ける(雨はその場に残る)',
     ], rows: [
@@ -293,7 +293,7 @@ WEAPON_SKILL.longsword = {
     const sk = DATA.weapons.longsword.skill, m = c.wm, one = dmg * sk.pow * (1 + c.cuV('e', 'pow')) * (1 + (m.ePow || 0));
     return { name: sk.name, cat: 'e', desc: [
       `使うと、シールドを最大HP の ${Math.round(sk.shield * 100)}% 得る(${sk.shieldT}秒)`,
-      `構え ${sk.windup}秒(動けない)→ 剣を叩きつけ、前方へ衝撃波が ${sk.steps}段 走る`,
+      `構え ${sk.windup}秒 → 剣を叩きつけ、前方へ衝撃波が ${sk.steps}段 走る`,
       `1段の威力: 武器の威力 × ${Math.round(sk.pow * 100)}% + 今のシールド`,
     ], rows: [
       ['CD', `<b>${(sk.cd * (1 - c.cuV('e', 'cd')) * (1 - (m.cd || 0)) * c.cdMul).toFixed(1)}</b> 秒`],
@@ -359,7 +359,7 @@ WEAPON_SKILL.fire = {
   info(c, dmg) {
     const sk = DATA.weapons.fire.skill, m = c.wm, dur = sk.dur + (m.eDur || 0), one = dmg * sk.pow * (1 + c.cuV('e', 'pow')) * (1 + (m.ePow || 0));
     return { name: sk.name, cat: 'e', desc: [
-      `構え ${sk.windup}秒(動けない)→ ${sk.dur}秒間、照準方向へ扇形に炎を吹き続ける`,
+      `構え ${sk.windup}秒 → ${sk.dur}秒間、照準方向へ扇形に炎を吹き続ける`,
       `${sk.every}秒ごとに、範囲内の敵へ 武器の威力 × ${Math.round(sk.pow * 100)}% と炎上(武器の炎上/s × ${Math.round(sk.burn * 100)}% を 3秒)`,
       '放射中も動ける',
     ], rows: [
@@ -480,7 +480,7 @@ WEAPON_SKILL.blade = {
   info(c, dmg) {
     const sk = DATA.weapons.blade.skill, m = c.wm, pw = (1 + c.cuV('e', 'pow')) * (1 + (m.ePow || 0)), one = dmg * sk.pow * pw, sc = dmg * sk.scatter * pw;
     return { name: sk.name, cat: 'e', desc: [
-      `構え ${sk.windup}秒(動けない)→ ${sk.dur}秒間、刃の輪が広がる(使っている間も動ける)`,
+      `構え ${sk.windup}秒 → ${sk.dur}秒間、刃の輪が広がる(使っている間も動ける)`,
       `回転半径 ×${sk.rMul}、刃のサイズ ×${sk.size}、回転速度 ×${sk.rot}、刃の威力 ×${Math.round(sk.pow * 100)}%`,
       `終わりに刃が回転しながら外へ飛び散る(1枚ごとに 武器の威力 × ${Math.round(sk.scatter * 100)}%、貫通)`,
     ], rows: [
@@ -574,7 +574,7 @@ WEAPON_SKILL.wisp = {
     const sk = DATA.weapons.wisp.skill, m = c.wm, n = sk.n + c.cuV('e', 'n') + (m.eCount || 0), k = (1 + c.cuV('e', 'pow')) * (1 + (m.ePow || 0));
     const one = dmg * sk.pow * k, boom = dmg * sk.burstPow * k, f = v => (v < 10 ? v.toFixed(1) : Math.round(v)); // 1回の威力は小さいので 10 未満は小数1桁
     return { name: sk.name, cat: 'e', desc: [
-      `構え ${sk.windup}秒(動けない)→ 自分の周りから精霊 ${sk.n}体が渦を巻いて広がり、それぞれ近くの敵へ飛んで取り憑く(まだ取り憑かれていない敵を優先)`,
+      `構え ${sk.windup}秒 → 自分の周りから精霊 ${sk.n}体が渦を巻いて広がり、それぞれ近くの敵へ飛んで取り憑く(まだ取り憑かれていない敵を優先)`,
       `取り憑いた精霊は ${sk.possT}秒間、${sk.every}秒ごとにその敵へ 武器の威力 × ${Math.round(sk.pow * 100)}%(取り憑いた瞬間にも1回)`,
       `  → その敵が倒れると、近く(半径 ${sk.hopR})の敵へ乗り移る(残り時間はそのまま。いなければその場で爆ぜる)`,
       `  → 時間が来ると、取り憑いた敵の中で爆ぜる(武器の威力 × ${Math.round(sk.burstPow * 100)}%、半径 ${sk.burstR})`,
@@ -750,7 +750,7 @@ WEAPON_SKILL.blizzard = {
   info(c, dmg) {
     const sk = DATA.weapons.blizzard.skill, m = c.wm, n = sk.n + c.cuV('e', 'n') + (m.eCount || 0), one = dmg * sk.pow * (1 + c.cuV('e', 'pow')) * (1 + (m.ePow || 0));
     return { name: sk.name, cat: 'e', desc: [
-      `構え ${sk.windup}秒(動けない)→ 照準位置(半径 ${sk.radius})に、${sk.dur}秒かけてつららが降る`,
+      `構え ${sk.windup}秒 → 照準位置(半径 ${sk.radius})に、${sk.dur}秒かけてつららが降る`,
       `つららは範囲内の敵を狙って落ちる(いなければランダムな位置)`,
       `つらら1本: 半径 ${sk.iceR} に 武器の威力 × ${Math.round(sk.pow * 100)}% と凍傷 +${sk.frost}`,
       '放った後は自由に動ける(つららはその場に降り続ける)',
@@ -801,7 +801,7 @@ WEAPON_SKILL.thunder = {
   info(c, dmg) {
     const sk = DATA.weapons.thunder.skill, m = c.wm, one = dmg * sk.pow * (1 + c.cuV('e', 'pow')) * (1 + (m.ePow || 0)), ar = (1 + c.cuV('e', 'area')) * (1 + c.st.v.area) * c.st.mul.area;
     return { name: sk.name, cat: 'e', desc: [
-      `構え ${sk.windup}秒(動けない)→ 照準位置に雷の球を放つ`,
+      `構え ${sk.windup}秒 → 照準位置に雷の球を放つ`,
       `周りの敵を中心へ1回だけ大きく引き寄せ(ボス以外)、直後に爆発(武器の威力 × ${Math.round(sk.pow * 100)}%、感電 ${Math.round(sk.shock * 100)}%)`,
     ], rows: [
       ['CD', `<b>${(sk.cd * (1 - c.cuV('e', 'cd')) * (1 - (m.cd || 0)) * c.cdMul).toFixed(1)}</b> 秒`],
@@ -889,7 +889,7 @@ WEAPON_SKILL.bhole = {
     const sk = DATA.weapons.bhole.skill, m = c.wm, dur = sk.dur + c.cuV('e', 'dur') + (m.eDur || 0), one = dmg * sk.pow * (1 + c.cuV('e', 'pow')) * (1 + (m.ePow || 0));
     const n = Math.floor(dur / sk.every + 1e-6), f = v => (v < 10 ? v.toFixed(1) : Math.round(v)); // 1回の威力は小さいので 10 未満は小数1桁
     return { name: sk.name, cat: 'e', desc: [
-      `構え ${sk.windup}秒(動けない)→ ${sk.dur}秒間、画面全体を異次元に沈める(放った後は動ける)`,
+      `構え ${sk.windup}秒 → ${sk.dur}秒間、画面全体を異次元に沈める(放った後は動ける)`,
       `異次元の間、${sk.every}秒ごとに 画面内の全ての敵(ボスも)へ 武器の威力 × ${Math.round(sk.pow * 100)}%`,
       '距離に関係なく当たる(範囲のステータスは効かない)。効果中に画面へ入ってきた敵にも当たる',
     ], rows: [
@@ -1014,7 +1014,7 @@ WEAPON_SKILL.axe = {
     return { name: sk.name, cat: 'e', desc: [
       `使った瞬間に 最大HP の ${Math.round(sk.hpCost * 100)}% のダメージを受ける(防御力・シールドでは減らない。自分の技では倒れない)`,
       `  → 今回の攻撃 1回ごとの威力に、払った HP × ${sk.hpK} を足す`,
-      `構え ${sk.windup}秒(動けない)→ 照準方向(照準がなければ一番近い敵)へ、大きな斧(通常の斧の ${sk.big}倍の大きさ)を投げる`,
+      `構え ${sk.windup}秒 → 照準方向(照準がなければ一番近い敵)へ、大きな斧(通常の斧の ${sk.big}倍の大きさ)を投げる`,
       `敵に当たると、近く(半径 ${sk.hopR})のまだ当たっていない敵へ跳ね返る(最大 ${sk.bounces}回)`,
       `1回の威力: 武器の威力 × ${Math.round(sk.pow * 100)}%、跳ねるたびに +${Math.round(sk.inc * 100)}%`,
       `跳ね終わると、回りながら自分のところへ戻ってくる(戻る途中も当たる。武器の威力 × ${Math.round(sk.backPow * 100)}%)`,
@@ -1402,7 +1402,7 @@ const CLASS_RT = {
           ['効果時間', `${zT} 秒`],
         ] },
         { key: 'Q', name: q.name, cat: 'q', desc: [
-          `構え ${q.windup}秒(動けない)→ 照準方向へ ${q.dist} 突進(無敵)`,
+          `構え ${q.windup}秒 → 照準方向へ ${q.dist} 突進(無敵)`,
           `通過した敵をまとめて斬る(基礎威力 ${q.pow})`,
           `剣気を全て消費し、剣気1につき威力 +${q.kiPow}`,
         ], rows: [
@@ -1504,7 +1504,7 @@ const CLASS_RT = {
           ['1秒あたりの上限', `${(p.flowCap + c.cuV('passive', 'cap')).toFixed(1)} 秒`],
         ] },
         { key: 'Q', name: 'メテオ', cat: 'q', desc: [
-          `構え ${DATA.classes.mage.q.windup}秒(動けない)→ 照準位置に隕石が落ちる(基礎威力 ${DATA.classes.mage.q.pow}、半径 ${DATA.classes.mage.q.r})`,
+          `構え ${DATA.classes.mage.q.windup}秒 → 照準位置に隕石が落ちる(基礎威力 ${DATA.classes.mage.q.pow}、半径 ${DATA.classes.mage.q.r})`,
           `当たった敵は炎上: 与えたダメージの ${Math.round(DATA.classes.mage.q.burnPct * 100)}% を ${p.burnDur}秒かけて与える`,
           `魔力結晶を全て消費し、1つにつき威力 +${Math.round(DATA.classes.mage.q.crystalPow * 100)}%・半径 +${Math.round(DATA.classes.mage.q.crystalR * 100)}%`,
         ], rows: [
@@ -1626,7 +1626,7 @@ const CLASS_RT = {
           ['最大時の攻撃速度', `<b>+${Math.round((p.focusMax + (c.lvFx.focusMax || 0)) * p.focusAtkSpd * 100)}%</b>`],
         ] },
         { key: 'Q', name: q.name, cat: 'q', desc: [
-          `構え ${q.windup}秒(動けない)→ 画面内の印を持つ敵1体につき1本、その敵へまっすぐ高速の矢(基礎威力 ${q.pow}、貫通無限)`,
+          `構え ${q.windup}秒 → 画面内の印を持つ敵1体につき1本、その敵へまっすぐ高速の矢(基礎威力 ${q.pow}、貫通無限)`,
           `矢が当たった敵は、印1つにつき 基礎威力 ${q.markPow} の追加ダメージを連続で受ける(印は消費)`,
           '  → 途中で貫いた敵も、印を持っていれば同じく受ける',
           `さらに無条件で、最寄りの ${q.none}体へも1本ずつ(最大 ${q.max}本)`,
@@ -1747,7 +1747,7 @@ const CLASS_RT = {
           ['衝撃波の威力', `${Math.round(p.breakPow * (1 + c.cuV('passive', 'shock') + (c.lvFx.breakPow || 0)))} → <b>${Math.round(p.breakPow * (1 + c.cuV('passive', 'shock') + (c.lvFx.breakPow || 0)) * c.atkMul)}</b>`],
         ] },
         { key: 'Q', name: q.name, cat: 'q', desc: [
-          `構え ${q.windup}秒(動けない)→ シールドを全て消費し、前方の扇形に光の衝撃`,
+          `構え ${q.windup}秒 → シールドを全て消費し、前方の扇形に光の衝撃`,
           `基礎威力 ${q.pow} + 消費したシールド × ${q.perShield}`,
           `当たった敵を押し返し、${q.stun} + 消費したシールド × ${q.stunPer}秒 スタン`,
         ], rows: [
@@ -1851,7 +1851,7 @@ const CLASS_RT = {
           ['付与量', `<b>${Math.round((c.cuV('passive', 'ignite', p.ignite) + (c.lvFx.ignite || 0)) * 100)}%</b>`],
         ].concat(kin ? [['火の輪の威力', `${kin} → <b>${Math.round(kin * c.atkMul)}</b>`]] : []) },
         { key: 'Q', name: q.name, cat: 'q', desc: [
-          `構え ${q.windup}秒(動けない)→ 画面内の炎上中の敵全員の炎上を、まとめて爆発させる`,
+          `構え ${q.windup}秒 → 画面内の炎上中の敵全員の炎上を、まとめて爆発させる`,
           `各敵に、基礎威力 ${q.base} + 残っていた炎上ダメージ × 爆発の倍率 をすぐに与える(炎上は消費する)`,
           `その敵の周り(半径 ${q.r})に 基礎威力 ${q.pow} + 炎上スタック数 × ${q.perStack} の爆風`,
           '炎上中の敵がいなくても使える(自分の周りに爆風だけ)',
@@ -1976,7 +1976,7 @@ const CLASS_RT = {
           ['纏う時間', `<b>${c.cuV('passive', 'wear', p.wearT) + (c.lvFx.wearT || 0)}</b> 秒`],
         ].concat(c.cuV('passive', 'armor') ? [['纏った瞬間のシールド', `最大HP の ${Math.round(c.cuV('passive', 'armor') * 100)}%`]] : []) },
         { key: 'Q', name: q.name, cat: 'q', desc: [
-          `構え ${q.windup}秒(動けない)→ 自分を中心に ${q.dur}秒間、細氷の領域(自分についてくる)`,
+          `構え ${q.windup}秒 → 自分を中心に ${q.dur}秒間、細氷の領域(自分についてくる)`,
           `範囲内の敵に、${q.every}秒ごとに凍傷 +${q.frost} と基礎威力 ${q.pow} のダメージ`,
           `この範囲内で凍結した敵は、凍結時間 +${Math.round(q.freezeUp * 100)}%`,
         ], rows: [
@@ -2084,7 +2084,7 @@ const CLASS_RT = {
           ['感電', `<b>${Math.round((c.cuV('passive', 'shock', p.wearShock) + (c.lvFx.wearShock || 0)) * 100)}%</b>`],
         ] },
         { key: 'Q', name: q.name, cat: 'q', desc: [
-          `構え ${q.windup}秒(動けない)→ 画面内のランダムな位置に鉄塔を落とす(落ちた瞬間に落雷: 基礎威力 ${q.landPow})`,
+          `構え ${q.windup}秒 → 画面内のランダムな位置に鉄塔を落とす(落ちた瞬間に落雷: 基礎威力 ${q.landPow})`,
           `${q.dur}秒間、各鉄塔は ${q.every}秒ごとに近くの敵 1体へ電気を放つ(基礎威力 ${q.pow}、感電 ${Math.round(q.shock * 100)}%)`,
           '放電は使ったときに1回。この Q の攻撃すべてに放電の感電が乗る',
         ], rows: [
@@ -2203,7 +2203,7 @@ const CLASS_RT = {
           ['低HP の回復量アップ', `最大 +${Math.round(c.cuV('passive', 'mercy', p.mercy) * 100)}%`],
         ] },
         { key: 'Q', name: q.name, cat: 'q', desc: [
-          `構え ${q.windup}秒(動けない)→ 祈りを全て消費し、照準方向の扇形に光の一撃`,
+          `構え ${q.windup}秒 → 祈りを全て消費し、照準方向の扇形に光の一撃`,
           `基礎威力 ${q.pow} + 消費した祈り × ${q.perPray}`,
           `消費した祈りの ${Math.round(q.heal * 100)}% だけ HP を回復(この超過回復は祈りにならない)`,
         ], rows: [
@@ -2331,7 +2331,7 @@ const CLASS_RT = {
           ['1秒の上限', `最大HP の <b>${(c.cuV('passive', 'feast', p.leechCap) * 100).toFixed(1)}%</b>`],
         ] },
         { key: 'Q', name: q.name, cat: 'q', desc: [
-          `構え ${q.windup}秒(動けない)→ 今の HP の ${Math.round(q.pay * 100)}% を支払う(HP は 1 未満にならない)`,
+          `構え ${q.windup}秒 → 今の HP の ${Math.round(q.pay * 100)}% を支払う(HP は 1 未満にならない)`,
           `支払った瞬間、照準方向へ×字に交差する二筋の斬撃: 基礎威力 ${q.pow} + 支払った HP × ${q.perHp}、出血 +${q.bleed}(1体に1回)`,
           `  → 交差の中心は ${q.crossD} 前、1本の長さ ${q.crossL * 2}、線から ${q.crossW} 以内に当たる`,
           `${q.dur}秒間、移動速度 +${Math.round(q.spd * 100)}%、敵の出血 1スタックにつき与えるダメージ +${Math.round(q.perStack * 100)}%`,
@@ -2428,7 +2428,7 @@ const CLASS_RT = {
           ['身代わりの軽減', `<b>${Math.round(c.cuV('passive', 'ward', p.guard) * 100)}%</b>`],
         ] },
         { key: 'Q', name: q.name, cat: 'q', desc: [
-          `構え ${q.windup}秒(動けない)→ 死霊を全て解き放つ。1体につき霊弾 1発(最低 ${q.minShots}発)`,
+          `構え ${q.windup}秒 → 死霊を全て解き放つ。1体につき霊弾 1発(最低 ${q.minShots}発)`,
           `霊弾は照準方向へ飛び出し、近くの敵を追って触れると爆ぜる(基礎威力 ${q.pow}、半径 ${q.r})`,
           '解き放った死霊は戻らない。威力は霊力で上がる',
         ], rows: [
@@ -2543,7 +2543,7 @@ const CLASS_RT = {
           ['遅くなる割合', `<b>${pc(Math.min(p.slowCap, mass * slowPer))}%</b>`, c.run ? '今の質量' : `上限で ${pc(Math.min(p.slowCap, max * slowPer))}%`],
         ].concat(inert ? [['被ダメージ', `<b>-${pc(Math.min(p.guardCap, mass * inert))}%</b>`, `慣性: 質量 1 につき -${pc(inert)}%(最大 -${Math.round(p.guardCap * 100)}%)`]] : []) },
         { key: 'Q', name: q.name, cat: 'q', desc: [
-          `構え ${q.windup}秒(動けない)→ 質量を全て使い、照準位置(射程 ${q.range})に特異点を生む`,
+          `構え ${q.windup}秒 → 質量を全て使い、照準位置(射程 ${q.range})に特異点を生む`,
           `${q.dur}秒間、周り(半径 ${q.pullR} + 使った質量 × ${q.pullPer})の敵を中心へ引き寄せる(中心に近いほど強く。ボス以外)`,
           `最後に崩壊して、半径 ${q.r} の敵へ 基礎威力 ${q.pow} + 使った質量 × ${q.perMass}(質量 0 でも使える)`,
         ], rows: [
@@ -2702,7 +2702,7 @@ const CLASS_RT = {
           ['時間', `${fT} 秒`],
         ].concat(edge ? [['通常の被弾', `昂り +${edge}段`, '極限']] : []) },
         { key: 'Q', name: q.name, cat: 'q', desc: [
-          `構え ${q.windup}秒(動けない)→ 怒りを全て使い、雄叫びとともに周り(半径 ${q.r})を薙ぎ払う(基礎威力 ${q.pow} + 使った怒り × ${q.perRage})`,
+          `構え ${q.windup}秒 → 怒りを全て使い、雄叫びとともに周り(半径 ${q.r})を薙ぎ払う(基礎威力 ${q.pow} + 使った怒り × ${q.perRage})`,
           `そのあと狂乱(${q.dur}秒 + 使った怒り × ${q.durPer}秒。最大 ${q.durMax}秒): 怒りは上限のまま減らない、与えるダメージ +${Math.round(q.dmg * 100)}%、攻撃速度 +${Math.round(q.atkSpd * 100)}%、HP回復速度 +${q.regen}/s`,
           '  → そのかわりスタミナが 0 になり、回復しなくなる。終わると怒りは 0 から溜め直し',
         ], rows: [
@@ -2808,7 +2808,7 @@ const CLASS_RT = {
           ['まねた攻撃の威力', `<b>${Math.round(sp * (c.hasSp('passive', 'freq') ? 1 - p.twinCut : 1) * 100)}%</b>` + (c.hasSp('passive', 'freq') ? ' × 2体' : ''), '通常攻撃の威力に対して'],
         ].concat(edge ? [['影刃の威力', `${edge} → <b>${Math.round(edge * c.atkMul)}</b>`, `半径 ${Math.round(p.edgeR * ar)}。攻撃力を掛けた値`]] : []) },
         { key: 'Q', name: q.name, cat: 'q', desc: [
-          `構え ${q.windup}秒(動けない)→ 自分の隣に分身をつくる。分身は持っている武器の武器スキルをランダムに ${q.n}種(重複なし)使う`,
+          `構え ${q.windup}秒 → 自分の隣に分身をつくる。分身は持っている武器の武器スキルをランダムに ${q.n}種(重複なし)使う`,
           `分身は ${q.gap}秒おきに 1つずつ使う。自分はすぐに動ける。分身は狙われず、ダメージも受けない`,
           '威力はその武器の今の値(Lv・進化・熟練)。メイン武器の E の強化も効く',
           '武器スキルの自分への効果(シールド・回復など)は自分に入る。ワイルドトマホークの代償は払わない',
