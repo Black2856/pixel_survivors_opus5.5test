@@ -262,10 +262,11 @@ const Help = (() => {
   $('hp-back').onclick = () => { AudioMan.click(); close(); };
   $('btn-help').onclick = () => { AudioMan.click(); open('title'); };
   $('btn-help-p').onclick = () => { AudioMan.click(); open('pause'); };
+  // ガイドの画面では ESC で戻るだけ。ほかのキー(M のミュートなど)は受け付けない(検索欄に文字を打つため)
   function onKey(e) {
     if (state !== 'help') return false;
-    if (e.code === 'Escape') { close(); return true; }
-    return false;
+    if (e.code === 'Escape' && !e.isComposing) close(); // 日本語入力の変換中の ESC は変換の取り消し
+    return true;
   }
 
   return { glossify, tip, open, onKey, terms: G };
