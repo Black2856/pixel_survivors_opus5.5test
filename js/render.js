@@ -796,16 +796,22 @@ function render() {
       gx.globalAlpha = 1;
     } else if (z.kind === 'rain') {
       drawArrowRain(z, zx, zy, t);
-    } else if (z.kind === 'pillar') { // 光の柱: 天から細く降りて太くなり、消えていく
+    } else if (z.kind === 'pillar') { // 光の柱: 天から一瞬で降りて太くなり、細くなって消える。外の金の光 → 淡い帯 → 白い芯。足元に光の輪が広がり、光の粒が昇る
       if (z.t >= 0) {
-        const u = z.t / z.dur, x = Math.round(zx), w = Math.max(1, Math.round(z.r * 0.35 * Math.sin(Math.min(1, u * 2.5) * Math.PI / 2) * (1 - u)));
-        const top = Math.round(zy - 200), y0 = Math.round(zy);
-        sx.globalAlpha = 0.55 * (1 - u); sx.fillStyle = '#fff6d8'; sx.fillRect(x - w, top, w * 2 + 1, y0 - top);
-        sx.globalAlpha = 0.9 * (1 - u); sx.fillStyle = '#ffffff'; sx.fillRect(x - Math.max(0, w - 2), top, Math.max(1, (w - 2) * 2 + 1), y0 - top);
-        gx.globalAlpha = 0.5 * (1 - u); gx.fillStyle = '#ffe38a'; gx.fillRect(x - w - 1, top, w * 2 + 3, y0 - top);
-        sx.globalAlpha = gx.globalAlpha = 1;
-        sx.globalAlpha = 0.5 * (1 - u); pCircle(sx, zx, zy, Math.round(z.r * (0.6 + 0.4 * u)), '#ffe38a', 1); sx.globalAlpha = 1;
-        addLight(z.x, z.y, z.r * 3, '#fff6d8', 0.9 * (1 - u));
+        const u = z.t / z.dur, x = Math.round(zx), k = 1 - u, w = Math.max(1, Math.round(z.r * 0.36 * Math.sin(Math.min(1, u * 2.5) * Math.PI / 2) * k));
+        const top = Math.round(zy - 200), y0 = Math.round(zy), drop = Math.min(1, u * 8), bot = Math.round(top + (y0 - top) * drop);
+        sx.globalAlpha = 0.22 * k; sx.fillStyle = '#ffe38a'; sx.fillRect(x - w - 2, top, w * 2 + 5, bot - top);
+        sx.globalAlpha = 0.5 * k; sx.fillStyle = '#fff6d8'; sx.fillRect(x - w, top, w * 2 + 1, bot - top);
+        sx.globalAlpha = 0.85 * k; sx.fillStyle = '#ffffff'; sx.fillRect(x - Math.max(0, w - 2), top, Math.max(1, (w - 2) * 2 + 1), bot - top);
+        gx.fillStyle = dimCol('#ffe38a', 0.6 * k); gx.fillRect(x - w - 1, top, w * 2 + 3, bot - top); // 光の層は透明度が効かないので色で弱める
+        if (drop >= 1) { // 足元: 光が地面に当たって広がる楕円と、立ちのぼる光の粒
+          const er = z.r * (0.45 + 0.75 * easeOutCubic(u));
+          ellBoth(sx, gx, zx, zy, er, er * 0.42, '#ffe38a', 0.75 * k, dimCol('#ffe38a', 0.5 * k));
+          ellBoth(sx, gx, zx, zy, er * 0.55, er * 0.23, '#fff6d8', 0.9 * k, null);
+          for (let i = 0; i < 6; i++) { const h = hash2(i, Math.round(z.x)), px = Math.round(zx + (h - 0.5) * z.r * 1.2), py = Math.round(zy - (u * 60 + h * 30) % 40); sx.globalAlpha = k; sx.fillStyle = '#fff6d8'; sx.fillRect(px, py, 1, 1); gx.fillStyle = dimCol('#ffe38a', 0.8 * k); gx.fillRect(px, py, 1, 1); }
+        }
+        sx.globalAlpha = 1;
+        addLight(z.x, z.y, z.r * 3, '#fff6d8', 0.9 * k);
       }
     } else if (z.kind === 'lightrain') { // 光の雨: 淡い金の円
       sx.globalAlpha = 0.18 * fade; pDisc(sx, zx, zy, Math.round(z.r), '#ffe38a');

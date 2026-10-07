@@ -1009,6 +1009,7 @@ function updZones(dt) {
         for (let i = 0; i < 30; i++) { const a = rand(0, TAU), r = z.r * rand(0.6, 1); part(z.x + Math.cos(a) * r, z.y + Math.sin(a) * r, -Math.cos(a) * r * 4, -Math.sin(a) * r * 4, 0.22, pick(['#9fd8ff', '#fff27a', '#ffffff']), { glow: true, drag: 0 }); }
       }
       const sk = DATA.weapons.thunder.skill;
+      if (!z.boomed && Math.random() < dt * 26) { const a = rand(0, TAU), L = rand(6, 14) + z.r * 0.15 * (z.t / sk.boomT); asMine(() => bolts.push({ x0: z.x, y0: z.y, x1: z.x + Math.cos(a) * L, y1: z.y + Math.sin(a) * L, t: 0, life: 0.06, w: 1 })); } // 球のまわりではじける稲妻(爆発が近いほど長い)
       if (!z.boomed && z.t >= sk.boomT) {
         z.boomed = true;
         const el = clsNextEl();
@@ -1022,6 +1023,8 @@ function updZones(dt) {
           for (let i = 0; i < 8; i++) { const a = i * TAU / 8 + rand(-0.2, 0.2), L = z.boomR * rand(1, 1.6); bolts.push({ x0: z.x, y0: z.y, x1: z.x + Math.cos(a) * L, y1: z.y + Math.sin(a) * L, t: 0, life: 0.2, w: 1 }); }
           addFlash(z.x, z.y, z.boomR * 2.2, '#9fd8ff', 0.22); addRing(z.x, z.y, z.boomR, '#ffffff', { w: 2, life: 0.35 });
           burst(z.x, z.y, 30, ['#9fd8ff', '#fff27a', '#ffffff'], { sp: 150, glow: true, life: 0.4 }); shockAt(z.x, z.y, 1.3, 1); shake(6);
+          fxRays(z.x, z.y, z.boomR * 1.6, '#4aa8f0', { n: 14, life: 0.32, core: '#9fd8ff' });
+          fxDecal(z.x, z.y + 2, z.boomR * 0.8, 'scorch', { col: '#0a0c18', hot: '#9fd8ff', heatT: 0.7, life: 2.5 });
         });
         AudioMan.boom(); AudioMan.zap();
       }
@@ -1096,8 +1099,8 @@ function updZones(dt) {
           });
           burst(ic.x, ic.y, ic.big ? 40 : 8, ['#ffffff', '#bff4ff', '#7ad7ff'], { sp: ic.big ? 160 : 70, up: 30, g: 160, glow: true, life: 0.45 });
           addFlash(ic.x, ic.y, R * (ic.big ? 2.2 : 1.4), '#bff4ff', ic.big ? 0.4 : 0.08);
-          if (ic.big) { addRing(ic.x, ic.y, R, '#ffffff', { w: 3, life: 0.45 }); shockAt(ic.x, ic.y, 1.6, 1); shake(8); hitstop(0.05); AudioMan.boom(); }
-          else shake(1);
+          if (ic.big) { addRing(ic.x, ic.y, R, '#ffffff', { w: 3, life: 0.45 }); shockAt(ic.x, ic.y, 1.6, 1); shake(8); hitstop(0.05); AudioMan.boom(); fxRays(ic.x, ic.y - 4, R * 1.5, '#7ad7ff', { n: 16, life: 0.38 }); fxDecal(ic.x, ic.y, R, 'frost', { life: 3.5, n: 10 }); }
+          else { shake(1); if (Math.random() < 0.4) fxDecal(ic.x, ic.y, R * 0.9, 'frost', { life: 1.8, n: 5 }); }
         });
         if (z.patch) zones.push({ kind: 'frostpatch', x: ic.x, y: ic.y, r: R, t: 0, dur: DATA.weapons.blizzard.skill.patchT, tick: 0.5 }); // 凍てつく大地
         if (!ic.big && Math.random() < 0.5) AudioMan.hit();

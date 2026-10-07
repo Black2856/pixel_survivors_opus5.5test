@@ -62,12 +62,14 @@ function setCd(slot, sec) {
   if (clsRT() && clsRT().onSkill) clsRT().onSkill(slot); // スキル使用(メイジの余韻など)
 }
 function playAnim(name, dur, arg) { P.anim = { name, t: 0, dur, arg }; } // arg: モーションに渡す値(乱れ桜の持続時間など)
-// スキル名のカットイン(画面を横切る帯)と構えの演出。slot: 'e' / 'q'。o: カットインの指定(sub: 2行目)
+// スキル名のカットイン(画面を横切る帯)と構えの演出。slot: 'e' / 'q'。o: カットインの指定(sub: 2行目)。足元の陣を返す
 function skillCall(name, col, slot = 'e', o = {}) {
   const q = slot === 'q';
   UI.skillCut(name, col, q, Object.assign(q ? { glyph: clsRT().qInfo().glyph } : { icon: P.mainW }, o));
-  skillWind(col, slot);
+  return skillWind(col, slot);
 }
+// 撃ち続けるスキル(乱れ桜・バラージュ・火炎放射): 足元の陣を使っている間も残し、終わりに光らせる
+const sigilKeep = (sg, dur) => { sg.wu += dur; sg.life += dur; };
 // 構えの秒数(予備動作。なければ 0)
 const skillWindup = slot => (slot === 'q' ? DATA.classes[P.cls].q.windup : (weaponSkill() || {}).windup) || 0;
 // 構え: 足元の陣(溜めの間に開いて明るくなり、放つ瞬間に白く光って広がる。形はクラスごと: skillfx.js の SIGIL)
@@ -75,17 +77,18 @@ const skillWindup = slot => (slot === 'q' ? DATA.classes[P.cls].q.windup : (weap
 function skillWind(col, slot) {
   const q = slot === 'q', W = skillWindup(slot);
   (P.skCol || (P.skCol = {}))[slot] = col;
-  fxSigil(P.x, P.y + 6, q ? 26 : 17, col, { follow: P, oy: 6, wu: W, life: W + 0.4 });
+  const sg = fxSigil(P.x, P.y + 6, q ? 26 : 17, col, { follow: P, oy: 6, wu: W, life: W + 0.4 });
   if (q) fxFocus(P.x, P.y - 4, W + 0.22, col, { follow: P, oy: -4 });
   AudioMan.cast(q);
   if (W <= 0) skillRelease(slot);
+  return sg;
 }
 // 放つ瞬間(構えが終わった瞬間): 足元から輪が広がり、体がきらめく。低い衝撃音(各スキルの炸裂に重なるので控えめ)
 function skillRelease(slot) {
   const q = slot === 'q', col = (P.skCol && P.skCol[slot]) || DATA.classes[P.cls].col;
   asMine(() => {
     addRing(P.x, P.y + 6, q ? 34 : 22, col, { r0: 6, w: 2, life: 0.32 });
-    fxGlint(P.x, P.y - 6, q ? 10 : 7, col, { life: 0.24 });
+    fxGlint(P.x + P.facing * 4, P.y - 9, q ? 8 : 5, col, { life: 0.22 });
   });
   AudioMan.thump(q);
 }
@@ -113,12 +116,21 @@ const WEAPON_SKILL = {
       P.act = Object.assign(ranbuState(ME, clsESkillMul() * (1 + (m.ePow || 0))), { slot: 'e', ph: 'wind', t: 0 });
       playAnim('ranbu', MOTIONS.ranbu.duration(P.act.dur), P.act.dur);
       setCd('e', sk.cd * (1 - cuV('e', 'cd')) * (1 - (m.cd || 0)) * P.cdMul); // 熟練のクールダウンは武器スキルにも効く
-      skillCall(sk.name, '#ffb7d5'); AudioMan.click();
+      sigilKeep(skillCall(sk.name, '#ffb7d5'), P.act.dur); AudioMan.click();
       burst(P.x, P.y, 12, ['#ffb7d5', '#ffffff'], { sp: 40, up: 20, glow: true });
     },
     update(a, dt) {
       const sk = weaponSkill();
-      if (a.ph === 'wind') { P.moveMul = 0; if (a.t >= sk.windup) a.ph = 'spin'; return; }
+      if (a.ph === 'wind') {
+        P.moveMul = 0;
+        if (a.t < sk.windup) return;
+        a.ph = 'spin';
+        asMine(() => { // 抜刀: 花びらが渦を巻いて舞い上がり、桜色の光芒が走る
+          for (let i = 0; i < 28; i++) { const r = i * TAU / 28, s = rand(90, 150); part(P.x + Math.cos(r) * 5, P.y + Math.sin(r) * 3, Math.cos(r + 1.3) * s, Math.sin(r + 1.3) * s * 0.7 - 20, rand(0.5, 0.8), pick(['#ffb7d5', '#ff8ac0', '#e8357f']), { glow: i % 3 === 0, drag: 2.2 }); }
+          fxRays(P.x, P.y - 4, 56, '#a8185a', { n: 12, life: 0.3, core: '#e8357f' });
+        });
+        return;
+      }
       if (hasSp('e', 'dur')) { P.moveMul *= 1.5; P.invT = Math.max(P.invT, 0.05); } // 千本桜
       if (ranbuStep(ME, a, dt)) P.act = null;
     },
@@ -140,10 +152,14 @@ function ranbuStep(X, a, dt) {
   const sk = DATA.weapons.katana.skill;
   a.u += dt; a.hitT -= dt;
   if (a.hitT <= 0 && a.n < a.hits) { a.hitT += a.dur / a.hits; a.n++; ranbuHit(X, a); }
-  if (Math.random() < dt * 40) part(X.x + rand(-sk.radius, sk.radius) * X.area, X.y + rand(-sk.radius, sk.radius) * X.area, rand(-20, 20), rand(-30, 0), 0.8, pick(['#ffb7d5', '#ff8ac0', '#ffffff']), { glow: true, drag: 1 });
+  for (let n = dt * 55; Math.random() < n; n--) { // 花びらが使い手のまわりを渦を巻いて舞う
+    const r = rand(0, TAU), d = rand(0.35, 1) * sk.radius * X.area, s = rand(60, 110);
+    part(X.x + Math.cos(r) * d, X.y + Math.sin(r) * d * 0.8, -Math.sin(r) * s, Math.cos(r) * s * 0.8 - 10, rand(0.5, 0.9), pick(['#ffb7d5', '#ff8ac0', '#ffffff']), { glow: Math.random() < 0.5, drag: 1.2 });
+  }
   for (let n = dt * 45 * SET.fxA; Math.random() < n; n--) ranbuCut(X); // あちこちで流れるような斬撃(毎秒 約45本)
   if (a.u < a.dur) return false;
   if (X.sp('pow')) sakuraBurst(X, a); // 桜吹雪
+  else asMine(() => { fxGlint(X.x + (X.face || 1) * 6, X.y - 8, 8, '#e8357f', { life: 0.26 }); burst(X.x, X.y - 4, 16, ['#ffb7d5', '#ff8ac0', '#ffffff'], { sp: 80, up: 20, glow: true, life: 0.5, drag: 2 }); }); // 納刀: 刀がきらめき、花びらが散る
   return true;
 }
 // アーケイン・バラージュ(マジックボルトの E): 詠唱 → 照準方向へ連射(連射中も普通に動ける)。魔力障壁(持続の特殊強化)では撃破で連射が伸びる
@@ -166,8 +182,9 @@ WEAPON_SKILL.bolt = {
     const sk = weaponSkill(), m = P.wm.bolt || {};
     const o = barrageState(ME, clsESkillMul() * (1 + (m.ePow || 0)));
     setCd('e', sk.cd * (1 - cuV('e', 'cd')) * (1 - (m.cd || 0)) * P.cdMul);
-    skillCall(sk.name, '#b98bff'); AudioMan.click();
-    if (hasSp('e', 'cd')) { arcaneOrb(ME, o); return; } // オーブ
+    const sg = skillCall(sk.name, '#b98bff'); AudioMan.click();
+    if (hasSp('e', 'cd')) { arcaneOrb(ME, o); skillRelease('e'); return; } // オーブ(構えなし)
+    sigilKeep(sg, o.dur); // 連射の間も足元の陣が回り続け、撃ち終わりに光る
     P.act = Object.assign(o, { slot: 'e', ph: 'wind', t: 0 });
     if (hasSp('e', 'dur')) gainShield(P.maxhp * sk.shield); // 魔力障壁
     playAnim('mBarrage', MOTIONS.mBarrage.duration(o.dur), o.dur);
@@ -185,7 +202,7 @@ WEAPON_SKILL.bolt = {
     if (a.dur > d0 && P.anim && P.anim.name === 'mBarrage') { P.anim.dur += a.dur - d0; P.anim.arg += a.dur - d0; } // 魔力障壁で伸びた分はモーションも伸ばす
     if (!done) return;
     P.act = null;
-    asMine(() => { addRing(P.x, P.y, 28, '#b98bff', { w: 2, life: 0.35 }); burst(P.x, P.y, 16, ['#b98bff', '#ffffff'], { sp: 80, glow: true }); });
+    asMine(() => { addRing(P.x, P.y, 28, '#b98bff', { w: 2, life: 0.35 }); burst(P.x, P.y, 16, ['#b98bff', '#ffffff'], { sp: 80, glow: true }); fxRays(P.x, P.y - 4, 44, '#b98bff', { n: 10, life: 0.28 }); });
   },
   cast(X, a) {
     const o = barrageState(X, a.pow);
@@ -248,6 +265,7 @@ function barrageShot(X, a, x, y, ang) {
   const n = Math.ceil(((st.count || 1) + P.shots) * sk.countMul), base = ang + rand(-0.12, 0.12); // 弾数は通常攻撃の半分(切り上げ)
   for (let i = 0; i < n; i++) fire('bolt', x, y, base + (i - (n - 1) / 2) * 0.13, st.speed || 200, { dmg, pierce: st.pierce || 0, life: 1.3, src: 'barrage', col: '#b98bff', r: 3, el, eHit: true, home: w.evo, homing: w.evo ? ARCANE_TURN : 0, focus: X.sp('pow') ? a.id : 0, cl: X.cl });
   if (Math.random() < 0.5) part(x + Math.cos(ang) * 6, y + Math.sin(ang) * 6, Math.cos(ang) * 60, Math.sin(ang) * 60, 0.2, '#ffffff', { glow: true });
+  if (Math.random() < 0.45) fxGlint(x + Math.cos(ang) * 7, y - 1 + Math.sin(ang) * 7, 4, '#b98bff', { life: 0.1 }); // 撃ち出す瞬間の光
   AudioMan.shoot();
 }
 
@@ -304,6 +322,8 @@ function arrowRain(X, a) {
     for (let i = 0; i < 7; i++) fire('volley', x + f * 3, y - 9, -Math.PI / 2 + f * 0.15 + (i - 3) * 0.07 + rand(-0.03, 0.03), rand(430, 520), { noHit: true, pierce: 999, life: rand(0.2, 0.28), src: 'arrowsky', r: 0, col: '#b8ffb0' });
     for (let i = 0; i < 6; i++) part(x + f * 4, y - 10, rand(-30, 30) + f * 20, -rand(200, 320), 0.3, pick(['#e4ffd8', '#b8ff9a', '#ffffff']), { glow: true, drag: 0 });
     burst(x + f * 3, y - 9, 8, ['#b8ff9a', '#e4ffd8'], { sp: 60, glow: true, life: 0.25 });
+    fxBeam(x + f * 3, y - 9, { up: true, H: 130, w: 1.2, col: '#7dff9a', mid: '#b8ff9a', core: '#ffffff', life: 0.3, drop: 0.06 }); // 空へ駆け上がる光の筋
+    fxGlint(x + f * 3, y - 10, 8, '#b8ff9a', { life: 0.22 });
     addRing(x, y, 18, '#b8ff9a', { w: 2, life: 0.3 }); addRing(a.x, a.y, 6, '#b8ff9a', { r0: 2, life: 0.2 }); shake(2);
   });
   AudioMan.volley();
@@ -332,6 +352,7 @@ WEAPON_SKILL.longsword = {
     setCd('e', sk.cd * (1 - cuV('e', 'cd')) * (1 - (m.cd || 0)) * P.cdMul);
     playAnim('kSlam', MOTIONS.kSlam.dur);
     skillCall(sk.name, '#ffe9a0'); AudioMan.click();
+    fxGlint(P.x, P.y - 20, 9, '#ffe9a0', { t: -Math.max(0, sk.windup - 0.14), life: 0.26 }); // 振りかぶった剣がきらめく
   },
   update(a, dt) {
     const sk = weaponSkill();
@@ -368,10 +389,13 @@ function slamWaves(X, a, x0, y0, k) {
       });
       addRing(x, y, R, '#ffe9a0', { w: 2, life: 0.3 }); addFlash(x, y, R * 2.4, '#fff1d0', 0.25);
       burst(x, y, 18, ['#8a7a60', '#5a4a3a', '#ffe9a0', '#ffffff'], { sp: 110, up: 50, g: 180, life: 0.6 }); // 岩の破片と土煙
+      fxDecal(x, y + 2, R, 'crack', { n: 6, col: '#120a06', hot: '#ffd34a', heatT: 0.7, life: 2.5 }); // 叩き割られた地面(金色に光って冷える)
+      if (i === n - 1) fxRays(x, y - 2, R * 1.7, '#d8a83a', { n: 14, life: 0.34, core: '#ffe9a0' }); // 最後の段: 光芒
       shockAt(x, y, 1, 1); shake(4 + i);
       if (crack) zones.push({ kind: 'crack', x, y, r: R, t: 0, dur: 5, tick: 0.5, dmg: wst('longsword').dmg * 0.8, cl: X.cl }); // 地割れ
     });
     AudioMan.boom();
+    if (i === n - 1 && k >= 1) AudioMan.impact();
   }, i * sk.gap * 1000);
 }
 
@@ -396,7 +420,7 @@ WEAPON_SKILL.fire = {
     P.act = Object.assign(flameState(ME, clsESkillMul() * (1 + (m.ePow || 0))), { slot: 'e', ph: 'wind', t: 0 });
     setCd('e', sk.cd * (1 - cuV('e', 'cd')) * (1 - (m.cd || 0)) * P.cdMul);
     playAnim('pFlame', MOTIONS.pFlame.duration(P.act.dur), P.act.dur);
-    skillCall(sk.name, '#ff8a3d'); AudioMan.click();
+    sigilKeep(skillCall(sk.name, '#ff8a3d'), P.act.dur); AudioMan.click();
   },
   // 分身など: 使い手の位置から吹く(噴き出し口の描画は返り値の flame)
   cast(X, a) {
@@ -473,6 +497,7 @@ function flameTick(X, a, ang, L, blue) {
     if (!e.dead) addBurn(e, burn, 3, 'flamer');
   }));
   if (X.sp('len')) flameSuck(X, x + Math.cos(ang) * L, y + Math.sin(ang) * L, st.dmg * sk.suckPow * pw, blue); // 火炎旋風
+  if (Math.random() < 0.3) { const d = L * rand(0.35, 0.95), aa = ang + rand(-sk.arc, sk.arc) / 3; fxDecal(x + Math.cos(aa) * d, y + 4 + Math.sin(aa) * d, rand(5, 8), 'scorch', { life: 2.2, heatT: 0.6, hot: blue ? '#7ad7ff' : '#ff8a3d' }); } // 炎がなめた地面の焦げ
   if (Math.random() < 0.3) AudioMan.fire();
 }
 // 火炎旋風: 放射先(炎の先端)へ周りの敵を吸い込み、半径 suckR の敵を焼く(攻撃1回ごと)。ボスは引き寄せない
@@ -565,6 +590,8 @@ function bladeOpen(X, pow) {
   asMine(() => {
     addRing(P.x, P.y, R, '#ffffff', { w: 2, life: 0.35 }); addRing(P.x, P.y, R * 0.6, '#d8e4ff', { life: 0.3 });
     burst(P.x, P.y, 24, ['#d8e4ff', '#ffffff', '#8ea6d8'], { sp: 120, glow: true, life: 0.4 });
+    for (let i = 0; i < 8; i++) { const a = i * TAU / 8 + rand(-0.2, 0.2); fxGlint(P.x + Math.cos(a) * R, P.y + Math.sin(a) * R, rand(4, 7), '#d8e4ff', { t: -i * 0.03, life: 0.22 }); } // 輪の上を刃のきらめきが一周する
+    fxRays(P.x, P.y - 2, R * 1.2, '#8ea6d8', { n: 12, life: 0.3, core: '#d8e4ff' });
     shockAt(P.x, P.y, 1, 1.1); shake(3); hitstop(0.04);
   });
   AudioMan.slash(); AudioMan.zap();
@@ -584,7 +611,7 @@ function bladeScatter(b) {
       spiral: { cx: P.x, cy: P.y, r, a, vr: sk.scatterSpd, vt },
       onEnd: back ? p => fire('bscatter', p.x, p.y, Math.atan2(P.y - p.y, P.x - p.x), sk.scatterSpd, Object.assign(o(s), { dmg: p.dmg * sk.rainPow, life: 3, toP: true, speed: sk.scatterSpd * 1.3 })) : null }));
   }
-  asMine(() => { addRing(P.x, P.y, 30, col, { w: 2, life: 0.3 }); burst(P.x, P.y, 16, [col, '#ffffff'], { sp: 140, glow: true, life: 0.3 }); shake(4); });
+  asMine(() => { addRing(P.x, P.y, 30, col, { w: 2, life: 0.3 }); burst(P.x, P.y, 16, [col, '#ffffff'], { sp: 140, glow: true, life: 0.3 }); fxRays(P.x, P.y - 2, 64, w.evo ? '#8e0016' : '#8ea6d8', { n: 14, life: 0.3, core: w.evo ? '#c0102a' : '#d8e4ff' }); shake(4); });
   AudioMan.slash();
 }
 
@@ -678,6 +705,7 @@ function spiritStorm(X, a) {
     addRing(x, y, 34, '#9dffcf', { w: 2, life: 0.4 }); addRing(x, y, 18, '#2fbf8a', { life: 0.25 });
     addFlash(x, y, 60, '#2fbf8a', 0.18);
     burst(x, y, 26, ['#9dffcf', '#2fbf8a', '#1f8f6a'], { sp: 120, glow: true, life: 0.45 });
+    fxRays(x, y - 4, 62, '#2fbf8a', { n: 12, life: 0.34, core: '#9dffcf' });
     shockAt(x, y, 0.9, 1.1); shake(3); hitstop(0.04);
   });
   slowmo(0.55, 0.18);
@@ -815,6 +843,7 @@ function icicleFall(X, a) {
     patch: X.sp('n'), big: X.sp('pow') ? dmg * sk.bigPow : 0, bigR: sk.bigR * ar, cl: X.cl });
   const x = X.x, y = X.y;
   asMine(() => { addRing(a.x, a.y, sk.radius * ar, '#bff4ff', { w: 2, life: 0.4 }); addFlash(x, y - 20, 40, '#bff4ff', 0.25); });
+  fxSigil(a.x, a.y, sk.radius * ar, '#bff4ff', { style: 'rune', mark: 'snow', sq: 1, wu: sk.dur, life: sk.dur + 0.4, spin: 0.35, glow: 0.35, dim: 0.65 });
   AudioMan.blizz();
 }
 
@@ -844,6 +873,7 @@ WEAPON_SKILL.thunder = {
     P.moveMul = 0;
     if (a.t < sk.windup) { // 杖の先に雷の球が膨らむ
       if (Math.random() < dt * 40) part(P.x + P.facing * 10 + rand(-5, 5), P.y - 8 + rand(-5, 5), rand(-20, 20), rand(-20, 20), 0.2, pick(['#9fd8ff', '#fff27a', '#ffffff']), { glow: true });
+      if (Math.random() < dt * 22) asMine(() => bolts.push({ x0: P.x + P.facing * 10, y0: P.y - 9, x1: P.x + P.facing * 10 + rand(-16, 16), y1: P.y - 9 + rand(-14, 10), t: 0, life: 0.06, w: 1 })); // 杖の先から散る稲妻
       return;
     }
     gravitySpark(ME, a.x, a.y, a.pow, 1, hasSp('e', 'area'));
@@ -964,7 +994,7 @@ function riftOpen(X, a) {
     cracks.push(pts);
   }
   P.rift = { t: 0, dur, tick: sk.every, n: 0, pow: a.pow, pulse: 0, cracks, Xs: [X], cl: X.cl };
-  asMine(() => { shake(4); hitstop(0.04); });
+  asMine(() => { shake(4); hitstop(0.04); fxRays(X.x, X.y - 10, 90, '#6a3aa0', { n: 16, life: 0.42, core: '#ff7ad9' }); fxGlint(X.x + (X.face || 1) * 8, X.y - 14, 9, '#c78bff', { life: 0.3 }); });
   GFX.fx.aberr = Math.max(GFX.fx.aberr, 0.7 * SET.fxA);
   AudioMan.rift();
 }
@@ -1086,7 +1116,7 @@ function tomaThrow(X, a) {
     projs.push({ kind: 'toma', x: hx, y: hy, vx: 0, vy: 0, ang: 0, spin: (Math.cos(d) < 0 ? -1 : 1) * 24, t: 0, life: 99, r: 5 * sz, sz, noHit: true, hit: new Set(), backHit: new Set(), src: 'toma',
       ph: 'out', dir: d, sp: sk.speed, dist: 0, reach, tg, n: 0, max, inc, pw, add: a.add || 0, armT: 0, trail: [], X });
   }
-  asMine(() => { burst(hx, hy, 10, ['#ffb070', '#fff1d0', '#8a5a2a'], { sp: 90, glow: true, life: 0.3 }); shake(3); });
+  asMine(() => { burst(hx, hy, 10, ['#ffb070', '#fff1d0', '#8a5a2a'], { sp: 90, glow: true, life: 0.3 }); fxRays(hx, hy, 36, '#e07a3a', { n: 9, life: 0.22, core: '#ffb070' }); shake(3); });
   AudioMan.dash(); AudioMan.slash();
 }
 // 毎フレーム: 斧を動かす(out → hop → back)。軌跡は直近 8点
@@ -1131,6 +1161,7 @@ function tomaHit(p, e) {
     hitEnemy(e, dmg, { src: 'toma', ang: p.dir, kb: 70, col: '#ffb070', eHit: true, el: clsNextEl(), cl: p.X.cl });
     burst(x, y - 2, 10, ['#fff1d0', '#ffb070', '#a8401c'], { sp: 110, glow: true, life: 0.3 }); // 当たるたびに火花
     addRing(x, y, (e.r || 4) + 5, '#a8401c', { life: 0.18 });
+    fxGlint(x, y - 3, 5 + Math.min(3, p.n), '#ffb070', { life: 0.15 }); // 跳ねるほど大きくきらめく
     shake(1.5 + Math.min(3, p.n * 0.4));
     if (p.X.sp('pow')) tomaCrack(p.X, x, y, p.pw); // 地割れ
   });
@@ -1179,7 +1210,7 @@ function tomaBack(p, dt) {
 function tomaCatch(p) {
   p.t = p.life; // updProjs が消す
   const X = p.X;
-  asMine(() => burst(X.x + X.face * 4, X.y - 8, 8, ['#ffb070', '#fff1d0'], { sp: 50, glow: true, life: 0.25 }));
+  asMine(() => { burst(X.x + X.face * 4, X.y - 8, 8, ['#ffb070', '#fff1d0'], { sp: 50, glow: true, life: 0.25 }); fxGlint(X.x + X.face * 4, X.y - 9, 6, '#ffb070', { life: 0.2 }); });
   AudioMan.click();
 }
 // 地割れ: 跳ねた場所の地面が割れ、周り(半径 crackR)へ 武器の威力 × crackPow。放射状のひびと、岩の破片・土煙
@@ -1216,6 +1247,8 @@ function holyPillar(X, pow) {
     if (X.sp('heal')) zones.push({ kind: 'lightrain', x, y, r: R, t: 0, dur: sk.rainT, tick: 0 }); // 光の雨
     addFlash(x, y, R * 2.4, '#fff6d8', 0.3); addRing(x, y, R, '#ffe38a', { w: 2, life: 0.35 });
     burst(x, y, 18, ['#ffe38a', '#fff6d8', '#ffffff'], { sp: 90, up: 40, glow: true, life: 0.45 }); shake(2);
+    fxSigil(x, y, R, '#ffe38a', { style: 'rune', n: 8, step: 3, sq: 0.5, wu: 0, life: 0.6, spin: 1.5, glow: 0.5 }); // 聖印が押されて広がる
+    fxRays(x, y - 6, R * 1.4, '#e0b040', { n: 10, life: 0.3, core: '#ffe38a' });
   });
   heal(P.maxhp * X.lv('heal', sk.heal));
   AudioMan.zap();
@@ -1257,9 +1290,10 @@ function sakuraBurst(X, a) {
     addRing(x, y, R, '#ffb7d5', { w: 3, life: 0.5 }); addRing(x, y, R * 0.6, '#ffffff', { w: 2, life: 0.35 });
     addFlash(x, y, R * 2, '#ffb7d5', 0.5); shockAt(x, y, 1.6, 0.9);
     burst(x, y, 70, ['#ffb7d5', '#ff8ac0', '#ffffff'], { sp: 170, glow: true, life: 0.8, drag: 1.5 });
+    fxRays(x, y - 4, R * 1.3, '#e8357f', { n: 18, life: 0.42, core: '#ffd0e0' });
     hitstop(0.06); shake(8); screenFlash(0.3 * SET.fxA, '#ffb7d5');
   });
-  AudioMan.boom();
+  AudioMan.boom(); AudioMan.impact();
 }
 
 // 残心の攻撃力: 気迫の値(未取得なら基本値)+ クラスLv8
@@ -2181,6 +2215,7 @@ const CLASS_RT = {
       if (Math.cos(a) !== 0) P.facing = Math.cos(a) < 0 ? -1 : 1;
       P.act = { slot: 'q', ph: 'wind', t: 0, a };
       playAnim('hJudge', MOTIONS.hJudge.dur);
+      fxSigil(P.x, P.y - 22, 9, '#ffe38a', { follow: P, oy: -22, style: 'rune', n: 8, step: 3, sq: 0.32, front: true, wu: q.windup, life: q.windup + 0.35, spin: 2.2, glow: 0.7 }); // 頭上の光の輪が広がって輝く
       slowmo(0.5, 0.2);
       skillCall(q.name, '#ffe38a', 'q'); AudioMan.click();
     },
@@ -2872,8 +2907,11 @@ function iaiStrike(a) {
       hitstop(0.08); shake(full ? 10 : 7); screenFlash((full ? 0.3 : 0.2) * SET.fxA, full ? '#ff3b5c' : '#ffffff');
       shockAt(mx, my, full ? 1.8 : 1.3, 1); addFlash(mx, my, 120, full ? '#ff3b5c' : '#ffffff', 0.4);
       if (full) addRing(mx, my, 70, '#ff3b5c', { w: 3, life: 0.45 });
+      fxRays(mx, my, full ? 100 : 72, '#c8243e', { n: full ? 18 : 12, life: 0.34, sq: 0.7, core: '#ffd0d8' }); // 炸裂の光芒(明るい赤は敵の攻撃の色なので、暗い紅と淡い桃色の芯)
+      fxDecal(mx, my, Math.hypot(x1 - x0, y1 - y0) / 2 + 4, 'scar', { hx: (x1 - x0) / 2, hy: (y1 - y0) / 2, col: '#1a0408', hot: '#c8243e', heatT: 0.9, life: 3 }); // 地面に残る斬撃の跡
     });
     AudioMan.cutHit(); AudioMan.crit();
+    if (full) AudioMan.impact();
   };
   a.cut.onHit = onHit; // 炸裂の時刻は一閃(makeCut の late)が決める。すでに過ぎていたらすぐ
   if (a.cut.hitDue) onHit();
@@ -2911,6 +2949,7 @@ function samuraiParry() {
     hitstop(0.06); shake(5); screenFlash(0.25 * SET.fxA, '#ffffff'); shockAt(P.x, P.y, 1, 1.2);
     addRing(P.x, P.y, R, '#ffffff', { w: 2, life: 0.3 });
     burst(P.x, P.y, 24, ['#ffffff', '#9ff7ff', '#ff3b5c'], { sp: 120, glow: true, life: 0.35 });
+    fxRays(P.x, P.y - 4, R * 1.3, '#4ab8d8', { n: 12, life: 0.28, core: '#9ff7ff' }); fxGlint(P.x + P.facing * 6, P.y - 8, 9, '#9ff7ff', { life: 0.24 }); // 受け流した刃のきらめき
   });
   addFloat(P.x, P.y - 16, '見切り!', '#9ff7ff', 1.2);
   AudioMan.slash(); AudioMan.crit();
@@ -2983,6 +3022,7 @@ function meteorStart() {
   const R = q.r * (1 + cuV('q', 'area')) * (1 + n * q.crystalR) * P.area;
   const dmg = q.pow * (1 + cuV('q', 'pow') + (P.lvFx.qPow || 0)) * (1 + n * q.crystalPow) * pow;
   P.act = { slot: 'q', ph: 'cast', t: 0, x: t.x, y: t.y, n, R, dmg };
+  fxSigil(t.x, t.y, R, '#ff8a3d', { style: 'rune', n: 5, step: 2, flame: true, sq: 1, wu: q.windup + q.fall, life: q.windup + q.fall + 0.45, spin: 0.7, glow: 0.45 }); // 照準位置の魔法陣(落ちてくる間も回り、着弾で光る)
   playAnim('mMeteor', MOTIONS.mMeteor.dur);
   if (t.x !== P.x) P.facing = t.x < P.x ? -1 : 1;
   setCd('q', q.cd * (1 - cuV('q', 'cd')) * P.cdMul);
@@ -2994,7 +3034,6 @@ function meteorUpdate(a, dt) {
   P.moveMul = 0;
   // 魔法陣: 照準位置に広がる円と、周りを回る光
   asMine(() => {
-    if (Math.random() < dt * 30) addRing(a.x, a.y, a.R * u, '#ff8a3d', { r0: a.R * u - 1, life: 0.08, w: 2 });
     for (let i = 0; i < 2; i++) { const r = S.time * 4 + i * Math.PI; part(a.x + Math.cos(r) * a.R * u, a.y + Math.sin(r) * a.R * u * 0.9, 0, -10, 0.3, pick(['#ffc34a', '#ff8a3d']), { glow: true, sz: 2 }); }
     if (Math.random() < dt * 30) part(P.x + rand(-6, 6), P.y - 10 + rand(-4, 4), 0, -20, 0.3, pick(['#9ff7ff', '#ffc34a']), { glow: true });
   });
@@ -3033,10 +3072,13 @@ function meteorImpact(m) {
     burst(m.x, m.y, m.main ? 80 : 20, ['#ff6a2a', '#ffc34a', '#fff6c8', '#ffffff'], { sp: m.main ? 230 : 120, glow: true, life: 0.7, drag: 2 });
     if (m.main) {
       burst(m.x, m.y, 30, ['#4a3a3a', '#6a5a5a', '#2a2020'], { sp: 150, up: 60, g: 200, life: 0.9 }); // 破片
+      fxRays(m.x, m.y - 4, m.R * 1.5, '#ff6a2a', { n: 18, life: 0.42, core: '#ffc34a' });
+      fxDecal(m.x, m.y, m.R * 0.9, 'scorch', { life: 4.5, heatT: 1.6 }); fxDecal(m.x, m.y, m.R, 'crack', { n: 9, col: '#1a0c06', hot: '#ff6a2a', heatT: 1.5, life: 4.5 }); // クレーター: 焦げ跡と赤熱した地割れ
       shockAt(m.x, m.y, 2.2, 1); shake(12); hitstop(0.08); screenFlash(0.35 * SET.fxA, '#ff8a3d');
-    } else shake(3);
+    } else { shake(3); fxDecal(m.x, m.y, m.R * 0.7, 'scorch', { life: 2.5, heatT: 0.8 }); }
   });
   AudioMan.boom();
+  if (m.main) AudioMan.impact();
   if (!m.main) return;
   const R = m.R;
   const alive = r => { const out = []; forEachNear(m.x, m.y, r, o => { if (!o.prop && !o.hidden) out.push(o); }); return out; };
@@ -3078,6 +3120,7 @@ function mageBlink() {
   burst(x0, y0, 14, ['#9ff7ff', '#ffffff', '#7ad7ff'], { sp: 70, glow: true, life: 0.35 });
   burst(P.x, P.y, 10, ['#9ff7ff', '#ffffff'], { sp: 50, glow: true, life: 0.3 });
   addRing(P.x, P.y, 14, '#9ff7ff', { life: 0.2 });
+  asMine(() => { fxGlint(P.x, P.y - 4, 7, '#9ff7ff', { life: 0.22 }); slashes.push({ line: true, x: x0, y: y0 - 4, x1: P.x, y1: P.y - 4, t: 0, life: 0.14, w: 2, col: '#2a6a9a', core: '#bff4ff' }); }); // 跳んだ道筋に光が走る
   AudioMan.dash();
 }
 
@@ -3134,15 +3177,18 @@ function archerVolley() {
     for (let i = 0; i < n; i++) setTimeout(() => {
       if (state !== 'play' || e.dead) return;
       asMine(() => { hitEnemy(e, q.markPow * k, { src: 'volley', col: '#b8ffb0', forceCrit: sure, noNum: i % 2 === 1 }); part(e.x + rand(-4, 4), e.y + rand(-4, 4), rand(-30, 30), rand(-30, 10), 0.25, pick(['#b8ffb0', '#ffffff']), { glow: true }); });
+      if (i === 0) fxGlint(e.x, e.y - 4, 6, '#b8ffb0', { life: 0.2 }); // 印が弾ける
       if (i === n - 1 && storm && !e.dead) addMark(e, 5); // 印の嵐
     }, 60 + i * q.interval * 1000);
   };
   asMine(() => {
-    shots.slice(0, q.max).forEach(tg => {
+    shots.slice(0, q.max).forEach((tg, i) => {
       const a = Math.atan2(tg.y - P.y, tg.x - P.x);
+      if (i < 8) slashes.push({ line: true, x: P.x, y: P.y - 4, x1: tg.x, y1: tg.y, t: 0, life: 0.13, w: 1, col: '#1f6a3a', core: '#b8ffb0' }); // 狙った敵へ一瞬走る照準の光
       fire('volley', P.x, P.y - 4, a, q.speed, { dmg: q.pow * k, pierce: 999, life: 1.2, src: 'volley', r: 4, col: '#b8ffb0', forceCrit: sure, onHit });
     });
     addRing(P.x, P.y - 4, 30, '#b8ff9a', { w: 2, life: 0.4 }); addFlash(P.x, P.y, 90, '#b8ff9a', 0.3);
+    fxRays(P.x, P.y - 6, 64, '#3aa85a', { n: 12, life: 0.3, core: '#7dff9a' });
     burst(P.x, P.y - 4, 30, ['#e4ffd8', '#b8ff9a', '#ffffff'], { sp: 150, glow: true, life: 0.4 });
     shockAt(P.x, P.y, 1, 1.2); shake(4); screenFlash(0.15 * SET.fxA, '#b8ff9a');
   });
@@ -3184,6 +3230,7 @@ function knightBreak() {
     addRing(P.x, P.y, R, '#f2c84b', { w: 3, life: 0.35 }); addRing(P.x, P.y, R * 0.6, '#ffffff', { w: 2, life: 0.25 });
     addFlash(P.x, P.y, R * 2.4, '#fff1d0', 0.35); shockAt(P.x, P.y, 1.4, 1); shake(6);
     burst(P.x, P.y, 30, ['#f2c84b', '#fff1d0', '#ffffff'], { sp: 150, glow: true, life: 0.45 });
+    fxRays(P.x, P.y - 2, R * 1.3, '#d8a83a', { n: 12, life: 0.3, core: '#f2c84b' });
   });
   wave();
   if (hasSp('passive', 'shock')) setTimeout(() => { if (state === 'play') wave(); }, 400); // 復讐
@@ -3223,8 +3270,16 @@ function knightVerdict(a) {
       const d = full ? rand(0, TAU) : a.a + rand(-q.arc / 2, q.arc / 2), s = rand(0.3, 1) * R * 2.4;
       part(P.x, P.y, Math.cos(d) * s, Math.sin(d) * s, rand(0.25, 0.5), pick(cols), { glow: true });
     }
+    const nb = full ? 8 : 5; // 天から光の柱が範囲に降り注ぐ(扇の中 / 全周は円周に沿って)
+    for (let i = 0; i < nb; i++) {
+      const d = full ? i * TAU / nb + rand(-0.2, 0.2) : a.a + (i / (nb - 1) - 0.5) * q.arc * 0.85, r = R * (full ? 0.72 : rand(0.5, 0.9));
+      fxBeam(P.x + Math.cos(d) * r, P.y + Math.sin(d) * r, { t: -i * 0.04, w: 3, H: 170, col: '#d8a83a', mid: '#f2c84b', core: '#fff1d0', life: 0.45 });
+    }
+    fxRays(cx, cy, R * 1.1, '#d8a83a', { n: 16, life: 0.4, core: '#f2c84b' });
+    fxSigil(P.x, P.y + 6, R * 0.55, '#f2c84b', { style: 'rune', mark: 'cross', wu: 0, life: 1.2, spin: 0.3, dim: 0.7 }); // 足元に聖印が焼き付いて広がる
     shockAt(cx, cy, full ? 1.8 + Math.min(1, used / 60) : 1.1 + Math.min(0.6, used / 100), 1); shake(10); hitstop(0.08); screenFlash(0.3 * SET.fxA, '#fff1d0');
   });
+  AudioMan.impact();
   if (hasSp('q', 'cd')) knGain(used * q.echo); // 残響
   setCd('q', q.cd * (1 - cuV('q', 'cd')) * P.cdMul);
   AudioMan.boom(); AudioMan.crit();
@@ -3297,6 +3352,7 @@ function pyroWall() {
     addRing(P.x, P.y, R, '#ff6a2a', { w: 3, life: 0.35 }); addRing(P.x, P.y, R * 0.55, '#ffc34a', { w: 2, life: 0.25 });
     for (let i = 0; i < 36; i++) { const a = i / 36 * TAU; part(P.x + Math.cos(a) * 6, P.y + Math.sin(a) * 6, Math.cos(a) * R * 2.6, Math.sin(a) * R * 2.6 - 20, rand(0.25, 0.4), pick(['#ff6a2a', '#ffc34a', '#b8261a']), { glow: true }); }
     addFlash(P.x, P.y, R * 2, '#ff8a3d', 0.25); shake(3);
+    for (let i = 0; i < 8; i++) { const a = i * TAU / 8; fxBeam(P.x + Math.cos(a) * R * 0.75, P.y + Math.sin(a) * R * 0.75, { up: true, w: 1.5, H: 14, col: '#ff6a2a', mid: '#ffc34a', core: '#fff6c8', wob: 1, life: 0.35, drop: 0.08 }); } // 炎の壁が立ち上がる
   });
   playAnim('pWall', MOTIONS.pWall.dur); P.anim.keep = true;
   AudioMan.dash();
@@ -3322,14 +3378,18 @@ function pyroInferno() {
       if (i < 40) { // 火柱
         for (let j = 0; j < 10; j++) part(e.x + rand(-4, 4), e.y + rand(-2, 2), rand(-10, 10), -rand(80, 180), rand(0.3, 0.55), pick(['#ff6a2a', '#ffc34a', '#fff6c8', '#ffffff']), { glow: true, drag: 1.5, sz: pick([1, 2]) });
         addFlash(e.x, e.y, R * 2.2, '#ff8a3d', 0.35); addRing(e.x, e.y, R, '#ffc34a', { w: 2, life: 0.3 });
+        if (i < 14) fxBeam(e.x, e.y + 2, { up: true, t: -i * 0.02, w: 3, H: 38, col: '#ff6a2a', mid: '#ffc34a', core: '#fff6c8', wob: 1.2, life: 0.55, drop: 0.12 }); // 立ちのぼる炎の柱
+        if (i < 20) fxDecal(e.x, e.y + 2, 9, 'scorch', { life: 3 });
       }
     });
     if (!burning.length) { blast(P.x, P.y, q.pow * k, null); addRing(P.x, P.y, R, '#ff6a2a', { w: 3, life: 0.4 }); addFlash(P.x, P.y, R * 2.5, '#ff8a3d', 0.35); }
     burst(P.x, P.y, 40, ['#ff6a2a', '#ffc34a', '#ffffff'], { sp: 160, glow: true, life: 0.5 });
+    fxRays(P.x, P.y - 10, 90, '#ff6a2a', { n: 14, life: 0.4, core: '#ffc34a' });
+    for (let i = 0; i < 70; i++) part(cam.x + rand(0, GFX.VW), cam.y + GFX.VH * rand(0.35, 1.05), rand(-12, 12), -rand(30, 80), rand(0.8, 1.5), pick(['#ff6a2a', '#ffc34a', '#b8261a']), { glow: Math.random() < 0.5, drag: 0.6 }); // 画面じゅうに火の粉が舞い上がる
     shockAt(P.x, P.y, 1.6, 1); shake(10); hitstop(0.08); screenFlash(0.35 * SET.fxA, '#ff6a2a');
   });
   setCd('q', q.cd * (1 - cuV('q', 'cd')) * P.cdMul);
-  AudioMan.boom(); AudioMan.crit();
+  AudioMan.boom(); AudioMan.crit(); AudioMan.impact();
 }
 
 // ---------- クライオマンサー: 凍結・氷纏い・ダイヤモンドダスト・氷の鏡 ----------
@@ -3375,7 +3435,7 @@ function cryoMirror() {
   P.dash = { vx: d[0] / len * p.mirrorDist / p.mirrorTime, vy: d[1] / len * p.mirrorDist / p.mirrorTime, t: p.mirrorTime };
   P.invT = Math.max(P.invT, p.mirrorIfr); P.ifr = Math.max(P.ifr, p.mirrorIfr);
   playAnim('cMirror', MOTIONS.cMirror.dur); P.anim.keep = true;
-  asMine(() => { burst(P.x, P.y, 14, ['#ffffff', '#bff4ff'], { sp: 60, glow: true, life: 0.35 }); addRing(P.x, P.y, 14, '#bff4ff', { life: 0.25 }); });
+  asMine(() => { burst(P.x, P.y, 14, ['#ffffff', '#bff4ff'], { sp: 60, glow: true, life: 0.35 }); addRing(P.x, P.y, 14, '#bff4ff', { life: 0.25 }); fxGlint(P.x, P.y - 4, 7, '#bff4ff', { life: 0.22 }); fxDecal(P.x, P.y + 5, 10, 'frost', { life: 1.6, n: 6 }); });
   AudioMan.dash();
 }
 // ダイヤモンドダスト: 自分を中心に細氷の領域(zones の 'ddust'、world.js で凍傷とダメージ)
@@ -3386,10 +3446,15 @@ function cryoDust() {
   asMine(() => {
     burst(P.x, P.y, 50, ['#ffffff', '#bff4ff', '#7ad7ff'], { sp: 180, glow: true, life: 0.6 });
     addRing(P.x, P.y, q.r * P.area, '#ffffff', { w: 3, life: 0.5 }); addFlash(P.x, P.y, q.r * 2.5, '#bff4ff', 0.4);
+    const z = zones[zones.length - 1]; // 細氷の領域: 足元に雪の結晶の陣(領域と一緒についてきて、消えるときに光る)・地面に霜・きらめく氷の粒
+    fxSigil(P.x, P.y, z.r, '#a8e8ff', { follow: P, style: 'rune', mark: 'snow', sq: 1, wu: z.dur - 0.05, life: z.dur + 0.3, spin: 0.4, glow: 0.3, dim: 0.5 });
+    fxRays(P.x, P.y - 4, z.r * 1.2, '#4aa8f0', { n: 14, life: 0.4, core: '#bff4ff' });
+    fxDecal(P.x, P.y + 4, z.r * 0.6, 'frost', { life: 3, n: 8 });
+    for (let i = 0; i < 10; i++) { const a = rand(0, TAU), d = Math.sqrt(Math.random()) * z.r; fxGlint(P.x + Math.cos(a) * d, P.y + Math.sin(a) * d, rand(4, 7), '#bff4ff', { t: -i * 0.06, life: 0.3 }); }
     shockAt(P.x, P.y, 1.4, 1); shake(6); screenFlash(0.25 * SET.fxA, '#bff4ff');
   });
   setCd('q', q.cd * (1 - cuV('q', 'cd')) * P.cdMul);
-  AudioMan.blizz(); AudioMan.crit();
+  AudioMan.blizz(); AudioMan.crit(); AudioMan.sparkle();
 }
 
 // ---------- エレクトロマンサー: 帯電・雷纏い・鉄塔・雷走 ----------
@@ -3439,6 +3504,7 @@ function electroTowers() {
   const q = DATA.classes.electro.q, k = 1 + cuV('q', 'pow') + (P.lvFx.qPow || 0), n = q.n + cuV('q', 'n'), id = (S.actId = (S.actId || 0) + 1);
   setCd('q', q.cd * (1 - cuV('q', 'cd')) * P.cdMul); // ここで纏い + 放電(P.elDis.q)
   const dis = P.elDis.q || 0;
+  asMine(() => fxRays(P.x, P.y - 16, 70, '#fff27a', { n: 12, life: 0.3 })); screenFlash(0.1 * SET.fxA, '#fff27a'); // 空が一瞬光る
   for (let i = 0; i < n; i++) {
     const x = cam.x + rand(24, GFX.VW - 24), y = cam.y + rand(30, GFX.VH - 20);
     setTimeout(() => {
@@ -3454,8 +3520,12 @@ function electroTowers() {
         bolts.push({ x0: x + rand(-10, 10), y0: cam.y - 10, x1: x, y1: y - 20, t: 0, life: 0.25, w: 3 });
         addFlash(x, y, 80, '#fff27a', 0.35); addRing(x, y, q.landR * P.area, '#ffffff', { w: 2, life: 0.3 });
         burst(x, y, 20, ['#8a8098', '#fff27a', '#ffffff'], { sp: 100, up: 30, g: 160, life: 0.5 }); shockAt(x, y, 1, 1); shake(5);
+        fxBeam(x, y, { w: 2.5, H: 230, col: '#fff27a', mid: '#9fd8ff', core: '#ffffff', life: 0.28, drop: 0.04, zig: 3 }); // 天から落ちる雷の柱
+        fxRays(x, y - 8, 52, '#fff27a', { n: 10, life: 0.26 });
+        fxDecal(x, y + 2, q.landR * P.area * 0.8, 'scorch', { col: '#0c0a14', hot: '#9fd8ff', heatT: 0.6, life: 3 });
       });
       AudioMan.zap(); AudioMan.boom();
+      if (i === 0) AudioMan.impact();
     }, i * 120);
   }
 }
@@ -3480,6 +3550,7 @@ function clericPray() {
   heal(P.maxhp * p.prayHeal);
   playAnim('hPray', MOTIONS.hPray.dur); P.anim.keep = true;
   asMine(() => { addRing(P.x, P.y, 18, '#ffe38a', { w: 2, life: 0.4 }); burst(P.x, P.y, 14, ['#ffe38a', '#fff6d8', '#ffffff'], { sp: 50, up: 30, glow: true, life: 0.45 }); });
+  fxSigil(P.x, P.y - 20, 7, '#ffe38a', { follow: P, oy: -20, style: 'rune', n: 8, step: 3, sq: 0.32, front: true, wu: 0, life: 0.5, spin: 2.5, glow: 0.7 }); // 頭上の光の輪
   AudioMan.heal();
 }
 // 審判の祈り: 祈りを全て消費して、照準方向の扇形(天の柱: 全方向)に光の一撃。消費した祈りの半分を回復
@@ -3504,9 +3575,12 @@ function clericJudge(a) {
     }
     const cx = full ? P.x : P.x + Math.cos(a.a) * R * 0.5, cy = full ? P.y : P.y + Math.sin(a.a) * R * 0.5;
     addFlash(cx, cy, R * 2, '#fff6d8', 0.45);
+    fxRays(cx, cy - 4, R * 1.2, '#e0b040', { n: 12, life: 0.4, core: '#ffe38a' });
+    fxSigil(P.x, P.y + 6, R * 0.5, '#ffe38a', { style: 'rune', n: 8, step: 3, wu: 0, life: 1.1, spin: 0.4, dim: 0.7 }); // 足元に聖印が焼き付いて広がる
     shockAt(cx, cy, 1.2 + Math.min(0.8, used / 150), 1); shake(9); hitstop(0.07); screenFlash(0.3 * SET.fxA, '#fff6d8');
   });
   if (used > 0) { P.noPray = true; heal(used * q.heal); P.noPray = false; } // この超過回復は祈りにならない
+  AudioMan.impact();
   setCd('q', q.cd * (1 - cuV('q', 'cd')) * P.cdMul);
   AudioMan.boom(); AudioMan.crit();
 }
@@ -3597,9 +3671,12 @@ function assassinPact(a) {
         part(x, y, s.nx * k * sp, s.ny * k * sp - 10, rand(0.4, 0.9), pick(['#0a0002', '#1e0004', '#3a0008', '#5a000c', '#8e0016']), { g: 140, drag: 2.5, sz: pick([1, 1, 2]), glow: Math.random() < 0.2 });
       }
       addFlash(cx, cy, L * 2.4, '#6a000e', 0.35); addRing(cx, cy, L * 0.8, '#8e0016', { w: 3, life: 0.4 }); addRing(cx, cy, L * 0.45, '#c0102a', { w: 2, life: 0.3 });
+      fxRays(cx, cy, L * 1.6, '#8e0016', { n: 14, life: 0.36, core: '#d0142a' });
+      fxDecal(cx, cy, L * 0.8, 'scorch', { col: '#2a0006', hot: '#5a000c', heatT: 0.01, life: 3.5 }); // 血だまり
+      for (const s of [c1, c2]) fxDecal((s.x0 + s.x1) / 2, (s.y0 + s.y1) / 2, L + 4, 'scar', { hx: (s.x1 - s.x0) / 2, hy: (s.y1 - s.y0) / 2, col: '#1e0004', hot: '#8e0016', heatT: 0.9, life: 3 }); // 地面に残る×字の斬撃の跡
       shockAt(cx, cy, 1.6, 1); shake(9); hitstop(0.07); screenFlash(0.3 * SET.fxA, '#3a0008');
     });
-    AudioMan.cutHit(); AudioMan.crit();
+    AudioMan.cutHit(); AudioMan.crit(); AudioMan.impact();
   };
   asMine(() => burst(P.x, P.y, 24, BLOOD, { sp: 110, up: 20, glow: true, life: 0.5 })); // 支払いの瞬間: 体から血の霧が噴き出す
   if (paid >= 1) addFloat(P.x, P.y - 16, '-' + Math.round(paid), '#ff3b5c', 1.2);
@@ -3781,6 +3858,7 @@ function necRelease(a) {
   asMine(() => {
     addFlash(hx, hy, 70, '#5a30c0', 0.25); addRing(hx, hy, 24, '#8a6cff', { w: 2, life: 0.3 });
     burst(hx, hy, 20, NEC_FX, { sp: 110, glow: true, life: 0.4 }); shake(4); hitstop(0.05);
+    fxRays(hx, hy, 64, '#5a3ab0', { n: 14, life: 0.34, core: '#c8b4ff' });
   });
   GFX.fx.aberr = Math.max(GFX.fx.aberr, 0.6 * SET.fxA);
   AudioMan.boom();
@@ -3817,10 +3895,14 @@ function necBombBurst(b, last) {
     });
     burst(b.x, b.y, b.big ? 50 : 16, NEC_FX, { sp: b.big ? 180 : 110, glow: true, life: 0.5 });
     addRing(b.x, b.y, b.R, '#8a6cff', { w: 2, life: 0.35 }); addFlash(b.x, b.y, b.R * 2, '#5a30c0', b.big ? 0.3 : 0.18);
-    if (b.big) { shockAt(b.x, b.y, 1.8, 1); shake(9); hitstop(0.07); screenFlash(0.2 * SET.fxA, '#5a30c0'); } else { shockAt(b.x, b.y, 0.7, 1.2); shake(2); }
+    if (b.big) {
+      shockAt(b.x, b.y, 1.8, 1); shake(9); hitstop(0.07); screenFlash(0.2 * SET.fxA, '#5a30c0');
+      fxRays(b.x, b.y, b.R * 1.4, '#5a3ab0', { n: 16, life: 0.4, core: '#c8b4ff' }); fxDecal(b.x, b.y, b.R * 0.8, 'crack', { n: 8, col: '#0a0614', hot: '#8a6cff', heatT: 1.2, life: 3.5 });
+    } else { shockAt(b.x, b.y, 0.7, 1.2); shake(2); if (Math.random() < 0.5) fxDecal(b.x, b.y, b.R * 0.6, 'scorch', { col: '#140c24', hot: '#6a4ad0', heatT: 0.6, life: 2 }); }
   });
   if (hasSp('q', 'pow')) zones.push({ kind: 'grudge', x: b.x, y: b.y, r: b.R, t: 0, dur: q.lingerT, tick: 0, dmg: q.lingerPow * necK() }); // 慟哭(霊力も乗る)
   if (last) AudioMan.knell(); else AudioMan.boom();
+  if (b.big) AudioMan.impact();
 }
 // 霊体化: 無敵で滑るように進む
 function necPhase() {
@@ -3895,6 +3977,7 @@ function astEject() {
     burst(x, y, 10 + Math.round(rel / 3), ['#3a1438', '#8a2a6e', '#ff7ad9'], { sp: 80, glow: true, life: 0.4 });
     addRing(x, y, R, '#ff7ad9', { w: 2, life: 0.3 }); addRing(x, y, R * 0.5, '#8a2a6e', { life: 0.25 });
     addFlash(x, y, R * 1.8, '#5a1450', 0.18);
+    fxRays(x, y - 3, R * 1.3, '#8a2a6e', { n: 9, life: 0.25, core: '#ff7ad9' });
     shockAt(x, y, 0.6 + Math.min(0.8, rel / 40), 1.2); shake(2 + Math.min(4, rel / 10));
   });
   AudioMan.dash(); AudioMan.boom();
@@ -3965,11 +4048,13 @@ function astCrush(s) {
     burst(s.x, s.y, 50, AST_FX, { sp: 170, glow: true, life: 0.6 });
     shockAt(s.x, s.y, 2, 0.9); shake(10); hitstop(0.07);
     screenFlash(0.15 * SET.fxA, '#3a0a30');
+    fxRays(s.x, s.y, s.r * 1.5, '#e25292', { n: 18, life: 0.4, core: '#ffd8f2' });
+    fxDecal(s.x, s.y, s.r * 0.8, 'crack', { n: 10, col: '#14041a', hot: '#c78bff', heatT: 1.2, life: 3.5 }); // 押しつぶされた地面
     if (s.white) { addRing(s.x, s.y, s.r * 2, '#c78bff', { r0: s.r * 0.3, w: 2, life: 0.45 }); shockAt(s.x, s.y, 1.4, 1.4); }
   });
   GFX.fx.aberr = Math.max(GFX.fx.aberr, 0.9 * SET.fxA);
   if (s.hawking) astGain(s.used * q.hawking); // ホーキング放射
-  AudioMan.crush();
+  AudioMan.crush(); AudioMan.impact();
 }
 // 超新星: 崩壊の novaT 秒後、外へ向かってもう一度(威力 ×novaK、半径 ×novaR)
 function astNova(s) {
@@ -3982,6 +4067,7 @@ function astNova(s) {
     addRing(s.x, s.y, R, '#ff7ad9', { r0: s.r * 0.5, w: 3, life: 0.45 }); addRing(s.x, s.y, R * 0.8, '#8a2a6e', { r0: s.r * 0.3, w: 2, life: 0.5 });
     addFlash(s.x, s.y, R * 1.6, '#8a2a6e', 0.3);
     burst(s.x, s.y, 40, AST_FX, { sp: 220, glow: true, life: 0.55 });
+    fxRays(s.x, s.y, R * 1.2, '#8a2a6e', { n: 14, life: 0.36, core: '#ff7ad9' });
     shockAt(s.x, s.y, 1.6, 1.1); shake(7);
   });
   AudioMan.boom();
@@ -4033,6 +4119,7 @@ function bkFirm() {
   asMine(() => {
     addRing(P.x, P.y + 4, 14, '#7a1418', { w: 2, life: 0.3 }); addRing(P.x, P.y + 4, 8, '#3a0610', { life: 0.25 });
     burst(P.x, P.y + 2, 14, BK_FX, { sp: 60, up: 20, life: 0.4 });
+    fxDecal(P.x, P.y + 6, 12, 'crack', { n: 5, col: '#100404', hot: '#7a1418', heatT: 0.5, life: 2 }); // 踏ん張った足元のひび
     shake(2);
   });
   AudioMan.firm();
@@ -4051,6 +4138,9 @@ function bkFrenzy() {
     addRing(P.x, P.y, R, '#7a1418', { w: 3, life: 0.4 }); addRing(P.x, P.y, R * 1.5, '#3a0610', { r0: R * 0.5, w: 2, life: 0.5 });
     addFlash(P.x, P.y, R * 2.4, '#3a0610', 0.35);
     burst(P.x, P.y, 40, BK_FX, { sp: 150, life: 0.55 }); burst(P.x, P.y, 8, BK_FX, { sp: 120, glow: true, life: 0.4 }); // 赤黒い破片(光るのは少しだけ)
+    fxDecal(P.x, P.y + 4, R * 0.95, 'crack', { n: 10, col: '#100404', hot: '#b8402a', heatT: 1.3, life: 4 }); fxDecal(P.x, P.y + 4, R * 0.45, 'scorch', { col: '#140808', hot: '#7a1418', heatT: 0.8, life: 3 }); // 踏み割った地面
+    fxRays(P.x, P.y - 4, R * 1.25, '#7a1418', { n: 16, life: 0.38, core: '#b8402a' });
+    burst(P.x, P.y + 4, 26, ['#5a4a3a', '#3a2e24', '#7a6a56'], { sp: 160, up: 50, g: 260, life: 0.7 }); // 割れた地面の土砂
     shockAt(P.x, P.y, 1.3, 1.1); shake(11); hitstop(0.07); // 自分が中心の衝撃波は強すぎると自分の絵が引き伸ばされるので控えめ
     screenFlash(0.14 * SET.fxA, '#2a0408');
   });
@@ -4059,7 +4149,7 @@ function bkFrenzy() {
   P.frenzy = { t: dur, max: dur, used, ext: 0, whirl: q.whirlEvery };
   P.rage = bkRageMax(); P.sta = 0; S.hudDirty = true;
   setCd('q', q.cd * (1 - cuV('q', 'cd')) * P.cdMul);
-  AudioMan.warcry(); AudioMan.boom();
+  AudioMan.warcry(); AudioMan.boom(); AudioMan.impact();
 }
 // 狂乱の終わり: 怒りは 0 から溜め直し。スタミナの回復が戻る(0 から)
 function bkFrenzyEnd() {
@@ -4190,6 +4280,8 @@ function wmSummon() {
     burst(c.x, c.y - 4, 18, WM_SMOKE, { sp: 60, up: 20, life: 0.5, drag: 2 });
     for (let i = 0; i < 10; i++) part(P.x, P.y - 6, side * rand(40, 90), rand(-30, 10), 0.3, pick(WM_FX), { glow: i % 3 === 0, drag: 4 });
     addRing(c.x, c.y + 5, 14, WM_COL, { w: 2, life: 0.35 }); addFlash(c.x, c.y, 40, '#5a3a1a', 0.2);
+    fxRays(c.x, c.y - 4, 56, '#8a5a2a', { n: 12, life: 0.32, core: '#d08a48' });
+    for (let i = 0; i < 4; i++) fxGlint(c.x + rand(-8, 8), c.y - 4 + rand(-10, 6), rand(4, 7), WM_COL, { t: -i * 0.05, life: 0.25 }); // 分身が武器をかまえてきらめく
     shake(3);
   });
   AudioMan.summon();
@@ -4217,7 +4309,7 @@ function wmCloneCast(c, k, extra) {
   if (ch) c.chans.push(ch);
   c.cur = k; c.curT = 0; c.lastT = c.t;
   if (!c.used.includes(k)) { c.used.push(k); c.cws[k] = Object.assign(Object.create(P.weapons[k]), { cd: 0, q: [], tick: 0, t: 0, ang: 0, blades: null, R: 0, cutN: 0, cutAt: 0, hasteT: 0 }); }
-  asMine(() => { burst(c.x, c.y - 6, 10, WM_SMOKE, { sp: 45, up: 15, life: 0.35, drag: 2 }); addRing(c.x, c.y + 5, 10, DATA.weapons[k].col, { life: 0.25 }); }); // 持ち替えの煙と、武器の色の輪
+  asMine(() => { burst(c.x, c.y - 6, 10, WM_SMOKE, { sp: 45, up: 15, life: 0.35, drag: 2 }); addRing(c.x, c.y + 5, 10, DATA.weapons[k].col, { life: 0.25 }); fxGlint(c.x + c.face * 5, c.y - 8, 6, DATA.weapons[k].col, { life: 0.2 }); }); // 持ち替えの煙と、武器の色の輪・きらめき
   AudioMan.click();
 }
 // 分身の使い手(武器スキルの cast に渡す)。位置は分身(分身が消えた後も残る効果は自分の位置へ。戻ってくる斧など)

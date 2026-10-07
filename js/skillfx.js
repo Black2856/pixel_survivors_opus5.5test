@@ -50,27 +50,28 @@ function fxAdd(kind, o) {
   return f;
 }
 // 陣: 足元・照準位置に描く円。wu 秒かけて開いて明るくなり(溜め)、wu を過ぎると一瞬白く光って広がりながら消える(放つ)
-//   r: 半径 / col: 色 / sq: 縦のつぶれ(地面を斜めから見た形。照準の範囲を示すときは 1)/ spin: 回る速さ / glow: 光の強さ
+//   r: 半径 / col: 色 / sq: 縦のつぶれ(地面を斜めから見た形。照準の範囲を示すときは 1)/ spin: 回る速さ / glow: 光の強さ / dim: 全体の濃さ
+//   形は o.style を渡せばそれ(クラスの飾りは付けない)、なければクラスの形(SIGIL)
 function fxSigil(x, y, r, col, o = {}) {
-  return fxAdd('sigil', Object.assign({ x, y, r, col, wu: 0.3, life: 0.65, sq: 0.5, spin: 1.2, glow: 0.6, rot0: Math.random() * TAU }, SIGIL[P.cls] || SIGIL.mage, o));
+  return fxAdd('sigil', Object.assign({ x, y, r, col, wu: 0.3, life: 0.65, sq: 0.5, spin: 1.2, glow: 0.6, rot0: Math.random() * TAU }, o.style ? {} : SIGIL[P.cls] || SIGIL.mage, o));
 }
-// 光芒: 点から放射状に伸びる光の筋(炸裂の瞬間)。n: 本数 / r: 長さ / core: 根元の色
+// 光芒: 点から放射状に伸びる光の筋(炸裂の瞬間)。n: 本数 / r: 長さ / core: 根元の色 / r0: 根元の半径(中心は空けて、重なって白く飛ばないように)
 function fxRays(x, y, r, col, o = {}) {
-  return fxAdd('rays', Object.assign({ x, y, r, col, core: '#ffffff', n: 12, life: 0.35, sq: 1, spin: 0.6, a0: Math.random() * TAU }, o, { n: fxN(o.n || 12) }));
+  return fxAdd('rays', Object.assign({ x, y, r, col, core: col, n: 12, life: 0.35, sq: 1, spin: 0.6, a0: Math.random() * TAU, r0: Math.max(5, r * 0.12) }, o, { n: fxN(o.n || 12) }));
 }
 // 集中線: 画面の縁から (x, y) へ集まる細い線(Q の構え)。画面の座標で描く
 function fxFocus(x, y, life, col, o = {}) {
   return fxAdd('focus', Object.assign({ x, y, life, col, n: 34 }, o, { n: fxN(o.n || 34) }));
 }
-// 光の柱: 天から降りる光(up: 地面から立ちのぼる炎の柱)。w: 半幅 / H: 高さ / core: 芯の色 / wob: 揺らぎ / drop: 降りてくる時間
+// 光の柱: 天から降りる光(up: 地面から立ちのぼる炎の柱)。w: 半幅 / H: 高さ / core: 芯の色 / wob: 揺らぎ / zig: 稲妻のジグザグ / drop: 降りてくる時間
 function fxBeam(x, y, o = {}) {
-  return fxAdd('beam', Object.assign({ x, y, w: 4, H: 150, col: '#ffe38a', mid: null, core: '#ffffff', life: 0.5, drop: 0.07, wob: 0, up: false }, o));
+  return fxAdd('beam', Object.assign({ x, y, w: 4, H: 150, col: '#ffe38a', mid: null, core: '#ffffff', life: 0.5, drop: 0.07, wob: 0, zig: 0, up: false }, o));
 }
 // きらめき: 4方向の光の十字(大きくなって消える)
 function fxGlint(x, y, r, col, o = {}) {
   return fxAdd('glint', Object.assign({ x, y, r, col, life: 0.25 }, o));
 }
-// 地面の跡(数秒で消える): scorch 焦げ跡と燻る火の粉 / crack 地割れ(芯が赤熱して冷える)/ frost 霜の結晶
+// 地面の跡(数秒で消える): scorch 焦げ跡と燻る火の粉 / crack 地割れ(芯が赤熱して冷える)/ frost 霜の結晶 / scar 斬撃の跡(o.hx, o.hy: 中心から端までの向きと長さ)
 //   col: 焦げ・ひびの色 / hot: 光る芯・火の粉の色
 function fxDecal(x, y, r, type, o = {}) {
   if (gq().parts < 0.5 && type !== 'crack') return null; // 画質「低」では地割れだけ
@@ -154,7 +155,7 @@ function lineBoth(sx, gx, x0, y0, x1, y1, col, al, gcol) {
 function drawSigil(f, sx, gx) {
   const T = f.t, wu = f.wu || 0, charge = wu > 0 ? Math.min(1, T / wu) : 1;
   const rel = T > wu ? (T - wu) / Math.max(0.01, f.life - wu) : 0, flash = wu > 0 && T >= wu && T - wu < 0.07; // 放った瞬間は白く
-  const grow = easeOutBack(Math.min(1, T / Math.max(0.1, (wu || 0.2) * 0.55)));
+  const grow = easeOutBack(Math.min(1, T / clamp((wu || 0.2) * 0.55, 0.1, 0.3))); // 開く(溜めが長くても 0.3秒で開ききる)
   const R = f.r * (0.5 + 0.5 * grow) * (1 + 0.45 * easeOutCubic(rel)), q = f.sq, fade = (1 - rel) * (1 - rel) * (f.dim ?? 1);
   const lit = (0.45 + 0.55 * charge) * fade, col = flash ? '#ffffff' : f.col;
   const cx = f.x - cam.x, cy = f.y - cam.y, rot = f.rot0 + T * f.spin * (1 + 1.5 * charge);
@@ -269,15 +270,15 @@ function drawMark(f, sx, gx, cx, cy, R, rot, q, col, al, G, charge) {
 }
 // 光芒
 function drawRays(f, sx, gx) {
-  const k = f.t / f.life, e = easeOutCubic(Math.min(1, f.t / (f.life * 0.3))), fade = 1 - k * k, cx = f.x - cam.x, cy = f.y - cam.y, r0 = f.r0 ?? 3;
+  const k = f.t / f.life, e = easeOutCubic(Math.min(1, f.t / (f.life * 0.3))), fade = 1 - k * k, cx = f.x - cam.x, cy = f.y - cam.y, r0 = f.r0;
   for (let i = 0; i < f.n; i++) {
     const h = hash2(i, f.seed | 0), a = f.a0 + f.spin * f.t + (i + (h - 0.5) * 0.7) / f.n * TAU;
     const L = r0 + f.r * (0.45 + 0.55 * hash2(i + 50, f.seed | 0)) * e, c = Math.cos(a), s = Math.sin(a) * f.sq, px = -s, py = c;
     for (let d = r0; d < L; d++) {
       const u = (d - r0) / Math.max(1, L - r0), al = fade * (1 - u), x = Math.round(cx + c * d), y = Math.round(cy + s * d);
-      sx.globalAlpha = al * 0.8; sx.fillStyle = u < 0.3 ? f.core : f.col; sx.fillRect(x, y, 1, 1);
+      sx.globalAlpha = al * 0.7; sx.fillStyle = u < 0.22 ? f.core : f.col; sx.fillRect(x, y, 1, 1);
       if (u < 0.3) sx.fillRect(Math.round(x + px), Math.round(y + py), 1, 1); // 根元は太い
-      if (u < 0.65) { gx.fillStyle = dimCol(f.col, al * 0.6); gx.fillRect(x, y, 1, 1); }
+      if (u < 0.6) { gx.fillStyle = dimCol(f.col, al * 0.5); gx.fillRect(x, y, 1, 1); }
     }
   }
   sx.globalAlpha = 1;
@@ -290,9 +291,11 @@ function drawBeam(f, sx, gx) {
   const w = f.w * (0.45 + 0.55 * open) * (0.3 + 0.7 * fade);
   if (w < 0.3) return;
   const reach = easeOutCubic(Math.min(1, f.t / f.drop)), top = f.up ? Math.round(gy - f.H * reach) : gy - f.H, bot = f.up ? gy : Math.round(gy - f.H + f.H * reach);
+  const fr = Math.floor(f.t * 30) + (f.seed | 0), zz = s => (hash2(s, fr) - 0.5) * 2 * f.zig; // 稲妻: 6行ごとの折れ点を 1/30 秒ごとに引き直す
   for (let y = Math.max(top, -2); y < Math.min(bot, GFX.VH + 2); y++) {
     const v = (y - (gy - f.H)) / f.H; // 0 = 上端 / 1 = 地面
-    const wob = f.wob ? Math.round(Math.sin(f.t * 24 + y * 0.45 + f.seed) * f.wob * (1 - v * 0.6)) : 0;
+    const sg = (y - top) / 6, s0 = Math.floor(sg);
+    const wob = f.zig ? Math.round(zz(s0) + (zz(s0 + 1) - zz(s0)) * (sg - s0)) : f.wob ? Math.round(Math.sin(f.t * 24 + y * 0.45 + f.seed) * f.wob * (1 - v * 0.6)) : 0;
     const ww = Math.max(0, Math.round(w * (f.up ? 0.3 + 0.7 * v : 1))), a = fade * (f.up ? Math.min(1, v * 1.8) : Math.min(1, 0.3 + v * 1.2)); // 炎の柱は上ほど細く、先が消える
     const x0 = cx + wob;
     sx.globalAlpha = 0.3 * a; sx.fillStyle = f.col; sx.fillRect(x0 - ww - 1, y, ww * 2 + 3, 1);
@@ -355,6 +358,14 @@ function drawDecal(f, sx, gx) {
       const [x0, y0] = pts[i - 1], [x1, y1] = pts[i];
       sx.globalAlpha = 0.75 * fade; pLine(sx, cx + x0, cy + y0 + 1, cx + x1, cy + y1 + 1, f.col, 1); // 割れ目の影
       if (heat > 0) { const h = heat * (1 - i / pts.length * 0.6); sx.globalAlpha = h; pLine(sx, cx + x0, cy + y0, cx + x1, cy + y1, f.hot, 1); pLine(gx, cx + x0, cy + y0, cx + x1, cy + y1, dimCol(f.hot, h * 0.85), 1); }
+    }
+  } else if (f.type === 'scar') { // 斬撃の跡: 暗い溝の上で、芯の光が両端から冷えていく
+    const L = Math.hypot(f.hx, f.hy) || 1, nx = -f.hy / L, ny = f.hx / L;
+    sx.globalAlpha = 0.55 * fade; pLine(sx, cx - f.hx + nx, cy - f.hy + ny + 1, cx + f.hx + nx, cy + f.hy + ny + 1, f.col, 2);
+    if (heat > 0) {
+      const u = 0.15 + 0.85 * heat; // 光っている長さ(中心から)
+      sx.globalAlpha = heat; pLine(sx, cx - f.hx * u, cy - f.hy * u, cx + f.hx * u, cy + f.hy * u, f.hot, 1);
+      pLine(gx, cx - f.hx * u, cy - f.hy * u, cx + f.hx * u, cy + f.hy * u, dimCol(f.hot, heat * 0.8), 1);
     }
   } else if (f.type === 'frost') {
     sx.globalAlpha = 0.14 * fade; pDisc(sx, cx, cy, Math.round(f.r * 0.5), '#bff4ff');
