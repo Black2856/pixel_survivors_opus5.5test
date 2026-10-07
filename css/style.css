@@ -116,11 +116,8 @@ button { font: inherit; color: inherit; cursor: pointer; border: 0; background: 
 /* 告知・警告の文字: 英字はドット(Press Start 2P)、日本語は DotGothic16 */
 .cutband.ann .sc-name { font: 22px 'Press Start 2P', 'DotGothic16', monospace; letter-spacing: 2px; }
 .cutband.ban .sc-name { font: 28px 'Press Start 2P', 'DotGothic16', monospace; letter-spacing: 3px; }
-/* ボスの大技(bs): 暗い赤の帯に赤い「技」の印。2行目はボスの名前 */
+/* ボスの激昂(bs): 赤い縞の帯 */
 .cutband.bs .sc-name { font-size: 30px; letter-spacing: 5px; }
-.cutband.boss .sc-band { background: linear-gradient(90deg, transparent 0, rgba(40,4,12,.66) 22%, rgba(40,4,12,.66) 78%, transparent 100%); }
-.cutband.boss .sc-glyph { background: #ff3b5c; box-shadow: 0 0 0 3px var(--ink), 0 0 16px #ff3b5c; }
-.cutband.tip .sc-sub { color: var(--txt); font-size: 17px; } /* 技を初めて使ったときの説明(告知をまとめたもの) */
 .cutband.ann .sc-sub, .cutband.ban .sc-sub { color: var(--txt); font-size: 17px; }
 .cutband.on .sc-band::before { animation: scLines .4s linear infinite; }
 .cutband.on .sc-band::after { animation: scShine .45s .05s ease-out forwards; }

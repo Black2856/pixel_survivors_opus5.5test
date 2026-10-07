@@ -69,12 +69,7 @@ const UI = (() => {
     clearTimeout(bandT[id]); bandT[id] = setTimeout(() => el.classList.remove('on'), dur);
   }
   // 告知(細い金の帯)
-  //   ボスの大技の帯に同じ名前が出ているとき(技を初めて使ったときの説明)は、別の帯を出さずに、その帯を説明つきで出し直す(同じ名前の帯を 2本並べない)
-  const bareName = s => String(s).replace(/[!！]+$/, '');
-  function announce(main, sub) {
-    if (bossLast && bandOn('bosscut') && bareName(bossLast.name) === bareName(main)) { bossCut(bossLast.name, bossLast.col, Object.assign({}, bossLast.o, { sub, tip: true, dur: 2200 })); return; }
-    cutBand('announce', main, sub, '#ffd23f', { size: 'ann', dur: 1900 });
-  }
+  function announce(main, sub) { cutBand('announce', main, sub, '#ffd23f', { size: 'ann', dur: 1900 }); }
   // スキルのカットイン: 画面の上の方を横切る帯にスキル名。色はスキルの色。設定で消せる(SET.cutin)
   //   q: Q は太い帯にクラスの印(glyph)/ E は細い帯に武器のアイコン(icon: 武器のキー)。sub: 2行目(武神降臨の武器スキル)
   function skillCut(name, col, q, o = {}) {
@@ -90,14 +85,8 @@ const UI = (() => {
     t.classList.remove('on'); void t.offsetWidth; t.classList.add('on');
     clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove('on'), 1300);
   }
-  // ボスの大技の名前・激昂(帯)。o.sub: 2行目(ボスの名前)/ o.warn: 赤い縞(激昂)/ o.force: 設定でカットインを消していても出す / o.dur: 表示時間(ms)/ o.tip: 2行目が技の説明(読みやすい白に)
-  //   大技の帯は短く(ほかの帯と重なったときに先に閉じる側になる)
-  let bossLast = null; // 最後に出した大技の帯(同じ名前の説明が来たら、announce がこの帯にまとめる)
-  function bossCut(name, col, o = {}) {
-    if (!SET.cutin && !o.force) return;
-    bossLast = { name, col, o };
-    cutBand('bosscut', name, o.sub, col, { size: 'bs', kind: (o.warn ? 'warn' : 'boss') + (o.tip ? ' tip' : ''), mark: o.warn ? '' : '<span class="sc-glyph">技</span>', dur: o.dur || 1300 });
-  }
+  // ボスの激昂(赤い縞の帯。設定のカットインによらず出す)。name: ボスの名前
+  function enrage(name) { cutBand('bosscut', name + ' が激昂した!!', '', '#ff3b5c', { size: 'bs', kind: 'warn', dur: 2000 }); }
   // 警告・クリアなど(太い帯)。cls: 帯の色(なし = 赤の警告(縞が流れて文字が明滅)/ 'gold' = クリア / 'fog' = 闇の霧)
   const BAN_COL = { '': '#ff3b5c', gold: '#ffd23f', fog: '#b07aff' };
   function banner(main, sub, dur = 2600, cls = '') { cutBand('banner', main, sub, BAN_COL[cls] || BAN_COL[''], { size: 'ban', kind: cls || 'warn', dur }); }
@@ -802,5 +791,5 @@ const UI = (() => {
     } else if (state === 'chest' && (e.code === 'Space' || e.code === 'Enter')) chestAct();
   }
 
-  return { announce, skillCut, bossCut, banner, toast, hud, bossBar, enemyLvUp, openChest, levelUp, beginPlay: close, only, weaponIcon: k => icon('weapon', k), title, pause, closeSettings, result, onKey, show, hide, $ };
+  return { announce, skillCut, enrage, banner, toast, hud, bossBar, enemyLvUp, openChest, levelUp, beginPlay: close, only, weaponIcon: k => icon('weapon', k), title, pause, closeSettings, result, onKey, show, hide, $ };
 })();
