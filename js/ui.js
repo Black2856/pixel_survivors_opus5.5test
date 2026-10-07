@@ -22,32 +22,64 @@ const UI = (() => {
   }
   const icon = (type, key, cls = 'icon') => `<img class="${cls}" src="${iconURL(type, key)}" alt="">`;
 
-  // ---------- 告知 ----------
-  let annT = null, banT = null;
-  function announce(main, sub) {
-    const a = $('announce');
-    a.innerHTML = `<div class="ann-main">${main}</div>${sub ? `<div class="ann-sub">${sub}</div>` : ''}`;
-    a.classList.remove('pop'); void a.offsetWidth; a.classList.add('pop');
-    clearTimeout(annT); annT = setTimeout(() => a.classList.remove('pop'), 1900);
+  // ---------- 帯のカットイン(スキル・告知・警告で共通。見た目は style.css の .cutband) ----------
+  // 斜めの帯が開き(少し行き過ぎて戻る)、文字が右から流れ込んでゆっくり流れ、最後に帯が閉じる
+  //   開く・閉じる速さは表示時間によらず同じ(Web Animations で、秒を表示時間に対する割合に直す)
+  //   o.size: 'q' 太い / 'e' 細い / 'ann' 告知(細い)/ 'ban' 警告など(太い)・o.kind: 'warn' 赤い縞と文字の明滅・o.mark: 文字の左の印(HTML)・o.dur: 表示時間(ms)
+  // 置く場所: 真ん中の自分のまわりを隠さないよう、上の HUD の下(BAND_TOP)から、出ている帯の間で入る所へ上から順に詰める
+  //   1本だけなら一番上。同時に出たら重ならないように下へ。出ている間は動かさない。2本まで(3本目が来たら、一番早く消える帯を閉じて場所を空ける)
+  //   位置・高さは帯の css px(UI の大きさの zoom と一緒に大きくなる)
+  const BANDS = ['skillcut', 'announce', 'banner'], BAND_TOP = 150, BAND_GAP = 6, BAND_MAX = 2, bandT = {}, bandEnd = {};
+  const bandOn = id => $(id).classList.contains('on');
+  function bandClose(id) {
+    const el = $(id);
+    clearTimeout(bandT[id]); el.classList.remove('on');
+    for (const a of el.getAnimations({ subtree: true })) a.cancel();
   }
-  // スキルのカットイン: 画面の上の方を横切る帯にスキル名。色はスキルの色(--sc)
+  function bandPlace(el) {
+    const others = BANDS.filter(id => id !== el.id && bandOn(id));
+    if (others.length >= BAND_MAX) { others.sort((a, b) => bandEnd[a] - bandEnd[b]); bandClose(others.shift()); }
+    const h = el.offsetHeight, spans = others.map(id => { const o = $(id), t = parseFloat(o.style.top) || BAND_TOP; return [t, t + o.offsetHeight]; }).sort((a, b) => a[0] - b[0]);
+    let y = BAND_TOP;
+    for (const [t, b] of spans) { if (y + h + BAND_GAP <= t) break; y = Math.max(y, b + BAND_GAP); }
+    el.style.top = y + 'px';
+  }
+  function cutBand(id, main, sub, col, o) {
+    const el = $(id), dur = o.dur, k = s => Math.min(0.4, s * 1000 / dur), ez = 'cubic-bezier(.22,1,.36,1)', sk = 'skewY(-2.5deg) ';
+    el.style.setProperty('--sc', col);
+    el.className = 'cutband ' + o.size + (o.kind ? ' ' + o.kind : '');
+    el.innerHTML = `<div class="sc-band"><div class="sc-row">${o.mark || ''}<span class="sc-name">${main}</span></div>${sub ? `<div class="sc-sub">${sub}</div>` : ''}</div>`;
+    bandPlace(el); // 中身を入れてから(高さを測る)
+    bandEnd[id] = performance.now() + dur;
+    const band = el.firstChild, row = band.firstChild;
+    band.animate([
+      { transform: sk + 'scaleY(0)', opacity: 1, easing: ez },
+      { transform: sk + 'scaleY(1.2)', opacity: 1, offset: k(0.1) },
+      { transform: sk + 'scaleY(1)', opacity: 1, offset: k(0.17) },
+      { transform: sk + 'scaleY(1)', opacity: 1, offset: 1 - k(0.18), easing: 'ease-in' },
+      { transform: sk + 'scaleY(0)', opacity: 0 },
+    ], { duration: dur, fill: 'forwards' });
+    row.animate([
+      { transform: 'translateX(34%)', opacity: 0, easing: ez },
+      { transform: 'translateX(3%)', opacity: 1, offset: k(0.16) },
+      { transform: 'translateX(-3%)', opacity: 1, offset: 1 - k(0.2), easing: 'ease-in' },
+      { transform: 'translateX(-26%)', opacity: 0 },
+    ], { duration: dur, fill: 'forwards' });
+    el.classList.add('on');
+    clearTimeout(bandT[id]); bandT[id] = setTimeout(() => el.classList.remove('on'), dur);
+  }
+  // 告知(細い金の帯)
+  function announce(main, sub) { cutBand('announce', main, sub, '#ffd23f', { size: 'ann', dur: 1900 }); }
+  // スキルのカットイン: 画面の上の方を横切る帯にスキル名。色はスキルの色。設定で消せる(SET.cutin)
   //   q: Q は太い帯にクラスの印(glyph)/ E は細い帯に武器のアイコン(icon: 武器のキー)。sub: 2行目(武神降臨の武器スキル)
-  let scT = null;
   function skillCut(name, col, q, o = {}) {
-    const c = $('skillcut');
-    c.style.setProperty('--sc', col);
+    if (!SET.cutin) return;
     const mark = q ? (o.glyph ? `<span class="sc-glyph">${o.glyph}</span>` : '') : o.icon ? icon('weapon', o.icon) : '';
-    c.innerHTML = `<div class="sc-band"><div class="sc-row">${mark}<span class="sc-name">${name}</span></div>${o.sub ? `<div class="sc-sub">${o.sub}</div>` : ''}</div>`;
-    c.className = q ? 'q' : 'e'; void c.offsetWidth; c.classList.add('on');
-    clearTimeout(scT); scT = setTimeout(() => c.classList.remove('on'), q ? 1150 : 850);
+    cutBand('skillcut', name, o.sub, col, { size: q ? 'q' : 'e', mark, dur: q ? 1150 : 850 });
   }
-  // cls: 帯の色(なし = 赤の警告 / 'gold' = クリア / 'fog' = 闇の霧)。表示時間に合わせて消えていく
-  function banner(main, sub, dur = 2600, cls = '') {
-    const b = $('banner');
-    b.innerHTML = `<div class="ban-main">${main}</div><div class="ban-sub">${sub || ''}</div>`;
-    b.className = cls; b.style.animationDuration = dur + 'ms'; void b.offsetWidth; b.classList.add('on');
-    clearTimeout(banT); banT = setTimeout(() => b.classList.remove('on'), dur);
-  }
+  // 警告・クリアなど(太い帯)。cls: 帯の色(なし = 赤の警告(縞が流れて文字が明滅)/ 'gold' = クリア / 'fog' = 闇の霧)
+  const BAN_COL = { '': '#ff3b5c', gold: '#ffd23f', fog: '#b07aff' };
+  function banner(main, sub, dur = 2600, cls = '') { cutBand('banner', main, sub, BAN_COL[cls] || BAN_COL[''], { size: 'ban', kind: cls || 'warn', dur }); }
 
   // ---------- HUD ----------
   const last = {};
@@ -692,10 +724,10 @@ const UI = (() => {
     $('set-fxa').value = Math.round(SET.fxA * 100); $('set-fxa-n').textContent = Math.round(SET.fxA * 100) + '%';
     $('set-ui').value = Math.round(SET.ui * 100); $('set-ui-n').textContent = Math.round(SET.ui * 100) + '%';
     for (const b of $('set-gfx').children) b.classList.toggle('on', b.dataset.v === SET.gfx);
-    for (const k of ['autoE', 'autoQ']) for (const b of $('set-' + k).children) b.classList.toggle('on', (b.dataset.v === '1') === SET[k]);
+    for (const k of ['autoE', 'autoQ', 'cutin']) for (const b of $('set-' + k).children) b.classList.toggle('on', (b.dataset.v === '1') === SET[k]);
   }
   for (const b of $('set-gfx').children) b.onclick = () => { SET.gfx = b.dataset.v; saveSet(); AudioMan.click(); syncSettings(); };
-  for (const k of ['autoE', 'autoQ']) for (const b of $('set-' + k).children) b.onclick = () => { SET[k] = b.dataset.v === '1'; saveSet(); AudioMan.click(); syncSettings(); last.skSig = null; };
+  for (const k of ['autoE', 'autoQ', 'cutin']) for (const b of $('set-' + k).children) b.onclick = () => { SET[k] = b.dataset.v === '1'; saveSet(); AudioMan.click(); syncSettings(); last.skSig = null; };
   $('set-fxa').oninput = e => { SET.fxA = e.target.value / 100; $('set-fxa-n').textContent = e.target.value + '%'; saveSet(); };
   $('set-ui').oninput = e => { SET.ui = e.target.value / 100; $('set-ui-n').textContent = e.target.value + '%'; applyUiScale(); saveSet(); };
   function settings(from = 'title') { setBack = from; state = 'settings'; only('settings-screen'); syncSettings(); }

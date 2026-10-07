@@ -258,7 +258,7 @@ const Help = (() => {
     if (q) { // 検索: 全ての用語から(見出し・説明)
       const hit = G.filter(e => e.t.includes(q) || (e.m || []).some(s => s.includes(q)) || descOf(e).includes(q));
       h = hit.length ? hit.map(ent).join('') : '<div class="dim">見つかりませんでした</div>';
-    } else if (cat === '操作') h = KEYS.map(([k, d]) => `<div class="hp-key"><kbd>${k}</kbd><span>${d}</span></div>`).join('') + '<div class="dim hp-note">設定(タイトル・ポーズ画面)で、E / Q の自動発動・攻撃の濃さ・UI サイズを変えられます</div>';
+    } else if (cat === '操作') h = KEYS.map(([k, d]) => `<div class="hp-key"><kbd>${k}</kbd><span>${d}</span></div>`).join('') + '<div class="dim hp-note">設定(タイトル・ポーズ画面)で、E / Q の自動発動・スキルのカットイン・攻撃の濃さ・UI サイズを変えられます</div>';
     else if (cat === '遊び方') h = FLOW.map(([k, d], i) => `<div class="hp-ent"><b>${i + 1}. ${k}</b><div>${d}</div></div>`).join('') + '<div class="dim hp-note">用語にマウスを乗せると説明が出ます</div>';
     else h = G.filter(e => e.c === cat).map(ent).join('');
     $('hp-body').innerHTML = h;

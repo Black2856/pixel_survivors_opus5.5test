@@ -91,47 +91,41 @@ button { font: inherit; color: inherit; cursor: pointer; border: 0; background: 
 .ps-sk.ready { animation: psReady .5s ease-out; }
 @keyframes psReady { 0% { box-shadow: 0 0 0 calc(var(--px) * .7) #0c0913, inset 0 0 0 calc(var(--px) * .7) #fff, 0 0 18px 6px #fff; } }
 
-/* ---------- 告知 ---------- */
-#announce { position: absolute; top: 30%; left: 0; right: 0; z-index: 50; text-align: center; pointer-events: none; opacity: 0; } /* メニュー画面より手前 */
-#announce.pop { animation: ann 1.9s cubic-bezier(.22,1,.36,1) forwards; }
-.ann-main { font: 30px 'Press Start 2P'; color: var(--gold); text-shadow: 4px 4px 0 var(--ink), 0 0 24px rgba(255,210,63,.7); }
-.ann-sub { margin-top: 12px; font-size: 18px; text-shadow: 2px 2px 0 var(--ink); }
-@keyframes ann { 0% { opacity: 0; transform: scale(2.2); } 12% { opacity: 1; transform: scale(1); } 80% { opacity: 1; } 100% { opacity: 0; transform: translateY(-20px); } }
-/* スキルのカットイン: 斜めの帯が開き、スキル名が右から流れ込む(光が帯を走り、帯の中を細い線が流れる)。色はスキルの色(--sc)
-   Q は太い帯とクラスの印、E は細い帯と武器のアイコン。敵の攻撃が隠れないよう帯は半透明で、すぐ閉じる */
-#skillcut { position: absolute; top: 19%; left: 0; right: 0; z-index: 49; pointer-events: none; opacity: 0; --sc: #ffd23f; }
-#skillcut.on { opacity: 1; }
-#skillcut .sc-band { position: relative; overflow: hidden; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 9px 0 10px;
+/* ---------- 帯のカットイン(スキル・告知・警告で共通) ----------
+   斜めの帯が開き(少し行き過ぎて戻る)、文字が右から流れ込んでゆっくり流れ、最後に帯が閉じる。光が帯を走り、帯の中を細い線が流れる。色は --sc
+   開く・閉じる動きは ui.js の cutBand が表示時間に合わせて付ける(表示時間が長くても開く速さは同じ)
+   #skillcut: スキル(Q は太い帯とクラスの印、E は細い帯と武器のアイコン)/ #announce: 告知(細い帯)/ #banner: ボス出現・エリート・クリアなど(太い帯。警告は赤い縞が流れる)
+   真ん中の自分のまわりを隠さないよう、画面の上の方(上の HUD の下)の段に出す。段は ui.js の bandPlace が決める(top)
+   敵の攻撃が隠れないよう、帯は半透明ですぐ閉じる */
+.cutband { position: absolute; left: 0; right: 0; top: 150px; z-index: 49; pointer-events: none; opacity: 0; --sc: #ffd23f; }
+.cutband.on { opacity: 1; }
+#announce { z-index: 50; } /* メニュー画面より手前 */
+.cutband .sc-band { position: relative; overflow: hidden; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 9px 0 10px;
   background: linear-gradient(90deg, transparent 0, rgba(10,6,20,.6) 22%, rgba(10,6,20,.6) 78%, transparent 100%);
   border-top: 3px solid var(--sc); border-bottom: 3px solid var(--sc); transform: skewY(-2.5deg) scaleY(0);
   -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 14%, #000 86%, transparent 100%); mask-image: linear-gradient(90deg, transparent 0, #000 14%, #000 86%, transparent 100%); }
-#skillcut .sc-band::before { content: ''; position: absolute; inset: 0; background: repeating-linear-gradient(90deg, transparent 0 22px, rgba(255,255,255,.07) 22px 24px); }
-#skillcut .sc-band::after { content: ''; position: absolute; top: 0; bottom: 0; left: -30%; width: 18%; background: linear-gradient(100deg, transparent, rgba(255,255,255,.4), transparent); }
-#skillcut .sc-row { position: relative; display: flex; align-items: center; gap: 14px; }
-#skillcut .sc-name { font: 34px 'DotGothic16', monospace; color: #fff; letter-spacing: 6px; text-shadow: 3px 3px 0 var(--ink), 0 0 12px var(--sc), 0 0 26px var(--sc); }
-#skillcut .sc-glyph { font: 24px 'DotGothic16', monospace; color: var(--ink); background: var(--sc); padding: 3px 7px; box-shadow: 0 0 0 3px var(--ink), 0 0 16px var(--sc); }
-#skillcut .sc-sub { position: relative; margin-top: 4px; font-size: 16px; color: var(--sc); text-shadow: 2px 2px 0 var(--ink); }
-#skillcut .icon { width: 27px; image-rendering: pixelated; filter: drop-shadow(0 0 6px var(--sc)); }
-#skillcut.e .sc-band { padding: 4px 0 5px; border-width: 2px; }
-#skillcut.e .sc-name { font-size: 22px; letter-spacing: 3px; }
-#skillcut.on .sc-band { animation: scBand 1.15s cubic-bezier(.22,1,.36,1) forwards; }
-#skillcut.e.on .sc-band { animation-duration: .85s; }
-#skillcut.on .sc-row { animation: scRow 1.15s cubic-bezier(.22,1,.36,1) forwards; }
-#skillcut.e.on .sc-row { animation-duration: .85s; }
-#skillcut.on .sc-band::before { animation: scLines .4s linear infinite; }
-#skillcut.on .sc-band::after { animation: scShine .45s .05s ease-out forwards; }
-@keyframes scBand { 0% { transform: skewY(-2.5deg) scaleY(0); } 9% { transform: skewY(-2.5deg) scaleY(1.2); } 15% { transform: skewY(-2.5deg) scaleY(1); } 84% { transform: skewY(-2.5deg) scaleY(1); opacity: 1; } 100% { transform: skewY(-2.5deg) scaleY(0); opacity: 0; } }
-@keyframes scRow { 0% { transform: translateX(34%); opacity: 0; } 14% { transform: translateX(3%); opacity: 1; } 82% { transform: translateX(-3%); opacity: 1; } 100% { transform: translateX(-26%); opacity: 0; } }
+.cutband .sc-band::before { content: ''; position: absolute; inset: 0; background: repeating-linear-gradient(90deg, transparent 0 22px, rgba(255,255,255,.07) 22px 24px); }
+.cutband .sc-band::after { content: ''; position: absolute; top: 0; bottom: 0; left: -30%; width: 18%; background: linear-gradient(100deg, transparent, rgba(255,255,255,.4), transparent); }
+.cutband .sc-row { position: relative; display: flex; align-items: center; gap: 14px; }
+.cutband .sc-name { font: 34px 'DotGothic16', monospace; color: #fff; letter-spacing: 6px; text-shadow: 3px 3px 0 var(--ink), 0 0 12px var(--sc), 0 0 26px var(--sc); }
+.cutband .sc-glyph { font: 24px 'DotGothic16', monospace; color: var(--ink); background: var(--sc); padding: 3px 7px; box-shadow: 0 0 0 3px var(--ink), 0 0 16px var(--sc); }
+.cutband .sc-sub { position: relative; margin-top: 4px; font-size: 16px; color: var(--sc); text-shadow: 2px 2px 0 var(--ink); }
+.cutband .icon { width: 27px; image-rendering: pixelated; filter: drop-shadow(0 0 6px var(--sc)); }
+.cutband.e .sc-band, .cutband.ann .sc-band { padding: 4px 0 5px; border-width: 2px; }
+.cutband.e .sc-name { font-size: 22px; letter-spacing: 3px; }
+/* 告知・警告の文字: 英字はドット(Press Start 2P)、日本語は DotGothic16 */
+.cutband.ann .sc-name { font: 22px 'Press Start 2P', 'DotGothic16', monospace; letter-spacing: 2px; }
+.cutband.ban .sc-name { font: 28px 'Press Start 2P', 'DotGothic16', monospace; letter-spacing: 3px; }
+.cutband.ann .sc-sub, .cutband.ban .sc-sub { color: var(--txt); font-size: 17px; }
+.cutband.on .sc-band::before { animation: scLines .4s linear infinite; }
+.cutband.on .sc-band::after { animation: scShine .45s .05s ease-out forwards; }
+/* 警告(ボス出現・エリート・大群など): 帯の中を赤い斜めの縞が流れ、文字が明滅する */
+.cutband.warn .sc-band::before { background: repeating-linear-gradient(135deg, rgba(160,18,42,.42) 0 24px, transparent 24px 48px); }
+.cutband.warn.on .sc-band::before { animation: scStripe .6s linear infinite; }
+.cutband.warn .sc-name { animation: flick .25s ease-in-out infinite; }
 @keyframes scLines { to { background-position: -48px 0; } }
+@keyframes scStripe { to { background-position: -67.88px 0; } } /* 135° の縞の横の周期 = 48 / cos45° */
 @keyframes scShine { to { left: 112%; } }
-#banner { position: absolute; top: 42%; left: 0; right: 0; padding: 16px 0; text-align: center; pointer-events: none; opacity: 0;
-  background: repeating-linear-gradient(135deg, rgba(160,18,42,.85) 0 24px, rgba(60,6,16,.85) 24px 48px); border-top: 4px solid var(--red); border-bottom: 4px solid var(--red); }
-#banner.on { animation: ban 2.6s cubic-bezier(.22,1,.36,1) forwards; }
-#banner.gold { background: repeating-linear-gradient(135deg, rgba(150,108,12,.85) 0 24px, rgba(66,42,0,.85) 24px 48px); border-color: var(--gold); }
-#banner.fog { background: repeating-linear-gradient(135deg, rgba(68,22,108,.85) 0 24px, rgba(20,6,38,.85) 24px 48px); border-color: #b07aff; }
-.ban-main { font: 26px 'Press Start 2P'; color: #fff; text-shadow: 4px 4px 0 var(--ink); animation: flick .25s ease-in-out infinite; }
-.ban-sub { margin-top: 10px; font-size: 18px; text-shadow: 2px 2px 0 var(--ink); }
-@keyframes ban { 0% { opacity: 0; clip-path: inset(50% 0); } 10% { opacity: 1; clip-path: inset(0 0); } 85% { opacity: 1; } 100% { opacity: 0; } }
 
 /* ---------- 画面共通 ---------- */
 .screen { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px; background: rgba(8,5,16,.62); }
