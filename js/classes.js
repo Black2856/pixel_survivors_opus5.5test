@@ -1483,7 +1483,7 @@ const CLASS_RT = {
       const p = MG();
       return [
         { key: '特性', name: '元素循環', cat: 'trait', desc: [
-          'メイン武器の通常攻撃・E の攻撃1回ごとに 炎 → 氷 → 雷 の順で属性が付く(サブ武器には付かない)',
+          'メイン武器の通常攻撃・E の攻撃1回ごとに 炎 → 氷 → 雷 の順で属性が付く',
           `炎: 与えたダメージの ${Math.round(p.burnPct * 100)}% を ${p.burnDur}秒かけて与える`,
           `氷: 凍傷 +1(1つにつき移動速度 -${Math.round(DATA.debuff.frostSlow * 100)}%)`,
           `雷: 近くの敵に ${Math.round(p.chainPct * 100)}% で連鎖`,
@@ -1609,7 +1609,7 @@ const CLASS_RT = {
       const p = AR(), q = DATA.classes.archer.q, k = 1 + c.cuV('q', 'pow') + (c.lvFx.qPow || 0);
       return [
         { key: '特性', name: '狩人の印', cat: 'trait', desc: [
-          'メイン武器の通常攻撃・E が命中すると、その敵に印 +1(サブ武器では付かない)',
+          'メイン武器の通常攻撃・E が命中すると、その敵に印 +1',
           `印1つにつき、その敵が受けるダメージ +${Math.round((p.markPct + (c.lvFx.markPct || 0)) * 100)}%`,
           `印が ${p.markMax} 以上で弱点露出: ${p.weakT}秒間 その敵へのクリティカル率 +${Math.round(p.weakCrit * 100)}%`,
           `印は ${p.markT}秒 刻まれないと消える。一斉射撃で消費する`,
@@ -1845,7 +1845,7 @@ const CLASS_RT = {
         { key: 'パッシブ', name: '焔纏い', cat: 'passive', desc: [
           'E / Q を使うと、焔を纏う(使うたびに時間が戻る)',
           '纏っている間、全武器の攻撃(通常攻撃・E)が命中すると、与えたダメージの一部を 3秒の炎上で付ける',
-          '  → サブ武器も対象。炎上そのもの・Q・爆風からは付かない',
+          '  → 炎上そのもの・Q・爆風からは付かない',
         ].concat(kin ? [`纏った瞬間、周り(半径 ${p.kindleR})に火の輪`] : []), rows: [
           ['纏う時間', `<b>${c.cuV('passive', 'wear', p.wearT)}</b> 秒`],
           ['付与量', `<b>${Math.round((c.cuV('passive', 'ignite', p.ignite) + (c.lvFx.ignite || 0)) * 100)}%</b>`],
@@ -1971,7 +1971,6 @@ const CLASS_RT = {
         { key: 'パッシブ', name: '氷纏い', cat: 'passive', desc: [
           'E / Q を使うと、冷気を纏う(使うたびに時間が戻る)',
           '纏っている間、全武器の攻撃(通常攻撃・E)が命中すると、その敵に凍傷 +1',
-          '  → サブ武器も対象',
         ], rows: [
           ['纏う時間', `<b>${c.cuV('passive', 'wear', p.wearT) + (c.lvFx.wearT || 0)}</b> 秒`],
         ].concat(c.cuV('passive', 'armor') ? [['纏った瞬間のシールド', `最大HP の ${Math.round(c.cuV('passive', 'armor') * 100)}%`]] : []) },
@@ -2078,7 +2077,6 @@ const CLASS_RT = {
         { key: 'パッシブ', name: '雷纏い', cat: 'passive', desc: [
           'E / Q を使うと、雷を纏う(使うたびに時間が戻る)',
           '纏っている間、全武器の攻撃(通常攻撃・E)に感電が付く',
-          '  → サブ武器も対象',
         ], rows: [
           ['纏う時間', `<b>${c.cuV('passive', 'wear', p.wearT)}</b> 秒`],
           ['感電', `<b>${Math.round((c.cuV('passive', 'shock', p.wearShock) + (c.lvFx.wearShock || 0)) * 100)}%</b>`],
@@ -2793,7 +2791,7 @@ const CLASS_RT = {
       const qn = q.n + c.cuV('q', 'multi') + (c.lvFx.qN || 0), lvA = c.run ? cuLv('q', 'art') : 0, qk = 1 + c.cuV('q', 'art') + (c.lvFx.qPow || 0);
       return [
         { key: '特性', name: '武芸百般', cat: 'trait', desc: [
-          `持っている武器 1つにつき 攻撃力 +${pc(p.stackAtk)}%(メイン武器もサブ武器も数える)`,
+          `持っている武器 1つにつき 攻撃力 +${pc(p.stackAtk)}%`,
           `進化した武器は 効果 +${Math.round(p.evoK * 100)}%(1つで ${1 + p.evoK}つ分)`,
         ].concat(c.lvFx.stack ? [`クラスLv3: 常に +${c.lvFx.stack}つ分`] : []), rows: [
           ['武芸百般', `<b>${+n.toFixed(1)}</b> つ分`, c.run ? `武器 ${owned} / ${slots}。進化した武器は ${1 + evo}つ分` : 'ラン開始時(メイン武器 1つ)'],
