@@ -79,26 +79,26 @@ const StatusUI = (() => {
   }
   function skillTab(c) {
     const blocks = skBlocks = blocksOf(c);
-    return '<div class="sv-note">スキルをクリックすると詳細を表示します</div>' + blocks.map((b, i) => `<div class="sv-sk" data-sk="${i}"><div class="sv-g">${b.key} ${b.name} <small>ⓘ</small></div>` + b.rows.map(r => `<div class="sv-row"><span>${r[0]}</span><i>${r[1]}</i></div>${r[2] ? `<div class="sv-note">${r[2]}</div>` : ''}`).join('') + '</div>').join('');
+    return '<div class="sv-note">スキルをクリックすると詳細を表示します</div>' + blocks.map((b, i) => `<div class="sv-sk" data-sk="${i}"><div class="sv-g no-gl">${b.key} ${b.name} <small>ⓘ</small></div>` + b.rows.map(r => `<div class="sv-row"><span>${r[0]}</span><i>${r[1]}</i></div>${r[2] ? `<div class="sv-note">${r[2]}</div>` : ''}`).join('') + '</div>').join('');
   }
   // スキルの詳細: 説明 + ラン中に取った強化(パスの Lv と特殊強化)
   let skBlocks = [];
   function skillDetail(c, b) {
-    let h = `<div class="sv-g">${b.key} ${b.name}</div><ul class="sv-desc">${[].concat(b.desc || []).map(l => l.startsWith('  ') ? `<li class="sub">${l.trim()}</li>` : `<li>${l}</li>`).join('')}</ul>`;
+    let h = `<div class="sv-g no-gl">${b.key} ${b.name}</div><ul class="sv-desc">${[].concat(b.desc || []).map(l => l.startsWith('  ') ? `<li class="sub">${l.trim()}</li>` : `<li>${l}</li>`).join('')}</ul>`;
     if (!b.cat) return h;
     const T = b.cat === 'e' ? DATA.weapons[c.mainW].skill && DATA.weapons[c.mainW].skill.tree : DATA.classes[c.cls].tree[b.cat];
     if (!T) return h;
     h += '<div class="sv-g">強化' + (c.run ? '' : '(ラン中に3の倍数のLv で選ぶ)') + '</div>';
     h += Object.keys(T.paths).map(p => {
       const d = T.paths[p], lv = c.run ? cuLv(b.cat, p) : 0;
-      return `<div class="sv-row ${lv ? '' : 'z'}"><span>${d.name} ${lv ? 'Lv' + lv : ''}</span><i>${lv ? d.desc[lv - 1] : d.desc[0] + ' …'}</i></div>`;
+      return `<div class="sv-row ${lv ? '' : 'z'}"><span class="no-gl">${d.name} ${lv ? 'Lv' + lv : ''}</span><i>${lv ? d.desc[lv - 1] : d.desc[0] + ' …'}</i></div>`;
     }).join('');
     // 特殊強化: 各パスを Lv3 にすると候補に出る(1カテゴリにつき1つ)。取ったものは明るく
     const sp = c.run && P.cs[b.cat];
     h += '<div class="sv-g">特殊強化<small class="dim">(パスを Lv3 にすると候補に出る・1つだけ)</small></div>';
     h += Object.keys(T.paths).map(p => {
       const d = T.paths[p].sp, on = sp === p;
-      return `<div class="sv-sp ${on ? 'on' : ''}"><b>${on ? '★' : '☆'} ${d.name}</b><span class="dim">(${T.paths[p].name})</span><div>${d.desc}</div></div>`;
+      return `<div class="sv-sp ${on ? 'on' : ''}"><b class="no-gl">${on ? '★' : '☆'} ${d.name}</b><span class="dim no-gl">(${T.paths[p].name})</span><div>${d.desc}</div></div>`;
     }).join('');
     return h;
   }
@@ -127,8 +127,8 @@ const StatusUI = (() => {
       const ps = Object.keys(tree[cat].paths).filter(p => cuLv(cat, p));
       if (!ps.length) continue;
       any = true;
-      h += `<div class="sv-row"><span>${tree[cat].name}</span><i>${ps.map(p => `${tree[cat].paths[p].name} ${cuLv(cat, p)}`).join(' ・ ')}</i></div>`;
-      if (P.cs[cat]) h += `<div class="sv-note sp">特殊強化: ${tree[cat].paths[P.cs[cat]].sp.name}</div>`;
+      h += `<div class="sv-row"><span>${tree[cat].name}</span><i class="no-gl">${ps.map(p => `${tree[cat].paths[p].name} ${cuLv(cat, p)}`).join(' ・ ')}</i></div>`;
+      if (P.cs[cat]) h += `<div class="sv-note sp">特殊強化: <span class="no-gl">${tree[cat].paths[P.cs[cat]].sp.name}</span></div>`;
     }
     if (!any) h += '<div class="dim sv-note">まだありません</div>';
     h += '<div class="sv-g">武器</div>' + Object.keys(P.weapons).map(k => {

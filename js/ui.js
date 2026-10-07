@@ -381,9 +381,9 @@ const UI = (() => {
       const CAT = { trait: ['特性', '#ff5d73'], passive: ['パッシブ', '#5dff8a'], q: ['スキル Q', '#ffd23f'], e: ['スキル E', '#ffb7d5'] }[c.cat];
       ic = `<div class="cls-ic" style="--cc:${CAT[1]}">${C.name[0]}${c.sp ? '<i>★</i>' : ''}</div>`;
       const tag = `<span class="cls-cat" style="--cc:${CAT[1]}">${CAT[0]}</span>`; // 見出しの行に並べるカテゴリの札
-      if (c.sp) { name = d.sp.name; head = tag + 'SPECIAL'; rar = 'legend'; body = `<p>${d.sp.desc}</p>`; foot = `<div class="evohint"><span>${C.name}「${d.name}」の派生 ・ ${C.name}の特殊強化は1つだけ</span></div>`; }
+      if (c.sp) { name = `<span class="no-gl">${d.sp.name}</span>`; head = tag + 'SPECIAL'; rar = 'legend'; body = `<p>${d.sp.desc}</p>`; foot = `<div class="evohint"><span>${C.name}「<span class="no-gl">${d.name}</span>」の派生 ・ ${C.name}の特殊強化は1つだけ</span></div>`; }
       else {
-        head = tag + `Lv ${lv} → ${lv + 1}`; name = `<small>${C.name}</small>${d.name}`; rar = lv + 1 === 3 ? 'epic' : 'rare';
+        head = tag + `Lv ${lv} → ${lv + 1}`; name = `<small>${C.name}</small><span class="no-gl">${d.name}</span>`; // パス名(威力・迅速など)は用語ではないので印を付けない rar = lv + 1 === 3 ? 'epic' : 'rare';
         // Lv1 以上は「今 → 次」の2行(Lv1 の説明の「基本の値 → Lv1 の値」は、今の行では Lv1 の値だけ)
         body = lv ? `<div class="cd-lv now"><em>今</em><div>${d.desc[lv - 1].replace(/\S+ → (\S+)/, '$1')}</div></div><div class="cd-lv"><em>次</em><div>${d.desc[lv]}</div></div>` : `<p>${d.desc[0]}</p>`;
         if (lv + 1 === 3 && !P.cs[c.cat]) body += `<div class="cd-sp">Lv3 で特殊強化「${d.sp.name}」が候補に出る</div>`; // このカテゴリの特殊強化をまだ取っていないとき
