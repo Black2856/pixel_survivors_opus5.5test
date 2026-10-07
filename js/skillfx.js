@@ -56,9 +56,9 @@ function fxAdd(kind, o) {
 function fxSigil(x, y, r, col, o = {}) {
   return fxAdd('sigil', Object.assign({ x, y, r, col, wu: 0.3, life: 0.65, sq: 0.5, spin: 1.2, glow: 0.6, rot0: Math.random() * TAU }, o.style ? {} : SIGIL[P.cls] || SIGIL.mage, o));
 }
-// 光芒: 点から放射状に伸びる光の筋(炸裂の瞬間)。n: 本数 / r: 長さ / core: 根元の色 / r0: 根元の半径(中心は空けて、重なって白く飛ばないように)
+// 光芒: 点から放射状に伸びる光の筋(炸裂の瞬間)。n: 本数 / r: 長さ / core: 根元の色 / r0: 根元の半径(中心は空けて、重なって白く飛ばないように)/ light: まわりを照らす強さ
 function fxRays(x, y, r, col, o = {}) {
-  return fxAdd('rays', Object.assign({ x, y, r, col, core: col, n: 12, life: 0.35, sq: 1, spin: 0.6, a0: Math.random() * TAU, r0: Math.max(5, r * 0.12) }, o, { n: fxN(o.n || 12) }));
+  return fxAdd('rays', Object.assign({ x, y, r, col, core: col, n: 12, life: 0.35, sq: 1, spin: 0.6, a0: Math.random() * TAU, r0: Math.max(5, r * 0.12), light: 0.8 }, o, { n: fxN(o.n || 12) }));
 }
 // 集中線: 画面の縁から (x, y) へ集まる細い線(Q の構え)。画面の座標で描く
 function fxFocus(x, y, life, col, o = {}) {
@@ -116,12 +116,13 @@ function updSkillFx(dt) {
 // ---------- 描く ----------
 // layer: 0 = 地面の跡(ゾーンより下)/ 1 = 陣(ゾーンの上・敵より奥)/ 2 = 手前(光芒・光の柱・きらめき)/ 3 = 画面(集中線)
 //   front: 陣を手前に描く(空に浮かぶ陣など)
+//   foe: ボスの攻撃の演出(o.foe = true で作ったもの)。自分の攻撃の層の外に描くので、攻撃の濃さの設定で薄くならない。自分が倒れていても描く
 const SFX_LAYER = { decal: 0, sigil: 1, rays: 2, beam: 2, glint: 2, focus: 3 };
-function drawSkillFx(layer) {
-  if (!sfx.length || P.dead) return;
+function drawSkillFx(layer, foe = false) {
+  if (!sfx.length || (!foe && P.dead)) return;
   const sx = GFX.sctx, gx = GFX.gctx;
   for (const f of sfx) {
-    if (f.t < 0 || (f.front ? 2 : SFX_LAYER[f.kind]) !== layer) continue;
+    if (f.t < 0 || !!f.foe !== foe || (f.front ? 2 : SFX_LAYER[f.kind]) !== layer) continue;
     if (f.kind === 'decal') drawDecal(f, sx, gx);
     else if (f.kind === 'sigil') drawSigil(f, sx, gx);
     else if (f.kind === 'rays') drawRays(f, sx, gx);
@@ -283,7 +284,7 @@ function drawRays(f, sx, gx) {
     }
   }
   sx.globalAlpha = 1;
-  addLight(f.x, f.y, f.r * 2.2, f.col, 0.8 * fade);
+  addLight(f.x, f.y, f.r * 2.2, f.col, f.light * fade);
 }
 // 光の柱(1行ずつ。揺らぎ・炎は行ごとに横へずらす)
 function drawBeam(f, sx, gx) {

@@ -199,6 +199,9 @@ const AudioMan = (() => {
     cast(q)   { if (!this._ok('cast', 0.1)) return; if (q) { this.tone(65, 150, 0.5, { vol: 0.09, type: 'sine' }); this.noise(0.45, { vol: 0.06, f0: 300, f1: 3600, ftype: 'bandpass' }); this.tone(1320, 2640, 0.22, { vol: 0.022, type: 'triangle', delay: 0.1 }); } else { this.tone(990, 1980, 0.12, { vol: 0.028, type: 'triangle' }); this.noise(0.14, { vol: 0.04, f0: 1200, f1: 4800, ftype: 'bandpass' }); } },
     thump(q)  { if (!this._ok('thump', 0.08)) return; this.tone(q ? 115 : 140, 34, q ? 0.28 : 0.16, { vol: q ? 0.16 : 0.1, type: 'sine' }); this.noise(q ? 0.18 : 0.1, { vol: q ? 0.1 : 0.06, f0: 900, f1: 80 }); },
     impact()  { if (!this._ok('impact', 0.15)) return; this.tone(62, 22, 0.8, { vol: 0.2, type: 'sine' }); this.noise(0.6, { vol: 0.15, f0: 1400, f1: 40 }); this.tone(230, 55, 0.25, { vol: 0.05, type: 'triangle' }); },
+    // ボス: 技の直前の合図(小さく高い音)/ 大技の名乗り(低いうなり)
+    cue()     { if (this._ok('cue', 0.25)) this.tone(1900, 2500, 0.07, { vol: 0.022, type: 'triangle' }); },
+    bossCast() { if (!this._ok('bossCast', 0.5)) return; this.tone(98, 49, 0.65, { vol: 0.09, type: 'sawtooth' }); this.tone(147, 73, 0.55, { vol: 0.05, type: 'sawtooth', delay: 0.04 }); this.noise(0.5, { vol: 0.07, f0: 400, f1: 2200, ftype: 'bandpass' }); },
     sparkle() { if (!this._ok('sparkle', 0.08)) return; this.tone(2400, 3600, 0.1, { vol: 0.022, type: 'sine' }); this.tone(3600, 4800, 0.12, { vol: 0.016, type: 'sine', delay: 0.05 }); },
   };
   return A;

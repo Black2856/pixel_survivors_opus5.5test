@@ -908,6 +908,7 @@ function render() {
     }
   }
   mineOff();
+  drawSkillFx(0, true); drawSkillFx(1, true); // ボスの攻撃の地面の跡・陣(攻撃の濃さで薄くならない)
 
   // ---- ボスの設置物(自分の範囲より手前。縁は赤で危険を示す) ----
   const warnBlink = Math.floor(t * 8) % 2;
@@ -1207,6 +1208,7 @@ function render() {
     drawSp(sp, d.x, d.y + bob + d.z);
   }
 
+  drawBossCharge(t); // ボスの構え: 足元に縮んでいく危険の輪
   // ---- 敵(Yソート) ----
   const vis = enemies.filter(e => !e.dead && onScreen(e.x, e.y, 30));
   vis.sort((a, b) => a.y - b.y);
@@ -1570,6 +1572,7 @@ function render() {
   // ======== 敵の攻撃(最前面): ボスの技・敵弾・予兆 ========
   for (const b of S.bosses || []) if (!b.dead) drawBossFx(b); // 双王(カオス)の2体目の技も描く
   drawBfx();
+  drawSkillFx(2, true); // ボスの攻撃の光芒・光の柱・きらめき
   drawSlashes(true);
   drawParts(false);
   drawRings(false);
@@ -1627,10 +1630,12 @@ function render() {
     addLight(p.x, p.y, (p.kind === 'boomer' ? 40 : p.kind === 'efire' ? 34 : 22) * A, p.kind === 'efire' && !stop ? '#ff6a2a' : oc, stop ? 0.2 : 0.6);
   }
   // 予兆: 赤い半透明の塗り(時間とともに内側が満ちる) + 点滅する縁
+  //   当たる時を示す動き: 円は外から縁へ縮む輪 / 帯は攻撃の向きへ流れる山形 / 扇は外から縁へ縮む弧。当たった瞬間は形が一瞬白く光る(snap)
   const edge = warnBlink ? '#ff3b5c' : '#ffd0d8';
   for (const w of warns) {
     if (w.ink && S.inInk) continue; // 墨だまりの中では触手の予告が見えない
     const k = w.t / w.life, wx = w.x - cam.x, wy = w.y - cam.y;
+    if (w.snap) { drawWarnSnap(w, wx, wy, 1 - k); continue; }
     if (w.kind === 'line') {
       const ca = Math.cos(w.a), sa = Math.sin(w.a), nx = -sa * w.w / 2, ny = ca * w.w / 2;
       const quad = (len, a) => {
@@ -1643,6 +1648,13 @@ function render() {
         pLine(sx, wx + nx * s, wy + ny * s, wx + ca * w.len + nx * s, wy + sa * w.len + ny * s, edge);
         pLine(gx, wx + nx * s, wy + ny * s, wx + ca * w.len + nx * s, wy + sa * w.len + ny * s, '#ff3b5c');
       }
+      const cw = Math.min(w.w * 0.3, 7), off = (t * 60) % 14; // 攻撃の向きへ流れる山形(>)
+      sx.globalAlpha = 0.25 + 0.35 * k;
+      for (let d = off + 5; d < w.len - 4; d += 14) {
+        const cx = wx + ca * d, cy = wy + sa * d;
+        for (const s of [-1, 1]) pLine(sx, cx + ca * 3, cy + sa * 3, cx - ca * 2 - sa * cw * s, cy - sa * 2 + ca * cw * s, '#ff3b5c');
+      }
+      sx.globalAlpha = 1;
     } else if (w.kind === 'fan') { // 扇: 塗り(内側から満ちる)+ 点滅する弧と両端
       const R = w.r, sector = (rr, al) => { if (rr < 1) return; sx.globalAlpha = al; sx.fillStyle = '#ff3b5c'; sx.beginPath(); sx.moveTo(wx, wy); sx.arc(wx, wy, rr, w.a - w.h, w.a + w.h); sx.closePath(); sx.fill(); };
       sector(R, 0.18); sector(R * (w.noFill ? 0 : k), 0.22); sx.globalAlpha = 1;
@@ -1652,11 +1664,18 @@ function render() {
         sx.fillStyle = edge; sx.fillRect(px, py, 1, 1); gx.fillStyle = '#ff3b5c'; gx.fillRect(px, py, 1, 1);
       }
       for (const s of [-1, 1]) { const ex = wx + Math.cos(w.a + s * w.h) * R, ey = wy + Math.sin(w.a + s * w.h) * R; pLine(sx, wx, wy, ex, ey, edge); pLine(gx, wx, wy, ex, ey, '#ff3b5c'); }
+      if (k < 1) { // 外から縁へ縮む弧(当たる時)
+        const TR = R * (1 + 0.25 * (1 - k)), m = Math.ceil(TR * w.h * 2);
+        sx.globalAlpha = 0.25 + 0.5 * k; sx.fillStyle = '#ff3b5c'; gx.fillStyle = dimCol('#ff3b5c', 0.3 + 0.4 * k);
+        for (let i = 0; i <= m; i += 2) { const aa = w.a - w.h + 2 * w.h * i / Math.max(1, m), px = Math.round(wx + Math.cos(aa) * TR), py = Math.round(wy + Math.sin(aa) * TR); sx.fillRect(px, py, 1, 1); gx.fillRect(px, py, 1, 1); }
+        sx.globalAlpha = 1;
+      }
     } else {
       const R = Math.round(w.r);
       sx.globalAlpha = 0.18; pDisc(sx, wx, wy, R, '#ff3b5c');
       sx.globalAlpha = 0.22; pDisc(sx, wx, wy, Math.round(R * k), '#ff3b5c'); sx.globalAlpha = 1;
       pCircle(sx, wx, wy, R, edge); pCircle(gx, wx, wy, R, '#ff3b5c');
+      if (k < 1) { const TR = Math.round(R * (1 + 0.35 * (1 - k))); sx.globalAlpha = 0.25 + 0.5 * k; pCircle(sx, wx, wy, TR, '#ff3b5c', 2); sx.globalAlpha = 1; pCircle(gx, wx, wy, TR, dimCol('#ff3b5c', 0.3 + 0.4 * k), 2); } // 外から縁へ縮む輪(当たる時)
     }
   }
   // エリート群: 画面の外にいるエリートの方向を、画面の縁に赤い二重の矢印で示す
@@ -1713,6 +1732,42 @@ function grayOf(img) {
   for (let i = 0; i < p.length; i += 4) { const v = Math.min(255, (p[i] * 0.3 + p[i + 1] * 0.59 + p[i + 2] * 0.11) * 0.8 + 40); p[i] = v; p[i + 1] = v; p[i + 2] = Math.min(255, v + 10); }
   x.putImageData(d, 0, 0); GRAY_IMG.set(img, c);
   return c;
+}
+// 予告が終わった瞬間(当たる瞬間): 同じ形が一瞬白く光って消える(f: 残りの濃さ 1 → 0)
+//   面は場面の層に薄く塗るだけ(光の層に面を描くと、着弾の閃光と重なって形の全体が白く飛ぶ)。光らせるのは縁だけ
+function drawWarnSnap(w, wx, wy, f) {
+  const sx = GFX.sctx, gx = GFX.gctx, ge = dimCol('#ff3b5c', 0.8 * f); // 光の層は色で弱める
+  const edge = (x0, y0, x1, y1) => { sx.globalAlpha = f; pLine(sx, x0, y0, x1, y1, '#ffffff'); pLine(gx, x0, y0, x1, y1, ge); };
+  sx.fillStyle = '#ffd0d8';
+  if (w.kind === 'line') {
+    const ca = Math.cos(w.a), sa = Math.sin(w.a), nx = -sa * w.w / 2, ny = ca * w.w / 2;
+    sx.globalAlpha = 0.22 * f; sx.beginPath(); sx.moveTo(wx + nx, wy + ny); sx.lineTo(wx + ca * w.len + nx, wy + sa * w.len + ny); sx.lineTo(wx + ca * w.len - nx, wy + sa * w.len - ny); sx.lineTo(wx - nx, wy - ny); sx.fill();
+    for (const s of [-1, 1]) edge(wx + nx * s, wy + ny * s, wx + ca * w.len + nx * s, wy + sa * w.len + ny * s);
+  } else if (w.kind === 'fan') {
+    if (w.r >= 1) {
+      sx.globalAlpha = 0.22 * f; sx.beginPath(); sx.moveTo(wx, wy); sx.arc(wx, wy, w.r, w.a - w.h, w.a + w.h); sx.closePath(); sx.fill();
+      for (const s of [-1, 1]) edge(wx, wy, wx + Math.cos(w.a + s * w.h) * w.r, wy + Math.sin(w.a + s * w.h) * w.r);
+      const m = Math.ceil(w.r * w.h * 2); sx.globalAlpha = f; sx.fillStyle = '#ffffff'; gx.fillStyle = ge; // 弧の縁(1px の点)
+      for (let i = 0; i <= m; i++) { const aa = w.a - w.h + 2 * w.h * i / Math.max(1, m), px = Math.round(wx + Math.cos(aa) * w.r), py = Math.round(wy + Math.sin(aa) * w.r); sx.fillRect(px, py, 1, 1); gx.fillRect(px, py, 1, 1); }
+    }
+  } else {
+    const R = Math.round(w.r * (1 + 0.12 * (1 - f))); // 少し広がりながら消える
+    sx.globalAlpha = 0.22 * f; pDisc(sx, wx, wy, R, '#ffd0d8'); sx.globalAlpha = f; pCircle(sx, wx, wy, R, '#ffffff'); pCircle(gx, wx, wy, R, ge);
+  }
+  sx.globalAlpha = 1;
+}
+// ボスの構え(予備動作。windup の間): 足元に縮んでいく赤い破線の輪(回る)と、ボスの色の内側の輪。溜まるほど明るい
+//   技の直前の頭上の赤いきらめきは world.js の bossAI
+function drawBossCharge(t) {
+  const sx = GFX.sctx, gx = GFX.gctx;
+  for (const e of S.bosses || []) {
+    const ai = e.ai;
+    if (e.dead || !ai || !(ai.wind > 0) || !ai.windT || !onScreen(e.x, e.y, 80)) continue;
+    const u = clamp(1 - ai.wind / ai.windT, 0, 1), cx = e.x - cam.x, cy = e.y - cam.y + e.r * 0.6, R = e.r * (2.3 - 1.2 * easeOutCubic(u)), q = 0.42;
+    ellBoth(sx, gx, cx, cy, R, R * q, '#ff3b5c', 0.3 + 0.45 * u, dimCol('#ff3b5c', 0.2 + 0.5 * u), 12, t * 3);
+    ellBoth(sx, gx, cx, cy, e.r * 0.95, e.r * 0.95 * q, e.col, 0.2 + 0.35 * u, dimCol(e.col, 0.15 + 0.3 * u));
+    addLight(e.x, e.y, e.r * 3 + 40 * u, '#ff3b5c', 0.2 + 0.45 * u);
+  }
 }
 // ボス固有の付随表現(ゴーレムの拳・掲げた岩 / ドラゴンのブレス・ビーム・溜め)
 function drawBossFx(e) {
@@ -2358,7 +2413,13 @@ function updFx(dt) {
     p.x += p.vx * dt; p.y += p.vy * dt;
   }
   for (let i = floats.length - 1; i >= 0; i--) { const f = floats[i]; f.t += dt; f.y += f.vy * dt; f.vy *= Math.exp(-5 * dt); if (f.t >= f.life) floats.splice(i, 1); }
-  for (const arr of [rings, slashes, bolts, warns, flashes, bfx]) for (let i = arr.length - 1; i >= 0; i--) { arr[i].t += dt; if (arr[i].t >= arr[i].life || (arr === warns && arr[i].owner && arr[i].owner.dead)) arr.splice(i, 1); } // 予兆は出した敵が倒れたら消す
+  for (const arr of [rings, slashes, bolts, warns, flashes, bfx]) for (let i = arr.length - 1; i >= 0; i--) {
+    const o = arr[i], gone = arr === warns && o.owner && o.owner.dead; // 予兆は出した敵が倒れたら消す
+    o.t += dt;
+    if (o.t < o.life && !gone) continue;
+    if (arr === warns && !gone && !o.snap) warns.push({ kind: o.kind, x: o.x, y: o.y, a: o.a, r: o.r, h: o.h, len: o.len, w: o.w, ink: o.ink, snap: true, t: 0, life: 0.12 }); // 当たる瞬間: 同じ形が一瞬光る
+    arr.splice(i, 1);
+  }
   // 斬撃のイベント(鬼神・村正の一閃など): 決まった時刻に一度だけ。処理中に slashes が増えてもいいように、集めてから実行する
   const due = [];
   for (const s of slashes) if (s.ev) for (const ev of s.ev) if (!ev.done && s.t >= ev.at) { ev.done = true; due.push([ev.fn, !s.enemy]); }
