@@ -24,6 +24,7 @@ const fxN = n => Math.max(1, Math.round(n * Math.min(1, 0.4 + gq().parts))); // 
 //   rune: 魔法陣(外の二重円・ルーンの銘・内の円・星形) / aura: 気の輪(破線の輪が回り、外から内へ気の筋が集まる)
 //   n / step: 星形の頂点の数と結ぶ間隔(5 / 2 = 五芒星)。mark: 中の模様(cross 十字 / snow 雪の結晶 / reticle 照準 / spokes 放射 / cracks 地割れ)
 //   飾り: flame 縁に揺れる炎 / crackle 縁を走る稲妻 / wisps 縁を回る鬼火 / stars 中に瞬く星
+//   hi: 白く光らせる所(星形の頂点・中心・放つ瞬間)の色。白や淡い色を使わないクラス(ブラッドアサシンの血の色・ネクロマンサーの濃い紫など)は芯の色
 const SIGIL = {
   samurai: { style: 'aura', mark: 'spokes', n: 8 },
   mage: { style: 'rune', n: 5, step: 2 },
@@ -33,10 +34,10 @@ const SIGIL = {
   cryo: { style: 'rune', mark: 'snow' },
   electro: { style: 'rune', n: 6, step: 2, crackle: true },
   cleric: { style: 'rune', n: 8, step: 3 },
-  assassin: { style: 'rune', n: 5, step: 2 },
-  necro: { style: 'rune', n: 5, step: 2, wisps: true },
-  astro: { style: 'rune', n: 7, step: 3, stars: true },
-  berserker: { style: 'aura', mark: 'cracks', n: 6 },
+  assassin: { style: 'rune', n: 5, step: 2, hi: '#d0142a' },
+  necro: { style: 'rune', n: 5, step: 2, wisps: true, hi: '#c8b4ff' },
+  astro: { style: 'rune', n: 7, step: 3, stars: true, hi: '#ffd8f2' },
+  berserker: { style: 'aura', mark: 'cracks', n: 6, hi: '#b8402a' },
   weaponmaster: { style: 'aura', mark: 'spokes', n: 8 },
 };
 
@@ -67,9 +68,9 @@ function fxFocus(x, y, life, col, o = {}) {
 function fxBeam(x, y, o = {}) {
   return fxAdd('beam', Object.assign({ x, y, w: 4, H: 150, col: '#ffe38a', mid: null, core: '#ffffff', life: 0.5, drop: 0.07, wob: 0, zig: 0, up: false }, o));
 }
-// きらめき: 4方向の光の十字(大きくなって消える)
+// きらめき: 4方向の光の十字(大きくなって消える)。core: 中心の色
 function fxGlint(x, y, r, col, o = {}) {
-  return fxAdd('glint', Object.assign({ x, y, r, col, life: 0.25 }, o));
+  return fxAdd('glint', Object.assign({ x, y, r, col, core: '#ffffff', life: 0.25 }, o, { core: o.core || '#ffffff' }));
 }
 // 地面の跡(数秒で消える): scorch 焦げ跡と燻る火の粉 / crack 地割れ(芯が赤熱して冷える)/ frost 霜の結晶 / scar 斬撃の跡(o.hx, o.hy: 中心から端までの向きと長さ)
 //   col: 焦げ・ひびの色 / hot: 光る芯・火の粉の色
@@ -157,7 +158,7 @@ function drawSigil(f, sx, gx) {
   const rel = T > wu ? (T - wu) / Math.max(0.01, f.life - wu) : 0, flash = wu > 0 && T >= wu && T - wu < 0.07; // 放った瞬間は白く
   const grow = easeOutBack(Math.min(1, T / clamp((wu || 0.2) * 0.55, 0.1, 0.3))); // 開く(溜めが長くても 0.3秒で開ききる)
   const R = f.r * (0.5 + 0.5 * grow) * (1 + 0.45 * easeOutCubic(rel)), q = f.sq, fade = (1 - rel) * (1 - rel) * (f.dim ?? 1);
-  const lit = (0.45 + 0.55 * charge) * fade, col = flash ? '#ffffff' : f.col;
+  const hi = f.hi || '#ffffff', lit = (0.45 + 0.55 * charge) * fade, col = flash ? hi : f.col;
   const cx = f.x - cam.x, cy = f.y - cam.y, rot = f.rot0 + T * f.spin * (1 + 1.5 * charge);
   const G = k => dimCol(f.col, Math.min(1, k * f.glow * (flash ? 1.6 : 1) * lit));
   const al = k => Math.min(1, k * lit);
@@ -194,7 +195,7 @@ function drawSigil(f, sx, gx) {
         const a0 = rot + i * TAU / n, a1 = rot + ((i + st) % n) * TAU / n;
         lineBoth(sx, gx, cx + Math.cos(a0) * ri, cy + Math.sin(a0) * ri * q, cx + Math.cos(a1) * ri, cy + Math.sin(a1) * ri * q, col, al(0.9), G(0.7));
       }
-      sx.globalAlpha = al(1); sx.fillStyle = '#ffffff'; // 頂点の光
+      sx.globalAlpha = al(1); sx.fillStyle = hi; // 頂点の光
       for (let i = 0; i < n; i++) { const a = rot + i * TAU / n; sx.fillRect(Math.round(cx + Math.cos(a) * ri), Math.round(cy + Math.sin(a) * ri * q), 1, 1); }
     }
   }
@@ -223,12 +224,12 @@ function drawSigil(f, sx, gx) {
   if (f.stars) for (let i = 0; i < 10; i++) { // 中に瞬く星
     const a = hash2(i, 3) * TAU + rot * 0.3, d = Math.sqrt(hash2(i, 5)) * R * 0.9, tw = 0.5 + 0.5 * Math.sin(T * 9 + i * 1.7);
     const x = Math.round(cx + Math.cos(a) * d), y = Math.round(cy + Math.sin(a) * d * q);
-    sx.globalAlpha = al(tw); sx.fillStyle = i % 3 ? '#ffd8f2' : '#ffffff'; sx.fillRect(x, y, 1, 1);
+    sx.globalAlpha = al(tw); sx.fillStyle = i % 3 ? f.col : hi; sx.fillRect(x, y, 1, 1);
     gx.fillStyle = G(tw * 0.8); gx.fillRect(x, y, 1, 1);
   }
   sx.globalAlpha = 1;
   // 中心のきらめきと、陣が足元を照らす光
-  if (charge >= 1 && rel < 0.35) { sx.globalAlpha = al(1); sx.fillStyle = '#ffffff'; sx.fillRect(Math.round(cx) - 1, Math.round(cy), 3, 1); sx.fillRect(Math.round(cx), Math.round(cy) - 1, 1, 3); sx.globalAlpha = 1; }
+  if (charge >= 1 && rel < 0.35) { sx.globalAlpha = al(1); sx.fillStyle = hi; sx.fillRect(Math.round(cx) - 1, Math.round(cy), 3, 1); sx.fillRect(Math.round(cx), Math.round(cy) - 1, 1, 3); sx.globalAlpha = 1; }
   addLight(f.x, f.y, R * 3.2, f.col, Math.min(1, 0.55 * lit * (flash ? 1.8 : 1)));
 }
 // 陣の中の模様
@@ -315,11 +316,11 @@ function drawBeam(f, sx, gx) {
 function drawGlint(f, sx, gx) {
   const k = f.t / f.life, r = Math.round(f.r * Math.sin(Math.PI * Math.min(1, k * 1.15))), x = Math.round(f.x - cam.x), y = Math.round(f.y - cam.y);
   if (r < 1) return;
-  sx.globalAlpha = 1; sx.fillStyle = '#ffffff'; sx.fillRect(x, y, 1, 1);
+  sx.globalAlpha = 1; sx.fillStyle = f.core; sx.fillRect(x, y, 1, 1);
   gx.fillStyle = dimCol(f.col, 0.9); gx.fillRect(x, y, 1, 1);
   for (let i = 1; i <= r; i++) {
     const a = 1 - i / (r + 1), d = i <= r / 2;
-    sx.globalAlpha = a; sx.fillStyle = i === 1 ? '#ffffff' : f.col; gx.fillStyle = dimCol(f.col, a * 0.8);
+    sx.globalAlpha = a; sx.fillStyle = i === 1 ? f.core : f.col; gx.fillStyle = dimCol(f.col, a * 0.8);
     for (const [ox, oy] of [[i, 0], [-i, 0], [0, i], [0, -i]]) { sx.fillRect(x + ox, y + oy, 1, 1); gx.fillRect(x + ox, y + oy, 1, 1); }
     if (d && i < 3) for (const [ox, oy] of [[i, i], [-i, -i], [i, -i], [-i, i]]) sx.fillRect(x + ox, y + oy, 1, 1);
   }

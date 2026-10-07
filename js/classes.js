@@ -62,11 +62,11 @@ function setCd(slot, sec) {
   if (clsRT() && clsRT().onSkill) clsRT().onSkill(slot); // スキル使用(メイジの余韻など)
 }
 function playAnim(name, dur, arg) { P.anim = { name, t: 0, dur, arg }; } // arg: モーションに渡す値(乱れ桜の持続時間など)
-// スキル名のカットイン(画面を横切る帯)と構えの演出。slot: 'e' / 'q'。o: カットインの指定(sub: 2行目)。足元の陣を返す
+// スキル名のカットイン(画面を横切る帯)と構えの演出。slot: 'e' / 'q'。o: カットインの指定(sub: 2行目)/ o.fx: ゲーム画面の演出の色(淡い色はブルームで白く飛ぶので、濃い色を渡す。なければ col)。足元の陣を返す
 function skillCall(name, col, slot = 'e', o = {}) {
   const q = slot === 'q';
   UI.skillCut(name, col, q, Object.assign(q ? { glyph: clsRT().qInfo().glyph } : { icon: P.mainW }, o));
-  return skillWind(col, slot);
+  return skillWind(o.fx || col, slot, col);
 }
 // 撃ち続けるスキル(乱れ桜・バラージュ・火炎放射): 足元の陣を使っている間も残し、終わりに光らせる
 const sigilKeep = (sg, dur) => { sg.wu += dur; sg.life += dur; };
@@ -74,11 +74,12 @@ const sigilKeep = (sg, dur) => { sg.wu += dur; sg.life += dur; };
 const skillWindup = slot => (slot === 'q' ? DATA.classes[P.cls].q.windup : (weaponSkill() || {}).windup) || 0;
 // 構え: 足元の陣(溜めの間に開いて明るくなり、放つ瞬間に白く光って広がる。形はクラスごと: skillfx.js の SIGIL)
 //   Q はさらに画面の縁から集中線が集まり、周りが少し暗くなる(clsUpdate)。構えのないスキルはすぐ放つ
-function skillWind(col, slot) {
+//   line: 集中線の色(カットインの色)
+function skillWind(col, slot, line = col) {
   const q = slot === 'q', W = skillWindup(slot);
   (P.skCol || (P.skCol = {}))[slot] = col;
   const sg = fxSigil(P.x, P.y + 6, q ? 26 : 17, col, { follow: P, oy: 6, wu: W, life: W + 0.4 });
-  if (q) fxFocus(P.x, P.y - 4, W + 0.22, col, { follow: P, oy: -4 });
+  if (q) fxFocus(P.x, P.y - 4, W + 0.22, line, { follow: P, oy: -4 });
   AudioMan.cast(q);
   if (W <= 0) skillRelease(slot);
   return sg;
@@ -88,7 +89,7 @@ function skillRelease(slot) {
   const q = slot === 'q', col = (P.skCol && P.skCol[slot]) || DATA.classes[P.cls].col;
   asMine(() => {
     addRing(P.x, P.y + 6, q ? 34 : 22, col, { r0: 6, w: 2, life: 0.32 });
-    fxGlint(P.x + P.facing * 4, P.y - 9, q ? 8 : 5, col, { life: 0.22 });
+    fxGlint(P.x + P.facing * 4, P.y - 9, q ? 8 : 5, col, { life: 0.22, core: (SIGIL[P.cls] || {}).hi });
   });
   AudioMan.thump(q);
 }
@@ -116,7 +117,7 @@ const WEAPON_SKILL = {
       P.act = Object.assign(ranbuState(ME, clsESkillMul() * (1 + (m.ePow || 0))), { slot: 'e', ph: 'wind', t: 0 });
       playAnim('ranbu', MOTIONS.ranbu.duration(P.act.dur), P.act.dur);
       setCd('e', sk.cd * (1 - cuV('e', 'cd')) * (1 - (m.cd || 0)) * P.cdMul); // 熟練のクールダウンは武器スキルにも効く
-      sigilKeep(skillCall(sk.name, '#ffb7d5'), P.act.dur); AudioMan.click();
+      sigilKeep(skillCall(sk.name, '#ffb7d5', 'e', { fx: '#e8357f' }), P.act.dur); AudioMan.click();
       burst(P.x, P.y, 12, ['#ffb7d5', '#ffffff'], { sp: 40, up: 20, glow: true });
     },
     update(a, dt) {
@@ -159,7 +160,6 @@ function ranbuStep(X, a, dt) {
   for (let n = dt * 45 * SET.fxA; Math.random() < n; n--) ranbuCut(X); // あちこちで流れるような斬撃(毎秒 約45本)
   if (a.u < a.dur) return false;
   if (X.sp('pow')) sakuraBurst(X, a); // 桜吹雪
-  else asMine(() => { fxGlint(X.x + (X.face || 1) * 6, X.y - 8, 8, '#e8357f', { life: 0.26 }); burst(X.x, X.y - 4, 16, ['#ffb7d5', '#ff8ac0', '#ffffff'], { sp: 80, up: 20, glow: true, life: 0.5, drag: 2 }); }); // 納刀: 刀がきらめき、花びらが散る
   return true;
 }
 // アーケイン・バラージュ(マジックボルトの E): 詠唱 → 照準方向へ連射(連射中も普通に動ける)。魔力障壁(持続の特殊強化)では撃破で連射が伸びる
@@ -291,7 +291,7 @@ WEAPON_SKILL.longbow = {
     P.act = { slot: 'e', ph: 'wind', t: 0, x: t.x, y: t.y, pow: clsESkillMul() * (1 + (m.ePow || 0)) };
     setCd('e', sk.cd * (1 - cuV('e', 'cd')) * (1 - (m.cd || 0)) * P.cdMul);
     playAnim('aRain', MOTIONS.aRain.dur);
-    skillCall(sk.name, '#b8ff9a'); AudioMan.click();
+    skillCall(sk.name, '#b8ff9a', 'e', { fx: '#5ad87a' }); AudioMan.click();
   },
   update(a, dt) {
     const sk = weaponSkill();
@@ -351,7 +351,7 @@ WEAPON_SKILL.longsword = {
     P.act = { slot: 'e', ph: 'wind', t: 0, a, pow: clsESkillMul() * (1 + (m.ePow || 0)) };
     setCd('e', sk.cd * (1 - cuV('e', 'cd')) * (1 - (m.cd || 0)) * P.cdMul);
     playAnim('kSlam', MOTIONS.kSlam.dur);
-    skillCall(sk.name, '#ffe9a0'); AudioMan.click();
+    skillCall(sk.name, '#ffe9a0', 'e', { fx: '#e0b040' }); AudioMan.click();
     fxGlint(P.x, P.y - 20, 9, '#ffe9a0', { t: -Math.max(0, sk.windup - 0.14), life: 0.26 }); // 振りかぶった剣がきらめく
   },
   update(a, dt) {
@@ -542,7 +542,7 @@ WEAPON_SKILL.blade = {
     P.act = { slot: 'e', ph: 'wind', t: 0 };
     setCd('e', sk.cd * (1 - cuV('e', 'cd')) * (1 - (m.cd || 0)) * P.cdMul);
     playAnim('bRing', MOTIONS.bRing.dur);
-    skillCall(sk.name, '#d8e4ff'); AudioMan.click();
+    skillCall(sk.name, '#d8e4ff', 'e', { fx: '#8ea6d8' }); AudioMan.click();
   },
   update(a, dt) {
     const sk = weaponSkill(), m = P.wm.blade || {};
@@ -639,7 +639,7 @@ WEAPON_SKILL.wisp = {
     P.act = { slot: 'e', ph: 'wind', t: 0, pow: clsESkillMul() * (1 + (m.ePow || 0)) };
     setCd('e', sk.cd * (1 - cuV('e', 'cd')) * (1 - (m.cd || 0)) * P.cdMul);
     playAnim('nStorm', MOTIONS.nStorm.dur);
-    skillCall(sk.name, '#9dffcf'); AudioMan.click();
+    skillCall(sk.name, '#9dffcf', 'e', { fx: '#2fbf8a' }); AudioMan.click();
   },
   update(a, dt) {
     const sk = weaponSkill();
@@ -816,7 +816,7 @@ WEAPON_SKILL.blizzard = {
     P.act = { slot: 'e', ph: 'wind', t: 0, x: t.x, y: t.y, pow: clsESkillMul() * (1 + (m.ePow || 0)) };
     setCd('e', sk.cd * (1 - cuV('e', 'cd')) * (1 - (m.cd || 0)) * P.cdMul);
     playAnim('cIcicle', MOTIONS.cIcicle.dur);
-    skillCall(sk.name, '#bff4ff'); AudioMan.click();
+    skillCall(sk.name, '#bff4ff', 'e', { fx: '#7ad7ff' }); AudioMan.click();
   },
   update(a, dt) {
     const sk = weaponSkill();
@@ -866,7 +866,7 @@ WEAPON_SKILL.thunder = {
     P.act = { slot: 'e', ph: 'wind', t: 0, x: t.x, y: t.y, pow: clsESkillMul() * (1 + (m.ePow || 0)) };
     setCd('e', sk.cd * (1 - cuV('e', 'cd')) * (1 - (m.cd || 0)) * P.cdMul);
     playAnim('eSpark', MOTIONS.eSpark.dur);
-    skillCall(sk.name, '#9fd8ff'); AudioMan.click();
+    skillCall(sk.name, '#9fd8ff', 'e', { fx: '#4aa8f0' }); AudioMan.click();
   },
   update(a, dt) {
     const sk = weaponSkill();
@@ -913,7 +913,7 @@ WEAPON_SKILL.aura = {
     const sk = weaponSkill(), m = P.wm.aura || {};
     setCd('e', sk.cd * (1 - cuV('e', 'cd')) * (1 - (m.cd || 0)) * P.cdMul);
     playAnim('hStrike', MOTIONS.hStrike.dur); P.anim.keep = true;
-    skillCall(sk.name, '#ffe38a'); AudioMan.click();
+    skillCall(sk.name, '#ffe38a', 'e', { fx: '#e0b040' }); AudioMan.click();
     asMine(() => addRing(P.x, P.y - 18, 10, '#ffe38a', { w: 2, life: 0.4 }));
     holyStrike(ME, clsESkillMul() * (1 + (m.ePow || 0)));
   },
@@ -956,7 +956,7 @@ WEAPON_SKILL.bhole = {
     P.act = { slot: 'e', ph: 'wind', t: 0, pow: clsESkillMul() * (1 + (m.ePow || 0)) };
     setCd('e', sk.cd * (1 - cuV('e', 'cd')) * (1 - (m.cd || 0)) * P.cdMul);
     playAnim('gRift', MOTIONS.gRift.dur);
-    skillCall(sk.name, '#c78bff'); AudioMan.click();
+    skillCall(sk.name, '#c78bff', 'e', { fx: '#9a5ad0' }); AudioMan.click();
   },
   update(a, dt) {
     const sk = weaponSkill();
@@ -1087,7 +1087,7 @@ WEAPON_SKILL.axe = {
     P.act = { slot: 'e', ph: 'wind', t: 0, pow: clsESkillMul() * (1 + (m.ePow || 0)), add: paid * sk.hpK };
     setCd('e', sk.cd * (1 - cuV('e', 'cd')) * (1 - (m.cd || 0)) * P.cdMul);
     playAnim('zThrow', MOTIONS.zThrow.dur);
-    skillCall(sk.name, '#ffb070'); AudioMan.click();
+    skillCall(sk.name, '#ffb070', 'e', { fx: '#e07a3a' }); AudioMan.click();
   },
   update(a, dt) {
     const sk = weaponSkill();
@@ -1290,7 +1290,7 @@ function sakuraBurst(X, a) {
     addRing(x, y, R, '#ffb7d5', { w: 3, life: 0.5 }); addRing(x, y, R * 0.6, '#ffffff', { w: 2, life: 0.35 });
     addFlash(x, y, R * 2, '#ffb7d5', 0.5); shockAt(x, y, 1.6, 0.9);
     burst(x, y, 70, ['#ffb7d5', '#ff8ac0', '#ffffff'], { sp: 170, glow: true, life: 0.8, drag: 1.5 });
-    fxRays(x, y - 4, R * 1.3, '#e8357f', { n: 18, life: 0.42, core: '#ffd0e0' });
+    fxRays(x, y - 4, R * 1.3, '#a8185a', { n: 18, life: 0.42, core: '#e8357f' }); // 濃い桜色(淡い桃色は白く飛ぶ)
     hitstop(0.06); shake(8); screenFlash(0.3 * SET.fxA, '#ffb7d5');
   });
   AudioMan.boom(); AudioMan.impact();
@@ -1641,7 +1641,7 @@ const CLASS_RT = {
       P.act = { slot: 'q', ph: 'wind', t: 0 };
       playAnim('aVolley', MOTIONS.aVolley.dur);
       slowmo(0.5, 0.2);
-      skillCall(q.name, '#7dff9a', 'q'); AudioMan.click();
+      skillCall(q.name, '#7dff9a', 'q', { fx: '#4ad870' }); AudioMan.click();
     },
     qUpdate(a, dt) {
       const q = DATA.classes.archer.q;
@@ -1991,7 +1991,7 @@ const CLASS_RT = {
       P.act = { slot: 'q', ph: 'wind', t: 0 };
       playAnim('cDust', MOTIONS.cDust.dur);
       slowmo(0.5, 0.2);
-      skillCall(q.name, '#a8e8ff', 'q'); AudioMan.click();
+      skillCall(q.name, '#a8e8ff', 'q', { fx: '#7ad7ff' }); AudioMan.click();
     },
     qUpdate(a, dt) {
       const q = DATA.classes.cryo.q;
@@ -2096,7 +2096,7 @@ const CLASS_RT = {
       P.act = { slot: 'q', ph: 'wind', t: 0 };
       playAnim('eTower', MOTIONS.eTower.dur);
       slowmo(0.5, 0.2);
-      skillCall(q.name, '#fff27a', 'q'); AudioMan.click();
+      skillCall(q.name, '#fff27a', 'q', { fx: '#d8c040' }); AudioMan.click();
     },
     qUpdate(a, dt) {
       const q = DATA.classes.electro.q;
@@ -2217,7 +2217,7 @@ const CLASS_RT = {
       playAnim('hJudge', MOTIONS.hJudge.dur);
       fxSigil(P.x, P.y - 22, 9, '#ffe38a', { follow: P, oy: -22, style: 'rune', n: 8, step: 3, sq: 0.32, front: true, wu: q.windup, life: q.windup + 0.35, spin: 2.2, glow: 0.7 }); // 頭上の光の輪が広がって輝く
       slowmo(0.5, 0.2);
-      skillCall(q.name, '#ffe38a', 'q'); AudioMan.click();
+      skillCall(q.name, '#ffe38a', 'q', { fx: '#e0b040' }); AudioMan.click();
     },
     qUpdate(a, dt) {
       const q = DATA.classes.cleric.q;
@@ -2340,7 +2340,7 @@ const CLASS_RT = {
       P.act = { slot: 'q', ph: 'wind', t: 0, a };
       playAnim('bPact', MOTIONS.bPact.dur);
       slowmo(0.5, 0.2);
-      skillCall(q.name, '#c0204a', 'q'); AudioMan.click();
+      skillCall(q.name, '#c0204a', 'q', { fx: '#8e0016' }); AudioMan.click();
     },
     qUpdate(a, dt) {
       const q = DATA.classes.assassin.q;
@@ -2439,7 +2439,7 @@ const CLASS_RT = {
       P.act = { slot: 'q', ph: 'wind', t: 0, a };
       for (const s of P.souls) s.ph = 'gather';
       playAnim('nRite', MOTIONS.nRite.dur);
-      skillCall(q.name, '#a58cff', 'q'); AudioMan.click();
+      skillCall(q.name, '#a58cff', 'q', { fx: '#8a6cff' }); AudioMan.click();
     },
     qUpdate(a, dt) {
       const q = DATA.classes.necro.q;
