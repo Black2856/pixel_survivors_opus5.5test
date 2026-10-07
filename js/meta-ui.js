@@ -291,10 +291,10 @@ const MetaUI = (() => {
   // クリアしたものに ★。カオス強化はクリアするまで tier の値で固定(見るだけ)、クリアすると変えられる
   // 解放: 通常モードのステージは tier 1 が最初から、tier N は tier N−1 のステージを1つクリアすると。エスカレーション・闘技場は tier 4 のステージをクリアすると
   const TIER_COL = ['#9ff7ff', '#7dff9a', '#ff8a3d', '#c78bff'];
-  const startLvOf = key => { const m = chaosMods(key).find(x => x.k === 'startLv'); return 1 + chaosLv(chaosSetting(key), m) * m.per; }; // 開始の敵Lv(深い闇)
+  const startLvOf = key => { const m = chaosMods(key).find(x => x.k === 'startLv'); return (key === 'arena' ? DATA.arena.elv[0] : 1) + chaosLv(chaosSetting(key), m) * m.per; }; // 開始の敵Lv(闘技場は1ラウンド目の敵Lv)+ 深い闇
   const STAGE_ITEMS = () => [
-    { key: 'escalation', mode: 'escalation', n: 1, name: 'エスカレーション', sub: 'tier 1 → 4 を通す。tier ごとに同じ tier のステージからランダム(3分 → ボス)、最後は時計塔の死神', col: '#ffd23f' },
-    { key: 'arena', mode: 'arena', n: 1, name: '闘技場', sub: `ボス${DATA.arena.order.length}体の連戦`, col: '#ff3b5c' },
+    { key: 'escalation', mode: 'escalation', n: 1, name: 'エスカレーション', sub: `tier 1 → 4 を通す ・ 敵Lv ${startLvOf('escalation')} から`, col: '#ffd23f' },
+    { key: 'arena', mode: 'arena', n: 1, name: '闘技場', sub: `ボス${DATA.arena.order.length}体の連戦 ・ 敵Lv ${startLvOf('arena')} から`, col: '#ff3b5c' },
     ...DATA.stageRuns.map(R => ({ key: 'stage' + R.no, mode: 'stage', n: R.no, tier: R.tier, name: DATA.stages[R.stage - 1].label,
       sub: `tier ${R.tier} ・ 敵Lv ${startLvOf('stage' + R.no)} から ・ ${R.bosses.map(b => DATA.bosses[b].name.split(' ')[0]).join(' → ')}`, col: TIER_COL[R.tier - 1] }))
       .sort((a, b) => a.tier - b.tier), // 通常モード: tier の順
