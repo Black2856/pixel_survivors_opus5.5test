@@ -198,8 +198,9 @@
     </div>
   </div>
 
-  <div id="tooltip" class="hidden"></div>
 </div>
+<!-- ツールチップは #wrap の外(#wrap は position: fixed で重なりの層を作るので、中だと body 直下のモーダルの後ろになる) -->
+<div id="tooltip" class="hidden"></div>
 
 <script src="js/data.js"></script>
 <script src="js/art.js"></script>

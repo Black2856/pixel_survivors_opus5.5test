@@ -278,7 +278,7 @@ input[type=range] { width: 220px; accent-color: var(--gold); }
 @keyframes grow { from { width: 0 !important; } }
 
 /* ---------- ツールチップ ---------- */
-#tooltip { position: absolute; z-index: 200; max-width: 300px; padding: 10px 12px; font-size: 13px; line-height: 1.5; pointer-events: none; } /* モーダル・カオス強化の画面より手前 */
+#tooltip { position: fixed; z-index: 200; max-width: 300px; padding: 10px 12px; font-size: 13px; line-height: 1.5; pointer-events: none; } /* モーダル・カオス強化の画面より手前 */
 /* 説明文の用語: マウスを乗せると説明(help.js の glossify) */
 .gl { text-decoration: underline dotted rgba(255,255,255,.45); text-underline-offset: 3px; cursor: help; }
 .gl:hover { color: var(--gold); text-decoration-color: var(--gold); }
