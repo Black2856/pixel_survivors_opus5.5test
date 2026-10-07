@@ -135,7 +135,7 @@ const MetaUI = (() => {
         return `<button class="wp-card ${cw === w ? 'on' : ''}" data-w="${w}" ${ok ? '' : 'disabled'} style="--cc:${o ? o.col : '#fff'}">
           ${UI.weaponIcon(w)}<div class="wp-b"><div class="wp-nm">${d.name}${w === c.weapon ? '<small>専用</small>' : ''}${cw === w ? '<small class="use">使用中</small>' : ''}</div>
           <div class="dim">${d.desc}</div>
-          <div class="wp-e">${d.skill ? `E: ${d.skill.name}` : '<span class="dim">E スキルなし</span>'}${o ? `<span class="dim"> ・ ${o.name}の武器(熟練は${o.name}の Lv)</span>` : ''}</div></div></button>`;
+          <div class="wp-e">${d.skill ? `E: ${d.skill.name}` : '<span class="dim">E なし</span>'}${o ? `<span class="dim"> ・ ${o.name}の武器(熟練は${o.name}の Lv)</span>` : ''}</div></div></button>`;
       }).join('')}</div>`;
     Help.glossify(wpModal.querySelector('.wp-list'), { per: '.wp-b' });
     wpModal.classList.remove('hidden');

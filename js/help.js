@@ -82,7 +82,7 @@ const Help = (() => {
     { k: 'spd', t: '移動速度', c: '生存', d: '歩く速さの倍率' },
 
     // ===== 状態異常 =====
-    { k: 'burn', t: '炎上', m: ['炎上', '燃焼'], c: '状態異常', d: () => { const d = DATA.debuff; return `${d.burnTick}秒ごとにダメージを受け続ける(${d.burnDur}秒)。敵は何度も付けるほど重なって強くなる。自分が炎上している間は HP回復 −${pct(1 - d.burnHeal)}`; } },
+    { k: 'burn', t: '炎上', c: '状態異常', d: () => { const d = DATA.debuff; return `${d.burnTick}秒ごとにダメージを受け続ける(${d.burnDur}秒)。敵は何度も付けるほど重なって強くなる。自分が炎上している間は HP回復 −${pct(1 - d.burnHeal)}`; } },
     { k: 'frost', t: '凍傷', c: '状態異常', d: () => { const d = DATA.debuff; return `1スタックにつき移動速度 −${pct(d.frostSlow)}(最大 −80%)。しばらく受けないと消える。自分は最大 16スタック(${d.pDur}秒で消える)`; } },
     { k: 'freeze', t: '凍結', c: '状態異常', d: '敵: クライオマンサーの特性で、凍傷が上限に達すると凍って動けなくなる(ボスは攻撃が遅くなるだけ)。自分: 雪華の女王の氷の槍で、少しの間 歩けなくなる(回避とスキルは使える)' },
     { k: 'bleed', t: '出血', c: '状態異常', d: () => { const B = DATA.bleed, d = DATA.debuff; return `敵: 1スタックにつき毎秒 最大HP の ${pct(B.pct)} のダメージ(ボス ×${B.boss}、エリート ×${B.elite})、${B.dur}秒。自分: 1スタックにつき毎秒 最大HP の ${pct(d.pBleed)}(最大 ${d.pBleedMax}スタック、${d.pDur}秒で消える。防御力・シールドでは減らない)`; } },

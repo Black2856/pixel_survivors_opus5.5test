@@ -161,6 +161,12 @@ button { font: inherit; color: inherit; cursor: pointer; border: 0; background: 
 .card-name { font-size: 19px; color: #fff; text-shadow: 2px 2px 0 var(--ink); }
 .card-body { font-size: 14px; color: #d8d0f0; line-height: 1.5; flex: 1; }
 .diff { display: flex; justify-content: space-between; gap: 10px; font-size: 13px; }
+/* クラス強化カード: 今 → 次 / Lv3 で出る特殊強化 */
+.cd-lv { display: grid; grid-template-columns: 22px 1fr; gap: 4px; text-align: left; font-size: 13px; color: var(--dim); }
+.cd-lv > em { font-style: normal; font-size: 11px; color: var(--dim); padding-top: 2px; }
+.cd-lv:not(.now) { color: #fff; }
+.cd-lv:not(.now) > em { color: var(--green); }
+.cd-sp { margin-top: 6px; font-size: 11px; color: var(--pink); }
 .diff span { color: var(--dim); }
 .diff em { color: var(--green); font-style: normal; }
 .diff.eqd { justify-content: center; font-size: 16px; }

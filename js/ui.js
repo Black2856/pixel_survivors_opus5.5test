@@ -359,7 +359,7 @@ const UI = (() => {
   // ============================================================
   let mode = 'level', choices = [], chosen = false, curLv = 1;
   // 進化の条件(メイン武器もサブ武器も、その武器を持つクラスの Lv10 で解放)
-  const evoCond = k => `Lv5 + ${DATA.classes[weaponOwner(k)].name}Lv10` + ((P.wm[k] || weaponMastery(k)).evo ? ' ✔' : ''); // まだ持っていない武器(NEW のカード)は熟練をその場で計算
+  const evoCond = k => `武器Lv5 + ${DATA.classes[weaponOwner(k)].name} Lv10` + ((P.wm[k] || weaponMastery(k)).evo ? ' ✔' : ''); // まだ持っていない武器(NEW のカード)は熟練をその場で計算
   function statDiff(k, from, to) {
     const a = from ? (from.evo ? DATA.weapons[k].evo.st : DATA.weapons[k].lv[from.lv - 1]) : null, b = DATA.weapons[k].lv[to - 1];
     if (!a) return '';
@@ -373,7 +373,7 @@ const UI = (() => {
       head = w ? `Lv ${w.lv} → ${w.lv + 1}` : 'NEW!' + (P.lvFx.startLv ? ` Lv${1 + P.lvFx.startLv} から` : ''); // クラスLv: 新しい武器が高い Lv から(ウェポンマスター)
       rar = w ? (w.lv + 1 === 5 ? 'epic' : 'rare') : 'new';
       body = w ? statDiff(c.key, w, w.lv + 1) : `<p>${d.desc}</p>`;
-      foot = `<div class="evohint">進化 ${evoCond(c.key)}${c.key === P.mainW ? ' (メイン)' : ''}</div>`;
+      foot = `<div class="evohint"><span>進化 ${evoCond(c.key)}${c.key === P.mainW ? ' (メイン)' : ''}</span></div>`; // 1つの要素に(用語の印で折り返さないように)
     } else if (c.type === 'cls') {
       // クラス強化: カテゴリ名 / パス名 / 次のLvの効果。特殊強化は性質が変わる派生
       const C = treeCat(c.cat), d = C.paths[c.path], lv = cuLv(c.cat, c.path);
@@ -381,8 +381,14 @@ const UI = (() => {
       const CAT = { trait: ['特性', '#ff5d73'], passive: ['パッシブ', '#5dff8a'], q: ['スキル Q', '#ffd23f'], e: ['スキル E', '#ffb7d5'] }[c.cat];
       ic = `<div class="cls-ic" style="--cc:${CAT[1]}">${C.name[0]}${c.sp ? '<i>★</i>' : ''}</div>`;
       const tag = `<span class="cls-cat" style="--cc:${CAT[1]}">${CAT[0]}</span>`; // 見出しの行に並べるカテゴリの札
-      if (c.sp) { name = d.sp.name; head = tag + 'SPECIAL'; rar = 'legend'; body = `<p>${d.sp.desc}</p>`; foot = `<div class="evohint">${C.name} / ${d.name} の派生(1つだけ)</div>`; }
-      else { head = tag + `Lv ${lv} → ${lv + 1}`; name = `<small>${C.name}</small>${d.name}`; rar = lv + 1 === 3 ? 'epic' : 'rare'; body = `<p>${d.desc[lv]}</p>`; foot = `<div class="evohint">${'◆'.repeat(lv + 1)}${'◇'.repeat(2 - lv)}</div>`; }
+      if (c.sp) { name = d.sp.name; head = tag + 'SPECIAL'; rar = 'legend'; body = `<p>${d.sp.desc}</p>`; foot = `<div class="evohint"><span>${C.name}「${d.name}」の派生 ・ ${C.name}の特殊強化は1つだけ</span></div>`; }
+      else {
+        head = tag + `Lv ${lv} → ${lv + 1}`; name = `<small>${C.name}</small>${d.name}`; rar = lv + 1 === 3 ? 'epic' : 'rare';
+        // Lv1 以上は「今 → 次」の2行(Lv1 の説明の「基本の値 → Lv1 の値」は、今の行では Lv1 の値だけ)
+        body = lv ? `<div class="cd-lv now"><em>今</em><div>${d.desc[lv - 1].replace(/\S+ → (\S+)/, '$1')}</div></div><div class="cd-lv"><em>次</em><div>${d.desc[lv]}</div></div>` : `<p>${d.desc[0]}</p>`;
+        if (lv + 1 === 3 && !P.cs[c.cat]) body += `<div class="cd-sp">Lv3 で特殊強化「${d.sp.name}」が候補に出る</div>`; // このカテゴリの特殊強化をまだ取っていないとき
+        foot = `<div class="evohint">${'◆'.repeat(lv + 1)}${'◇'.repeat(2 - lv)}</div>`;
+      }
     } else if (c.type === 'item') {
       // 装備: 種類のアイコン / レアリティ / オプション一覧(ラン開始時は Lv0 → レベルアップで伸びる)/ 固有効果
       const it = c.item, R = DATA.equip.rarity[it.rarity];
