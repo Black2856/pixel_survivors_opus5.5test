@@ -327,9 +327,9 @@ const MetaUI = (() => {
   // ---------- カオス強化の設定 ----------
   // 項目ごとに Lv を上げ下げ。合計ポイントと、その報酬(そのランの間だけ効く)を表示する。クリアするまでは tier の値で固定(見るだけ)
   let czKey = null;
-  // 報酬の一覧(右の欄に1行ずつ)
-  const rewardRows = r => (r ? [['装備ロール上限', `+${Math.round(r.eqMaxVal * 100)}%`], ['装備Lv上限', r.eqMaxLv ? `+${r.eqMaxLv}` : '—'], ['装備品質', `+${Math.round(r.eqQual * 100)}%`], ['宝箱品質', `+${Math.round(r.chestQual * 100)}%`], ['獲得ゴールド', `+${Math.round(r.gold * 100)}%`]]
-    .map(([a, b]) => `<div class="cz-rw"><span>${a}</span><b>${b}</b></div>`).join('') : '<div class="dim">なし(5 pt から)</div>');
+  // 報酬の一覧(右の欄に1行ずつ。今の報酬と次の報酬を横に並べる)
+  const REWARD_ROWS = [['装備ロール上限', r => `+${Math.round(r.eqMaxVal * 100)}%`], ['装備Lv上限', r => (r.eqMaxLv ? `+${r.eqMaxLv}` : '—')], ['装備品質', r => `+${Math.round(r.eqQual * 100)}%`], ['宝箱品質', r => `+${Math.round(r.chestQual * 100)}%`], ['獲得ゴールド', r => `+${Math.round(r.gold * 100)}%`]];
+  const rewardRows = (r, nx) => REWARD_ROWS.map(([a, f]) => `<div class="cz-rw"><span>${a}</span><b>${r ? f(r) : '—'}</b><i>${nx ? f(nx) : ''}</i></div>`).join('');
   function chaosPanel(key) {
     czKey = key; const lv = chaosSetting(key), fixed = chaosFixed(key);
     const pt = chaosPoints(lv, key), r = chaosReward(pt), next = DATA.chaos.rewards.find(x => x.pt > pt);
@@ -342,8 +342,7 @@ const MetaUI = (() => {
         <button data-cz="-" data-k="${m.k}" ${l && !fixed ? '' : 'disabled'}>−</button><b>${l} / ${m.max}</b><button data-cz="+" data-k="${m.k}" ${l < m.max && !fixed ? '' : 'disabled'}>+</button></div>`; }).join('')}</div>
       <div class="cz-sum">
         <div class="cz-pt">合計<b>${pt}</b><small>pt</small></div>
-        <div class="cz-h">報酬${r ? `(${r.pt} pt)` : ''}</div><div class="cz-rws now">${rewardRows(r)}</div>
-        ${next ? `<div class="cz-h dim">次の報酬(${next.pt} pt)</div><div class="cz-rws">${rewardRows(next)}</div>` : '<div class="cz-h dim">報酬は最大</div>'}
+        <div class="cz-rw cz-h"><span>報酬</span><b>${r ? `${r.pt} pt` : 'なし'}</b><i>${next ? `次 ${next.pt} pt` : '最大'}</i></div><div class="cz-rws">${rewardRows(r, next)}</div>
         <div class="dim cz-note">${fixed ? (item && item.tier ? `クリアするまで tier ${item.tier} のカオス強化で固定。` : 'クリアするまでカオス強化なし。') + 'クリアすると変えられる。' : ''}報酬はこのモード・ステージのランの間だけ効く。敵が強くなる分、装備とゴールドが増える</div>
       </div></div>
     </div>`;

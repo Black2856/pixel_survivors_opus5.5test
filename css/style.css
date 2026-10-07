@@ -538,32 +538,32 @@ input[type=range] { width: 220px; accent-color: var(--gold); }
 .stg .chaos b { color: #ff5d73; font-weight: normal; }
 .cz-btn { margin-left: 10px; padding: 1px 8px; color: #fff; background: #5a1a3a; box-shadow: inset 0 0 0 1px #ff5d73; cursor: pointer; }
 .cz-btn:hover { background: #8a2a5a; }
-#chaos-panel { position: fixed; inset: 0; z-index: 55; display: grid; place-items: center; background: rgba(5,3,10,.65); }
+#chaos-panel { zoom: 1; position: fixed; inset: 0; z-index: 55; display: grid; place-items: center; background: rgba(5,3,10,.65); } /* .screen > * の拡大をかけない(中の .cz で1回だけ拡大する。二重にかかると UI サイズを上げたとき画面からはみ出す) */
 #chaos-panel.hidden { display: none; }
-.cz { zoom: var(--ui); width: min(900px, 96vw); max-height: 86vh; overflow-y: auto; padding: 14px 18px; background: var(--panel); box-shadow: inset 0 0 0 3px #ff5d73, 0 0 40px rgba(255,59,92,.25); display: flex; flex-direction: column; gap: 10px; }
-.cz-head { display: flex; align-items: center; gap: 10px; font-size: 14px; }
-.cz-head b { color: #ff5d73; font-size: 18px; font-weight: normal; }
-.cz-x { margin-left: auto; font-size: 18px; color: var(--dim); background: none; }
+.cz { zoom: var(--ui); width: min(720px, calc(96vw / var(--ui))); max-height: calc(88vh / var(--ui)); overflow-y: auto; padding: 10px 14px; background: var(--panel); box-shadow: inset 0 0 0 3px #ff5d73, 0 0 40px rgba(255,59,92,.25); display: flex; flex-direction: column; gap: 8px; }
+.cz-head { display: flex; align-items: center; gap: 8px; font-size: 13px; }
+.cz-head b { color: #ff5d73; font-size: 15px; font-weight: normal; }
+.cz-x { margin-left: auto; font-size: 16px; color: var(--dim); background: none; }
 .cz-fix { font-size: 11px; color: var(--dim); padding: 1px 6px; box-shadow: inset 0 0 0 1px #3a3060; }
-.cz-list { display: flex; flex-direction: column; gap: 4px; }
-.cz-row { display: grid; grid-template-columns: 1fr 70px 28px 60px 28px; align-items: center; gap: 6px; padding: 4px 8px; background: rgba(12,9,19,.5); font-size: 13px; color: var(--dim); }
+.cz-list { display: flex; flex-direction: column; gap: 2px; }
+.cz-row { display: grid; grid-template-columns: 1fr 52px 20px 40px 20px; align-items: center; gap: 4px; padding: 2px 6px; background: rgba(12,9,19,.5); font-size: 12px; color: var(--dim); }
 .cz-row.on { color: #fff; box-shadow: inset 3px 0 0 #ff5d73; }
-.cz-row .nm small { display: block; font-size: 11px; color: var(--dim); }
+.cz-row .nm small { margin-left: 8px; font-size: 10px; color: var(--dim); } /* 名前と説明を1行に(入りきらないときだけ折り返す) */
 .cz-row.on .nm small { color: #ffb0c0; }
-.cz-row .pt { font-size: 11px; text-align: right; }
-.cz-row b { text-align: center; font-size: 14px; font-weight: normal; white-space: nowrap; }
-.cz-row button { height: 24px; background: var(--ink); box-shadow: inset 0 0 0 2px #3a3060; color: #fff; }
+.cz-row .pt { font-size: 10px; text-align: right; }
+.cz-row b { text-align: center; font-size: 12px; font-weight: normal; white-space: nowrap; }
+.cz-row button { height: 18px; padding: 0; background: var(--ink); box-shadow: inset 0 0 0 2px #3a3060; color: #fff; }
 .cz-row button:disabled { opacity: .3; }
-.cz-body { display: grid; grid-template-columns: 1fr 250px; gap: 12px; align-items: start; }
-.cz-sum { position: sticky; top: 0; padding: 10px 12px; background: rgba(90,26,58,.35); box-shadow: inset 0 0 0 1px #5a1a3a; font-size: 13px; display: flex; flex-direction: column; gap: 6px; }
+.cz-body { display: grid; grid-template-columns: 1fr 210px; gap: 10px; align-items: start; }
+.cz-sum { position: sticky; top: 0; padding: 8px 10px; background: rgba(90,26,58,.35); box-shadow: inset 0 0 0 1px #5a1a3a; font-size: 12px; display: flex; flex-direction: column; gap: 4px; }
 .cz-pt { display: flex; align-items: baseline; gap: 8px; }
-.cz-pt b { font: 26px 'Press Start 2P'; color: #ff5d73; font-weight: normal; }
+.cz-pt b { font: 20px 'Press Start 2P'; color: #ff5d73; font-weight: normal; }
 .cz-pt small { color: var(--dim); }
 .cz-h { color: var(--gold); border-bottom: 1px solid #5a1a3a; padding-bottom: 2px; }
-.cz-h.dim { color: var(--dim); }
 .cz-rws { display: flex; flex-direction: column; gap: 1px; }
-.cz-rw { display: flex; justify-content: space-between; }
-.cz-rw b { font-weight: normal; color: var(--dim); }
-.cz-rws.now .cz-rw b { color: var(--gold); }
+.cz-rw { display: grid; grid-template-columns: 1fr 42px 54px; gap: 4px; } /* 項目 / 今の報酬 / 次の報酬 */
+.cz-rw b, .cz-rw i { font-weight: normal; font-style: normal; text-align: right; white-space: nowrap; }
+.cz-rw b { color: var(--gold); }
+.cz-rw i { color: var(--dim); }
 @media (max-width: 760px) { .cz-body { grid-template-columns: 1fr; } }
-.cz-note { font-size: 11px; }
+.cz-note { font-size: 10px; }
