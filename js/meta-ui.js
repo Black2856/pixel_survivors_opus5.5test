@@ -110,6 +110,7 @@ const MetaUI = (() => {
       <div class="cl-sub">メイン武器 ${swap ? '' : '<span class="dim">(Lv15 で切り替え解放)</span>'}</div>
       <button class="cl-wsel">${UI.weaponIcon(cw)}<span>${DATA.weapons[cw].name}${cw === c.weapon ? '<small>専用</small>' : ''}</span><em>${swap ? '変更 ▸' : '一覧 ▸'}</em></button>
       <button class="btn cl-go" ${clsReady(k) ? '' : 'disabled'}>${META.cls === k ? '使用中' : 'このクラスにする'}</button>`;
+    Help.glossify($('cl-detail'), { cls: k, per: '.cl-row, .cl-note' });
     statusPanel('cl-status', k);
   }
   // MetaUI は StatusUI より先に読み込まれるので、実行時に参照する
@@ -136,6 +137,7 @@ const MetaUI = (() => {
           <div class="dim">${d.desc}</div>
           <div class="wp-e">${d.skill ? `E: ${d.skill.name}` : '<span class="dim">E スキルなし</span>'}${o ? `<span class="dim"> ・ ${o.name}の武器(熟練は${o.name}の Lv)</span>` : ''}</div></div></button>`;
       }).join('')}</div>`;
+    Help.glossify(wpModal.querySelector('.wp-list'), { per: '.wp-b' });
     wpModal.classList.remove('hidden');
     const on = wpModal.querySelector('.wp-card.on'); if (on) on.scrollIntoView({ block: 'nearest' }); // 使用中の武器が見えるように
   }
@@ -346,6 +348,7 @@ const MetaUI = (() => {
         <div class="dim cz-note">${fixed ? (item && item.tier ? `クリアするまで tier ${item.tier} のカオス強化で固定。` : 'クリアするまでカオス強化なし。') + 'クリアすると変えられる。' : ''}報酬はこのモード・ステージのランの間だけ効く。敵が強くなる分、装備とゴールドが増える</div>
       </div></div>
     </div>`;
+    Help.glossify($('chaos-panel'), { per: '.cz-row .nm small, .cz-rw, .cz-note' });
     UI.show($('chaos-panel'));
   }
   $('chaos-panel').onclick = e => {

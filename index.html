@@ -46,6 +46,7 @@
         <button id="btn-tree" class="btn">強化ツリー</button>
         <button id="btn-equip" class="btn">装備</button>
         <button id="btn-shop" class="btn">ショップ</button>
+        <button id="btn-help" class="btn">ガイド</button>
         <button id="btn-settings" class="btn ghost">設定</button>
       </div>
       <div id="title-gold" class="gold-chip"></div>
@@ -152,6 +153,7 @@
     <div class="menu">
       <button id="btn-resume" class="btn">再開 (ESC)</button>
       <button id="btn-status" class="btn">ステータス (TAB)</button>
+      <button id="btn-help-p" class="btn">ガイド</button>
       <button id="btn-quit" class="btn ghost">あきらめる</button>
     </div>
   </div>
@@ -160,6 +162,16 @@
     <h2 class="scr-title">STATUS</h2>
     <div id="status-panel" class="sv sv-big"></div>
     <div class="menu row"><button id="st-close" class="btn">閉じる (TAB)</button></div>
+  </div>
+
+  <!-- ガイド(操作・遊び方・用語の辞典)。タイトルとポーズ画面から -->
+  <div id="help-screen" class="screen hidden">
+    <h2 class="scr-title">GUIDE</h2>
+    <div class="hp-wrap">
+      <div class="hp-side"><input id="hp-q" type="search" placeholder="用語を検索" autocomplete="off"><div id="hp-cats"></div></div>
+      <div id="hp-body"></div>
+    </div>
+    <div class="menu row"><button id="hp-back" class="btn">戻る (ESC)</button></div>
   </div>
 
   <div id="settings-screen" class="screen hidden">
@@ -200,6 +212,7 @@
 <script src="js/ui.js"></script>
 <script src="js/meta-ui.js"></script>
 <script src="js/status-ui.js"></script>
+<script src="js/help.js"></script>
 <script src="js/main.js"></script>
 </body>
 </html>

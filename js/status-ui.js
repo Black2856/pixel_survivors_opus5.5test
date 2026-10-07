@@ -59,7 +59,8 @@ const StatusUI = (() => {
     if ((c.st.mul[k] || 1) !== 1) rows.push(`<div class="sv-row"><span>固有効果の倍率</span><b>×${num(c.st.mul[k])}</b></div>`);
     return `<div class="sv-g">${DATA.stats[k].label} の内訳</div>` + (rows.join('') || '<div class="dim">なし</div>');
   }
-  function skillTab(c) {
+  // スキルの説明のまとまり(通常攻撃 / E / 特性 / パッシブ / Q / 防御スキル)。ガイドの用語の説明にも使う
+  function blocksOf(c) {
     const W = DATA.weapons[c.mainW], ws = c.wlv.evo ? W.evo.st : W.lv[c.wlv.lv - 1], m = c.wm;
     const base = ws.cd !== undefined ? ws.cd : ws.tick; // 攻撃間隔(ホーリーオーラは判定の間隔 tick。オービットブレードのように間隔がない武器もある)
     const dmg = ws.dmg * (1 + (m.dmg || 0)), itv = base !== undefined ? base * (1 - (m.cd || 0)) * c.cdMul / c.atkSpd : null;
@@ -74,7 +75,10 @@ const StatusUI = (() => {
     if (WEAPON_SKILL[c.mainW] && WEAPON_SKILL[c.mainW].info) blocks.push(Object.assign({ key: 'E' }, WEAPON_SKILL[c.mainW].info(c, dmg)));
     const rt = CLASS_RT[c.cls];
     if (rt && rt.info) blocks.push(...rt.info(c));
-    skBlocks = blocks;
+    return blocks;
+  }
+  function skillTab(c) {
+    const blocks = skBlocks = blocksOf(c);
     return '<div class="sv-note">スキルをクリックすると詳細を表示します</div>' + blocks.map((b, i) => `<div class="sv-sk" data-sk="${i}"><div class="sv-g">${b.key} ${b.name} <small>ⓘ</small></div>` + b.rows.map(r => `<div class="sv-row"><span>${r[0]}</span><i>${r[1]}</i></div>${r[2] ? `<div class="sv-note">${r[2]}</div>` : ''}`).join('') + '</div>').join('');
   }
   // スキルの詳細: 説明 + ラン中に取った強化(パスの Lv と特殊強化)
@@ -146,10 +150,11 @@ const StatusUI = (() => {
     el.innerHTML = head(c) + `<div class="seg sv-tabs">${tabs.map(t => `<button data-t="${t}" class="${t === tab ? 'on' : ''}">${TABS[t]}</button>`).join('')}</div>`
       + `<div class="sv-body">${body}</div>`
       + (tab === 'stat' ? '<div class="sv-break"><div class="dim">行にマウスを乗せると内訳を表示します</div></div>' : '');
+    Help.glossify(el.querySelector('.sv-body'), { cls: c.cls, run, per: '.sv-sk, .sv-row, .sv-note, .sv-uq' }); // 用語にマウスを乗せると説明
     el.onclick = e => {
       const b = e.target.closest('[data-t]'), s = e.target.closest('.sv-sk');
       if (b) { tab = b.dataset.t; AudioMan.click(); render(el, run, cls); }
-      else if (s) { AudioMan.click(); openModal(skillDetail(c, skBlocks[+s.dataset.sk])); } // スキルの詳細はモーダルで
+      else if (s) { AudioMan.click(); openModal(skillDetail(c, skBlocks[+s.dataset.sk]), c); } // スキルの詳細はモーダルで
     };
     el.onmouseover = e => {
       const r = e.target.closest('.sv-row[data-k]');
@@ -162,7 +167,7 @@ const StatusUI = (() => {
   modal.id = 'sv-modal'; modal.className = 'hidden';
   modal.innerHTML = '<div class="svm"><button class="svm-x">×</button><div class="svm-body"></div></div>';
   document.body.appendChild(modal);
-  function openModal(html) { modal.querySelector('.svm-body').innerHTML = html; modal.classList.remove('hidden'); }
+  function openModal(html, c) { const b = modal.querySelector('.svm-body'); b.innerHTML = html; Help.glossify(b, { cls: c && c.cls, run: c && c.run, per: '.sv-desc, .sv-row, .sv-sp' }); modal.classList.remove('hidden'); }
   function closeModal() { modal.classList.add('hidden'); }
   const modalOpen = () => !modal.classList.contains('hidden');
   modal.onclick = e => { if (e.target === modal || e.target.closest('.svm-x')) { AudioMan.click(); closeModal(); } };
@@ -187,5 +192,5 @@ const StatusUI = (() => {
     if (e.preventDefault) e.preventDefault();
     if (state === 'status') close(); else if (e.code === 'Tab') open();
   }
-  return { render, open, close, onKey, modalOpen, closeModal };
+  return { render, open, close, onKey, modalOpen, closeModal, blocks: (run, cls) => blocksOf(ctx(run, run ? P.cls : cls)) };
 })();

@@ -5,7 +5,7 @@ const UI = (() => {
   const $ = id => document.getElementById(id);
   const el = (tag, cls, html) => { const e = document.createElement(tag); if (cls) e.className = cls; if (html !== undefined) e.innerHTML = html; return e; };
   const show = e => e.classList.remove('hidden'), hide = e => e.classList.add('hidden');
-  const screens = ['title-screen', 'stage-screen', 'class-screen', 'tree-screen', 'shop-screen', 'status-screen', 'equip-screen', 'choice-screen', 'chest-screen', 'pause-screen', 'settings-screen', 'result-screen'];
+  const screens = ['title-screen', 'stage-screen', 'class-screen', 'tree-screen', 'shop-screen', 'status-screen', 'equip-screen', 'choice-screen', 'chest-screen', 'pause-screen', 'settings-screen', 'result-screen', 'help-screen'];
   const only = id => screens.forEach(s => (s === id ? show : hide)($(s)));
 
   // ---------- アイコン(スプライト → dataURL) ----------
@@ -342,11 +342,13 @@ const UI = (() => {
       html = `<b style="color:${s.kind === 'debuff' ? '#ff5d73' : '#9ff7ff'}">${s.name}</b><br>${s.fx}` + (s.t !== undefined ? `<br><span class="dim">残り ${s.t.toFixed(1)} 秒</span>` : '');
     }
     if (kind === 'w') { const d = DATA.weapons[k], w = P.weapons[k]; html = `<b>${w && w.evo ? d.evo.name : d.name}</b><br>${w && w.evo ? d.evo.desc : d.desc}<br><span class="dim">進化: ${evoCond(k)}</span>`; }
+    if (kind === 'g' || kind === 'c') html = Help.tip(kind, key.slice(2)); // 説明文の用語(用語集・クラスの用語)
+    if (!html) { hide(tip); tipKey = tipEl = null; return; }
     tip.innerHTML = html;
     const r = t.getBoundingClientRect();
     // ツールチップ自体も UI サイズで拡大されるので、位置は拡大率で割る
     const z = SET.ui;
-    tip.style.left = Math.min(innerWidth - 240 * z, r.left) / z + 'px';
+    tip.style.left = Math.max(0, Math.min(innerWidth - 330 * z, r.left)) / z + 'px'; // 幅(最大 300 + 余白)が画面の右に収まるように
     // 画面の下半分では上に出す(左下の状態アイコンなど)
     if (r.top > innerHeight / 2) { tip.style.top = ''; tip.style.bottom = (innerHeight - r.top + 8) / z + 'px'; } else { tip.style.bottom = ''; tip.style.top = (r.bottom + 8) / z + 'px'; }
     show(tip);
@@ -422,6 +424,7 @@ const UI = (() => {
       d.onclick = () => choose(i);
       d.onmouseenter = () => AudioMan.click();
       box.appendChild(d);
+      Help.glossify(d, { cls: P.cls, run: true });
     });
     const btns = $('choice-btns');
     btns.innerHTML = '';
@@ -605,6 +608,7 @@ const UI = (() => {
     const { html, rar } = cardHTML(r);
     const card = el('div', 'card reward rolling ' + rar, html);
     $('chest-rewards').appendChild(card);
+    Help.glossify(card.querySelector('.card-body'));
     const iconBox = card.querySelector('.card-icon');
     const finalIcon = iconBox.innerHTML;
     const pool = Object.keys(DATA.equip.types).map(k => icon('equip', k, 'big'));
