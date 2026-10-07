@@ -126,6 +126,12 @@ button { font: inherit; color: inherit; cursor: pointer; border: 0; background: 
 @keyframes scLines { to { background-position: -48px 0; } }
 @keyframes scStripe { to { background-position: -67.88px 0; } } /* 135° の縞の横の周期 = 48 / cos45° */
 @keyframes scShine { to { left: 112%; } }
+/* 小さな知らせ(照準の切り替えなど。帯ほど目立たせない): 画面の下の方(左下の HP・スタミナより上)に小さく出て、すぐ消える。色は --tc */
+#toast { position: absolute; left: 50%; bottom: 22%; z-index: 48; pointer-events: none; opacity: 0; transform: translateX(-50%); white-space: nowrap;
+  padding: 3px 10px 4px; font-size: 14px; color: var(--dim); background: rgba(10,6,20,.55); box-shadow: inset 0 0 0 1px var(--tc, #4c3a86); --tc: #4c3a86; }
+#toast .k { color: var(--tc); }
+#toast.on { animation: toast 1.3s ease-out forwards; }
+@keyframes toast { 0% { opacity: 0; transform: translate(-50%, 6px); } 10% { opacity: 1; transform: translate(-50%, 0); } 75% { opacity: 1; } 100% { opacity: 0; transform: translate(-50%, -3px); } }
 
 /* ---------- 画面共通 ---------- */
 .screen { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px; background: rgba(8,5,16,.62); }
@@ -362,7 +368,7 @@ input[type=range] { width: 220px; accent-color: var(--gold); }
 
 /* ---------- UI サイズ(設定の --ui)。HUD の各部品とメニュー画面の中身を拡大縮小する ---------- */
 :root { --ui: 1; }
-#hud > *, .screen > *, #announce, #skillcut, #banner, #tooltip { zoom: var(--ui); }
+#hud > *, .screen > *, #announce, #skillcut, #banner, #toast, #tooltip { zoom: var(--ui); }
 #hud > #pstat { zoom: calc(var(--ui) * .75); } /* 左下のパネルは少し小さめ */
 #chest-screen > #chest-fx, #chest-screen > #chest-flash { zoom: 1; } /* 宝箱の演出は画面の座標で描くので拡大しない */
 /* 装備のステータス: 数値は黄色、/Lv は灰色 */

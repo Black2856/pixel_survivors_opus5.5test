@@ -129,7 +129,7 @@ cvsEl.addEventListener('touchend', e => { for (const t of e.changedTouches) { if
 const mouse = { x: 0, y: 0, aim: false };
 function toggleAim() {
   mouse.aim = !mouse.aim;
-  UI.announce(mouse.aim ? 'マウス照準 ON' : '自動照準', mouse.aim ? 'SHIFT で自動照準に戻す' : '');
+  UI.toast(mouse.aim ? '<span class="k">マウス照準</span> ・ SHIFT で戻す' : '<span class="k">自動照準</span>', mouse.aim ? '#ff9aa6' : '#9a8fc0'); // 控えめに(画面の下に小さく)
   AudioMan.click();
 }
 addEventListener('pointermove', e => {

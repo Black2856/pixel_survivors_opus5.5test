@@ -77,6 +77,14 @@ const UI = (() => {
     const mark = q ? (o.glyph ? `<span class="sc-glyph">${o.glyph}</span>` : '') : o.icon ? icon('weapon', o.icon) : '';
     cutBand('skillcut', name, o.sub, col, { size: q ? 'q' : 'e', mark, dur: q ? 1150 : 850 });
   }
+  // 小さな知らせ(照準の切り替えなど。帯ほど目立たせない): 画面の下の方に小さく出て、すぐ消える。html: 中身(.k で色を付ける)/ col: 枠と強調の色
+  let toastT = null;
+  function toast(html, col) {
+    const t = $('toast');
+    t.style.setProperty('--tc', col || '#4c3a86'); t.innerHTML = html;
+    t.classList.remove('on'); void t.offsetWidth; t.classList.add('on');
+    clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove('on'), 1300);
+  }
   // 警告・クリアなど(太い帯)。cls: 帯の色(なし = 赤の警告(縞が流れて文字が明滅)/ 'gold' = クリア / 'fog' = 闇の霧)
   const BAN_COL = { '': '#ff3b5c', gold: '#ffd23f', fog: '#b07aff' };
   function banner(main, sub, dur = 2600, cls = '') { cutBand('banner', main, sub, BAN_COL[cls] || BAN_COL[''], { size: 'ban', kind: cls || 'warn', dur }); }
@@ -781,5 +789,5 @@ const UI = (() => {
     } else if (state === 'chest' && (e.code === 'Space' || e.code === 'Enter')) chestAct();
   }
 
-  return { announce, skillCut, banner, hud, bossBar, enemyLvUp, openChest, levelUp, beginPlay: close, only, weaponIcon: k => icon('weapon', k), title, pause, closeSettings, result, onKey, show, hide, $ };
+  return { announce, skillCut, banner, toast, hud, bossBar, enemyLvUp, openChest, levelUp, beginPlay: close, only, weaponIcon: k => icon('weapon', k), title, pause, closeSettings, result, onKey, show, hide, $ };
 })();
