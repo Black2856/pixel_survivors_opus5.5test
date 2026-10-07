@@ -5,7 +5,7 @@ const ECOL = {
   zombie: ['#7fb069', '#6b5a8e'], bat: ['#8a4fc0', '#2a1838'], slime: ['#4fd6a8', '#d8fff2'], slimelet: ['#4fd6a8', '#d8fff2'],
   skeleton: ['#e8e6da', '#6b6a60'], archer: ['#e8e6da', '#35523d'], ghost: ['#dcefff', '#8ab8ff'], brute: ['#c46a4a', '#6b4a2a'],
   imp: ['#ff6a3d', '#8a2a4a'], goblin: ['#8fd06a', '#ffcc33'], brazier: ['#ff6a2a', '#ffc34a'],
-  sandmage: ['#e8c88a', '#8a5a2a'], spear: ['#c8b89a', '#7a3a2a'], hound: ['#ff6a2a', '#3a1a1a'], onibi: ['#7ad7ff', '#ffffff'], lslime: ['#ff6a2a', '#5a1a14'],
+  sandmage: ['#e8c88a', '#8a5a2a'], spear: ['#c8b89a', '#7a3a2a'], hound: ['#ff6a2a', '#3a1a1a'], onibi: ['#7ad7ff', '#ffffff'], lslime: ['#ff6a2a', '#5a1a14'], mworm: ['#ff6a2a', '#3a1a10'],
   jslime: ['#9ff7ff', '#ff8ad8'], beetle: ['#5a4a8a', '#9ff7ff'], fairy: ['#ffd0f0', '#9ff7ff'],
   jelly: ['#ffb0e0', '#bff4ff'], sahagin: ['#3a9a8a', '#bff4ff'], puffer: ['#e8c86a', '#8a6a3a'], angler: ['#2a4a5a', '#fff6a0'],
   wolf: ['#d8e4f4', '#6a7a9a'], icesprite: ['#9ff7ff', '#ffffff'], yeti: ['#f0f4ff', '#7a8aa8'],
@@ -1269,6 +1269,7 @@ function spawnEnemy(type, o = {}) {
     life: type === 'goblin' ? 16 : 0,
     noChest: !!o.noChest, phaseElite: !!o.phaseElite, // 宝箱を落とさない / エリート群のエリート
   };
+  if (d.burrow) Object.assign(e, { under: true, hidden: true, flying: true, air: true, rise: 0 }); // マグマワーム: 地中から始まる
   enemies.push(e);
   return e;
 }
@@ -1334,6 +1335,22 @@ function yetiThrow(e, sb) {
 function lavaPool(e, f) {
   addHazard('fire', e.x, e.y + 2, { r: f.r * e.areaK, dur: f.dur, dmg: e.dmg });
   burst(e.x, e.y + 2, 9, ['#ff6a2a', '#ffc34a', '#5a1a14'], { sp: 55, g: 180, life: 0.45 });
+}
+// マグマワーム: 予告の円の中心へ飛び出す(半径 r に ×n・炎上)。出ている up 秒だけ攻撃が当たる
+function wormErupt(e, bu) {
+  Object.assign(e, { x: e.tx, y: e.ty, kx: 0, ky: 0, under: false, hidden: false, flying: false, air: false, rise: 0, upT: bu.up });
+  if (hitCircle(e.x, e.y, bu.r * e.areaK, e.dmg * bu.n)) burnPlayer(e.dmg * bu.burn);
+  const R = bu.r * CHAOS.area * e.areaK;
+  burst(e.x, e.y, 24, ['#2a1410', '#5a2a1a', '#ff6a2a', '#ffc34a'], { sp: 100, up: 50, g: 240, life: 0.5 });
+  for (let i = 0; i < 10; i++) part(e.x + rand(-R, R) * 0.4, e.y + rand(-R, R) * 0.3, rand(-20, 20), -rand(70, 140), rand(0.4, 0.7), pick(['#ff6a2a', '#ffc34a', '#fff0b0']), { glow: true, g: 260 }); // 吹き上がる溶岩
+  addRing(e.x, e.y, R, '#ff8a3d', { w: 2, life: 0.3 }); addFlash(e.x, e.y, R * 2.5, '#ff6a2a', 0.6);
+  shake(2); AudioMan.thud(); AudioMan.fire();
+}
+// 潜る: 地中へ(攻撃が当たらない・狙われない・触れても当たらない)。cd 秒たつまで次の予告を出さない
+function wormDive(e, bu) {
+  Object.assign(e, { under: true, hidden: true, flying: true, air: true, rise: 0, upT: 0 });
+  e.shotT = bu.cd;
+  burst(e.x, e.y + 2, 10, ['#3a1a10', '#5a2a1a', '#ff6a2a'], { sp: 50, up: 20, g: 160, life: 0.4 });
 }
 
 function updEnemies(dt) {
@@ -1435,6 +1452,27 @@ function updEnemies(dt) {
         e.life -= dt;
         if (Math.random() < dt * 20) part(e.x, e.y, rand(-10, 10), rand(-20, 0), 0.6, '#ffcc33', { glow: true });
         if (e.life <= 0) { e.dead = true; UI.announce('逃げられた…', ''); burst(e.x, e.y, 20, ['#ffffff', '#ffcc33'], { sp: 60 }); continue; }
+      } else if (e.ai === 'burrow') { // マグマワーム: 地中を進み、プレイヤーの足元に予告の円 → 飛び出す。出ている間だけ攻撃が当たり、また潜る
+        const bu = d.burrow;
+        if (e.upT > 0) { // 出ている: その場で止まる(最後の sink 秒で沈む)
+          mx = my = 0; e.upT -= dt;
+          e.rise = Math.min(1, e.rise + dt / 0.12, Math.max(0, e.upT) / bu.sink);
+          if (e.upT <= 0) wormDive(e, bu);
+        } else if (e.wind > 0) { // 予告: 円の中心へ地中を急いで進み、着くと震えて火の粉を噴く
+          mx = my = 0; e.wind -= dt;
+          const k = Math.min(1, dt * 9); e.x += (e.tx - e.x) * k; e.y += (e.ty - e.y) * k;
+          if (Math.random() < dt * 30) part(e.x + rand(-4, 4), e.y + rand(-2, 2), rand(-15, 15), -rand(20, 50), 0.4, pick(['#ff6a2a', '#ffc34a', '#5a2a1a', '#3a1a10']), { glow: Math.random() < 0.5, g: 140 });
+          if (e.wind <= 0) wormErupt(e, bu);
+        } else { // 地中を進む: 盛り上がった土と火の粉の跡
+          e.shotT -= dt * CHAOS.rate * tw * e.rateK;
+          if (e.shotT <= 0 && d2(e.x, e.y, dc.x, dc.y) < bu.range * bu.range) {
+            const pa = rand(0, TAU), pr = rand(0, bu.near);
+            e.tx = dc.x + Math.cos(pa) * pr; e.ty = dc.y + Math.sin(pa) * pr; e.wind = bu.wind;
+            pushWarn({ kind: 'circle', x: e.tx, y: e.ty, r: bu.r * e.areaK, t: 0, life: bu.wind, owner: e });
+          }
+          if (Math.random() < dt * 14) part(e.x + rand(-3, 3), e.y + rand(0, 2), rand(-8, 8), -rand(8, 20), 0.4, pick(['#3a1a10', '#5a2a1a', '#7a4a2a']), { g: 120 });
+          if (Math.random() < dt * 4) part(e.x + rand(-2, 2), e.y, rand(-5, 5), -rand(15, 30), 0.5, pick(['#ff6a2a', '#ffc34a']), { glow: true, drag: 1 });
+        }
       }
       if (d.throw) { // 投槍兵: 射程に入ると止まって構え、予告の帯の向きへ槍を投げる(帯は投槍兵について動く)
         const th = d.throw;
@@ -1548,7 +1586,7 @@ function updEnemies(dt) {
       e.x += mx * sp * dt; e.y += my * sp * dt;
       e.face = (mx || dc.x - e.x) < 0 ? -1 : 1; // 止まっている間はプレイヤーの方を向く
       // 分離(重なり防止)
-      if (!e.ghost && e.ai !== 'roll') {
+      if (!e.ghost && e.ai !== 'roll' && !e.under) { // 地中のマグマワームはぶつからない
         let n = 0;
         forEachNear(e.x, e.y, e.r, o => {
           if (o === e || o.ghost || o.prop) return;

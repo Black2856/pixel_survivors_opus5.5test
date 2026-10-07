@@ -333,6 +333,7 @@ function shadow(x, y, w) {
 function spriteOf(e) {
   const s = ART.S[e.type];
   if (e.ai === 'roll') return s[Math.floor((e.spin || 0) * 1.3) % s.length]; // 歯車: 転がった距離でコマを送る
+  if (e.ai === 'burrow') return s[Math.floor(e.t * 3) % s.length]; // マグマワーム: ゆっくり口を開け閉め
   if (Array.isArray(s)) return s[Math.floor(e.t * 8) % s.length];
   return s;
 }
@@ -1197,6 +1198,12 @@ function render() {
   const vis = enemies.filter(e => !e.dead && onScreen(e.x, e.y, 30));
   vis.sort((a, b) => a.y - b.y);
   for (const e of vis) {
+    if (e.under) { // マグマワーム(地中): 盛り上がった土と赤熱したひびだけ(予告の間は震えて明るくなる)
+      const m = ART.S.mwormMound[Math.floor(t * 8 + e.seed * 5) % 2], sh = e.wind > 0 ? Math.round(Math.sin(t * 70)) : 0;
+      drawSp(m, e.x + sh, e.y + 3, { scale: e.scale });
+      addLight(e.x, e.y + 2, e.wind > 0 ? 34 : 18, '#ff6a2a', e.wind > 0 ? 0.7 : 0.35);
+      continue;
+    }
     if (e.flying) continue; // 空襲で空高く飛んでいるボスは影だけ(drawBossFx)
     const sp = e.boss ? ART.S[e.spr || e.boss] : e.prop ? ART.S.brazier[Math.floor(t * 6 + e.seed * 5) % 2] : spriteOf(e);
     const sc = e.scale;
@@ -1207,6 +1214,7 @@ function render() {
     if (e.swell > 0) { sy = sxk = 1 + 0.45 * e.swell; } // 鬼火の自爆: 膨らむ
     else if (e.disguise) { sy = 1 + Math.sin(e.t * 3) * 0.03; sxk = 2 - sy; } // 鏡の分身: 女王と同じ揺れ
     else if (e.obj) { if (e.dropT > 0) yo = -e.dropT * 260; sy = e.rise * (1 + (e.pulse || 0) * 0.6); sxk = 1 + (e.pulse || 0) * 0.4 + (e.obj === 'meat' ? Math.sin(e.t * 4 + e.seed * 9) * 0.04 : 0); } // せり上がる / 肉塊は脈打つ // 砂時計は空から落ちてくる
+    else if (e.type === 'mworm') { sy = Math.max(0.1, e.rise ?? 1); sxk = 1 + (1 - sy) * 0.4; } // マグマワーム: 地面から伸び出る・沈む
     else if (!e.prop && !e.boss) { const w = Math.abs(Math.sin(e.t * 7 + e.seed * 6)); sy = 1 - w * 0.06; sxk = 1 + w * 0.04; }
     if (e.boss) { sy = (e.sq || 1) + Math.sin(e.t * 3) * 0.03; sxk = 2 - sy; yo = -(e.jz || 0); }
     const flip = (e.face || 1) < 0;
@@ -1217,6 +1225,7 @@ function render() {
       for (const [ox, oy] of [[-1, 0], [1, 0], [0, -1], [0, 1]]) sx.drawImage(gold, ex + ox, ey + oy, sp.w * sc, sp.h * sc);
     }
     drawSp(sp, e.x, e.y + yo, { flip, scale: sc, sy, sxk, alpha, white: e.flash > 0, emitA: e.ghost ? 0.25 : e.flash > 0 ? 0.5 : undefined });
+    if (e.type === 'mworm') drawSp(ART.S.mwormMound[0], e.x, e.y + sp.h * sc / 2 - 1, { scale: sc }); // 出てきた穴の盛り土(体の根元を隠す)
     // 状態異常の色味
     if (e.mark > 0 && S.time < e.markT) { // アーチャーの印: 頭上に緑のドット(10個で1段)。弱点露出中は赤く明滅
       const weak = S.time < (e.weakT || 0), n = Math.min(e.mark, 30), top = Math.round(e.y + yo - cam.y - sp.h * sc / 2) - 3;
@@ -1255,6 +1264,7 @@ function render() {
       addLight(lx, ly, (26 + 80 * g) * (1 + 0.1 * Math.sin(t * 6 + e.seed * 9)), '#fff6a0', 0.7 + 0.3 * g);
       if (g > 0) { gx.fillStyle = g > 0.7 && warnBlink ? '#ffffff' : '#fff6a0'; gx.fillRect(Math.round(lx - cam.x) - 1, Math.round(ly - cam.y) - 1, 3, 3); }
     } else if (e.type === 'jelly') addLight(e.x, e.y, 20, '#ff8ad8', 0.25);
+    else if (e.type === 'mworm') addLight(e.x, e.y - 4, 26, '#ff6a2a', 0.5);
     else if (e.type === 'icesprite') addLight(e.x, e.y, 26, '#9ff7ff', 0.5);
     else if (e.type === 'ghost') addLight(e.x, e.y, 22, '#8ab8ff', 0.3); // 冷たい霊: 青白い光
     else if (e.obj === 'doom') { // 終刻の時計: 文字盤に残り秒(12 → 0)。少なくなると赤く脈打つ

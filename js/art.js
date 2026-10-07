@@ -1070,6 +1070,15 @@ const ART = (() => {
     '.aaaaaaaaa.',
   ], { emit: 'ce' });
 
+  // マグマワーム: 上を向いた丸い口(牙の輪の奥で溶岩が光る)と、赤熱した継ぎ目の節の体(2コマで口を開け閉め)/ 地中を進む盛り土(赤熱したひび)
+  const mwPal = { a: '#2a0e08', b: '#6a2414', c: '#ff6a2a', d: '#ffc34a', e: '#fff0b0', g: '#4a1a10' };
+  const mwBody = ['.abbbbba.', '.agbbbga.', '.acdcdca.', '.abbbbba.', '.abgbgba.', 'acdcdcdca', 'abbbbbbba'];
+  S.mworm = [mk(mwPal, ['...aaa...', '..ababa..', '.abcdcba.', '.abdedba.', '.abcdcba.', ...mwBody], { emit: 'cde' }),
+    mk(mwPal, ['..a.a.a..', '.abababa.', 'abcdddcba', 'abdeeedba', 'abcdddcba', ...mwBody], { emit: 'cde' })];
+  const moundPal = { a: '#2a1410', b: '#4a2418', c: '#ff6a2a', d: '#ffc34a' };
+  S.mwormMound = [mk(moundPal, ['....aaa....', '..aabcbaa..', '.abbbbbcba.', 'abcbbbbbbba'], { emit: 'cd' }),
+    mk(moundPal, ['....aaa....', '..aabbbaa..', '.abcbbbbba.', 'abbbbbdcbba'], { emit: 'cd' })];
+
   S.goblin = mk({ a: '#5a8a3a', b: '#8fd06a', c: '#ffffff', d: '#ffcc33', e: '#b8861a', m: '#2a1a1a', f: '#6a3a8a', g: '#3a2a1a' }, [
     '.aa...aa....',
     '.abbbbba..d.',

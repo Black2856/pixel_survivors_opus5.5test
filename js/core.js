@@ -191,7 +191,7 @@ const gkey = (cx, cy) => (cx + 32768) * 65536 + (cy + 32768);
 function buildGrid() {
   grid.clear();
   for (const e of enemies) {
-    if (e.dead) continue;
+    if (e.dead || e.flying) continue; // 空を飛んでいるボス・地中のマグマワーム: 攻撃が当たらないので入れない(弾が吸われない)
     const k = gkey(Math.floor(e.x / CELL), Math.floor(e.y / CELL));
     let c = grid.get(k);
     if (!c) grid.set(k, c = []);

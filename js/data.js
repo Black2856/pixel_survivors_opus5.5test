@@ -27,6 +27,9 @@ const DATA = {
     hound:    { hp: 22, spd: 38, dmg: 9,  xp: 1, r: 5, ai: 'chase', touchBurn: 0.1 }, // ヘルハウンド
     onibi:    { hp: 14, spd: 30, dmg: 7,  xp: 1, r: 4, ai: 'flutter', noTouch: true, noElite: true, blast: { range: 20, wind: 0.6, r: 30, n: 2.0, burn: 0.1 } }, // 鬼火
     lslime:   { hp: 32, spd: 14, dmg: 9,  xp: 1, r: 6, ai: 'hop', fireFloor: { chance: 0.3, r: 10, dur: 3 } }, // 溶岩スライム
+    // burrow: 地中を進む(攻撃が当たらない・狙われない・触れても当たらない)。距離 range 以内で cd 秒ごとに、プレイヤーの near 以内に wind 秒の予告 円 半径 r
+    //   → 飛び出して ×n・炎上(burn)。出ている up 秒(最後の sink 秒で沈む)だけ攻撃が当たり、また潜る
+    mworm:    { hp: 30, spd: 30, dmg: 10, xp: 1, r: 5, ai: 'burrow', kbRes: 1, noElite: true, spawnW: 0.6, noGroup: true, maxAlive: 6, burrow: { cd: 2.0, range: 90, near: 10, wind: 0.8, r: 20, n: 1.2, burn: 0.1, up: 1.5, sink: 0.25 } }, // マグマワーム
     // 七彩の晶窟 / hop: 跳ねる間隔 every 秒・跳んでいる間の速さ ×k / rush: 突進(射程 range 以内で cd 秒ごとに wind 秒止まって光り、帯の長さ len を速さ spd で)
     // wobble: 揺れて飛ぶ振れ幅(既定 0.8)
     jslime:   { hp: 20, spd: 22, dmg: 8,  xp: 1, r: 4, ai: 'hop', hop: { every: 0.7, k: 3.0 } }, // 宝石スライム
@@ -1419,7 +1422,7 @@ const DATA = {
   stageRuns: [
     { no: 1, stage: 1, tier: 1, bosses: ['gslime', 'king'], segs: [['zombie', 'bat', 'slime'], ['bat', 'slime', 'brute'], null] },
     { no: 2, stage: 2, tier: 1, bosses: ['golem', 'wyrm'], segs: [['skeleton', 'archer', 'sandmage'], ['archer', 'sandmage', 'spear'], null] },
-    { no: 3, stage: 3, tier: 3, bosses: ['cdragon', 'ifrit'], segs: [['imp', 'hound', 'onibi'], ['hound', 'onibi', 'lslime'], null] },
+    { no: 3, stage: 3, tier: 3, bosses: ['cdragon', 'ifrit'], segs: [['imp', 'hound', 'mworm'], ['hound', 'mworm', 'lslime'], null] },
     { no: 4, stage: 5, tier: 2, bosses: ['stag', 'pqueen'], segs: [['bat', 'jslime', 'beetle'], ['jslime', 'beetle', 'fairy'], null] }, // 七彩の晶窟
     { no: 6, stage: 6, tier: 2, bosses: ['kraken', 'levia'], segs: [['jelly', 'sahagin', 'puffer'], ['sahagin', 'puffer', 'angler'], null] }, // 沈黙の海淵
     { no: 5, stage: 7, tier: 3, bosses: ['fgiant', 'squeen'], segs: [['wolf', 'ghost', 'icesprite'], ['ghost', 'icesprite', 'yeti'], null] }, // 霜天の霊峰
