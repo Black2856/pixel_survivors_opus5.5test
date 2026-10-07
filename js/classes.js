@@ -117,7 +117,8 @@ const WEAPON_SKILL = {
       P.act = Object.assign(ranbuState(ME, clsESkillMul() * (1 + (m.ePow || 0))), { slot: 'e', ph: 'wind', t: 0 });
       playAnim('ranbu', MOTIONS.ranbu.duration(P.act.dur), P.act.dur);
       setCd('e', sk.cd * (1 - cuV('e', 'cd')) * (1 - (m.cd || 0)) * P.cdMul); // 熟練のクールダウンは武器スキルにも効く
-      sigilKeep(skillCall(sk.name, '#ffb7d5', 'e', { fx: '#e8357f' }), P.act.dur); AudioMan.click();
+      const sg = skillCall(sk.name, '#ffb7d5', 'e', { fx: '#e8357f' }); AudioMan.click();
+      sigilKeep(sg, P.act.dur); sg.quiet = !hasSp('e', 'pow'); // 斬っている間も足元の陣が回る。終了時に判定があるのは桜吹雪だけなので、通常の終了では光らずに消える
       burst(P.x, P.y, 12, ['#ffb7d5', '#ffffff'], { sp: 40, up: 20, glow: true });
     },
     update(a, dt) {
@@ -185,7 +186,7 @@ WEAPON_SKILL.bolt = {
     const sg = skillCall(sk.name, '#b98bff'); AudioMan.click();
     if (hasSp('e', 'cd')) { arcaneOrb(ME, o); skillRelease('e'); return; } // オーブ(構えなし)
     sigilKeep(sg, o.dur); // 連射の間も足元の陣が回り続け、撃ち終わりに光る
-    P.act = Object.assign(o, { slot: 'e', ph: 'wind', t: 0 });
+    P.act = Object.assign(o, { slot: 'e', ph: 'wind', t: 0, sg });
     if (hasSp('e', 'dur')) gainShield(P.maxhp * sk.shield); // 魔力障壁
     playAnim('mBarrage', MOTIONS.mBarrage.duration(o.dur), o.dur);
     addRing(P.x, P.y, 20, '#b98bff', { w: 2, life: 0.4 });
@@ -200,6 +201,7 @@ WEAPON_SKILL.bolt = {
     }
     const d0 = a.dur, done = barrageStep(ME, a, dt);
     if (a.dur > d0 && P.anim && P.anim.name === 'mBarrage') { P.anim.dur += a.dur - d0; P.anim.arg += a.dur - d0; } // 魔力障壁で伸びた分はモーションも伸ばす
+    if (a.dur > d0 && a.sg) sigilKeep(a.sg, a.dur - d0); // 足元の陣も
     if (!done) return;
     P.act = null;
     asMine(() => { addRing(P.x, P.y, 28, '#b98bff', { w: 2, life: 0.35 }); burst(P.x, P.y, 16, ['#b98bff', '#ffffff'], { sp: 80, glow: true }); fxRays(P.x, P.y - 4, 44, '#b98bff', { n: 10, life: 0.28 }); });

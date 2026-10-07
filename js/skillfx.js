@@ -155,9 +155,9 @@ function lineBoth(sx, gx, x0, y0, x1, y1, col, al, gcol) {
 // 陣
 function drawSigil(f, sx, gx) {
   const T = f.t, wu = f.wu || 0, charge = wu > 0 ? Math.min(1, T / wu) : 1;
-  const rel = T > wu ? (T - wu) / Math.max(0.01, f.life - wu) : 0, flash = wu > 0 && T >= wu && T - wu < 0.07; // 放った瞬間は白く
+  const rel = T > wu ? (T - wu) / Math.max(0.01, f.life - wu) : 0, flash = !f.quiet && wu > 0 && T >= wu && T - wu < 0.07; // 放った瞬間は白く(quiet: 光らず広がらずに消える)
   const grow = easeOutBack(Math.min(1, T / clamp((wu || 0.2) * 0.55, 0.1, 0.3))); // 開く(溜めが長くても 0.3秒で開ききる)
-  const R = f.r * (0.5 + 0.5 * grow) * (1 + 0.45 * easeOutCubic(rel)), q = f.sq, fade = (1 - rel) * (1 - rel) * (f.dim ?? 1);
+  const R = f.r * (0.5 + 0.5 * grow) * (1 + (f.quiet ? 0 : 0.45 * easeOutCubic(rel))), q = f.sq, fade = (1 - rel) * (1 - rel) * (f.dim ?? 1);
   const hi = f.hi || '#ffffff', lit = (0.45 + 0.55 * charge) * fade, col = flash ? hi : f.col;
   const cx = f.x - cam.x, cy = f.y - cam.y, rot = f.rot0 + T * f.spin * (1 + 1.5 * charge);
   const G = k => dimCol(f.col, Math.min(1, k * f.glow * (flash ? 1.6 : 1) * lit));
