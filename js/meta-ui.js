@@ -5,10 +5,10 @@ const MetaUI = (() => {
   const $ = UI.$;
   let filter = 'all', sel = null, sellArm = null;
 
-  // ロール品質の表示(数値だけ): 範囲の最小 = 0%、最大 = 100%(強化の上限)。100% は金色
+  // ロール品質の表示: 範囲の最小 = 0%、最大 = 100%(強化の上限)。数値の背景に薄いゲージ(--q)。100% は金色
   const qualHTML = q => {
     const p = Math.round(q * 100);
-    return `<b class="${p >= 100 ? 'over' : ''}">${p >= 100 ? 'MAX' : p + '%'}</b>`;
+    return `<b class="${p >= 100 ? 'over' : ''}" style="--q:${Math.min(100, Math.max(0, p))}%">${p >= 100 ? 'MAX' : p + '%'}</b>`;
   };
   const icon = (it, cls = 'icon') => `<img class="${cls}" src="${ART.S.eqIcons[it.type].c.toDataURL()}" alt="">`;
   const rcol = it => DATA.equip.rarity[it.rarity].col;
