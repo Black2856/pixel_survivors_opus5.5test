@@ -674,27 +674,28 @@ const UI = (() => {
   }
   function levelUp(lv, list) { curLv = lv; openChoices(isClassLv(lv) ? 'class' : 'level', list, isClassLv(lv) ? 'CLASS UP!' : 'LEVEL UP!'); }
 
-  // ---------- 設定パネル(ポーズ画面とタイトルの設定画面で共用。開く画面へ移動させる) ----------
-  function syncSettings(host) {
-    $(host).insertBefore($('settings-panel'), host === 'pause-screen' ? $('pause-screen').querySelector('.menu') : null);
+  // ---------- 設定画面(タイトルとポーズ画面から開く。戻ると開いた画面へ) ----------
+  let setBack = 'title';
+  function syncSettings() {
     $('vol-music').value = AudioMan.vol.music * 100; $('vol-sfx').value = AudioMan.vol.sfx * 100;
     $('set-fxa').value = Math.round(SET.fxA * 100); $('set-fxa-n').textContent = Math.round(SET.fxA * 100) + '%';
     $('set-ui').value = Math.round(SET.ui * 100); $('set-ui-n').textContent = Math.round(SET.ui * 100) + '%';
     for (const b of $('set-gfx').children) b.classList.toggle('on', b.dataset.v === SET.gfx);
     for (const k of ['autoE', 'autoQ']) for (const b of $('set-' + k).children) b.classList.toggle('on', (b.dataset.v === '1') === SET[k]);
   }
-  for (const b of $('set-gfx').children) b.onclick = () => { SET.gfx = b.dataset.v; saveSet(); AudioMan.click(); syncSettings($('settings-panel').parentNode.id); };
-  for (const k of ['autoE', 'autoQ']) for (const b of $('set-' + k).children) b.onclick = () => { SET[k] = b.dataset.v === '1'; saveSet(); AudioMan.click(); syncSettings($('settings-panel').parentNode.id); last.skSig = null; };
+  for (const b of $('set-gfx').children) b.onclick = () => { SET.gfx = b.dataset.v; saveSet(); AudioMan.click(); syncSettings(); };
+  for (const k of ['autoE', 'autoQ']) for (const b of $('set-' + k).children) b.onclick = () => { SET[k] = b.dataset.v === '1'; saveSet(); AudioMan.click(); syncSettings(); last.skSig = null; };
   $('set-fxa').oninput = e => { SET.fxA = e.target.value / 100; $('set-fxa-n').textContent = e.target.value + '%'; saveSet(); };
   $('set-ui').oninput = e => { SET.ui = e.target.value / 100; $('set-ui-n').textContent = e.target.value + '%'; applyUiScale(); saveSet(); };
-  function settings() { state = 'settings'; only('settings-screen'); syncSettings('settings-slot'); }
-  $('btn-settings').onclick = () => { AudioMan.click(); settings(); };
-  $('btn-set-back').onclick = () => { AudioMan.click(); state = 'title'; title(); };
+  function settings(from = 'title') { setBack = from; state = 'settings'; only('settings-screen'); syncSettings(); }
+  function closeSettings() { if (setBack === 'pause') { state = 'pause'; pause(true); } else { state = 'title'; title(); } }
+  $('btn-settings').onclick = () => { AudioMan.click(); settings('title'); };
+  $('btn-settings-p').onclick = () => { AudioMan.click(); settings('pause'); };
+  $('btn-set-back').onclick = () => { AudioMan.click(); closeSettings(); };
 
   function pause(on) {
     if (on) {
       only('pause-screen');
-      syncSettings('pause-screen');
       $('pause-build').innerHTML = Object.keys(P.weapons).map(k => icon('weapon', k)).join('');
     } else only(null);
   }
@@ -736,5 +737,5 @@ const UI = (() => {
     } else if (state === 'chest' && (e.code === 'Space' || e.code === 'Enter')) chestAct();
   }
 
-  return { announce, banner, hud, bossBar, enemyLvUp, openChest, levelUp, beginPlay: close, only, weaponIcon: k => icon('weapon', k), title, pause, result, onKey, show, hide, $ };
+  return { announce, banner, hud, bossBar, enemyLvUp, openChest, levelUp, beginPlay: close, only, weaponIcon: k => icon('weapon', k), title, pause, closeSettings, result, onKey, show, hide, $ };
 })();

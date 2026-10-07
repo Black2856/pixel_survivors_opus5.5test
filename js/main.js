@@ -66,7 +66,7 @@ function onKey(e) {
   if (StatusUI.modalOpen()) { if (e.code === 'Escape' || e.code === 'Tab') { if (e.preventDefault) e.preventDefault(); StatusUI.closeModal(); } return; } // 詳細のモーダルを先に閉じる
   if (Help.onKey(e)) return; // ガイド画面(ESC で戻る)
   if (e.code === 'KeyM') AudioMan.toggleMute();
-  if (e.code === 'Escape') { if (state === 'play') pauseGame(); else if (state === 'pause') resumeGame(); else if (state === 'settings') { state = 'title'; UI.title(); } }
+  if (e.code === 'Escape') { if (state === 'play') pauseGame(); else if (state === 'pause') resumeGame(); else if (state === 'settings') UI.closeSettings(); }
   if (state === 'title' && (e.code === 'Enter' || e.code === 'Space')) MetaUI.stageSelect();
   else if ((state === 'over' || state === 'victory') && e.code === 'KeyR') startRun(S.mode, S.stageNo);
   else if (state === 'victory' && e.code === 'Enter' && S.mode === 'escalation') startEndless();
