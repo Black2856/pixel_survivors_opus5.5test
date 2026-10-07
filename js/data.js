@@ -570,8 +570,8 @@ const DATA = {
     classPick: { label: 'クラス強化選択枠',     kind: 'flat', group: 'balance' },
     gearPick:  { label: '武具強化選択枠',       kind: 'flat', group: 'balance' }, // 武器カード・装備カードの枚数 +1
     shots:     { label: '弾数',                 kind: 'flat', group: 'special' },
-    eqMaxLv:   { label: '装備最大Lv',           kind: 'flat', group: 'special' },
-    eqMaxVal:  { label: '装備最大値',           kind: 'pct',  group: 'special' },
+    eqMaxLv:   { label: '装備Lv上限',           kind: 'flat', group: 'special' }, // カオス強化の報酬と同じ名前
+    eqMaxVal:  { label: '装備ロール上限',       kind: 'pct',  group: 'special' },
   },
 
   // ---------- 微強化(武器カードを取り切った後のレベルアップ。メニューなしでランダムに1つ) ----------
