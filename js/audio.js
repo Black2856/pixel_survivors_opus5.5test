@@ -195,6 +195,11 @@ const AudioMan = (() => {
     puff()    { if (!this._ok('puff', 0.12)) return; this.noise(0.2, { vol: 0.1, f0: 600, f1: 2400, ftype: 'bandpass', rate: 1.2 }); this.tone(300, 900, 0.08, { vol: 0.03, type: 'triangle' }); },
     splash()  { if (!this._ok('splash', 0.1)) return; this.noise(0.55, { vol: 0.18, f0: 3500, f1: 400, ftype: 'bandpass', rate: 0.8 }); this.tone(180, 70, 0.3, { vol: 0.07, type: 'sine' }); this.noise(0.3, { vol: 0.06, f0: 7000, f1: 3000, ftype: 'highpass', delay: 0.08 }); },
     fuse()    { if (this._ok('fuse', 0.12)) { this.noise(0.55, { vol: 0.08, f0: 7000, f1: 9000, ftype: 'highpass', rate: 1.8 }); this.tone(900, 1700, 0.55, { vol: 0.02, type: 'sine' }); } },
+    // E / Q スキル: 構え(Q は低いうねりがせり上がり、光の音が重なる。E は短い光の音)/ 放つ瞬間の低い衝撃 / 大技の炸裂に重ねる低音 / きらめき
+    cast(q)   { if (!this._ok('cast', 0.1)) return; if (q) { this.tone(65, 150, 0.5, { vol: 0.09, type: 'sine' }); this.noise(0.45, { vol: 0.06, f0: 300, f1: 3600, ftype: 'bandpass' }); this.tone(1320, 2640, 0.22, { vol: 0.022, type: 'triangle', delay: 0.1 }); } else { this.tone(990, 1980, 0.12, { vol: 0.028, type: 'triangle' }); this.noise(0.14, { vol: 0.04, f0: 1200, f1: 4800, ftype: 'bandpass' }); } },
+    thump(q)  { if (!this._ok('thump', 0.08)) return; this.tone(q ? 115 : 140, 34, q ? 0.28 : 0.16, { vol: q ? 0.16 : 0.1, type: 'sine' }); this.noise(q ? 0.18 : 0.1, { vol: q ? 0.1 : 0.06, f0: 900, f1: 80 }); },
+    impact()  { if (!this._ok('impact', 0.15)) return; this.tone(62, 22, 0.8, { vol: 0.2, type: 'sine' }); this.noise(0.6, { vol: 0.15, f0: 1400, f1: 40 }); this.tone(230, 55, 0.25, { vol: 0.05, type: 'triangle' }); },
+    sparkle() { if (!this._ok('sparkle', 0.08)) return; this.tone(2400, 3600, 0.1, { vol: 0.022, type: 'sine' }); this.tone(3600, 4800, 0.12, { vol: 0.016, type: 'sine', delay: 0.05 }); },
   };
   return A;
 })();

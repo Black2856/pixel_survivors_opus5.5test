@@ -30,6 +30,17 @@ const UI = (() => {
     a.classList.remove('pop'); void a.offsetWidth; a.classList.add('pop');
     clearTimeout(annT); annT = setTimeout(() => a.classList.remove('pop'), 1900);
   }
+  // スキルのカットイン: 画面の上の方を横切る帯にスキル名。色はスキルの色(--sc)
+  //   q: Q は太い帯にクラスの印(glyph)/ E は細い帯に武器のアイコン(icon: 武器のキー)。sub: 2行目(武神降臨の武器スキル)
+  let scT = null;
+  function skillCut(name, col, q, o = {}) {
+    const c = $('skillcut');
+    c.style.setProperty('--sc', col);
+    const mark = q ? (o.glyph ? `<span class="sc-glyph">${o.glyph}</span>` : '') : o.icon ? icon('weapon', o.icon) : '';
+    c.innerHTML = `<div class="sc-band"><div class="sc-row">${mark}<span class="sc-name">${name}</span></div>${o.sub ? `<div class="sc-sub">${o.sub}</div>` : ''}</div>`;
+    c.className = q ? 'q' : 'e'; void c.offsetWidth; c.classList.add('on');
+    clearTimeout(scT); scT = setTimeout(() => c.classList.remove('on'), q ? 1150 : 850);
+  }
   // cls: 帯の色(なし = 赤の警告 / 'gold' = クリア / 'fog' = 闇の霧)。表示時間に合わせて消えていく
   function banner(main, sub, dur = 2600, cls = '') {
     const b = $('banner');
@@ -738,5 +749,5 @@ const UI = (() => {
     } else if (state === 'chest' && (e.code === 'Space' || e.code === 'Enter')) chestAct();
   }
 
-  return { announce, banner, hud, bossBar, enemyLvUp, openChest, levelUp, beginPlay: close, only, weaponIcon: k => icon('weapon', k), title, pause, closeSettings, result, onKey, show, hide, $ };
+  return { announce, skillCut, banner, hud, bossBar, enemyLvUp, openChest, levelUp, beginPlay: close, only, weaponIcon: k => icon('weapon', k), title, pause, closeSettings, result, onKey, show, hide, $ };
 })();

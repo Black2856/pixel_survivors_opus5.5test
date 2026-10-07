@@ -112,7 +112,7 @@ function initRun(mode = 'escalation', stageNo = 1) {
     fatigueT: 0, // 疲労(スタミナを減らす攻撃を受けた): スタミナ回復 -50% の残り秒
   };
   enemies = []; projs = []; eprojs = []; gems = []; drops = []; props = []; hazards = [];
-  parts = []; floats = []; rings = []; zones = []; slashes = []; bolts = []; warns = []; flashes = []; bfx = [];
+  parts = []; floats = []; rings = []; zones = []; slashes = []; bolts = []; warns = []; flashes = []; bfx = []; sfx = [];
   eqInitRun();
   const st = recalc();
   P.hp = P.maxhp;

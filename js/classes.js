@@ -62,10 +62,32 @@ function setCd(slot, sec) {
   if (clsRT() && clsRT().onSkill) clsRT().onSkill(slot); // スキル使用(メイジの余韻など)
 }
 function playAnim(name, dur, arg) { P.anim = { name, t: 0, dur, arg }; } // arg: モーションに渡す値(乱れ桜の持続時間など)
-// スキル名を頭上に出す(カットイン)
-function skillCall(name, col) {
-  addFloat(P.x, P.y - 26, name, col, 1.4, -18);
-  UI.announce(name, '');
+// スキル名のカットイン(画面を横切る帯)と構えの演出。slot: 'e' / 'q'。o: カットインの指定(sub: 2行目)
+function skillCall(name, col, slot = 'e', o = {}) {
+  const q = slot === 'q';
+  UI.skillCut(name, col, q, Object.assign(q ? { glyph: clsRT().qInfo().glyph } : { icon: P.mainW }, o));
+  skillWind(col, slot);
+}
+// 構えの秒数(予備動作。なければ 0)
+const skillWindup = slot => (slot === 'q' ? DATA.classes[P.cls].q.windup : (weaponSkill() || {}).windup) || 0;
+// 構え: 足元の陣(溜めの間に開いて明るくなり、放つ瞬間に白く光って広がる。形はクラスごと: skillfx.js の SIGIL)
+//   Q はさらに画面の縁から集中線が集まり、周りが少し暗くなる(clsUpdate)。構えのないスキルはすぐ放つ
+function skillWind(col, slot) {
+  const q = slot === 'q', W = skillWindup(slot);
+  (P.skCol || (P.skCol = {}))[slot] = col;
+  fxSigil(P.x, P.y + 6, q ? 26 : 17, col, { follow: P, oy: 6, wu: W, life: W + 0.4 });
+  if (q) fxFocus(P.x, P.y - 4, W + 0.22, col, { follow: P, oy: -4 });
+  AudioMan.cast(q);
+  if (W <= 0) skillRelease(slot);
+}
+// 放つ瞬間(構えが終わった瞬間): 足元から輪が広がり、体がきらめく。低い衝撃音(各スキルの炸裂に重なるので控えめ)
+function skillRelease(slot) {
+  const q = slot === 'q', col = (P.skCol && P.skCol[slot]) || DATA.classes[P.cls].col;
+  asMine(() => {
+    addRing(P.x, P.y + 6, q ? 34 : 22, col, { r0: 6, w: 2, life: 0.32 });
+    fxGlint(P.x, P.y - 6, q ? 10 : 7, col, { life: 0.24 });
+  });
+  AudioMan.thump(q);
 }
 
 // 武器スキル(E)。メイン武器ごとの実装
@@ -1328,7 +1350,7 @@ const CLASS_RT = {
       if (Math.cos(a) !== 0) P.facing = Math.cos(a) < 0 ? -1 : 1;
       playAnim('iai', MOTIONS.iai.dur);
       slowmo(0.35, 0.22);
-      skillCall(q.name, '#ff5d73'); AudioMan.click();
+      skillCall(q.name, '#ff5d73', 'q'); AudioMan.click();
       if (kiHigh()) { addRing(P.x, P.y, 22, '#ff3b5c', { w: 2, life: 0.35 }); burst(P.x, P.y, 20, ['#ff3b5c', '#ffd0d8'], { sp: 50, up: 20, glow: true }); }
     },
     qUpdate(a, dt) {
@@ -1585,7 +1607,7 @@ const CLASS_RT = {
       P.act = { slot: 'q', ph: 'wind', t: 0 };
       playAnim('aVolley', MOTIONS.aVolley.dur);
       slowmo(0.5, 0.2);
-      skillCall(q.name, '#7dff9a'); AudioMan.click();
+      skillCall(q.name, '#7dff9a', 'q'); AudioMan.click();
     },
     qUpdate(a, dt) {
       const q = DATA.classes.archer.q;
@@ -1706,7 +1728,7 @@ const CLASS_RT = {
       P.act = { slot: 'q', ph: 'wind', t: 0, a };
       playAnim('kVerdict', MOTIONS.kVerdict.dur);
       slowmo(0.5, 0.2);
-      skillCall(q.name, '#f2c84b'); AudioMan.click();
+      skillCall(q.name, '#f2c84b', 'q'); AudioMan.click();
     },
     qUpdate(a, dt) {
       const q = DATA.classes.knight.q;
@@ -1807,7 +1829,7 @@ const CLASS_RT = {
       P.act = { slot: 'q', ph: 'wind', t: 0 };
       playAnim('pInferno', MOTIONS.pInferno.dur);
       slowmo(0.5, 0.2);
-      skillCall(q.name, '#ff6a2a'); AudioMan.click();
+      skillCall(q.name, '#ff6a2a', 'q'); AudioMan.click();
     },
     qUpdate(a, dt) {
       const q = DATA.classes.pyro.q;
@@ -1935,7 +1957,7 @@ const CLASS_RT = {
       P.act = { slot: 'q', ph: 'wind', t: 0 };
       playAnim('cDust', MOTIONS.cDust.dur);
       slowmo(0.5, 0.2);
-      skillCall(q.name, '#a8e8ff'); AudioMan.click();
+      skillCall(q.name, '#a8e8ff', 'q'); AudioMan.click();
     },
     qUpdate(a, dt) {
       const q = DATA.classes.cryo.q;
@@ -2040,7 +2062,7 @@ const CLASS_RT = {
       P.act = { slot: 'q', ph: 'wind', t: 0 };
       playAnim('eTower', MOTIONS.eTower.dur);
       slowmo(0.5, 0.2);
-      skillCall(q.name, '#fff27a'); AudioMan.click();
+      skillCall(q.name, '#fff27a', 'q'); AudioMan.click();
     },
     qUpdate(a, dt) {
       const q = DATA.classes.electro.q;
@@ -2160,7 +2182,7 @@ const CLASS_RT = {
       P.act = { slot: 'q', ph: 'wind', t: 0, a };
       playAnim('hJudge', MOTIONS.hJudge.dur);
       slowmo(0.5, 0.2);
-      skillCall(q.name, '#ffe38a'); AudioMan.click();
+      skillCall(q.name, '#ffe38a', 'q'); AudioMan.click();
     },
     qUpdate(a, dt) {
       const q = DATA.classes.cleric.q;
@@ -2283,7 +2305,7 @@ const CLASS_RT = {
       P.act = { slot: 'q', ph: 'wind', t: 0, a };
       playAnim('bPact', MOTIONS.bPact.dur);
       slowmo(0.5, 0.2);
-      skillCall(q.name, '#ff3b5c'); AudioMan.click();
+      skillCall(q.name, '#c0204a', 'q'); AudioMan.click();
     },
     qUpdate(a, dt) {
       const q = DATA.classes.assassin.q;
@@ -2358,7 +2380,6 @@ const CLASS_RT = {
       if (P.rei > 0) P.rei = Math.max(0, P.rei - necReiDecay() * dt); // 霊力は少しずつ減る
       // 百鬼夜行: 上限を超えた死霊は少し遅れて爆ぜる(連鎖が1フレームに重ならないように)
       for (let i = P.nOver.length - 1; i >= 0; i--) { const o = P.nOver[i]; if ((o.t -= dt) <= 0) { P.nOver.splice(i, 1); necOverBurst(o); } }
-      if (S.dimK > 0) S.dimK = Math.max(0, S.dimK - dt * 1.5);
       // 霊体化: 半透明で滑る → 解けた瞬間に死霊が一斉に飛びかかる
       if (P.phase) {
         P.phase.t -= dt;
@@ -2383,7 +2404,7 @@ const CLASS_RT = {
       P.act = { slot: 'q', ph: 'wind', t: 0, a };
       for (const s of P.souls) s.ph = 'gather';
       playAnim('nRite', MOTIONS.nRite.dur);
-      skillCall(q.name, '#a58cff'); AudioMan.click();
+      skillCall(q.name, '#a58cff', 'q'); AudioMan.click();
     },
     qUpdate(a, dt) {
       const q = DATA.classes.necro.q;
@@ -2463,7 +2484,6 @@ const CLASS_RT = {
       if (P.moving) P.walkT += dt * (1 - slow); // 歩きのモーション: 重いほど足取りが遅い
       astField(dt); // 重力圏
       astSings(dt); // 重力崩壊の特異点
-      if (S.dimK > 0) S.dimK = Math.max(0, S.dimK - dt * 1.5);
     },
     onHurt: dmg => dmg * (1 - astGuard()), // 慣性(防御力・軽減より先)
     onMainHit() { if (hasSp('trait', 'accrete')) astGain(AST().catchN); }, // 重力捕獲: メイン武器の通常攻撃が当たるたびに
@@ -2492,7 +2512,7 @@ const CLASS_RT = {
       if (t.x !== P.x) P.facing = t.x < P.x ? -1 : 1;
       P.act = { slot: 'q', ph: 'wind', t: 0, x: t.x, y: t.y };
       playAnim('gCrush', MOTIONS.gCrush.dur);
-      skillCall(DATA.classes.astro.q.name, '#ff7ad9'); AudioMan.click();
+      skillCall(DATA.classes.astro.q.name, '#ff7ad9', 'q'); AudioMan.click();
     },
     qUpdate(a, dt) {
       const q = DATA.classes.astro.q;
@@ -2593,7 +2613,6 @@ const CLASS_RT = {
       P.atkSpd = 1 + (P.frenzy ? q.atkSpd : 0);
       P.cdMul = (1 - P.stats.v.cd) * P.stats.mul.cd * (hasSp('passive', 'zeal') ? 1 - p.fervorCd * bkFervorN() : 1);
       P.moveMul = 1;
-      if (S.dimK > 0) S.dimK = Math.max(0, S.dimK - dt * 1.5);
       bkSteam(dt);
     },
     // 被弾: 怒り +rageHit。不屈中は大きく減らし、受けた痛み(減らす前)も怒りに変えて昂り +1段(極限: 通常の被弾でも昂り)
@@ -2642,7 +2661,7 @@ const CLASS_RT = {
       if (hasSp('passive', 'field')) selfHurt(P.maxhp * BK().selfHit); // 仁王立ち: 押した瞬間に受ける(得た怒りも薙ぎ払いに乗る)
       P.act = { slot: 'q', ph: 'wind', t: 0 };
       playAnim('zRoar', MOTIONS.zRoar.dur);
-      skillCall(DATA.classes.berserker.q.name, '#b8402a'); AudioMan.click();
+      skillCall(DATA.classes.berserker.q.name, '#b8402a', 'q'); AudioMan.click();
     },
     qUpdate(a, dt) {
       const q = DATA.classes.berserker.q;
@@ -2752,7 +2771,7 @@ const CLASS_RT = {
     qStart() { // スキル名は分身が出たときに、使う武器スキルと一緒に出す(wmSummon)
       P.act = { slot: 'q', ph: 'wind', t: 0 };
       playAnim('wmSeal', MOTIONS.wmSeal.dur);
-      AudioMan.click();
+      skillWind(WM_COL, 'q'); AudioMan.click();
     },
     qUpdate(a, dt) {
       const q = DATA.classes.weaponmaster.q;
@@ -2967,7 +2986,7 @@ function meteorStart() {
   playAnim('mMeteor', MOTIONS.mMeteor.dur);
   if (t.x !== P.x) P.facing = t.x < P.x ? -1 : 1;
   setCd('q', q.cd * (1 - cuV('q', 'cd')) * P.cdMul);
-  skillCall(q.name + (n ? ` ×${n}` : ''), '#ff8a3d'); AudioMan.click();
+  skillCall(q.name + (n ? ` ×${n}` : ''), '#ff8a3d', 'q'); AudioMan.click();
   for (let i = 0; i < n * 4; i++) part(P.x + rand(-24, 24), P.y + rand(-24, 24), 0, 0, 0.5, '#9ff7ff', { glow: true, sz: 2, drag: 0 }); // 結晶が手元に集まる
 }
 function meteorUpdate(a, dt) {
@@ -4166,7 +4185,7 @@ function wmSummon() {
   c.org = orgOf(c, 'C');
   P.wmClone = c; P.wmCut = 0;
   setCd('q', q.cd * (1 - cuV('q', 'cd')) * P.cdMul);
-  UI.announce(q.name, list.map((k, i) => DATA.weapons[k].skill.name + (extra[i] ? `(${DATA.weapons[k].skill.tree.paths[extra[i]].sp.name})` : '')).join(' / ')); // 使う武器スキル(秘伝の特殊強化)
+  UI.skillCut(q.name, WM_COL, true, { glyph: clsRT().qInfo().glyph, sub: list.map((k, i) => DATA.weapons[k].skill.name + (extra[i] ? `(${DATA.weapons[k].skill.tree.paths[extra[i]].sp.name})` : '')).join(' / ') }); // 使う武器スキル(秘伝の特殊強化)
   asMine(() => { // 体から半透明の分身が抜け出す: 煙と銅色の輪(自分が中心の衝撃波は自分の絵を引き伸ばすので使わない)
     burst(c.x, c.y - 4, 18, WM_SMOKE, { sp: 60, up: 20, life: 0.5, drag: 2 });
     for (let i = 0; i < 10; i++) part(P.x, P.y - 6, side * rand(40, 90), rand(-30, 10), 0.3, pick(WM_FX), { glow: i % 3 === 0, drag: 4 });
@@ -4235,6 +4254,7 @@ function clsUpdate(dt) {
   const cdt = dt * (P.cdSlowT > 0 ? DATA.debuff.cdRate : 1); // スロウタイム中は武器と同じく CD の回復が遅い
   for (const k in P.sk) P.sk[k].cd = Math.max(0, P.sk[k].cd - cdt);
   if (S.decoy && (S.decoy.t -= dt) <= 0) S.decoy = null;
+  if (S.dimK > 0) S.dimK = Math.max(0, S.dimK - dt * 1.5); // 構えで暗くした周りを戻す
   const rt = clsRT();
   if (rt) rt.update(dt);
   for (const w of WS_TICK) w.tick(dt); // 武器スキルの残る効果(オーブ・刃輪・精霊・異次元・斧など)。メイン武器以外の武器スキルも分身などが使うので全て
@@ -4249,8 +4269,11 @@ function clsUpdate(dt) {
   keys._q = keys._e = false;
   // 実行中のスキル
   if (P.act) {
-    P.act.t += dt;
-    if (P.act.slot === 'q') rt.qUpdate(P.act, dt); else WEAPON_SKILL[P.mainW].update(P.act, dt);
+    const a = P.act;
+    a.t += dt;
+    if (!a.rel && a.t >= skillWindup(a.slot)) { a.rel = true; skillRelease(a.slot); } // 放つ瞬間
+    else if (!a.rel && a.slot === 'q') S.dimK = Math.max(S.dimK || 0, 0.16 * Math.min(1, a.t / 0.12)); // Q の構え: 周りを少し暗くして、陣と集中線を浮かび上がらせる
+    if (a.slot === 'q') rt.qUpdate(a, dt); else WEAPON_SKILL[P.mainW].update(a, dt);
   }
   // モーション(スキルが終わった後に歩き出したら途中で打ち切る)
   if (P.anim) { P.anim.t += dt; if (P.anim.t >= P.anim.dur || (!P.act && P.moving && !P.anim.keep)) P.anim = null; } // keep: 動いても最後まで(ブリンク)

@@ -694,7 +694,7 @@ function render() {
     if (!enemy) { // 一閃の間は周りを少し暗くする(刃筋だけが浮かび上がる)
       let dim = 0;
       for (const s of slashes) if (s.cut) dim = Math.max(dim, cutDim(s));
-      dim = Math.max(dim, S.dimK || 0); // スキルの構えで暗くする(葬送)
+      dim = Math.max(dim, S.dimK || 0); // スキルの構えで暗くする(Q の構え)
       if (dim > 0.01) { sx.globalAlpha = dim; sx.fillStyle = '#0a0208'; sx.fillRect(0, 0, VW, VH); sx.globalAlpha = 1; }
     }
     for (const s of slashes) {
@@ -777,6 +777,7 @@ function render() {
   // ======== 自分の攻撃(地面側): ゾーン・オーラ ========
   // 範囲は均一な半透明塗り(市松ディザは模様の切り替わりでちらつくため廃止)
   mineOn();
+  drawSkillFx(0); // スキルの地面の跡(焦げ・地割れ・霜)
   drawRift(t); // ディメンション・リフト: 画面全体を異次元に沈める(地面の上・敵の下)
   for (const z of zones) {
     const zx = z.x - cam.x, zy = z.y - cam.y;
@@ -885,6 +886,7 @@ function render() {
       addLight(z.x, z.y, z.r * 2.5, '#c78bff', 0.9);
     }
   }
+  drawSkillFx(1); // スキルの陣(足元・照準位置)
   drawAstroField(t); // アストロマンサーの重力圏の縁
   const aw = P.weapons.aura;
   if (aw && aw.R && !P.dead) {
@@ -1553,8 +1555,10 @@ function render() {
       px = nx; py = ny;
     }
   }
+  drawSkillFx(2); // スキルの光芒・光の柱・きらめき
   drawParts(true);
   drawRings(true);
+  drawSkillFx(3); // スキルの集中線(画面)
   mineOff();
 
   // ======== 敵の攻撃(最前面): ボスの技・敵弾・予兆 ========
@@ -2355,4 +2359,5 @@ function updFx(dt) {
   for (const [fn, mine] of due) if (mine) asMine(fn); else fn(); // 自分の斬撃のイベントの演出は「攻撃の濃さ」の対象
   for (const w of warns) if (w.track) w.track(w); // 追随する予兆(発生源・向きを毎フレーム更新)
   for (const f of bfx) if (f.track) f.track(f, dt); // ボスの技の演出(動く影など)
+  updSkillFx(dt); // スキルの演出(skillfx.js)
 }
