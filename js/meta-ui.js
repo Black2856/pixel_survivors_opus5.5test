@@ -114,7 +114,7 @@ const MetaUI = (() => {
     $('cl-detail').innerHTML = `
       <div class="cl-head" style="--cc:${c.col}"><span class="nm">${c.name}</span><span class="lv">Lv ${m.lv}${m.lv >= max ? ' MAX' : ''}</span></div>
       <div class="cl-xp"><i style="width:${xpP.toFixed(1)}%"></i><span>${m.lv >= max ? 'MAX' : `${m.xp.toLocaleString()} / ${need[m.lv - 1].toLocaleString()} EXP`}</span></div>
-      <div class="dim cl-note">クラス経験値 = 討伐数 + 撃破ボス数 × ${DATA.classLevel.bossK}(ラン終了時)。${note}</div>
+      <div class="dim cl-note">${note}</div>
       <div class="cl-rows">${rows}</div>
       <div class="cl-sub">メイン武器 ${swap ? '' : '<span class="dim">(Lv15 で切り替え解放)</span>'}</div>
       <button class="cl-wsel">${UI.weaponIcon(cw)}<span>${DATA.weapons[cw].name}${cw === c.weapon ? '<small>専用</small>' : ''}</span><em>${swap ? '変更 ▸' : '一覧 ▸'}</em></button>

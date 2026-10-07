@@ -385,7 +385,7 @@ input[type=range] { width: 220px; accent-color: var(--gold); }
 .stg .chaos.on { color: #c78bff; }
 
 /* ---------- クラス画面 ---------- */
-.cl-wrap { display: grid; grid-template-columns: 240px 1fr 300px; gap: 16px; width: min(1300px, 98vw); height: min(560px, 66vh); }
+.cl-wrap { display: grid; grid-template-columns: 240px 1fr 380px; gap: 16px; width: min(1300px, 98vw); height: min(560px, 66vh); }
 #cl-list { display: flex; flex-direction: column; gap: 10px; min-height: 0; overflow-y: auto; padding-right: 4px; } /* クラスが増えたら枠の中でスクロール */
 .cl-card { position: relative; overflow: hidden; display: grid; grid-template-columns: 64px 1fr; grid-template-rows: auto auto; column-gap: 10px; align-items: center; padding: 10px; text-align: left; background: var(--panel); box-shadow: inset 4px 0 0 0 var(--cc), inset 0 0 0 2px #3a3060; }
 .cl-card.sel { box-shadow: inset 4px 0 0 0 var(--cc), inset 0 0 0 3px var(--cc); }
