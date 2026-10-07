@@ -3022,7 +3022,7 @@ function tentacleSlam(e, ai) {
       if (hitLine(b.x, b.y, b.a, 140, 18, e.dmg)) drainSta(20);
       bfx.push({ kind: 'tslap', x: b.x, y: b.y, a: b.a, len: 140 * CHAOS.area, w: 18 * CHAOS.area, t: 0, life: 0.4 });
       burst(b.x + Math.cos(b.a) * LA, b.y + Math.sin(b.a) * LA, 14, SPLASH, { sp: 100, up: 40, g: 200 });
-      fxRays(b.x + Math.cos(b.a) * LA, b.y + Math.sin(b.a) * LA, 34, '#1a4a7a', { foe: true, n: 9, life: 0.28, core: '#7ad7ff' }); // 叩きつけた水しぶきの光
+      fxRays(b.x + Math.cos(b.a) * LA, b.y + Math.sin(b.a) * LA, 34, '#1a4a7a', { foe: true, n: 9, life: 0.28, core: '#4ab8e8' }); // 叩きつけた水しぶきの光
     }
     shake(7); AudioMan.splash(); AudioMan.boom();
   });
@@ -3421,7 +3421,7 @@ function bellShock(e, ai) {
   for (let i = 0; i < 3; i++) later(ai, 0.8 + i * 0.4, () => {
     addHazard('quake', e.x, e.y, { r: 30, spd: 120, max: 150, dur: 9, dmg: 0, push: 50, bell: true });
     AudioMan.knell(); shockAt(e.x, e.y, 1.1, 0.8); shake(3);
-    fxRays(e.x, e.y - 10, 46, '#8a6a2a', { foe: true, n: 12, life: 0.32, core: '#ffd27a' }); // 鐘が鳴るたびに真鍮の光
+    fxRays(e.x, e.y - 10, 46, '#8a6a2a', { foe: true, n: 12, life: 0.32, core: '#ffb347' }); // 鐘が鳴るたびに真鍮の光
   });
   bossCut(e, '鐘の衝撃', { col: '#ffd27a' });
   hint('bell', '鐘の衝撃', '輪に触れると外へ押される');
