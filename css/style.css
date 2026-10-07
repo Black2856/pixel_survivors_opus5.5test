@@ -600,9 +600,9 @@ input[type=range] { width: 220px; accent-color: var(--gold); }
 @media (max-width: 760px) { .hp-wrap { grid-template-columns: 1fr; height: auto; max-height: 72vh; } #hp-cats { flex-direction: row; flex-wrap: wrap; } #hp-body { max-height: 50vh; } }
 
 /* ---------- クラスの解放 ---------- */
-.cl-card.locked img { filter: grayscale(1) brightness(.45); }
-.cl-card.locked .nm, .cl-card.locked .en { opacity: .55; }
+.cl-card.locked { --cc: #4a4060; }
+.cl-card.locked img { filter: brightness(0) drop-shadow(0 0 1px #6a5a8a); } /* 未解放: 黒いシルエット */
+.cl-card.locked .nm, .cl-card.locked .en { color: var(--dim); }
 .cl-card.locked .lv { color: var(--dim); }
 .cl-lock { padding: 6px 10px; font-size: 13px; color: #ffb7c5; background: rgba(160,18,42,.18); box-shadow: inset 0 0 0 1px #6a2a3a; }
-.stg .sub .unl { margin-left: 8px; font-weight: normal; color: var(--cc); }
 .unl-new { margin-top: 6px; font-size: 14px; color: var(--gold); animation: flick .6s ease-in-out 3; }

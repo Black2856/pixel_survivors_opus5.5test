@@ -133,14 +133,12 @@ const chaosDesc = (m, lv) => m.desc.replace('{v}', (lv || 1) * m.per);
 // そのモード・ステージで使う設定: クリアするまでは tier の値で固定(エスカレーション・闘技場は無し)。クリア後は META.chaos[key](最初は tier の値)
 const chaosBase = key => { const R = DATA.stageRuns.find(r => 'stage' + r.no === key); return Object.assign({}, R ? DATA.flow.tierChaos[R.tier - 1] : {}); };
 const chaosFixed = key => !META.stageClear[key];
+const chaosSetting = key => (chaosFixed(key) ? chaosBase(key) : META.chaos[key] || (META.chaos[key] = chaosBase(key)));
 
 // ---------- クラスの解放 ----------
 // DATA.classUnlock のモード・ステージを初めてクリアすると使える(書いていないクラスは最初から)
 const clsUnlocked = k => !DATA.classUnlock[k] || !!META.stageClear[DATA.classUnlock[k]];
-const clsUnlockedBy = key => Object.keys(DATA.classUnlock).filter(k => DATA.classUnlock[k] === key); // そのクリアで解放されるクラス
-// モード・ステージのキー(escalation / arena / stage1〜7)の名前
-const runKeyLabel = key => (key === 'escalation' ? 'エスカレーション' : key === 'arena' ? '闘技場' : DATA.stages[DATA.stageRuns.find(r => 'stage' + r.no === key).stage - 1].label);
-const chaosSetting = key => (chaosFixed(key) ? chaosBase(key) : META.chaos[key] || (META.chaos[key] = chaosBase(key)));
+const clsNameShown = k => (clsUnlocked(k) ? DATA.classes[k].name : '？？？'); // 未解放のクラスは名前も伏せる(解放の条件も見せない)
 
 // ---------- クラスLv の効果 ----------
 // 専用 = クラスの lv 表(そのクラスの Lv)/ 共通 = 武器の mastery 表(その武器を持つクラスの Lv)
