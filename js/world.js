@@ -3410,12 +3410,13 @@ function bigGear(e, ai, a) {
     hint('biggear', '大歯車', '縁ではね返る。壊すこともできる');
   });
 }
-// 歯車の床: 0.8秒(床に歯車の模様)→ プレイヤーの位置と、そこから 120 離れた位置に、回る歯車の床(半径 75)を 8秒。上にいると回る向きへ流される(毎秒 50)
+// 歯車の床: 0.8秒(床に歯車の模様)→ プレイヤーの位置と、そこから 半径 ×2 離れた位置に、回る歯車の床(半径 75)を 8秒。上にいると回る向きへ流される(毎秒 50)
+//   2枚はちょうど接する(逆向きに回る、かみ合った歯車)。攻撃範囲の倍率で半径が広がっても接したまま
 function gearFloors(e, ai) {
-  const ga = rand(0, TAU), pts = [{ x: P.x, y: P.y }, { x: P.x + Math.cos(ga) * 120, y: P.y + Math.sin(ga) * 120 }];
+  const R = 75, gap = 2 * R * CHAOS.area, ga = rand(0, TAU), pts = [{ x: P.x, y: P.y }, { x: P.x + Math.cos(ga) * gap, y: P.y + Math.sin(ga) * gap }];
   pts.forEach((p, i) => {
-    pushWarn({ kind: 'circle', x: p.x, y: p.y, r: 75, t: 0, life: 0.8 });
-    addHazard('gearfloor', p.x, p.y, { r: 75, dur: 8, delay: 0.8, dir: i ? -1 : 1, seed: (Math.random() * 1e6) | 0 });
+    pushWarn({ kind: 'circle', x: p.x, y: p.y, r: R, t: 0, life: 0.8 });
+    addHazard('gearfloor', p.x, p.y, { r: R, dur: 8, delay: 0.8, dir: i ? -1 : 1, seed: (Math.random() * 1e6) | 0 });
   });
   AudioMan.charge(0.8);
   later(ai, 0.8, () => { AudioMan.tick(0); AudioMan.thud(); hint('gearfloor', '歯車の床', '回る向きへ流される'); });
