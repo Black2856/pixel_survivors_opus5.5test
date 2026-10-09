@@ -36,6 +36,7 @@ const V1_COSTS = {
   weapon: [5000], passive: [5000], chaos: [1000, 2500, 5000, 7500, 10000],
 };
 let metaMigratedGold = 0; // v1 からの移行で返金した額(タイトルで1回だけ通知する)
+let metaTreeRefund = 0; // 永続ツリーから消したノードの返金額(タイトルで1回だけ通知する)
 const META = (() => {
   const m = {
     ver: 2, gold: 0, cls: 'samurai', classes: {}, tree: [], inventory: [], nextItemId: 1,
@@ -58,6 +59,9 @@ const META = (() => {
   if (DATA.classUnlock[m.cls] && !m.stageClear[DATA.classUnlock[m.cls]]) m.cls = 'samurai'; // まだ解放されていないクラス(解放の条件を後から足した)
   // 永続ツリー: 守護の先端を 無敵時間 → 食べ物の効果 に変えた。取得済みならそのまま引き継ぐ
   m.tree = m.tree.map(id => (id === 'iframe#1' ? 'food#1' : id));
+  // 永続ツリー: 先端を足した 活力・持久・剛撃・広域 の行き止まりを 5 → 4 に減らした(方向ごとに 40ノード)。消えた #5 は外して返金(公開版では深さ6)
+  const gone = ['regen#5', 'staRegen#5', 'critDmg#5', 'spd#5'].filter(id => m.tree.includes(id));
+  if (gone.length) { m.tree = m.tree.filter(id => !gone.includes(id)); metaTreeRefund = gone.length * DATA.tree.costBase * Math.pow(2, 6); m.gold += metaTreeRefund; }
   // tier の開始の敵Lv・報酬をカオス強化に置き換えた: クリア済みのステージの設定は、tier の値を下回る項目だけ tier の値まで上げる(1回だけ)
   if (m.tierChaos !== 3) { // 2: 群れの目覚めを足した版 / 3: 荒野・晶窟の tier を入れ替えた版
     for (const R of DATA.stageRuns) { const k = 'stage' + R.no, c = m.chaos[k], T = DATA.flow.tierChaos[R.tier - 1]; if (m.stageClear[k] && c) for (const s in T) c[s] = Math.max(c[s] || 0, T[s]); }
@@ -66,7 +70,7 @@ const META = (() => {
   return m;
 })();
 function saveMeta() { try { localStorage.setItem(META_KEY, JSON.stringify(META)); } catch (e) { /* 保存不可でも続行 */ } }
-if (metaMigratedGold || !localStorage.getItem(META_KEY)) saveMeta();
+if (metaMigratedGold || metaTreeRefund || !localStorage.getItem(META_KEY)) saveMeta(); // 返金はすぐ保存(読み込むたびに返金しない)
 
 // ---------- 設定(グラフィック品質 / 自分の攻撃の濃さ) ----------
 // gfx: high=全演出 / mid=ブルーム弱・歪みや粒状ノイズなし・パーティクル60% / low=ブルームなし・パーティクル35%
