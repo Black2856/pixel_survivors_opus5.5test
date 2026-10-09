@@ -14,10 +14,11 @@ const StatusUI = (() => {
   // 倍率(固有効果の ×0.9 など)も含めた実際の効果量。flat = 値 / pct = +x% / red = -x%
   function eff(st, k) {
     const v = st.v[k] || 0, m = st.mul[k] || 1, kind = DATA.stats[k].kind;
-    return kind === 'flat' ? v * m : kind === 'pct' ? (1 + v) * m - 1 : 1 - (1 - v) * m;
+    return kind === 'flat' || kind === 'flag' ? v * m : kind === 'pct' ? (1 + v) * m - 1 : 1 - (1 - v) * m;
   }
   function fmt(k, x) {
     const d = DATA.stats[k];
+    if (d.kind === 'flag') return x > 0 ? 'あり' : 'なし';
     if (d.kind === 'flat') return (Math.abs(x) >= 10 ? Math.round(x) : Math.round(x * 10) / 10) + (d.unit || ''); // 最大HP などは実際の値と同じく整数
     const p = Math.round(x * 1000) / 10;
     if (d.kind === 'red') return (p > 0 ? '-' : p < 0 ? '+' : '') + Math.abs(p) + '%'; // 軽減がマイナス(ダメージ軽減 -5% = 受けるダメージ +5%)は + で出す

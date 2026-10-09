@@ -167,7 +167,7 @@ const MetaUI = (() => {
   // ---------- 永続強化ツリー ----------
   // 円形のツリー。取得済みに隣接するノードが取れる(深さ1 は最初から)。費用 = 50 × 2^深さ。リセットなし
   let trSel = null;
-  const nodeName = nd => `${DATA.stats[nd.k].label} ${optVal({ k: nd.k, v: treeNodeValue(nd.k) })}`;
+  const nodeName = nd => (DATA.stats[nd.k].kind === 'flag' ? DATA.stats[nd.k].label : `${DATA.stats[nd.k].label} ${optVal({ k: nd.k, v: treeNodeValue(nd.k) })}`); // あり・なしの効果は名前だけ
   function treeScreen() {
     state = 'tree'; trSel = null;
     UI.only('tree-screen');

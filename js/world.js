@@ -303,6 +303,15 @@ function bleedPlayer(n) {
   for (let i = 0; i < 6 + n * 3; i++) part(P.x + rand(-3, 3), P.y - 4 + rand(-3, 3), rand(-50, 50), rand(-70, -20), rand(0.35, 0.6), pick(['#a0122a', '#ff3b5c', '#5a0a14']), { g: 240, drag: 1.5, sz: pick([1, 2]) }); // 血しぶき
   S.hudDirty = true;
 }
+// 自分の状態異常を全て消す(食べ物でデバフ解除): 炎上・凍傷・出血・減速・スロウタイム・凍結・疲労。消えたものがあれば白緑の光
+function cleansePlayer() {
+  const had = P.burnT > 0 || P.frost > 0 || P.bleed > 0 || P.slowT > 0 || P.cdSlowT > 0 || P.frzT > 0 || P.fatigueT > 0;
+  P.burnT = 0; P.frost = 0; P.frostT = 0; P.bleed = 0; P.bleedT = 0; P.slowT = 0; P.cdSlowT = 0; P.frzT = 0; P.fatigueT = 0;
+  if (!had) return;
+  S.hudDirty = true;
+  burst(P.x, P.y - 6, 16, ['#ffffff', '#c8ffd8', '#5dff8a'], { sp: 60, up: 30, glow: true, life: 0.45 }); addRing(P.x, P.y, 14, '#c8ffd8', { life: 0.3 });
+  addFloat(P.x, P.y - 16, '浄化', '#c8ffd8', 1);
+}
 function updFrostBleed(dt) {
   if (P.frost > 0) {
     if ((P.frostT -= dt) <= 0) { P.frost = 0; burst(P.x, P.y, 10, ['#bff4ff', '#ffffff'], { sp: 40, life: 0.3 }); S.hudDirty = true; } // 溶けて消える
@@ -4142,9 +4151,11 @@ function dropGem(x, y, v) {
   if (gems.length > 380) { const g = gems[(Math.random() * 40) | 0]; g.v += v; g.tier = gemTier(g.v); return; }
   gems.push({ x, y, v, tier: gemTier(v), t: rand(0, 3), home: false, sp: 0, z: 0, vz: -rand(40, 70), vx: rand(-20, 20), vy: rand(-20, 20) });
 }
+// アイテムの出現率(装備宝箱は除く): カオス強化「枯れた大地」で下がり、アイテム出現率(永続ツリー)で上がる。1 を超えた分は、その確率でもう1つ出る
 function dropItem(kind, x, y, val = 0) {
-  if (CHAOS.loot && kind !== 'chest' && Math.random() < CHAOS.loot) return; // カオス: アイテムの出現率(装備宝箱は除く)
-  drops.push({ kind, x, y, val, t: 0, z: 0, vz: -rand(60, 110), vx: rand(-35, 35), vy: rand(-25, 25), home: false, sp: 0 });
+  let n = 1;
+  if (kind !== 'chest') { const k = (1 - CHAOS.loot) * (1 + ((P.stats && P.stats.v.itemRate) || 0)); n = Math.floor(k) + (Math.random() < k - Math.floor(k) ? 1 : 0); }
+  for (let i = 0; i < n; i++) drops.push({ kind, x, y, val, t: 0, z: 0, vz: -rand(60, 110), vx: rand(-35, 35), vy: rand(-25, 25), home: false, sp: 0 });
 }
 function addGold(v) {
   const g = Math.max(1, Math.round(v * P.goldMul));
@@ -4202,7 +4213,7 @@ function updDrops(dt) {
     clsOnPickup(d.kind);
     switch (d.kind) {
       case 'coin': { const g = addGold(d.val); addFloat(P.x, P.y - 12, '+' + g, '#ffcc33'); AudioMan.coin(); break; }
-      case 'meat': heal(P.maxhp * DATA.player.food * P.foodMul); break; // 最大HP の 20%(食べ物の効果で増える)
+      case 'meat': if (P.stats.v.foodCleanse) cleansePlayer(); heal(P.maxhp * DATA.player.food * P.foodMul); break; // 最大HP の 20%(食べ物の効果で増える)。デバフ解除は回復の前
       case 'magnet':
         for (const g of gems) { g.home = true; g.sp = Math.max(g.sp, 60); }
         for (const c of drops) if (c.kind === 'coin') c.home = true;

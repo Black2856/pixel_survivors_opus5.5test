@@ -87,9 +87,11 @@ function enhanceItem(it) {
 
 // ---------- ラン中のオプション成長 ----------
 // ラン開始時は全オプションが Lv0。レベルアップの装備カードで選んだオプションが +1Lv
+//   装備初期レベル(永続ツリー): 各オプションが その割合の確率で +1Lv から始まる。100% ごとに確定で +1(150% = +1 と 50% でさらに +1)。最大Lv まで
 function eqInitRun() {
   S.eqLv = {};
-  for (const slot in DATA.equip.slots) { const it = itemById(META.loadout[slot]); if (it) S.eqLv[slot] = it.opts.map(() => 0); }
+  const up = computeStats({ cls: META.cls }).v.eqInit || 0, sure = Math.floor(up + 1e-9), rest = up - sure;
+  for (const slot in DATA.equip.slots) { const it = itemById(META.loadout[slot]); if (it) S.eqLv[slot] = it.opts.map(o => Math.min(o.max, sure + (Math.random() < rest ? 1 : 0))); }
 }
 // 装備カードの候補: 最大Lv に達していないオプション
 function eqCards() {
@@ -182,6 +184,7 @@ function shopBuy(id) {
 // ---------- 表示用 ----------
 // オプション1行: 「攻撃力 +8.0% /Lv」。乗算系・% 系は % 表示
 function optVal(o) {
+  if (DATA.stats[o.k].kind === 'flag') return o.v ? 'あり' : 'なし';
   if (!o.v) return DATA.stats[o.k].kind !== 'flat' ? '0%' : '0' + (DATA.stats[o.k].unit || ''); // Lv0(装備カードの変化前)
   // 値 × Lv や ツリーの合計は 2.0999… のような誤差が出るので、固定値は小数第2位で丸める
   const d = DATA.stats[o.k], val = d.kind !== 'flat' ? (o.v * 100).toFixed(1) + '%' : String(Math.round(o.v * 100) / 100);

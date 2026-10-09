@@ -541,7 +541,7 @@ const DATA = {
   },
 
   // ---------- ステータス定義 ----------
-  // kind: flat=加算 / pct=加算の割合(0.1 = +10%) / red=乗算で重ねる軽減(合計 = 1 - Π(1 - x))
+  // kind: flat=加算 / pct=加算の割合(0.1 = +10%) / red=乗算で重ねる軽減(合計 = 1 - Π(1 - x))/ flag=あり・なし(1 以上で「あり」)
   // group: ステータス画面の分類(life=生命 / skill=技巧 / balance=天秤 / special=特殊)
   stats: {
     hp:        { label: '最大HP',               kind: 'flat', group: 'life' },
@@ -552,6 +552,8 @@ const DATA = {
     staRegen:  { label: 'スタミナ回復速度',     kind: 'flat', group: 'life', unit: '/s' },
     iframe:    { label: '無敵時間',             kind: 'pct',  group: 'life' },
     food:      { label: '食べ物の効果',         kind: 'pct',  group: 'life' },
+    foodCleanse: { label: '食べ物でデバフ解除', kind: 'flag', group: 'life' }, // 肉を拾うと自分の状態異常が消える
+    itemRate:  { label: 'アイテム出現率',       kind: 'pct',  group: 'life' }, // 装備宝箱以外のアイテムの数(カオス強化「枯れた大地」と同じ所に掛かる)
     spd:       { label: '移動速度',             kind: 'pct',  group: 'skill' },
     atk:       { label: '攻撃力',               kind: 'pct',  group: 'skill' },
     area:      { label: '範囲',                 kind: 'pct',  group: 'skill' },
@@ -560,6 +562,7 @@ const DATA = {
     crit:      { label: 'クリティカル率',       kind: 'pct',  group: 'skill' },
     critDmg:   { label: 'クリティカルダメージ', kind: 'pct',  group: 'skill' },
     wslot:     { label: '武器枠',               kind: 'flat', group: 'skill' },
+    eqInit:    { label: '装備初期レベル',       kind: 'pct',  group: 'skill' }, // ランの開始時に、装備のオプションがこの確率で +1Lv(100% ごとに確定で +1)
     xp:        { label: '経験値',               kind: 'pct',  group: 'balance' },
     gold:      { label: '獲得ゴールド',         kind: 'pct',  group: 'balance' },
     magnet:    { label: '吸引範囲',             kind: 'pct',  group: 'balance' },
@@ -1248,8 +1251,8 @@ const DATA = {
   tree: {
     costBase: 50,
     stats: {
-      life:    { hp: [20, 10], regen: [1, 5], def: [1, 4], dr: [0.1, 5], sta: [30, 10], staRegen: [2, 5], food: [0.5, 1] },
-      skill:   { spd: [0.1, 5], atk: [0.2, 10], area: [0.1, 5], range: [0.1, 5], cd: [0.1, 4], crit: [0.05, 5], critDmg: [0.2, 5], wslot: [1, 1] },
+      life:    { hp: [20, 10], regen: [1, 5], def: [1, 4], dr: [0.1, 5], sta: [30, 10], staRegen: [2, 5], food: [0.5, 1], foodCleanse: [1, 1], itemRate: [0.25, 1] },
+      skill:   { spd: [0.1, 5], atk: [0.2, 10], area: [0.1, 5], range: [0.1, 5], cd: [0.1, 4], crit: [0.05, 5], critDmg: [0.2, 5], wslot: [1, 1], eqInit: [1, 2] },
       balance: { xp: [0.1, 4], gold: [0.2, 8], magnet: [0.2, 8], eqQual: [0.2, 5], chestQual: [0.2, 5], classXp: [0.2, 5], reroll: [3, 3], classPick: [1, 1], gearPick: [1, 1] },
     },
     // 形(設計書 6.2): 方向ごとに 根(深さ1)→ 3本の枝
@@ -1259,14 +1262,14 @@ const DATA = {
     // mid: { stat: [深さ...] } 本線の間(枝の真ん中)に置く特別なノード。同じ深さの本線ノードとつながる
     dirs: {
       life: { name: '生命', col: '#ff5d73', root: 'hp', branches: [
-        { name: '活力', lanes: 2, chain: { hp: 9 }, leaf: { regen: 5 } },
+        { name: '活力', lanes: 2, chain: { hp: 9 }, leaf: { regen: 5 }, tip: 'foodCleanse' },
         { name: '守護', lanes: 1, chain: { def: 4, dr: 1 }, leaf: { dr: 4 }, tip: 'food' },
-        { name: '持久', lanes: 2, chain: { sta: 10 }, leaf: { staRegen: 5 } },
+        { name: '持久', lanes: 2, chain: { sta: 10 }, leaf: { staRegen: 5 }, tip: 'itemRate' },
       ] },
       skill: { name: '技巧', col: '#ffd23f', root: 'atk', branches: [
-        { name: '剛撃', lanes: 2, chain: { atk: 9 }, leaf: { critDmg: 5 } },
+        { name: '剛撃', lanes: 2, chain: { atk: 9 }, leaf: { critDmg: 5 }, tip: 'eqInit' },
         { name: '精妙', lanes: 1, chain: { crit: 5 }, leaf: { cd: 4 }, tip: 'wslot' },
-        { name: '広域', lanes: 2, chain: { area: 5, range: 5 }, leaf: { spd: 5 } },
+        { name: '広域', lanes: 2, chain: { area: 5, range: 5 }, leaf: { spd: 5 }, tip: 'eqInit' },
       ] },
       balance: { name: '天秤', col: '#7ad7ff', root: 'magnet', branches: [
         { name: '成長', lanes: 1, chain: { xp: 4, classXp: 1 }, leaf: { classXp: 4 }, tip: 'gearPick' }, // 本線5段 → 先端は深さ7
@@ -1276,8 +1279,8 @@ const DATA = {
     },
     // ノードに表示する1文字
     glyph: {
-      hp: '体', regen: '癒', def: '守', dr: '減', sta: '持', staRegen: '息', iframe: '無', food: '食',
-      spd: '速', atk: '攻', area: '域', range: '射', cd: '刻', crit: '会', critDmg: '撃', wslot: '枠',
+      hp: '体', regen: '癒', def: '守', dr: '減', sta: '持', staRegen: '息', iframe: '無', food: '食', foodCleanse: '浄', itemRate: '拾',
+      spd: '速', atk: '攻', area: '域', range: '射', cd: '刻', crit: '会', critDmg: '撃', wslot: '枠', eqInit: '鍛',
       xp: '経', gold: '金', magnet: '引', eqQual: '装', chestQual: '宝', classXp: '級', reroll: '再', classPick: '選', gearPick: '武',
     },
   },
