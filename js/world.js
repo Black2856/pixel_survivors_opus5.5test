@@ -1875,7 +1875,7 @@ const BOSS_AI0 = {
   fhour: { scy: 1.5, rev: 8, stop: 10, marks: 5, sec: 3, busy: 0.6 },
   pqueen: { tp: 3, beam: 3, mirror: 8, scatter: 6, orb: 4, blink: 6 },
 };
-const BOSS_ENRAGE = { king: { slam: 6 }, ifrit: { altar: true }, stag: { herd: 4 }, pqueen: { spiral: 3 }, levia: { breath: 4 }, fgiant: { drift: 5 }, squeen: { lance: 3 }, warden: { pendCd: 6 }, reaper: { sum: 7 }, fhour: { cross: 4, echo: 0 } };
+const BOSS_ENRAGE = { king: { slam: 6 }, ifrit: { altar: true }, stag: { herd: 4 }, pqueen: { spiral: 3 }, levia: { breath: 4 }, fgiant: { drift: 5 }, squeen: { lance: 3 }, warden: { ringCd: 6 }, reaper: { sum: 7 }, fhour: { cross: 4, echo: 0 } };
 
 function bossAI(e, dt) {
   const ai = e.ai, a = Math.atan2(P.y - e.y, P.x - e.x), dist = Math.sqrt(d2(e.x, e.y, P.x, P.y));
@@ -3315,7 +3315,7 @@ function iceLance(e, ai) {
   });
 }
 
-// ---------- 時計仕掛けの番人: プレイヤーへまっすぐ。ゼンマイ巻き(DPSチェック)/ 時針と分針 / 歯車弾 / 鐘の衝撃 / 大歯車 / 歯車の床 / 激昂: 振り子 ----------
+// ---------- 時計仕掛けの番人: プレイヤーへまっすぐ。ゼンマイ巻き(DPSチェック)/ 時針と分針 / 歯車弾 / 鐘の衝撃 / 大歯車 / 歯車の床 / 激昂: リングギア ----------
 const BRASS = ['#c8a050', '#ffd27a', '#8a6a30', '#fff0c8'];
 function wardenAI(e, ai, dt, a, dist, slow) {
   if (ai.fastT > 0) { // 全速(ゼンマイを止められなかった): 速さ ×1.6・技の間隔 ×0.6・針の回転 ×1.5。蒸気を噴く
@@ -3338,25 +3338,19 @@ function wardenAI(e, ai, dt, a, dist, slow) {
     }
     if (hd.t >= 5) ai.hands = null;
   }
-  if (ai.pend) { // 振り子(激昂): 0.8秒 薄い帯 → 帯(長さ 210・幅 14)が ±70° を 1.6秒周期で振れる。5秒、当たると ×0.9
-    const pd = ai.pend;
-    pd.t += dt;
-    pd.a = pd.base + (pd.t > 0.8 ? 1.2217 * Math.sin((pd.t - 0.8) * TAU / 1.6) : 0);
-    if (pd.t > 0.8) { hitLine(e.x, e.y, pd.a, 210, 14, e.dmg * 0.9); if (Math.abs(Math.cos((pd.t - 0.8) * TAU / 1.6)) > 0.98 && (pd.snd = (pd.snd || 0) - dt) <= 0) { pd.snd = 0.3; AudioMan.slash(); } }
-    if (pd.t >= 5.8) ai.pend = null;
-  }
-  ai.spring -= dt * R; ai.handCd -= dt * R; ai.cog -= dt * R; ai.bell -= dt * R; ai.big -= dt * R; ai.floor -= dt * R; if (ai.enraged) ai.pendCd -= dt * R;
-  if (ai.spring <= 0 && !ai.hands && !ai.pend) { ai.spring = ai.enraged ? 16 : 22; startSpring(e, ai); return; }
+  const ring = hazards.some(h => h.kind === 'ringgear' && h.owner === e); // リングギアが出ている(時針と分針・ゼンマイ巻きは消えるまで待つ)
+  ai.spring -= dt * R; ai.handCd -= dt * R; ai.cog -= dt * R; ai.bell -= dt * R; ai.big -= dt * R; ai.floor -= dt * R; if (ai.enraged) ai.ringCd -= dt * R;
+  if (ai.spring <= 0 && !ai.hands && !ring) { ai.spring = ai.enraged ? 16 : 22; startSpring(e, ai); return; }
   if (ai.cog <= 0) { ai.cog = ai.enraged ? 4 : 5; cogShot(e, ai); } // 弾はほかの技と並んで撃つ
-  if (ai.handCd <= 0 && !ai.hands && !ai.pend) { ai.handCd = ai.enraged ? 7 : 9; ai.hands = { t: 0, a1: a + Math.PI, a2: a + 0.9 }; for (const ha of [ai.hands.a1, ai.hands.a2]) pushWarn({ kind: 'line', x: e.x, y: e.y, a: ha, len: 180, w: 10, t: 0, life: 1, track: w => { w.x = e.x; w.y = e.y; } }); AudioMan.charge(1); hint('hands', '時針と分針', '2本の針が番人のまわりを回る'); }
+  if (ai.handCd <= 0 && !ai.hands && !ring) { ai.handCd = ai.enraged ? 7 : 9; ai.hands = { t: 0, a1: a + Math.PI, a2: a + 0.9 }; for (const ha of [ai.hands.a1, ai.hands.a2]) pushWarn({ kind: 'line', x: e.x, y: e.y, a: ha, len: 180, w: 10, t: 0, life: 1, track: w => { w.x = e.x; w.y = e.y; } }); AudioMan.charge(1); hint('hands', '時針と分針', '2本の針が番人のまわりを回る'); }
   else if (ai.big <= 0) { ai.big = ai.enraged ? 8 : 10; bigGear(e, ai, a); }
   else if (ai.floor <= 0) { ai.floor = ai.enraged ? 9 : 12; gearFloors(e, ai); }
   else if (ai.bell <= 0) { ai.bell = ai.enraged ? 8 : 10; bellShock(e, ai); }
-  else if (ai.enraged && ai.pendCd <= 0 && !ai.hands && !ai.pend) { ai.pendCd = 12; ai.pend = { t: 0, base: a, a }; pushWarn({ kind: 'line', x: e.x, y: e.y, a, len: 210, w: 14, t: 0, life: 0.8, track: w => { w.x = e.x; w.y = e.y; } }); AudioMan.charge(0.8); }
+  else if (ai.enraged && ai.ringCd <= 0 && !ai.hands && !ring) { ai.ringCd = 20; ringGear(e, ai); }
 }
 // ゼンマイ巻き: 背中のゼンマイが回り始める → 4秒 動かず巻き上げる(被ダメ ×1.3)。4秒で最大HP の 5% を削ると 2秒止まる。削れなければ 10秒 全速
 function startSpring(e, ai) {
-  ai.act = 'spring'; ai.pt = 4; ai.armHp = e.hp; ai.armK = 0; e.takeK = 1.3; ai.hands = null; ai.pend = null;
+  ai.act = 'spring'; ai.pt = 4; ai.armHp = e.hp; ai.armK = 0; e.takeK = 1.3; ai.hands = null;
   AudioMan.charge(0.6); shake(4);
   hint('spring', 'ゼンマイ巻き', '4秒で最大HP の 5% を削ると止まる。削れないと全速になる');
 }
@@ -3399,27 +3393,39 @@ function bellShock(e, ai) {
   });
   hint('bell', '鐘の衝撃', '輪に触れると外へ押される');
 }
-// 大歯車: 0.7秒(経路の帯)→ 半径 30 の歯車が速さ 90 で転がり、画面の縁(闘技場では壁)で 2回はね返る(8秒)。×1.0・触れると 1秒 移動速度 ×0.6。HP 3% で壊せる
+// 大歯車: 0.7秒(経路の帯)→ 半径 30 の歯車が速さ 90 で転がり、画面の縁(闘技場では壁)で 2回はね返る(8秒)。×1.0・触れると 1秒 移動速度 ×0.6。HP 5% で壊せる
+//   激昂は 2個: プレイヤーへの向きから ±0.35rad の V 字に転がす
 function bigGear(e, ai, a) {
-  pushWarn({ kind: 'line', x: e.x, y: e.y, a, len: 260, w: 60, t: 0, life: 0.7, fixed: true });
+  const dirs = ai.enraged ? [a - 0.35, a + 0.35] : [a];
+  for (const g of dirs) pushWarn({ kind: 'line', x: e.x, y: e.y, a: g, len: 260, w: 60, t: 0, life: 0.7, fixed: true });
   e.sq = 1.25; AudioMan.charge(0.7);
   windup(e, 0.7, () => {
-    const o = spawnObj(e, 'biggear', e.x + Math.cos(a) * 20, e.y + Math.sin(a) * 20, { pct: 0.03, r: 30, life: 8 });
-    o.vx = Math.cos(a) * 90; o.vy = Math.sin(a) * 90; o.bounce = 2; o.rise = 1;
+    for (const g of dirs) {
+      const x = e.x + Math.cos(g) * 20, y = e.y + Math.sin(g) * 20;
+      const o = spawnObj(e, 'biggear', x, y, { pct: 0.05, r: 30, life: 8 });
+      o.vx = Math.cos(g) * 90; o.vy = Math.sin(g) * 90; o.bounce = 2; o.rise = 1;
+      bossBlast(x, y, 30, Object.assign({ n: 12, cracks: 6 }, BFX.warden)); // 歯車が落ちた地面が割れる
+    }
     shake(6); AudioMan.boom(); e.sq = 0.75;
-    bossBlast(e.x + Math.cos(a) * 20, e.y + Math.sin(a) * 20, 30, Object.assign({ n: 12, cracks: 6 }, BFX.warden)); // 歯車が落ちた地面が割れる
     hint('biggear', '大歯車', '縁ではね返る。壊すこともできる');
   });
 }
-// 歯車の床: 0.8秒(床に歯車の模様)→ プレイヤーの位置と、そこから 120 離れた位置に、回る歯車の床(半径 50)を 8秒。上にいると回る向きへ流される(毎秒 50)
+// 歯車の床: 0.8秒(床に歯車の模様)→ プレイヤーの位置と、そこから 120 離れた位置に、回る歯車の床(半径 75)を 8秒。上にいると回る向きへ流される(毎秒 50)
 function gearFloors(e, ai) {
   const ga = rand(0, TAU), pts = [{ x: P.x, y: P.y }, { x: P.x + Math.cos(ga) * 120, y: P.y + Math.sin(ga) * 120 }];
   pts.forEach((p, i) => {
-    pushWarn({ kind: 'circle', x: p.x, y: p.y, r: 50, t: 0, life: 0.8 });
-    addHazard('gearfloor', p.x, p.y, { r: 50, dur: 8, delay: 0.8, dir: i ? -1 : 1, seed: (Math.random() * 1e6) | 0 });
+    pushWarn({ kind: 'circle', x: p.x, y: p.y, r: 75, t: 0, life: 0.8 });
+    addHazard('gearfloor', p.x, p.y, { r: 75, dur: 8, delay: 0.8, dir: i ? -1 : 1, seed: (Math.random() * 1e6) | 0 });
   });
   AudioMan.charge(0.8);
   later(ai, 0.8, () => { AudioMan.tick(0); AudioMan.thud(); hint('gearfloor', '歯車の床', '回る向きへ流される'); });
+}
+// リングギア(激昂): 番人を軸に、中が空いた歯車(半径 190・幅 16)。1秒の予告(番人についてくる赤い輪の帯)の間に上から降りてくる
+//   → 10秒、番人を軸に回る。輪に触れると ×0.9(内側は安全)。最後に上へ戻る。時針と分針とは同時に使わない
+function ringGear(e, ai) {
+  addHazard('ringgear', e.x, e.y, { owner: e, r: 190, w: 16 * CHAOS.area, land: 1, dur: 11.4, dmg: e.dmg * 0.9, dir: Math.random() < 0.5 ? 1 : -1, rot0: rand(0, TAU) });
+  AudioMan.charge(1); AudioMan.warning();
+  hint('ringgear', 'リングギア', '番人を囲む歯車の輪が降りてくる。輪に触れないように(内側は安全)');
 }
 
 // ---------- 死神・第一形態: プレイヤーへまっすぐ。瞬間移動 / 死の宣告 / 鎌投げ / 刈り取り / スロウタイム / 砂時計 / 激昂: 時計兵召喚 ----------
@@ -4076,6 +4082,17 @@ function updHazards(dt) {
         burst(h.x, h.y, 24, SPLASH, { sp: 110, up: 50, g: 200, life: 0.6 }); AudioMan.splash();
       }
       if (Math.random() < dt * 30) part(h.x + rand(-h.r, h.r) * 0.6, h.y - rand(0, 30), rand(-10, 10), -rand(20, 50), 0.5, pick(SPLASH), { drag: 1 });
+    } else if (h.kind === 'ringgear') { // リングギア(番人): 降りてから 10秒、番人を軸に回る。輪の帯に触れると ×0.9
+      const on = h.t >= h.land && h.t < h.dur - 0.4;
+      if (on && !h.landed) { // 着地: 輪にそって土ぼこりと火花、揺れ
+        h.landed = true;
+        for (let k = 0; k < 40; k++) { const pa = TAU / 40 * k; burst(h.x + Math.cos(pa) * h.r, h.y + Math.sin(pa) * h.r, 2, ['#c8a050', '#8a7a60', '#ffd27a', '#5a4a30'], { sp: 70, up: 40, g: 220, life: 0.6 }); }
+        addRing(h.x, h.y, h.r, '#ffd27a', { w: 3, life: 0.4 }); addRing(h.x, h.y, h.r + 10, '#c8a050', { w: 2, life: 0.55 });
+        shake(9); AudioMan.boom(); AudioMan.thud();
+      }
+      if (on && Math.abs(Math.sqrt(dd) - h.r) < h.w / 2 + 3) hurtPlayer(h.dmg);
+      if (on && (h.snd = (h.snd || 0) - dt) <= 0) { h.snd = 0.6; AudioMan.tick(5); } // 歯車の回る音
+      if (on && Math.random() < dt * 14) { const pa = rand(0, TAU), rr = h.r - h.w / 2; part(h.x + Math.cos(pa) * rr, h.y + Math.sin(pa) * rr, -Math.sin(pa) * h.dir * 30, Math.cos(pa) * h.dir * 30, 0.3, pick(['#ffd27a', '#fff0c8']), { glow: true, drag: 2 }); } // 歯の火花
     } else if (h.kind === 'gearfloor') { // 歯車の床(番人): 上にいると回る向きへ流される(毎秒 50)
       const d = Math.sqrt(dd);
       if (d < h.r && d > 1 && h.t < h.dur - 0.2 && !P.dead && state === 'play' && P.invT <= 0) { const vx = -(P.y - h.y) / d * h.dir * 50, vy = (P.x - h.x) / d * h.dir * 50; P.x += vx * dt; P.y += vy * dt; }

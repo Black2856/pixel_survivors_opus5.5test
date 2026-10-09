@@ -1099,6 +1099,35 @@ function render() {
       sx.globalAlpha = 1;
       for (let i = 0; i < 5; i++) { sx.fillStyle = '#ffffff'; sx.fillRect(Math.round(hx + Math.sin(t * 7 + i * 1.3) * R * 0.5), Math.round(hy - H - (i % 2)), 1, 1); } // 柱の先の白いしぶき
       addLight(h.x, h.y - H / 2, 50, '#7ad7ff', 0.5 * fade);
+    } else if (h.kind === 'ringgear') { // リングギア: 予告(地面に赤い輪の帯)と、上から降りてくる中が空いた真鍮の歯車(内側に歯)。降りたあとは回り、縁は危険の赤
+      const R = h.r, W = h.w, u = Math.min(1, h.t / h.land), down = h.t >= h.land, up = Math.max(0, (h.t - (h.dur - 0.4)) / 0.4);
+      const lift = down ? 150 * up * up : 150 * (1 - u) * (1 - u), gy = hy - lift, rot = h.rot0 + h.dir * 0.35 * Math.max(0, h.t - h.land);
+      const band = (c, cy, r0, r1) => { c.beginPath(); c.arc(hx, cy, r1, 0, TAU); c.arc(hx, cy, Math.max(0, r0), 0, TAU, true); c.fill(); };
+      if (!down) { // 予告: 落ちてくる歯車の影の上に、赤い輪の帯(内側から満ちる)と、点滅する縁
+        sx.globalAlpha = 0.15 + 0.25 * u; sx.fillStyle = '#000'; band(sx, hy, R - W / 2, R + W / 2);
+        sx.fillStyle = '#ff3b5c'; sx.globalAlpha = 0.16; band(sx, hy, R - W / 2, R + W / 2);
+        sx.globalAlpha = 0.26; band(sx, hy, R - W / 2, R - W / 2 + W * u); sx.globalAlpha = 1;
+        const edge = warnBlink ? '#ff3b5c' : '#ffd0d8';
+        pCircle(sx, hx, hy, Math.round(R - W / 2), edge); pCircle(sx, hx, hy, Math.round(R + W / 2), edge);
+        pCircle(gx, hx, hy, Math.round(R + W / 2), '#ff3b5c');
+      }
+      const a0 = down ? fade : u; // 降りてくる間は薄い → 着地でくっきり
+      // 歯も含めて幅 W の中に描く(見た目 = 当たり判定): 外側 12 が輪の体、内側 4 が歯
+      sx.globalAlpha = a0; sx.fillStyle = '#5a4520'; band(sx, gy, R - W / 2 + 4, R + W / 2); // 輪の体(暗い真鍮)
+      sx.fillStyle = '#7a5e2c'; band(sx, gy, R - W / 2 + 7, R + W / 2 - 3); // 中ほどの面
+      const nT = 56;
+      for (let i = 0; i < nT; i++) { // 内側の歯
+        const a = rot + TAU / nT * i, tx = hx + Math.cos(a) * (R - W / 2 + 2), ty = gy + Math.sin(a) * (R - W / 2 + 2);
+        pDisc(sx, tx, ty, 3, '#241e1a'); pDisc(sx, tx, ty, 2, '#c8a050'); sx.fillStyle = '#ffd27a'; sx.fillRect(Math.round(tx) - 1, Math.round(ty) - 1, 1, 1);
+      }
+      for (let i = 0; i < 12; i++) { const a = rot + TAU / 24 + TAU / 12 * i; pDisc(sx, hx + Math.cos(a) * (R + 2), gy + Math.sin(a) * (R + 2), 2, '#241e1a'); } // 輪の穴
+      pCircle(sx, hx, gy, Math.round(R + W / 2), '#241e1a'); pCircle(sx, hx, gy, Math.round(R + W / 2 - 1), '#c8a050'); pCircle(sx, hx, gy, Math.round(R - W / 2 + 4), '#8a6a30');
+      if (down && up === 0) { // 当たる輪: 縁を危険の赤で(光の層は色で弱める)
+        sx.globalAlpha = fade * 0.9; pCircle(sx, hx, gy, Math.round(R + W / 2 + 1), '#ff3b5c'); pCircle(sx, hx, gy, Math.round(R - W / 2 - 2), '#ff3b5c');
+        pCircle(gx, hx, gy, Math.round(R + W / 2 + 1), dimCol('#ff3b5c', 0.55)); pCircle(gx, hx, gy, Math.round(R - W / 2 - 2), dimCol('#ff3b5c', 0.4));
+      }
+      sx.globalAlpha = 1;
+      for (let k = 0; k < 6; k++) { const a = rot + TAU / 6 * k; addLight(h.x + Math.cos(a) * R, h.y - lift + Math.sin(a) * R, 70, '#ffd27a', 0.25 * a0); }
     } else if (h.kind === 'gearfloor') { // 歯車の床: 床の上で回る真鍮の歯車(歯・スポーク・軸)と、回る向きの矢印
       const R = Math.round(h.r * Math.min(1, h.t * 5)), rot = h.t * 1.0 * h.dir, n = 14;
       sx.globalAlpha = 0.35 * fade; pDisc(sx, hx, hy, R, '#3a2e1e');
@@ -1924,7 +1953,7 @@ function drawBossFx(e) {
     sx.globalAlpha = 1;
     addLight(g.x, g.y, 46, '#9a9aaa', 0.5 * a);
   }
-  // 時計仕掛けの番人: 背中のゼンマイ / 時針と分針 / 振り子 / 鐘の光 / ゼンマイ巻きのDPSチェックの輪 / 止まった火花の星 / 全速の赤い光
+  // 時計仕掛けの番人: 背中のゼンマイ / 時針と分針 / 鐘の光 / ゼンマイ巻きのDPSチェックの輪 / 止まった火花の星 / 全速の赤い光(リングギアは床として描く)
   if (e.boss === 'warden') {
     const kx = ex + 13, ky = ey + yo - 2, ka = ai.keyA || 0; // ゼンマイの鍵(背中から横に突き出て回る)
     pLine(sx, ex + 8, ky, kx, ky, '#8a6a30', 2);
@@ -1941,15 +1970,7 @@ function drawBossFx(e) {
       }
       if (on) { pDisc(sx, ex, ey, 5, '#241e1a'); pDisc(sx, ex, ey, 4, '#c8a050'); addLight(e.x, e.y, 90, '#ffd27a', 0.3); }
     }
-    if (ai.hands || (ai.pend && ai.pend.t > 0.8)) drawSp(sp, e.x, e.y + yo, { flip: (e.face || 1) < 0, sy: e.sq || 1, sxk: 2 - (e.sq || 1), white: e.flash > 0 }); // 針・振り子の上に体を描き直す(軸は胸の文字盤)
-    if (ai.pend) { // 振り子: 棒の先に重り。振れた跡が残像で見える
-      const pd = ai.pend, on = pd.t > 0.8, L = 210 * A, x1 = ex + Math.cos(pd.a) * L, y1 = ey + Math.sin(pd.a) * L;
-      if (on) {
-        pLine(sx, ex, ey, x1, y1, '#241e1a', Math.round(5 * A)); pLine(sx, ex, ey, x1, y1, '#c8a050', Math.round(3 * A)); pLine(gx, ex, ey, x1, y1, '#3a2a08', 2);
-        const br = Math.round(9 * A); pDisc(sx, x1, y1, br + 1, '#241e1a'); pDisc(sx, x1, y1, br, '#c8a050'); pDisc(sx, x1 - 2, y1 - 2, Math.max(1, br - 4), '#ffd27a'); pDisc(gx, x1, y1, Math.max(1, br - 3), '#3a2a08');
-        addLight(e.x + Math.cos(pd.a) * L, e.y + Math.sin(pd.a) * L, 60, '#ffd27a', 0.6);
-      }
-    }
+    if (ai.hands) drawSp(sp, e.x, e.y + yo, { flip: (e.face || 1) < 0, sy: e.sq || 1, sxk: 2 - (e.sq || 1), white: e.flash > 0 }); // 針の上に体を描き直す(軸は胸の文字盤)
     if (ai.bellT > 0) { const k = 1 - ai.bellT / 0.8; pCircle(gx, ex, ey + yo - sp.h / 2 + 4, Math.round(6 + 6 * k), '#7a5a10'); addLight(e.x, e.y + yo - sp.h / 2 + 4, 40 + 60 * k, '#ffd27a', 0.9); } // 鐘が光る
     if (ai.act === 'spring') {
       const R = 26, m = Math.ceil(TAU * R);
