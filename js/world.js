@@ -3712,15 +3712,15 @@ function updCerbRush(e, ai, dt) {
   shockAt(e.x, e.y, 2, 0.7); shake(9); hitstop(0.06); AudioMan.slash(); AudioMan.cutHit();
   ai.act = null; ai.gap = 0.6; e.sq = 0.85;
 }
-// 三獄の息吹(名前は仮): 2秒(前方の扇 半径 110・±35°)→ 1.5秒 吐き続ける(扇は毎秒 0.6rad でプレイヤーを追う)。中にいる間 0.5秒ごとに ×0.3 × 残った首の数
+// 三獄の息吹(名前は仮): 0.5秒(前方の扇 半径 110・±35°)→ 2秒 吐き続ける(扇は毎秒 0.6rad でプレイヤーを追う)。中にいる間 0.5秒ごとに ×0.3 × 残った首の数
 //   残った首ごとに: 毒の首 = 毒 +1、牙の首 = 炎上(ボスのダメージ ×0.1)、闇の首 = 凍傷 +1
 function cerbBreath(e, ai, a) {
   const els = cerbLive(ai).map(h => h.hk);
-  pushWarn({ kind: 'fan', x: e.x, y: e.y, a, r: 110, h: 0.61, t: 0, life: 2, track: w => { w.x = e.x; w.y = e.y; } });
+  pushWarn({ kind: 'fan', x: e.x, y: e.y, a, r: 110, h: 0.61, t: 0, life: 0.5, track: w => { w.x = e.x; w.y = e.y; } });
   for (const h of cerbLive(ai)) h.pulse = 1;
   ai.brCharge = els; // 構えの間、口から属性の煙がこぼれる(描画)
-  AudioMan.charge(2);
-  windup(e, 2, () => { ai.brCharge = null; ai.br = { a, els, r: 110, h: 0.61, t: 0, dur: 1.5, tick: 0, track: 0.6 }; AudioMan.fire(); AudioMan.roar(); shake(5); shockAt(e.x, e.y, 1.2, 0.8); });
+  AudioMan.charge(0.5);
+  windup(e, 0.5, () => { ai.brCharge = null; ai.br = { a, els, r: 110, h: 0.61, t: 0, dur: 2, tick: 0, track: 0.6 }; AudioMan.fire(); AudioMan.roar(); shake(5); shockAt(e.x, e.y, 1.2, 0.8); });
 }
 function updCerbBreath(e, ai, dt, a) {
   const b = ai.br;
