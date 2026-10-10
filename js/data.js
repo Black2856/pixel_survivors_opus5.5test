@@ -86,7 +86,7 @@ const DATA = {
     fgiant:  { name: '霜の巨人 FROST GIANT',        hp: 2000, spd: 11, dmg: 24, r: 16, music: 'b_peak', col: '#9fd8ff' },
     squeen:  { name: '雪華の女王 SNOW QUEEN',       hp: 1500, spd: 18, dmg: 22, r: 12, music: 'b_peak', col: '#d8f0ff' },
     warden:  { name: '時計仕掛けの番人 CLOCKWORK WARDEN', hp: 1900, spd: 13, dmg: 22, r: 15, music: 'b_clock1', col: '#c8a050' },
-    cerberus:   { name: '冥犬ケルベロス CERBERUS', hp: 1800, spd: 21, dmg: 22, r: 16, music: 'b_tomb1', col: '#9dff5a' }, // 3本の首(壊せる物)
+    cerberus:   { name: '冥犬ケルベロス CERBERUS', hp: 1800, spd: 21, dmg: 22, r: 16, music: 'b_tomb1', col: '#9dff5a' }, // 合体形態と分裂形態をくり返す(分裂すると首が1本ずつの犬 3匹に)
     shadowking: { name: '影の王 SHADOW KING',      hp: 2000, spd: 15, dmg: 20, r: 12, music: 'b_tomb1', col: '#a66bff', noTwin: true }, // 激昂で曲がボス2 に変わる / noTwin: 双王の相方に選ばれない
   },
   // 状態異常(プレイヤー): 粘液・スロウタイムの移動速度倍率 / スロウタイムのCD回復倍率 / 炎上

@@ -736,7 +736,8 @@ const SWING_PAL = {
   blood:     { body: '#3a0008', edge: '#8e0016', glow: '#5a000c', core: '#c0102a' }, // 血の色(ブラッドアサシン)
   rage:      { body: '#2a0408', edge: '#7a1418', glow: '#2a0508', core: '#b8402a' }, // 赤黒い闘気(バーサーカー。明るい赤は敵の攻撃の色なので芯だけ。光の層は色で明るさが決まるので暗く)
   ring:      { body: '#3a4668', edge: '#8ea6d8', glow: '#3a4668' },
-  shadow:    { body: '#2a1240', edge: '#a66bff', glow: '#4a1a7a', core: '#e8c8ff' }, // 影の王の影の剣                  // オービットブレードの輪が一周する(影の追撃)
+  shadow:    { body: '#2a1240', edge: '#a66bff', glow: '#4a1a7a', core: '#e8c8ff' }, // 影の王の影の剣
+  cerb:      { body: '#3a0a1a', edge: '#ff5a5a', glow: '#5a1020', core: '#ffd0d0' }, // ケルベロスの影の突進の最後の切り裂き                  // オービットブレードの輪が一周する(影の追撃)
 };
 // 騎士剣の薙ぎ払い(扇形)。o.arc: 半分の角度 / o.evo: 聖剣(当てるたびに 5秒のシールド +1。1回の攻撃につき1まで)/ org: 撃ち手
 function sweep(a, st, flip, o, org = P_ORG) {
@@ -1237,7 +1238,7 @@ function hitEnemy(e, base, o = {}) {
   dmg = Math.max(1, Math.round(dmg * rand(0.9, 1.1)));
   e.hp -= dmg; e.flash = 0.08;
   if (e.hpFloor && e.hp < e.hpFloor) e.hp = e.hpFloor; // 影の王: 影がいる間は次の基準(4回目の影の間は HP 1)より下がらない
-  if (e.obj === 'chead') cerbSpill(e, dmg); // ケルベロスの首: 本体にも ×0.5
+  if (e.obj === 'cdog') cerbSpill(e, Math.min(dmg, e.hp + dmg)); // 冥犬の犬(分裂形態): 本体にも ×0.5(犬の残りHP まで。とどめの余りは入れない)
   if (o.src && o.src === P.mainW) clsOnMainHit(e); // 通常攻撃(メイン武器)の命中
   if (o.eHit) clsOnEHit(e, dmg);                   // 武器スキル(E)の命中
   if (o.el) clsOnElement(e, o.el, dmg);             // 属性(メイジの元素循環)
@@ -1925,15 +1926,8 @@ function updObj(e, dt) {
     if (Math.random() < dt * 20) part(e.x + rand(-e.r, e.r) * 0.5, e.y + e.r * 0.8, -e.vx * 0.2 + rand(-15, 15), -rand(10, 30), 0.35, pick(['#ffd27a', '#c8a050', '#8a7a60']), { glow: Math.random() < 0.3, g: 160 }); // 火花と砂ぼこり
   } else if (e.obj === 'stake') { // 冥鎖の杭: 紫のルーンが脈打ち、黒いもやが立ちのぼる
     if (Math.random() < dt * 8) part(e.x + rand(-3, 3), e.y - rand(0, 16), rand(-4, 4), -rand(6, 16), 0.7, pick(SKC.slice(0, 4)), { glow: Math.random() < 0.3, drag: 1 });
-  } else if (e.obj === 'chead') { // ケルベロスの首: 体の向きに合わせて前に並ぶ。首ごとの気配(毒のしずく・牙の光・闇のもや)
-    const o = e.owner, f = o.face || 1;
-    e.face = f; e.x = o.x + e.dx * f; e.y = o.y + e.dy;
-    e.pulse = Math.max(0, (e.pulse || 0) - dt * 2);
-    const hx = e.x + 4 * f, hy = e.y - e.hz;
-    if (e.hk === 'poison' && Math.random() < dt * 6) part(hx + rand(-2, 2), hy + 3, rand(-3, 3), rand(10, 25), 0.6, pick(['#7dff6a', '#3aa83a']), { glow: true, g: 160 }); // 毒のよだれ
-    else if (e.hk === 'dark' && Math.random() < dt * 10) part(e.x + rand(-5, 5), hy - rand(0, 6), rand(-6, 6), -rand(8, 18), 0.7, pick(['#1a0a2a', '#3a1a5a', '#7a3ab0']), { drag: 1 }); // 闇のもや
-    else if (e.hk === 'fang' && Math.random() < dt * 3) part(hx + 3 * f, hy + 2, 0, 0, 0.25, '#ffd0d0', { glow: true }); // 牙の光
-  } else if (e.obj === 'iceblock') { // 氷塊(霜の巨人): 冷気が立ちのぼる
+  } else if (e.obj === 'cdog') updCerbDog(e, dt); // 冥犬の犬(分裂形態): 走る・技
+  else if (e.obj === 'iceblock') { // 氷塊(霜の巨人): 冷気が立ちのぼる
     if (Math.random() < dt * 4) part(e.x + rand(-8, 8), e.y - rand(0, 12), rand(-3, 3), -rand(3, 8), 0.8, pick(SNOW), { drag: 1 });
   } else if (e.obj === 'altar') { // 炎の祭壇: 炎が燃えさかり、火の粉がイフリートへ流れる
     if (Math.random() < dt * 16) part(e.x + rand(-3, 3), e.y - 10 + rand(-2, 2), rand(-6, 6), -rand(20, 40), rand(0.3, 0.6), pick(['#ff6a2a', '#ffc34a', '#fff0b0']), { glow: true, drag: 1 });
@@ -1985,15 +1979,16 @@ function objDown(e, broken) {
       UI.announce('鎖が切れた!', ph && ph.fogPause > 0 ? '闇の霧が 20秒 晴れる' : '闇の霧が 20秒 遅れる');
     }
     return;
-  } else if (e.obj === 'chead') { // ケルベロスの首: 首の色と黒い血のしぶき。壊すと 15秒で生え直す(3本とも壊すと倒れ込む)
-    const o = e.owner, C = CERB[e.hk], hy = e.y - e.hz;
-    burst(e.x, hy, Math.round(46 * k), [C[0], C[1], '#1a0a14', '#ffffff'], { sp: 150 * k, g: 220, glow: true, life: 0.7 });
+  } else if (e.obj === 'cdog') { // 冥犬の犬: 首の色の光と黒い血。倒した犬の首は合体しても戻らない(3匹とも倒すと倒れ込む)
+    const o = e.owner, C = CERB[e.hk], y = e.y - 6;
+    burst(e.x, y, Math.round(46 * k), [C[0], C[1], '#1a0a14', '#ffffff'], { sp: 150 * k, g: 220, glow: true, life: 0.7 });
     if (broken && !o.dead) {
-      o.ai.regrow[e.slot] = S.time + 15;
-      addFlash(e.x, hy, 90, C[0], 0.5); shake(7); hitstop(0.05); AudioMan.crush(); AudioMan.bite();
-      bossBlast(e.x, hy, 26, { col: C[1], core: C[0], decal: false, n: 14, light: 0.6 });
-      for (let i = 0; i < 14; i++) part(e.x + rand(-3, 3), hy + rand(-3, 3), rand(-60, 60), -rand(40, 110), rand(0.5, 0.9), pick(['#1a0a14', '#5a1020', C[1]]), { g: 300, drag: 0.5, sz: pick([1, 2]) }); // 黒い血
-      if (!o.ai.heads.some(h => h && !h.dead && h !== e)) cerbDown(o, o.ai); // 3本とも落ちた
+      const h = o.ai.hs[e.slot]; h.dead = true; h.hp = 0;
+      addFlash(e.x, y, 90, C[0], 0.5); shake(7); hitstop(0.05); AudioMan.crush(); AudioMan.bite();
+      bossBlast(e.x, y, 26, { col: C[1], core: C[0], decal: false, n: 14, light: 0.6 });
+      for (let i = 0; i < 14; i++) part(e.x + rand(-3, 3), y + rand(-3, 3), rand(-60, 60), -rand(40, 110), rand(0.5, 0.9), pick(['#1a0a14', '#5a1020', C[1]]), { g: 300, drag: 0.5, sz: pick([1, 2]) }); // 黒い血
+      if (o.ai.hs.every(q => q.dead)) cerbDownStart(o, o.ai, e.x, e.y); // 3匹とも倒した
+      else hint('dogdown', '首を落とした', '倒した犬の首は、合体しても戻らない(次の分裂で生え直す)');
     }
     return;
   } else if (e.obj === 'clone') { // 鏡の分身: 鏡のように割れて消える
@@ -2019,10 +2014,10 @@ const BOSS_AI0 = {
   reaper: { tp: 5, mark: 8, throw: 3, reap: 2, clock: 7, glass: 12 },
   fhour: { scy: 1.5, rev: 8, stop: 10, marks: 5, sec: 3, busy: 0.6 },
   pqueen: { tp: 3, beam: 3, mirror: 8, scatter: 6, orb: 4, blink: 6 },
-  cerberus: { howl: 8, breath: 5, rush: 3, bite: 6, spit: 10, gap: 0 },
+  cerberus: { howl: 8, rush: 3, breath: 6, orb: 9, gap: 0 },
   shadowking: { sword: 4, rings: 8, blades: 10, chase: 6, sever: 15, gap: 0 },
 };
-const BOSS_ENRAGE = { king: { slam: 6 }, ifrit: { altar: true }, stag: { herd: 4 }, pqueen: { spiral: 3 }, levia: { breath: 4 }, fgiant: { drift: 5 }, squeen: { lance: 3 }, warden: { ringCd: 6 }, reaper: { sum: 7 }, fhour: { cross: 4, echo: 0 }, cerberus: { tri: 3 }, shadowking: { chainCd: 1 } };
+const BOSS_ENRAGE = { king: { slam: 6 }, ifrit: { altar: true }, stag: { herd: 4 }, pqueen: { spiral: 3 }, levia: { breath: 4 }, fgiant: { drift: 5 }, squeen: { lance: 3 }, warden: { ringCd: 6 }, reaper: { sum: 7 }, fhour: { cross: 4, echo: 0 }, cerberus: { rain: 5 }, shadowking: { chainCd: 1 } };
 
 function bossAI(e, dt) {
   const ai = e.ai, a = Math.atan2(P.y - e.y, P.x - e.x), dist = Math.sqrt(d2(e.x, e.y, P.x, P.y));
@@ -3580,176 +3575,454 @@ function ringGear(e, ai) {
   hint('ringgear', 'リングギア', '番人を囲む歯車の輪が降りてくる。輪に触れないように(内側は安全)');
 }
 
-// ---------- 冥犬ケルベロス: 王の墓を守る三つ首の番犬。左から 毒・牙・闇 の首(壊せる物)で、首ごとに技が違う ----------
-//   首は HP 最大HP の 20%。首に当たったダメージは本体にも ×0.5。壊れた首の技は使わず、15秒で生え直す。3本とも壊すと 4秒 倒れ込む(被ダメ ×1.5)
-//   技は1つずつ(終わってから 0.6秒あける): 闇の遠吠え / 毒の息 / 牙の突進 / 三連噛み / 瘴気弾 / 激昂: 三つ首の瘴気
+// ---------- 冥犬ケルベロス: 王の墓を守る三つ首の番犬。左から 毒・牙・闇 の首。合体形態と分裂形態をくり返す ----------
+//   合体形態: 首は壊せない(ダメージは体だけ)。技は1つずつ(終わってから 0.6秒あける): 闇の遠吠え(→ 影の猟犬)/ 影の突進 / 三獄の息吹 / 三獄の魔弾 / 激昂: 三獄の雨
+//   ★分裂: 合体形態で 15秒(激昂 11秒)たつと、体が影にほどけて 毒・牙・闇 の犬 3匹になる(本体は消える)。12秒で、生き残った犬がプレイヤーのいた所へ跳び込んで合体
+//   犬の HP は最大HP の 20%(犬へのダメージは本体にも ×0.5)。倒した犬の首は合体しても戻らず、次の分裂で生え直す。3匹とも倒すと 5秒 倒れ込む(被ダメ ×1.5)
 const CERB = { poison: ['#7dff6a', '#2e8a2e', '#c8ffb0'], fang: ['#ff5a5a', '#8a1a2a', '#ffd0d0'], dark: ['#a66bff', '#3a1a5a', '#e8c8ff'] }; // 首の色(光・暗・芯)
-const CHEAD = [{ hk: 'poison', dx: 10, dy: -1, hz: 15 }, { hk: 'fang', dx: 17, dy: 1, hz: 9 }, { hk: 'dark', dx: 11, dy: 3, hz: 2 }]; // 体の中心からの位置(右向き)と高さ
+const CHEAD = [{ hk: 'poison', dx: 10, dy: -1, hz: 15 }, { hk: 'fang', dx: 17, dy: 1, hz: 9 }, { hk: 'dark', dx: 11, dy: 3, hz: 2 }]; // 合体形態の首: 体の中心からの位置(右向き)と高さ
+const CFORM = { merge: 15, mergeE: 11, split: 12, down: 5, pct: 0.2, spill: 0.5 };
+const CDOG = { poison: { spd: 24, da: -2.094 }, fang: { spd: 36, da: 0 }, dark: { spd: 26, da: 2.094 } }; // 犬の速さ(本体の速さ 21 に対して)・分裂で跳び出す向き(プレイヤーへの向きから。牙はプレイヤーの方、毒・闇は ±120°)
 const BREATH = ['#7dff6a', '#3aff5a', '#2e8a2e', '#c8ffb0', '#9a7dff'];
-function cerbHead(e, ai, i, regrow) {
-  const H = CHEAD[i], o = spawnObj(e, 'chead', e.x + H.dx * (e.face || 1), e.y + H.dy, { pct: 0.2, r: 7, life: Infinity });
-  Object.assign(o, { type: 'obj_chead_' + H.hk, hk: H.hk, slot: i, dx: H.dx, dy: H.dy, hz: H.hz, face: e.face, rise: regrow ? 0 : 1 });
-  ai.heads[i] = o; ai.regrow[i] = 0;
-  if (regrow) { // 首の付け根から黒い肉が盛り上がって生え直す
-    const C = CERB[H.hk];
-    burst(o.x, o.y - o.hz, 24, ['#1a0a14', '#5a1020', C[0], C[1]], { sp: 80, up: 30, g: 160, glow: true, life: 0.5 });
-    addRing(o.x, o.y - o.hz, 12, C[0], { life: 0.3 }); AudioMan.splat();
-  }
-  return o;
-}
-const cerbHas = (ai, hk) => ai.heads.some(h => h && !h.dead && h.hk === hk);
-const cerbHeadOf = (ai, hk) => ai.heads.find(h => h && !h.dead && h.hk === hk);
-// 首へのダメージの半分は本体へ(倍率・クリティカルは首への一撃で掛かっているので、そのまま半分)
-function cerbSpill(h, dmg) {
-  const o = h.owner;
-  if (!o || o.dead) return;
-  o.hp -= dmg * 0.5; o.flash = 0.06; S.hudDirty = true;
-  if (o.hp <= 0) killEnemy(o);
-}
-// 3本とも落ちた: 4秒 倒れ込む(動かず技も使わない。被ダメ ×1.5)。起き上がると首が全部生え直す
-function cerbDown(e, ai) {
-  ai.act = 'down'; ai.pt = 4; ai.wind = 0; ai.q = []; ai.br = null; e.takeK = 1.5; e.sq = 0.8;
-  burst(e.x, e.y, 70, ['#1a0a14', '#5a1020', '#7dff6a', '#a66bff', '#ff5a5a'], { sp: 170, g: 200, glow: true, life: 0.9 });
-  shockAt(e.x, e.y, 2, 0.7); shake(12); hitstop(0.1); slowmo(0.35, 0.8); screenFlash(0.3, '#ffffff'); AudioMan.boom(); AudioMan.roar();
-  UI.announce('ケルベロスが倒れ込んだ!', '4秒 大きなダメージを与えられる');
-}
+const BREATH_COL = { poison: ['#7dff6a', '#3aff5a', '#2e8a2e', '#c8ffb0'], fang: ['#ff6a2a', '#ffc34a', '#ff3b1a', '#fff0b0'], dark: ['#9ff7ff', '#bff4ff', '#7ad7ff', '#ffffff'] }; // 三獄の息吹: 毒の首 = 毒・牙の首 = 炎・闇の首 = 氷
+const cerbHas = (ai, hk) => ai.hs.some(h => !h.dead && h.hk === hk);
+const cerbLive = ai => ai.hs.filter(h => !h.dead);
+const dogSpd = (o, hk) => CDOG[hk].spd * o.spd / DATA.bosses.cerberus.spd; // 敵Lv・激昂で速くなるのは本体と同じ
+const cerbMouth = (e, hk) => { const H = CHEAD.find(c => c.hk === hk), f = e.face || 1; return { x: e.x + (H.dx + 5) * f, y: e.y + H.dy - H.hz + 1 }; }; // 合体形態の首の口
 function cerberusAI(e, ai, dt, a, dist, slow) {
-  if (!ai.heads) { ai.heads = []; ai.regrow = [0, 0, 0]; for (let i = 0; i < 3; i++) cerbHead(e, ai, i); hint('chead', '三つ首', '首は1本ずつ壊せる。壊れた首の技は止まり、3本とも壊すと倒れ込む'); }
-  if (ai.act === 'down') { // 倒れ込み: 頭の上を星が回る
-    ai.pt -= dt; e.sq = lerp(e.sq, 0.8, Math.min(1, dt * 8)); e.stunVis = true;
-    if (Math.random() < dt * 10) part(e.x + rand(-12, 12), e.y + rand(-4, 6), rand(-10, 10), -rand(10, 30), 0.6, pick(['#1a0a14', '#5a1020']), { drag: 1 });
-    if (ai.pt <= 0) { // 起き上がる: 首が全部生え直す
-      ai.act = null; e.takeK = 1; e.stunVis = false; ai.gap = 0.8;
-      for (let i = 0; i < 3; i++) if (!ai.heads[i] || ai.heads[i].dead) cerbHead(e, ai, i, true);
-      AudioMan.howl(); shake(9); shockAt(e.x, e.y, 1.6, 0.8);
-      bossBlast(e.x, e.y + 6, 50, Object.assign({ n: 18 }, BFX.cerberus));
-    }
-    return;
+  if (!ai.hs) { // 首(= 分裂したときの犬)の HP。合体形態では壊せない
+    ai.hs = CHEAD.map(H => ({ hk: H.hk, max: e.maxhp * CFORM.pct, hp: e.maxhp * CFORM.pct, dead: false, pulse: 0, raise: 0, rise: 1 }));
+    ai.form = 'merge'; ai.mergeAt = S.time; ai.dogs = [];
+    hint('chead', '三つ首', '合体と分裂をくり返す。分裂した犬を倒すと、合体したあとその首の技が止まる。3匹とも倒すと倒れ込む');
   }
-  for (let i = 0; i < 3; i++) if ((!ai.heads[i] || ai.heads[i].dead) && ai.regrow[i] && S.time >= ai.regrow[i]) cerbHead(e, ai, i, true); // 生え直す
-  if (ai.br) { updCerbBreath(e, ai, dt, a); return; } // 毒の息・三つ首の瘴気(吐いている間は止まる)
-  if (ai.act === 'rush') { updCerbRush(e, ai, dt); return; }
-  if (ai.act === 'bite') { ai.pt -= dt; if (ai.pt <= 0) { ai.act = null; ai.gap = 0.6; } return; }
+  for (const h of ai.hs) { h.pulse = Math.max(0, h.pulse - dt * 2); h.rise = Math.min(1, h.rise + dt * 1.5); }
+  if (ai.form === 'down') return updCerbDown(e, ai, dt);
+  if (ai.form === 'tosplit') return updCerbToSplit(e, ai, dt);
+  if (ai.form === 'split') return updCerbSplit(e, ai, dt);
+  if (ai.form === 'tomerge') return updCerbToMerge(e, ai, dt);
+  cerbHeadFx(e, ai, dt);
+  if (ai.br) { updCerbBreath(e, ai, dt, a); return; } // 三獄の息吹(吐いている間は止まる)
+  if (ai.act === 'rush') { updCerbRush(e, ai, dt); return; } // 影の突進の最後(本体が走る)
+  if (ai.act === 'busy') { if ((ai.pt -= dt) <= 0) { ai.act = null; ai.gap = 0.6; } return; }
+  if (S.time - ai.mergeAt >= (ai.enraged ? CFORM.mergeE : CFORM.merge) && !ai.q.length) { cerbSplit(e, ai); return; } // 技の最中なら終わってから
   e.x += Math.cos(a) * e.spd * slow * dt; e.y += Math.sin(a) * e.spd * slow * dt;
   if (Math.random() < dt * 8) part(e.x - (e.face || 1) * 14 + rand(-2, 2), e.y - 6 + rand(-3, 3), rand(-6, 6), -rand(10, 24), 0.5, pick(['#a66bff', '#7a3ab0', '#c79bff']), { glow: true, drag: 1 }); // 尾の紫の炎
-  const R = CHAOS.rate;
-  ai.howl -= dt * R; ai.breath -= dt * R; ai.rush -= dt * R; ai.bite -= dt * R; ai.spit -= dt * R; if (ai.enraged) ai.tri -= dt * R;
-  if ((ai.gap -= dt) > 0) return; // 技のあとは少しあける(1つずつ)
-  const en = ai.enraged;
-  if (en && ai.tri <= 0 && ai.heads.some(h => h && !h.dead)) { ai.tri = 18; cerbTriBreath(e, ai, a); }
+  const R = CHAOS.rate, en = ai.enraged;
+  ai.howl -= dt * R; ai.rush -= dt * R; ai.breath -= dt * R; ai.orb -= dt * R; if (en) ai.rain -= dt * R;
+  if ((ai.gap -= dt) > 0) return;
+  const live = cerbLive(ai).length;
+  if (en && ai.rain <= 0 && live) { ai.rain = 12; cerbRain(e, ai); }
   else if (ai.howl <= 0 && cerbHas(ai, 'dark')) { ai.howl = en ? 9 : 12; cerbHowl(e, ai); }
-  else if (ai.bite <= 0 && dist < 70) { ai.bite = en ? 4 : 5; cerbBite(e, ai, a); }
-  else if (ai.breath <= 0 && cerbHas(ai, 'poison')) { ai.breath = en ? 7 : 9; cerbBreath(e, ai, a); }
-  else if (ai.rush <= 0 && cerbHas(ai, 'fang')) { ai.rush = en ? 5 : 7; cerbRushStart(e, ai, a); }
-  else if (ai.spit <= 0 && cerbHas(ai, 'poison')) { ai.spit = en ? 6 : 8; cerbSpit(e, ai, a); }
+  else if (ai.rush <= 0 && cerbHas(ai, 'fang')) { ai.rush = en ? 7 : 9; cerbSRush(e, ai); }
+  else if (ai.breath <= 0 && live) { ai.breath = 15; cerbBreath(e, ai, a); }
+  else if (ai.orb <= 0 && live) { ai.orb = en ? 8 : 10; cerbOrbs(e, ai); }
 }
-// ★闇の遠吠え: 1秒(闇の首が天を仰ぎ、足元から黒い霧)→ 半径 130 まで闇の波が 0.6秒で広がる。飲まれると ×0.6・暗闇。そのあと影法師 2体(激昂 3体)
+// 首ごとの気配(毒のよだれ・牙の光・闇のもや)
+function cerbHeadFx(e, ai, dt) {
+  const f = e.face || 1;
+  for (const h of ai.hs) {
+    if (h.dead) continue;
+    const m = cerbMouth(e, h.hk);
+    if (h.hk === 'poison' && Math.random() < dt * 6) part(m.x + rand(-2, 2), m.y + 2, rand(-3, 3), rand(10, 25), 0.6, pick(['#7dff6a', '#3aa83a']), { glow: true, g: 160 });
+    else if (h.hk === 'dark' && Math.random() < dt * 10) part(m.x - 4 * f + rand(-5, 5), m.y - rand(0, 6), rand(-6, 6), -rand(8, 18), 0.7, pick(['#1a0a2a', '#3a1a5a', '#7a3ab0']), { drag: 1 });
+    else if (h.hk === 'fang' && Math.random() < dt * 3) part(m.x, m.y + 1, 0, 0, 0.25, '#ffd0d0', { glow: true });
+  }
+}
+// 闇の遠吠え(闇の首): 1秒(闇の首が天を仰ぎ、足元から黒い霧)→ 半径 130 まで闇の波が 0.6秒で広がる(×0.6・暗闇)→ 0.5秒後から影の猟犬 3匹(激昂 5匹)が 0.4秒おきに
 function cerbHowl(e, ai) {
-  const hd = cerbHeadOf(ai, 'dark');
-  if (hd) hd.raise = 1;
+  const hd = ai.hs.find(h => h.hk === 'dark');
+  hd.raise = 1;
   pushWarn({ kind: 'circle', x: e.x, y: e.y, r: 130, t: 0, life: 1, track: w => { w.x = e.x; w.y = e.y; } });
   AudioMan.charge(1);
   ai.mist = 1;
   windup(e, 1, () => {
-    ai.mist = 0; const h2 = cerbHeadOf(ai, 'dark'); if (h2) h2.raise = 0;
+    ai.mist = 0; hd.raise = 0;
     addHazard('darkwave', e.x, e.y, { r: 1, max: 130, spread: 0.6, dur: 0.9, dmg: e.dmg * 0.6 });
     AudioMan.howl(); shake(9); screenFlash(0.18, '#2a1240'); shockAt(e.x, e.y, 2.2, 0.7);
     fxRays(e.x, e.y - 14, 90, '#3a1a5a', { foe: true, n: 18, life: 0.5, core: '#a66bff', light: 0.6 });
     addFlash(e.x, e.y, 160, '#7a3ab0', 0.5);
-    const n = ai.enraged ? 3 : 2;
-    later(ai, 0.5, () => { // 影法師が闇から立ち上がる
-      for (let i = 0; i < n; i++) {
-        const sa = rand(0, TAU), x = e.x + Math.cos(sa) * rand(50, 80), y = e.y + Math.sin(sa) * rand(40, 70), s = spawnEnemy('stalker', { x, y });
-        s.noChest = true;
-        burst(x, y, 18, ['#1a0a2a', '#3a1a5a', '#c79bff'], { sp: 60, up: 30, glow: true, life: 0.5 }); addRing(x, y, 12, '#7a3ab0', { life: 0.3 });
-      }
-      AudioMan.summon();
-    });
-    ai.gap = 0.6;
-    hint('howl', '闇の遠吠え', '闇の波に飲まれると暗闇になる');
+    const n = ai.enraged ? 5 : 3, a0 = rand(0, TAU);
+    ai.act = 'busy'; ai.pt = 0.5 + (n - 1) * 0.4 + 0.3; // 猟犬を放ち終えるまで
+    for (let i = 0; i < n; i++) later(ai, 0.5 + i * 0.4, () => { if (!e.dead) houndCall(e, a0 + TAU / n * i + rand(-0.3, 0.3)); }); // 別々の向きから
+    hint('howl', '闇の遠吠え', '闇の波に飲まれると暗闇になる。闇の中で赤い目が光ったら、影の猟犬が駆け抜けてくる');
   });
 }
-// 毒の息: 0.8秒(前方の扇 半径 90・±35°、口から緑の煙)→ 1.5秒 吐き続ける(扇は毎秒 0.6rad でプレイヤーを追う)。中にいる間 0.5秒ごとに ×0.4・毒 +1
-function cerbBreath(e, ai, a) {
-  const hd = cerbHeadOf(ai, 'poison');
-  pushWarn({ kind: 'fan', x: e.x, y: e.y, a, r: 90, h: 0.61, t: 0, life: 0.8, track: w => { w.x = e.x; w.y = e.y; } });
-  if (hd) hd.pulse = 1;
-  AudioMan.charge(0.8);
-  windup(e, 0.8, () => { ai.br = { cones: [{ a, hk: 'poison' }], r: 90, h: 0.61, t: 0, dur: 1.5, tick: 0, track: 0.6 }; AudioMan.fire(); AudioMan.poison(); });
+// 影の猟犬: 画面の外の闇(プレイヤーから見て ha の向き)に赤い目が光る(0.8秒。帯はプレイヤーの位置を通って画面を横切る)→ 速さ 420 で駆け抜ける(×0.8)
+//   目は予告ではなく演出なので、暗闇の間も見える(帯は見えない)
+function houndCall(e, ha) {
+  const c = Math.cos(ha), s = Math.sin(ha), R = Math.hypot(GFX.VW, GFX.VH) / 2 + 24, x0 = P.x + c * R, y0 = P.y + s * R, a = ha + Math.PI, L = R * 2;
+  pushWarn({ kind: 'line', x: x0, y: y0, a, len: L, w: 16, t: 0, life: 0.8, fixed: true });
+  const kx = c > 0.01 ? (cam.x + GFX.VW - 14 - P.x) / c : c < -0.01 ? (cam.x + 14 - P.x) / c : R, ky = s > 0.01 ? (cam.y + GFX.VH - 14 - P.y) / s : s < -0.01 ? (cam.y + 14 - P.y) / s : R, k = clamp(Math.min(kx, ky), 0, R);
+  bfx.push({ kind: 'heyes', x: P.x + c * k, y: P.y + s * k, a, t: 0, life: 0.95 }); // 画面の端の闇に赤い目
+  AudioMan.shade2();
+  later(e.ai, 0.8, () => {
+    if (e.dead) return;
+    eprojs.push({ kind: 'shound', x: x0, y: y0, vx: Math.cos(a) * 420, vy: Math.sin(a) * 420, dmg: e.dmg * 0.8 * (S.eatk ?? 1), life: L / 420, t: 0, r: 7, keep: true });
+    AudioMan.dash();
+  });
 }
-// 激昂: 三つ首の瘴気: 1.2秒(3本の首が別々の向き −50°・0°・+50° を向き、それぞれの扇)→ 3方向へ同時に毒の息(半径 110・±25°・1.5秒)。壊れた首の向きには吐かない
-function cerbTriBreath(e, ai, a) {
-  const cones = [];
-  [['poison', -0.87], ['fang', 0], ['dark', 0.87]].forEach(([hk, da]) => { if (cerbHas(ai, hk)) cones.push({ a: a + da, hk }); });
-  for (const c of cones) pushWarn({ kind: 'fan', x: e.x, y: e.y, a: c.a, r: 110, h: 0.44, t: 0, life: 1.2, track: w => { w.x = e.x; w.y = e.y; } });
-  for (const h of ai.heads) if (h && !h.dead) h.pulse = 1;
-  AudioMan.charge(1.2); AudioMan.warning();
-  windup(e, 1.2, () => { ai.br = { cones, r: 110, h: 0.44, t: 0, dur: 1.5, tick: 0, track: 0, tri: true }; AudioMan.roar(); AudioMan.poison(); shake(6); shockAt(e.x, e.y, 1.4, 0.8); });
+// 影の突進(牙の首): 0.6秒(帯 長さ 170・幅 25)→ 0.5秒ごとに合計 3回(激昂 5回)。毎回そのときのプレイヤーへ向け直した帯を、影が速さ 400 で駆け抜けて噛みつく(×1.3・60 押す・暗闇)
+//   最後の1回は本体が走り、着いた所で半径 60 を切り裂く(無敵無視)
+const SRUSH = { len: 170, w: 25, spd: 400, wind: 0.6, gap: 0.5, slash: 60 };
+function cerbSRush(e, ai) {
+  const n = ai.enraged ? 5 : 3;
+  ai.act = 'busy'; ai.pt = 99; // 本体が走り終えるまで(updCerbRush で戻す)
+  ai.hs.find(h => h.hk === 'fang').pulse = 1;
+  e.sq = 1.1; AudioMan.charge(SRUSH.wind);
+  for (let k = 0; k < n; k++) {
+    const tw = k ? SRUSH.wind + (k - 1) * SRUSH.gap : 0, life = k ? SRUSH.gap : SRUSH.wind, last = k === n - 1;
+    later(ai, tw, () => {
+      if (e.dead) return;
+      const a = Math.atan2(P.y - e.y, P.x - e.x);
+      pushWarn({ kind: 'line', x: e.x, y: e.y, a, len: SRUSH.len, w: SRUSH.w, t: 0, life, fixed: true }); // 突進の経路(体当たりなので広げない)
+      if (last) pushWarn({ kind: 'circle', x: e.x + Math.cos(a) * SRUSH.len, y: e.y + Math.sin(a) * SRUSH.len, r: SRUSH.slash, t: 0, life: life + SRUSH.len / SRUSH.spd }); // 着いた所の切り裂き
+      later(ai, life, () => {
+        if (e.dead) return;
+        if (!last) return cerbShadeRush(e, ai, a);
+        ai.act = 'rush'; ai.ra = a; ai.rleft = SRUSH.len; ai.rhit = false;
+        AudioMan.dash(); AudioMan.roar(); shake(5);
+      });
+    });
+  }
+  hint('srush', '影の突進', '影が次々に突っ込んでくる。最後は本体が走り、着いた所のまわりを切り裂く');
+}
+function cerbShadeRush(e, ai, a) { // 影(ケルベロスの影絵)が駆け抜ける
+  eprojs.push({ kind: 'cshade', x: e.x, y: e.y, vx: Math.cos(a) * SRUSH.spd, vy: Math.sin(a) * SRUSH.spd, dmg: e.dmg * 1.3 * (S.eatk ?? 1), dark: DATA.debuffTomb.darkDur, pushK: 60, life: SRUSH.len / SRUSH.spd, t: 0, r: SRUSH.w / 2 - 2, keep: true, heads: cerbLive(ai).map(h => h.hk) });
+  burst(e.x, e.y, 20, SKC, { sp: 100, glow: true, life: 0.35 }); addRing(e.x, e.y, 14, '#a66bff', { life: 0.25 });
+  AudioMan.dash(); AudioMan.shade2(); shake(3);
+}
+function updCerbRush(e, ai, dt) {
+  const step = Math.min(ai.rleft, SRUSH.spd * dt);
+  e.x += Math.cos(ai.ra) * step; e.y += Math.sin(ai.ra) * step; ai.rleft -= step;
+  e.face = Math.cos(ai.ra) < 0 ? -1 : 1;
+  if ((ai.ghostT = (ai.ghostT || 0) - dt) <= 0) { ai.ghostT = 0.03; bfx.push({ kind: 'ghost', x: e.x, y: e.y, spr: 'cerberus', flip: e.face < 0, col: '#ff5a5a', t: 0, life: 0.25 }); } // 残像
+  if (Math.random() < dt * 60) part(e.x + rand(-10, 10), e.y + 8, -Math.cos(ai.ra) * 60 + rand(-20, 20), -rand(10, 40), 0.4, pick(['#3a2a40', '#5a4a60', '#ff5a5a']), { g: 120, drag: 2 }); // 土煙
+  if (!ai.rhit && d2(e.x, e.y, P.x, P.y) < Math.pow(SRUSH.w / 2 + 3, 2) && hurtPlayer(e.dmg * 1.3)) { // 噛みついた
+    ai.rhit = true; pushPlayer(ai.ra, 60, 0.2); darkPlayer(DATA.debuffTomb.darkDur);
+    bfx.push({ kind: 'cbite', x: P.x, y: P.y, a: ai.ra, col: CERB.fang[0], t: 0, life: 0.3 }); AudioMan.bite(); shake(6); hitstop(0.05);
+  }
+  if (ai.rleft > 0) return;
+  // 着いた所で半径 60 を切り裂く(無敵無視)
+  const R = SRUSH.slash * CHAOS.area;
+  if (d2(e.x, e.y, P.x, P.y) < (R + 3) * (R + 3)) hurtPlayer(e.dmg, { pierce: true });
+  slashes.push({ x: e.x, y: e.y, a: ai.ra, r: R, t: 0, life: 0.34, full: true, pal: SWING_PAL.cerb, enemy: true });
+  slashes.push({ x: e.x, y: e.y, a: ai.ra + Math.PI, r: R * 0.72, t: 0, life: 0.28, full: true, flip: 1, pal: SWING_PAL.cerb, enemy: true }); // 二重の刃筋
+  fxRays(e.x, e.y, R * 1.2, '#5a1020', { foe: true, n: 18, life: 0.35, core: '#ff5a5a', light: 0.7 });
+  for (let i = 0; i < 26; i++) { const pa = rand(0, TAU), r = rand(10, R); part(e.x + Math.cos(pa) * r, e.y + Math.sin(pa) * r, Math.cos(pa) * 70, Math.sin(pa) * 70, 0.4, pick(['#1a0a14', '#5a1020', '#ff5a5a', '#a66bff']), { glow: Math.random() < 0.4, drag: 2 }); }
+  shockAt(e.x, e.y, 2, 0.7); shake(9); hitstop(0.06); AudioMan.slash(); AudioMan.cutHit();
+  ai.act = null; ai.gap = 0.6; e.sq = 0.85;
+}
+// 三獄の息吹(名前は仮): 1.2秒(前方の扇 半径 110・±35°)→ 1.5秒 吐き続ける(扇は毎秒 0.6rad でプレイヤーを追う)。中にいる間 0.5秒ごとに ×0.3 × 残った首の数
+//   残った首ごとに: 毒の首 = 毒 +1、牙の首 = 炎上(ボスのダメージ ×0.1)、闇の首 = 凍傷 +1
+function cerbBreath(e, ai, a) {
+  const els = cerbLive(ai).map(h => h.hk);
+  pushWarn({ kind: 'fan', x: e.x, y: e.y, a, r: 110, h: 0.61, t: 0, life: 1.2, track: w => { w.x = e.x; w.y = e.y; } });
+  for (const h of cerbLive(ai)) h.pulse = 1;
+  ai.brCharge = els; // 構えの間、口から属性の煙がこぼれる(描画)
+  AudioMan.charge(1.2);
+  windup(e, 1.2, () => { ai.brCharge = null; ai.br = { a, els, r: 110, h: 0.61, t: 0, dur: 1.5, tick: 0, track: 0.6 }; AudioMan.fire(); AudioMan.roar(); shake(5); shockAt(e.x, e.y, 1.2, 0.8); });
 }
 function updCerbBreath(e, ai, dt, a) {
   const b = ai.br;
   b.t += dt; b.tick -= dt;
-  if (b.track) for (const c of b.cones) c.a += clamp(angDiff(a, c.a), -b.track * dt, b.track * dt); // 毒の息はゆっくりプレイヤーを追う
-  if (b.tick <= 0) { // 0.5秒ごと: 扇の中にいると ×0.4・毒 +1
+  b.a += clamp(angDiff(a, b.a), -b.track * dt, b.track * dt);
+  if (b.tick <= 0) {
     b.tick = 0.5;
-    if (b.cones.some(c => inFan(e.x, e.y, c.a, b.r, b.h)) && hurtPlayer(e.dmg * 0.4, { pierce: true })) poisonPlayer(1);
-  }
-  for (const c of b.cones) { // 緑の毒の煙が扇いっぱいに噴き出す
-    const R0 = b.r * CHAOS.area;
-    for (let k = 0; k < 3; k++) {
-      const pa = c.a + rand(-b.h, b.h) * 0.9, sp = rand(90, 170);
-      part(e.x + Math.cos(c.a) * 12, e.y - 6 + Math.sin(c.a) * 8, Math.cos(pa) * sp, Math.sin(pa) * sp, R0 / sp * rand(0.7, 1), pick(BREATH), { glow: Math.random() < 0.45, drag: 0.4, sz: pick([1, 2, 2, 3]) });
+    if (inFan(e.x, e.y, b.a, b.r, b.h) && hurtPlayer(e.dmg * 0.3 * b.els.length, { pierce: true })) {
+      if (b.els.includes('poison')) poisonPlayer(1);
+      if (b.els.includes('fang')) burnPlayer(e.dmg * 0.1);
+      if (b.els.includes('dark')) frostPlayer(1);
     }
   }
-  if (b.t >= b.dur) { ai.br = null; ai.gap = 0.6; for (const h of ai.heads) if (h) h.pulse = 0; }
-}
-// 牙の突進: 0.6秒(帯 長さ 170・幅 24)→ 速さ 320 で突進して噛みつく(×1.3、60 押す)
-function cerbRushStart(e, ai, a) {
-  pushWarn({ kind: 'line', x: e.x, y: e.y, a, len: 170, w: 24, t: 0, life: 0.6, fixed: true, track: w => { w.x = e.x; w.y = e.y; } }); // 突進の経路(体当たりなので広げない)
-  const hd = cerbHeadOf(ai, 'fang'); if (hd) hd.pulse = 1;
-  AudioMan.charge(0.6); e.sq = 1.15;
-  windup(e, 0.6, () => { ai.act = 'rush'; ai.ra = a; ai.rleft = 170; ai.rhit = false; AudioMan.dash(); AudioMan.roar(); shake(4); });
-}
-function updCerbRush(e, ai, dt) {
-  const step = Math.min(ai.rleft, 320 * dt);
-  e.x += Math.cos(ai.ra) * step; e.y += Math.sin(ai.ra) * step; ai.rleft -= step;
-  e.face = Math.cos(ai.ra) < 0 ? -1 : 1;
-  if ((ai.ghostT = (ai.ghostT || 0) - dt) <= 0) { ai.ghostT = 0.035; bfx.push({ kind: 'ghost', x: e.x, y: e.y, spr: 'cerberus', flip: e.face < 0, col: '#ff5a5a', t: 0, life: 0.25 }); } // 残像
-  if (Math.random() < dt * 60) part(e.x + rand(-10, 10), e.y + 8, -Math.cos(ai.ra) * 60 + rand(-20, 20), -rand(10, 40), 0.4, pick(['#3a2a40', '#5a4a60', '#ff5a5a']), { g: 120, drag: 2 }); // 土煙
-  if (!ai.rhit && d2(e.x, e.y, P.x, P.y) < Math.pow(e.r + 8, 2) && hurtPlayer(e.dmg * 1.3)) { // 噛みついた
-    ai.rhit = true; pushPlayer(ai.ra, 60, 0.2);
-    bfx.push({ kind: 'cbite', x: P.x, y: P.y, a: ai.ra, col: CERB.fang[0], t: 0, life: 0.3 }); AudioMan.bite(); shake(6); hitstop(0.05);
+  const R0 = b.r * CHAOS.area;
+  for (const hk of b.els) { // 首ごとの口から、毒・炎・氷が扇いっぱいに噴き出す
+    const m = cerbMouth(e, hk);
+    for (let k = 0; k < 2; k++) {
+      const pa = b.a + rand(-b.h, b.h) * 0.9, sp = rand(90, 170);
+      part(m.x, m.y, Math.cos(pa) * sp, Math.sin(pa) * sp, R0 / sp * rand(0.7, 1), pick(BREATH_COL[hk]), { glow: Math.random() < 0.45, drag: 0.4, sz: pick([1, 2, 2, 3]) });
+    }
   }
-  if (ai.rleft <= 0) {
-    ai.act = null; ai.gap = 0.6; e.sq = 0.85;
-    burst(e.x + Math.cos(ai.ra) * 12, e.y + 6, 20, ['#3a2a40', '#5a4a60', '#ff5a5a'], { sp: 90, up: 30, g: 200, life: 0.5 }); AudioMan.thud();
-  }
+  if (b.t >= b.dur) { ai.br = null; ai.gap = 0.6; }
 }
-// 三連噛み: 距離 70 以内。0.5秒(前方の扇 半径 55・±60°)→ 残った首が 0.25秒おきに噛む(×0.7、無敵無視)
-function cerbBite(e, ai, a) {
-  pushWarn({ kind: 'fan', x: e.x, y: e.y, a, r: 55, h: 1.05, t: 0, life: 0.5, track: w => { w.x = e.x; w.y = e.y; } });
-  windup(e, 0.5, () => {
-    const hs = ai.heads.filter(h => h && !h.dead);
-    ai.act = 'bite'; ai.pt = 0.25 * hs.length + 0.1;
-    hs.forEach((h, i) => later(ai, i * 0.25, () => {
-      if (h.dead || e.dead) return;
-      const ba = Math.atan2(P.y - e.y, P.x - e.x), C = CERB[h.hk], bx = e.x + Math.cos(ba) * 34, by = e.y + Math.sin(ba) * 26;
-      hitFan(e.x, e.y, ba, 55, 1.05, e.dmg * 0.7, { pierce: true });
-      bfx.push({ kind: 'cbite', x: bx, y: by, a: ba, col: C[0], t: 0, life: 0.28 });
-      h.pulse = 1; AudioMan.bite(); shake(3);
-    }));
+// 三獄の雨(名前は仮・激昂): 0.6秒(首がふくらむ)→ 残った首ごとに、その首の属性の霧の弾を空へ吐く。ケルベロスから 150 の所(プレイヤーの方向を中心に 毒の首 -75°・牙の首 0°・闇の首 +75°)に 1.3秒で落ちる
+//   落ちた所にその属性の霧(半径 100・10秒。中にいると 0.5秒ごとに: 毒の霧 = 毒 +1、炎の霧 = 炎上(ボスのダメージ ×0.1)、氷の霧 = 凍傷 +1。ダメージはない)
+const SHELL = { poison: 'vshell', fang: 'fshell', dark: 'ishell' };
+const RAIN_DA = { poison: -1.309, fang: 0, dark: 1.309 };
+function cerbRain(e, ai) {
+  const hs = cerbLive(ai);
+  for (const h of hs) h.pulse = 1.4;
+  AudioMan.charge(0.6);
+  windup(e, 0.6, () => {
+    const a = Math.atan2(P.y - e.y, P.x - e.x);
+    for (const h of hs) {
+      if (h.dead) continue;
+      const ta = a + RAIN_DA[h.hk], m = cerbMouth(e, h.hk);
+      let tx = e.x + Math.cos(ta) * 150, ty = e.y + Math.sin(ta) * 150;
+      if (S.mode === 'arena') { const d = Math.hypot(tx, ty), mx = DATA.arena.r - 20; if (d > mx) { tx *= mx / d; ty *= mx / d; } }
+      const C = BREATH_COL[h.hk], burn = e.dmg * 0.1;
+      pushWarn({ kind: 'circle', x: tx, y: ty, r: 100, t: 0, life: 1.3 });
+      lob(SHELL[h.hk], m.x, m.y, tx, ty, 1.3, 120, p => {
+        addHazard('miasma', p.tx, p.ty, { r: 100, dur: 10, tick: 0.25, iv: 0.5, el: h.hk, burn });
+        burst(p.tx, p.ty, 50, [...C, '#3a1a4a'], { sp: 160, up: 40, glow: true, life: 0.8 });
+        addRing(p.tx, p.ty, 100 * CHAOS.area, C[0], { r0: 20, w: 3, life: 0.5 }); addFlash(p.tx, p.ty, 140, C[0], 0.5);
+        shockAt(p.tx, p.ty, 1.8, 0.7); shake(6); AudioMan.splat(); AudioMan.boom();
+      });
+      burst(m.x, m.y, 14, C, { sp: 80, up: 40, glow: true, life: 0.4 });
+    }
+    AudioMan.shoot(); AudioMan.poison(); ai.gap = 0.6;
   });
+  hint('rain', '三獄の雨', '空から落ちた弾が、毒・炎・氷の大きな霧になる。霧の中にいると、その状態異常がたまる');
 }
-// 瘴気弾: 0.5秒(毒の首がふくらむ)→ 毒の玉を 5発(激昂 7発)扇に(±40°、速さ 80、×0.7)。当たると毒 +1
-function cerbSpit(e, ai, a) {
-  const hd = cerbHeadOf(ai, 'poison'); if (hd) hd.pulse = 1.4;
+// 三獄の魔弾(名前は仮): 0.5秒(首がふくらむ)→ 残った首ごとに、その首の属性の玉を1つずつプレイヤーへ撃つ(速さ 100・×0.6)
+//   闇の玉(影の眼)と同じく、プレイヤーに 50 まで近づくか撃って 4秒で、プレイヤーの方向へ 3つ(激昂 6つ)に割れる(速さ 130・2.5秒)
+//   当たると 毒の玉 = 毒 +1、炎の玉 = 炎上(ボスのダメージ ×0.1)、氷の玉 = 凍傷 +1
+const CORB_ST = { poison: e => ({ poison: 1 }), fang: e => ({ burn: e.dmg * 0.1 * (S.eatk ?? 1) }), dark: e => ({ frost: 1 }) };
+function cerbOrbs(e, ai) {
+  const hs = cerbLive(ai);
+  for (const h of hs) h.pulse = 1.2;
+  ai.brCharge = hs.map(h => h.hk); // 構えの間、口から属性の煙がこぼれる(描画)
   AudioMan.charge(0.5);
   windup(e, 0.5, () => {
-    const h2 = cerbHeadOf(ai, 'poison'), x = h2 ? h2.x + 6 * (e.face || 1) : e.x, y = h2 ? h2.y - h2.hz + 2 : e.y - 10, n = ai.enraged ? 7 : 5, ba = Math.atan2(P.y - y, P.x - x);
-    for (let i = 0; i < n; i++) Object.assign(eball(x, y, ba + (i / (n - 1) - 0.5) * 1.4, 80, e.dmg * 0.7, 'vball'), { poison: 1, r: 4 * CHAOS.area });
-    burst(x, y, 16, BREATH, { sp: 70, glow: true, life: 0.4 }); addRing(x, y, 10, '#7dff6a', { life: 0.25 }); AudioMan.splat(); AudioMan.shoot();
-    ai.gap = 0.6;
+    ai.brCharge = null;
+    for (const h of hs) {
+      if (h.dead) continue;
+      const m = cerbMouth(e, h.hk), a = Math.atan2(P.y - m.y, P.x - m.x);
+      eprojs.push(Object.assign({ kind: 'corb', el: h.hk, x: m.x, y: m.y, vx: Math.cos(a) * 100, vy: Math.sin(a) * 100, dmg: e.dmg * 0.6 * (S.eatk ?? 1), life: 4, t: 0, r: 3.5 * CHAOS.area, n: ai.enraged ? 6 : 3 }, CORB_ST[h.hk](e)));
+      burst(m.x, m.y, 14, BREATH_COL[h.hk], { sp: 70, glow: true, life: 0.35 }); addRing(m.x, m.y, 9, BREATH_COL[h.hk][0], { life: 0.25 });
+    }
+    AudioMan.shoot(); AudioMan.shade2(); ai.gap = 0.6;
   });
+}
+function splitCorb(p) { // プレイヤーの方向へ n個に割れる(0.2rad おき)
+  const a = Math.atan2(P.y - p.y, P.x - p.x), C = BREATH_COL[p.el];
+  for (let i = 0; i < p.n; i++) eprojs.push({ kind: 'corb', el: p.el, frag: true, x: p.x, y: p.y, vx: Math.cos(a + (i - (p.n - 1) / 2) * 0.2) * 130, vy: Math.sin(a + (i - (p.n - 1) / 2) * 0.2) * 130, dmg: p.dmg, poison: p.poison, burn: p.burn, frost: p.frost, life: 2.5, t: 0, r: 2.5 * CHAOS.area });
+  burst(p.x, p.y, 18, [...C, '#ffffff'], { sp: 80, glow: true, life: 0.35 });
+  addRing(p.x, p.y, 12, C[0], { r0: 3, life: 0.25 }); addFlash(p.x, p.y, 40, C[0], 0.4); AudioMan.shade2();
+}
+// ★分裂: 1秒(体が震え、黒い炎に包まれて影にほどける)→ 毒・牙・闇の犬が 3方向へ跳び出す(本体の位置から 70)。壊れていた首は生え直す(その犬は HP 満タン)
+function cerbSplit(e, ai) {
+  ai.form = 'tosplit'; ai.pt = 1; ai.act = null; ai.br = null; ai.dissolve = 0;
+  for (const h of ai.hs) if (h.dead) { h.dead = false; h.hp = h.max; h.rise = 0; }
+  AudioMan.charge(1); AudioMan.shade2(); shake(4);
+}
+function updCerbToSplit(e, ai, dt) {
+  ai.pt -= dt;
+  ai.dissolve = clamp(1 - ai.pt, 0, 1); // 描画: 体が黒く染まっていく
+  e.sq = 1 + Math.sin(ai.dissolve * 36) * 0.08; // 震える(白くは光らせない。暗いステージでは白い塊に見えるため)
+  for (let i = 0; i < 4; i++) part(e.x + rand(-16, 16), e.y + rand(-14, 8), rand(-8, 8), -rand(20, 60), rand(0.4, 0.8), pick(['#0a0612', '#1a0a2a', '#3a1a5a', '#7a3ab0']), { drag: 1, sz: pick([1, 2, 3]) }); // 黒い炎に包まれる
+  if (ai.pt > 0) return;
+  const a = Math.atan2(P.y - e.y, P.x - e.x);
+  ai.dogs = ai.hs.map(h => {
+    const da = a + CDOG[h.hk].da, tx = e.x + Math.cos(da) * 70, ty = e.y + Math.sin(da) * 70;
+    bfx.push({ kind: 'cstreak', x: e.x, y: e.y - 6, tx, ty: ty - 6, col: CERB[h.hk][0], t: 0, life: 0.5 }); // 首の色の光の筋
+    return cerbDog(e, h, tx, ty);
+  });
+  e.flying = e.hidden = e.air = true; ai.dissolve = 0; e.flash = 0;
+  ai.form = 'split'; ai.splitT = 0; ai.hunted = false;
+  burst(e.x, e.y, 80, ['#0a0612', '#2a1240', '#7a3ab0', '#7dff6a', '#ff5a5a', '#a66bff'], { sp: 190, up: 40, glow: true, life: 0.9 });
+  fxBeam(e.x, e.y, { foe: true, w: 22, H: 160, col: '#2a1240', mid: '#7a3ab0', core: '#e8c8ff', life: 0.5, up: true, drop: 0.1 });
+  addRing(e.x, e.y, 60, '#a66bff', { r0: 10, w: 3, life: 0.45 }); addFlash(e.x, e.y, 150, '#7a3ab0', 0.6);
+  shockAt(e.x, e.y, 2.4, 0.7); shake(10); hitstop(0.06); screenFlash(0.15, '#2a1240'); AudioMan.howl(); AudioMan.boom();
+}
+function updCerbSplit(e, ai, dt) {
+  ai.splitT += dt;
+  const live = ai.dogs.filter(d => !d.dead);
+  if (live.length) { e.x = live.reduce((s, d) => s + d.x, 0) / live.length; e.y = live.reduce((s, d) => s + d.y, 0) / live.length; } // 消えた本体は犬たちの真ん中に(影の王の糸など)
+  if (ai.enraged && !ai.hunted && ai.splitT >= 5 && live.length && !live.some(d => d.jump)) { ai.hunted = true; cerbHunt(e, ai, live); }
+  if (ai.splitT >= CFORM.split && live.length && !live.some(d => d.hunt || d.jump)) cerbMerge(e, ai, live);
+}
+// 合体: 1秒。生き残った犬が、そのときのプレイヤーの位置(動かない)へ跳び込む(円 半径 50)→ ×1.2・外へ 60 押す。そこにケルベロスが戻る(犬の HP は首に持ち越す)
+function cerbMerge(e, ai, live) {
+  const x = P.x, y = P.y;
+  pushWarn({ kind: 'circle', x, y, r: 50, t: 0, life: 1, cm: true });
+  for (const d of live) { cerbDogSurface(d); d.st = 'run'; d.stT = 2.5; d.jump = { x0: d.x, y0: d.y, tx: x, ty: y, t: 0, T: 1, H: 50, merge: true }; }
+  ai.form = 'tomerge'; ai.pt = 1; ai.mx = x; ai.my = y;
+  AudioMan.charge(1); AudioMan.howl();
+}
+function updCerbToMerge(e, ai, dt) {
+  if ((ai.pt -= dt) > 0) { // 跳び込む先で闇が渦を巻く
+    if (Math.random() < 0.7) { const pa = rand(0, TAU), pr = rand(20, 60); part(ai.mx + Math.cos(pa) * pr, ai.my + Math.sin(pa) * pr * 0.6, -Math.cos(pa) * pr * 2, -Math.sin(pa) * pr * 1.2, 0.4, pick(SKC.slice(0, 4)), { glow: Math.random() < 0.3, drag: 0 }); }
+    return;
+  }
+  for (const d of ai.dogs) if (!d.dead) { ai.hs[d.slot].hp = d.hp; d.dead = true; } // 犬の HP は首へ(次の分裂に持ち越す)
+  ai.dogs = [];
+  e.x = ai.mx; e.y = ai.my; e.flying = e.hidden = e.air = false;
+  ai.form = 'merge'; ai.mergeAt = S.time; ai.gap = 0.8; e.sq = 0.6;
+  for (const h of ai.hs) if (!h.dead) h.rise = 0.4;
+  if (hitCircle(e.x, e.y, 50, e.dmg * 1.2)) pushPlayer(Math.atan2(P.y - e.y, P.x - e.x), 60, 0.25);
+  const R = 50 * CHAOS.area;
+  fxBeam(e.x, e.y, { foe: true, w: 22, H: 190, col: '#2a1240', mid: '#5a2a8a', core: '#a66bff', life: 0.55, up: true, drop: 0.12 }); // 影の柱(白く飛ばないように芯は紫)
+  bossBlast(e.x, e.y, R, Object.assign({ n: 20 }, BFX.cerberus));
+  burst(e.x, e.y, 90, ['#0a0612', '#2a1240', '#7dff6a', '#ff5a5a', '#a66bff', '#ffffff'], { sp: 200, up: 50, glow: true, life: 0.9 });
+  addRing(e.x, e.y, R, '#e8c8ff', { r0: 8, w: 3, life: 0.4 }); addFlash(e.x, e.y, 160, '#7a3ab0', 0.5);
+  shockAt(e.x, e.y, 2.8, 0.6); shake(13); hitstop(0.1); screenFlash(0.12, '#7a3ab0'); AudioMan.boom(); AudioMan.roar();
+}
+// 3匹とも倒した: 合体できずに最後の犬の場所で倒れ込む(5秒。動かず技も使わない。被ダメ ×1.5)
+function cerbDownStart(e, ai, x, y) {
+  ai.form = 'down'; ai.pt = CFORM.down; ai.q = []; ai.dogs = []; ai.br = null; ai.act = null; ai.wind = 0;
+  warns = warns.filter(w => !w.cm); // 合体の跳び込みの予告を消す
+  e.x = x; e.y = y; e.flying = e.hidden = e.air = false; e.takeK = 1.5; e.sq = 0.8; e.stunVis = true;
+  burst(e.x, e.y, 70, ['#1a0a14', '#5a1020', '#7dff6a', '#a66bff', '#ff5a5a'], { sp: 170, g: 200, glow: true, life: 0.9 });
+  fxBeam(e.x, e.y, { foe: true, w: 20, H: 120, col: '#2a1240', mid: '#5a1020', core: '#e8c8ff', life: 0.45, drop: 0.1 });
+  shockAt(e.x, e.y, 2, 0.7); shake(12); hitstop(0.1); slowmo(0.35, 0.8); screenFlash(0.3, '#ffffff'); AudioMan.boom(); AudioMan.roar();
+  UI.announce('ケルベロスが倒れ込んだ!', CFORM.down + '秒 大きなダメージを与えられる');
+}
+function updCerbDown(e, ai, dt) { // 倒れ込み: 頭の上を星が回る。起き上がると首が全部生え直す
+  ai.pt -= dt; e.sq = lerp(e.sq, 0.8, Math.min(1, dt * 8)); e.stunVis = true;
+  if (Math.random() < dt * 10) part(e.x + rand(-12, 12), e.y + rand(-4, 6), rand(-10, 10), -rand(10, 30), 0.6, pick(['#1a0a14', '#5a1020']), { drag: 1 });
+  if (ai.pt > 0) return;
+  ai.form = 'merge'; ai.mergeAt = S.time; ai.gap = 0.8; e.takeK = 1; e.stunVis = false;
+  for (const h of ai.hs) { h.dead = false; h.hp = h.max; h.rise = 0; }
+  AudioMan.howl(); shake(9); shockAt(e.x, e.y, 1.6, 0.8);
+  bossBlast(e.x, e.y + 6, 50, Object.assign({ n: 18 }, BFX.cerberus));
+  for (const H of CHEAD) { const m = cerbMouth(e, H.hk); burst(m.x, m.y, 20, ['#1a0a14', '#5a1020', CERB[H.hk][0], CERB[H.hk][1]], { sp: 80, up: 30, g: 160, glow: true, life: 0.5 }); } // 黒い肉が盛り上がって生え直す
+}
+// 犬へのダメージの半分は本体へ(倍率・クリティカルは犬への一撃で掛かっているので、そのまま半分)
+function cerbSpill(d, dmg) {
+  const o = d.owner;
+  if (!o || o.dead) return;
+  o.hp -= dmg * CFORM.spill; o.flash = 0.06; S.hudDirty = true;
+  if (o.hp <= 0) { o.x = d.x; o.y = d.y; o.flying = o.hidden = o.air = false; killEnemy(o); } // 分裂中に本体の HP が尽きたら、その犬の場所で倒れる
+}
+
+// ---------- 分裂形態の犬(ボスが出した物 'cdog'。HP は首と同じで、壊すとその首が落ちる) ----------
+//   毒の犬: プレイヤーから 90〜120 を保って回り込む。走った跡に 1秒ごとに毒だまり(半径 14・4秒)。4秒(激昂 3秒)ごとに 0.5秒ふくらんで瘴気弾 3発(激昂 5発、±25°)
+//   牙の犬: 追う。距離 110 以内で 0.45秒構え(帯 長さ 130・幅 16)→ 速さ 340 で飛びかかる(×1.0・40 押す)。そのあと 1.2秒(激昂 0.8秒)止まって息をつく
+//   闇の犬: 地上で 2.5秒 追う → 影潜り(影に沈んで攻撃が当たらない。1.5秒 迫る → 0.5秒 円 半径 24 → 飛び出して噛む ×1.0・暗闇 3秒)
+//   群れの狩り(激昂): 分裂して 5秒後に1回。プレイヤーを囲む位置(120 離れて等間隔)へ 0.6秒で走り、帯(長さ 240・幅 18)0.8秒 → 一斉に駆け抜ける(速さ 380・×1.0)
+function cerbDog(e, h, tx, ty) {
+  const d = spawnObj(e, 'cdog', e.x, e.y, { pct: 0, r: 9, life: Infinity });
+  Object.assign(d, {
+    type: 'cdog_' + h.hk, hk: h.hk, slot: CHEAD.findIndex(c => c.hk === h.hk), hp: Math.max(1, h.hp), maxhp: h.max, dmg: e.dmg * 0.6, rise: 1, face: tx < e.x ? -1 : 1,
+    st: 'run', stT: 2.5, shotT: 2, trailT: 0.5, orbit: Math.random() < 0.5 ? 1 : -1, jz: 0, jump: { x0: e.x, y0: e.y, tx, ty, t: 0, T: 0.45, H: 26 },
+  });
+  return d;
+}
+function cerbDogSurface(d) { // 闇の犬が影から出る
+  if (!d.sunk) return;
+  d.sunk = false; d.invuln = d.hidden = false; d.air = false; d.hideA = 1;
+}
+function updCerbDog(d, dt) {
+  const o = d.owner, ai = o.ai, C = CERB[d.hk];
+  d.pulse = Math.max(0, (d.pulse || 0) - dt * 2);
+  if (d.jump) { // 跳ぶ(分裂で跳び出す・合体で跳び込む)
+    const j = d.jump; j.t += dt;
+    const k = Math.min(1, j.t / j.T);
+    d.x = lerp(j.x0, j.tx, k); d.y = lerp(j.y0, j.ty, k); d.jz = Math.sin(k * Math.PI) * j.H; d.air = true;
+    d.face = j.tx < j.x0 ? -1 : 1; d.run = true;
+    if (Math.random() < dt * 40) part(d.x + rand(-4, 4), d.y - d.jz - 4 + rand(-3, 3), 0, 0, 0.3, pick([C[0], C[2], '#3a1a5a']), { glow: true, drag: 2 }); // 首の色の残光
+    if (k < 1) return;
+    d.jump = null; d.jz = 0; d.air = false;
+    if (!j.merge) { burst(d.x, d.y + 4, 16, ['#3a2a40', '#5a4a60', C[0]], { sp: 80, up: 20, g: 200, life: 0.4 }); addRing(d.x, d.y + 4, 12, C[0], { life: 0.3 }); AudioMan.thud(); }
+    return;
+  }
+  if (ai.form !== 'split') return;
+  if (d.stun > 0) { d.stun -= dt; d.run = false; return; }
+  const slow = (1 - 0.03 * (d.frost || 0)) * clsEnemySlow(d), spd = dogSpd(o, d.hk) * slow, a = Math.atan2(P.y - d.y, P.x - d.x), dist = Math.hypot(P.x - d.x, P.y - d.y);
+  if (d.hunt) dogHunt(d, o, dt);
+  else if (d.hk === 'poison') dogPoison(d, o, dt, a, dist, spd);
+  else if (d.hk === 'fang') dogFang(d, o, dt, a, dist, spd);
+  else dogDark(d, o, dt, a, dist, spd);
+  if (!d.sunk && !d.air && d2(d.x, d.y, P.x, P.y) < Math.pow(d.r + 4, 2)) hurtPlayer(d.dmg); // 触れると ×0.6
+  for (const q of ai.dogs) { // 犬どうしは重ならない
+    if (q === d || q.dead || q.sunk || q.jump) continue;
+    const dx = d.x - q.x, dy = d.y - q.y, dd = Math.hypot(dx, dy) || 0.1, ov = d.r + q.r - dd;
+    if (ov > 0) { d.x += dx / dd * ov * 0.5; d.y += dy / dd * ov * 0.5; }
+  }
+}
+function dogRun(d, a, spd, dt) { d.x += Math.cos(a) * spd * dt; d.y += Math.sin(a) * spd * dt; d.run = true; d.face = P.x < d.x ? -1 : 1; }
+function dogPoison(d, o, dt, a, dist, spd) {
+  if (d.spitT > 0) { // 瘴気弾の構え: 止まってふくらむ
+    d.spitT -= dt; d.run = false; d.face = P.x < d.x ? -1 : 1;
+    if (d.spitT > 0) return;
+    const n = o.ai.enraged ? 5 : 3, x = d.x + 10 * d.face, y = d.y - 8, ba = Math.atan2(P.y - y, P.x - x);
+    for (let i = 0; i < n; i++) Object.assign(eball(x, y, ba + (i / (n - 1) - 0.5) * 0.873, 80, o.dmg * 0.6, 'vball'), { poison: 1, r: 4 * CHAOS.area });
+    burst(x, y, 16, BREATH, { sp: 70, glow: true, life: 0.4 }); addRing(x, y, 10, '#7dff6a', { life: 0.25 }); AudioMan.splat(); AudioMan.shoot();
+    d.shotT = o.ai.enraged ? 3 : 4;
+    return;
+  }
+  dogRun(d, dist > 120 ? a : dist < 90 ? a + Math.PI : a + Math.PI / 2 * d.orbit, spd, dt); // 90〜120 を保って回り込む
+  if ((d.trailT -= dt) <= 0) { d.trailT = 1; addHazard('miasma', d.x, d.y + 4, { r: 14, dur: 4, tick: 0.5, iv: 1 }); } // 走った跡に毒だまり
+  if ((d.shotT -= dt * CHAOS.rate) <= 0) { d.spitT = 0.5; d.pulse = 1.4; AudioMan.charge(0.5); }
+}
+function dogFang(d, o, dt, a, dist, spd) {
+  if (d.st === 'wind') { d.run = false; if ((d.stT -= dt) <= 0) { d.st = 'lunge'; d.lLeft = 130; d.lHit = false; AudioMan.dash(); } return; }
+  if (d.st === 'lunge') {
+    const step = Math.min(d.lLeft, 340 * dt);
+    d.x += Math.cos(d.lA) * step; d.y += Math.sin(d.lA) * step; d.lLeft -= step; d.run = true; d.face = Math.cos(d.lA) < 0 ? -1 : 1;
+    if ((d.ghostT = (d.ghostT || 0) - dt) <= 0) { d.ghostT = 0.035; bfx.push({ kind: 'ghost', x: d.x, y: d.y, spr: 'cdog_fang', flip: d.face < 0, col: '#ff5a5a', t: 0, life: 0.22 }); } // 赤い残像
+    if (!d.lHit && d2(d.x, d.y, P.x, P.y) < Math.pow(11, 2) && hurtPlayer(o.dmg)) { d.lHit = true; pushPlayer(d.lA, 40, 0.18); bfx.push({ kind: 'cbite', x: P.x, y: P.y, a: d.lA, col: CERB.fang[0], t: 0, life: 0.28 }); AudioMan.bite(); shake(4); }
+    if (d.lLeft <= 0) { d.st = 'rest'; d.stT = o.ai.enraged ? 0.8 : 1.2; }
+    return;
+  }
+  if (d.st === 'rest') { // 止まって息をつく(攻撃のすき)
+    d.run = false;
+    if (Math.random() < dt * 6) part(d.x + 12 * d.face, d.y - 6, d.face * rand(5, 15), -rand(5, 12), 0.4, '#5a4a60', { drag: 2 });
+    if ((d.stT -= dt) <= 0) d.st = 'run';
+    return;
+  }
+  dogRun(d, a, spd, dt);
+  if (dist < 110) { d.st = 'wind'; d.stT = 0.45; d.lA = a; d.pulse = 1; pushWarn({ kind: 'line', x: d.x, y: d.y, a, len: 130, w: 16, t: 0, life: 0.45, fixed: true }); AudioMan.charge(0.45); }
+}
+function dogDark(d, o, dt, a, dist, spd) {
+  d.stT -= dt;
+  if (d.st === 'run') { dogRun(d, a, spd, dt); if (d.stT <= 0) { d.st = 'sink'; d.stT = 0.3; AudioMan.shade2(); } return; }
+  if (d.st === 'sink') { // 影に沈む
+    d.run = false; d.hideA = Math.max(0, d.stT / 0.3);
+    if (d.stT > 0) return;
+    d.st = 'creep'; d.stT = 1.5; d.sunk = true; d.invuln = d.hidden = true; d.air = true; d.hideA = 0;
+    burst(d.x, d.y + 4, 16, SKC, { sp: 60, glow: true, life: 0.4 });
+    return;
+  }
+  if (d.st === 'creep') { // 影だまりがプレイヤーへ迫る(速さ 110)
+    const sp2 = 110 * (1 - 0.03 * (d.frost || 0)) * clsEnemySlow(d), k = Math.min(dist, sp2 * dt);
+    if (dist > 1) { d.x += Math.cos(a) * k; d.y += Math.sin(a) * k; }
+    d.face = P.x < d.x ? -1 : 1;
+    if (Math.random() < dt * 14) part(d.x + rand(-8, 8), d.y + 3 + rand(-2, 2), rand(-5, 5), -rand(4, 12), rand(0.4, 0.7), pick(SKC.slice(0, 3)), { drag: 1 });
+    if (d.stT <= 0 || dist < 4) { d.st = 'mark'; d.stT = 0.5; pushWarn({ kind: 'circle', x: d.x, y: d.y, r: 24, t: 0, life: 0.5 }); AudioMan.charge(0.5); }
+    return;
+  }
+  if (d.st === 'mark' && d.stT <= 0) { // 飛び出して噛む
+    cerbDogSurface(d); d.st = 'run'; d.stT = 2.5;
+    if (hitCircle(d.x, d.y, 24, o.dmg)) darkPlayer(3);
+    bfx.push({ kind: 'cbite', x: d.x, y: d.y - 4, a: -Math.PI / 2, col: CERB.dark[0], t: 0, life: 0.3 });
+    burst(d.x, d.y, 30, [...SKC, '#ffffff'], { sp: 130, up: 40, glow: true, life: 0.5 }); addRing(d.x, d.y, 24 * CHAOS.area, '#a66bff', { r0: 6, w: 2, life: 0.3 });
+    shockAt(d.x, d.y, 1.2, 0.9); shake(5); AudioMan.bite(); AudioMan.shade2();
+  }
+}
+// 群れの狩り(激昂): 生き残った犬がプレイヤーを囲む位置へ 0.6秒で走り、帯 0.8秒 → 一斉に駆け抜ける(速さ 380・×1.0。毒の犬は毒 +1、闇の犬は暗闇 3秒)
+function cerbHunt(e, ai, live) {
+  const a0 = Math.atan2(live[0].y - P.y, live[0].x - P.x);
+  live.forEach((d, i) => {
+    const ga = a0 + TAU / live.length * i;
+    cerbDogSurface(d); d.st = 'run'; d.stT = 2.5; d.spitT = 0;
+    d.hunt = { ph: 'gather', t: 0, x0: d.x, y0: d.y, tx: P.x + Math.cos(ga) * 120, ty: P.y + Math.sin(ga) * 120 };
+  });
+  AudioMan.howl(); shake(4);
+  hint('hunt', '群れの狩り', '犬たちがまわりを囲んで、一斉に駆け抜けてくる。帯の外へ');
+}
+function dogHunt(d, o, dt) {
+  const h = d.hunt;
+  h.t += dt;
+  if (h.ph === 'gather') {
+    const k = Math.min(1, h.t / 0.6);
+    d.x = lerp(h.x0, h.tx, easeOutCubic(k)); d.y = lerp(h.y0, h.ty, easeOutCubic(k)); d.run = true; d.face = P.x < d.x ? -1 : 1;
+    if (k < 1) return;
+    h.ph = 'warn'; h.t = 0; h.a = Math.atan2(P.y - d.y, P.x - d.x); d.pulse = 1;
+    pushWarn({ kind: 'line', x: d.x, y: d.y, a: h.a, len: 240, w: 18, t: 0, life: 0.8, fixed: true });
+    AudioMan.charge(0.8);
+    return;
+  }
+  if (h.ph === 'warn') { d.run = false; if (h.t >= 0.8) { h.ph = 'run'; h.t = 0; h.left = 240; h.hit = false; AudioMan.dash(); } return; }
+  const step = Math.min(h.left, 380 * dt);
+  d.x += Math.cos(h.a) * step; d.y += Math.sin(h.a) * step; h.left -= step; d.run = true; d.face = Math.cos(h.a) < 0 ? -1 : 1;
+  if ((d.ghostT = (d.ghostT || 0) - dt) <= 0) { d.ghostT = 0.035; bfx.push({ kind: 'ghost', x: d.x, y: d.y, spr: d.type, flip: d.face < 0, col: CERB[d.hk][0], t: 0, life: 0.22 }); }
+  if (!h.hit && d2(d.x, d.y, P.x, P.y) < Math.pow(12, 2) && hurtPlayer(o.dmg)) {
+    h.hit = true;
+    if (d.hk === 'poison') poisonPlayer(1); else if (d.hk === 'dark') darkPlayer(3);
+    bfx.push({ kind: 'cbite', x: P.x, y: P.y, a: h.a, col: CERB[d.hk][0], t: 0, life: 0.28 }); AudioMan.bite(); shake(4);
+  }
+  if (h.left <= 0) { d.hunt = null; d.st = d.hk === 'fang' ? 'rest' : 'run'; d.stT = d.hk === 'fang' ? 1 : 2.5; }
 }
 
 // ---------- 影の王: 影の剣士。影歩で間合いを詰めて斬り、今までのボスの影を呼び出す ----------
@@ -4521,6 +4794,8 @@ function updEprojs(dt0) {
         if (p.owner.dead || d2(p.x, p.y, p.owner.x, p.owner.y) < 100) p.t = p.life + 1;
       }
     } else { if (p.kind === 'ray') updRay(p, dt); if (p.kind === 'hshadow') homeShadow(p, dt); p.x += p.vx * dt; p.y += p.vy * dt; }
+    if ((p.kind === 'cshade' || p.kind === 'shound') && Math.random() < dt * 50) part(p.x + rand(-6, 6), p.y + rand(-8, 4), -p.vx * 0.15 + rand(-10, 10), -p.vy * 0.15 - rand(5, 20), rand(0.3, 0.5), pick(SKC.slice(0, 4)), { glow: Math.random() < 0.3, drag: 2, sz: pick([1, 2]) }); // 影の突進の影・影の猟犬: 黒紫のもや
+    if (p.kind === 'cshade' && (p.gT = (p.gT || 0) - dt) <= 0) { p.gT = 0.04; bfx.push({ kind: 'ghost', x: p.x, y: p.y, spr: 'cerberus', flip: p.vx < 0, col: '#7a3ab0', t: 0, life: 0.22 }); } // 影の残像
     if (p.kind === 'vslash' && Math.random() < dt * 40) part(p.x - p.vx * 0.05 + rand(-2, 2), p.y - p.vy * 0.05, rand(-6, 6), -rand(10, 30), 0.4, pick(SKC), { glow: Math.random() < 0.5, drag: 2 }); // 影刃: 地面を裂いて紫の火花
     else if (p.kind === 'hshadow' && Math.random() < dt * 45) part(p.x + rand(-2, 2), p.y + rand(-2, 2), -p.vx * 0.2, -p.vy * 0.2, rand(0.3, 0.5), pick(SKC.slice(0, 4)), { glow: Math.random() < 0.35, drag: 2, sz: pick([1, 2]) }); // 追い影: 黒紫の尾 // 乱反射の光: 跳ね先へ向きを変える
     // 通常敵の弾の軌跡: 火の玉は火の粉、砂の弾は砂煙、槍は白い風切り
@@ -4539,6 +4814,8 @@ function updEprojs(dt0) {
     }
     if (p.kind === 'prismorb' && (p.t >= 1.5 || d2(p.x, p.y, P.x, P.y) < 60 * 60)) { splitOrb(p); eprojs.splice(i, 1); continue; } // 光の屈折弾: 7つの欠片に割れる
     if (p.kind === 'darkorb' && !p.frag && (p.t >= p.life || (p.t > 0.2 && d2(p.x, p.y, P.x, P.y) < 50 * 50))) { splitDarkOrb(p); eprojs.splice(i, 1); continue; } // 闇の玉: 近づくか消えるときに 4つに割れる
+    if (p.kind === 'corb' && !p.frag && (p.t >= p.life || (p.t > 0.2 && d2(p.x, p.y, P.x, P.y) < 50 * 50))) { splitCorb(p); eprojs.splice(i, 1); continue; } // 三獄の魔弾: 同じく 3つ(激昂 6つ)に割れる
+    if (p.kind === 'corb' && Math.random() < dt * 35) part(p.x + rand(-2, 2), p.y + rand(-2, 2), -p.vx * 0.15 + rand(-5, 5), -p.vy * 0.15 + rand(-5, 5), rand(0.3, 0.5), pick(BREATH_COL[p.el]), { glow: Math.random() < 0.4, drag: 2 });
     if (p.kind === 'prismorb' && Math.random() < dt * 30) part(p.x + rand(-3, 3), p.y + rand(-3, 3), -p.vx * 0.2, -p.vy * 0.2, 0.3, pick(PRISM), { glow: true, drag: 2 });
     if (p.splitT && p.t >= p.splitT) { // 雪華弾: 3つに割れる
       const a = Math.atan2(p.vy, p.vx), sp = Math.hypot(p.vx, p.vy);
@@ -4556,10 +4833,11 @@ function updEprojs(dt0) {
     if (near < Math.pow(p.r + 3, 2)) {
       if (P.invT > 0) continue;
       if (!p.keep && clsBlockProj()) { burst(p.x, p.y, 8, ['#fff27a', '#ffffff'], { sp: 60, glow: true, life: 0.25 }); eprojs.splice(i, 1); continue; } // 静電気
-      if (hurtPlayer(p.dmg)) { if (p.burn) burnPlayer(p.burn); if (p.sta) drainSta(p.sta); if (p.frost) frostPlayer(p.frost); if (p.freeze) freezePlayer(p.freeze); if (p.dark) darkPlayer(p.dark); if (p.poison) poisonPlayer(p.poison); if (p.taint) shadowTaint(); } // 火の玉: 炎上 / 海淵の弾: スタミナ / 霊峰の弾: 凍傷・氷の槍の凍結 / 王墓の弾: 暗闇・毒
+      if (hurtPlayer(p.dmg)) { if (p.burn) burnPlayer(p.burn); if (p.sta) drainSta(p.sta); if (p.frost) frostPlayer(p.frost); if (p.freeze) freezePlayer(p.freeze); if (p.dark) darkPlayer(p.dark); if (p.poison) poisonPlayer(p.poison); if (p.taint) shadowTaint(); if (p.pushK) pushPlayer(Math.atan2(p.vy, p.vx), p.pushK, 0.2); } // 火の玉: 炎上 / 海淵の弾: スタミナ / 霊峰の弾: 凍傷・氷の槍の凍結 / 王墓の弾: 暗闇・毒
       if (p.keep) continue;
       const icy = p.frost > 0;
       if (p.dark) { burst(p.x, p.y, 14, ['#c79bff', '#7a3ab0', '#2a1240', '#ffffff'], { sp: 60, glow: true, life: 0.4 }); eprojs.splice(i, 1); continue; } // 闇の玉: 黒紫のしぶき
+      if (p.kind === 'corb') { burst(p.x, p.y, 12, BREATH_COL[p.el], { sp: 60, glow: true, life: 0.4 }); eprojs.splice(i, 1); continue; } // 三獄の魔弾: 属性の色のしぶき
       burst(p.x, p.y, icy ? 10 : 6, p.kind === 'efire' ? ['#ff6a2a', '#ffc34a', '#ffffff'] : p.kind === 'esand' ? ['#e8c88a', '#fff0c0', '#ffffff'] : icy ? ['#bff4ff', '#ffffff', '#7ad7ff'] : ['#ff3b5c', '#ffffff'], { sp: 50, glow: true });
       eprojs.splice(i, 1);
     }
@@ -4650,7 +4928,7 @@ function updHazards(dt) {
       if (h.t <= h.spread) for (let k = 0; k < 8; k++) { const pa = rand(0, TAU); part(h.x + Math.cos(pa) * h.cur, h.y + Math.sin(pa) * h.cur * 0.85, Math.cos(pa) * 40, Math.sin(pa) * 30 - rand(10, 30), rand(0.4, 0.8), pick(['#0a0612', '#1a0a2a', '#3a1a5a', '#7a3ab0']), { glow: Math.random() < 0.15, drag: 1.5, sz: pick([2, 3]) }); }
     } else if (h.kind === 'miasma') { // 瘴気の霧(腐毒のグール): 中にいると 1秒ごとに毒 +1(ダメージはない)
       const R = h.r * Math.min(1, h.t * 5);
-      if (dd < R * R && h.t < h.dur - 0.3 && (h.tick -= dt) <= 0) { h.tick = 1; poisonPlayer(1); }
+      if (dd < R * R && h.t < h.dur - 0.3 && (h.tick -= dt) <= 0) { h.tick = h.iv || 1; if (h.el === 'fang') burnPlayer(h.burn); else if (h.el === 'dark') frostPlayer(1); else poisonPlayer(1); } // 三獄の雨: 炎の霧は炎上・氷の霧は凍傷
       if (Math.random() < dt * (6 + R * 0.4)) { const pa = rand(0, TAU), pr = Math.sqrt(Math.random()) * R; part(h.x + Math.cos(pa) * pr, h.y + Math.sin(pa) * pr * 0.8, rand(-4, 4), -rand(6, 16), rand(0.6, 1.1), pick(['#5aff6a', '#3a8a3a', '#9a7dff', '#4a2a6a']), { glow: Math.random() < 0.35, drag: 1 }); }
     } else if (h.kind === 'tide') { // 潮の満ち引き(クラーケン): 2秒 中心へ引く → 1秒 外へ押す → 縁に触手の輪
       const d = Math.sqrt(dd), live = !P.dead && state === 'play' && P.invT <= 0;

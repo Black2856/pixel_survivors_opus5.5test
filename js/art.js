@@ -1388,9 +1388,44 @@ const ART = (() => {
   const chPal = (eye, drool) => ({ a: '#0e0a14', b: '#281c36', c: '#4a3462', n: '#08060c', T: '#e8e0d0', E: eye, D: drool, w: '#7a3ab0', R: '#4a0c1c' });
   //   形: とがった耳 / 光る目と眉 / 鼻先 / 上の牙 / 開いた赤黒い口 / 下の牙 / 下あご
   const chRows = (top, up, low, bottom) => [...top, 'abcccbbb......', 'bccEcccccbb...', 'bccccccccccbb.', '.bcccccccccccn', up, '..bRRRRRRRb...', low, '...bbbbbb.....', bottom];
-  S.obj_chead_poison = mk(chPal('#7dff6a', '#7dff6a'), chRows(['..a...........', '..ba..........', '.abcb.........'], '.bbTbTbTbTbbb.', '..bTbTbTbb....', '...D..D...D...'), { emit: 'ED' });
-  S.obj_chead_fang = mk(chPal('#ff3b5c', '#ff3b5c'), chRows(['..a...........', '..ba..........', '.abcb.........'], '.bTTbTbTbTTbb.', '..TTbTbTTb....', '..T......T....'), { emit: 'E' });
-  S.obj_chead_dark = mk(chPal('#c79bff', '#3a1a5a'), chRows(['..a..w........', '..baw.........', '.abcb.w.......'], '.bbTbTbTbTbbb.', '..bTbTbTbb....', '.w....w...w...'), { emit: 'Ew' });
+  const CH_ROWS = {
+    poison: chRows(['..a...........', '..ba..........', '.abcb.........'], '.bbTbTbTbTbbb.', '..bTbTbTbb....', '...D..D...D...'),
+    fang: chRows(['..a...........', '..ba..........', '.abcb.........'], '.bTTbTbTbTTbb.', '..TTbTbTTb....', '..T......T....'),
+    dark: chRows(['..a..w........', '..baw.........', '.abcb.w.......'], '.bbTbTbTbTbbb.', '..bTbTbTbb....', '.w....w...w...'),
+  };
+  S.obj_chead_poison = mk(chPal('#7dff6a', '#7dff6a'), CH_ROWS.poison, { emit: 'ED' });
+  S.obj_chead_fang = mk(chPal('#ff3b5c', '#ff3b5c'), CH_ROWS.fang, { emit: 'E' });
+  S.obj_chead_dark = mk(chPal('#c79bff', '#3a1a5a'), CH_ROWS.dark, { emit: 'Ew' });
+  // 冥犬の犬(分裂形態。右向き): 合体形態の首と同じ頭の、1本首の黒紫の犬。走る 2コマ(脚を前後に振る)
+  //   毒: 緑の脈と尾の先の緑の炎 / 牙: 背中の赤いたてがみ / 闇: 背中から紫のもや
+  const dogPal = (eye, drool, tip) => Object.assign(chPal(eye, drool), { d: '#64487e', h: '#c8b8a8', F: tip, e: '#7dff6a', m: '#ff5a5a' });
+  const dogRows = (head, fr, hk) => {
+    const W = 30, H = 20, g = Array.from({ length: H }, () => Array(W).fill('.'));
+    const set = (x, y, ch) => { if (x >= 0 && y >= 0 && x < W && y < H) g[y][x] = ch; };
+    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) { // 胴(上ほど明るい)
+      const dx = (x - 11) / 8.5, dy = (y - 12.5) / 3.6;
+      if (dx * dx + dy * dy <= 1) set(x, y, dy < -0.45 ? 'd' : dy < 0.35 ? 'c' : 'b');
+    }
+    for (let y = 6; y < 15; y++) for (let x = 14; x < 22; x++) { // 胸から首(頭へ盛り上がる)
+      const dx = (x - 18) / 3.4, dy = (y - 10.5) / 4.5;
+      if (dx * dx + dy * dy <= 1) set(x, y, dy < -0.35 ? 'd' : 'c');
+    }
+    for (const [lx, sw] of [[5, 1], [8, -1], [15, -1], [18, 1]]) { // 脚: コマごとに前後へ振る → 白い爪
+      const s = fr ? sw : -sw;
+      for (let y = 15; y < 19; y++) { const ox = y >= 17 ? s : 0; set(lx + ox, y, 'b'); set(lx + 1 + ox, y, y < 17 ? 'c' : 'b'); }
+      set(lx + s - 1, 19, 'h'); set(lx + s + 1, 19, 'h');
+    }
+    for (let i = 0; i < 6; i++) { const tx = 3 - Math.round(i * 0.5), ty = 12 - i; set(tx, ty, 'c'); set(tx + 1, ty, 'b'); } // 尾: 後ろへ伸びて上に巻く
+    for (const [x, y] of [[0, 5], [1, 5], [0, 4], [1, 3], [2, 4]]) set(x, y, 'F'); // 尾の先の炎(首の色)
+    if (hk === 'poison') for (const [x, y] of [[7, 11], [8, 12], [9, 12], [10, 13], [13, 11], [14, 12], [15, 12]]) set(x, y, 'e'); // 毒の脈
+    if (hk === 'fang') for (const x of [6, 8, 10, 12, 14]) { set(x, 8, 'm'); set(x + 1, 9, 'm'); } // 背中の赤いたてがみ
+    if (hk === 'dark') for (const [x, y] of [[5, 8], [6, 7], [10, 8], [11, 7], [14, 7]]) set(x, y, 'w'); // 背中から紫のもや
+    head.forEach((row, y) => [...row].forEach((ch, x) => { if (ch !== '.') set(16 + x, y, ch); })); // 頭を重ねる
+    return g.map(r => r.join(''));
+  };
+  S.cdog_poison = [0, 1].map(fr => mk(dogPal('#7dff6a', '#7dff6a', '#7dff6a'), dogRows(CH_ROWS.poison, fr, 'poison'), { emit: 'EDFe' }));
+  S.cdog_fang = [0, 1].map(fr => mk(dogPal('#ff3b5c', '#ff3b5c', '#ff5a5a'), dogRows(CH_ROWS.fang, fr, 'fang'), { emit: 'EFm' }));
+  S.cdog_dark = [0, 1].map(fr => mk(dogPal('#c79bff', '#3a1a5a', '#a66bff'), dogRows(CH_ROWS.dark, fr, 'dark'), { emit: 'EwF' }));
   // 影の王: 紫に光る三本角の冠・黒い兜に光る両目・紫の縁取りの黒い鎧・左へなびく破れたマント・右手に地面まで届く長い剣(刃の縁が紫に光る)
   S.shadowking = mk({ a: '#06040a', b: '#120c1c', c: '#221834', d: '#3a2a54', e: '#a66bff', f: '#f0e0ff', g: '#5a3a8a', h: '#1e1430', s: '#1a1426', t: '#c79bff' }, [
     '........e..e..e.........', '........eccecce.........', '.......cdddddddc........', '.......cdbbbbbdc........', '.......cbbfbbfbc........', '.......cbbbbbbbc........',
@@ -1400,6 +1435,10 @@ const ART = (() => {
   ], { emit: 'eft' });
   // 冥鎖の杭(影の王): 黒い鉄の杭。紫のルーンと、上に鎖をつなぐ輪
   S.obj_stake = mk({ a: '#5a5a6a', g: '#9a9aaa', b: '#141020', c: '#2a2238', e: '#a66bff' }, ['..aga..', '.a...a.', '..aga..', '..bcb..', '.bbcbb.', '..beb..', '..bcb..', '..bcb..', '..beb..', '..bcb..', '..bcb..', '..beb..', '...b...', '...b...'], { emit: 'e' });
+  // 瘴気の雨の弾(ケルベロス): 黒い殻に緑の毒が光る大きな玉
+  S.vshell = mk({ a: '#1a3a12', b: '#3aa83a', c: '#7dff6a', d: '#c8ffb0', k: '#2a1a3a' }, ['..aaa..', '.abbba.', 'abccbba', 'abcdcba', 'abccbka', '.abbka.', '..aaa..'], { emit: 'cd' });
+  S.fshell = mk({ a: '#3a1408', b: '#c8501a', c: '#ff8a3d', d: '#fff0b0', k: '#2a1a14' }, ['..aaa..', '.abbba.', 'abccbba', 'abcdcba', 'abccbka', '.abbka.', '..aaa..'], { emit: 'cd' }); // 炎の霧の弾
+  S.ishell = mk({ a: '#0a2a3a', b: '#3a8ab8', c: '#9ff7ff', d: '#ffffff', k: '#1a2a3a' }, ['..aaa..', '.abbba.', 'abccbba', 'abcdcba', 'abccbka', '.abbka.', '..aaa..'], { emit: 'cd' }); // 氷の霧の弾
   // 瘴気弾(ケルベロス): 緑に光る毒の玉
   S.vball = mk({ a: '#1a3a12', b: '#3aa83a', c: '#7dff6a', d: '#c8ffb0' }, ['.bb.', 'bccb', 'bcdb', '.bb.'], { emit: 'cd' });
   S.stalker = mk({ a: '#06040a', b: '#140e1e', c: '#261c36', d: '#d89bff', e: '#3e2e58' }, [
