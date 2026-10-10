@@ -2313,7 +2313,8 @@ function drawBfx() {
       sx.globalAlpha = 0.5 * fade; sx.fillStyle = '#2a1240'; sx.beginPath(); sx.arc(fx, fy, R1, 0, TAU); if (R0 > 0) sx.arc(fx, fy, R0, 0, TAU, true); sx.fill('evenodd'); sx.globalAlpha = 1;
       sx.globalAlpha = fade; pCircle(sx, fx, fy, Math.round(R1), '#e8c8ff'); if (R0 > 0) pCircle(sx, fx, fy, Math.round(R0), '#a66bff'); sx.globalAlpha = 1;
       pCircle(gx, fx, fy, Math.round(R1), dimCol('#a66bff', 0.7 * fade), 2);
-      addLight(f.x, f.y, R1 * 1.5, '#a66bff', 0.7 * fade);
+      if (R0 > 0) { const Rm = (R0 + R1) / 2; for (let k = 0; k < 8; k++) addLight(f.x + Math.cos(TAU / 8 * k) * Rm, f.y + Math.sin(TAU / 8 * k) * Rm, (R1 - R0) * 0.9, '#a66bff', 0.55 * fade); } // 外の輪: 輪のところだけ照らす(中の安全な所は暗いまま)
+      else addLight(f.x, f.y, R1 * 1.3, '#a66bff', 0.7 * fade);
       continue;
     }
     if (f.kind === 'sever') { // 断界: 一瞬で伸びる終わりのない斬撃(白い芯・紫の光・黒い縁)

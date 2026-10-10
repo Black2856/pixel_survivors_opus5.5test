@@ -3865,14 +3865,15 @@ function skSlash(e, a) {
   for (let i = 0; i < 22; i++) { const pa = a + rand(-1, 1), r = rand(24, 100) * CHAOS.area; part(e.x + Math.cos(pa) * r, e.y + Math.sin(pa) * r, Math.cos(pa) * 60, Math.sin(pa) * 60, 0.4, pick(SKC), { glow: Math.random() < 0.4, drag: 2 }); }
   shake(5); AudioMan.slash(); AudioMan.cutHit();
 }
-// 影の三重輪: 0.75秒(影の王を中心に A・B(激昂時は C も)の範囲)→ A: 半径 0〜30 → 0.5秒後に B: 30〜60 → 激昂時はさらに 0.5秒後に C: 60〜90。それぞれ ×1.0・外へ 40 押す
+// 影の三重輪: 0.75秒(影の王を中心に A・B(激昂時は C も)の範囲)→ A: 半径 0〜80 → 0.5秒後に B: 80〜160 → 激昂時はさらに 0.5秒後に C: 160〜240。それぞれ ×1.0・外へ 40 押す
+const SKR_W = 80; // 輪の幅
 function skRings(e, ai) {
   const n = ai.enraged ? 3 : 2, x = e.x, y = e.y;
-  for (let i = 0; i < n; i++) pushWarn({ kind: 'ring', x, y, r0: i * 30, r: (i + 1) * 30, t: 0, life: 0.75 + i * 0.5 });
+  for (let i = 0; i < n; i++) pushWarn({ kind: 'ring', x, y, r0: i * SKR_W, r: (i + 1) * SKR_W, t: 0, life: 0.75 + i * 0.5 });
   ai.act = 'busy'; ai.pt = 0.75 + (n - 1) * 0.5 + 0.3;
-  bfx.push({ kind: 'skaura', x, y, t: 0, life: ai.pt, r: n * 30 * CHAOS.area });
+  bfx.push({ kind: 'skaura', x, y, t: 0, life: ai.pt, r: n * SKR_W * CHAOS.area });
   AudioMan.charge(0.75);
-  for (let i = 0; i < n; i++) later(ai, 0.75 + i * 0.5, () => skRingHit(e, x, y, i * 30, (i + 1) * 30));
+  for (let i = 0; i < n; i++) later(ai, 0.75 + i * 0.5, () => skRingHit(e, x, y, i * SKR_W, (i + 1) * SKR_W));
 }
 function skRingHit(e, x, y, r0, r1) {
   if (e.dead) return;
@@ -3881,7 +3882,7 @@ function skRingHit(e, x, y, r0, r1) {
   bfx.push({ kind: 'skring', x, y, r0: R0, r1: R1, t: 0, life: 0.45 });
   const n = Math.round(12 + R1 * 0.5);
   for (let i = 0; i < n; i++) { const pa = TAU / n * i + rand(-0.1, 0.1), r = rand(R0, R1); part(x + Math.cos(pa) * r, y + Math.sin(pa) * r, Math.cos(pa) * 70, Math.sin(pa) * 50 - rand(10, 40), rand(0.4, 0.7), pick(SKC), { glow: Math.random() < 0.4, drag: 2, sz: pick([1, 2]) }); }
-  shockAt(x, y, 1.2 + R1 / 60, 0.8); shake(4 + R1 / 20); AudioMan.thud(); AudioMan.zap();
+  shockAt(x, y, Math.min(3, 1.2 + R1 / 100), 0.8); shake(4 + R1 / 40); AudioMan.thud(); AudioMan.zap(); // 外の輪ほど強い(衝撃波は 3 まで)
 }
 // 影刃・五月雨: 0.4秒(3本の帯)→ 地面に垂直に立った斬撃を 3方向(プレイヤーへの向きと ±25°)に飛ばし、0.4秒後に間の 2方向(±12.5°)へ(速さ 300、射程 500、×1.0)
 const SKB_SPD = 300, SKB_LEN = 500;
