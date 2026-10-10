@@ -383,6 +383,16 @@ const UI = (() => {
 
   // ツールチップ
   let tipKey = null, tipEl = null;
+  // 設定画面の各行の説明(行にマウスを乗せると出る)
+  const SET_TIPS = {
+    gfx: ['画質', '低いほどブルーム・画面の歪み・パーティクルを減らし軽くなります'],
+    fxA: ['攻撃の濃さ', '自分の攻撃エフェクトの不透明度(敵の攻撃は常にくっきり表示)'],
+    ui: ['UIサイズ', 'HUD とメニュー画面の大きさ'],
+    autoE: ['E 自動発動', '武器スキル(E)を自動で使います。周りに敵が集まっているときだけ使います(移動中に勝手に足が止まらないように)'],
+    autoQ: ['Q 自動発動', 'クラススキル(Q)を自動で使います。周りに敵が集まっているときだけ使います(移動中に勝手に足が止まらないように)'],
+    cutin: ['カットイン', 'E / Q を使ったときに、スキル名の帯を画面の上の方に出します(OFF でも足元の陣などの演出は出ます)'],
+    hints: ['初見の説明', '敵の技・状態異常を、そのランで初めて見たときに説明の帯を出します(OFF でも、ガイドの用語集はいつでも見られます)'],
+  };
   document.addEventListener('pointerover', ev => {
     const t = ev.target.closest && ev.target.closest('[data-tip]');
     if (!t) { hide($('tooltip')); tipKey = tipEl = null; return; }
@@ -399,6 +409,7 @@ const UI = (() => {
     }
     if (kind === 'w') { const d = DATA.weapons[k], w = P.weapons[k]; html = `<b>${w && w.evo ? d.evo.name : d.name}</b><br>${w && w.evo ? d.evo.desc : d.desc}<br><span class="dim">進化: ${evoCond(k)}</span>`; }
     if (kind === 'g' || kind === 'c') html = Help.tip(kind, key.slice(2)); // 説明文の用語(用語集・クラスの用語)
+    if (kind === 'set' && SET_TIPS[k]) html = `<b>${SET_TIPS[k][0]}</b><br>${SET_TIPS[k][1]}`; // 設定の各行
     if (!html) { hide(tip); tipKey = tipEl = null; return; }
     tip.innerHTML = html;
     const r = t.getBoundingClientRect();
