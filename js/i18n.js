@@ -4,13 +4,18 @@
 //   英語の {0|a|b}  : {0} の値が 1 なら a、それ以外なら b(数そのものは出さない。複数形用)
 //   辞書にない文は日本語のまま出る(node scripts/i18n-check.js で抜けを調べる)
 // DATA(data.js)の文字列は、読み込んだ直後にまとめて英語に置き換える(data.js は日本語のまま)。index.html の文字も同じ
-// 言語は設定(ps55_set の lang)。未設定ならブラウザの言語(日本語なら日本語、ほかは英語)。切り替えはページを読み直す
+// 言語は設定(ps55_set の lang)。未設定なら、英語版より前からのセーブがある人は日本語のまま、初めての人はブラウザの言語(日本語なら日本語、ほかは英語)
+// 決めた言語はすぐ設定に保存する(2回目からセーブがあっても変わらないように)。切り替えはページを読み直す
 'use strict';
 
 const LANG = (() => {
-  try { const s = JSON.parse(localStorage.getItem('ps55_set') || '{}'); if (s.lang === 'ja' || s.lang === 'en') return s.lang; } catch (e) { /* 既定へ */ }
-  const l = (navigator.languages && navigator.languages[0]) || navigator.language || 'ja';
-  return /^ja\b/i.test(l) ? 'ja' : 'en';
+  let s = {}, lang = null;
+  try { s = JSON.parse(localStorage.getItem('ps55_set') || '{}') || {}; } catch (e) { s = {}; }
+  if (s.lang === 'ja' || s.lang === 'en') return s.lang;
+  try { if (localStorage.getItem('ps55_meta')) lang = 'ja'; } catch (e) { /* 既定へ */ } // 前から遊んでいる人の表示は変えない
+  if (!lang) { const l = (navigator.languages && navigator.languages[0]) || navigator.language || 'ja'; lang = /^ja\b/i.test(l) ? 'ja' : 'en'; }
+  try { s.lang = lang; localStorage.setItem('ps55_set', JSON.stringify(s)); } catch (e) { /* 保存不可でも続行 */ }
+  return lang;
 })();
 
 const I18N = (() => {
