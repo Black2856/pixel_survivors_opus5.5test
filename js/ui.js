@@ -240,7 +240,7 @@ const UI = (() => {
     const dt2 = DATA.debuffTomb;
     if (P.poison > 0) out.push({ id: 'ppoison', glyph: '毒', name: '毒', fx: `${P.poison}スタック ・ 最大HP -${Math.round(P.poison * dt2.poison * 100)}%(受けないでいると ${dt2.poisonDur}秒で消える)`, t: P.poisonT, max: dt2.poisonDur, kind: 'debuff' });
     if (P.darkT > 0) out.push({ id: 'pdark', glyph: '闇', name: '暗闇', fx: '周りが暗くなり、敵の攻撃の予告が見えない ・ スタミナが回復しない', t: P.darkT, max: dt2.darkDur, kind: 'debuff' });
-    if (S.phase && S.phase.fogOn) out.push({ id: 'fog', glyph: '霧', name: '闇の霧', fx: `毎秒 HP -${S.phase.fogDmg}(10秒ごとに +1)。フェーズをクリアすると晴れる`, kind: 'debuff' });
+    if (S.phase && S.phase.fogOn && !(S.phase.fogPause > 0)) out.push({ id: 'fog', glyph: '霧', name: '闇の霧', fx: `毎秒 HP -${S.phase.fogDmg}(10秒ごとに +1)。フェーズをクリアすると晴れる`, kind: 'debuff' });
     if (P.shield >= 1) out.push({ id: 'shield', glyph: '盾', name: 'シールド', fx: `${Math.floor(P.shield)} のダメージを先に受ける`, kind: 'buff' });
     if (P.oShield >= 1) out.push({ id: 'oshield', glyph: '守', name: '一時シールド', fx: `${Math.floor(P.oShield)} のダメージを先に受ける(得た分ごとに時間で消える)`, t: Math.min(...P.oChunks.map(c => c.t)), max: Math.max(...P.oChunks.map(c => c.dur)), kind: 'buff' });
     if (P.uq.phoenix && !P.revived) out.push({ id: 'phoenix', glyph: '鳳', name: '不死鳥の加護', fx: '一度だけ蘇生', kind: 'buff' });

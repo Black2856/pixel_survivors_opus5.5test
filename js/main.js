@@ -19,7 +19,7 @@ function startRun(mode = 'escalation', stageNo = 1) {
   screenFlash(0.5);
   shockAt(P.x, P.y, 1.5);
 }
-// クリア記録のキー: escalation / arena / stage1〜7
+// クリア記録のキー: escalation / arena / stage1〜8
 const runKey = () => (S.mode === 'stage' ? 'stage' + S.stageNo : S.mode);
 function pauseGame() { if (state !== 'play') return; state = 'pause'; UI.pause(true); AudioMan.pauseMusic(); }
 function resumeGame() { if (state !== 'pause') return; state = 'play'; UI.pause(false); AudioMan.resumeMusic(); }

@@ -46,7 +46,7 @@ function pushWarn(w) {
 
 // 通常モード(ステージを1つ選ぶ)の出現スケジュール。t はフェーズの時計(ボス・エリート群の間は止まる)
 // 3分 → エリート群 → 3分 → ボス1 → 3分 → ボス2(倒すとクリア)。同じ t ではフェーズの開始を波の切り替えより先に処理する
-const stageRun = n => DATA.stageRuns.find(r => r.no === n); // ステージのキーの番号(stage1〜7)から
+const stageRun = n => DATA.stageRuns.find(r => r.no === n); // ステージのキーの番号(stage1〜8)から
 // 出現の候補には「敵のまとまり」(配列)が入ることがある(時計塔の「今までの敵」)。まとまりは 1枠として選ばれ、その中から1種
 // spawnW: 選ばれやすさ(既定 1)/ group: 6体の小集団(noGroup の敵は出ない)/ maxAlive: 同時にいられる数(超えるなら選ばない)。選べないときは null
 function pickType(types, group) {
