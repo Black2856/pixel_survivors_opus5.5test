@@ -77,11 +77,25 @@ function stageSchedule(n) {
   return out;
 }
 // エスカレーション: tier 1 → 4 を通す。tier ごとに同じ tier のステージからランダムに1つ選び、3分(通常モードの最初の3分と同じ出方)→ ボス → 次の tier
-//   ボスはそのステージのボス2体からランダム。tier 4 はそのステージの2体目(時計塔 = 死神(→ 終刻の死神)/ 王墓 = 影の王)で、倒すとクリア。敵Lv は通して上がり続ける(ボスの間は止まる)
+//   ボスはそのステージのボス2体からランダム。敵Lv は通して上がり続ける(ボスの間は止まる)
+//   tier 4 は 3分(3種 → 5種 → 全種。DATA.flow.esc4)→ ボス(そのステージの1体目)→ esc4.rest 秒 → ラスボス(2体目。時計塔 = 死神(→ 終刻の死神)/ 王墓 = 影の王)で、倒すとクリア
 function escSchedule(R, tier) {
+  if (tier >= 4) return esc4Schedule(R);
   const F = DATA.flow, s1 = R.segs[0];
   const out = F.waves[0].map((w, i) => ({ t: w.t, types: s1.slice(0, i + 1), interval: w.interval, max: w.max }));
-  out.push(tier >= 4 ? { t: F.seg, boss: [R.bosses[1]], final: true } : { t: F.seg, boss: R.bosses });
+  out.push({ t: F.seg, boss: R.bosses });
+  return out;
+}
+// tier 4 の敵: 0秒 = そのステージの最初の3種 / 60秒 = もう一方の tier 4 のステージの敵からランダムに add 種を足す / 120秒 = 両方のステージの敵の全部
+//   もう一方のステージからは、そのステージの敵だけを足す(時計塔の「今までの敵」のまとまりは、時計塔のときだけ出る)
+function esc4Schedule(R) {
+  const F = DATA.flow, E = F.esc4;
+  const cands = r => r.segs.filter(Boolean).flat(); // ステージの出現の候補(まとまりは 1つの候補のまま)
+  const own = cands(R).filter((t, i, a) => a.findIndex(u => String(u) === String(t)) === i); // まとまりは中身が同じなら同じもの
+  const other = [...new Set(DATA.stageRuns.filter(r => r.tier === 4 && r !== R).flatMap(cands).filter(t => typeof t === 'string' && !own.includes(t)))];
+  const lists = [R.segs[0], [...R.segs[0], ...shuffle(other.slice()).slice(0, E.add)], [...own, ...other]];
+  const out = E.waves.map((w, i) => ({ t: w.t, types: lists[i], interval: w.interval, max: w.max }));
+  out.push({ t: F.seg, boss: [R.bosses[0]] }, { t: F.seg + E.rest, boss: [R.bosses[1]], final: true }); // ラスボスはボスを倒してから rest 秒(ボスの間はフェーズの時計が止まる)
   return out;
 }
 function escStage(tier, first) {
@@ -4675,7 +4689,7 @@ function onBossDeath(e) {
     if (S.mode === 'stage' || (S.loop === 1 && !S.won)) { S.won = true; S.victoryT = 2.4; AudioMan.stopMusic(1.5); return; }
     S.loop++; escStage(1); UI.announce('LOOP ' + S.loop, _t('敵はさらに強くなる…')); return; // エスカレーションの周回: tier 1 から
   }
-  if (S.mode === 'stage') { UI.announce(_t('BOSS 1/2 撃破!'), _t('次のボスに備えよ')); AudioMan.playMusic(DATA.stages[S.stage - 1].music); return; } // ステージ単体: ステージはそのまま
+  if (S.mode === 'stage' || S.tier >= 4) { UI.announce(_t('BOSS 1/2 撃破!'), _t('次のボスに備えよ')); AudioMan.playMusic(DATA.stages[S.stage - 1].music); return; } // ステージ単体・エスカレーションの tier 4(ボス → ラスボス): ステージはそのまま
   escStage(S.tier + 1); // エスカレーション: 次の tier のステージへ
 }
 
@@ -4713,6 +4727,7 @@ function startElitePhase(n) {
 function endElitePhase() {
   const ph = S.phase, x = ph.lastX, y = ph.lastY;
   S.phase = null;
+  if (CHAOS.bossLv) { S.elv += CHAOS.bossLv; UI.enemyLvUp(); } // カオス「復讐の連鎖」: エリート群を倒しても敵Lv アップ(ボスと同じ)
   dropItem('chest', x, y - 10); chestBeacon(x, y - 10);
   hitstop(0.12); slowmo(0.3, 1.2); shake(10); screenFlash(0.5, '#ffd23f'); shockAt(x, y, 2.2, 0.6);
   addRing(x, y, 120, '#ffd23f', { w: 3, life: 0.8 }); addRing(x, y, 70, '#ffffff', { w: 2, life: 0.6 });
