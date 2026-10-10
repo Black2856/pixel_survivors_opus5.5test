@@ -2709,7 +2709,7 @@ function ifritAI(e, ai, dt, a, dist, slow) {
         const d = Math.sqrt(d2(e.x, e.y, P.x, P.y));
         pushPlayer(Math.atan2(e.y - P.y, e.x - P.x), Math.max(0, d - 40), 1);
         bfx.push({ kind: 'chain', x: e.x, y: e.y, t: 0, life: 1, hold: true, track: f => { f.x = e.x; f.y = e.y; if (!P.push) f.t = f.life; } }); // つながった鎖(プレイヤーまで。回避で切れる)
-        hint('chain', '灼熱の鎖', '引き寄せられたあとに炎の鞭が来る。回避で鎖を切れる');
+        hint('fchain', '灼熱の鎖', '引き寄せられたあとに炎の鞭が来る。回避で鎖を切れる');
         ai.act = 'pull'; ai.pt = 1;
       }
     });
@@ -3488,7 +3488,7 @@ function wardenAI(e, ai, dt, a, dist, slow) {
   ai.spring -= dt * R; ai.handCd -= dt * R; ai.cog -= dt * R; ai.bell -= dt * R; ai.big -= dt * R; ai.floor -= dt * R; if (ai.enraged) ai.ringCd -= dt * R;
   if (ai.spring <= 0 && !ai.hands && !ring) { ai.spring = ai.enraged ? 16 : 22; startSpring(e, ai); return; }
   if (ai.cog <= 0) { ai.cog = ai.enraged ? 4 : 5; cogShot(e, ai); } // 弾はほかの技と並んで撃つ
-  if (ai.handCd <= 0 && !ai.hands && !ring) { ai.handCd = ai.enraged ? 7 : 9; ai.hands = { t: 0, a1: a + Math.PI, a2: a + 0.9 }; for (const ha of [ai.hands.a1, ai.hands.a2]) pushWarn({ kind: 'line', x: e.x, y: e.y, a: ha, len: 180, w: 10, t: 0, life: 1, track: w => { w.x = e.x; w.y = e.y; } }); AudioMan.charge(1); hint('hands', '時針と分針', '2本の針が番人のまわりを回る'); }
+  if (ai.handCd <= 0 && !ai.hands && !ring) { ai.handCd = ai.enraged ? 7 : 9; ai.hands = { t: 0, a1: a + Math.PI, a2: a + 0.9 }; for (const ha of [ai.hands.a1, ai.hands.a2]) pushWarn({ kind: 'line', x: e.x, y: e.y, a: ha, len: 180, w: 10, t: 0, life: 1, track: w => { w.x = e.x; w.y = e.y; } }); AudioMan.charge(1); hint('clockhands', '時針と分針', '2本の針が番人のまわりを回る'); }
   else if (ai.big <= 0) { ai.big = ai.enraged ? 8 : 10; bigGear(e, ai, a); }
   else if (ai.floor <= 0) { ai.floor = ai.enraged ? 9 : 12; gearFloors(e, ai); }
   else if (ai.bell <= 0) { ai.bell = ai.enraged ? 8 : 10; bellShock(e, ai); }
@@ -3712,15 +3712,15 @@ function updCerbRush(e, ai, dt) {
   shockAt(e.x, e.y, 2, 0.7); shake(9); hitstop(0.06); AudioMan.slash(); AudioMan.cutHit();
   ai.act = null; ai.gap = 0.6; e.sq = 0.85;
 }
-// 三獄の息吹(名前は仮): 1.2秒(前方の扇 半径 110・±35°)→ 1.5秒 吐き続ける(扇は毎秒 0.6rad でプレイヤーを追う)。中にいる間 0.5秒ごとに ×0.3 × 残った首の数
+// 三獄の息吹(名前は仮): 2秒(前方の扇 半径 110・±35°)→ 1.5秒 吐き続ける(扇は毎秒 0.6rad でプレイヤーを追う)。中にいる間 0.5秒ごとに ×0.3 × 残った首の数
 //   残った首ごとに: 毒の首 = 毒 +1、牙の首 = 炎上(ボスのダメージ ×0.1)、闇の首 = 凍傷 +1
 function cerbBreath(e, ai, a) {
   const els = cerbLive(ai).map(h => h.hk);
-  pushWarn({ kind: 'fan', x: e.x, y: e.y, a, r: 110, h: 0.61, t: 0, life: 1.2, track: w => { w.x = e.x; w.y = e.y; } });
+  pushWarn({ kind: 'fan', x: e.x, y: e.y, a, r: 110, h: 0.61, t: 0, life: 2, track: w => { w.x = e.x; w.y = e.y; } });
   for (const h of cerbLive(ai)) h.pulse = 1;
   ai.brCharge = els; // 構えの間、口から属性の煙がこぼれる(描画)
-  AudioMan.charge(1.2);
-  windup(e, 1.2, () => { ai.brCharge = null; ai.br = { a, els, r: 110, h: 0.61, t: 0, dur: 1.5, tick: 0, track: 0.6 }; AudioMan.fire(); AudioMan.roar(); shake(5); shockAt(e.x, e.y, 1.2, 0.8); });
+  AudioMan.charge(2);
+  windup(e, 2, () => { ai.brCharge = null; ai.br = { a, els, r: 110, h: 0.61, t: 0, dur: 1.5, tick: 0, track: 0.6 }; AudioMan.fire(); AudioMan.roar(); shake(5); shockAt(e.x, e.y, 1.2, 0.8); });
 }
 function updCerbBreath(e, ai, dt, a) {
   const b = ai.br;
@@ -3773,7 +3773,7 @@ function cerbRain(e, ai) {
   });
   hint('rain', '三獄の雨', '空から落ちた弾が、毒・炎・氷の大きな霧になる。霧の中にいると、その状態異常がたまる');
 }
-// 三獄の魔弾(名前は仮): 0.5秒(首がふくらむ)→ 残った首ごとに、その首の属性の玉を1つずつプレイヤーへ撃つ(速さ 100・×0.6)
+// 三獄の魔弾(名前は仮): 0.5秒(首がふくらむ)→ 残った首ごとに、その首の属性の玉を1つずつ、同時にプレイヤーへの向きを中心に 20° おきに撃つ(速さ 100・×0.6)
 //   闇の玉(影の眼)と同じく、プレイヤーに 50 まで近づくか撃って 4秒で、プレイヤーの方向へ 3つ(激昂 6つ)に割れる(速さ 130・2.5秒)
 //   当たると 毒の玉 = 毒 +1、炎の玉 = 炎上(ボスのダメージ ×0.1)、氷の玉 = 凍傷 +1
 const CORB_ST = { poison: e => ({ poison: 1 }), fang: e => ({ burn: e.dmg * 0.1 * (S.eatk ?? 1) }), dark: e => ({ frost: 1 }) };
@@ -3784,9 +3784,9 @@ function cerbOrbs(e, ai) {
   AudioMan.charge(0.5);
   windup(e, 0.5, () => {
     ai.brCharge = null;
-    for (const h of hs) {
-      if (h.dead) continue;
-      const m = cerbMouth(e, h.hk), a = Math.atan2(P.y - m.y, P.x - m.x);
+    const live = hs.filter(h => !h.dead), a0 = Math.atan2(P.y - e.y, P.x - e.x), f = e.face || 1;
+    for (const [i, h] of live.entries()) {
+      const m = cerbMouth(e, h.hk), a = a0 + (i - (live.length - 1) / 2) * 0.349 * f; // 20° おき。上の首(毒)ほど上側へ
       eprojs.push(Object.assign({ kind: 'corb', el: h.hk, x: m.x, y: m.y, vx: Math.cos(a) * 100, vy: Math.sin(a) * 100, dmg: e.dmg * 0.6 * (S.eatk ?? 1), life: 4, t: 0, r: 3.5 * CHAOS.area, n: ai.enraged ? 6 : 3 }, CORB_ST[h.hk](e)));
       burst(m.x, m.y, 14, BREATH_COL[h.hk], { sp: 70, glow: true, life: 0.35 }); addRing(m.x, m.y, 9, BREATH_COL[h.hk][0], { life: 0.25 });
     }
@@ -4263,7 +4263,7 @@ function chainStart(c) {
   bossBlast(c.x, c.y, 30, Object.assign({ n: 16 }, BFX.shadowking));
   burst(c.x, c.y, 50, [...SKC, '#5a5a6a'], { sp: 150, up: 40, g: 200, life: 0.7 });
   shake(8); AudioMan.chain(); AudioMan.thud();
-  hint('chain', '冥鎖', '杭から離れるほど引き戻される。杭を壊すと切れ、闇の霧が 20秒 遅れる');
+  hint('mchain', '冥鎖', '杭から離れるほど引き戻される。杭を壊すと切れ、闇の霧が 20秒 遅れる');
 }
 // 鎖: 杭から 50 までは引かれない。その先は離れた距離 × 1 の速さで引き戻される。つながっている間は 3秒ごとに毒 +1
 function updChain(dt) {
