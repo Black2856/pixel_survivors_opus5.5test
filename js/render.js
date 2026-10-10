@@ -581,6 +581,7 @@ function render() {
   GFX.lightMul = LM;
   // 環境光・グレーディングを滑らかに遷移。闇の霧は環境光を暗く、青紫に寄せる(光源のまわりだけが見える)
   const fk = fogDarkK(), ink = S && (S.inInk || (P && P.darkT > 0)) ? 0.4 : 1; // 墨だまり(クラーケン)の中・暗闇(王墓)は暗い
+  GFX.fx.dark = lerp(GFX.fx.dark, S && !S.demo && P && P.darkT > 0 && !P.dead ? 1 : 0, 0.08); // 暗闇(王墓)の間は画面の端も暗く(gfx.js の仕上げのシェーダー)
   for (let i = 0; i < 3; i++) { GFX.ambient[i] = lerp(GFX.ambient[i], st.amb[i] * (1 - 0.55 * fk) * (i === 2 ? 1 + 0.3 * fk : 1) * ink, ink < 1 ? 0.08 : 0.03); GFX.tint[i] = lerp(GFX.tint[i], st.tint[i] * (i === 1 ? 1 - 0.12 * fk : 1), 0.03); }
 
   drawGround();

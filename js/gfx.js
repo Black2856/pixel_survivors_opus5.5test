@@ -14,7 +14,7 @@ const GFX = (() => {
   const G = {
     scene, sctx, light, lctx, glow, gctx, mscene, msctx, mglow, mgctx, over, octx, VW: 480, VH: 270, PX: 4, gl: null, lightMul: 1,
     ambient: [0.5, 0.5, 0.6], tint: [1, 1, 1],
-    fx: { flash: 0, flashCol: [1, 1, 1], aberr: 0, hurt: 0, lowhp: 0, sat: 1, bloom: 1, time: 0 },
+    fx: { flash: 0, flashCol: [1, 1, 1], aberr: 0, hurt: 0, lowhp: 0, dark: 0, sat: 1, bloom: 1, time: 0 },
     waves: [],
     overOn: false, // 前景に何か描いたフレームだけ合成する
     lenses: [],    // 重力レンズ(毎フレーム描画側が積む): { x, y: 画面の座標 / e: アインシュタイン半径 / rs: 影の半径 / R: 歪む範囲の外径(いずれも px)/ swirl: 渦の角度 / a: 強さ 0..1 }
@@ -83,7 +83,7 @@ uniform vec2 uRes; uniform float uPX;
 uniform vec4 uWaves[6];
 uniform vec4 uLens[2], uLensB[2]; // 重力レンズ: xy 中心 / z アインシュタイン半径 / w 強さ ・ x 外径 / y 渦の角度 / z 影の半径(長さは画面の高さ基準)
 uniform vec3 uTint, uFlashCol;
-uniform float uTime, uFlash, uAberr, uHurt, uLow, uSat, uBloomK, uPost, uOverOn;
+uniform float uTime, uFlash, uAberr, uHurt, uLow, uDark, uSat, uBloomK, uPost, uOverOn;
 float hash(vec2 p){ return fract(sin(dot(p, vec2(12.9898,78.233))) * 43758.5453); }
 void main(){
   vec2 st = uv;
@@ -134,6 +134,9 @@ void main(){
   float vig = smoothstep(0.95, 0.25, length(cd * vec2(1.0, 0.85)));
   col = mix(col, col * vec3(1.25, 0.35, 0.35), (1.0 - vig) * (uHurt * 0.9 + uLow * (0.45 + 0.25 * sin(uTime * 6.0))));
   col *= mix(0.55, 1.0, vig);
+  // 暗闇: 画面の端を少し暗く(紫がかった闇。中心は変えない)
+  float vd = smoothstep(0.85, 0.2, length(cd * vec2(1.0, 0.85)));
+  col *= mix(vec3(1.0), vec3(0.4, 0.35, 0.5), (1.0 - vd) * uDark);
   // 走査線(実ピクセル行単位) + フィルムグレイン
   float row = mod(gl_FragCoord.y, uPX);
   col *= 1.0 - 0.10 * step(uPX - 1.0, row) * uPost;
@@ -291,6 +294,7 @@ void main(){
     gl.uniform1f(fn.u.uAberr, f.aberr);
     gl.uniform1f(fn.u.uHurt, f.hurt);
     gl.uniform1f(fn.u.uLow, f.lowhp);
+    gl.uniform1f(fn.u.uDark, f.dark);
     gl.uniform1f(fn.u.uSat, f.sat);
     gl.uniform1f(fn.u.uBloomK, f.bloom * q.bloom);
     gl.uniform1f(fn.u.uPost, q.post);

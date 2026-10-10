@@ -239,7 +239,7 @@ const UI = (() => {
     if (P.bleed > 0) out.push({ id: 'pbleed', glyph: '血', name: _t('出血'), fx: _t`${P.bleed}スタック ・ 毎秒 最大HP の ${Math.round(P.bleed * d.pBleed * 100)}%`, t: P.bleedT, max: d.pDur, kind: 'debuff' });
     const dt2 = DATA.debuffTomb;
     if (P.poison > 0) out.push({ id: 'ppoison', glyph: '毒', name: _t('毒'), fx: _t`${P.poison}スタック ・ 最大HP -${Math.round(P.poison * dt2.poison * 100)}%(受けないでいると ${dt2.poisonDur}秒で消える)`, t: P.poisonT, max: dt2.poisonDur, kind: 'debuff' });
-    if (P.darkT > 0) out.push({ id: 'pdark', glyph: '闇', name: _t('暗闇'), fx: _t('周りが暗くなり、敵の攻撃の予告が見えない ・ スタミナが回復しない'), t: P.darkT, max: dt2.darkDur, kind: 'debuff' });
+    if (P.darkT > 0) out.push({ id: 'pdark', glyph: '闇', name: _t('暗闇'), fx: _t('周りが暗くなり、敵の攻撃の予告が見えない'), t: P.darkT, max: dt2.darkDur, kind: 'debuff' });
     if (S.phase && S.phase.fogOn && !(S.phase.fogPause > 0)) out.push({ id: 'fog', glyph: '霧', name: _t('闇の霧'), fx: _t`毎秒 HP -${S.phase.fogDmg}(10秒ごとに +1)。フェーズをクリアすると晴れる`, kind: 'debuff' });
     if (P.shield >= 1) out.push({ id: 'shield', glyph: '盾', name: _t('シールド'), fx: _t`${Math.floor(P.shield)} のダメージを先に受ける`, kind: 'buff' });
     if (P.oShield >= 1) out.push({ id: 'oshield', glyph: '守', name: _t('一時シールド'), fx: _t`${Math.floor(P.oShield)} のダメージを先に受ける(得た分ごとに時間で消える)`, t: Math.min(...P.oChunks.map(c => c.t)), max: Math.max(...P.oChunks.map(c => c.dur)), kind: 'buff' });

@@ -334,7 +334,7 @@ function poisonPlayer(n) {
   AudioMan.poison(); S.hudDirty = true;
   hint('ppoison', _t('毒'), _t('最大HP が下がる。受けないでいるか、肉を拾うと消える'));
 }
-// 暗闇(王墓): t 秒、周りが暗くなり(墨だまりと同じ)、敵の攻撃の予告が見えない。スタミナも回復しない。また受けると t 秒に戻る
+// 暗闇(王墓): t 秒、周りが暗くなり(墨だまりと同じ。画面の端も少し暗くなる)、敵の攻撃の予告が見えない。また受けると t 秒に戻る
 function darkPlayer(t) {
   if (!(t > 0) || P.invT > 0 || P.dead) return;
   const was = P.darkT > 0;
@@ -344,7 +344,7 @@ function darkPlayer(t) {
     addRing(P.x, P.y, 26, '#7a3ab0', { r0: 40, w: 2, life: 0.35 }); AudioMan.blind();
   }
   S.hudDirty = true;
-  hint('pdark', _t('暗闇'), _t('周りが暗くなり、攻撃の予告が見えない(スタミナも回復しない)'));
+  hint('pdark', _t('暗闇'), _t('周りが暗くなり、攻撃の予告が見えない'));
 }
 // 自分の状態異常を全て消す(食べ物でデバフ解除): 炎上・凍傷・出血・減速・スロウタイム・凍結・疲労・毒・暗闇。消えたものがあれば白緑の光
 function cleansePlayer() {
@@ -361,8 +361,8 @@ function updFrostBleed(dt) {
     if ((P.poisonT -= dt) <= 0) { P.poison = 0; P.poisonT = 0; recalc(); burst(P.x, P.y - 4, 12, ['#c8ffd8', '#7dff6a', '#ffffff'], { sp: 45, up: 20, glow: true, life: 0.4 }); }
     else if (Math.random() < dt * (3 + P.poison * 1.2)) part(P.x + rand(-5, 5), P.y + rand(-6, 4), rand(-4, 4), -rand(10, 22), rand(0.5, 0.8), pick(['#7dff6a', '#3aa83a', '#9a7dff']), { glow: Math.random() < 0.4, drag: 1 });
   }
-  if (P.darkT > 0) { // 暗闇: スタミナが回復しない。黒紫のもやが体にまとわりつく
-    P.darkT -= dt; P.staLockT = Math.max(P.staLockT, 0.1);
+  if (P.darkT > 0) { // 暗闇: 黒紫のもやが体にまとわりつく
+    P.darkT -= dt;
     if (Math.random() < dt * 16) { const a = rand(0, TAU), r = rand(6, 14); part(P.x + Math.cos(a) * r, P.y + Math.sin(a) * r * 0.7, -Math.sin(a) * 18, Math.cos(a) * 12 - 6, 0.6, pick(['#1a0a2a', '#2a1240', '#3a1a5a']), { drag: 1, sz: pick([1, 2]) }); }
     if (P.darkT <= 0) { P.darkT = 0; S.hudDirty = true; }
   }
