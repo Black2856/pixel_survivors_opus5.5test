@@ -639,3 +639,7 @@ input[type=range] { width: 220px; accent-color: var(--gold); }
 ::-webkit-scrollbar-button { display: none; width: 0; height: 0; }
 ::-webkit-scrollbar-corner { background: transparent; }
 @supports not selector(::-webkit-scrollbar) { * { scrollbar-width: thin; scrollbar-color: var(--line) rgba(12,9,19,.75); } } /* Firefox: 色だけ */
+
+/* ---------- 英語の表示(html[lang="en"]。i18n.js が付ける): 日本語より長い文字の収まり ---------- */
+html[lang="en"] .scr-title { text-transform: uppercase; } /* 見出しは英字の大文字でそろえる(設定 → SETTINGS) */
+html[lang="en"] .cl-row { grid-template-columns: 44px 54px 1fr auto; } /* Exclusive / Shared の札が入る幅 */

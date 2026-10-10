@@ -30,13 +30,14 @@ const I18N = (() => {
     if (e === undefined) { e = look(s.reduce((a, p, i) => a + '{' + (i - 1) + '}' + p)) ?? null; tpl.set(s, e); }
     return e === null ? join(s, v) : fill(e, v);
   }
-  // オブジェクトの中の文字列をまとめて置き換える(DATA 用)
+  // オブジェクトの中の文字列をまとめて置き換える(DATA 用)。glyph(強化ツリーの1文字)は辞書を使わず I18N_EN_TREE_GLYPH で置き換える
   function deep(o, seen = new Set()) {
     if (!en || !o || typeof o !== 'object' || seen.has(o)) return;
     seen.add(o);
     for (const k of Object.keys(o)) {
       const v = o[k];
       if (typeof v === 'string') { if (JP.test(v)) { const r = look(v); if (r !== undefined) o[k] = r; } }
+      else if (k === 'glyph' && v && typeof v === 'object') { if (typeof I18N_EN_TREE_GLYPH !== 'undefined') Object.assign(v, I18N_EN_TREE_GLYPH); }
       else if (v && typeof v === 'object') deep(v, seen);
     }
   }

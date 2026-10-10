@@ -176,10 +176,15 @@ const Help = (() => {
   for (const e of G) for (const s of termsOf(e)) baseTerms.push({ s, key: 'g:' + e.k });
   function matcher(extra) {
     const list = [...extra, ...baseTerms]; // クラスの用語を先に(同じ書き方なら、クラスの意味を優先)
-    const nk = I18N.en ? lowerFirst : s => s, map = {};
-    for (const x of list) if (!(nk(x.s) in map)) map[nk(x.s)] = x.key;
+    const nk = I18N.en ? lowerFirst : s => s, map = {}, pat = {};
+    for (const x of list) {
+      const exact = I18N.en && x.s[0] === '=', s = exact ? x.s.slice(1) : x.s, k = nk(s); // 英語の = は大小をそのまま比べる
+      if (k in map) continue;
+      map[k] = x.key;
+      pat[k] = !I18N.en ? bound(s) : exact ? `(?<![A-Za-z0-9])${esc(s)}(?![A-Za-z0-9])` : boundEn(s);
+    }
     const ss = Object.keys(map).sort((a, b) => b.length - a.length); // 長いものから(最大HP を HP より先に)
-    const re = new RegExp(ss.map(I18N.en ? boundEn : bound).join('|'), 'g');
+    const re = new RegExp(ss.map(k => pat[k]).join('|'), 'g');
     return { re, look: m => map[nk(m)] ?? (I18N.en ? map[nk(m).replace(/s$/, '')] : undefined) };
   }
   // root の中の説明文に印を付ける。o.cls: クラスの用語も / o.run: ラン中の値で / o.per: この子要素ごとに「最初の1回だけ」を数える
