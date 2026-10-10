@@ -78,11 +78,11 @@ if (metaMigratedGold || metaTreeRefund || !localStorage.getItem(META_KEY)) saveM
 // gfx: high=全演出 / mid=ブルーム弱・歪みや粒状ノイズなし・パーティクル60% / low=ブルームなし・パーティクル35%
 const GFX_Q = { high: { bloom: 1, post: 1, parts: 1 }, mid: { bloom: 0.55, post: 0, parts: 0.6 }, low: { bloom: 0, post: 0, parts: 0.35 } };
 const SET = (() => {
-  const d = { gfx: 'high', fxA: 1, autoE: false, autoQ: false, ui: 1, cutin: true }; // autoE / autoQ: スキルの自動発動 / ui: UI の大きさ / cutin: スキルのカットイン
+  const d = { gfx: 'high', fxA: 1, autoE: false, autoQ: false, ui: 1, cutin: true, hints: true }; // autoE / autoQ: スキルの自動発動 / ui: UI の大きさ / cutin: スキルのカットイン / hints: 初見の説明(敵の技・状態異常を初めて見たときの帯)
   try { Object.assign(d, JSON.parse(localStorage.getItem('ps55_set') || '{}')); } catch (e) { /* 既定値で続行 */ }
   if (!GFX_Q[d.gfx]) d.gfx = 'high';
   d.fxA = clamp(+d.fxA || 1, 0.15, 1);
-  d.autoE = !!d.autoE; d.autoQ = !!d.autoQ; d.cutin = d.cutin !== false;
+  d.autoE = !!d.autoE; d.autoQ = !!d.autoQ; d.cutin = d.cutin !== false; d.hints = d.hints !== false;
   d.ui = clamp(+d.ui || 1, 0.7, 1.5);
   return d;
 })();

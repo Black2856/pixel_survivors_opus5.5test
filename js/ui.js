@@ -738,10 +738,10 @@ const UI = (() => {
     $('set-fxa').value = Math.round(SET.fxA * 100); $('set-fxa-n').textContent = Math.round(SET.fxA * 100) + '%';
     $('set-ui').value = Math.round(SET.ui * 100); $('set-ui-n').textContent = Math.round(SET.ui * 100) + '%';
     for (const b of $('set-gfx').children) b.classList.toggle('on', b.dataset.v === SET.gfx);
-    for (const k of ['autoE', 'autoQ', 'cutin']) for (const b of $('set-' + k).children) b.classList.toggle('on', (b.dataset.v === '1') === SET[k]);
+    for (const k of ['autoE', 'autoQ', 'cutin', 'hints']) for (const b of $('set-' + k).children) b.classList.toggle('on', (b.dataset.v === '1') === SET[k]);
   }
   for (const b of $('set-gfx').children) b.onclick = () => { SET.gfx = b.dataset.v; saveSet(); AudioMan.click(); syncSettings(); };
-  for (const k of ['autoE', 'autoQ', 'cutin']) for (const b of $('set-' + k).children) b.onclick = () => { SET[k] = b.dataset.v === '1'; saveSet(); AudioMan.click(); syncSettings(); last.skSig = null; };
+  for (const k of ['autoE', 'autoQ', 'cutin', 'hints']) for (const b of $('set-' + k).children) b.onclick = () => { SET[k] = b.dataset.v === '1'; saveSet(); AudioMan.click(); syncSettings(); last.skSig = null; };
   $('set-fxa').oninput = e => { SET.fxA = e.target.value / 100; $('set-fxa-n').textContent = e.target.value + '%'; saveSet(); };
   $('set-ui').oninput = e => { SET.ui = e.target.value / 100; $('set-ui-n').textContent = e.target.value + '%'; applyUiScale(); saveSet(); };
   function settings(from = 'title') { setBack = from; state = 'settings'; only('settings-screen'); syncSettings(); }

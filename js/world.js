@@ -1839,7 +1839,7 @@ function pushPlayer(ang, dist, dur) {
   return true;
 }
 // 新しい仕組みの説明(そのランで初めて見たときに一度だけ)
-function hint(key, main, sub) { if (S.hint[key]) return; S.hint[key] = true; UI.announce(main, sub); }
+function hint(key, main, sub) { if (S.hint[key] || !SET.hints) return; S.hint[key] = true; UI.announce(main, sub); } // 初見の説明(設定で OFF にできる)
 // 動く予告の円: follow 秒のあいだ速さ spd で target(既定はプレイヤー)を追い、そのあと止まる(track は FX の更新で毎フレーム呼ばれる)
 function chaseWarn(w, follow, spd, target = P) {
   w.track = q => {
@@ -2591,7 +2591,7 @@ function dragonAI(e, ai, dt, a, dist, slow) {
     ai.b0 = a + Math.PI; ai.dir = Math.random() < 0.5 ? 1 : -1; ai.chg = true;
     pushWarn({ kind: 'line', x: e.x, y: e.y, a: ai.b0, len: BEAM_LEN, w: 10, t: 0, life: 1.3 });
     AudioMan.warning(); AudioMan.charge(1.3);
-    if (!S.hint.beam) { S.hint.beam = true; UI.announce('全周ビーム!!', 'ダッシュの無敵ですり抜けろ'); }
+    hint('beam', '全周ビーム!!', 'ダッシュの無敵ですり抜けろ');
     windup(e, 1.3, () => { ai.act = 'beam'; ai.pt = 0; ai.T = ai.enraged ? 2 : 2.4; AudioMan.zap(); shockAt(e.x, e.y, 1, 1); fxRays(e.x, e.y - 4, 70, '#a01a4a', { foe: true, n: 16, life: 0.4, core: '#ff4a8a' }); });
   } else if (ai.raidCd <= 0) { // 空襲: 飛び上がり、画面を横切る影が燃える床を残していく
     ai.raidCd = ai.enraged ? 12 : 16;
