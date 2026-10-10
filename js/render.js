@@ -88,9 +88,73 @@ function buildClockChunk(cx, cy, st) {
   }
   return { c, g };
 }
+// 王墓の地面: 黒紫の石畳。ひび(奥から紫の光がもれる)・頭蓋と骨・小さな墓標・毒の水たまり(緑にかすかに光る)・床のルーンの輪・燭台の蝋燭
+//   蝋燭の位置は lights に入れて、drawGround が揺らめく光源を置く(光源は毎フレーム置き直すので、チャンクの絵には焼き込まない)
+function buildTombChunk(cx, cy, st) {
+  const c = ART.canvas(CH, CH), x = c.getContext('2d'), g = ART.canvas(CH, CH), gx = g.getContext('2d'), lights = [];
+  const [g0, g1, g2, g3] = st.ground, [mortar, hi, venom, rune] = st.deco, T = 16;
+  const ox = cx * CH, oy = cy * CH;
+  x.fillStyle = mortar; x.fillRect(0, 0, CH, CH);
+  for (let ty = 0; ty < CH; ty += T) {
+    const off = (((oy + ty) / T) & 1) ? T / 2 : 0;
+    for (let tx = -T; tx < CH + T; tx += T) {
+      const px = tx + off, h = hash2(ox + px, oy + ty);
+      x.fillStyle = h < 0.3 ? g1 : h < 0.55 ? g2 : h < 0.7 ? g3 : g0; x.fillRect(px + 1, ty + 1, T - 1, T - 1); // 石(目地は黒)
+      x.fillStyle = hi; x.globalAlpha = 0.16; x.fillRect(px + 1, ty + 1, T - 2, 1); x.globalAlpha = 1; // 上の縁の照り
+      if (h > 0.9) { x.fillStyle = mortar; x.fillRect(px + 4, ty + 7, 4, 1); x.fillRect(px + 7, ty + 8, 1, 3); } // 欠け
+      else if (h > 0.45 && h < 0.5) { x.fillStyle = '#2a2236'; x.fillRect(px + 3, ty + 3, 3, 1); x.fillRect(px + 4, ty + 4, 1, 1); } // 染み
+    }
+  }
+  for (let i = 0; i < 90; i++) { x.fillStyle = hash2(ox + i * 11, oy + i * 5) < 0.5 ? g3 : '#2a2238'; x.fillRect((hash2(i, cx * 29 + cy) * CH) | 0, (hash2(cy * 19 + i, cx) * CH) | 0, 1, 1); } // 砂ぼこり
+  for (let i = 0; i < 9; i++) {
+    const hx = 4 + ((hash2(cx * 97 + i, cy * 57) * (CH - 20)) | 0), hy = 6 + ((hash2(cy * 89 + i, cx * 43 + i) * (CH - 20)) | 0), kind = hash2(hx + ox, hy + oy);
+    if (kind < 0.2) { // ひび: 奥から紫の光がもれる
+      let lx = hx, ly = hy;
+      for (let k = 0; k < 12; k++) {
+        x.fillStyle = k % 4 === 0 ? '#5a3a8a' : mortar; x.fillRect(lx, ly, 1, 1);
+        if (k % 4 === 0) { gx.fillStyle = '#1c0e2c'; gx.fillRect(lx, ly, 1, 1); }
+        lx = clamp(lx + 1, 0, CH - 1); ly = clamp(ly + (hash2(lx + ox, k) < 0.5 ? 1 : -1), 0, CH - 1);
+      }
+    } else if (kind < 0.32) { // 頭蓋と骨
+      x.fillStyle = '#0a080e'; x.fillRect(hx, hy + 4, 7, 1);
+      x.fillStyle = '#b8b0a0'; x.fillRect(hx + 1, hy, 3, 1); x.fillRect(hx, hy + 1, 5, 2); x.fillRect(hx + 1, hy + 3, 3, 1);
+      x.fillStyle = '#0a080e'; x.fillRect(hx + 1, hy + 1, 1, 1); x.fillRect(hx + 3, hy + 1, 1, 1); // 眼窩
+      x.fillStyle = '#8a8478'; x.fillRect(hx + 5, hy + 3, 4, 1); x.fillRect(hx + 8, hy + 2, 1, 3); // 骨
+    } else if (kind < 0.46) { // 小さな墓標(十字の石)
+      x.fillStyle = '#0a080e'; x.fillRect(hx - 1, hy + 8, 7, 1);
+      x.fillStyle = '#4a4458'; x.fillRect(hx + 2, hy, 1, 8); x.fillRect(hx, hy + 2, 5, 1);
+      x.fillStyle = '#6a6478'; x.fillRect(hx + 2, hy, 1, 2); x.fillRect(hx, hy + 2, 1, 1);
+      x.fillStyle = '#2a2436'; x.fillRect(hx, hy + 7, 5, 1);
+    } else if (kind < 0.58) { // 毒の水たまり(緑にかすかに光る)
+      x.fillStyle = '#1a3a1a'; x.fillRect(hx, hy + 1, 8, 2); x.fillRect(hx + 1, hy, 5, 1); x.fillRect(hx + 2, hy + 3, 4, 1);
+      x.fillStyle = '#3a8a3a'; x.fillRect(hx + 2, hy + 1, 3, 1); x.fillStyle = venom; x.fillRect(hx + 2, hy + 1, 1, 1);
+      gx.fillStyle = '#0e2a0c'; gx.fillRect(hx + 1, hy + 1, 6, 2);
+    } else if (kind < 0.68) { // 床に刻まれたルーン文字(3文字。紫にかすかに光る)
+      const RUNES = ['101111101010010', '110101110101101', '100110101100100', '010111010010010', '101101010101101'];
+      for (let k = 0; k < 3; k++) {
+        const g0 = RUNES[((kind * 97 + k * 3) * 10 | 0) % RUNES.length], bx = hx + k * 4;
+        for (let p = 0; p < 15; p++) if (g0[p] === '1') { x.fillStyle = '#3a2a52'; x.fillRect(bx + (p % 3), hy + ((p / 3) | 0), 1, 1); gx.fillStyle = '#140a20'; gx.fillRect(bx + (p % 3), hy + ((p / 3) | 0), 1, 1); }
+      }
+      x.fillStyle = rune; x.fillRect(hx + 5, hy + 2, 1, 1); gx.fillStyle = '#2a1640'; gx.fillRect(hx + 5, hy + 2, 1, 1); // 真ん中の文字だけ少し強く光る
+    } else if (kind < 0.8) { // 燭台の蝋燭(2〜3本。炎は光の層と光源)
+      const n = 2 + (kind > 0.74 ? 1 : 0);
+      x.fillStyle = '#0a080e'; x.fillRect(hx - 1, hy + 7, n * 3 + 1, 1);
+      x.fillStyle = '#3a3048'; x.fillRect(hx - 1, hy + 6, n * 3 + 1, 1); // 燭台の皿
+      for (let k = 0; k < n; k++) {
+        const bx = hx + k * 3, H = 3 + ((((kind * 37 + k * 7) * 10) | 0) % 3);
+        x.fillStyle = '#d8d0c0'; x.fillRect(bx, hy + 6 - H, 1, H); x.fillStyle = '#a8a090'; x.fillRect(bx + 1, hy + 7 - H, 1, H - 1); // 蝋(垂れた側は暗い)
+        x.fillStyle = '#ffd27a'; x.fillRect(bx, hy + 4 - H, 1, 2); x.fillStyle = '#fff6c8'; x.fillRect(bx, hy + 5 - H, 1, 1);
+        gx.fillStyle = '#c87a2a'; gx.fillRect(bx, hy + 4 - H, 1, 2);
+      }
+      lights.push({ x: hx + n * 1.5, y: hy + 2, s: kind * 50 });
+    }
+  }
+  return { c, g, lights };
+}
 function buildChunk(cx, cy, st) {
   if (st.tiles) return buildTileChunk(cx, cy, st);
   if (st.clock) return buildClockChunk(cx, cy, st);
+  if (st.tomb) return buildTombChunk(cx, cy, st);
   const c = ART.canvas(CH, CH), x = c.getContext('2d');
   const g = ART.canvas(CH, CH), gx = g.getContext('2d');
   const [g0, g1, g2, g3] = st.ground, [d0, d1, d2c, d3] = st.deco;
@@ -242,6 +306,7 @@ function drawGround() {
     GFX.sctx.drawImage(ch.c, dx, dy);
     if (st.lava) { GFX.gctx.globalAlpha = 0.55 + 0.25 * Math.sin(GFX.fx.time * 2 + cx + cy); GFX.gctx.drawImage(ch.g, dx, dy); GFX.gctx.globalAlpha = 1; }
     else GFX.gctx.drawImage(ch.g, dx, dy);
+    if (ch.lights) for (const L of ch.lights) { const tt = GFX.fx.time; addLight(cx * CH + L.x, cy * CH + L.y, 48 + 5 * Math.sin(tt * 9 + L.s), '#ff9b3d', 0.5 + 0.12 * Math.sin(tt * 13 + L.s * 3)); } // 王墓の蝋燭: 揺らめく灯
   }
 }
 
@@ -334,6 +399,8 @@ function spriteOf(e) {
   const s = ART.S[e.type];
   if (e.ai === 'roll') return s[Math.floor((e.spin || 0) * 1.3) % s.length]; // 歯車: 転がった距離でコマを送る
   if (e.ai === 'burrow') return s[Math.floor(e.t * 3) % s.length]; // マグマワーム: ゆっくり口を開け閉め
+  if (e.ai === 'skitter') return s[e.run ? Math.floor(e.t * 14) % s.length : 0]; // 毒蜘蛛: 走っている間だけ脚を動かす
+  if (e.type === 'shadoweye') return s[e.wind > 0 ? 1 : 0]; // 影の眼: 撃つ前に見開く
   if (Array.isArray(s)) return s[Math.floor(e.t * 8) % s.length];
   return s;
 }
@@ -512,7 +579,7 @@ function render() {
   const st = DATA.stages[S ? S.stage - 1 : 0], LM = st.light ?? 1; // light: 光源の強さ(明るい雪原では弱めないと白く飛ぶ)
   GFX.lightMul = LM;
   // 環境光・グレーディングを滑らかに遷移。闇の霧は環境光を暗く、青紫に寄せる(光源のまわりだけが見える)
-  const fk = fogDarkK(), ink = S && S.inInk ? 0.4 : 1; // 墨だまり(クラーケン)の中は暗い
+  const fk = fogDarkK(), ink = S && (S.inInk || (P && P.darkT > 0)) ? 0.4 : 1; // 墨だまり(クラーケン)の中・暗闇(王墓)は暗い
   for (let i = 0; i < 3; i++) { GFX.ambient[i] = lerp(GFX.ambient[i], st.amb[i] * (1 - 0.55 * fk) * (i === 2 ? 1 + 0.3 * fk : 1) * ink, ink < 1 ? 0.08 : 0.03); GFX.tint[i] = lerp(GFX.tint[i], st.tint[i] * (i === 1 ? 1 - 0.12 * fk : 1), 0.03); }
 
   drawGround();
@@ -977,6 +1044,23 @@ function render() {
         for (let k = 0; k < fh; k++) { const col = k === fh - 1 ? '#fff0b0' : k > fh * 0.55 ? '#ffc34a' : '#ff6a2a'; sx.fillStyle = gx.fillStyle = col; sx.fillRect(fx, fy - k, 1, 1); if (k > 0) gx.fillRect(fx, fy - k, 1, 1); }
       }
       for (let d = 0; d < L; d += 40) addLight(h.x + c * d, h.y + s * d, 60, '#ff6a2a', 0.7 * fade);
+    } else if (h.kind === 'darkwave') { // 闇の遠吠え(ケルベロス): 黒い霧の波が広がる(縁は紫の光、内側は闇)
+      const R = Math.max(1, Math.round(h.cur || 1)), f2 = h.t <= h.spread ? 1 : Math.max(0, 1 - (h.t - h.spread) / (h.dur - h.spread));
+      sx.globalAlpha = 0.42 * f2; pDisc(sx, hx, hy, R, '#06030c');
+      sx.globalAlpha = 0.8 * f2; pCircle(sx, hx, hy, R, '#e8c8ff'); pCircle(sx, hx, hy, Math.max(1, R - 1), '#a66bff', 2); pCircle(sx, hx, hy, Math.max(1, R - 4), '#3a1a5a', 2); sx.globalAlpha = 1;
+      pCircle(gx, hx, hy, R, dimCol('#a66bff', 0.7 * f2), 2);
+      addLight(h.x, h.y, R * 1.6, '#7a3ab0', 0.55 * f2);
+    } else if (h.kind === 'miasma') { // 瘴気の霧(腐毒のグール): 緑と紫の霧が渦を巻く(縁は危険の赤)
+      const R = Math.round(h.r * Math.min(1, h.t * 5));
+      sx.globalAlpha = 0.35 * fade; pDisc(sx, hx, hy, R, '#1e3a1a');
+      sx.globalAlpha = 0.3 * fade; pDisc(sx, hx + Math.round(Math.sin(t * 1.7 + h.seed) * 2), hy + Math.round(Math.cos(t * 1.3 + h.seed) * 2), Math.max(1, Math.round(R * 0.7)), '#3a1a4a');
+      for (let i = 0; i < 12; i++) { // 渦を巻く霧のかたまり
+        const a = t * 0.9 + TAU / 12 * i + h.seed, rr = R * (0.3 + 0.6 * ((i * 0.37 + t * 0.2) % 1));
+        sx.globalAlpha = 0.55 * fade; sx.fillStyle = i % 2 ? '#5aff6a' : '#9a7dff'; sx.fillRect(Math.round(hx + Math.cos(a) * rr), Math.round(hy + Math.sin(a) * rr * 0.8), 2, 1);
+      }
+      sx.globalAlpha = fade; pCircle(sx, hx, hy, R, warnBlink ? '#ff3b5c' : '#7dff6a'); sx.globalAlpha = 1;
+      pDisc(gx, hx, hy, Math.max(1, R - 3), fade > 0.6 ? '#0c1a0a' : '#060c04'); // ほのかに光る(光の層はとても暗い色で)
+      addLight(h.x, h.y, R * 2.4, '#5aff6a', 0.35 * fade);
     } else if (h.kind === 'quake') {
       if (h.bell) { // 鐘の衝撃(ダメージなし・押すだけ): 金色の音の輪
         pCircle(sx, hx, hy, Math.round(h.r), '#fff0c8'); pCircle(sx, hx, hy, Math.round(h.r) - 1, '#ffd27a'); pCircle(sx, hx, hy, Math.round(h.r) - 3, '#c8a050', 2);
@@ -1251,24 +1335,27 @@ function render() {
     if (e.flying) continue; // 空襲で空高く飛んでいるボスは影だけ(drawBossFx)
     const sp = e.boss ? ART.S[e.spr || e.boss] : e.prop ? ART.S.brazier[Math.floor(t * 6 + e.seed * 5) % 2] : spriteOf(e);
     const sc = e.scale;
-    shadow(e.x, e.y + sp.h * sc / 2 - 1, sp.w * sc * 0.8);
+    if (!e.hz) shadow(e.x, e.y + sp.h * sc / 2 - 1, sp.w * sc * 0.8); // 宙にある物(ケルベロスの首)は影なし
     let sy = 1, sxk = 1, yo = 0;
     if (e.ai === 'hop') { const ha = e.hopAir || 0.35, h = e.hopT < ha ? Math.sin((e.hopT / ha) * Math.PI) : 0; yo = -h * 5; sy = 1 + h * 0.15 - (e.hopT > (e.hopEvery || 1.1) - 0.2 ? 0.15 : 0); sxk = 2 - sy; }
     else if (e.ai === 'flutter' || e.type === 'imp') yo = Math.sin(e.t * 12) * 1.5; // 飛ぶ敵は上下に揺れる(火の小鬼は浮いたまま射撃)
     if (e.swell > 0) { sy = sxk = 1 + 0.45 * e.swell; } // 鬼火の自爆: 膨らむ
     else if (e.disguise) { sy = 1 + Math.sin(e.t * 3) * 0.03; sxk = 2 - sy; } // 鏡の分身: 女王と同じ揺れ
     else if (e.obj) { if (e.dropT > 0) yo = -e.dropT * 260; sy = e.rise * (1 + (e.pulse || 0) * 0.6); sxk = 1 + (e.pulse || 0) * 0.4 + (e.obj === 'meat' ? Math.sin(e.t * 4 + e.seed * 9) * 0.04 : 0); } // せり上がる / 肉塊は脈打つ // 砂時計は空から落ちてくる
+    if (e.hz) { yo -= e.hz + (e.raise ? 4 : 0) + Math.sin(e.t * 3 + e.slot * 2) * 0.8; if (e.obj === 'chead') sy = Math.max(0.3, e.rise) * (1 + (e.pulse || 0) * 0.25), sxk = 1 + (e.pulse || 0) * 0.2; } // ケルベロスの首: 首の高さ(遠吠えで天を仰ぐ)。ふくらみは控えめに
     else if (e.type === 'mworm') { sy = Math.max(0.1, e.rise ?? 1); sxk = 1 + (1 - sy) * 0.4; } // マグマワーム: 地面から伸び出る・沈む
     else if (!e.prop && !e.boss) { const w = Math.abs(Math.sin(e.t * 7 + e.seed * 6)); sy = 1 - w * 0.06; sxk = 1 + w * 0.04; }
     if (e.boss) { sy = (e.sq || 1) + Math.sin(e.t * 3) * 0.03; sxk = 2 - sy; yo = -(e.jz || 0); }
     const flip = (e.face || 1) < 0;
     let alpha = e.ghost ? 0.7 : 1;
     if (e.hideA !== undefined) alpha *= e.hideA;
+    if (e.veil) alpha *= 0.26 + 0.08 * Math.sin(t * 6 + e.seed * 9); // 影法師: 遠い間は薄い影(目だけが光る)
     if (e.elite) { // 金色の脈動アウトライン
       const gold = ART.variant(sp, flip ? 'goldFlip' : 'gold'), ex = Math.round(e.x - cam.x - sp.w * sc / 2), ey = Math.round(e.y + yo - cam.y - sp.h * sc / 2);
       for (const [ox, oy] of [[-1, 0], [1, 0], [0, -1], [0, 1]]) sx.drawImage(gold, ex + ox, ey + oy, sp.w * sc, sp.h * sc);
     }
     drawSp(sp, e.x, e.y + yo, { flip, scale: sc, sy, sxk, alpha, white: e.flash > 0, emitA: e.ghost ? 0.25 : e.flash > 0 ? 0.5 : undefined });
+    if (e.boss === 'cerberus') drawCerbNecks(e, sp, yo); // 首: 体から頭へ(頭より奥に描く)
     if (e.type === 'mworm') drawSp(ART.S.mwormMound[0], e.x, e.y + sp.h * sc / 2 - 1, { scale: sc }); // 出てきた穴の盛り土(体の根元を隠す)
     // 状態異常の色味
     if (e.mark > 0 && S.time < e.markT) { // アーチャーの印: 頭上に緑のドット(10個で1段)。弱点露出中は赤く明滅
@@ -1311,6 +1398,13 @@ function render() {
     else if (e.type === 'mworm') addLight(e.x, e.y - 4, 26, '#ff6a2a', 0.5);
     else if (e.type === 'icesprite') addLight(e.x, e.y, 26, '#9ff7ff', 0.5);
     else if (e.type === 'ghost') addLight(e.x, e.y, 22, '#8ab8ff', 0.3); // 冷たい霊: 青白い光
+    else if (e.type === 'ghoul') addLight(e.x, e.y - 4, 22, '#7dff6a', 0.32); // 腐毒のグール: 緑の毒の光
+    else if (e.type === 'spider') addLight(e.x, e.y, 14, '#7dff6a', 0.22);
+    else if (e.type === 'shadoweye') { // 影の眼: 撃つ前に瞳が赤紫に光り、闇が集まる
+      if (e.wind > 0) { const k = 1 - e.wind / 0.6; pCircle(gx, Math.round(e.x - cam.x), Math.round(e.y - cam.y - 1), Math.round(10 - 7 * k), dimCol('#a66bff', 0.3 + 0.5 * k)); }
+      addLight(e.x, e.y, e.wind > 0 ? 44 : 20, '#a66bff', e.wind > 0 ? 0.85 : 0.4);
+    }
+    else if (e.type === 'stalker' && !e.veil) addLight(e.x, e.y - 4, 18, '#c79bff', 0.3);
     else if (e.obj === 'doom') { // 終刻の時計: 文字盤に残り秒(12 → 0)。少なくなると赤く脈打つ
       const n = Math.max(0, Math.ceil(e.life)), img = ART.text(String(n), n <= 3 ? '#ff3b5c' : '#ffd0d8', 2);
       const cx2 = Math.round(e.x - cam.x), cy2 = Math.round(e.y + yo - cam.y - sp.h * sc / 2), fy2 = cy2 + 11; // 文字盤の中心
@@ -1327,13 +1421,14 @@ function render() {
     }
     else if (e.obj === 'qmirror') addLight(e.x, e.y - 10, 44 + Math.sin(t * 4 + e.seed * 6) * 6, PRISM[Math.floor(t * 4 + e.seed * 7) % 7], 0.6); // 女王の鏡: 七色に移ろう光
     else if (e.obj === 'tomb') addLight(e.x, e.y - 10, 50 + Math.sin(t * 3 + e.seed * 6) * 6, '#9ff7ff', 0.6); // 氷柱の墓標: 青白く光る
+    else if (e.obj === 'chead') addLight(e.x + 3 * (e.face || 1), e.y + yo - 1, 26 + (e.pulse || 0) * 30, CERB[e.hk][0], 0.4 + (e.pulse || 0) * 0.4); // ケルベロスの首: 目と首の色の光
     if (e.disguise) addLight(e.x, e.y, 90, '#ff8ad8', 0.8); // 鏡の分身: 本物と同じ光(HP バーは出さない)
     else if (e.obj) { // ボスが出した物: いつも金色の HP バー(壊せることを示す)と、足元の金の輪
-      const w = Math.max(10, Math.round(sp.w * sc)), bx = Math.round(e.x - cam.x - w / 2), by = Math.round(e.y - cam.y + sp.h * sc / 2 + 2);
+      const w = Math.max(10, Math.round(sp.w * sc)), bx = Math.round(e.x - cam.x - w / 2), by = Math.round(e.y + (e.hz ? yo - sp.h * sc - 4 : 0) - cam.y + sp.h * sc / 2 + 2); // 宙にある首は頭の上に
       sx.fillStyle = '#0c0913'; sx.fillRect(bx - 1, by - 1, w + 2, 3);
       sx.fillStyle = '#ffd23f'; sx.fillRect(bx, by, Math.max(1, Math.round(w * e.hp / e.maxhp)), 1);
       gx.fillStyle = '#4a3a08'; gx.fillRect(bx, by, Math.max(1, Math.round(w * e.hp / e.maxhp)), 1);
-      sx.globalAlpha = 0.45 + 0.25 * Math.sin(t * 5 + e.seed * 6); pCircle(sx, Math.round(e.x - cam.x), Math.round(e.y - cam.y + sp.h * sc / 2 - 1), Math.round(e.r + 3), '#ffd23f'); sx.globalAlpha = 1;
+      if (!e.hz) { sx.globalAlpha = 0.45 + 0.25 * Math.sin(t * 5 + e.seed * 6); pCircle(sx, Math.round(e.x - cam.x), Math.round(e.y - cam.y + sp.h * sc / 2 - 1), Math.round(e.r + 3), '#ffd23f'); sx.globalAlpha = 1; }
     } else if (!e.boss && !e.prop && e.hp < e.maxhp && (e.elite || e.maxhp > 90 || e.owner)) {
       const w = Math.round(sp.w * sc * 0.8), bx = Math.round(e.x - cam.x - w / 2), by = Math.round(e.y - cam.y + sp.h * sc / 2 + 2);
       sx.fillStyle = '#0c0913'; sx.fillRect(bx - 1, by - 1, w + 2, 3);
@@ -1621,7 +1716,7 @@ function render() {
     const A = CHAOS.area, ol = { outline: oc, alpha: al, scale: A * (p.sk || 1) }; // sk: エリートの弾は範囲 ×1.5 で大きい
     if (al !== undefined) sx.globalAlpha = al; // drawRot は透明度を受け取らないので、ここで掛けて戻す
     if (p.kind === 'boomer') drawRot('scythe', p.t * 16, p.x, p.y, { scale: 2 * A, outline: oc });
-    else if (p.kind === 'glob' || p.kind === 'rbit' || p.kind === 'efire' || p.kind === 'esand' || p.kind === 'bball') drawSp(ART.S[p.kind], p.x, p.y, ol);
+    else if (p.kind === 'glob' || p.kind === 'rbit' || p.kind === 'efire' || p.kind === 'esand' || p.kind === 'bball' || p.kind === 'vball') drawSp(ART.S[p.kind], p.x, p.y, ol);
     else if (p.kind === 'arrow' || p.kind === 'espear' || p.kind === 'bspear' || p.kind === 'trident' || p.kind === 'needle' || p.kind === 'eice' || p.kind === 'ispear' || p.kind === 'tick') drawRot(p.kind, a, p.x, p.y, ol);
     else if (p.kind === 'flake') drawSp(p.small ? ART.S.flakeS : ART.S.flake, p.x, p.y, ol); // 雪華弾(割れた後は小さな結晶)
     else if (p.kind === 'cog') drawSp(ART.S.gear[Math.floor(p.spin || 0) % 2], p.x, p.y, ol); // 番人の歯車弾
@@ -1654,6 +1749,13 @@ function render() {
       addLight(p.x, p.y, 50, '#d88aff', 0.7);
     }
     else if (p.kind === 'scythe' || p.kind === 'rscythe') drawRot(p.kind, p.t * 14, p.x, p.y, ol);
+    else if (p.kind === 'darkorb') { // 闇の玉(影の眼): 黒い芯を紫の光が縁取り、脈打つ
+      const R = Math.round(p.r * 1.6), x = p.x - cam.x, y = p.y - cam.y, pl = Math.sin(t * 14 + p.t * 7) > 0 ? 1 : 0;
+      pCircle(sx, x, y, R + 1 + pl, oc); pDisc(sx, x, y, R, '#7a3ab0'); pDisc(sx, x, y, Math.max(1, R - 1), '#1a0a2a');
+      sx.fillStyle = '#e8c8ff'; sx.fillRect(Math.round(x) - 1, Math.round(y) - 1, 1, 1);
+      pCircle(gx, x, y, R, '#4a1a7a');
+      addLight(p.x, p.y, 30, '#a66bff', 0.7);
+    }
     else drawSp(ART.S.ball, p.x, p.y, ol);
     sx.globalAlpha = 1;
     addLight(p.x, p.y, (p.kind === 'boomer' ? 40 : p.kind === 'efire' ? 34 : 22) * A, p.kind === 'efire' && !stop ? '#ff6a2a' : oc, stop ? 0.2 : 0.6);
@@ -1661,8 +1763,9 @@ function render() {
   // 予兆: 赤い半透明の塗り(時間とともに内側が満ちる) + 点滅する縁
   //   当たる時を示す動き: 円は外から縁へ縮む輪 / 帯は攻撃の向きへ流れる山形 / 扇は外から縁へ縮む弧。当たった瞬間は形が一瞬白く光る(snap)
   const edge = warnBlink ? '#ff3b5c' : '#ffd0d8';
+  const blind = P.darkT > 0; // 暗闇(王墓): 敵の攻撃の予告が見えない
   for (const w of warns) {
-    if (w.ink && S.inInk) continue; // 墨だまりの中では触手の予告が見えない
+    if (blind || (w.ink && S.inInk)) continue; // 墨だまりの中では触手の予告が見えない
     const k = w.t / w.life, wx = w.x - cam.x, wy = w.y - cam.y;
     if (w.snap) { drawWarnSnap(w, wx, wy, 1 - k); continue; }
     if (w.kind === 'line') {
@@ -1798,6 +1901,37 @@ function drawBossCharge(t) {
     addLight(e.x, e.y, e.r * 3 + 40 * u, '#ff3b5c', 0.2 + 0.45 * u);
   }
 }
+// ケルベロスの首: 体の胸から3本の首が頭へ伸びる(黒紫の毛、上側に照り)。壊れた首は短い付け根から黒い血がしたたる
+function drawCerbNecks(e, sp, yo) {
+  const sx = GFX.sctx, f = e.face || 1, ai = e.ai, ax = e.x + 7 * f - cam.x, ay = e.y + yo - 5 - cam.y;
+  for (let i = 0; i < 3; i++) {
+    const h = ai.heads && ai.heads[i], H = CHEAD[i], live = h && !h.dead;
+    const hx = (live ? h.x : e.x + H.dx * f) - 3 * f - cam.x, hy = (live ? h.y - h.hz - (h.raise ? 4 : 0) : e.y + H.dy - H.hz) + 2 + yo - cam.y;
+    const k = live ? Math.max(0.3, h.rise) : 0.4, x1 = ax + (hx - ax) * k, y1 = ay + (hy - ay) * k;
+    pLine(sx, ax, ay, x1, y1, '#0e0a14', 6); pLine(sx, ax, ay, x1, y1, '#281c36', 4); pLine(sx, ax, ay - 1, x1, y1 - 1, '#4a3462', 2);
+    if (!live) { pDisc(sx, x1, y1, 2, '#5a1020'); sx.fillStyle = '#1a0a14'; sx.fillRect(Math.round(x1), Math.round(y1) + 1, 1, 2 + Math.floor((GFX.fx.time * 3 + i) % 3)); } // 付け根の黒い血
+  }
+}
+// ケルベロスの技の見た目: 毒の息(緑の煙の扇)/ 闇の遠吠えの構え(足元から黒い霧)/ 瘴気弾の構え
+function drawCerbFx(e, sx, gx, ex, ey, A) {
+  const ai = e.ai, t = GFX.fx.time;
+  if (ai.br) { // 毒の息: 扇いっぱいに緑の煙(半透明の扇が揺らめき、縁が明滅する)
+    const b = ai.br, R = b.r * A, fl = 0.75 + 0.25 * Math.sin(t * 30);
+    for (const c of b.cones) {
+      for (const [rr, al, col] of [[R, 0.13, '#1e8a2a'], [R * 0.7, 0.16, '#3aff5a'], [R * 0.35, 0.18, '#c8ffb0']]) { sx.globalAlpha = al * fl; sx.fillStyle = col; sx.beginPath(); sx.moveTo(ex, ey); sx.arc(ex, ey, rr, c.a - b.h, c.a + b.h); sx.closePath(); sx.fill(); }
+      sx.globalAlpha = 1;
+      const n = Math.ceil(R * b.h * 2);
+      for (let i = 0; i <= n; i += 2) { const aa = c.a - b.h + 2 * b.h * i / n, px = Math.round(ex + Math.cos(aa) * R), py = Math.round(ey + Math.sin(aa) * R); sx.fillStyle = (i + Math.floor(t * 20)) % 4 ? '#7dff6a' : '#ff3b5c'; sx.fillRect(px, py, 1, 1); gx.fillStyle = '#1e5a1a'; gx.fillRect(px, py, 1, 1); } // 縁(危険の赤が混じって明滅)
+      for (let r = 16; r < R; r += 22) addLight(e.x + Math.cos(c.a) * r, e.y + Math.sin(c.a) * r, r * 0.9, '#5aff6a', 0.5);
+    }
+  }
+  if (ai.mist && ai.wind > 0) { // 闇の遠吠えの構え: 足元から黒い霧が渦を巻いて立ちのぼり、闇の首が光る
+    const u = 1 - ai.wind / ai.windT;
+    for (let k = 0; k < 3; k++) { const pa = rand(0, TAU), pr = rand(10, 30 + 40 * u); part(e.x + Math.cos(pa) * pr, e.y + 8 + Math.sin(pa) * pr * 0.4, -Math.sin(pa) * 20, -rand(10, 40), rand(0.5, 0.9), pick(['#0a0612', '#1a0a2a', '#3a1a5a', '#7a3ab0']), { drag: 1, sz: pick([1, 2, 3]) }); }
+    gx.globalAlpha = 1; pCircle(gx, ex, ey + 8, Math.round(14 + 50 * u), dimCol('#7a3ab0', 0.25 + 0.4 * u), 2);
+    addLight(e.x, e.y, 60 + 80 * u, '#7a3ab0', 0.4 + 0.4 * u);
+  }
+}
 // ボス固有の付随表現(ゴーレムの拳・掲げた岩 / ドラゴンのブレス・ビーム・溜め)
 function drawBossFx(e) {
   const sx = GFX.sctx, gx = GFX.gctx, ai = e.ai, ex = e.x - cam.x, ey = e.y - cam.y, sp = ART.S[e.boss], yo = -(e.jz || 0);
@@ -1808,7 +1942,8 @@ function drawBossFx(e) {
     addLight(f.x, f.y, 26 * A, '#6ee7ff', 0.5);
   }
   if (e.hold) drawSp(ART.S.rock, e.x, e.y + yo - sp.h / 2 - 5);
-  if (e.stun > 0) for (let i = 0; i < 3; i++) { const a = GFX.fx.time * 6 + TAU / 3 * i, x = Math.round(ex + Math.cos(a) * 10), y = Math.round(ey + yo - sp.h / 2 - 4 + Math.sin(a) * 3); sx.fillStyle = gx.fillStyle = '#ffe14a'; sx.fillRect(x - 1, y, 3, 1); sx.fillRect(x, y - 1, 1, 3); gx.fillRect(x, y, 1, 1); } // ひるみ(砂時計・終刻の時計を壊した): 頭の上を星が回る
+  if (e.boss === 'cerberus') drawCerbFx(e, sx, gx, ex, ey, A);
+  if (e.stun > 0 || e.stunVis) for (let i = 0; i < 3; i++) { const a = GFX.fx.time * 6 + TAU / 3 * i, x = Math.round(ex + Math.cos(a) * 10), y = Math.round(ey + yo - sp.h / 2 - 4 + Math.sin(a) * 3); sx.fillStyle = gx.fillStyle = '#ffe14a'; sx.fillRect(x - 1, y, 3, 1); sx.fillRect(x, y - 1, 1, 3); gx.fillRect(x, y, 1, 1); } // ひるみ(砂時計・終刻の時計を壊した): 頭の上を星が回る
   if (ai.act === 'breath' && e.boss === 'cdragon') for (let r = 20; r < 125 * A; r += 26 * A) addLight(e.x + Math.cos(ai.ba) * r, e.y + Math.sin(ai.ba) * r, r * 0.9, '#ff6a2a', 0.7);
   if (ai.act === 'beam' && ai.bA != null) {
     const BL = BEAM_LEN * A, bx = ex + Math.cos(ai.bA) * BL, by = ey + Math.sin(ai.bA) * BL, fl = Math.floor(GFX.fx.time * 30) % 2;
@@ -2017,6 +2152,25 @@ function drawBfx() {
   const sx = GFX.sctx, gx = GFX.gctx, t = GFX.fx.time;
   for (const f of bfx) {
     const fx = f.x - cam.x, fy = f.y - cam.y, u = f.t / f.life;
+    if (f.kind === 'ghost') { // 残像(ケルベロスの突進・影の王の影歩): 体の形を単色で、すぐ消える
+      const sp = ART.S[f.spr], img = ART.tint(f.flip ? ART.variant(sp, 'flip') : sp.c, f.col);
+      sx.globalAlpha = 0.5 * (1 - u); sx.drawImage(img, Math.round(fx - sp.w / 2), Math.round(fy - sp.h / 2)); sx.globalAlpha = 1;
+      gx.globalAlpha = 1; gx.drawImage(ART.tint(f.flip ? ART.variant(sp, 'flip') : sp.c, dimCol(f.col, 0.25 * (1 - u))), Math.round(fx - sp.w / 2), Math.round(fy - sp.h / 2));
+      continue;
+    }
+    if (f.kind === 'cbite') { // 噛みつき(ケルベロス): 上下のあごが閉じる(黒いあごに白い牙)。閉じた瞬間に首の色の閃光
+      const k = Math.min(1, u / 0.35), gap = (1 - easeOutCubic(k)) * 9 + 1, c = Math.cos(f.a), s = Math.sin(f.a), fade = u < 0.5 ? 1 : 1 - (u - 0.5) / 0.5;
+      for (const sd of [-1, 1]) for (let i = -7; i <= 7; i++) {
+        const bend = (1 - (i * i) / 49) * gap * sd, px = fx + c * i - s * bend, py = fy + s * i + c * bend;
+        sx.globalAlpha = fade; sx.fillStyle = '#1e1428'; sx.fillRect(Math.round(px) - 1, Math.round(py) - 1, 3, 3);
+        if (i % 2 === 0) { sx.fillStyle = '#ffffff'; sx.fillRect(Math.round(px + s * sd * 2), Math.round(py - c * sd * 2), 1, 1); } // 牙はあごの内側
+      }
+      sx.globalAlpha = 1;
+      if (k >= 1 && u < 0.5) pDisc(gx, fx, fy, 5, dimCol(f.col, 0.7));
+      if (k >= 1 && !f.u0) { f.u0 = 1; fxGlint(f.x, f.y, 10, f.col, { foe: true, life: 0.18 }); } // 閉じた瞬間に1回だけ
+      addLight(f.x, f.y, 40, f.col, 0.6 * fade);
+      continue;
+    }
     if (f.kind === 'grave') { // 死者の手の印: 印の中で土がうごめき、小さな墓標が立つ
       for (let i = 0; i < 9; i++) {
         const a = hash2(i, 3) * TAU + Math.sin(t * 6 + i) * 0.4, r = (0.2 + 0.55 * hash2(i, 5)) * 16;

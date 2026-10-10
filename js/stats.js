@@ -137,7 +137,7 @@ const chaosSetting = key => (chaosFixed(key) ? chaosBase(key) : META.chaos[key] 
 
 // ---------- クラスの解放 ----------
 // DATA.classUnlock のモード・ステージを初めてクリアすると使える(書いていないクラスは最初から)
-const clsUnlocked = k => !DATA.classUnlock[k] || !!META.stageClear[DATA.classUnlock[k]];
+const clsUnlocked = k => !DATA.classUnlock[k] || !!META.stageClear[DATA.classUnlock[k]] || !!(META.clsGrant && META.clsGrant[k]); // clsGrant: 解放の条件を変える前に解放済みだったクラス
 const clsNameShown = k => (clsUnlocked(k) ? DATA.classes[k].name : '？？？'); // 未解放のクラスは名前も伏せる(解放の条件も見せない)
 
 // ---------- クラスLv の効果 ----------
@@ -224,7 +224,8 @@ function computeStats({ cls = META.cls, run = false, eq = run ? 'run' : 'zero' }
 function applyStats() {
   const st = computeStats({ cls: P.cls, run: true }), v = st.v, m = st.mul;
   P.stats = st;
-  P.maxhp = Math.max(1, Math.round(v.hp * m.hp) + clsHpAdd()); // クラスの最大HP の追加(ウェポンマスターの頑健など。変わったらクラスが recalc する)
+  P.maxhpBase = Math.max(1, Math.round(v.hp * m.hp) + clsHpAdd()); // クラスの最大HP の追加(ウェポンマスターの頑健など。変わったらクラスが recalc する)
+  P.maxhp = Math.max(1, Math.round(P.maxhpBase * (1 - DATA.debuffTomb.poison * (P.poison || 0)))); // 毒(王墓): 1スタックごとに最大HP が下がる(HP バーの紫の部分)
   P.hp = Math.min(P.hp, P.maxhp);
   P.regen = v.regen;
   P.armor = v.def;

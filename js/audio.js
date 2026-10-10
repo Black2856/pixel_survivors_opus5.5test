@@ -12,6 +12,7 @@ const AudioMan = (() => {
     f_sea: '沈黙の海淵-フィールド', b_sea: '沈黙の海淵-ボス',
     f_peak: '霜天の霊峰-フィールド', b_peak: '霜天の霊峰-ボス',
     f_clock: '終刻の時計塔-フィールド', b_clock1: '終刻の時計塔-ボス1', b_clock2: '終刻の時計塔-ボス2',
+    f_tomb: '常闇の王墓-フィールド', b_tomb1: '常闇の王墓-ボス1', b_tomb2: '常闇の王墓-ボス2', // 王墓: 影の王は激昂でボス2 に変わる
   };
   const musicSrc = name => encodeURI('music/' + (MUSIC[name] || (name && name[0] === 'b' ? MUSIC.b_grass : MUSIC.f_grass)) + '.mp3');
   let ctx = null, bus = null, noiseBuf = null;
@@ -194,6 +195,14 @@ const AudioMan = (() => {
     drain()   { if (!this._ok('drain', 0.15)) return; this.tone(700, 260, 0.18, { vol: 0.05, type: 'sine' }); this.tone(520, 200, 0.16, { vol: 0.03, type: 'sine', delay: 0.06 }); this.noise(0.12, { vol: 0.05, f0: 1800, f1: 600, ftype: 'bandpass' }); },
     puff()    { if (!this._ok('puff', 0.12)) return; this.noise(0.2, { vol: 0.1, f0: 600, f1: 2400, ftype: 'bandpass', rate: 1.2 }); this.tone(300, 900, 0.08, { vol: 0.03, type: 'triangle' }); },
     splash()  { if (!this._ok('splash', 0.1)) return; this.noise(0.55, { vol: 0.18, f0: 3500, f1: 400, ftype: 'bandpass', rate: 0.8 }); this.tone(180, 70, 0.3, { vol: 0.07, type: 'sine' }); this.noise(0.3, { vol: 0.06, f0: 7000, f1: 3000, ftype: 'highpass', delay: 0.08 }); },
+    // 王墓: 毒を受けた(泡立つ音)/ 暗闇(低く沈む音)/ 冥犬の遠吠え / 鎖が鳴る / 断界(空間が裂ける)/ 影が湧き出る / 噛みつき
+    poison()  { if (!this._ok('poison', 0.12)) return; this.noise(0.35, { vol: 0.08, f0: 900, f1: 2600, ftype: 'bandpass', rate: 2.2 }); this.tone(320, 140, 0.25, { vol: 0.04, type: 'triangle' }); this.tone(210, 260, 0.18, { vol: 0.025, type: 'sine', delay: 0.08 }); },
+    blind()   { if (!this._ok('blind', 0.3)) return; this.tone(220, 55, 0.7, { vol: 0.08, type: 'sine' }); this.noise(0.6, { vol: 0.07, f0: 600, f1: 90 }); this.tone(440, 110, 0.5, { vol: 0.02, type: 'triangle', delay: 0.05 }); },
+    howl()    { if (!this._ok('howl', 0.5)) return; this.tone(160, 420, 0.5, { vol: 0.09, type: 'sawtooth' }); this.tone(420, 300, 0.9, { vol: 0.08, type: 'sawtooth', delay: 0.45 }); this.tone(240, 180, 1.2, { vol: 0.05, type: 'sine', delay: 0.1 }); this.noise(1.1, { vol: 0.06, f0: 500, f1: 1400, ftype: 'bandpass' }); },
+    chain()   { if (!this._ok('chain', 0.06)) return; const b = 1700 + Math.random() * 500; this.tone(b, b * 0.92, 0.08, { vol: 0.03, type: 'square' }); this.tone(b * 1.41, b * 1.3, 0.1, { vol: 0.02, type: 'triangle', delay: 0.03 }); this.noise(0.08, { vol: 0.05, f0: 6000, f1: 3000, ftype: 'highpass' }); },
+    sever()   { if (!this._ok('sever', 0.2)) return; this.noise(0.35, { vol: 0.22, f0: 12000, f1: 900, ftype: 'highpass', rate: 1.6 }); this.tone(1400, 60, 0.45, { vol: 0.07, type: 'sawtooth' }); this.tone(55, 30, 1.2, { vol: 0.16, type: 'sine', delay: 0.05 }); },
+    shade2()  { if (!this._ok('shade2', 0.15)) return; this.tone(90, 45, 0.6, { vol: 0.1, type: 'sawtooth' }); this.noise(0.5, { vol: 0.08, f0: 300, f1: 1800, ftype: 'bandpass' }); this.tone(660, 880, 0.3, { vol: 0.018, type: 'sine', delay: 0.15 }); },
+    bite()    { if (!this._ok('bite', 0.06)) return; this.noise(0.1, { vol: 0.14, f0: 2400, f1: 500 }); this.tone(180, 70, 0.12, { vol: 0.08, type: 'square' }); },
     fuse()    { if (this._ok('fuse', 0.12)) { this.noise(0.55, { vol: 0.08, f0: 7000, f1: 9000, ftype: 'highpass', rate: 1.8 }); this.tone(900, 1700, 0.55, { vol: 0.02, type: 'sine' }); } },
     // E / Q スキル: 構え(Q は低いうねりがせり上がり、光の音が重なる。E は短い光の音)/ 放つ瞬間の低い衝撃 / 大技の炸裂に重ねる低音 / きらめき
     cast(q)   { if (!this._ok('cast', 0.1)) return; if (q) { this.tone(65, 150, 0.5, { vol: 0.09, type: 'sine' }); this.noise(0.45, { vol: 0.06, f0: 300, f1: 3600, ftype: 'bandpass' }); this.tone(1320, 2640, 0.22, { vol: 0.022, type: 'triangle', delay: 0.1 }); } else { this.tone(990, 1980, 0.12, { vol: 0.028, type: 'triangle' }); this.noise(0.14, { vol: 0.04, f0: 1200, f1: 4800, ftype: 'bandpass' }); } },

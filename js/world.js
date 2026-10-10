@@ -10,6 +10,7 @@ const ECOL = {
   jelly: ['#ffb0e0', '#bff4ff'], sahagin: ['#3a9a8a', '#bff4ff'], puffer: ['#e8c86a', '#8a6a3a'], angler: ['#2a4a5a', '#fff6a0'],
   wolf: ['#d8e4f4', '#6a7a9a'], icesprite: ['#9ff7ff', '#ffffff'], yeti: ['#f0f4ff', '#7a8aa8'],
   gear: ['#c8a050', '#5a4a30'], clockman: ['#c8a050', '#e8e0c8'], hglass: ['#e8c88a', '#9ff7ff'],
+  spider: ['#6a4a8a', '#7dff6a'], ghoul: ['#8aa86a', '#5a3a6a'], shadoweye: ['#c79bff', '#3a1a5a'], stalker: ['#4a3a6a', '#c79bff'],
 };
 const xpFor = l => Math.floor(4 + l * 2.6 + Math.pow(l, 1.72));
 
@@ -75,11 +76,11 @@ function stageSchedule(n) {
   return out;
 }
 // エスカレーション: tier 1 → 4 を通す。tier ごとに同じ tier のステージからランダムに1つ選び、3分(通常モードの最初の3分と同じ出方)→ ボス → 次の tier
-//   ボスはそのステージのボス2体からランダム。tier 4(時計塔)は死神(→ 終刻の死神)で、倒すとクリア。敵Lv は通して上がり続ける(ボスの間は止まる)
+//   ボスはそのステージのボス2体からランダム。tier 4 はそのステージの2体目(時計塔 = 死神(→ 終刻の死神)/ 王墓 = 影の王)で、倒すとクリア。敵Lv は通して上がり続ける(ボスの間は止まる)
 function escSchedule(R, tier) {
   const F = DATA.flow, s1 = R.segs[0];
   const out = F.waves[0].map((w, i) => ({ t: w.t, types: s1.slice(0, i + 1), interval: w.interval, max: w.max }));
-  out.push(tier >= 4 ? { t: F.seg, boss: ['reaper'], final: true } : { t: F.seg, boss: R.bosses });
+  out.push(tier >= 4 ? { t: F.seg, boss: [R.bosses[1]], final: true } : { t: F.seg, boss: R.bosses });
   return out;
 }
 function escStage(tier, first) {
@@ -110,6 +111,7 @@ function initRun(mode = 'escalation', stageNo = 1) {
     push: null, rootT: 0, current: null, // ボスの押し出し・引き寄せ / 絡め取りで動けない(秒)/ 海流
     frzT: 0, iceT: 0, ivx: 0, ivy: 0, // 凍結(氷の槍。歩けない秒)/ 滑る床の上(秒)と、そのときの速度
     fatigueT: 0, // 疲労(スタミナを減らす攻撃を受けた): スタミナ回復 -50% の残り秒
+    poison: 0, poisonT: 0, darkT: 0, // 毒(スタック数・消えるまでの秒)/ 暗闇の残り秒(王墓)
   };
   enemies = []; projs = []; eprojs = []; gems = []; drops = []; props = []; hazards = [];
   parts = []; floats = []; rings = []; zones = []; slashes = []; bolts = []; warns = []; flashes = []; bfx = []; sfx = [];
@@ -303,16 +305,57 @@ function bleedPlayer(n) {
   for (let i = 0; i < 6 + n * 3; i++) part(P.x + rand(-3, 3), P.y - 4 + rand(-3, 3), rand(-50, 50), rand(-70, -20), rand(0.35, 0.6), pick(['#a0122a', '#ff3b5c', '#5a0a14']), { g: 240, drag: 1.5, sz: pick([1, 2]) }); // 血しぶき
   S.hudDirty = true;
 }
-// 自分の状態異常を全て消す(食べ物でデバフ解除): 炎上・凍傷・出血・減速・スロウタイム・凍結・疲労。消えたものがあれば白緑の光
+// 毒(王墓): 1スタックにつき最大HP −poison(poisonMax まで)。今の HP も同じだけ減る(毒では倒れない: HP 1 で止まる)
+//   最後に受けてから poisonDur 秒で全部消え、最大HP は戻る(減った HP は戻らない)。防御力・シールドでは減らない
+function poisonPlayer(n) {
+  if (!(n > 0) || P.invT > 0 || P.dead) return;
+  const D = DATA.debuffTomb, add = Math.min(n, D.poisonMax - P.poison);
+  P.poisonT = D.poisonDur * CHAOS.debuff;
+  if (add > 0) {
+    const mx0 = P.maxhp, hp0 = P.hp;
+    P.poison += add; recalc();
+    const lost = mx0 - P.maxhp;
+    P.hp = Math.min(P.maxhp, Math.max(Math.min(1, hp0), hp0 - lost));
+    if (lost >= 1) addFloat(P.x, P.y - 10, String(Math.round(lost)), '#b46aff');
+    GFX.fx.hurt = Math.max(GFX.fx.hurt, 0.3);
+  }
+  for (let i = 0; i < 6 + n * 4; i++) part(P.x + rand(-4, 4), P.y - 4 + rand(-4, 4), rand(-40, 40), rand(-60, -15), rand(0.4, 0.7), pick(['#7dff6a', '#3aa83a', '#9a7dff', '#5a2a8a']), { glow: Math.random() < 0.5, g: 120, drag: 1.5 }); // 毒のしぶき
+  addRing(P.x, P.y, 12, '#7dff6a', { life: 0.25 });
+  AudioMan.poison(); S.hudDirty = true;
+  hint('ppoison', '毒', '最大HP が下がる。受けないでいるか、肉を拾うと消える');
+}
+// 暗闇(王墓): t 秒、周りが暗くなり(墨だまりと同じ)、敵の攻撃の予告が見えない。スタミナも回復しない。また受けると t 秒に戻る
+function darkPlayer(t) {
+  if (!(t > 0) || P.invT > 0 || P.dead) return;
+  const was = P.darkT > 0;
+  P.darkT = Math.max(P.darkT, t * CHAOS.debuff);
+  if (!was) { // 闇が体を包む: 黒紫の霧が渦を巻いて吸い込まれる
+    for (let i = 0; i < 26; i++) { const a = rand(0, TAU), r = rand(14, 30); part(P.x + Math.cos(a) * r, P.y + Math.sin(a) * r * 0.8, -Math.cos(a) * r * 2.5, -Math.sin(a) * r * 2, 0.45, pick(['#1a0a2a', '#2a1240', '#5a2a8a', '#c79bff']), { glow: Math.random() < 0.25, drag: 1 }); }
+    addRing(P.x, P.y, 26, '#7a3ab0', { r0: 40, w: 2, life: 0.35 }); AudioMan.blind();
+  }
+  S.hudDirty = true;
+  hint('pdark', '暗闇', '周りが暗くなり、攻撃の予告が見えない(スタミナも回復しない)');
+}
+// 自分の状態異常を全て消す(食べ物でデバフ解除): 炎上・凍傷・出血・減速・スロウタイム・凍結・疲労・毒・暗闇。消えたものがあれば白緑の光
 function cleansePlayer() {
-  const had = P.burnT > 0 || P.frost > 0 || P.bleed > 0 || P.slowT > 0 || P.cdSlowT > 0 || P.frzT > 0 || P.fatigueT > 0;
-  P.burnT = 0; P.frost = 0; P.frostT = 0; P.bleed = 0; P.bleedT = 0; P.slowT = 0; P.cdSlowT = 0; P.frzT = 0; P.fatigueT = 0;
+  const had = P.burnT > 0 || P.frost > 0 || P.bleed > 0 || P.slowT > 0 || P.cdSlowT > 0 || P.frzT > 0 || P.fatigueT > 0 || P.poison > 0 || P.darkT > 0, pz = P.poison > 0;
+  P.burnT = 0; P.frost = 0; P.frostT = 0; P.bleed = 0; P.bleedT = 0; P.slowT = 0; P.cdSlowT = 0; P.frzT = 0; P.fatigueT = 0; P.poison = 0; P.poisonT = 0; P.darkT = 0;
+  if (pz) recalc(); // 毒で下がった最大HP を戻す
   if (!had) return;
   S.hudDirty = true;
   burst(P.x, P.y - 6, 16, ['#ffffff', '#c8ffd8', '#5dff8a'], { sp: 60, up: 30, glow: true, life: 0.45 }); addRing(P.x, P.y, 14, '#c8ffd8', { life: 0.3 });
   addFloat(P.x, P.y - 16, '浄化', '#c8ffd8', 1);
 }
 function updFrostBleed(dt) {
+  if (P.poison > 0) { // 毒: 受けないでいると全部消えて最大HP が戻る。積むほど緑と紫の泡が立つ
+    if ((P.poisonT -= dt) <= 0) { P.poison = 0; P.poisonT = 0; recalc(); burst(P.x, P.y - 4, 12, ['#c8ffd8', '#7dff6a', '#ffffff'], { sp: 45, up: 20, glow: true, life: 0.4 }); }
+    else if (Math.random() < dt * (3 + P.poison * 1.2)) part(P.x + rand(-5, 5), P.y + rand(-6, 4), rand(-4, 4), -rand(10, 22), rand(0.5, 0.8), pick(['#7dff6a', '#3aa83a', '#9a7dff']), { glow: Math.random() < 0.4, drag: 1 });
+  }
+  if (P.darkT > 0) { // 暗闇: スタミナが回復しない。黒紫のもやが体にまとわりつく
+    P.darkT -= dt; P.staLockT = Math.max(P.staLockT, 0.1);
+    if (Math.random() < dt * 16) { const a = rand(0, TAU), r = rand(6, 14); part(P.x + Math.cos(a) * r, P.y + Math.sin(a) * r * 0.7, -Math.sin(a) * 18, Math.cos(a) * 12 - 6, 0.6, pick(['#1a0a2a', '#2a1240', '#3a1a5a']), { drag: 1, sz: pick([1, 2]) }); }
+    if (P.darkT <= 0) { P.darkT = 0; S.hudDirty = true; }
+  }
   if (P.frost > 0) {
     if ((P.frostT -= dt) <= 0) { P.frost = 0; burst(P.x, P.y, 10, ['#bff4ff', '#ffffff'], { sp: 40, life: 0.3 }); S.hudDirty = true; } // 溶けて消える
     else if (Math.random() < dt * (3 + P.frost)) part(P.x + rand(-5, 5), P.y + rand(-8, 4), rand(-4, 4), rand(4, 12), 0.6, pick(['#ffffff', '#bff4ff', '#9ff7ff']), { glow: true, drag: 1 }); // 積むほど霜が舞う
@@ -1187,6 +1230,7 @@ function hitEnemy(e, base, o = {}) {
   if (crit) dmg *= P.critMul + clsCritDmgBonus(e); else if (P.uq.exec) dmg *= 0.8; // 処刑人の
   dmg = Math.max(1, Math.round(dmg * rand(0.9, 1.1)));
   e.hp -= dmg; e.flash = 0.08;
+  if (e.obj === 'chead') cerbSpill(e, dmg); // ケルベロスの首: 本体にも ×0.5
   if (o.src && o.src === P.mainW) clsOnMainHit(e); // 通常攻撃(メイン武器)の命中
   if (o.eHit) clsOnEHit(e, dmg);                   // 武器スキル(E)の命中
   if (o.el) clsOnElement(e, o.el, dmg);             // 属性(メイジの元素循環)
@@ -1251,6 +1295,7 @@ function killEnemy(e, o = {}) {
   const ed = DATA.enemies[e.type];
   if (ed.split && !e.elite && !e.owner) for (let i = 0; i < 2; i++) spawnEnemy(ed.split, { x: e.x + rand(-4, 4), y: e.y + rand(-4, 4) }); // ボスの中スライムは分裂しない
   if (ed.fireFloor) lavaPool(e, ed.fireFloor); // 溶岩スライム: 倒れた場所に燃える床
+  if (ed.miasma) miasmaCloud(e, ed.miasma); // 腐毒のグール: 倒れた場所に瘴気の霧
   if (e.phaseElite && S.phase && S.phase.kind === 'elite') { S.phase.lastX = e.x; S.phase.lastY = e.y; } // エリート群: 宝箱は最後の1体の位置に
   if (e.elite || e.type === 'goblin') {
     hitstop(0.06); shake(6); shockAt(e.x, e.y, 1.2, 0.8); addFlash(e.x, e.y, 100, '#ffd23f', 0.4);
@@ -1296,13 +1341,14 @@ function spawnProp() {
 
 // ---------- 通常敵の攻撃 ----------
 // 射撃(弓兵・火の小鬼・砂術師): 弾のダメージ = その敵のダメージ × n。count 発を spread rad おきの扇に(count が [最小, 最大] なら1回ごとにランダム)
-const SHOT_R = { arrow: 2, efire: 3, esand: 2.5, eice: 2.5 }; // 弾の当たり判定の半径(見た目の大きさ。攻撃範囲の倍率で広がる)
+const SHOT_R = { arrow: 2, efire: 3, esand: 2.5, eice: 2.5, darkorb: 3 }; // 弾の当たり判定の半径(見た目の大きさ。攻撃範囲の倍率で広がる)
 function enemyShoot(e, s, a) {
   const n = Array.isArray(s.count) ? randi(s.count[0], s.count[1]) : s.count || 1;
   for (let i = 0; i < n; i++) {
     const aa = a + (i - (n - 1) / 2) * (s.spread || 0);
-    eprojs.push({ kind: s.kind, x: e.x, y: e.y - 2, vx: Math.cos(aa) * s.spd, vy: Math.sin(aa) * s.spd, dmg: e.dmg * s.n * S.eatk, burn: s.burn ? e.dmg * s.burn * S.eatk : 0, frost: s.frost || 0, life: 4, t: 0, r: (SHOT_R[s.kind] || 3) * CHAOS.area * e.areaK, sk: e.areaK }); // sk: 弾の見た目の大きさ(エリートは範囲 ×1.5)
+    eprojs.push({ kind: s.kind, x: e.x, y: e.y - 2, vx: Math.cos(aa) * s.spd, vy: Math.sin(aa) * s.spd, dmg: e.dmg * s.n * S.eatk, burn: s.burn ? e.dmg * s.burn * S.eatk : 0, frost: s.frost || 0, dark: s.dark || 0, life: 4, t: 0, r: (SHOT_R[s.kind] || 3) * CHAOS.area * e.areaK, sk: e.areaK }); // sk: 弾の見た目の大きさ(エリートは範囲 ×1.5)
   }
+  if (s.kind === 'darkorb') { burst(e.x + Math.cos(a) * 4, e.y - 2 + Math.sin(a) * 4, 12, ['#c79bff', '#7a3ab0', '#2a1240', '#ffffff'], { sp: 55, glow: true, life: 0.35 }); addRing(e.x, e.y - 2, 9, '#a66bff', { life: 0.25 }); AudioMan.shade2(); }
   if (s.kind === 'eice') { burst(e.x + Math.cos(a) * 4, e.y - 2 + Math.sin(a) * 4, 7, ['#9ff7ff', '#ffffff', '#7ad7ff'], { sp: 45, glow: true, life: 0.3 }); AudioMan.frost(); }
   if (s.kind === 'efire') { burst(e.x + Math.cos(a) * 4, e.y - 2 + Math.sin(a) * 4, 7, ['#ff6a2a', '#ffc34a', '#fff6c8'], { sp: 45, glow: true, life: 0.3 }); AudioMan.fire(); }
   else if (s.kind === 'esand') { burst(e.x, e.y - 2, 12, ['#e8c88a', '#c8a060', '#fff0c0'], { sp: 60, life: 0.4, drag: 2 }); addRing(e.x, e.y + 3, 10, '#e8c88a', { life: 0.3 }); }
@@ -1349,6 +1395,12 @@ function yetiThrow(e, sb) {
 function lavaPool(e, f) {
   addHazard('fire', e.x, e.y + 2, { r: f.r * e.areaK, dur: f.dur, dmg: e.dmg });
   burst(e.x, e.y + 2, 9, ['#ff6a2a', '#ffc34a', '#5a1a14'], { sp: 55, g: 180, life: 0.45 });
+}
+// 腐毒のグール: 倒れた場所に瘴気の霧(中にいると 1秒ごとに毒 +1。ダメージはない)。体が崩れて緑と紫の霧が噴き出す
+function miasmaCloud(e, m) {
+  addHazard('miasma', e.x, e.y + 2, { r: m.r * e.areaK, dur: m.dur, tick: 0.5 });
+  burst(e.x, e.y - 2, 22, ['#7dff6a', '#3a6a2a', '#9a7dff', '#2a1a3a'], { sp: 70, up: 30, g: 40, drag: 1.5, life: 0.7 });
+  addFlash(e.x, e.y, 46, '#5aff6a', 0.35); AudioMan.splat();
 }
 // マグマワーム: 予告の円の中心へ飛び出す(半径 r に ×n・炎上)。出ている up 秒だけ攻撃が当たる
 function wormErupt(e, bu) {
@@ -1439,6 +1491,12 @@ function updEnemies(dt) {
         e.hopT -= dt; const hop = e.hopT < air;
         if (e.hopT <= 0) { e.hopT = every; if (d.fireFloor && Math.random() < d.fireFloor.chance) lavaPool(e, d.fireFloor); } // 着地(溶岩スライム: 燃える床)
         mx *= hop ? k : 0.1; my *= hop ? k : 0.1;
+      } else if (e.ai === 'skitter') { // 毒蜘蛛: 小刻みに走っては止まる(止まっている間も脚はうごめく)
+        const sk = d.skitter, cyc = sk.run + sk.stop;
+        e.skT = (e.skT ?? rand(0, cyc)) - dt * tw; if (e.skT <= 0) e.skT += cyc;
+        e.run = e.skT > sk.stop;
+        mx *= e.run ? sk.k : 0; my *= e.run ? sk.k : 0;
+        if (e.run && Math.random() < dt * 8) part(e.x + rand(-3, 3), e.y + 4, rand(-6, 6), -rand(2, 8), 0.3, '#3a2a40', { drag: 3 });
       } else if (e.ai === 'keep') { // 距離を取って射撃(弓兵・火の小鬼・砂術師)
         const s = d.shot, dd = Math.sqrt(d2(e.x, e.y, P.x, P.y));
         const k = e.wind > 0 ? 0 : dd > d.keep[1] ? 1 : dd < d.keep[0] ? -1 : 0; // 構えている間は止まる
@@ -1446,13 +1504,14 @@ function updEnemies(dt) {
         if (!s) { /* 射撃のない敵(砂時計の精)は距離を保つだけ */ }
         else if (e.wind > 0) { // 構え(砂術師): 足元で砂が渦を巻き、終わると撃つ
           e.wind -= dt * CHAOS.rate * tw;
-          if (Math.random() < dt * 45) { const pa = rand(0, TAU), pr = rand(5, 10); part(e.x + Math.cos(pa) * pr, e.y + 4 + Math.sin(pa) * pr * 0.5, -Math.sin(pa) * 34, Math.cos(pa) * 16 - 10, 0.35, pick(['#e8c88a', '#c8a060', '#fff0c0']), { drag: 2 }); }
+          if (s.kind === 'darkorb') { if (Math.random() < dt * 40) { const pa = rand(0, TAU), pr = rand(10, 18); part(e.x + Math.cos(pa) * pr, e.y - 2 + Math.sin(pa) * pr, -Math.cos(pa) * pr * 3, -Math.sin(pa) * pr * 3, 0.3, pick(['#c79bff', '#7a3ab0', '#2a1240']), { glow: Math.random() < 0.4, drag: 0 }); } } // 影の眼: 闇が瞳へ吸い込まれる
+          else if (Math.random() < dt * 45) { const pa = rand(0, TAU), pr = rand(5, 10); part(e.x + Math.cos(pa) * pr, e.y + 4 + Math.sin(pa) * pr * 0.5, -Math.sin(pa) * 34, Math.cos(pa) * 16 - 10, 0.35, pick(['#e8c88a', '#c8a060', '#fff0c0']), { drag: 2 }); }
           if (e.wind <= 0) enemyShoot(e, s, Math.atan2(dc.y - e.y, dc.x - e.x));
         } else {
           e.shotT -= dt * CHAOS.rate * tw * e.rateK; // カオス: 攻撃頻度 / 時の歪み
           if (e.shotT <= 0 && dd < s.range) {
             e.shotT = s.cd;
-            if (s.wind) { e.wind = s.wind; AudioMan.sand(); } else enemyShoot(e, s, a);
+            if (s.wind) { e.wind = s.wind; if (s.kind === 'darkorb') AudioMan.charge(s.wind); else AudioMan.sand(); } else enemyShoot(e, s, a);
           }
         }
         if (s) e.aim = s.wind ? e.wind > 0 : e.shotT < 0.4; // 撃つ前に構える(予兆)
@@ -1520,6 +1579,22 @@ function updEnemies(dt) {
             pushWarn({ kind: 'line', x: e.x, y: e.y, a, len: ru.len, w: e.r * 2 + 2, t: 0, life: ru.wind, fixed: true, owner: e, track: w => { w.x = e.x; w.y = e.y; } }); // 突進の経路(体当たりなので広げない)
           }
         }
+      }
+      if (d.lunge) { // 影法師: 遠い間は薄い影(攻撃は当たる)。range 以内で実体化し、構えて(帯の予告)飛びかかる。飛びかかったあと rest 秒は追跡だけ
+        const lg = d.lunge, near = d2(e.x, e.y, P.x, P.y) < lg.range * lg.range;
+        if (e.dash > 0) {
+          e.dash -= dt; mx = Math.cos(e.ta) * lg.spd / e.spd; my = Math.sin(e.ta) * lg.spd / e.spd;
+          if (Math.random() < dt * 50) part(e.x + rand(-3, 3), e.y + rand(-5, 3), -Math.cos(e.ta) * 30, -Math.sin(e.ta) * 30, 0.35, pick(['#1a0a2a', '#3a1a5a', '#c79bff']), { glow: Math.random() < 0.3, drag: 3 }); // 影の尾
+        } else if (e.wind > 0) {
+          mx = my = 0; e.wind -= dt * CHAOS.rate * tw; e.flash = Math.sin(e.wind * 50) > 0 ? 0.05 : 0;
+          if (e.wind <= 0) { e.dash = lg.len / lg.spd; AudioMan.dash(); burst(e.x, e.y, 10, ['#2a1240', '#c79bff', '#ffffff'], { sp: 60, glow: true, life: 0.3 }); }
+        } else if ((e.shotT -= dt * CHAOS.rate * tw * e.rateK) <= 0 && near) {
+          e.shotT = lg.rest + lg.wind + lg.len / lg.spd; e.wind = lg.wind; e.ta = a;
+          pushWarn({ kind: 'line', x: e.x, y: e.y, a, len: lg.len, w: lg.w, t: 0, life: lg.wind, fixed: true, owner: e, track: w => { w.x = e.x; w.y = e.y; } }); // 飛びかかりの経路(体当たりなので広げない)
+        }
+        const veil = !near && !(e.wind > 0) && !(e.dash > 0);
+        if (e.veil && !veil) { burst(e.x, e.y - 3, 14, ['#1a0a2a', '#3a1a5a', '#c79bff'], { sp: 50, glow: true, life: 0.4 }); addRing(e.x, e.y, 10, '#7a3ab0', { r0: 18, life: 0.25 }); } // 影から実体化する
+        e.veil = veil;
       }
       if (d.puff) { // ハリセンボン: 近づくとふくらんで、針を全周に飛ばす
         const pf = d.puff;
@@ -1617,8 +1692,9 @@ function updEnemies(dt) {
         e.x = P.x + Math.cos(a2) * R; e.y = P.y + Math.sin(a2) * R;
       }
     }
-    const td = !e.boss && DATA.enemies[e.type]; // 触れたとき: 鬼火は当たらない / ヘルハウンドは噛みつくと炎上 / クラゲはスタミナを吸う
-    if (e.dmg > 0 && !e.air && !(td && td.noTouch) && d2(e.x, e.y, P.x, P.y) < Math.pow(e.r + 4, 2) && hurtPlayer(e.dmg) && td) { if (td.touchBurn) burnPlayer(e.dmg * td.touchBurn); if (td.touchSta) drainSta(td.touchSta); if (td.touchFrost) frostPlayer(td.touchFrost); }
+    const td = !e.boss && DATA.enemies[e.type]; // 触れたとき: 鬼火は当たらない / ヘルハウンドは噛みつくと炎上 / クラゲはスタミナを吸う / 毒蜘蛛は毒 / 影法師の飛びかかりは ×n
+    const tk = e.dash > 0 && td && td.lunge ? td.lunge.n : 1;
+    if (e.dmg > 0 && !e.air && !(td && td.noTouch) && d2(e.x, e.y, P.x, P.y) < Math.pow(e.r + 4, 2) && hurtPlayer(e.dmg * tk) && td) { if (td.touchBurn) burnPlayer(e.dmg * td.touchBurn); if (td.touchSta) drainSta(td.touchSta); if (td.touchFrost) frostPlayer(td.touchFrost); if (td.touchPoison) poisonPlayer(td.touchPoison); }
   }
   S.eatk = 1; FX_MINE = false;
   if (enemies.length > 40) enemies = enemies.filter(e => !e.dead);
@@ -1652,8 +1728,9 @@ function spawnBoss(key, final, companion) {
   if (!S.phase || S.phase.kind !== 'boss') S.phase = { kind: 'boss', t: 0 }; // ボスのフェーズ(双王の2体目では始め直さない)
   if (CHAOS.twin && !companion) { // カオス: もう1体(このステージ以外のボスからランダム)
     const here = new Set(S.sched ? S.sched.filter(x => x.boss).flatMap(x => x.boss) : []);
-    const pool = Object.keys(DATA.bosses).filter(k => k !== key && !here.has(k) && !DATA.bosses[k].form2); // 第二形態(終刻の死神)は単独では出ない
-    const k2 = pick(pool.length ? pool : Object.keys(DATA.bosses).filter(k => k !== key && !DATA.bosses[k].form2));
+    const solo = k => !DATA.bosses[k].form2 && !DATA.bosses[k].noTwin; // 第二形態(終刻の死神)は単独では出ない / 影の王は相方に選ばれない
+    const pool = Object.keys(DATA.bosses).filter(k => k !== key && !here.has(k) && solo(k));
+    const k2 = pick(pool.length ? pool : Object.keys(DATA.bosses).filter(k => k !== key && solo(k)));
     const e2 = spawnBoss(k2, false, true);
     S.bosses = [e, e2]; S.boss = e; UI.bossBar(e);
   }
@@ -1723,6 +1800,7 @@ const BFX = {
   sea: { col: '#1a4a7a', core: '#4ab8e8', decal: false }, // クラーケン・海竜(水しぶき。地面の跡は残さない)
   ice: { col: '#2a5a88', core: '#4ab8e8', decal: false, light: 0.3 }, // 霜の巨人・雪華の女王(着弾の雪と氷がもともと白く明るいので、照らす光は弱く。凍った床が出るので地面の跡は残さない)
   warden: { col: '#8a6a2a', core: '#ffb347', hot: '#ffb347', dark: '#140c04' },
+  cerberus: { col: '#2e6a1a', core: '#7dff6a', hot: '#7dff6a', dark: '#081406' },
   reaper: { col: '#5a3a8a', core: '#c29bff', hot: '#c29bff', dark: '#0a0614' },
   fhour: { col: '#8a0c22', core: '#ff3b5c', hot: '#ff3b5c', dark: '#0a0204' },
 };
@@ -1818,6 +1896,14 @@ function updObj(e, dt) {
     }
     if (d2(e.x, e.y, P.x, P.y) < Math.pow(e.r + 4, 2) && hurtPlayer(e.owner.dmg)) slowPlayer(0.6, 1);
     if (Math.random() < dt * 20) part(e.x + rand(-e.r, e.r) * 0.5, e.y + e.r * 0.8, -e.vx * 0.2 + rand(-15, 15), -rand(10, 30), 0.35, pick(['#ffd27a', '#c8a050', '#8a7a60']), { glow: Math.random() < 0.3, g: 160 }); // 火花と砂ぼこり
+  } else if (e.obj === 'chead') { // ケルベロスの首: 体の向きに合わせて前に並ぶ。首ごとの気配(毒のしずく・牙の光・闇のもや)
+    const o = e.owner, f = o.face || 1;
+    e.face = f; e.x = o.x + e.dx * f; e.y = o.y + e.dy;
+    e.pulse = Math.max(0, (e.pulse || 0) - dt * 2);
+    const hx = e.x + 4 * f, hy = e.y - e.hz;
+    if (e.hk === 'poison' && Math.random() < dt * 6) part(hx + rand(-2, 2), hy + 3, rand(-3, 3), rand(10, 25), 0.6, pick(['#7dff6a', '#3aa83a']), { glow: true, g: 160 }); // 毒のよだれ
+    else if (e.hk === 'dark' && Math.random() < dt * 10) part(e.x + rand(-5, 5), hy - rand(0, 6), rand(-6, 6), -rand(8, 18), 0.7, pick(['#1a0a2a', '#3a1a5a', '#7a3ab0']), { drag: 1 }); // 闇のもや
+    else if (e.hk === 'fang' && Math.random() < dt * 3) part(hx + 3 * f, hy + 2, 0, 0, 0.25, '#ffd0d0', { glow: true }); // 牙の光
   } else if (e.obj === 'iceblock') { // 氷塊(霜の巨人): 冷気が立ちのぼる
     if (Math.random() < dt * 4) part(e.x + rand(-8, 8), e.y - rand(0, 12), rand(-3, 3), -rand(3, 8), 0.8, pick(SNOW), { drag: 1 });
   } else if (e.obj === 'altar') { // 炎の祭壇: 炎が燃えさかり、火の粉がイフリートへ流れる
@@ -1860,6 +1946,17 @@ function objDown(e, broken) {
   } else if (e.obj === 'iceblock') { // 氷塊: 砕けて氷のかけら
     burst(e.x, e.y - 6, Math.round(30 * k), ['#bff4ff', '#7ad7ff', '#ffffff', '#5a8ab8'], { sp: 110 * k, g: 220, life: 0.6 });
     if (broken) { addFlash(e.x, e.y, 60, '#9fd8ff', 0.4); shake(3); AudioMan.frost(); AudioMan.thud(); }
+  } else if (e.obj === 'chead') { // ケルベロスの首: 首の色と黒い血のしぶき。壊すと 15秒で生え直す(3本とも壊すと倒れ込む)
+    const o = e.owner, C = CERB[e.hk], hy = e.y - e.hz;
+    burst(e.x, hy, Math.round(46 * k), [C[0], C[1], '#1a0a14', '#ffffff'], { sp: 150 * k, g: 220, glow: true, life: 0.7 });
+    if (broken && !o.dead) {
+      o.ai.regrow[e.slot] = S.time + 15;
+      addFlash(e.x, hy, 90, C[0], 0.5); shake(7); hitstop(0.05); AudioMan.crush(); AudioMan.bite();
+      bossBlast(e.x, hy, 26, { col: C[1], core: C[0], decal: false, n: 14, light: 0.6 });
+      for (let i = 0; i < 14; i++) part(e.x + rand(-3, 3), hy + rand(-3, 3), rand(-60, 60), -rand(40, 110), rand(0.5, 0.9), pick(['#1a0a14', '#5a1020', C[1]]), { g: 300, drag: 0.5, sz: pick([1, 2]) }); // 黒い血
+      if (!o.ai.heads.some(h => h && !h.dead && h !== e)) cerbDown(o, o.ai); // 3本とも落ちた
+    }
+    return;
   } else if (e.obj === 'clone') { // 鏡の分身: 鏡のように割れて消える
     burst(e.x, e.y - 6, 26, ['#ffffff', '#d8e8ff', '#ffd0f0', '#9ff7ff'], { sp: 110, glow: true, life: 0.45 });
     addRing(e.x, e.y, 14, '#ffffff', { life: 0.25 }); AudioMan.chime();
@@ -1883,8 +1980,9 @@ const BOSS_AI0 = {
   reaper: { tp: 5, mark: 8, throw: 3, reap: 2, clock: 7, glass: 12 },
   fhour: { scy: 1.5, rev: 8, stop: 10, marks: 5, sec: 3, busy: 0.6 },
   pqueen: { tp: 3, beam: 3, mirror: 8, scatter: 6, orb: 4, blink: 6 },
+  cerberus: { howl: 8, breath: 5, rush: 3, bite: 6, spit: 10, gap: 0 },
 };
-const BOSS_ENRAGE = { king: { slam: 6 }, ifrit: { altar: true }, stag: { herd: 4 }, pqueen: { spiral: 3 }, levia: { breath: 4 }, fgiant: { drift: 5 }, squeen: { lance: 3 }, warden: { ringCd: 6 }, reaper: { sum: 7 }, fhour: { cross: 4, echo: 0 } };
+const BOSS_ENRAGE = { king: { slam: 6 }, ifrit: { altar: true }, stag: { herd: 4 }, pqueen: { spiral: 3 }, levia: { breath: 4 }, fgiant: { drift: 5 }, squeen: { lance: 3 }, warden: { ringCd: 6 }, reaper: { sum: 7 }, fhour: { cross: 4, echo: 0 }, cerberus: { tri: 3 } };
 
 function bossAI(e, dt) {
   const ai = e.ai, a = Math.atan2(P.y - e.y, P.x - e.x), dist = Math.sqrt(d2(e.x, e.y, P.x, P.y));
@@ -1927,6 +2025,7 @@ function bossAI(e, dt) {
     case 'fgiant': fgiantAI(e, ai, dt, a, dist, slow); break;
     case 'squeen': squeenAI(e, ai, dt, a, dist, slow); break;
     case 'warden': wardenAI(e, ai, dt, a, dist, slow); break;
+    case 'cerberus': cerberusAI(e, ai, dt, a, dist, slow); break;
   }
 }
 
@@ -3438,6 +3537,178 @@ function ringGear(e, ai) {
   hint('ringgear', 'リングギア', '番人を囲む歯車の輪が降りてくる。輪に触れないように(内側は安全)');
 }
 
+// ---------- 冥犬ケルベロス: 王の墓を守る三つ首の番犬。左から 毒・牙・闇 の首(壊せる物)で、首ごとに技が違う ----------
+//   首は HP 最大HP の 20%。首に当たったダメージは本体にも ×0.5。壊れた首の技は使わず、15秒で生え直す。3本とも壊すと 4秒 倒れ込む(被ダメ ×1.5)
+//   技は1つずつ(終わってから 0.6秒あける): 闇の遠吠え / 毒の息 / 牙の突進 / 三連噛み / 瘴気弾 / 激昂: 三つ首の瘴気
+const CERB = { poison: ['#7dff6a', '#2e8a2e', '#c8ffb0'], fang: ['#ff5a5a', '#8a1a2a', '#ffd0d0'], dark: ['#a66bff', '#3a1a5a', '#e8c8ff'] }; // 首の色(光・暗・芯)
+const CHEAD = [{ hk: 'poison', dx: 10, dy: -1, hz: 15 }, { hk: 'fang', dx: 17, dy: 1, hz: 9 }, { hk: 'dark', dx: 11, dy: 3, hz: 2 }]; // 体の中心からの位置(右向き)と高さ
+const BREATH = ['#7dff6a', '#3aff5a', '#2e8a2e', '#c8ffb0', '#9a7dff'];
+function cerbHead(e, ai, i, regrow) {
+  const H = CHEAD[i], o = spawnObj(e, 'chead', e.x + H.dx * (e.face || 1), e.y + H.dy, { pct: 0.2, r: 7, life: Infinity });
+  Object.assign(o, { type: 'obj_chead_' + H.hk, hk: H.hk, slot: i, dx: H.dx, dy: H.dy, hz: H.hz, face: e.face, rise: regrow ? 0 : 1 });
+  ai.heads[i] = o; ai.regrow[i] = 0;
+  if (regrow) { // 首の付け根から黒い肉が盛り上がって生え直す
+    const C = CERB[H.hk];
+    burst(o.x, o.y - o.hz, 24, ['#1a0a14', '#5a1020', C[0], C[1]], { sp: 80, up: 30, g: 160, glow: true, life: 0.5 });
+    addRing(o.x, o.y - o.hz, 12, C[0], { life: 0.3 }); AudioMan.splat();
+  }
+  return o;
+}
+const cerbHas = (ai, hk) => ai.heads.some(h => h && !h.dead && h.hk === hk);
+const cerbHeadOf = (ai, hk) => ai.heads.find(h => h && !h.dead && h.hk === hk);
+// 首へのダメージの半分は本体へ(倍率・クリティカルは首への一撃で掛かっているので、そのまま半分)
+function cerbSpill(h, dmg) {
+  const o = h.owner;
+  if (!o || o.dead) return;
+  o.hp -= dmg * 0.5; o.flash = 0.06; S.hudDirty = true;
+  if (o.hp <= 0) killEnemy(o);
+}
+// 3本とも落ちた: 4秒 倒れ込む(動かず技も使わない。被ダメ ×1.5)。起き上がると首が全部生え直す
+function cerbDown(e, ai) {
+  ai.act = 'down'; ai.pt = 4; ai.wind = 0; ai.q = []; ai.br = null; e.takeK = 1.5; e.sq = 0.8;
+  burst(e.x, e.y, 70, ['#1a0a14', '#5a1020', '#7dff6a', '#a66bff', '#ff5a5a'], { sp: 170, g: 200, glow: true, life: 0.9 });
+  shockAt(e.x, e.y, 2, 0.7); shake(12); hitstop(0.1); slowmo(0.35, 0.8); screenFlash(0.3, '#ffffff'); AudioMan.boom(); AudioMan.roar();
+  UI.announce('ケルベロスが倒れ込んだ!', '4秒 大きなダメージを与えられる');
+}
+function cerberusAI(e, ai, dt, a, dist, slow) {
+  if (!ai.heads) { ai.heads = []; ai.regrow = [0, 0, 0]; for (let i = 0; i < 3; i++) cerbHead(e, ai, i); hint('chead', '三つ首', '首は1本ずつ壊せる。壊れた首の技は止まり、3本とも壊すと倒れ込む'); }
+  if (ai.act === 'down') { // 倒れ込み: 頭の上を星が回る
+    ai.pt -= dt; e.sq = lerp(e.sq, 0.8, Math.min(1, dt * 8)); e.stunVis = true;
+    if (Math.random() < dt * 10) part(e.x + rand(-12, 12), e.y + rand(-4, 6), rand(-10, 10), -rand(10, 30), 0.6, pick(['#1a0a14', '#5a1020']), { drag: 1 });
+    if (ai.pt <= 0) { // 起き上がる: 首が全部生え直す
+      ai.act = null; e.takeK = 1; e.stunVis = false; ai.gap = 0.8;
+      for (let i = 0; i < 3; i++) if (!ai.heads[i] || ai.heads[i].dead) cerbHead(e, ai, i, true);
+      AudioMan.howl(); shake(9); shockAt(e.x, e.y, 1.6, 0.8);
+      bossBlast(e.x, e.y + 6, 50, Object.assign({ n: 18 }, BFX.cerberus));
+    }
+    return;
+  }
+  for (let i = 0; i < 3; i++) if ((!ai.heads[i] || ai.heads[i].dead) && ai.regrow[i] && S.time >= ai.regrow[i]) cerbHead(e, ai, i, true); // 生え直す
+  if (ai.br) { updCerbBreath(e, ai, dt, a); return; } // 毒の息・三つ首の瘴気(吐いている間は止まる)
+  if (ai.act === 'rush') { updCerbRush(e, ai, dt); return; }
+  if (ai.act === 'bite') { ai.pt -= dt; if (ai.pt <= 0) { ai.act = null; ai.gap = 0.6; } return; }
+  e.x += Math.cos(a) * e.spd * slow * dt; e.y += Math.sin(a) * e.spd * slow * dt;
+  if (Math.random() < dt * 8) part(e.x - (e.face || 1) * 14 + rand(-2, 2), e.y - 6 + rand(-3, 3), rand(-6, 6), -rand(10, 24), 0.5, pick(['#a66bff', '#7a3ab0', '#c79bff']), { glow: true, drag: 1 }); // 尾の紫の炎
+  const R = CHAOS.rate;
+  ai.howl -= dt * R; ai.breath -= dt * R; ai.rush -= dt * R; ai.bite -= dt * R; ai.spit -= dt * R; if (ai.enraged) ai.tri -= dt * R;
+  if ((ai.gap -= dt) > 0) return; // 技のあとは少しあける(1つずつ)
+  const en = ai.enraged;
+  if (en && ai.tri <= 0 && ai.heads.some(h => h && !h.dead)) { ai.tri = 18; cerbTriBreath(e, ai, a); }
+  else if (ai.howl <= 0 && cerbHas(ai, 'dark')) { ai.howl = en ? 9 : 12; cerbHowl(e, ai); }
+  else if (ai.bite <= 0 && dist < 70) { ai.bite = en ? 4 : 5; cerbBite(e, ai, a); }
+  else if (ai.breath <= 0 && cerbHas(ai, 'poison')) { ai.breath = en ? 7 : 9; cerbBreath(e, ai, a); }
+  else if (ai.rush <= 0 && cerbHas(ai, 'fang')) { ai.rush = en ? 5 : 7; cerbRushStart(e, ai, a); }
+  else if (ai.spit <= 0 && cerbHas(ai, 'poison')) { ai.spit = en ? 6 : 8; cerbSpit(e, ai, a); }
+}
+// ★闇の遠吠え: 1秒(闇の首が天を仰ぎ、足元から黒い霧)→ 半径 130 まで闇の波が 0.6秒で広がる。飲まれると ×0.6・暗闇。そのあと影法師 2体(激昂 3体)
+function cerbHowl(e, ai) {
+  const hd = cerbHeadOf(ai, 'dark');
+  if (hd) hd.raise = 1;
+  pushWarn({ kind: 'circle', x: e.x, y: e.y, r: 130, t: 0, life: 1, track: w => { w.x = e.x; w.y = e.y; } });
+  AudioMan.charge(1);
+  ai.mist = 1;
+  windup(e, 1, () => {
+    ai.mist = 0; const h2 = cerbHeadOf(ai, 'dark'); if (h2) h2.raise = 0;
+    addHazard('darkwave', e.x, e.y, { r: 1, max: 130, spread: 0.6, dur: 0.9, dmg: e.dmg * 0.6 });
+    AudioMan.howl(); shake(9); screenFlash(0.18, '#2a1240'); shockAt(e.x, e.y, 2.2, 0.7);
+    fxRays(e.x, e.y - 14, 90, '#3a1a5a', { foe: true, n: 18, life: 0.5, core: '#a66bff', light: 0.6 });
+    addFlash(e.x, e.y, 160, '#7a3ab0', 0.5);
+    const n = ai.enraged ? 3 : 2;
+    later(ai, 0.5, () => { // 影法師が闇から立ち上がる
+      for (let i = 0; i < n; i++) {
+        const sa = rand(0, TAU), x = e.x + Math.cos(sa) * rand(50, 80), y = e.y + Math.sin(sa) * rand(40, 70), s = spawnEnemy('stalker', { x, y });
+        s.noChest = true;
+        burst(x, y, 18, ['#1a0a2a', '#3a1a5a', '#c79bff'], { sp: 60, up: 30, glow: true, life: 0.5 }); addRing(x, y, 12, '#7a3ab0', { life: 0.3 });
+      }
+      AudioMan.summon();
+    });
+    ai.gap = 0.6;
+    hint('howl', '闇の遠吠え', '闇の波に飲まれると暗闇になる');
+  });
+}
+// 毒の息: 0.8秒(前方の扇 半径 90・±35°、口から緑の煙)→ 1.5秒 吐き続ける(扇は毎秒 0.6rad でプレイヤーを追う)。中にいる間 0.5秒ごとに ×0.4・毒 +1
+function cerbBreath(e, ai, a) {
+  const hd = cerbHeadOf(ai, 'poison');
+  pushWarn({ kind: 'fan', x: e.x, y: e.y, a, r: 90, h: 0.61, t: 0, life: 0.8, track: w => { w.x = e.x; w.y = e.y; } });
+  if (hd) hd.pulse = 1;
+  AudioMan.charge(0.8);
+  windup(e, 0.8, () => { ai.br = { cones: [{ a, hk: 'poison' }], r: 90, h: 0.61, t: 0, dur: 1.5, tick: 0, track: 0.6 }; AudioMan.fire(); AudioMan.poison(); });
+}
+// 激昂: 三つ首の瘴気: 1.2秒(3本の首が別々の向き −50°・0°・+50° を向き、それぞれの扇)→ 3方向へ同時に毒の息(半径 110・±25°・1.5秒)。壊れた首の向きには吐かない
+function cerbTriBreath(e, ai, a) {
+  const cones = [];
+  [['poison', -0.87], ['fang', 0], ['dark', 0.87]].forEach(([hk, da]) => { if (cerbHas(ai, hk)) cones.push({ a: a + da, hk }); });
+  for (const c of cones) pushWarn({ kind: 'fan', x: e.x, y: e.y, a: c.a, r: 110, h: 0.44, t: 0, life: 1.2, track: w => { w.x = e.x; w.y = e.y; } });
+  for (const h of ai.heads) if (h && !h.dead) h.pulse = 1;
+  AudioMan.charge(1.2); AudioMan.warning();
+  windup(e, 1.2, () => { ai.br = { cones, r: 110, h: 0.44, t: 0, dur: 1.5, tick: 0, track: 0, tri: true }; AudioMan.roar(); AudioMan.poison(); shake(6); shockAt(e.x, e.y, 1.4, 0.8); });
+}
+function updCerbBreath(e, ai, dt, a) {
+  const b = ai.br;
+  b.t += dt; b.tick -= dt;
+  if (b.track) for (const c of b.cones) c.a += clamp(angDiff(a, c.a), -b.track * dt, b.track * dt); // 毒の息はゆっくりプレイヤーを追う
+  if (b.tick <= 0) { // 0.5秒ごと: 扇の中にいると ×0.4・毒 +1
+    b.tick = 0.5;
+    if (b.cones.some(c => inFan(e.x, e.y, c.a, b.r, b.h)) && hurtPlayer(e.dmg * 0.4, { pierce: true })) poisonPlayer(1);
+  }
+  for (const c of b.cones) { // 緑の毒の煙が扇いっぱいに噴き出す
+    const R0 = b.r * CHAOS.area;
+    for (let k = 0; k < 3; k++) {
+      const pa = c.a + rand(-b.h, b.h) * 0.9, sp = rand(90, 170);
+      part(e.x + Math.cos(c.a) * 12, e.y - 6 + Math.sin(c.a) * 8, Math.cos(pa) * sp, Math.sin(pa) * sp, R0 / sp * rand(0.7, 1), pick(BREATH), { glow: Math.random() < 0.45, drag: 0.4, sz: pick([1, 2, 2, 3]) });
+    }
+  }
+  if (b.t >= b.dur) { ai.br = null; ai.gap = 0.6; for (const h of ai.heads) if (h) h.pulse = 0; }
+}
+// 牙の突進: 0.6秒(帯 長さ 170・幅 24)→ 速さ 320 で突進して噛みつく(×1.3、60 押す)
+function cerbRushStart(e, ai, a) {
+  pushWarn({ kind: 'line', x: e.x, y: e.y, a, len: 170, w: 24, t: 0, life: 0.6, fixed: true, track: w => { w.x = e.x; w.y = e.y; } }); // 突進の経路(体当たりなので広げない)
+  const hd = cerbHeadOf(ai, 'fang'); if (hd) hd.pulse = 1;
+  AudioMan.charge(0.6); e.sq = 1.15;
+  windup(e, 0.6, () => { ai.act = 'rush'; ai.ra = a; ai.rleft = 170; ai.rhit = false; AudioMan.dash(); AudioMan.roar(); shake(4); });
+}
+function updCerbRush(e, ai, dt) {
+  const step = Math.min(ai.rleft, 320 * dt);
+  e.x += Math.cos(ai.ra) * step; e.y += Math.sin(ai.ra) * step; ai.rleft -= step;
+  e.face = Math.cos(ai.ra) < 0 ? -1 : 1;
+  if ((ai.ghostT = (ai.ghostT || 0) - dt) <= 0) { ai.ghostT = 0.035; bfx.push({ kind: 'ghost', x: e.x, y: e.y, spr: 'cerberus', flip: e.face < 0, col: '#ff5a5a', t: 0, life: 0.25 }); } // 残像
+  if (Math.random() < dt * 60) part(e.x + rand(-10, 10), e.y + 8, -Math.cos(ai.ra) * 60 + rand(-20, 20), -rand(10, 40), 0.4, pick(['#3a2a40', '#5a4a60', '#ff5a5a']), { g: 120, drag: 2 }); // 土煙
+  if (!ai.rhit && d2(e.x, e.y, P.x, P.y) < Math.pow(e.r + 8, 2) && hurtPlayer(e.dmg * 1.3)) { // 噛みついた
+    ai.rhit = true; pushPlayer(ai.ra, 60, 0.2);
+    bfx.push({ kind: 'cbite', x: P.x, y: P.y, a: ai.ra, col: CERB.fang[0], t: 0, life: 0.3 }); AudioMan.bite(); shake(6); hitstop(0.05);
+  }
+  if (ai.rleft <= 0) {
+    ai.act = null; ai.gap = 0.6; e.sq = 0.85;
+    burst(e.x + Math.cos(ai.ra) * 12, e.y + 6, 20, ['#3a2a40', '#5a4a60', '#ff5a5a'], { sp: 90, up: 30, g: 200, life: 0.5 }); AudioMan.thud();
+  }
+}
+// 三連噛み: 距離 70 以内。0.5秒(前方の扇 半径 55・±60°)→ 残った首が 0.25秒おきに噛む(×0.7、無敵無視)
+function cerbBite(e, ai, a) {
+  pushWarn({ kind: 'fan', x: e.x, y: e.y, a, r: 55, h: 1.05, t: 0, life: 0.5, track: w => { w.x = e.x; w.y = e.y; } });
+  windup(e, 0.5, () => {
+    const hs = ai.heads.filter(h => h && !h.dead);
+    ai.act = 'bite'; ai.pt = 0.25 * hs.length + 0.1;
+    hs.forEach((h, i) => later(ai, i * 0.25, () => {
+      if (h.dead || e.dead) return;
+      const ba = Math.atan2(P.y - e.y, P.x - e.x), C = CERB[h.hk], bx = e.x + Math.cos(ba) * 34, by = e.y + Math.sin(ba) * 26;
+      hitFan(e.x, e.y, ba, 55, 1.05, e.dmg * 0.7, { pierce: true });
+      bfx.push({ kind: 'cbite', x: bx, y: by, a: ba, col: C[0], t: 0, life: 0.28 });
+      h.pulse = 1; AudioMan.bite(); shake(3);
+    }));
+  });
+}
+// 瘴気弾: 0.5秒(毒の首がふくらむ)→ 毒の玉を 5発(激昂 7発)扇に(±40°、速さ 80、×0.7)。当たると毒 +1
+function cerbSpit(e, ai, a) {
+  const hd = cerbHeadOf(ai, 'poison'); if (hd) hd.pulse = 1.4;
+  AudioMan.charge(0.5);
+  windup(e, 0.5, () => {
+    const h2 = cerbHeadOf(ai, 'poison'), x = h2 ? h2.x + 6 * (e.face || 1) : e.x, y = h2 ? h2.y - h2.hz + 2 : e.y - 10, n = ai.enraged ? 7 : 5, ba = Math.atan2(P.y - y, P.x - x);
+    for (let i = 0; i < n; i++) Object.assign(eball(x, y, ba + (i / (n - 1) - 0.5) * 1.4, 80, e.dmg * 0.7, 'vball'), { poison: 1, r: 4 * CHAOS.area });
+    burst(x, y, 16, BREATH, { sp: 70, glow: true, life: 0.4 }); addRing(x, y, 10, '#7dff6a', { life: 0.25 }); AudioMan.splat(); AudioMan.shoot();
+    ai.gap = 0.6;
+  });
+}
+
 // ---------- 死神・第一形態: プレイヤーへまっすぐ。瞬間移動 / 死の宣告 / 鎌投げ / 刈り取り / スロウタイム / 砂時計 / 激昂: 時計兵召喚 ----------
 const REAP = ['#c29bff', '#2b1b4a', '#ffffff', '#6a4ab0'];
 function reaperAI(e, ai, dt, a, dist, slow) {
@@ -3953,6 +4224,8 @@ function updEprojs(dt0) {
     // 通常敵の弾の軌跡: 火の玉は火の粉、砂の弾は砂煙、槍は白い風切り
     if (p.kind === 'efire' && Math.random() < dt * 40) part(p.x + rand(-1, 1), p.y + rand(-1, 1), -p.vx * 0.15 + rand(-6, 6), -p.vy * 0.15 - rand(4, 12), rand(0.2, 0.4), pick(['#ff6a2a', '#ffc34a', '#b8261a']), { glow: true, drag: 2 });
     else if (p.kind === 'esand' && Math.random() < dt * 30) part(p.x, p.y, rand(-8, 8), rand(-8, 4), 0.35, pick(['#e8c88a', '#c8a060']), { drag: 3 });
+    else if (p.kind === 'vball' && Math.random() < dt * 30) part(p.x + rand(-1, 1), p.y + rand(-1, 1), -p.vx * 0.1, -p.vy * 0.1 + 12, rand(0.3, 0.5), pick(['#7dff6a', '#3aa83a', '#9a7dff']), { glow: Math.random() < 0.5, g: 60, drag: 1 }); // 瘴気弾: 毒のしずく
+    else if (p.kind === 'darkorb' && Math.random() < dt * 40) part(p.x + rand(-2, 2), p.y + rand(-2, 2), -p.vx * 0.15 + rand(-5, 5), -p.vy * 0.15 + rand(-5, 5), rand(0.3, 0.5), pick(['#1a0a2a', '#3a1a5a', '#7a3ab0', '#c79bff']), { glow: Math.random() < 0.3, drag: 2 }); // 闇の玉: 黒紫の尾
     else if (p.kind === 'espear' && Math.random() < dt * 50) part(p.x - p.vx * 0.03, p.y - p.vy * 0.03, 0, 0, 0.12, '#ffffff', { drag: 0 });
     else if ((p.kind === 'eice' || p.kind === 'ispear' || p.kind === 'flake') && Math.random() < dt * (p.kind === 'ispear' ? 60 : 25)) part(p.x + rand(-1, 1), p.y + rand(-1, 1), -p.vx * 0.1, -p.vy * 0.1, 0.3, pick(['#bff4ff', '#ffffff', '#7ad7ff']), { glow: true, drag: 2 }); // 氷の弾: 霜のきらめき
     else if (p.kind === 'bigsnow') { p.spin = (p.spin || 0) + dt * Math.hypot(p.vx, p.vy) / 14; if (Math.random() < dt * 30) part(p.x + rand(-10, 10), p.y + 10, -p.vx * 0.2 + rand(-15, 15), -rand(10, 30), 0.5, pick(['#ffffff', '#e8f4ff']), { g: 120, drag: 1 }); } // 大雪玉: 転がって雪煙
@@ -3979,9 +4252,10 @@ function updEprojs(dt0) {
     if (d2(p.x, p.y, P.x, P.y) < Math.pow(p.r + 3, 2)) {
       if (P.invT > 0) continue;
       if (!p.keep && clsBlockProj()) { burst(p.x, p.y, 8, ['#fff27a', '#ffffff'], { sp: 60, glow: true, life: 0.25 }); eprojs.splice(i, 1); continue; } // 静電気
-      if (hurtPlayer(p.dmg)) { if (p.burn) burnPlayer(p.burn); if (p.sta) drainSta(p.sta); if (p.frost) frostPlayer(p.frost); if (p.freeze) freezePlayer(p.freeze); } // 火の玉: 炎上 / 海淵の弾: スタミナ / 霊峰の弾: 凍傷・氷の槍の凍結
+      if (hurtPlayer(p.dmg)) { if (p.burn) burnPlayer(p.burn); if (p.sta) drainSta(p.sta); if (p.frost) frostPlayer(p.frost); if (p.freeze) freezePlayer(p.freeze); if (p.dark) darkPlayer(p.dark); if (p.poison) poisonPlayer(p.poison); } // 火の玉: 炎上 / 海淵の弾: スタミナ / 霊峰の弾: 凍傷・氷の槍の凍結 / 王墓の弾: 暗闇・毒
       if (p.keep) continue;
       const icy = p.frost > 0;
+      if (p.dark) { burst(p.x, p.y, 14, ['#c79bff', '#7a3ab0', '#2a1240', '#ffffff'], { sp: 60, glow: true, life: 0.4 }); eprojs.splice(i, 1); continue; } // 闇の玉: 黒紫のしぶき
       burst(p.x, p.y, icy ? 10 : 6, p.kind === 'efire' ? ['#ff6a2a', '#ffc34a', '#ffffff'] : p.kind === 'esand' ? ['#e8c88a', '#fff0c0', '#ffffff'] : icy ? ['#bff4ff', '#ffffff', '#7ad7ff'] : ['#ff3b5c', '#ffffff'], { sp: 50, glow: true });
       eprojs.splice(i, 1);
     }
@@ -4057,6 +4331,14 @@ function updHazards(dt) {
       const R = h.r * Math.min(1, h.t * 6);
       if (dd < R * R && h.t < h.dur - 0.3) { P.staLockT = Math.max(P.staLockT, 0.1); S.inInk = true; }
       if (Math.random() < dt * 8) { const pa = rand(0, TAU), pr = Math.sqrt(Math.random()) * R; part(h.x + Math.cos(pa) * pr, h.y + Math.sin(pa) * pr * 0.8, 0, -rand(4, 10), 0.8, pick(['#2a2a4a', '#3a3a5a', '#1a1a2a']), { drag: 1 }); }
+    } else if (h.kind === 'darkwave') { // 闇の遠吠え(ケルベロス): 闇の波が半径 max まで spread 秒で広がる。飲まれると ×0.6・暗闇(1回)
+      h.cur = h.max * Math.min(1, h.t / h.spread);
+      if (!h.hit && h.t <= h.spread + 0.05 && dd < Math.pow(h.cur + 3, 2) && hurtPlayer(h.dmg)) { h.hit = true; darkPlayer(DATA.debuffTomb.darkDur); }
+      if (h.t <= h.spread) for (let k = 0; k < 8; k++) { const pa = rand(0, TAU); part(h.x + Math.cos(pa) * h.cur, h.y + Math.sin(pa) * h.cur * 0.85, Math.cos(pa) * 40, Math.sin(pa) * 30 - rand(10, 30), rand(0.4, 0.8), pick(['#0a0612', '#1a0a2a', '#3a1a5a', '#7a3ab0']), { glow: Math.random() < 0.15, drag: 1.5, sz: pick([2, 3]) }); }
+    } else if (h.kind === 'miasma') { // 瘴気の霧(腐毒のグール): 中にいると 1秒ごとに毒 +1(ダメージはない)
+      const R = h.r * Math.min(1, h.t * 5);
+      if (dd < R * R && h.t < h.dur - 0.3 && (h.tick -= dt) <= 0) { h.tick = 1; poisonPlayer(1); }
+      if (Math.random() < dt * (6 + R * 0.4)) { const pa = rand(0, TAU), pr = Math.sqrt(Math.random()) * R; part(h.x + Math.cos(pa) * pr, h.y + Math.sin(pa) * pr * 0.8, rand(-4, 4), -rand(6, 16), rand(0.6, 1.1), pick(['#5aff6a', '#3a8a3a', '#9a7dff', '#4a2a6a']), { glow: Math.random() < 0.35, drag: 1 }); }
     } else if (h.kind === 'tide') { // 潮の満ち引き(クラーケン): 2秒 中心へ引く → 1秒 外へ押す → 縁に触手の輪
       const d = Math.sqrt(dd), live = !P.dead && state === 'play' && P.invT <= 0;
       if (h.t < 2 && d < h.r && d > 2 && live) { const k = Math.min(d, 40 * dt); P.x += (h.x - P.x) / d * k; P.y += (h.y - P.y) / d * k; }

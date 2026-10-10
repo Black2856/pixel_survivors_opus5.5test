@@ -54,9 +54,11 @@ const META = (() => {
     m.runs = raw.runs || 0;
     metaMigratedGold = back;
   }
+  // バーサーカーの解放を 闘技場 → 常闇の王墓 に変えた: 闘技場をクリアして解放済みだったセーブは、そのまま使える(1回だけ記録)
+  if (!m.clsGrant) { m.clsGrant = {}; if (m.stageClear.arena) m.clsGrant.berserker = true; }
   for (const k in DATA.classes) m.classes[k] = Object.assign({ lv: 1, xp: 0, weapon: DATA.classes[k].weapon || DATA.classes[k].startW }, m.classes[k]); // 専用武器がないクラスは startW から
   if (!DATA.classes[m.cls]) m.cls = 'samurai';
-  if (DATA.classUnlock[m.cls] && !m.stageClear[DATA.classUnlock[m.cls]]) m.cls = 'samurai'; // まだ解放されていないクラス(解放の条件を後から足した)
+  if (DATA.classUnlock[m.cls] && !m.stageClear[DATA.classUnlock[m.cls]] && !m.clsGrant[m.cls]) m.cls = 'samurai'; // まだ解放されていないクラス(解放の条件を後から足した)
   // 永続ツリー: 守護の先端を 無敵時間 → 食べ物の効果 に変えた。取得済みならそのまま引き継ぐ
   m.tree = m.tree.map(id => (id === 'iframe#1' ? 'food#1' : id));
   // 永続ツリー: 先端を足した 活力・持久・剛撃・広域 の行き止まりを 5 → 4 に減らした(方向ごとに 40ノード)。消えた #5 は外して返金(公開版では深さ6)

@@ -1346,6 +1346,57 @@ const ART = (() => {
   const bgPal = { a: '#241e1a', b: '#8a6a30', c: '#c8a050', d: '#ffd27a', e: '#3a2e1e' };
   S.obj_biggear = [mk(bgPal, gearRows(27, 12, 0), { emit: 'd' }), mk(bgPal, gearRows(27, 12, Math.PI), { emit: 'd' })];
 
+  // ---------- 常闇の王墓 ----------
+  // 毒蜘蛛: 黒紫の腹に緑に光る毒の紋、赤い目。脚を交互に動かす 2コマ
+  const spPal = { a: '#6a5a7e', b: '#1e1628', c: '#3a2a4c', d: '#7dff6a', e: '#ff3b5c', f: '#2e8a2e' };
+  S.spider = [mk(spPal, ['....bbbbb....', '...bdcdcdb...', '..bcfdfdfcb..', '.a.bccdccb.a.', 'a.a.bebeb.a.a', '.a..abbba..a.', 'a..a.....a..a'], { emit: 'de' }),
+    mk(spPal, ['....bbbbb....', '...bdcdcdb...', '..bcfdfdfcb..', 'a..bccdccb..a', '.aa.bebeb.aa.', 'a...abbba...a', '.a.a.....a.a.'], { emit: 'de' })];
+  // 腐毒のグール: 前かがみの腐った死体。ぼろの紫の衣、緑に光る目と、指先からしたたる毒
+  S.ghoul = mk({ a: '#1e2a1e', b: '#4a6a3e', c: '#7a9a5a', d: '#2e2238', e: '#4e3a5e', f: '#9dff5a', g: '#120c10' }, [
+    '....bbb....', '...bcccb...', '..bcfcfcb..', '..bbcgcbb..', '..abbgbba..', '..dbbbbbd..', '.ddeebeedd.', 'bbdeeeeedbb', 'b.ddeeedd.b', 'f.ddddddd.f', '..dd.d.dd..', '..bb...bb..', '..ab...ba..', '.aaa...aaa.',
+  ], { emit: 'f' });
+  // 影の眼: 宙に浮く大きな眼と、垂れ下がる影の触手。ふだんは半分まぶたを閉じ、撃つ前に見開く(赤紫の瞳が光る)
+  const sePal = { a: '#0a0612', b: '#2a1240', c: '#5a2a8a', d: '#d8c8f0', e: '#ff3b8a', f: '#a66bff', g: '#ffffff' };
+  S.shadoweye = [mk(sePal, sym(['...bb', '.bbcc', 'bcccc', 'bcccc', 'bcfde', 'bcfdd', '.bcff', '..bcc', '.b.b.', 'b..b.']), { emit: 'ef' }),
+    mk(sePal, sym(['...bb', '.bbcc', 'bccff', 'bcfdd', 'bcfde', 'bcfdg', '.bcff', '..bcc', '.b.b.', 'b..b.']), { emit: 'ef' })];
+  // 影法師: 頭巾をかぶった影。光るのは紫の目だけ。裾は影になってほどける
+  // 冥犬ケルベロスの体(右向き。首から先は別の絵で、描画側が首でつなぐ): 黒紫の毛の胴・背中の骨のとげ・4本の脚と白い爪・緑に光る毒の脈・尾の先の紫の炎
+  S.cerberus = mk({ a: '#0e0a14', b: '#281c36', c: '#433058', d: '#64487e', h: '#c8b8a8', e: '#7dff6a', f: '#a66bff', F: '#e8c8ff', g: '#5a1020' }, (() => {
+    const W = 34, H = 22, g = Array.from({ length: H }, () => Array(W).fill('.'));
+    const set = (x, y, ch) => { if (x >= 0 && y >= 0 && x < W && y < H) g[y][x] = ch; };
+    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) { // 胴(上ほど明るい)
+      const dx = (x - 16) / 12.5, dy = (y - 10) / 5.4;
+      if (dx * dx + dy * dy <= 1) set(x, y, dy < -0.5 ? 'd' : dy < 0.3 ? 'c' : 'b');
+    }
+    for (let y = 2; y < 14; y++) for (let x = 22; x < 32; x++) { // 胸: 首の付け根へ盛り上がる
+      const dx = (x - 26) / 5, dy = (y - 7) / 5.5;
+      if (dx * dx + dy * dy <= 1) set(x, y, dy < -0.4 ? 'd' : dy < 0.4 ? 'c' : 'b');
+    }
+    for (const [lx, back] of [[5, 1], [10, 1], [20, 0], [25, 0]]) { // 脚: 太もも(後ろ脚は後ろへ、前脚は前へ張る)→ すね → 2本の白い爪
+      for (let y = 13; y < 20; y++) { set(lx, y, 'b'); set(lx + 1, y, y < 16 ? 'c' : 'b'); if (y < 16) set(back ? lx - 1 : lx + 2, y, y < 14 ? 'c' : 'b'); }
+      set(back ? lx - 1 : lx + 2, 19, 'b'); set(lx - 1, 20, 'h'); set(lx + 1, 20, 'h'); set(back ? lx - 2 : lx + 3, 20, 'h');
+    }
+    for (const [x, y] of [[22, 3], [24, 2], [26, 1], [28, 1], [30, 2], [32, 4]]) { set(x, y, 'b'); set(x, y - 1, 'f'); set(x - 1, y + 1, 'b'); } // 首の付け根のたてがみ(先が紫に光る)
+    for (const sx of [9, 13, 17, 21]) { set(sx, 3, 'h'); set(sx, 2, 'h'); set(sx + 1, 4, 'h'); set(sx - 1, 4, 'h'); } // 背中の骨のとげ
+    for (let i = 0; i < 7; i++) { const tx = 4 - Math.round(i * 0.6), ty = 10 - i; set(tx, ty, 'c'); set(tx + 1, ty, 'b'); } // 尾: 左へ伸びて上に巻く
+    for (const [x, y, ch] of [[0, 3, 'f'], [1, 2, 'f'], [0, 2, 'F'], [1, 1, 'f'], [0, 1, 'f'], [2, 3, 'f'], [1, 3, 'F']]) set(x, y, ch); // 尾の先の紫の炎
+    for (const [x, y] of [[12, 9], [13, 10], [14, 10], [15, 11], [19, 8], [20, 9], [21, 9], [8, 11], [9, 11]]) set(x, y, 'e'); // 毒の脈
+    for (const [x, y] of [[27, 3], [28, 3], [30, 6], [31, 7], [28, 10], [29, 10]]) set(x, y, 'g'); // 首の付け根(赤黒い)
+    return g.map(r => r.join(''));
+  })(), { emit: 'efF' });
+  // ケルベロスの首(右向き): 毒(緑の目・毒のよだれ)/ 牙(赤い目・大きな白い牙)/ 闇(紫の目・闇のもや)
+  const chPal = (eye, drool) => ({ a: '#0e0a14', b: '#281c36', c: '#4a3462', n: '#08060c', T: '#e8e0d0', E: eye, D: drool, w: '#7a3ab0', R: '#4a0c1c' });
+  //   形: とがった耳 / 光る目と眉 / 鼻先 / 上の牙 / 開いた赤黒い口 / 下の牙 / 下あご
+  const chRows = (top, up, low, bottom) => [...top, 'abcccbbb......', 'bccEcccccbb...', 'bccccccccccbb.', '.bcccccccccccn', up, '..bRRRRRRRb...', low, '...bbbbbb.....', bottom];
+  S.obj_chead_poison = mk(chPal('#7dff6a', '#7dff6a'), chRows(['..a...........', '..ba..........', '.abcb.........'], '.bbTbTbTbTbbb.', '..bTbTbTbb....', '...D..D...D...'), { emit: 'ED' });
+  S.obj_chead_fang = mk(chPal('#ff3b5c', '#ff3b5c'), chRows(['..a...........', '..ba..........', '.abcb.........'], '.bTTbTbTbTTbb.', '..TTbTbTTb....', '..T......T....'), { emit: 'E' });
+  S.obj_chead_dark = mk(chPal('#c79bff', '#3a1a5a'), chRows(['..a..w........', '..baw.........', '.abcb.w.......'], '.bbTbTbTbTbbb.', '..bTbTbTbb....', '.w....w...w...'), { emit: 'Ew' });
+  // 瘴気弾(ケルベロス): 緑に光る毒の玉
+  S.vball = mk({ a: '#1a3a12', b: '#3aa83a', c: '#7dff6a', d: '#c8ffb0' }, ['.bb.', 'bccb', 'bcdb', '.bb.'], { emit: 'cd' });
+  S.stalker = mk({ a: '#06040a', b: '#140e1e', c: '#261c36', d: '#d89bff', e: '#3e2e58' }, [
+    '...bbb...', '..bcccb..', '.bcceccb.', '.bcdcdcb.', '.bcccccb.', '..bcccb..', '.bbcecbb.', 'bccceccb.', 'bcccecccb', 'bccceccb.', '.bccccb..', '.bcbcbcb.', '.b.b.b.b.', 'b...b...b',
+  ], { emit: 'd' });
+
   // 炎魔イフリート: 黒い角と燃える髪、赤黒い筋骨の上半身、両手に炎。下半身は炎になって浮いている
   const ifritRows = sym([
     '..h.........',

@@ -237,6 +237,9 @@ const UI = (() => {
     if (P.frost > 0) out.push({ id: 'pfrost', glyph: '凍', name: '凍傷', fx: `${P.frost}スタック ・ 移動速度 -${Math.round((1 - playerFrostMul()) * 100)}%(受けないでいると ${d.pDur}秒で消える)`, t: P.frostT, max: d.pDur, kind: 'debuff' });
     if (P.frzT > 0) out.push({ id: 'pfrz', glyph: '氷', name: '凍結', fx: '歩けない(回避とスキルは使える)', t: P.frzT, max: 1, kind: 'debuff' });
     if (P.bleed > 0) out.push({ id: 'pbleed', glyph: '血', name: '出血', fx: `${P.bleed}スタック ・ 毎秒 最大HP の ${Math.round(P.bleed * d.pBleed * 100)}%`, t: P.bleedT, max: d.pDur, kind: 'debuff' });
+    const dt2 = DATA.debuffTomb;
+    if (P.poison > 0) out.push({ id: 'ppoison', glyph: '毒', name: '毒', fx: `${P.poison}スタック ・ 最大HP -${Math.round(P.poison * dt2.poison * 100)}%(受けないでいると ${dt2.poisonDur}秒で消える)`, t: P.poisonT, max: dt2.poisonDur, kind: 'debuff' });
+    if (P.darkT > 0) out.push({ id: 'pdark', glyph: '闇', name: '暗闇', fx: '周りが暗くなり、敵の攻撃の予告が見えない ・ スタミナが回復しない', t: P.darkT, max: dt2.darkDur, kind: 'debuff' });
     if (S.phase && S.phase.fogOn) out.push({ id: 'fog', glyph: '霧', name: '闇の霧', fx: `毎秒 HP -${S.phase.fogDmg}(10秒ごとに +1)。フェーズをクリアすると晴れる`, kind: 'debuff' });
     if (P.shield >= 1) out.push({ id: 'shield', glyph: '盾', name: 'シールド', fx: `${Math.floor(P.shield)} のダメージを先に受ける`, kind: 'buff' });
     if (P.oShield >= 1) out.push({ id: 'oshield', glyph: '守', name: '一時シールド', fx: `${Math.floor(P.oShield)} のダメージを先に受ける(得た分ごとに時間で消える)`, t: Math.min(...P.oChunks.map(c => c.t)), max: Math.max(...P.oChunks.map(c => c.dur)), kind: 'buff' });
@@ -284,7 +287,7 @@ const UI = (() => {
     if (last.cls !== P.cls) { last.cls = P.cls; box.style.setProperty('--cc', c.col); hpLag = 1; lastHp = P.hp; }
     if (last.px !== GFX.PX) { last.px = GFX.PX; box.style.setProperty('--px', GFX.PX + 'px'); pcv.style.width = PW * GFX.PX + 'px'; pcv.style.height = PH * GFX.PX + 'px'; }
     set('ps-name', `<b>${c.en}</b> Lv${META.classes[P.cls].lv}`, 'innerHTML');
-    const k = clamp(P.hp / P.maxhp, 0, 1), low = k < 0.3;
+    const base = P.maxhpBase || P.maxhp, k = clamp(P.hp / base, 0, 1), low = P.hp / P.maxhp < 0.3, pz = clamp(P.maxhp / base, 0, 1); // pz: 毒で下がった最大HP の割合(右端の紫)
     hpLag = Math.max(k, hpLag - dt * 0.5);
     if (P.hp > lastHp + 0.5) healT = 0.3;
     lastHp = P.hp; healT -= dt;
@@ -297,7 +300,7 @@ const UI = (() => {
     // 下の行ほど透明にして、下の HP が透けて見えるようにする
     const sh = clamp(shieldTotal() / P.maxhp, 0, 1), SHC = ['#1c3fb8', '#2f63e0', '#3f7ff0', '#5a9cff', '#7ab8ff'], SHA = [0.95, 0.8, 0.62, 0.45, 0.3];
     const scanX = (pt * 50) % (170 + 40) - 20; // 左から右へ流れる走査線の中心
-    bar(32, 170, 15, 5, 12, (i, r, L) => i < k * L ? (r === 0 ? hpC[0] : r === 4 ? hpC[2] : hpC[1]) : i < hpLag * L ? '#e8e4f0' : null,
+    bar(32, 170, 15, 5, 12, (i, r, L) => i < k * L ? (r === 0 ? hpC[0] : r === 4 ? hpC[2] : hpC[1]) : i < hpLag * L ? '#e8e4f0' : i >= pz * L ? ((i + r + Math.floor(pt * 10)) % 5 ? '#4a1a6a' : '#8a4ac0') : null,
       (i, r, L) => {
         if (!(sh > 0 && i < sh * L)) return null;
         const out = [[SHC[r], SHA[r]]];

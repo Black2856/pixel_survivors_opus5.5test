@@ -53,6 +53,13 @@ const DATA = {
     gear:     { hp: 34, spd: 110, dmg: 13, xp: 1, r: 6, ai: 'roll', kbRes: 1, noElite: true }, // 歯車(金属で硬い: 押されない)
     clockman: { hp: 28, spd: 22, dmg: 11, xp: 1, r: 5, ai: 'chase', blink: { cd: 2.5, wind: 0.3, dist: 45 } }, // 時計兵
     hglass:   { hp: 26, spd: 14, dmg: 8,  xp: 1, r: 5, ai: 'keep', keep: [90, 110], spawnW: 0.25, noGroup: true, maxAlive: 3, warp: { cd: 8, range: 200, wind: 0.8, r: 45, dur: 4, slow: 0.7 } }, // 砂時計の精
+    // 常闇の王墓 / touchPoison: 触れると(当たったとき)毒 +n / skitter: 小走り(run 秒 速さ ×k で走る → stop 秒止まる、をくり返す)
+    // miasma: 倒れた場所に瘴気の霧(半径 r・dur 秒。中にいると 1秒ごとに毒 +1)/ shot.dark: 弾が当たると暗闇(秒)
+    // lunge: range より遠い間は薄い影。range 以内で実体化し、wind 秒構えて(帯の予告 長さ len・幅 w)速さ spd で飛びかかる(×n)。飛びかかったあと rest 秒は追跡だけ
+    spider:   { hp: 22, spd: 34, dmg: 8,  xp: 1, r: 5, ai: 'skitter', touchPoison: 1, skitter: { run: 0.5, stop: 0.3, k: 1.6 } }, // 毒蜘蛛
+    ghoul:    { hp: 60, spd: 11, dmg: 12, xp: 2, r: 7, ai: 'chase', spawnW: 0.6, miasma: { r: 24, dur: 4 } }, // 腐毒のグール
+    shadoweye:{ hp: 24, spd: 14, dmg: 8,  xp: 1, r: 4, ai: 'keep', keep: [100, 130], spawnW: 0.5, noGroup: true, maxAlive: 4, shot: { cd: 5, range: 180, spd: 70, n: 0.8, kind: 'darkorb', wind: 0.6, dark: 5 } }, // 影の眼
+    stalker:  { hp: 30, spd: 24, dmg: 11, xp: 1, r: 5, ai: 'chase', lunge: { range: 80, wind: 0.4, len: 120, w: 8, spd: 300, n: 1.3, rest: 3 } }, // 影法師
     goblin:   { hp: 160, spd: 44, dmg: 0, xp: 12, r: 5, ai: 'flee', kbRes: 0.5, noElite: true },
   },
 
@@ -79,9 +86,13 @@ const DATA = {
     fgiant:  { name: '霜の巨人 FROST GIANT',        hp: 2000, spd: 11, dmg: 24, r: 16, music: 'b_peak', col: '#9fd8ff' },
     squeen:  { name: '雪華の女王 SNOW QUEEN',       hp: 1500, spd: 18, dmg: 22, r: 12, music: 'b_peak', col: '#d8f0ff' },
     warden:  { name: '時計仕掛けの番人 CLOCKWORK WARDEN', hp: 1900, spd: 13, dmg: 22, r: 15, music: 'b_clock1', col: '#c8a050' },
+    cerberus:   { name: '冥犬ケルベロス CERBERUS', hp: 1800, spd: 21, dmg: 22, r: 16, music: 'b_tomb1', col: '#9dff5a' }, // 3本の首(壊せる物)
+    shadowking: { name: '影の王 SHADOW KING',      hp: 2000, spd: 15, dmg: 20, r: 12, music: 'b_tomb1', col: '#a66bff', noTwin: true }, // 激昂で曲がボス2 に変わる / noTwin: 双王の相方に選ばれない
   },
   // 状態異常(プレイヤー): 粘液・スロウタイムの移動速度倍率 / スロウタイムのCD回復倍率 / 炎上
   debuff: { slow: 0.6, cdRate: 0.5, burnTick: 0.5, burnDur: 3, burnHeal: 0.5, fatigueDur: 3, fatigue: 0.5, slowRegen: 0.5, frostSlow: 0.05, shockR: 60, pDur: 5, pBleed: 0.01, pBleedMax: 5 }, // burnHeal: 炎上中の HP回復の倍率 / slowRegen: スロウタイム・時の歪みの中のスタミナ回復・HP回復速度の倍率 / fatigueDur・fatigue: 疲労(スタミナを減らされた)の秒とスタミナ回復の倍率 / frostSlow: 凍傷1スタックあたりの減速(敵・自分) / shockR: 感電の連鎖距離 / pDur: 自分の凍傷・出血が消えるまでの秒 / pBleed: 自分の出血1スタックの毎秒ダメージ(最大HP の割合)
+  // 毒(王墓): poison = 1スタックの最大HP の減り(poisonMax スタックまで。最後に受けてから poisonDur 秒で全部消える)/ darkDur: 暗闇の秒
+  debuffTomb: { poison: 0.03, poisonMax: 20, poisonDur: 10, darkDur: 5 },
   // 敵の出血: 1スタックごとに毎秒 最大HP × bleedPct(ボス ×bleedBoss・エリート ×bleedElite)、bleedDur 秒
   bleed: { pct: 0.002, dur: 5, boss: 0.1, elite: 0.25 },
 
@@ -1239,8 +1250,8 @@ const DATA = {
   },
   // クラスLv: need[i] = Lv(i+1) → Lv(i+2) に必要な経験値。獲得量 = 討伐数 × killK + 撃破ボス数 × bossK
   // クラスの解放: このモード・ステージを初めてクリアすると使える(書いていないクラスは最初から: サムライ・メイジ・アーチャー・ナイト)
-  //   キーは runKey(escalation / arena / stage1〜7。stage の番号は stageRuns の no)
-  classUnlock: { cleric: 'stage1', electro: 'stage2', pyro: 'stage3', necro: 'stage4', cryo: 'stage5', assassin: 'stage6', astro: 'stage7', weaponmaster: 'escalation', berserker: 'arena' },
+  //   キーは runKey(escalation / arena / stage1〜8。stage の番号は stageRuns の no)
+  classUnlock: { cleric: 'stage1', electro: 'stage2', pyro: 'stage3', necro: 'stage4', cryo: 'stage5', assassin: 'stage6', astro: 'stage7', weaponmaster: 'escalation', berserker: 'stage8' },
   classLevel: {
     need: [100, 150, 200, 300, 400, 500, 650, 800, 1000, 1250, 1500, 1750, 2000, 2500, 3000, 4000, 5000, 7500, 10000],
     killK: 1, bossK: 100,
@@ -1372,6 +1383,9 @@ const DATA = {
     // 終刻の時計塔(tier 4): 石畳にはめこまれた真鍮の歯車、セピアの光、舞う砂
     { label: '終刻の時計塔', music: 'f_clock', ground: ['#38322e', '#403833', '#302a27', '#47403a'], deco: ['#1a1614', '#7a6a58', '#6a5228', '#94784a'],
       amb: [0.64, 0.56, 0.48], tint: [1.05, 1.0, 0.9], motes: { col: '#ffd8a0', cols: ['#ffd8a0', '#e8c88a', '#fff0c8', '#c8a060'], rise: false }, clock: true, light: 0.75 },
+    // 常闇の王墓(tier 4): 地下にある王の墓所。黒紫の石畳・棺と墓標・ところどころ残る蝋燭の灯・床から昇る緑と紫の瘴気。今までで一番暗い(光源が際立つ)
+    { label: '常闇の王墓', music: 'f_tomb', ground: ['#17121f', '#1c1627', '#120e19', '#231b2f'], deco: ['#08060c', '#3a3048', '#7dff6a', '#b07aff'],
+      amb: [0.3, 0.27, 0.4], tint: [0.98, 0.94, 1.08], motes: { col: '#9a7dff', cols: ['#7dff6a', '#9a7dff', '#c79bff', '#5aff9a'], rise: true }, tomb: true },
   ],
 
   // ---------- カオス強化(db.xlsx「カオス強化」)----------
@@ -1423,7 +1437,7 @@ const DATA = {
   },
 
   // ---------- 通常モード(ステージを1つ選ぶ) ----------
-  // no = ステージのキーの番号(stage1〜7。クリア記録・カオス強化) / stage = DATA.stages の番号 / tier = 開始の敵Lv・報酬 / bosses = ボス1 → ボス2(倒すとクリア)
+  // no = ステージのキーの番号(stage1〜8。クリア記録・カオス強化) / stage = DATA.stages の番号 / tier = 開始の敵Lv・報酬 / bosses = ボス1 → ボス2(倒すとクリア)
   //   segs = 3分ごとの区間の出現の候補(1つ目は 0・60・120秒で1種ずつ足す / 2つ目 / 3つ目。null = その前の全部)
   stageRuns: [
     { no: 1, stage: 1, tier: 1, bosses: ['gslime', 'king'], segs: [['zombie', 'bat', 'slime'], ['bat', 'slime', 'brute'], null] },
@@ -1434,6 +1448,7 @@ const DATA = {
     { no: 5, stage: 7, tier: 3, bosses: ['fgiant', 'squeen'], segs: [['wolf', 'ghost', 'icesprite'], ['ghost', 'icesprite', 'yeti'], null] }, // 霜天の霊峰
     // 終刻の時計塔: 3つ目の候補は「今までの敵」のまとまり(1枠として選ばれ、その中から1種)
     { no: 7, stage: 8, tier: 4, bosses: ['warden', 'reaper'], segs: [['gear', 'clockman', ['skeleton', 'archer', 'lslime', 'wolf', 'sahagin', 'beetle']], ['clockman', 'hglass', ['skeleton', 'archer', 'lslime', 'wolf', 'sahagin', 'beetle']], null] },
+    { no: 8, stage: 9, tier: 4, bosses: ['cerberus', 'shadowking'], segs: [['spider', 'shadoweye', 'ghoul'], ['shadoweye', 'ghoul', 'stalker'], null] }, // 常闇の王墓
   ],
   // 通常モードの流れ(フェーズの時計で進む。ボス・エリート群のフェーズの間は止まる)
   //   seg: 区間の長さ / waves: 区間ごとの出現の間隔・上限(t は区間の中の秒) / horde: 2つ目・3つ目の区間で大群を出す秒 / elites: エリート群の数
@@ -1456,7 +1471,7 @@ const DATA = {
   // rewardLv: ボス撃破で得るレベルアップ回数(ジェムで配布) / rest: 次のボスまでの休憩秒 / r: 闘技場の半径
   arena: {
     r: 250, rest: 8, startLv: 6, rewardLv: 5,
-    order: [['king', 'gslime'], ['golem', 'wyrm'], ['stag', 'pqueen'], ['kraken', 'levia'], ['cdragon', 'ifrit'], ['fgiant', 'squeen'], 'warden', 'reaper'], // tier の順: 草原 → 荒野 → 晶窟 → 海淵 → 奈落 → 霊峰 → 番人 → 死神(→ 終刻の死神)
+    order: [['king', 'gslime'], ['golem', 'wyrm'], ['stag', 'pqueen'], ['kraken', 'levia'], ['cdragon', 'ifrit'], ['fgiant', 'squeen'], ['warden', 'cerberus'], ['reaper', 'shadowking']], // tier の順: 草原 → 荒野 → 晶窟 → 海淵 → 奈落 → 霊峰 → tier 4 の1体目(番人かケルベロス)→ 最後(死神(→ 終刻の死神)か影の王)
     elv:   [5, 10, 15, 20, 25, 30, 35, 40], // 5 から 5ずつ
   },
 };
