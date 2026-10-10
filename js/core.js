@@ -227,7 +227,7 @@ function nearestEnemy(x, y, maxD = 200, skip) {
   let best = null, bd = maxD * maxD;
   for (const e of enemies) {
     if (e.dead || e === skip || e.hidden) continue;
-    const d = d2(x, y, e.x, e.y);
+    const d = d2(x, y, e.x, e.y) * (e.boss === 'shadowking' && e.ai.shade && !e.ai.shade.dead ? 9 : 1); // 影の王が影を呼んでいる間は、影を先に狙う(影の王は 3倍遠いものとして扱う)
     if (d < bd) { bd = d; best = e; }
   }
   return best;

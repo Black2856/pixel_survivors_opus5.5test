@@ -1391,6 +1391,15 @@ const ART = (() => {
   S.obj_chead_poison = mk(chPal('#7dff6a', '#7dff6a'), chRows(['..a...........', '..ba..........', '.abcb.........'], '.bbTbTbTbTbbb.', '..bTbTbTbb....', '...D..D...D...'), { emit: 'ED' });
   S.obj_chead_fang = mk(chPal('#ff3b5c', '#ff3b5c'), chRows(['..a...........', '..ba..........', '.abcb.........'], '.bTTbTbTbTTbb.', '..TTbTbTTb....', '..T......T....'), { emit: 'E' });
   S.obj_chead_dark = mk(chPal('#c79bff', '#3a1a5a'), chRows(['..a..w........', '..baw.........', '.abcb.w.......'], '.bbTbTbTbTbbb.', '..bTbTbTbb....', '.w....w...w...'), { emit: 'Ew' });
+  // 影の王: 紫に光る三本角の冠・黒い兜に光る両目・紫の縁取りの黒い鎧・左へなびく破れたマント・右手に地面まで届く長い剣(刃の縁が紫に光る)
+  S.shadowking = mk({ a: '#06040a', b: '#120c1c', c: '#221834', d: '#3a2a54', e: '#a66bff', f: '#f0e0ff', g: '#5a3a8a', h: '#1e1430', s: '#1a1426', t: '#c79bff' }, [
+    '........e..e..e.........', '........eccecce.........', '.......cdddddddc........', '.......cdbbbbbdc........', '.......cbbfbbfbc........', '.......cbbbbbbbc........',
+    '........cbbbbbc.........', '.....hhhccdddcchh.......', '...hhhcdddddddddc.......', '..hhhcdeddddddedc.......', '..hhgcdddcdcdddddc......', '.hhhgcdddcdcddddsdc.....',
+    '.hhhgccddcdcddcssdc.....', 'hhhhgcccddddddc.st......', 'hhhgh.ccdedddc..st......', 'hhhgh.ccddddcc...st.....', 'hhhgh.cccdddcc....st....', 'hhghh.ccc.ccc......st...',
+    'hhghh.cc...cc.......st..', 'hghhh.cc...cc........t..', 'hghh..bb...bb...........', 'hgh...bb...bb...........', 'hgh..bbb..bbb...........', '.h.h.h..................',
+  ], { emit: 'eft' });
+  // 冥鎖の杭(影の王): 黒い鉄の杭。紫のルーンと、上に鎖をつなぐ輪
+  S.obj_stake = mk({ a: '#5a5a6a', g: '#9a9aaa', b: '#141020', c: '#2a2238', e: '#a66bff' }, ['..aga..', '.a...a.', '..aga..', '..bcb..', '.bbcbb.', '..beb..', '..bcb..', '..bcb..', '..beb..', '..bcb..', '..bcb..', '..beb..', '...b...', '...b...'], { emit: 'e' });
   // 瘴気弾(ケルベロス): 緑に光る毒の玉
   S.vball = mk({ a: '#1a3a12', b: '#3aa83a', c: '#7dff6a', d: '#c8ffb0' }, ['.bb.', 'bccb', 'bcdb', '.bb.'], { emit: 'cd' });
   S.stalker = mk({ a: '#06040a', b: '#140e1e', c: '#261c36', d: '#d89bff', e: '#3e2e58' }, [

@@ -37,6 +37,7 @@ function setupChaos(lv, key) {
 function pushWarn(w) {
   if (!w.fixed) {
     if (w.r) w.r *= CHAOS.area;
+    if (w.r0) w.r0 *= CHAOS.area; // 輪(影の三重輪)の内側
     if (w.w) w.w *= CHAOS.area;
     if (w.len) w.len *= CHAOS.area;
   }
@@ -252,6 +253,7 @@ function updDebuffs(dt) {
   if (P.frzT > 0) { P.frzT -= dt; if (Math.random() < dt * 18) part(P.x + rand(-5, 5), P.y + rand(-6, 6), 0, 6, 0.5, pick(['#ffffff', '#9ff7ff']), { glow: true, drag: 1 }); } // 凍結: 氷の粒がこぼれる
   if (P.slowT > 0 && Math.random() < dt * 8) part(P.x + rand(-3, 3), P.y + 6, 0, 8, 0.4, P.cdSlowT > 0 ? '#c29bff' : '#4fd6a8', { glow: P.cdSlowT > 0 });
   updFrostBleed(dt);
+  updChain(dt); // 冥鎖(影の王)
   if (P.burnT <= 0) return;
   P.burnT -= dt; P.burnTick -= dt;
   if (Math.random() < dt * 16) part(P.x + rand(-4, 4), P.y + rand(-4, 4), 0, -26, 0.4, pick(['#ff6a2a', '#ffc34a']), { glow: true });
@@ -414,7 +416,7 @@ function hurtPlayer(dmg, o) {
     addFloat(P.x, P.y - 10, String(a), '#7ab8ff', 1);
     burst(P.x, P.y, 8, ['#9fd8ff', '#4f8ff0', '#ffffff'], { sp: 60, glow: true, life: 0.3 });
     if (shieldTotal() < 1) { P.shield = P.oShield = 0; P.oChunks = []; addRing(P.x, P.y, 20, '#4f8ff0', { w: 2, life: 0.3 }); AudioMan.hit(); clsOnShieldBreak(); } // 割れた
-    if (dmg <= 0) { P.ifr = P.iframe * clsIfrMul(); AudioMan.hit(); return true; }
+    if (dmg <= 0) { P.ifr = P.iframe * clsIfrMul(); AudioMan.hit(); if (S.taint) shadowTaint(); return true; }
   }
   P.hp -= dmg; P.ifr = P.iframe * clsIfrMul(); P.hurtT = 0.12; // 被弾後の無敵時間(クラスの倍率: アストロマンサーの不動)
   if (P.hp <= 0 && clsSaveLethal()) P.hp = 1; // 倒れるダメージをクラスが耐える(バーサーカーの不死の狂乱)
@@ -426,8 +428,11 @@ function hurtPlayer(dmg, o) {
   burst(P.x, P.y, 10, ['#ff4a5a', '#ffffff', '#8a1a2a'], { sp: 70 });
   S.hudDirty = true;
   if (P.hp <= 0) playerDown();
+  if (S.taint && !P.dead) shadowTaint();
   return true;
 }
+// 蝕む影(激昂した影の王): 攻撃(技・接触)が当たるたびに、毒 +1 か暗闇(50% ずつ)。影(呼んだボス)の攻撃では付かない
+function shadowTaint() { if (Math.random() < 0.5) poisonPlayer(1); else darkPlayer(DATA.debuffTomb.darkDur); }
 // 自分の技で受けるダメージ(HP を払う: ワイルドトマホークの代償・仁王立ちなど)。防御力・ダメージ軽減・シールドでは減らず、無敵時間も付かない
 //   被弾として扱うクラスは clsSelfHurt で量を変える(バーサーカー: 怒り・昂り、不屈などの軽減)。自分の技では倒れない(HP は 1 未満にならない)
 //   返り値: 実際に減った HP
@@ -730,7 +735,8 @@ const SWING_PAL = {
   fire:      { body: '#a0300c', edge: '#ff8a3d', glow: '#ff6a2a', core: '#fff0b0' }, // イフリートの炎の鞭
   blood:     { body: '#3a0008', edge: '#8e0016', glow: '#5a000c', core: '#c0102a' }, // 血の色(ブラッドアサシン)
   rage:      { body: '#2a0408', edge: '#7a1418', glow: '#2a0508', core: '#b8402a' }, // 赤黒い闘気(バーサーカー。明るい赤は敵の攻撃の色なので芯だけ。光の層は色で明るさが決まるので暗く)
-  ring:      { body: '#3a4668', edge: '#8ea6d8', glow: '#3a4668' },                  // オービットブレードの輪が一周する(影の追撃)
+  ring:      { body: '#3a4668', edge: '#8ea6d8', glow: '#3a4668' },
+  shadow:    { body: '#2a1240', edge: '#a66bff', glow: '#4a1a7a', core: '#e8c8ff' }, // 影の王の影の剣                  // オービットブレードの輪が一周する(影の追撃)
 };
 // 騎士剣の薙ぎ払い(扇形)。o.arc: 半分の角度 / o.evo: 聖剣(当てるたびに 5秒のシールド +1。1回の攻撃につき1まで)/ org: 撃ち手
 function sweep(a, st, flip, o, org = P_ORG) {
@@ -1230,6 +1236,7 @@ function hitEnemy(e, base, o = {}) {
   if (crit) dmg *= P.critMul + clsCritDmgBonus(e); else if (P.uq.exec) dmg *= 0.8; // 処刑人の
   dmg = Math.max(1, Math.round(dmg * rand(0.9, 1.1)));
   e.hp -= dmg; e.flash = 0.08;
+  if (e.hpFloor && e.hp < e.hpFloor) e.hp = e.hpFloor; // 影の王: 影がいる間は次の基準(4回目の影の間は HP 1)より下がらない
   if (e.obj === 'chead') cerbSpill(e, dmg); // ケルベロスの首: 本体にも ×0.5
   if (o.src && o.src === P.mainW) clsOnMainHit(e); // 通常攻撃(メイン武器)の命中
   if (o.eHit) clsOnEHit(e, dmg);                   // 武器スキル(E)の命中
@@ -1257,6 +1264,8 @@ function hitEnemy(e, base, o = {}) {
 
 function killEnemy(e, o = {}) {
   if (e.dead) return;
+  if (e.shadow) return shadowDown(e); // 影の王が呼んだ影: 報酬なし・撃破数に数えない(死神の影も変身しない)
+  if (e.hpFloor > 0) { e.hp = Math.max(e.hp, e.hpFloor); return; } // 影の王: 影がいる間は倒れない(異次元送りなども)
   if (e.boss === 'reaper' && !e.morphed) { startReaperMorph(e); return; } // 死神の第一形態は倒れると終刻の死神に変身する(報酬は第二形態で)
   e.dead = true;
   if (e.boss) return onBossDeath(e);
@@ -1477,7 +1486,7 @@ function updEnemies(dt) {
       }
     }
     if (e.stun > 0) { e.stun -= dt; continue; }
-    if (e.boss) { const r0 = CHAOS.rate; CHAOS.rate *= clsBossRate(e); try { bossAI(e, dt); } finally { CHAOS.rate = r0; } } // 凍結中のボスは攻撃速度 -30%
+    if (e.boss) { const r0 = CHAOS.rate; CHAOS.rate *= clsBossRate(e); S.taint = e.boss === 'shadowking' && !e.shadow && e.ai.enraged; try { bossAI(e, dt); } finally { CHAOS.rate = r0; S.taint = false; } } // 凍結中のボスは攻撃速度 -30% / 蝕む影
     else {
       const tw = clsEnemySlow(e); // 時の歪み(アストロマンサーの重力圏): 移動・攻撃が遅くなる
       const slow = Math.max(0.2, 1 - DATA.debuff.frostSlow * (e.frost || 0)) * (e.slowT > 0 ? 0.6 : 1) * tw; // 凍傷(時の歪みと掛け算)
@@ -1694,7 +1703,9 @@ function updEnemies(dt) {
     }
     const td = !e.boss && DATA.enemies[e.type]; // 触れたとき: 鬼火は当たらない / ヘルハウンドは噛みつくと炎上 / クラゲはスタミナを吸う / 毒蜘蛛は毒 / 影法師の飛びかかりは ×n
     const tk = e.dash > 0 && td && td.lunge ? td.lunge.n : 1;
+    S.taint = e.boss === 'shadowking' && !e.shadow && e.ai.enraged; // 蝕む影: 体当たりでも
     if (e.dmg > 0 && !e.air && !(td && td.noTouch) && d2(e.x, e.y, P.x, P.y) < Math.pow(e.r + 4, 2) && hurtPlayer(e.dmg * tk) && td) { if (td.touchBurn) burnPlayer(e.dmg * td.touchBurn); if (td.touchSta) drainSta(td.touchSta); if (td.touchFrost) frostPlayer(td.touchFrost); if (td.touchPoison) poisonPlayer(td.touchPoison); }
+    S.taint = false;
   }
   S.eatk = 1; FX_MINE = false;
   if (enemies.length > 40) enemies = enemies.filter(e => !e.dead);
@@ -1703,15 +1714,12 @@ function updEnemies(dt) {
 // ============================================================
 // ボス
 // ============================================================
-function spawnBoss(key, final, companion) {
+// ボスの体を作る(出現の演出・曲・HP バーなどの副作用なし)。hpMul: HP の倍率(影の王が呼ぶ影は 0.25)
+function makeBoss(key, x, y, hpMul = 1) {
   const b = DATA.bosses[key];
-  AudioMan.roar(); AudioMan.warning(); AudioMan.playMusic(b.music);
-  UI.banner('⚠ WARNING ⚠', b.name);
-  shake(8); screenFlash(0.3, '#ff3b5c');
-  const a = rand(0, TAU), R = Math.hypot(GFX.VW, GFX.VH) / 2 + 30;
-  const hp = b.hp * enemyBase() * hpK() * CHAOS.bossHp; // カオス: ボスの基礎体力(闘技場)
+  const hp = b.hp * enemyBase() * hpK() * CHAOS.bossHp * hpMul; // カオス: ボスの基礎体力(闘技場)
   const e = {
-    id: nextId++, type: key, boss: key, name: b.name, final: !!final, enrage: b.enrage ?? 0.6, x: P.x + Math.cos(a) * R, y: P.y + Math.sin(a) * R,
+    id: nextId++, type: key, boss: key, name: b.name, final: false, enrage: b.enrage ?? 0.6, x, y,
     hp, maxhp: hp, spd: b.spd * Math.min(DATA.enemyLevel.spdMax, lvK('spd')), dmg: b.dmg * enemyDmgK(), r: b.r, col: b.col, xp: 0, kbRes: 1,
     t: 0, seed: 0, kx: 0, ky: 0, flash: 0, frost: 0, frostT: 0, burns: [], burnT: 0, burnTick: 0, stun: 0, slowT: 0, scale: 1, jz: 0, sq: 1,
     ai: {
@@ -1720,6 +1728,17 @@ function spawnBoss(key, final, companion) {
     },
   };
   Object.assign(e.ai, BOSS_AI0[key] || {});
+  return e;
+}
+function spawnBoss(key, final, companion) {
+  const b = DATA.bosses[key];
+  AudioMan.roar(); AudioMan.warning(); AudioMan.playMusic(b.music);
+  UI.banner('⚠ WARNING ⚠', b.name);
+  shake(8); screenFlash(0.3, '#ff3b5c');
+  const a = rand(0, TAU), R = Math.hypot(GFX.VW, GFX.VH) / 2 + 30;
+  const e = makeBoss(key, P.x + Math.cos(a) * R, P.y + Math.sin(a) * R);
+  e.final = !!final;
+  if (key === 'shadowking') e.hpFloor = e.maxhp; // 影の王: 最初の影を呼ぶまでは HP が減らない(出てすぐのフレームも)
   if (CHAOS.rage) e.enrage = 2; // カオス: 常に激怒(最初のフレームで激昂する)
   enemies.push(e);
   S.boss = e;
@@ -1801,6 +1820,7 @@ const BFX = {
   ice: { col: '#2a5a88', core: '#4ab8e8', decal: false, light: 0.3 }, // 霜の巨人・雪華の女王(着弾の雪と氷がもともと白く明るいので、照らす光は弱く。凍った床が出るので地面の跡は残さない)
   warden: { col: '#8a6a2a', core: '#ffb347', hot: '#ffb347', dark: '#140c04' },
   cerberus: { col: '#2e6a1a', core: '#7dff6a', hot: '#7dff6a', dark: '#081406' },
+  shadowking: { col: '#3a1a5a', core: '#a66bff', hot: '#a66bff', dark: '#06030c' },
   reaper: { col: '#5a3a8a', core: '#c29bff', hot: '#c29bff', dark: '#0a0614' },
   fhour: { col: '#8a0c22', core: '#ff3b5c', hot: '#ff3b5c', dark: '#0a0204' },
 };
@@ -1896,6 +1916,8 @@ function updObj(e, dt) {
     }
     if (d2(e.x, e.y, P.x, P.y) < Math.pow(e.r + 4, 2) && hurtPlayer(e.owner.dmg)) slowPlayer(0.6, 1);
     if (Math.random() < dt * 20) part(e.x + rand(-e.r, e.r) * 0.5, e.y + e.r * 0.8, -e.vx * 0.2 + rand(-15, 15), -rand(10, 30), 0.35, pick(['#ffd27a', '#c8a050', '#8a7a60']), { glow: Math.random() < 0.3, g: 160 }); // 火花と砂ぼこり
+  } else if (e.obj === 'stake') { // 冥鎖の杭: 紫のルーンが脈打ち、黒いもやが立ちのぼる
+    if (Math.random() < dt * 8) part(e.x + rand(-3, 3), e.y - rand(0, 16), rand(-4, 4), -rand(6, 16), 0.7, pick(SKC.slice(0, 4)), { glow: Math.random() < 0.3, drag: 1 });
   } else if (e.obj === 'chead') { // ケルベロスの首: 体の向きに合わせて前に並ぶ。首ごとの気配(毒のしずく・牙の光・闇のもや)
     const o = e.owner, f = o.face || 1;
     e.face = f; e.x = o.x + e.dx * f; e.y = o.y + e.dy;
@@ -1946,6 +1968,16 @@ function objDown(e, broken) {
   } else if (e.obj === 'iceblock') { // 氷塊: 砕けて氷のかけら
     burst(e.x, e.y - 6, Math.round(30 * k), ['#bff4ff', '#7ad7ff', '#ffffff', '#5a8ab8'], { sp: 110 * k, g: 220, life: 0.6 });
     if (broken) { addFlash(e.x, e.y, 60, '#9fd8ff', 0.4); shake(3); AudioMan.frost(); AudioMan.thud(); }
+  } else if (e.obj === 'stake') { // 冥鎖の杭: 砕けると鎖が切れ、闇の霧が 20秒 遅れる(霧が出たあとなら 20秒 晴れる)
+    burst(e.x, e.y - 8, Math.round(50 * k), ['#5a5a6a', '#9a9aaa', ...SKC], { sp: 150 * k, g: 220, glow: true, life: 0.7 });
+    if (P.chain && P.chain.stake === e) P.chain = null;
+    if (broken) {
+      const ph = S.phase;
+      if (ph) { if (ph.fogOn) ph.fogPause = (ph.fogPause || 0) + 20; else { ph.t -= 20; if (ph.t < DATA.flow.fog.start - 10) ph.fogWarn = false; } }
+      addFlash(e.x, e.y, 110, '#a66bff', 0.6); shake(8); hitstop(0.06); AudioMan.crush(); AudioMan.chain();
+      UI.announce('鎖が切れた!', ph && ph.fogPause > 0 ? '闇の霧が 20秒 晴れる' : '闇の霧が 20秒 遅れる');
+    }
+    return;
   } else if (e.obj === 'chead') { // ケルベロスの首: 首の色と黒い血のしぶき。壊すと 15秒で生え直す(3本とも壊すと倒れ込む)
     const o = e.owner, C = CERB[e.hk], hy = e.y - e.hz;
     burst(e.x, hy, Math.round(46 * k), [C[0], C[1], '#1a0a14', '#ffffff'], { sp: 150 * k, g: 220, glow: true, life: 0.7 });
@@ -1981,8 +2013,9 @@ const BOSS_AI0 = {
   fhour: { scy: 1.5, rev: 8, stop: 10, marks: 5, sec: 3, busy: 0.6 },
   pqueen: { tp: 3, beam: 3, mirror: 8, scatter: 6, orb: 4, blink: 6 },
   cerberus: { howl: 8, breath: 5, rush: 3, bite: 6, spit: 10, gap: 0 },
+  shadowking: { sword: 4, rings: 8, blades: 10, chase: 6, sever: 15, gap: 0 },
 };
-const BOSS_ENRAGE = { king: { slam: 6 }, ifrit: { altar: true }, stag: { herd: 4 }, pqueen: { spiral: 3 }, levia: { breath: 4 }, fgiant: { drift: 5 }, squeen: { lance: 3 }, warden: { ringCd: 6 }, reaper: { sum: 7 }, fhour: { cross: 4, echo: 0 }, cerberus: { tri: 3 } };
+const BOSS_ENRAGE = { king: { slam: 6 }, ifrit: { altar: true }, stag: { herd: 4 }, pqueen: { spiral: 3 }, levia: { breath: 4 }, fgiant: { drift: 5 }, squeen: { lance: 3 }, warden: { ringCd: 6 }, reaper: { sum: 7 }, fhour: { cross: 4, echo: 0 }, cerberus: { tri: 3 }, shadowking: { chainCd: 1 } };
 
 function bossAI(e, dt) {
   const ai = e.ai, a = Math.atan2(P.y - e.y, P.x - e.x), dist = Math.sqrt(d2(e.x, e.y, P.x, P.y));
@@ -1992,9 +2025,11 @@ function bossAI(e, dt) {
     ai.enraged = true; e.spd *= 1.35;
     Object.assign(ai, BOSS_ENRAGE[e.boss] || {});
     UI.enrage(e.name.split(' ')[0]); AudioMan.roar(); shake(8); screenFlash(0.25, '#ff3b5c');
+    if (e.boss === 'shadowking' && !e.shadow) AudioMan.playMusic('b_tomb2'); // 影の王: 激昂で曲がボス2 に変わる
     bossBlast(e.x, e.y + e.r * 0.5, e.r * 2.6, { n: 18, life: 0.45, cracks: 10 }); addRing(e.x, e.y, e.r * 3, '#ff3b5c', { r0: e.r, w: 3, life: 0.45 }); // 赤い光芒と、足元の地面が割れる
   }
   runLater(ai, dt);
+  if (e.shadow && Math.random() < dt * 16) part(e.x + rand(-e.r, e.r), e.y + rand(-e.r, e.r * 0.5), rand(-6, 6), -rand(10, 26), rand(0.5, 0.9), pick(['#0a0612', '#1a0a2a', '#3a1a5a', '#7a3ab0']), { drag: 1, sz: pick([1, 2]) }); // 影: 体から黒紫のもやが立ちのぼる
   if (ai.echoes) updEchoes(ai, dt); // クロノ・エコー(終刻の死神)の灰色の分身: 本体の構えの間も動かす
   e.sq = lerp(e.sq, 1, Math.min(1, dt * 6));
   if (ai.wind > 0) {
@@ -2026,6 +2061,7 @@ function bossAI(e, dt) {
     case 'squeen': squeenAI(e, ai, dt, a, dist, slow); break;
     case 'warden': wardenAI(e, ai, dt, a, dist, slow); break;
     case 'cerberus': cerberusAI(e, ai, dt, a, dist, slow); break;
+    case 'shadowking': shadowKingAI(e, ai, dt, a, dist, slow); break;
   }
 }
 
@@ -3709,6 +3745,256 @@ function cerbSpit(e, ai, a) {
   });
 }
 
+// ---------- 影の王: 影の剣士。影歩で間合いを詰めて斬り、今までのボスの影を呼び出す ----------
+//   ★影喚び: 残りHP 100%・75%・50%・25% で、tier 1〜4 のボスから1体の影(HP は元の 25%)。影がいる間は被ダメ ×0.3・技の間隔 ×2・HP は次の基準より下がらない
+//   技は1つずつ: 影歩(影の剣・影刃の前置き。技のあと 20% でフェイント)/ 影の剣 / 影の三重輪 / 影刃・五月雨 / 追い影 / 断界(即死)/ 激昂: 冥鎖・蝕む影
+const SKC = ['#0a0612', '#2a1240', '#7a3ab0', '#c79bff', '#e8c8ff'];
+const skPool = t => [...new Set(DATA.stageRuns.filter(r => r.tier === t).flatMap(r => r.bosses))].filter(k => k !== 'shadowking');
+const skShade = ai => (ai.shade && !ai.shade.dead ? ai.shade : null);
+function shadowKingAI(e, ai, dt, a, dist, slow) {
+  if (ai.sumIdx === undefined) { ai.sumIdx = 0; if (S.phase) S.phase.hold = true; } // 闇の霧の時計は、4回目の影を倒すまで止まる
+  if (ai.handGlow > 0) ai.handGlow -= dt;
+  const shade = skShade(ai);
+  if (!shade && ai.sumIdx < 4 && ai.act !== 'summon') { // 次の影喚びの HP より下がらない(呼ぶまで)。技の最中でも、その HP になったら先に呼ぶ
+    e.hpFloor = e.maxhp * (1 - 0.25 * ai.sumIdx);
+    if (e.hp <= e.hpFloor + 0.5) { if (ai.step) { e.invuln = false; e.air = false; e.hideA = 1; ai.step = null; } skSummon(e, ai); return; }
+  }
+  if (ai.act === 'summon') { ai.pt -= dt; if (ai.pt <= 0) { ai.act = null; ai.gap = 0.8; } return; }
+  if (ai.step) { updSkStep(e, ai, dt); return; }
+  if (ai.act === 'busy') { ai.pt -= dt; if (ai.pt <= 0) { ai.act = null; skAfter(e, ai); } return; }
+  e.x += Math.cos(a) * e.spd * slow * dt; e.y += Math.sin(a) * e.spd * slow * dt;
+  if (Math.random() < dt * 12) part(e.x - (e.face || 1) * 7 + rand(-3, 3), e.y + rand(-4, 8), -(e.face || 1) * rand(6, 16), -rand(4, 14), rand(0.5, 0.9), pick(SKC.slice(0, 3)), { drag: 1, sz: pick([1, 2]) }); // マントの裾から影がこぼれる
+  const R = CHAOS.rate * (shade ? 0.5 : 1), en = ai.enraged; // 影がいる間は技の間隔 ×2
+  ai.sword -= dt * R; ai.rings -= dt * R; ai.blades -= dt * R; ai.chase -= dt * R; ai.sever -= dt * R; if (en) ai.chainCd -= dt * R;
+  if ((ai.gap -= dt) > 0) return;
+  if (en && ai.chainCd <= 0 && !shade && !P.chain) { ai.chainCd = 40; skChain(e, ai); }
+  else if (ai.sever <= 0 && !shade && !P.chain) { ai.sever = en ? 14 : 18; skSever(e, ai); }
+  else if (ai.sword <= 0) { ai.sword = en ? 7 : 8; skStep(e, ai, () => skSword(e, ai)); }
+  else if (ai.blades <= 0) { ai.blades = en ? 7 : 9; skStep(e, ai, () => skBlades(e, ai)); }
+  else if (ai.rings <= 0) { ai.rings = en ? 8 : 10; skRings(e, ai); }
+  else if (ai.chase <= 0) { ai.chase = en ? 6 : 8; skChase(e, ai, a); }
+}
+// 技のあと: 少しあける。20% で影歩のフェイント(現れるだけで斬らない)
+function skAfter(e, ai) {
+  ai.gap = 0.6;
+  if (Math.random() < 0.2) skStep(e, ai, null);
+}
+// ★影喚び: 剣を掲げ、床に影の門が開く → 1.2秒で tier の順にボスの影が立ち上がる
+function skSummon(e, ai) {
+  const key = pick(skPool(ai.sumIdx + 1));
+  ai.sumIdx++;
+  ai.act = 'summon'; ai.pt = 1.4;
+  e.takeK = 0.3; e.hpFloor = ai.sumIdx < 4 ? e.maxhp * (1 - 0.25 * ai.sumIdx) : 1; // 影を呼んだら守る(呼んでいる間も)
+  const ga = Math.atan2(P.y - e.y, P.x - e.x) + rand(-0.7, 0.7), x = e.x + Math.cos(ga) * 70, y = e.y + Math.sin(ga) * 50;
+  bfx.push({ kind: 'portal', x, y, t: 0, life: 1.7, r: 36 });
+  AudioMan.shade2(); AudioMan.charge(1.2); shake(4); screenFlash(0.12, '#2a1240');
+  later(ai, 1.2, () => {
+    if (e.dead) return;
+    const s = makeBoss(key, x, y, 0.25);
+    Object.assign(s, { shadow: true, owner: e, enrage: 0, morphed: key === 'reaper' }); // 影は激昂しない。死神の影は変身しない
+    enemies.push(s); (S.shadows = S.shadows || []).push(s);
+    ai.shade = s;
+    fxBeam(x, y, { foe: true, w: 18, H: 190, col: '#3a1a5a', mid: '#7a3ab0', core: '#c79bff', life: 0.7, up: true, drop: 0.12 });
+    fxRays(x, y - 10, 110, '#3a1a5a', { foe: true, n: 22, life: 0.55, core: '#a66bff', light: 0.7 });
+    burst(x, y, 90, SKC, { sp: 170, up: 70, glow: true, life: 1 });
+    addRing(x, y, 70, '#a66bff', { w: 3, life: 0.55 }); addRing(x, y, 40, '#e8c8ff', { w: 2, life: 0.35 }); addFlash(x, y, 200, '#7a3ab0', 0.8);
+    shockAt(x, y, 2.6, 0.6); shake(11); hitstop(0.08); screenFlash(0.2, '#7a3ab0'); AudioMan.roar(); AudioMan.knell();
+    hint('shadowcall', '影喚び', '影を倒すまで、影の王へのダメージは ×0.3。HP も一定より下がらない');
+  });
+}
+// 影が倒れた: 黒紫の霧になって崩れ、影の王の守りが解ける。4回目の影なら闇の霧の時計が動き出す
+function shadowDown(s) {
+  s.dead = true;
+  for (const o of enemies) if (o.owner === s && !o.dead) { o.dead = true; if (o.obj) objDown(o, false); }
+  S.shadows = (S.shadows || []).filter(x => x !== s);
+  burst(s.x, s.y, 110, [...SKC, '#ffffff'], { sp: 200, up: 40, glow: true, life: 1.1 });
+  fxRays(s.x, s.y, 90, '#3a1a5a', { foe: true, n: 22, life: 0.55, core: '#a66bff', light: 0.7 });
+  addRing(s.x, s.y, 90, '#a66bff', { w: 3, life: 0.6 }); addFlash(s.x, s.y, 180, '#7a3ab0', 0.7);
+  shockAt(s.x, s.y, 2.4, 0.6); shake(10); hitstop(0.1); AudioMan.boom(); AudioMan.shade2();
+  const k = s.owner;
+  if (!k || k.dead || k.ai.shade !== s) return;
+  k.ai.shade = null; k.takeK = 1; k.hpFloor = k.ai.sumIdx < 4 ? k.maxhp * (1 - 0.25 * k.ai.sumIdx) : 0; // 次の影喚びの HP より下がらない(同じフレームの大きな一撃でも飛ばさない)
+  addRing(k.x, k.y, 46, '#e8c8ff', { r0: 12, w: 3, life: 0.5 }); burst(k.x, k.y, 40, ['#e8c8ff', '#a66bff', '#ffffff'], { sp: 140, glow: true, life: 0.5 }); // 守りの殻が割れる
+  if (k.ai.sumIdx >= 4 && S.phase) S.phase.hold = false;
+  UI.announce('影を退けた!', k.ai.sumIdx >= 4 ? '最後の影。闇の霧の時計が動き出す' : '影の王の守りが解けた');
+}
+// 影歩: 足元の影に沈み(攻撃が当たらない)、0.4秒後にプレイヤーの横か後ろ(40)から現れる。then: 現れてから使う技(なければフェイント)
+function skStep(e, ai, then) {
+  const mv = P.moving && P.dir ? Math.atan2(P.dir[1], P.dir[0]) : (P.facing > 0 ? 0 : Math.PI), ta = mv + pick([Math.PI, Math.PI / 2, -Math.PI / 2]);
+  const x = P.x + Math.cos(ta) * 40, y = P.y + Math.sin(ta) * 40;
+  ai.step = { x, y, t: 0, dur: 0.4, then };
+  e.invuln = true; e.air = true;
+  pushWarn({ kind: 'circle', x, y, r: 12, t: 0, life: 0.4, fixed: true }); // 出る場所(範囲攻撃ではない)
+  bfx.push({ kind: 'spool', x, y, t: 0, life: 0.55 }); bfx.push({ kind: 'spool', x: e.x, y: e.y, t: 0, life: 0.45, sink: true });
+  burst(e.x, e.y, 18, SKC, { sp: 60, glow: true, life: 0.4 }); AudioMan.shade2();
+}
+function updSkStep(e, ai, dt) {
+  const st = ai.step;
+  st.t += dt; e.hideA = Math.max(0, 1 - st.t / 0.15);
+  if (st.t < st.dur) return;
+  bfx.push({ kind: 'ghost', x: st.x, y: st.y - 6, spr: 'shadowking', flip: P.x < st.x, col: '#c79bff', t: 0, life: 0.3 }); // 影から浮かび上がる
+  e.x = st.x; e.y = st.y; e.invuln = false; e.air = false; e.hideA = 1; ai.step = null;
+  e.face = P.x < e.x ? -1 : 1;
+  burst(e.x, e.y, 34, SKC, { sp: 120, up: 40, glow: true, life: 0.5 });
+  addRing(e.x, e.y, 16, '#a66bff', { r0: 34, w: 2, life: 0.3 }); shockAt(e.x, e.y, 1.1, 1); AudioMan.zap();
+  if (st.then) st.then(); else ai.gap = 0.8;
+}
+// 影の剣: 0.5秒(前方の扇 半径 70・±60°)→ 扇の斬撃 ×0.9・60 押す。激昂時は 2回(0.4秒おき。2回目はその時のプレイヤーへ向け直す)
+function skSword(e, ai) {
+  const a = Math.atan2(P.y - e.y, P.x - e.x);
+  pushWarn({ kind: 'fan', x: e.x, y: e.y, a, r: 70, h: 1.05, t: 0, life: 0.5 });
+  ai.act = 'busy'; ai.pt = ai.enraged ? 1.15 : 0.75;
+  later(ai, 0.5, () => {
+    skSlash(e, a);
+    if (!ai.enraged) return;
+    const a2 = Math.atan2(P.y - e.y, P.x - e.x);
+    pushWarn({ kind: 'fan', x: e.x, y: e.y, a: a2, r: 70, h: 1.05, t: 0, life: 0.4 });
+    later(ai, 0.4, () => skSlash(e, a2));
+  });
+}
+function skSlash(e, a) {
+  if (e.dead) return;
+  slashes.push({ x: e.x, y: e.y, a, r: 70 * CHAOS.area, t: 0, life: 0.3, span: 2.1, pal: SWING_PAL.shadow, enemy: true });
+  slashes.push({ x: e.x, y: e.y, a, r: 52 * CHAOS.area, t: 0, life: 0.24, span: 2.1, flip: 1, pal: SWING_PAL.shadow, enemy: true }); // 二重の刃筋
+  if (hitFan(e.x, e.y, a, 70, 1.05, e.dmg * 0.9)) pushPlayer(a, 60, 0.2);
+  fxRays(e.x + Math.cos(a) * 30, e.y + Math.sin(a) * 30, 60, '#3a1a5a', { foe: true, n: 12, life: 0.3, core: '#a66bff', light: 0.6 });
+  for (let i = 0; i < 16; i++) { const pa = a + rand(-1, 1), r = rand(20, 70) * CHAOS.area; part(e.x + Math.cos(pa) * r, e.y + Math.sin(pa) * r, Math.cos(pa) * 60, Math.sin(pa) * 60, 0.4, pick(SKC), { glow: Math.random() < 0.4, drag: 2 }); }
+  shake(5); AudioMan.slash(); AudioMan.cutHit();
+}
+// 影の三重輪: 1秒(影の王を中心に A・B(激昂時は C も)の範囲)→ A: 半径 0〜30 → 0.75秒後に B: 30〜60 → 激昂時はさらに 0.75秒後に C: 60〜90。それぞれ ×1.0・外へ 40 押す
+function skRings(e, ai) {
+  const n = ai.enraged ? 3 : 2, x = e.x, y = e.y;
+  for (let i = 0; i < n; i++) pushWarn({ kind: 'ring', x, y, r0: i * 30, r: (i + 1) * 30, t: 0, life: 1 + i * 0.75 });
+  ai.act = 'busy'; ai.pt = 1 + (n - 1) * 0.75 + 0.3;
+  bfx.push({ kind: 'skaura', x, y, t: 0, life: ai.pt, r: n * 30 * CHAOS.area });
+  AudioMan.charge(1);
+  for (let i = 0; i < n; i++) later(ai, 1 + i * 0.75, () => skRingHit(e, x, y, i * 30, (i + 1) * 30));
+}
+function skRingHit(e, x, y, r0, r1) {
+  if (e.dead) return;
+  const R0 = r0 * CHAOS.area, R1 = r1 * CHAOS.area, d = Math.sqrt(d2(x, y, P.x, P.y));
+  if (d >= R0 - 3 && d <= R1 + 3 && hurtPlayer(e.dmg)) pushPlayer(d > 1 ? Math.atan2(P.y - y, P.x - x) : rand(0, TAU), 40, 0.18);
+  bfx.push({ kind: 'skring', x, y, r0: R0, r1: R1, t: 0, life: 0.45 });
+  const n = Math.round(12 + R1 * 0.5);
+  for (let i = 0; i < n; i++) { const pa = TAU / n * i + rand(-0.1, 0.1), r = rand(R0, R1); part(x + Math.cos(pa) * r, y + Math.sin(pa) * r, Math.cos(pa) * 70, Math.sin(pa) * 50 - rand(10, 40), rand(0.4, 0.7), pick(SKC), { glow: Math.random() < 0.4, drag: 2, sz: pick([1, 2]) }); }
+  shockAt(x, y, 1.2 + R1 / 60, 0.8); shake(4 + R1 / 20); AudioMan.thud(); AudioMan.zap();
+}
+// 影刃・五月雨: 0.6秒(3本の帯)→ 地面に垂直に立った斬撃を 3方向(プレイヤーへの向きと ±25°)に飛ばし、0.4秒後に間の 2方向(±12.5°)へ(速さ 150、射程 300、×1.0)
+function skBlades(e, ai) {
+  const a = Math.atan2(P.y - e.y, P.x - e.x);
+  for (const da of [-0.436, 0, 0.436]) pushWarn({ kind: 'line', x: e.x, y: e.y, a: a + da, len: 300, w: 10, t: 0, life: 0.6 });
+  ai.act = 'busy'; ai.pt = 1.2;
+  AudioMan.charge(0.6);
+  later(ai, 0.6, () => {
+    for (const da of [-0.436, 0, 0.436]) skVSlash(e, a + da);
+    for (const da of [-0.218, 0.218]) pushWarn({ kind: 'line', x: e.x, y: e.y, a: a + da, len: 300, w: 10, t: 0, life: 0.4 });
+    later(ai, 0.4, () => { for (const da of [-0.218, 0.218]) skVSlash(e, a + da); });
+  });
+}
+function skVSlash(e, a) {
+  if (e.dead) return;
+  eprojs.push({ kind: 'vslash', x: e.x, y: e.y, vx: Math.cos(a) * 150, vy: Math.sin(a) * 150, a, dmg: e.dmg * (S.eatk ?? 1), life: 2 * CHAOS.area, t: 0, r: 3 * CHAOS.area, len: 12 * CHAOS.area, taint: e.ai.enraged && !e.shadow });
+  burst(e.x + Math.cos(a) * 10, e.y + Math.sin(a) * 10, 10, SKC, { sp: 80, glow: true, life: 0.3 });
+  AudioMan.slash();
+}
+// 追い影: 0.5秒(手に闇が集まる)→ 3発(激昂 5発)。ゆっくり出て加速しながら追う(速さ 30 から毎秒 +60、最大 180。速いほど曲がりにくい。4秒で消える。×0.8)
+function skChase(e, ai, a) {
+  ai.act = 'busy'; ai.pt = 0.7; ai.handGlow = 0.5;
+  AudioMan.charge(0.5);
+  later(ai, 0.5, () => {
+    if (e.dead) return;
+    const n = ai.enraged ? 5 : 3;
+    for (let i = 0; i < n; i++) {
+      const sa = a + (i - (n - 1) / 2) * 0.55, x = e.x + Math.cos(sa) * 8, y = e.y - 6 + Math.sin(sa) * 8;
+      eprojs.push({ kind: 'hshadow', x, y, vx: Math.cos(sa) * 30, vy: Math.sin(sa) * 30, sp: 30, dmg: e.dmg * 0.8 * (S.eatk ?? 1), life: 4, t: 0, r: 4 * CHAOS.area, taint: ai.enraged && !e.shadow });
+    }
+    burst(e.x, e.y - 6, 22, SKC, { sp: 90, glow: true, life: 0.45 }); addRing(e.x, e.y - 6, 14, '#a66bff', { life: 0.3 }); AudioMan.shade2();
+  });
+}
+// 追い影の向きを変える: 速くなるほど曲がりにくい
+function homeShadow(p, dt) {
+  p.sp = Math.min(180, p.sp + 60 * dt);
+  const cur = Math.atan2(p.vy, p.vx), turn = 4.2 / (1 + p.sp / 40), na = cur + clamp(angDiff(Math.atan2(P.y - p.y, P.x - p.x), cur), -turn * dt, turn * dt);
+  p.vx = Math.cos(na) * p.sp; p.vy = Math.sin(na) * p.sp;
+}
+// 断界: 1.2秒(影の王からプレイヤーの方向へ、画面の端まで届く細い線が点滅)→ 一瞬で伸びる終わりのない細い斬撃(幅 10)。当たると即死
+//   激昂時は 2本(2本目は 0.5秒後に、その時のプレイヤーの方向へ)。斬った跡は裂け目として 15秒残り、プレイヤーだけ通れない
+const SEVER_LEN = 1600;
+function skSever(e, ai) {
+  const a = Math.atan2(P.y - e.y, P.x - e.x);
+  ai.act = 'busy'; ai.pt = ai.enraged ? 2.2 : 1.6; ai.sevT = 1.2;
+  pushWarn({ kind: 'line', x: e.x, y: e.y, a, len: SEVER_LEN, w: 10, t: 0, life: 1.2, sever: true });
+  AudioMan.charge(1.2); AudioMan.warning();
+  later(ai, 1.2, () => skCut(e, a));
+  if (ai.enraged) later(ai, 1.2, () => {
+    if (e.dead) return;
+    const a2 = Math.atan2(P.y - e.y, P.x - e.x);
+    pushWarn({ kind: 'line', x: e.x, y: e.y, a: a2, len: SEVER_LEN, w: 10, t: 0, life: 0.5, sever: true });
+    later(ai, 0.5, () => skCut(e, a2));
+  });
+  hint('sever', '断界', '当たると即死。斬った跡は 15秒 越えられない');
+}
+function skCut(e, a) {
+  if (e.dead) return;
+  const L = SEVER_LEN * CHAOS.area, W = 10 * CHAOS.area;
+  addHazard('rift', e.x, e.y, { a, len: L, w: W, dur: 15 });
+  bfx.push({ kind: 'sever', x: e.x, y: e.y, a, len: L, t: 0, life: 0.5 });
+  for (let d = 0; d < 520; d += 6) part(e.x + Math.cos(a) * d + rand(-3, 3), e.y + Math.sin(a) * d + rand(-3, 3), rand(-30, 30), rand(-60, -10), rand(0.4, 0.8), pick([...SKC, '#ffffff']), { glow: Math.random() < 0.5, drag: 1.5, sz: pick([1, 2]) });
+  hitstop(0.12); shake(14); screenFlash(0.45, '#7a3ab0'); shockAt(e.x + Math.cos(a) * 60, e.y + Math.sin(a) * 60, 2.8, 0.55); AudioMan.sever();
+  if (state === 'play' && !P.dead && inLine(e.x, e.y, a, SEVER_LEN, 10)) skKill();
+}
+// 即死(断界): 回避の無敵・ガード系の防御で防げる。不死鳥の(蘇生)は効く
+function skKill() {
+  if (P.invT > 0) return;
+  if (clsOnHurt(Math.max(1, P.hp)) === null) { S.hudDirty = true; return; }
+  P.hp = 0; breakCombo(); S.hudDirty = true;
+  GFX.fx.hurt = 1; GFX.fx.aberr = Math.max(GFX.fx.aberr, 1.6);
+  burst(P.x, P.y, 60, ['#e8c8ff', '#a66bff', '#2a1240', '#ffffff'], { sp: 180, life: 0.7 }); AudioMan.hurt();
+  playerDown();
+}
+// 冥鎖(激昂): 1.5秒 ゲーム全体が止まる(影の王が鎖の杭を落とす)→ プレイヤーの位置に杭(HP は影の王の最大HP の 20%)が刺さり、鎖でつながる
+function skChain(e, ai) {
+  ai.act = 'busy'; ai.pt = 0.4;
+  S.cine = { kind: 'chain', t: 0, dur: 1.5, x: P.x, y: P.y, king: e, hit: false };
+  AudioMan.knell(); AudioMan.hum(1.5); screenFlash(0.3, '#2a1240'); shake(6);
+}
+// 止まった時の演出(main.js の update から。この間はほかのすべてが止まる)
+function updCine(rdt) {
+  const c = S.cine;
+  c.t += rdt;
+  if (c.kind === 'chain') {
+    if (!c.hit && c.t >= 0.55) { c.hit = true; shake(12); screenFlash(0.35, '#a66bff'); shockAt(c.x, c.y, 2.4, 0.6); AudioMan.crush(); AudioMan.boom(); }
+    if (c.t >= 0.75 && Math.floor(c.t * 12) !== Math.floor((c.t - rdt) * 12)) AudioMan.chain();
+  }
+  if (c.t < c.dur) return;
+  S.cine = null;
+  if (c.kind === 'chain') chainStart(c);
+}
+function chainStart(c) {
+  const e = c.king;
+  if (e.dead || P.dead) return;
+  const st = spawnObj(e, 'stake', c.x, c.y, { pct: 0.2, r: 8, life: Infinity }); st.rise = 1;
+  P.chain = { stake: st, tick: 3 };
+  bossBlast(c.x, c.y, 30, Object.assign({ n: 16 }, BFX.shadowking));
+  burst(c.x, c.y, 50, [...SKC, '#5a5a6a'], { sp: 150, up: 40, g: 200, life: 0.7 });
+  shake(8); AudioMan.chain(); AudioMan.thud();
+  hint('chain', '冥鎖', '杭から離れるほど引き戻される。杭を壊すと切れ、闇の霧が 20秒 遅れる');
+}
+// 鎖: 杭から 40 までは引かれない。その先は離れた距離 × 2 の速さで引き戻される。つながっている間は 3秒ごとに毒 +1
+function updChain(dt) {
+  const ch = P.chain;
+  if (!ch) return;
+  const st = ch.stake;
+  if (st.dead || P.dead) { P.chain = null; return; }
+  const d = Math.sqrt(d2(P.x, P.y, st.x, st.y));
+  if (d > 40) {
+    const k = Math.min(d - 40, (d - 40) * 2 * dt);
+    P.x += (st.x - P.x) / d * k; P.y += (st.y - P.y) / d * k;
+    if (Math.random() < dt * 6) AudioMan.chain();
+  }
+  if ((ch.tick -= dt) <= 0) { ch.tick = 3; poisonPlayer(1); }
+}
+
 // ---------- 死神・第一形態: プレイヤーへまっすぐ。瞬間移動 / 死の宣告 / 鎌投げ / 刈り取り / スロウタイム / 砂時計 / 激昂: 時計兵召喚 ----------
 const REAP = ['#c29bff', '#2b1b4a', '#ffffff', '#6a4ab0'];
 function reaperAI(e, ai, dt, a, dist, slow) {
@@ -4091,6 +4377,7 @@ function onBossDeath(e) {
   addFlash(e.x, e.y, 260, '#ffd23f', 1.2);
   AudioMan.boom(); AudioMan.chest();
   eprojs = []; warns = []; hazards = []; bfx = []; P.push = null; P.current = null; P.rootT = 0; S.tstop = 0; S.madClock = null; S.rewind = 0;
+  P.chain = null; S.cine = null; S.shadows = []; // 影の王: 鎖・影
   S.bossKills++;
   if (S.mode === 'arena') return arenaBossDown(e);
   if (CHAOS.bossLv) { S.elv += CHAOS.bossLv; UI.enemyLvUp(); } // カオス: ボスを倒すたびに敵Lv アップ
@@ -4151,13 +4438,14 @@ function endElitePhase() {
 function updPhase(dt) {
   const ph = S.phase;
   if (!ph) { S.ptime += dt; return; }
-  ph.t += dt;
+  if (!ph.hold && !(ph.fogPause > 0)) ph.t += dt; // 影の王: 4回目の影を倒すまで止まる / 冥鎖の杭を壊した: 霧が晴れている間も止まる
+  if (ph.fogPause > 0) ph.fogPause -= dt;
   if (ph.kind === 'elite' && ph.elites.every(e => e.dead)) return endElitePhase();
   const F = DATA.flow.fog;
   if (ph.t >= F.start - 10 && !ph.fogWarn) { ph.fogWarn = true; UI.announce('闇の霧が迫る…', 'あと 10秒で HP が削られはじめる'); AudioMan.heartbeat(0.7); }
   const fk = fogDarkK();
   if (fk > 0) fogWisps(dt, fk);
-  if (ph.t < F.start) return;
+  if (ph.t < F.start || ph.fogPause > 0) return;
   if (!ph.fogOn) { ph.fogOn = true; ph.fogTick = 1; UI.banner('闇の霧', '早く倒さないと HP が削られ続ける', 2200, 'fog'); AudioMan.fogRise(); shake(5); }
   ph.fogDmg = F.dmg * (1 + Math.floor((ph.t - F.start) / F.step)); // 1秒ごとのダメージ(10秒ごとに +1)
   if ((ph.fogTick -= dt) > 0) return;
@@ -4166,7 +4454,7 @@ function updPhase(dt) {
 }
 // 闇の霧の暗さ(0〜1): 霧の 10秒前(予告)から暗くなり始め、霧が出て 5秒で最も暗い
 function fogDarkK() {
-  if (!S || !S.phase) return 0;
+  if (!S || !S.phase || S.phase.fogPause > 0) return 0;
   return clamp((S.phase.t - (DATA.flow.fog.start - 10)) / 15, 0, 1);
 }
 // 霧のもや: 画面の縁から内側へ這い寄る暗い粒(光らせない。光の層は色が明るさになるため)
@@ -4220,7 +4508,9 @@ function updEprojs(dt0) {
         p.x += Math.cos(ta) * p.v * dt; p.y += Math.sin(ta) * p.v * dt;
         if (p.owner.dead || d2(p.x, p.y, p.owner.x, p.owner.y) < 100) p.t = p.life + 1;
       }
-    } else { if (p.kind === 'ray') updRay(p, dt); p.x += p.vx * dt; p.y += p.vy * dt; } // 乱反射の光: 跳ね先へ向きを変える
+    } else { if (p.kind === 'ray') updRay(p, dt); if (p.kind === 'hshadow') homeShadow(p, dt); p.x += p.vx * dt; p.y += p.vy * dt; }
+    if (p.kind === 'vslash' && Math.random() < dt * 40) part(p.x - p.vx * 0.05 + rand(-2, 2), p.y - p.vy * 0.05, rand(-6, 6), -rand(10, 30), 0.4, pick(SKC), { glow: Math.random() < 0.5, drag: 2 }); // 影刃: 地面を裂いて紫の火花
+    else if (p.kind === 'hshadow' && Math.random() < dt * 45) part(p.x + rand(-2, 2), p.y + rand(-2, 2), -p.vx * 0.2, -p.vy * 0.2, rand(0.3, 0.5), pick(SKC.slice(0, 4)), { glow: Math.random() < 0.35, drag: 2, sz: pick([1, 2]) }); // 追い影: 黒紫の尾 // 乱反射の光: 跳ね先へ向きを変える
     // 通常敵の弾の軌跡: 火の玉は火の粉、砂の弾は砂煙、槍は白い風切り
     if (p.kind === 'efire' && Math.random() < dt * 40) part(p.x + rand(-1, 1), p.y + rand(-1, 1), -p.vx * 0.15 + rand(-6, 6), -p.vy * 0.15 - rand(4, 12), rand(0.2, 0.4), pick(['#ff6a2a', '#ffc34a', '#b8261a']), { glow: true, drag: 2 });
     else if (p.kind === 'esand' && Math.random() < dt * 30) part(p.x, p.y, rand(-8, 8), rand(-8, 4), 0.35, pick(['#e8c88a', '#c8a060']), { drag: 3 });
@@ -4249,10 +4539,11 @@ function updEprojs(dt0) {
       forEachNear(p.x, p.y, p.r, o => { if (o.obj === p.blk && !(p.ignore && p.ignore.has(o))) { wall = o; return false; } }); // blk: 遮る物の種類(結晶の柱)
       if (wall) { burst(p.x, p.y, 7, ['#efe9d4', '#6ee7ff', '#ffffff'], { sp: 45, glow: true, life: 0.25 }); wall.flash = 0.06; eprojs.splice(i, 1); continue; }
     }
-    if (d2(p.x, p.y, P.x, P.y) < Math.pow(p.r + 3, 2)) {
+    const near = p.kind === 'vslash' ? segD2(P.x, P.y, p.x - Math.cos(p.a) * p.len, p.y - Math.sin(p.a) * p.len, p.x + Math.cos(p.a) * p.len, p.y + Math.sin(p.a) * p.len) : d2(p.x, p.y, P.x, P.y); // 影刃は地面の線で当たる
+    if (near < Math.pow(p.r + 3, 2)) {
       if (P.invT > 0) continue;
       if (!p.keep && clsBlockProj()) { burst(p.x, p.y, 8, ['#fff27a', '#ffffff'], { sp: 60, glow: true, life: 0.25 }); eprojs.splice(i, 1); continue; } // 静電気
-      if (hurtPlayer(p.dmg)) { if (p.burn) burnPlayer(p.burn); if (p.sta) drainSta(p.sta); if (p.frost) frostPlayer(p.frost); if (p.freeze) freezePlayer(p.freeze); if (p.dark) darkPlayer(p.dark); if (p.poison) poisonPlayer(p.poison); } // 火の玉: 炎上 / 海淵の弾: スタミナ / 霊峰の弾: 凍傷・氷の槍の凍結 / 王墓の弾: 暗闇・毒
+      if (hurtPlayer(p.dmg)) { if (p.burn) burnPlayer(p.burn); if (p.sta) drainSta(p.sta); if (p.frost) frostPlayer(p.frost); if (p.freeze) freezePlayer(p.freeze); if (p.dark) darkPlayer(p.dark); if (p.poison) poisonPlayer(p.poison); if (p.taint) shadowTaint(); } // 火の玉: 炎上 / 海淵の弾: スタミナ / 霊峰の弾: 凍傷・氷の槍の凍結 / 王墓の弾: 暗闇・毒
       if (p.keep) continue;
       const icy = p.frost > 0;
       if (p.dark) { burst(p.x, p.y, 14, ['#c79bff', '#7a3ab0', '#2a1240', '#ffffff'], { sp: 60, glow: true, life: 0.4 }); eprojs.splice(i, 1); continue; } // 闇の玉: 黒紫のしぶき
@@ -4331,6 +4622,15 @@ function updHazards(dt) {
       const R = h.r * Math.min(1, h.t * 6);
       if (dd < R * R && h.t < h.dur - 0.3) { P.staLockT = Math.max(P.staLockT, 0.1); S.inInk = true; }
       if (Math.random() < dt * 8) { const pa = rand(0, TAU), pr = Math.sqrt(Math.random()) * R; part(h.x + Math.cos(pa) * pr, h.y + Math.sin(pa) * pr * 0.8, 0, -rand(4, 10), 0.8, pick(['#2a2a4a', '#3a3a5a', '#1a1a2a']), { drag: 1 }); }
+    } else if (h.kind === 'rift') { // 断界の裂け目(影の王): プレイヤーだけ越えられない(歩き・回避・押し出し・鎖の引きでも)。敵・弾は通る
+      const c = Math.cos(h.a), s = Math.sin(h.a);
+      if (!P.dead) {
+        const ox = P.x - h.x, oy = P.y - h.y, along = ox * c + oy * s, sd = -ox * s + oy * c, half = h.w / 2;
+        if (!h.side) h.side = Math.sign(sd) || 1;
+        if (along < -4 || along > h.len + 4) { if (Math.abs(sd) > half) h.side = Math.sign(sd); }
+        else if (sd * h.side < half) { const k = h.side * half - sd; P.x -= s * k; P.y += c * k; }
+      }
+      if (Math.random() < dt * 30) { const d = rand(0, Math.min(h.len, 500)); part(h.x + c * d + rand(-2, 2), h.y + s * d + rand(-2, 2), rand(-6, 6), -rand(10, 30), rand(0.4, 0.7), pick(SKC), { glow: Math.random() < 0.4, drag: 1 }); }
     } else if (h.kind === 'darkwave') { // 闇の遠吠え(ケルベロス): 闇の波が半径 max まで spread 秒で広がる。飲まれると ×0.6・暗闇(1回)
       h.cur = h.max * Math.min(1, h.t / h.spread);
       if (!h.hit && h.t <= h.spread + 0.05 && dd < Math.pow(h.cur + 3, 2) && hurtPlayer(h.dmg)) { h.hit = true; darkPlayer(DATA.debuffTomb.darkDur); }

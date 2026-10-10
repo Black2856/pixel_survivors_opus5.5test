@@ -83,6 +83,7 @@ function onKey(e) {
 function update(rdt) {
   if (S.freeze > 0) { S.freeze -= rdt; return; }
   if (S.morph) { updMorph(rdt); return; } // 死神の変身: 時が止まる(すべて止まり、画面が色あせる)
+  if (S.cine) { updCine(rdt); return; } // 影の王の冥鎖: 杭が落ちて鎖がつながる間は、すべて止まる
   if (S.tsBack > 0) S.tsBack -= rdt; else S.ts = Math.min(1, S.ts + rdt * 1.5);
   const dt = rdt * S.ts;
   if (!P.dead) { S.time += dt; updPlayer(dt); }
