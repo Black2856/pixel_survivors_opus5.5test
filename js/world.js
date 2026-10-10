@@ -76,26 +76,20 @@ function stageSchedule(n) {
   out.push({ t: L * 3, boss: [R.bosses[1]], final: true });
   return out;
 }
-// エスカレーション: tier 1 → 4 を通す。tier ごとに同じ tier のステージからランダムに1つ選び、3分(通常モードの最初の3分と同じ出方)→ ボス → 次の tier
+// エスカレーション: tier 1 → 4 を通す。tier ごとに同じ tier のステージからランダムに1つ選び、3分(3種 → 5種 → 全種。DATA.flow.esc)→ ボス → 次の tier
 //   ボスはそのステージのボス2体からランダム。敵Lv は通して上がり続ける(ボスの間は止まる)
-//   tier 4 は 3分(3種 → 5種 → 全種。DATA.flow.esc4)→ ボス(そのステージの1体目)→ esc4.rest 秒 → ラスボス(2体目。時計塔 = 死神(→ 終刻の死神)/ 王墓 = 影の王)で、倒すとクリア
-function escSchedule(R, tier) {
-  if (tier >= 4) return esc4Schedule(R);
-  const F = DATA.flow, s1 = R.segs[0];
-  const out = F.waves[0].map((w, i) => ({ t: w.t, types: s1.slice(0, i + 1), interval: w.interval, max: w.max }));
-  out.push({ t: F.seg, boss: R.bosses });
-  return out;
-}
-// tier 4 の敵: 0秒 = そのステージの最初の3種 / 60秒 = もう一方の tier 4 のステージの敵からランダムに add 種を足す / 120秒 = 両方のステージの敵の全部
+//   tier 4 は 3分 → ボス(そのステージの1体目)→ esc.rest 秒 → ラスボス(2体目。時計塔 = 死神(→ 終刻の死神)/ 王墓 = 影の王)で、倒すとクリア
+//   敵: 0秒 = そのステージの最初の3種 / 60秒 = 同じ tier のもう一方のステージの敵からランダムに add 種を足す / 120秒 = その tier の2ステージの敵の全部
 //   もう一方のステージからは、そのステージの敵だけを足す(時計塔の「今までの敵」のまとまりは、時計塔のときだけ出る)
-function esc4Schedule(R) {
-  const F = DATA.flow, E = F.esc4;
+function escSchedule(R, tier) {
+  const F = DATA.flow, E = F.esc;
   const cands = r => r.segs.filter(Boolean).flat(); // ステージの出現の候補(まとまりは 1つの候補のまま)
   const own = cands(R).filter((t, i, a) => a.findIndex(u => String(u) === String(t)) === i); // まとまりは中身が同じなら同じもの
-  const other = [...new Set(DATA.stageRuns.filter(r => r.tier === 4 && r !== R).flatMap(cands).filter(t => typeof t === 'string' && !own.includes(t)))];
+  const other = [...new Set(DATA.stageRuns.filter(r => r.tier === tier && r !== R).flatMap(cands).filter(t => typeof t === 'string' && !own.includes(t)))];
   const lists = [R.segs[0], [...R.segs[0], ...shuffle(other.slice()).slice(0, E.add)], [...own, ...other]];
   const out = E.waves.map((w, i) => ({ t: w.t, types: lists[i], interval: w.interval, max: w.max }));
-  out.push({ t: F.seg, boss: [R.bosses[0]] }, { t: F.seg + E.rest, boss: [R.bosses[1]], final: true }); // ラスボスはボスを倒してから rest 秒(ボスの間はフェーズの時計が止まる)
+  if (tier >= 4) out.push({ t: F.seg, boss: [R.bosses[0]] }, { t: F.seg + E.rest, boss: [R.bosses[1]], final: true }); // ラスボスはボスを倒してから rest 秒(ボスの間はフェーズの時計が止まる)
+  else out.push({ t: F.seg, boss: R.bosses });
   return out;
 }
 function escStage(tier, first) {

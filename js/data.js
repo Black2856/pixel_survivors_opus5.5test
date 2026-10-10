@@ -1454,7 +1454,7 @@ const DATA = {
   //   seg: 区間の長さ / waves: 区間ごとの出現の間隔・上限(t は区間の中の秒) / horde: 2つ目・3つ目の区間で大群を出す秒 / elites: エリート群の数
   //   fog: フェーズが始まって start 秒たつと闇の霧(1秒ごとに HP −dmg、step 秒ごとに +dmg。防御力・シールドでは減らない)
   //   tierChaos: tier 1〜4 のカオス強化(そのステージをクリアするまでこの値で固定。開始の敵Lv は 1 + 深い闇 = 1 / 3 / 5 / 7。報酬はカオス強化のポイントから)
-  //   esc4: エスカレーションの tier 4。waves = 0・60・120秒の間隔・上限(敵は 3種 → 5種 → 全種)/ add: 60秒で足す、もう一方の tier 4 のステージの敵の数 / rest: ボスを倒してからラスボスまでの秒
+  //   esc: エスカレーションの各ステージ(全 tier)。waves = 0・60・120秒の間隔・上限(敵は 3種 → 5種 → 全種)/ add: 60秒で足す、同じ tier のもう一方のステージの敵の数 / rest: tier 4 のボスを倒してからラスボスまでの秒
   flow: {
     seg: 180,
     waves: [
@@ -1465,7 +1465,7 @@ const DATA = {
     horde: 150, elites: 3,
     fog: { start: 180, dmg: 1, step: 10 },
     tierChaos: [{}, { lvSpeed: 1, startLv: 1, bossLv: 1, spawn: 1 }, { lvSpeed: 2, startLv: 2, bossLv: 2, spawn: 2 }, { lvSpeed: 3, startLv: 3, bossLv: 3, spawn: 3 }],
-    esc4: { waves: [{ t: 0, interval: 0.7, max: 60 }, { t: 60, interval: 0.6, max: 100 }, { t: 120, interval: 0.5, max: 130 }], add: 2, rest: 8 },
+    esc: { waves: [{ t: 0, interval: 0.7, max: 60 }, { t: 60, interval: 0.6, max: 100 }, { t: 120, interval: 0.5, max: 130 }], add: 2, rest: 8 },
   },
 
   // ---------- 闘技場(ボスラッシュ) ----------
