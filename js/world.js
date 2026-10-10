@@ -3582,7 +3582,7 @@ function ringGear(e, ai) {
 const CERB = { poison: ['#7dff6a', '#2e8a2e', '#c8ffb0'], fang: ['#ff5a5a', '#8a1a2a', '#ffd0d0'], dark: ['#a66bff', '#3a1a5a', '#e8c8ff'] }; // 首の色(光・暗・芯)
 const CHEAD = [{ hk: 'poison', dx: 10, dy: -1, hz: 15 }, { hk: 'fang', dx: 17, dy: 1, hz: 9 }, { hk: 'dark', dx: 11, dy: 3, hz: 2 }]; // 合体形態の首: 体の中心からの位置(右向き)と高さ
 const CFORM = { merge: 15, mergeE: 11, split: 12, down: 5, pct: 0.2, spill: 0.5 };
-const CDOG = { poison: { spd: 24, da: -2.094 }, fang: { spd: 36, da: 0 }, dark: { spd: 26, da: 2.094 } }; // 犬の速さ(本体の速さ 21 に対して)・分裂で跳び出す向き(プレイヤーへの向きから。牙はプレイヤーの方、毒・闇は ±120°)
+const CDOG = { poison: { spd: 40, da: -2.094 }, fang: { spd: 36, da: 0 }, dark: { spd: 26, da: 2.094 } }; // 犬の速さ(本体の速さ 21 に対して。毒の犬は 90〜120 を保てるように速め)・分裂で跳び出す向き(プレイヤーへの向きから。牙はプレイヤーの方、毒・闇は ±120°)
 const BREATH = ['#7dff6a', '#3aff5a', '#2e8a2e', '#c8ffb0', '#9a7dff'];
 const BREATH_COL = { poison: ['#7dff6a', '#3aff5a', '#2e8a2e', '#c8ffb0'], fang: ['#ff6a2a', '#ffc34a', '#ff3b1a', '#fff0b0'], dark: ['#9ff7ff', '#bff4ff', '#7ad7ff', '#ffffff'] }; // 三獄の息吹: 毒の首 = 毒・牙の首 = 炎・闇の首 = 氷
 const cerbHas = (ai, hk) => ai.hs.some(h => !h.dead && h.hk === hk);
