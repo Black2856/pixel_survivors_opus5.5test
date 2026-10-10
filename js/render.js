@@ -2001,7 +2001,7 @@ function drawSkFx(e, sx, gx, ex, ey) {
 function drawChain() {
   const st = P.chain && P.chain.stake;
   if (!st || st.dead) return;
-  const sx = GFX.sctx, gx = GFX.gctx, x0 = st.x - cam.x, y0 = st.y - 14 - cam.y, x1 = P.x - cam.x, y1 = P.y - 2 - cam.y, d = Math.hypot(x1 - x0, y1 - y0), taut = clamp((d - 40) / 30, 0, 1), t = GFX.fx.time;
+  const sx = GFX.sctx, gx = GFX.gctx, x0 = st.x - cam.x, y0 = st.y - 14 - cam.y, x1 = P.x - cam.x, y1 = P.y - 2 - cam.y, d = Math.hypot(x1 - x0, y1 - y0), taut = clamp((d - 50) / 30, 0, 1), t = GFX.fx.time;
   const n = Math.max(2, Math.round(d / 3));
   for (let i = 0; i <= n; i++) {
     const u = i / n, sag = (1 - taut) * Math.sin(u * Math.PI) * Math.min(12, d * 0.25), px = Math.round(x0 + (x1 - x0) * u), py = Math.round(y0 + (y1 - y0) * u + sag);

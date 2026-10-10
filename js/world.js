@@ -1362,6 +1362,13 @@ function enemyShoot(e, s, a) {
   if (s.kind === 'efire') { burst(e.x + Math.cos(a) * 4, e.y - 2 + Math.sin(a) * 4, 7, ['#ff6a2a', '#ffc34a', '#fff6c8'], { sp: 45, glow: true, life: 0.3 }); AudioMan.fire(); }
   else if (s.kind === 'esand') { burst(e.x, e.y - 2, 12, ['#e8c88a', '#c8a060', '#fff0c0'], { sp: 60, life: 0.4, drag: 2 }); addRing(e.x, e.y + 3, 10, '#e8c88a', { life: 0.3 }); }
 }
+// 闇の玉(影の眼): プレイヤーに 50 まで近づくか、消える時(4秒)に、プレイヤーの方向へ 4つに割れる(±6°・±17°、速さ 100、2.5秒。割れた玉も当たると暗闇)
+function splitDarkOrb(p) {
+  const a = Math.atan2(P.y - p.y, P.x - p.x), sk = p.sk || 1;
+  for (const da of [-0.3, -0.1, 0.1, 0.3]) eprojs.push({ kind: 'darkorb', frag: true, x: p.x, y: p.y, vx: Math.cos(a + da) * 100, vy: Math.sin(a + da) * 100, dmg: p.dmg, dark: p.dark, life: 2.5, t: 0, r: 2 * CHAOS.area * sk, sk });
+  burst(p.x, p.y, 18, ['#c79bff', '#7a3ab0', '#2a1240', '#ffffff'], { sp: 80, glow: true, life: 0.35 });
+  addRing(p.x, p.y, 12, '#a66bff', { r0: 3, life: 0.25 }); addFlash(p.x, p.y, 40, '#a66bff', 0.4); AudioMan.shade2();
+}
 // 投槍兵: 予告の帯の長さだけ飛ぶ槍(帯と同じく攻撃範囲の倍率で伸びる。槍の判定の幅 = 帯の幅)
 function throwSpear(e, th) {
   const len = th.len * CHAOS.area * e.areaK;
@@ -3767,12 +3774,12 @@ function shadowKingAI(e, ai, dt, a, dist, slow) {
   const R = CHAOS.rate * (shade ? 0.5 : 1), en = ai.enraged; // 影がいる間は技の間隔 ×2
   ai.sword -= dt * R; ai.rings -= dt * R; ai.blades -= dt * R; ai.chase -= dt * R; ai.sever -= dt * R; if (en) ai.chainCd -= dt * R;
   if ((ai.gap -= dt) > 0) return;
-  if (en && ai.chainCd <= 0 && !shade && !P.chain) { ai.chainCd = 40; skChain(e, ai); }
-  else if (ai.sever <= 0 && !shade && !P.chain) { ai.sever = en ? 14 : 18; skSever(e, ai); }
+  if (en && ai.chainCd <= 0 && !P.chain) { ai.chainCd = 35; skChain(e, ai); } // 断界・冥鎖は影がいる間も使う
+  else if (ai.sever <= 0 && !P.chain) { ai.sever = en ? 14 : 18; skSever(e, ai); }
   else if (ai.sword <= 0) { ai.sword = en ? 7 : 8; skStep(e, ai, () => skSword(e, ai)); }
   else if (ai.blades <= 0) { ai.blades = en ? 7 : 9; skStep(e, ai, () => skBlades(e, ai)); }
   else if (ai.rings <= 0) { ai.rings = en ? 8 : 10; skRings(e, ai); }
-  else if (ai.chase <= 0) { ai.chase = en ? 6 : 8; skChase(e, ai, a); }
+  else if (ai.chase <= 0) { ai.chase = en ? 7 : 10; skChase(e, ai); }
 }
 // 技のあと: 少しあける。20% で影歩のフェイント(現れるだけで斬らない)
 function skAfter(e, ai) {
@@ -3839,36 +3846,33 @@ function updSkStep(e, ai, dt) {
   addRing(e.x, e.y, 16, '#a66bff', { r0: 34, w: 2, life: 0.3 }); shockAt(e.x, e.y, 1.1, 1); AudioMan.zap();
   if (st.then) st.then(); else ai.gap = 0.8;
 }
-// 影の剣: 0.5秒(前方の扇 半径 70・±60°)→ 扇の斬撃 ×0.9・60 押す。激昂時は 2回(0.4秒おき。2回目はその時のプレイヤーへ向け直す)
-function skSword(e, ai) {
-  const a = Math.atan2(P.y - e.y, P.x - e.x);
-  pushWarn({ kind: 'fan', x: e.x, y: e.y, a, r: 70, h: 1.05, t: 0, life: 0.5 });
-  ai.act = 'busy'; ai.pt = ai.enraged ? 1.15 : 0.75;
+// 影の剣: 0.5秒(前方の扇 半径 100・±60°)→ 扇の斬撃 ×0.9・100 押す。激昂時は 0.4秒後に影歩からもう一度(影歩 → 予告 → 斬撃 を 2回)
+function skSword(e, ai, again) {
+  const a = Math.atan2(P.y - e.y, P.x - e.x), twice = ai.enraged && !again;
+  pushWarn({ kind: 'fan', x: e.x, y: e.y, a, r: 100, h: 1.05, t: 0, life: 0.5 });
+  ai.act = 'busy'; ai.pt = twice ? 1.2 : 0.75;
   later(ai, 0.5, () => {
     skSlash(e, a);
-    if (!ai.enraged) return;
-    const a2 = Math.atan2(P.y - e.y, P.x - e.x);
-    pushWarn({ kind: 'fan', x: e.x, y: e.y, a: a2, r: 70, h: 1.05, t: 0, life: 0.4 });
-    later(ai, 0.4, () => skSlash(e, a2));
+    if (twice) later(ai, 0.4, () => { if (!e.dead && ai.act === 'busy' && !ai.step) skStep(e, ai, () => skSword(e, ai, true)); }); // 影喚びで中断したら続けない
   });
 }
 function skSlash(e, a) {
   if (e.dead) return;
-  slashes.push({ x: e.x, y: e.y, a, r: 70 * CHAOS.area, t: 0, life: 0.3, span: 2.1, pal: SWING_PAL.shadow, enemy: true });
-  slashes.push({ x: e.x, y: e.y, a, r: 52 * CHAOS.area, t: 0, life: 0.24, span: 2.1, flip: 1, pal: SWING_PAL.shadow, enemy: true }); // 二重の刃筋
-  if (hitFan(e.x, e.y, a, 70, 1.05, e.dmg * 0.9)) pushPlayer(a, 60, 0.2);
-  fxRays(e.x + Math.cos(a) * 30, e.y + Math.sin(a) * 30, 60, '#3a1a5a', { foe: true, n: 12, life: 0.3, core: '#a66bff', light: 0.6 });
-  for (let i = 0; i < 16; i++) { const pa = a + rand(-1, 1), r = rand(20, 70) * CHAOS.area; part(e.x + Math.cos(pa) * r, e.y + Math.sin(pa) * r, Math.cos(pa) * 60, Math.sin(pa) * 60, 0.4, pick(SKC), { glow: Math.random() < 0.4, drag: 2 }); }
+  slashes.push({ x: e.x, y: e.y, a, r: 100 * CHAOS.area, t: 0, life: 0.3, span: 2.1, pal: SWING_PAL.shadow, enemy: true });
+  slashes.push({ x: e.x, y: e.y, a, r: 74 * CHAOS.area, t: 0, life: 0.24, span: 2.1, flip: 1, pal: SWING_PAL.shadow, enemy: true }); // 二重の刃筋
+  if (hitFan(e.x, e.y, a, 100, 1.05, e.dmg * 0.9)) pushPlayer(a, 100, 0.3);
+  fxRays(e.x + Math.cos(a) * 42, e.y + Math.sin(a) * 42, 80, '#3a1a5a', { foe: true, n: 14, life: 0.3, core: '#a66bff', light: 0.6 });
+  for (let i = 0; i < 22; i++) { const pa = a + rand(-1, 1), r = rand(24, 100) * CHAOS.area; part(e.x + Math.cos(pa) * r, e.y + Math.sin(pa) * r, Math.cos(pa) * 60, Math.sin(pa) * 60, 0.4, pick(SKC), { glow: Math.random() < 0.4, drag: 2 }); }
   shake(5); AudioMan.slash(); AudioMan.cutHit();
 }
-// 影の三重輪: 1秒(影の王を中心に A・B(激昂時は C も)の範囲)→ A: 半径 0〜30 → 0.75秒後に B: 30〜60 → 激昂時はさらに 0.75秒後に C: 60〜90。それぞれ ×1.0・外へ 40 押す
+// 影の三重輪: 0.75秒(影の王を中心に A・B(激昂時は C も)の範囲)→ A: 半径 0〜30 → 0.5秒後に B: 30〜60 → 激昂時はさらに 0.5秒後に C: 60〜90。それぞれ ×1.0・外へ 40 押す
 function skRings(e, ai) {
   const n = ai.enraged ? 3 : 2, x = e.x, y = e.y;
-  for (let i = 0; i < n; i++) pushWarn({ kind: 'ring', x, y, r0: i * 30, r: (i + 1) * 30, t: 0, life: 1 + i * 0.75 });
-  ai.act = 'busy'; ai.pt = 1 + (n - 1) * 0.75 + 0.3;
+  for (let i = 0; i < n; i++) pushWarn({ kind: 'ring', x, y, r0: i * 30, r: (i + 1) * 30, t: 0, life: 0.75 + i * 0.5 });
+  ai.act = 'busy'; ai.pt = 0.75 + (n - 1) * 0.5 + 0.3;
   bfx.push({ kind: 'skaura', x, y, t: 0, life: ai.pt, r: n * 30 * CHAOS.area });
-  AudioMan.charge(1);
-  for (let i = 0; i < n; i++) later(ai, 1 + i * 0.75, () => skRingHit(e, x, y, i * 30, (i + 1) * 30));
+  AudioMan.charge(0.75);
+  for (let i = 0; i < n; i++) later(ai, 0.75 + i * 0.5, () => skRingHit(e, x, y, i * 30, (i + 1) * 30));
 }
 function skRingHit(e, x, y, r0, r1) {
   if (e.dead) return;
@@ -3879,69 +3883,76 @@ function skRingHit(e, x, y, r0, r1) {
   for (let i = 0; i < n; i++) { const pa = TAU / n * i + rand(-0.1, 0.1), r = rand(R0, R1); part(x + Math.cos(pa) * r, y + Math.sin(pa) * r, Math.cos(pa) * 70, Math.sin(pa) * 50 - rand(10, 40), rand(0.4, 0.7), pick(SKC), { glow: Math.random() < 0.4, drag: 2, sz: pick([1, 2]) }); }
   shockAt(x, y, 1.2 + R1 / 60, 0.8); shake(4 + R1 / 20); AudioMan.thud(); AudioMan.zap();
 }
-// 影刃・五月雨: 0.6秒(3本の帯)→ 地面に垂直に立った斬撃を 3方向(プレイヤーへの向きと ±25°)に飛ばし、0.4秒後に間の 2方向(±12.5°)へ(速さ 150、射程 300、×1.0)
+// 影刃・五月雨: 0.4秒(3本の帯)→ 地面に垂直に立った斬撃を 3方向(プレイヤーへの向きと ±25°)に飛ばし、0.4秒後に間の 2方向(±12.5°)へ(速さ 300、射程 500、×1.0)
+const SKB_SPD = 300, SKB_LEN = 500;
 function skBlades(e, ai) {
   const a = Math.atan2(P.y - e.y, P.x - e.x);
-  for (const da of [-0.436, 0, 0.436]) pushWarn({ kind: 'line', x: e.x, y: e.y, a: a + da, len: 300, w: 10, t: 0, life: 0.6 });
-  ai.act = 'busy'; ai.pt = 1.2;
-  AudioMan.charge(0.6);
-  later(ai, 0.6, () => {
+  for (const da of [-0.436, 0, 0.436]) pushWarn({ kind: 'line', x: e.x, y: e.y, a: a + da, len: SKB_LEN, w: 10, t: 0, life: 0.4 });
+  ai.act = 'busy'; ai.pt = 1.0;
+  AudioMan.charge(0.4);
+  later(ai, 0.4, () => {
     for (const da of [-0.436, 0, 0.436]) skVSlash(e, a + da);
-    for (const da of [-0.218, 0.218]) pushWarn({ kind: 'line', x: e.x, y: e.y, a: a + da, len: 300, w: 10, t: 0, life: 0.4 });
+    for (const da of [-0.218, 0.218]) pushWarn({ kind: 'line', x: e.x, y: e.y, a: a + da, len: SKB_LEN, w: 10, t: 0, life: 0.4 });
     later(ai, 0.4, () => { for (const da of [-0.218, 0.218]) skVSlash(e, a + da); });
   });
 }
 function skVSlash(e, a) {
   if (e.dead) return;
-  eprojs.push({ kind: 'vslash', x: e.x, y: e.y, vx: Math.cos(a) * 150, vy: Math.sin(a) * 150, a, dmg: e.dmg * (S.eatk ?? 1), life: 2 * CHAOS.area, t: 0, r: 3 * CHAOS.area, len: 12 * CHAOS.area, taint: e.ai.enraged && !e.shadow });
+  eprojs.push({ kind: 'vslash', x: e.x, y: e.y, vx: Math.cos(a) * SKB_SPD, vy: Math.sin(a) * SKB_SPD, a, dmg: e.dmg * (S.eatk ?? 1), life: SKB_LEN / SKB_SPD * CHAOS.area, t: 0, r: 3 * CHAOS.area, len: 12 * CHAOS.area, taint: e.ai.enraged && !e.shadow });
   burst(e.x + Math.cos(a) * 10, e.y + Math.sin(a) * 10, 10, SKC, { sp: 80, glow: true, life: 0.3 });
   AudioMan.slash();
 }
-// 追い影: 0.5秒(手に闇が集まる)→ 3発(激昂 5発)。ゆっくり出て加速しながら追う(速さ 30 から毎秒 +60、最大 180。速いほど曲がりにくい。4秒で消える。×0.8)
-function skChase(e, ai, a) {
+// 追い影: 0.5秒(手に闇が集まり、出る場所に影だまり)→ プレイヤーの周り(110 離れて 360°/n おき)から 3発(激昂 5発)。
+//   加速しながら追う(速さ 20 から毎秒 +10、最大 180。速いほど曲がりにくい。10秒で消える。×0.8)
+function skChase(e, ai) {
   ai.act = 'busy'; ai.pt = 0.7; ai.handGlow = 0.5;
+  const n = ai.enraged ? 5 : 3, a0 = rand(0, TAU), spots = [];
+  for (let i = 0; i < n; i++) spots.push({ x: P.x + Math.cos(a0 + TAU / n * i) * 110, y: P.y + Math.sin(a0 + TAU / n * i) * 110 });
+  for (const s of spots) bfx.push({ kind: 'spool', x: s.x, y: s.y, t: 0, life: 0.6 });
   AudioMan.charge(0.5);
   later(ai, 0.5, () => {
     if (e.dead) return;
-    const n = ai.enraged ? 5 : 3;
-    for (let i = 0; i < n; i++) {
-      const sa = a + (i - (n - 1) / 2) * 0.55, x = e.x + Math.cos(sa) * 8, y = e.y - 6 + Math.sin(sa) * 8;
-      eprojs.push({ kind: 'hshadow', x, y, vx: Math.cos(sa) * 30, vy: Math.sin(sa) * 30, sp: 30, dmg: e.dmg * 0.8 * (S.eatk ?? 1), life: 4, t: 0, r: 4 * CHAOS.area, taint: ai.enraged && !e.shadow });
+    for (const s of spots) {
+      const sa = Math.atan2(P.y - s.y, P.x - s.x);
+      eprojs.push({ kind: 'hshadow', x: s.x, y: s.y, vx: Math.cos(sa) * 20, vy: Math.sin(sa) * 20, sp: 20, dmg: e.dmg * 0.8 * (S.eatk ?? 1), life: 10, t: 0, r: 4 * CHAOS.area, taint: ai.enraged && !e.shadow });
+      burst(s.x, s.y, 16, SKC, { sp: 80, up: 30, glow: true, life: 0.45 }); addRing(s.x, s.y, 12, '#a66bff', { life: 0.3 }); // 影だまりから立ちのぼる
     }
     burst(e.x, e.y - 6, 22, SKC, { sp: 90, glow: true, life: 0.45 }); addRing(e.x, e.y - 6, 14, '#a66bff', { life: 0.3 }); AudioMan.shade2();
   });
 }
 // 追い影の向きを変える: 速くなるほど曲がりにくい
 function homeShadow(p, dt) {
-  p.sp = Math.min(180, p.sp + 60 * dt);
+  p.sp = Math.min(180, p.sp + 10 * dt);
   const cur = Math.atan2(p.vy, p.vx), turn = 4.2 / (1 + p.sp / 40), na = cur + clamp(angDiff(Math.atan2(P.y - p.y, P.x - p.x), cur), -turn * dt, turn * dt);
   p.vx = Math.cos(na) * p.sp; p.vy = Math.sin(na) * p.sp;
 }
-// 断界: 1.2秒(影の王からプレイヤーの方向へ、画面の端まで届く細い線が点滅)→ 一瞬で伸びる終わりのない細い斬撃(幅 10)。当たると即死
-//   激昂時は 2本(2本目は 0.5秒後に、その時のプレイヤーの方向へ)。斬った跡は裂け目として 15秒残り、プレイヤーだけ通れない
+// 断界: 1.2秒(影の王を通って、プレイヤーの方向と反対の方向へ、画面の端まで届く細い線が点滅)→ 一瞬で伸びる終わりのない細い斬撃(幅 10)。当たると即死
+//   激昂時は 2本(2本目は 0.5秒後に、90° 回した向きへ)。斬った跡は裂け目として 15秒残り、プレイヤーだけ通れない
 const SEVER_LEN = 1600;
+const severWarn = (e, a, life) => { for (const aa of [a, a + Math.PI]) pushWarn({ kind: 'line', x: e.x, y: e.y, a: aa, len: SEVER_LEN, w: 10, t: 0, life, sever: true }); };
 function skSever(e, ai) {
   const a = Math.atan2(P.y - e.y, P.x - e.x);
   ai.act = 'busy'; ai.pt = ai.enraged ? 2.2 : 1.6; ai.sevT = 1.2;
-  pushWarn({ kind: 'line', x: e.x, y: e.y, a, len: SEVER_LEN, w: 10, t: 0, life: 1.2, sever: true });
+  severWarn(e, a, 1.2);
   AudioMan.charge(1.2); AudioMan.warning();
   later(ai, 1.2, () => skCut(e, a));
   if (ai.enraged) later(ai, 1.2, () => {
     if (e.dead) return;
-    const a2 = Math.atan2(P.y - e.y, P.x - e.x);
-    pushWarn({ kind: 'line', x: e.x, y: e.y, a: a2, len: SEVER_LEN, w: 10, t: 0, life: 0.5, sever: true });
-    later(ai, 0.5, () => skCut(e, a2));
+    severWarn(e, a + Math.PI / 2, 0.5);
+    later(ai, 0.5, () => skCut(e, a + Math.PI / 2));
   });
   hint('sever', '断界', '当たると即死。斬った跡は 15秒 越えられない');
 }
 function skCut(e, a) {
   if (e.dead) return;
   const L = SEVER_LEN * CHAOS.area, W = 10 * CHAOS.area;
-  addHazard('rift', e.x, e.y, { a, len: L, w: W, dur: 15 });
-  bfx.push({ kind: 'sever', x: e.x, y: e.y, a, len: L, t: 0, life: 0.5 });
-  for (let d = 0; d < 520; d += 6) part(e.x + Math.cos(a) * d + rand(-3, 3), e.y + Math.sin(a) * d + rand(-3, 3), rand(-30, 30), rand(-60, -10), rand(0.4, 0.8), pick([...SKC, '#ffffff']), { glow: Math.random() < 0.5, drag: 1.5, sz: pick([1, 2]) });
-  hitstop(0.12); shake(14); screenFlash(0.45, '#7a3ab0'); shockAt(e.x + Math.cos(a) * 60, e.y + Math.sin(a) * 60, 2.8, 0.55); AudioMan.sever();
-  if (state === 'play' && !P.dead && inLine(e.x, e.y, a, SEVER_LEN, 10)) skKill();
+  for (const aa of [a, a + Math.PI]) { // 影の王を通って両側へ
+    addHazard('rift', e.x, e.y, { a: aa, len: L, w: W, dur: 15 });
+    bfx.push({ kind: 'sever', x: e.x, y: e.y, a: aa, len: L, t: 0, life: 0.5 });
+    for (let d = 0; d < 520; d += 6) part(e.x + Math.cos(aa) * d + rand(-3, 3), e.y + Math.sin(aa) * d + rand(-3, 3), rand(-30, 30), rand(-60, -10), rand(0.4, 0.8), pick([...SKC, '#ffffff']), { glow: Math.random() < 0.5, drag: 1.5, sz: pick([1, 2]) });
+  }
+  hitstop(0.12); shake(14); screenFlash(0.45, '#7a3ab0'); shockAt(e.x, e.y, 2.8, 0.55); AudioMan.sever();
+  if (state === 'play' && !P.dead && (inLine(e.x, e.y, a, SEVER_LEN, 10) || inLine(e.x, e.y, a + Math.PI, SEVER_LEN, 10))) skKill();
 }
 // 即死(断界): 回避の無敵・ガード系の防御で防げる。不死鳥の(蘇生)は効く
 function skKill() {
@@ -3952,7 +3963,7 @@ function skKill() {
   burst(P.x, P.y, 60, ['#e8c8ff', '#a66bff', '#2a1240', '#ffffff'], { sp: 180, life: 0.7 }); AudioMan.hurt();
   playerDown();
 }
-// 冥鎖(激昂): 1.5秒 ゲーム全体が止まる(影の王が鎖の杭を落とす)→ プレイヤーの位置に杭(HP は影の王の最大HP の 20%)が刺さり、鎖でつながる
+// 冥鎖(激昂): 1.5秒 ゲーム全体が止まる(影の王が鎖の杭を落とす)→ プレイヤーの位置に杭(HP は影の王の最大HP の 30%)が刺さり、鎖でつながる
 function skChain(e, ai) {
   ai.act = 'busy'; ai.pt = 0.4;
   S.cine = { kind: 'chain', t: 0, dur: 1.5, x: P.x, y: P.y, king: e, hit: false };
@@ -3973,22 +3984,22 @@ function updCine(rdt) {
 function chainStart(c) {
   const e = c.king;
   if (e.dead || P.dead) return;
-  const st = spawnObj(e, 'stake', c.x, c.y, { pct: 0.2, r: 8, life: Infinity }); st.rise = 1;
+  const st = spawnObj(e, 'stake', c.x, c.y, { pct: 0.3, r: 8, life: Infinity }); st.rise = 1;
   P.chain = { stake: st, tick: 3 };
   bossBlast(c.x, c.y, 30, Object.assign({ n: 16 }, BFX.shadowking));
   burst(c.x, c.y, 50, [...SKC, '#5a5a6a'], { sp: 150, up: 40, g: 200, life: 0.7 });
   shake(8); AudioMan.chain(); AudioMan.thud();
   hint('chain', '冥鎖', '杭から離れるほど引き戻される。杭を壊すと切れ、闇の霧が 20秒 遅れる');
 }
-// 鎖: 杭から 40 までは引かれない。その先は離れた距離 × 2 の速さで引き戻される。つながっている間は 3秒ごとに毒 +1
+// 鎖: 杭から 50 までは引かれない。その先は離れた距離 × 1 の速さで引き戻される。つながっている間は 3秒ごとに毒 +1
 function updChain(dt) {
   const ch = P.chain;
   if (!ch) return;
   const st = ch.stake;
   if (st.dead || P.dead) { P.chain = null; return; }
   const d = Math.sqrt(d2(P.x, P.y, st.x, st.y));
-  if (d > 40) {
-    const k = Math.min(d - 40, (d - 40) * 2 * dt);
+  if (d > 50) {
+    const k = Math.min(d - 50, (d - 50) * dt);
     P.x += (st.x - P.x) / d * k; P.y += (st.y - P.y) / d * k;
     if (Math.random() < dt * 6) AudioMan.chain();
   }
@@ -4526,6 +4537,7 @@ function updEprojs(dt0) {
       burst(p.x, p.y, 5, BRASS, { sp: 30, glow: true, life: 0.2 });
     }
     if (p.kind === 'prismorb' && (p.t >= 1.5 || d2(p.x, p.y, P.x, P.y) < 60 * 60)) { splitOrb(p); eprojs.splice(i, 1); continue; } // 光の屈折弾: 7つの欠片に割れる
+    if (p.kind === 'darkorb' && !p.frag && (p.t >= p.life || (p.t > 0.2 && d2(p.x, p.y, P.x, P.y) < 50 * 50))) { splitDarkOrb(p); eprojs.splice(i, 1); continue; } // 闇の玉: 近づくか消えるときに 4つに割れる
     if (p.kind === 'prismorb' && Math.random() < dt * 30) part(p.x + rand(-3, 3), p.y + rand(-3, 3), -p.vx * 0.2, -p.vy * 0.2, 0.3, pick(PRISM), { glow: true, drag: 2 });
     if (p.splitT && p.t >= p.splitT) { // 雪華弾: 3つに割れる
       const a = Math.atan2(p.vy, p.vx), sp = Math.hypot(p.vx, p.vy);
