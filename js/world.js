@@ -1238,7 +1238,7 @@ function hitEnemy(e, base, o = {}) {
   dmg = Math.max(1, Math.round(dmg * rand(0.9, 1.1)));
   e.hp -= dmg; e.flash = 0.08;
   if (e.hpFloor && e.hp < e.hpFloor) e.hp = e.hpFloor; // 影の王: 影がいる間は次の基準(4回目の影の間は HP 1)より下がらない
-  if (e.obj === 'cdog') cerbSpill(e, Math.min(dmg, e.hp + dmg)); // 冥犬の犬(分裂形態): 本体にも ×0.5(犬の残りHP まで。とどめの余りは入れない)
+  if (e.obj === 'cdog') cerbSpill(e, Math.min(dmg, e.hp + dmg)); // 冥犬の犬(分裂形態): 本体にも ×0.2(犬の残りHP まで。とどめの余りは入れない)
   if (o.src && o.src === P.mainW) clsOnMainHit(e); // 通常攻撃(メイン武器)の命中
   if (o.eHit) clsOnEHit(e, dmg);                   // 武器スキル(E)の命中
   if (o.el) clsOnElement(e, o.el, dmg);             // 属性(メイジの元素循環)
@@ -3578,10 +3578,10 @@ function ringGear(e, ai) {
 // ---------- 冥犬ケルベロス: 王の墓を守る三つ首の番犬。左から 毒・牙・闇 の首。合体形態と分裂形態をくり返す ----------
 //   合体形態: 首は壊せない(ダメージは体だけ)。技は1つずつ(終わってから 0.6秒あける): 闇の遠吠え(→ 影の猟犬)/ 影の突進 / 三獄の息吹 / 三獄の魔弾 / 激昂: 三獄の雨
 //   ★分裂: 合体形態で 15秒(激昂 11秒)たつと、体が影にほどけて 毒・牙・闇 の犬 3匹になる(本体は消える)。12秒で、生き残った犬がプレイヤーのいた所へ跳び込んで合体
-//   犬の HP は最大HP の 20%(犬へのダメージは本体にも ×0.5)。倒した犬の首は合体しても戻らず、次の分裂で生え直す。3匹とも倒すと 5秒 倒れ込む(被ダメ ×1.5)
+//   犬の HP は最大HP の 30%(犬へのダメージは本体にも ×0.2)。倒した犬の首は合体しても戻らず、次の分裂で生え直す。3匹とも倒すと 5秒 倒れ込む(被ダメ ×1.5)
 const CERB = { poison: ['#7dff6a', '#2e8a2e', '#c8ffb0'], fang: ['#ff5a5a', '#8a1a2a', '#ffd0d0'], dark: ['#a66bff', '#3a1a5a', '#e8c8ff'] }; // 首の色(光・暗・芯)
 const CHEAD = [{ hk: 'poison', dx: 10, dy: -1, hz: 15 }, { hk: 'fang', dx: 17, dy: 1, hz: 9 }, { hk: 'dark', dx: 11, dy: 3, hz: 2 }]; // 合体形態の首: 体の中心からの位置(右向き)と高さ
-const CFORM = { merge: 15, mergeE: 11, split: 12, down: 5, pct: 0.2, spill: 0.5 };
+const CFORM = { merge: 15, mergeE: 11, split: 12, down: 5, pct: 0.3, spill: 0.2 };
 const CDOG = { poison: { spd: 40, da: -2.094 }, fang: { spd: 36, da: 0 }, dark: { spd: 26, da: 2.094 } }; // 犬の速さ(本体の速さ 21 に対して。毒の犬は 90〜120 を保てるように速め)・分裂で跳び出す向き(プレイヤーへの向きから。牙はプレイヤーの方、毒・闇は ±120°)
 const BREATH = ['#7dff6a', '#3aff5a', '#2e8a2e', '#c8ffb0', '#9a7dff'];
 const BREATH_COL = { poison: ['#7dff6a', '#3aff5a', '#2e8a2e', '#c8ffb0'], fang: ['#ff6a2a', '#ffc34a', '#ff3b1a', '#fff0b0'], dark: ['#9ff7ff', '#bff4ff', '#7ad7ff', '#ffffff'] }; // 三獄の息吹: 毒の首 = 毒・牙の首 = 炎・闇の首 = 氷
@@ -3877,7 +3877,7 @@ function updCerbDown(e, ai, dt) { // 倒れ込み: 頭の上を星が回る。�
   bossBlast(e.x, e.y + 6, 50, Object.assign({ n: 18 }, BFX.cerberus));
   for (const H of CHEAD) { const m = cerbMouth(e, H.hk); burst(m.x, m.y, 20, ['#1a0a14', '#5a1020', CERB[H.hk][0], CERB[H.hk][1]], { sp: 80, up: 30, g: 160, glow: true, life: 0.5 }); } // 黒い肉が盛り上がって生え直す
 }
-// 犬へのダメージの半分は本体へ(倍率・クリティカルは犬への一撃で掛かっているので、そのまま半分)
+// 犬へのダメージの ×0.2 は本体へ(倍率・クリティカルは犬への一撃で掛かっているので、そのまま ×0.2)
 function cerbSpill(d, dmg) {
   const o = d.owner;
   if (!o || o.dead) return;
