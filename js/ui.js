@@ -74,7 +74,7 @@ const UI = (() => {
   //   q: Q は太い帯にクラスの印(glyph)/ E は細い帯に武器のアイコン(icon: 武器のキー)。sub: 2行目(武神降臨の武器スキル)
   function skillCut(name, col, q, o = {}) {
     if (!SET.cutin) return;
-    const mark = q ? (o.glyph ? `<span class="sc-glyph">${o.glyph}</span>` : '') : o.icon ? icon('weapon', o.icon) : '';
+    const mark = q ? (o.glyph ? `<span class="sc-glyph">${I18N.glyph(o.glyph, name)}</span>` : '') : o.icon ? icon('weapon', o.icon) : '';
     cutBand('skillcut', name, o.sub, col, { size: q ? 'q' : 'e', mark, dur: q ? 1150 : 850 });
   }
   // 小さな知らせ(照準の切り替えなど。帯ほど目立たせない): 画面の下の方に小さく出て、すぐ消える。html: 中身(.k で色を付ける)/ col: 枠と強調の色
@@ -86,7 +86,7 @@ const UI = (() => {
     clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove('on'), 1300);
   }
   // ボスの激昂(赤い縞の帯。設定のカットインによらず出す)。name: ボスの名前
-  function enrage(name) { cutBand('bosscut', name + ' が激昂した!!', '', '#ff3b5c', { size: 'bs', kind: 'warn', dur: 2000 }); }
+  function enrage(name) { cutBand('bosscut', _t`${name} が激昂した!!`, '', '#ff3b5c', { size: 'bs', kind: 'warn', dur: 2000 }); }
   // 警告・クリアなど(太い帯)。cls: 帯の色(なし = 赤の警告(縞が流れて文字が明滅)/ 'gold' = クリア / 'fog' = 闇の霧)
   const BAN_COL = { '': '#ff3b5c', gold: '#ffd23f', fog: '#b07aff' };
   function banner(main, sub, dur = 2600, cls = '') { cutBand('banner', main, sub, BAN_COL[cls] || BAN_COL[''], { size: 'ban', kind: cls || 'warn', dur }); }
@@ -128,10 +128,10 @@ const UI = (() => {
   // 通常モードのフェーズの表示: フェーズ中はその名前、外では次のフェーズまでの残り(フェーズの時計)
   function phaseInfo() {
     const ph = S.phase;
-    if (ph) return S.mode === 'stage' || S.mode === 'escalation' || ph.fogOn ? (ph.kind === 'elite' ? 'エリート戦' : 'ボス戦') + (ph.fogOn ? ' · 闇の霧' : '') : '';
+    if (ph) return S.mode === 'stage' || S.mode === 'escalation' || ph.fogOn ? (ph.kind === 'elite' ? _t('エリート戦') : _t('ボス戦')) + (ph.fogOn ? _t(' · 闇の霧') : '') : '';
     if ((S.mode !== 'stage' && S.mode !== 'escalation') || !S.sched) return '';
     const nx = S.sched.slice(S.schedIdx).find(x => x.elites || x.boss);
-    return nx ? (nx.elites ? 'エリートまで ' : nx.final ? '最後のボスまで ' : 'ボスまで ') + fmtTime(Math.max(0, nx.t - S.ptime)) : '';
+    return nx ? (nx.elites ? _t('エリートまで ') : nx.final ? _t('最後のボスまで ') : _t('ボスまで ')) + fmtTime(Math.max(0, nx.t - S.ptime)) : '';
   }
 
   // ---------- 左下のステータスパネル ----------
@@ -230,20 +230,20 @@ const UI = (() => {
   function playerStatuses() {
     const d = DATA.debuff, out = clsStatuses();
     const sk = P.slowK || d.slow; // 減速の強さ(時の歪みは ×0.7)
-    if (P.slowT > 0 && P.cdSlowT <= 0) out.push({ id: 'slow', glyph: '鈍', name: '鈍足', fx: `移動速度 -${Math.round((1 - sk) * 100)}%`, t: P.slowT, kind: 'debuff' });
-    if (P.cdSlowT > 0) { const rg = Math.round((1 - d.slowRegen) * 100); out.push({ id: 'cdslow', glyph: '遅', name: 'スロウタイム', fx: `移動 -${Math.round((1 - sk) * 100)}% CD回復 -${Math.round((1 - d.cdRate) * 100)}% スタミナ回復 -${rg}% HP回復速度 -${rg}%`, t: P.cdSlowT, kind: 'debuff' }); } // 砂時計の精の時の歪みも同じ
-    if (P.burnT > 0) out.push({ id: 'burn', glyph: '炎', name: '炎上', fx: `毎${d.burnTick}秒 ${Math.round(P.burnDmg)} ダメージ ・ HP回復 -${Math.round((1 - d.burnHeal) * 100)}%`, t: P.burnT, max: d.burnDur, kind: 'debuff' });
-    if (P.fatigueT > 0) out.push({ id: 'fatigue', glyph: '疲', name: '疲労', fx: `スタミナ回復 -${Math.round((1 - d.fatigue) * 100)}%`, t: P.fatigueT, max: d.fatigueDur, kind: 'debuff' });
-    if (P.frost > 0) out.push({ id: 'pfrost', glyph: '凍', name: '凍傷', fx: `${P.frost}スタック ・ 移動速度 -${Math.round((1 - playerFrostMul()) * 100)}%(受けないでいると ${d.pDur}秒で消える)`, t: P.frostT, max: d.pDur, kind: 'debuff' });
-    if (P.frzT > 0) out.push({ id: 'pfrz', glyph: '氷', name: '凍結', fx: '歩けない(回避とスキルは使える)', t: P.frzT, max: 1, kind: 'debuff' });
-    if (P.bleed > 0) out.push({ id: 'pbleed', glyph: '血', name: '出血', fx: `${P.bleed}スタック ・ 毎秒 最大HP の ${Math.round(P.bleed * d.pBleed * 100)}%`, t: P.bleedT, max: d.pDur, kind: 'debuff' });
+    if (P.slowT > 0 && P.cdSlowT <= 0) out.push({ id: 'slow', glyph: '鈍', name: _t('鈍足'), fx: _t`移動速度 -${Math.round((1 - sk) * 100)}%`, t: P.slowT, kind: 'debuff' });
+    if (P.cdSlowT > 0) { const rg = Math.round((1 - d.slowRegen) * 100); out.push({ id: 'cdslow', glyph: '遅', name: _t('スロウタイム'), fx: _t`移動 -${Math.round((1 - sk) * 100)}% CD回復 -${Math.round((1 - d.cdRate) * 100)}% スタミナ回復 -${rg}% HP回復速度 -${rg}%`, t: P.cdSlowT, kind: 'debuff' }); } // 砂時計の精の時の歪みも同じ
+    if (P.burnT > 0) out.push({ id: 'burn', glyph: '炎', name: _t('炎上'), fx: _t`毎${d.burnTick}秒 ${Math.round(P.burnDmg)} ダメージ ・ HP回復 -${Math.round((1 - d.burnHeal) * 100)}%`, t: P.burnT, max: d.burnDur, kind: 'debuff' });
+    if (P.fatigueT > 0) out.push({ id: 'fatigue', glyph: '疲', name: _t('疲労'), fx: _t`スタミナ回復 -${Math.round((1 - d.fatigue) * 100)}%`, t: P.fatigueT, max: d.fatigueDur, kind: 'debuff' });
+    if (P.frost > 0) out.push({ id: 'pfrost', glyph: '凍', name: _t('凍傷'), fx: _t`${P.frost}スタック ・ 移動速度 -${Math.round((1 - playerFrostMul()) * 100)}%(受けないでいると ${d.pDur}秒で消える)`, t: P.frostT, max: d.pDur, kind: 'debuff' });
+    if (P.frzT > 0) out.push({ id: 'pfrz', glyph: '氷', name: _t('凍結'), fx: _t('歩けない(回避とスキルは使える)'), t: P.frzT, max: 1, kind: 'debuff' });
+    if (P.bleed > 0) out.push({ id: 'pbleed', glyph: '血', name: _t('出血'), fx: _t`${P.bleed}スタック ・ 毎秒 最大HP の ${Math.round(P.bleed * d.pBleed * 100)}%`, t: P.bleedT, max: d.pDur, kind: 'debuff' });
     const dt2 = DATA.debuffTomb;
-    if (P.poison > 0) out.push({ id: 'ppoison', glyph: '毒', name: '毒', fx: `${P.poison}スタック ・ 最大HP -${Math.round(P.poison * dt2.poison * 100)}%(受けないでいると ${dt2.poisonDur}秒で消える)`, t: P.poisonT, max: dt2.poisonDur, kind: 'debuff' });
-    if (P.darkT > 0) out.push({ id: 'pdark', glyph: '闇', name: '暗闇', fx: '周りが暗くなり、敵の攻撃の予告が見えない ・ スタミナが回復しない', t: P.darkT, max: dt2.darkDur, kind: 'debuff' });
-    if (S.phase && S.phase.fogOn && !(S.phase.fogPause > 0)) out.push({ id: 'fog', glyph: '霧', name: '闇の霧', fx: `毎秒 HP -${S.phase.fogDmg}(10秒ごとに +1)。フェーズをクリアすると晴れる`, kind: 'debuff' });
-    if (P.shield >= 1) out.push({ id: 'shield', glyph: '盾', name: 'シールド', fx: `${Math.floor(P.shield)} のダメージを先に受ける`, kind: 'buff' });
-    if (P.oShield >= 1) out.push({ id: 'oshield', glyph: '守', name: '一時シールド', fx: `${Math.floor(P.oShield)} のダメージを先に受ける(得た分ごとに時間で消える)`, t: Math.min(...P.oChunks.map(c => c.t)), max: Math.max(...P.oChunks.map(c => c.dur)), kind: 'buff' });
-    if (P.uq.phoenix && !P.revived) out.push({ id: 'phoenix', glyph: '鳳', name: '不死鳥の加護', fx: '一度だけ蘇生', kind: 'buff' });
+    if (P.poison > 0) out.push({ id: 'ppoison', glyph: '毒', name: _t('毒'), fx: _t`${P.poison}スタック ・ 最大HP -${Math.round(P.poison * dt2.poison * 100)}%(受けないでいると ${dt2.poisonDur}秒で消える)`, t: P.poisonT, max: dt2.poisonDur, kind: 'debuff' });
+    if (P.darkT > 0) out.push({ id: 'pdark', glyph: '闇', name: _t('暗闇'), fx: _t('周りが暗くなり、敵の攻撃の予告が見えない ・ スタミナが回復しない'), t: P.darkT, max: dt2.darkDur, kind: 'debuff' });
+    if (S.phase && S.phase.fogOn && !(S.phase.fogPause > 0)) out.push({ id: 'fog', glyph: '霧', name: _t('闇の霧'), fx: _t`毎秒 HP -${S.phase.fogDmg}(10秒ごとに +1)。フェーズをクリアすると晴れる`, kind: 'debuff' });
+    if (P.shield >= 1) out.push({ id: 'shield', glyph: '盾', name: _t('シールド'), fx: _t`${Math.floor(P.shield)} のダメージを先に受ける`, kind: 'buff' });
+    if (P.oShield >= 1) out.push({ id: 'oshield', glyph: '守', name: _t('一時シールド'), fx: _t`${Math.floor(P.oShield)} のダメージを先に受ける(得た分ごとに時間で消える)`, t: Math.min(...P.oChunks.map(c => c.t)), max: Math.max(...P.oChunks.map(c => c.dur)), kind: 'buff' });
+    if (P.uq.phoenix && !P.revived) out.push({ id: 'phoenix', glyph: '鳳', name: _t('不死鳥の加護'), fx: _t('一度だけ蘇生'), kind: 'buff' });
     return out;
   }
   const chipMax = {}; // 残り時間の最大値(max がない状態は、出現したときの残り時間を最大とする)
@@ -252,7 +252,7 @@ const UI = (() => {
     const list = stList = playerStatuses(), box = $('ps-status'), sig = list.map(s => s.id).join('|');
     if (last.stSig !== sig) {
       last.stSig = sig;
-      box.innerHTML = list.map(s => `<div class="st ${s.kind}" data-id="${s.id}" data-tip="s:${s.id}"><span class="gl">${s.glyph}</span></div>`).join('');
+      box.innerHTML = list.map(s => `<div class="st ${s.kind}" data-id="${s.id}" data-tip="s:${s.id}"><span class="gl">${I18N.glyph(s.glyph, s.name)}</span></div>`).join('');
     }
     for (const s of list) {
       const el = box.querySelector(`[data-id="${s.id}"]`); if (!el) continue;
@@ -270,7 +270,7 @@ const UI = (() => {
     const list = clsSkillIcons(), box = $('ps-skills'), sig = list.map(s => s.slot + s.glyph).join() + SET.autoE + SET.autoQ;
     if (last.skSig !== sig) {
       last.skSig = sig;
-      box.innerHTML = list.map(s => `<div class="ps-sk" data-slot="${s.slot}" title="${s.name}">${s.glyph}<div class="cd"></div><span class="key">${s.key}</span>${SET[s.slot === 'e' ? 'autoE' : 'autoQ'] ? '<span class="auto">AUTO</span>' : ''}</div>`).join('');
+      box.innerHTML = list.map(s => `<div class="ps-sk" data-slot="${s.slot}" title="${s.name}">${I18N.glyph(s.glyph, s.name)}<div class="cd"></div><span class="key">${s.key}</span>${SET[s.slot === 'e' ? 'autoE' : 'autoQ'] ? '<span class="auto">AUTO</span>' : ''}</div>`).join('');
     }
     for (const el of box.children) {
       const sk = P.sk[el.dataset.slot], p = sk.cd > 0 ? sk.cd / sk.max * 100 : 0;
@@ -385,13 +385,14 @@ const UI = (() => {
   let tipKey = null, tipEl = null;
   // 設定画面の各行の説明(行にマウスを乗せると出る)
   const SET_TIPS = {
-    gfx: ['画質', '低いほどブルーム・画面の歪み・パーティクルを減らし軽くなります'],
-    fxA: ['攻撃の濃さ', '自分の攻撃エフェクトの不透明度(敵の攻撃は常にくっきり表示)'],
-    ui: ['UIサイズ', 'HUD とメニュー画面の大きさ'],
-    autoE: ['E 自動発動', '武器スキル(E)を自動で使います。周りに敵が集まっているときだけ使います(移動中に勝手に足が止まらないように)'],
-    autoQ: ['Q 自動発動', 'クラススキル(Q)を自動で使います。周りに敵が集まっているときだけ使います(移動中に勝手に足が止まらないように)'],
-    cutin: ['カットイン', 'E / Q を使ったときに、スキル名の帯を画面の上の方に出します(OFF でも足元の陣などの演出は出ます)'],
-    hints: ['初見の説明', '敵の技・状態異常を、そのランで初めて見たときに説明の帯を出します(OFF でも、ガイドの用語集はいつでも見られます)'],
+    gfx: [_t('画質'), _t('低いほどブルーム・画面の歪み・パーティクルを減らし軽くなります')],
+    fxA: [_t('攻撃の濃さ'), _t('自分の攻撃エフェクトの不透明度(敵の攻撃は常にくっきり表示)')],
+    ui: [_t('UIサイズ'), _t('HUD とメニュー画面の大きさ')],
+    autoE: [_t('E 自動発動'), _t('武器スキル(E)を自動で使います。周りに敵が集まっているときだけ使います(移動中に勝手に足が止まらないように)')],
+    autoQ: [_t('Q 自動発動'), _t('クラススキル(Q)を自動で使います。周りに敵が集まっているときだけ使います(移動中に勝手に足が止まらないように)')],
+    cutin: [_t('カットイン'), _t('E / Q を使ったときに、スキル名の帯を画面の上の方に出します(OFF でも足元の陣などの演出は出ます)')],
+    hints: [_t('初見の説明'), _t('敵の技・状態異常を、そのランで初めて見たときに説明の帯を出します(OFF でも、ガイドの用語集はいつでも見られます)')],
+    lang: [_t('言語'), _t('表示の言語を切り替えます(ページを読み直します)。ラン中は変えられません')],
   };
   document.addEventListener('pointerover', ev => {
     const t = ev.target.closest && ev.target.closest('[data-tip]');
@@ -405,9 +406,9 @@ const UI = (() => {
     if (kind === 's') {
       const s = stList.find(x => x.id === k);
       if (!s) { hide(tip); tipKey = tipEl = null; return; }
-      html = `<b style="color:${s.kind === 'debuff' ? '#ff5d73' : '#9ff7ff'}">${s.name}</b><br>${s.fx}` + (s.t !== undefined ? `<br><span class="dim">残り ${s.t.toFixed(1)} 秒</span>` : '');
+      html = `<b style="color:${s.kind === 'debuff' ? '#ff5d73' : '#9ff7ff'}">${s.name}</b><br>${s.fx}` + (s.t !== undefined ? _t`<br><span class="dim">残り ${s.t.toFixed(1)} 秒</span>` : '');
     }
-    if (kind === 'w') { const d = DATA.weapons[k], w = P.weapons[k]; html = `<b>${w && w.evo ? d.evo.name : d.name}</b><br>${w && w.evo ? d.evo.desc : d.desc}<br><span class="dim">進化: ${evoCond(k)}</span>`; }
+    if (kind === 'w') { const d = DATA.weapons[k], w = P.weapons[k]; html = _t`<b>${w && w.evo ? d.evo.name : d.name}</b><br>${w && w.evo ? d.evo.desc : d.desc}<br><span class="dim">進化: ${evoCond(k)}</span>`; }
     if (kind === 'g' || kind === 'c') html = Help.tip(kind, key.slice(2)); // 説明文の用語(用語集・クラスの用語)
     if (kind === 'set' && SET_TIPS[k]) html = `<b>${SET_TIPS[k][0]}</b><br>${SET_TIPS[k][1]}`; // 設定の各行
     if (!html) { hide(tip); tipKey = tipEl = null; return; }
@@ -426,7 +427,7 @@ const UI = (() => {
   // ============================================================
   let mode = 'level', choices = [], chosen = false, curLv = 1;
   // 進化の条件(メイン武器もサブ武器も、その武器を持つクラスの Lv10 で解放)
-  const evoCond = k => `武器Lv5 + ${clsNameShown(weaponOwner(k))} Lv10` + ((P.wm[k] || weaponMastery(k)).evo ? ' ✔' : ''); // まだ持っていない武器(NEW のカード)は熟練をその場で計算
+  const evoCond = k => _t`武器Lv5 + ${clsNameShown(weaponOwner(k))} Lv10` + ((P.wm[k] || weaponMastery(k)).evo ? ' ✔' : ''); // まだ持っていない武器(NEW のカード)は熟練をその場で計算
   function statDiff(k, from, to) {
     const a = from ? (from.evo ? DATA.weapons[k].evo.st : DATA.weapons[k].lv[from.lv - 1]) : null, b = DATA.weapons[k].lv[to - 1];
     if (!a) return '';
@@ -437,23 +438,23 @@ const UI = (() => {
     if (c.type === 'weapon') {
       const d = DATA.weapons[c.key], w = P.weapons[c.key];
       name = d.name; ic = icon('weapon', c.key, 'big');
-      head = w ? `Lv ${w.lv} → ${w.lv + 1}` : 'NEW!' + (P.lvFx.startLv ? ` Lv${1 + P.lvFx.startLv} から` : ''); // クラスLv: 新しい武器が高い Lv から(ウェポンマスター)
+      head = w ? `Lv ${w.lv} → ${w.lv + 1}` : 'NEW!' + (P.lvFx.startLv ? _t` Lv${1 + P.lvFx.startLv} から` : ''); // クラスLv: 新しい武器が高い Lv から(ウェポンマスター)
       rar = w ? (w.lv + 1 === 5 ? 'epic' : 'rare') : 'new';
       body = w ? statDiff(c.key, w, w.lv + 1) : `<p>${d.desc}</p>`;
-      foot = `<div class="evohint"><span>進化 ${evoCond(c.key)}${c.key === P.mainW ? ' (メイン)' : ''}</span></div>`; // 1つの要素に(用語の印で折り返さないように)
+      foot = _t`<div class="evohint"><span>進化 ${evoCond(c.key)}${c.key === P.mainW ? _t(' (メイン)') : ''}</span></div>`; // 1つの要素に(用語の印で折り返さないように)
     } else if (c.type === 'cls') {
       // クラス強化: カテゴリ名 / パス名 / 次のLvの効果。特殊強化は性質が変わる派生
       const C = treeCat(c.cat), d = C.paths[c.path], lv = cuLv(c.cat, c.path);
       // カテゴリごとにアイコンと色を分ける(特性 / パッシブ / クラススキル Q / 武器スキル E)
-      const CAT = { trait: ['特性', '#ff5d73'], passive: ['パッシブ', '#5dff8a'], q: ['スキル Q', '#ffd23f'], e: ['スキル E', '#ffb7d5'] }[c.cat];
+      const CAT = { trait: [_t('特性'), '#ff5d73'], passive: [_t('パッシブ'), '#5dff8a'], q: [_t('スキル Q'), '#ffd23f'], e: [_t('スキル E'), '#ffb7d5'] }[c.cat];
       ic = `<div class="cls-ic" style="--cc:${CAT[1]}">${C.name[0]}${c.sp ? '<i>★</i>' : ''}</div>`;
       const tag = `<span class="cls-cat" style="--cc:${CAT[1]}">${CAT[0]}</span>`; // 見出しの行に並べるカテゴリの札
-      if (c.sp) { name = `<span class="no-gl">${d.sp.name}</span>`; head = tag + 'SPECIAL'; rar = 'legend'; body = `<p>${d.sp.desc}</p>`; foot = `<div class="evohint"><span>${C.name}「<span class="no-gl">${d.name}</span>」の派生 ・ ${C.name}の特殊強化は1つだけ</span></div>`; }
+      if (c.sp) { name = `<span class="no-gl">${d.sp.name}</span>`; head = tag + 'SPECIAL'; rar = 'legend'; body = `<p>${d.sp.desc}</p>`; foot = _t`<div class="evohint"><span>${C.name}「<span class="no-gl">${d.name}</span>」の派生 ・ ${C.name}の特殊強化は1つだけ</span></div>`; }
       else {
         head = tag + `Lv ${lv} → ${lv + 1}`; name = `<small>${C.name}</small><span class="no-gl">${d.name}</span>`; // パス名(威力・迅速など)は用語ではないので印を付けない rar = lv + 1 === 3 ? 'epic' : 'rare';
         // Lv1 以上は「今 → 次」の2行(Lv1 の説明の「基本の値 → Lv1 の値」は、今の行では Lv1 の値だけ)
-        body = lv ? `<div class="cd-lv now"><em>今</em><div>${d.desc[lv - 1].replace(/\S+ → (\S+)/, '$1')}</div></div><div class="cd-lv"><em>次</em><div>${d.desc[lv]}</div></div>` : `<p>${d.desc[0]}</p>`;
-        if (lv + 1 === 3 && !P.cs[c.cat]) body += `<div class="cd-sp">Lv3 で特殊強化「${d.sp.name}」が候補に出る</div>`; // このカテゴリの特殊強化をまだ取っていないとき
+        body = lv ? _t`<div class="cd-lv now"><em>今</em><div>${d.desc[lv - 1].replace(/\S+ → (\S+)/, '$1')}</div></div><div class="cd-lv"><em>次</em><div>${d.desc[lv]}</div></div>` : `<p>${d.desc[0]}</p>`;
+        if (lv + 1 === 3 && !P.cs[c.cat]) body += _t`<div class="cd-sp">Lv3 で特殊強化「${d.sp.name}」が候補に出る</div>`; // このカテゴリの特殊強化をまだ取っていないとき
         foot = `<div class="evohint">${'◆'.repeat(lv + 1)}${'◇'.repeat(2 - lv)}</div>`;
       }
     } else if (c.type === 'item') {
@@ -461,8 +462,8 @@ const UI = (() => {
       const it = c.item, R = DATA.equip.rarity[it.rarity];
       name = itemName(it); ic = icon('equip', it.type, 'big'); head = `<span style="color:${R.col}">${R.name}</span> ${DATA.equip.slots[itemSlot(it)]}`;
       rar = { common: 'common', uncommon: 'new', rare: 'rare', epic: 'epic', legendary: 'legend' }[it.rarity];
-      body = it.opts.map(o => `<div class="opt">${optHTML(o)} <em>〜Lv${o.max}</em></div>`).join('') + (it.uq ? `<p class="uq">${DATA.uniques[it.uq].desc}</p>` : '');
-      foot = `<div class="evohint">${c.sold ? `インベントリが満杯 → 売却 +${c.sold}G` : 'インベントリに追加'}</div>`;
+      body = it.opts.map(o => `<div class="opt">${optHTML(o)} <em>${_t`〜Lv${o.max}`}</em></div>`).join('') + (it.uq ? `<p class="uq">${DATA.uniques[it.uq].desc}</p>` : '');
+      foot = `<div class="evohint">${c.sold ? _t`インベントリが満杯 → 売却 +${c.sold}G` : _t('インベントリに追加')}</div>`;
     } else if (c.type === 'eqopt') {
       // 装備カード: 装備中のアイテムのオプション1つを +1Lv
       const it = itemById(META.loadout[c.slot]), o = it.opts[c.i], lv = S.eqLv[c.slot][c.i], R = DATA.equip.rarity[it.rarity];
@@ -470,10 +471,10 @@ const UI = (() => {
       name = `<small>${itemName(it)}</small>${DATA.stats[o.k].label}`;
       rar = lv + 1 === o.max ? 'epic' : 'rare';
       body = `<div class="diff eqd">${optVal({ k: o.k, v: optAt(o, lv) })} → <em>${optVal({ k: o.k, v: optAt(o, lv + 1) })}</em></div>`; // 名前はカード名にあるので値だけ
-      foot = `<div class="evohint">${'◆'.repeat(lv + 1)}${'◇'.repeat(o.max - lv - 1)} 最大Lv ${o.max}</div>`;
+      foot = _t`<div class="evohint">${'◆'.repeat(lv + 1)}${'◇'.repeat(o.max - lv - 1)} 最大Lv ${o.max}</div>`;
     } else if (c.type === 'evo') {
       const d = DATA.weapons[c.key];
-      name = d.evo.name; ic = icon('weapon', c.key, 'big'); head = 'EVOLUTION!!'; rar = 'legend'; body = `<p>${d.name} が進化した!<br>${d.evo.desc}</p>`;
+      name = d.evo.name; ic = icon('weapon', c.key, 'big'); head = 'EVOLUTION!!'; rar = 'legend'; body = _t`<p>${d.name} が進化した!<br>${d.evo.desc}</p>`;
     }
     return { html: `<div class="card-head">${head}</div><div class="card-icon">${ic}</div><div class="card-name">${name}</div><div class="card-body">${body}</div>${foot}`, rar };
   }
@@ -501,11 +502,11 @@ const UI = (() => {
     });
     const btns = $('choice-btns');
     btns.innerHTML = '';
-    const rb = el('button', 'btn', `リロール (${S.rerolls}) <small>R</small>`);
+    const rb = el('button', 'btn', _t`リロール (${S.rerolls}) <small>R</small>`);
     rb.disabled = !canReroll();
     rb.onclick = reroll;
     btns.appendChild(rb);
-    const sb = el('button', 'btn ghost', 'スキップ (+10G)');
+    const sb = el('button', 'btn ghost', _t('スキップ (+10G)'));
     sb.onclick = () => { if (chosen) return; chosen = true; addGold(10); close(); };
     btns.appendChild(sb);
   }
@@ -622,7 +623,7 @@ const UI = (() => {
     cs.className = 'screen tier-' + tierKey;
     $('chest-img').src = ART.S.chest.c.toDataURL();
     $('chest-rewards').innerHTML = ''; $('chest-gold').textContent = ''; $('chest-tier').textContent = '';
-    $('chest-hint').textContent = 'クリック / SPACE で開ける';
+    $('chest-hint').textContent = _t('クリック / SPACE で開ける');
     hide($('chest-ok'));
     only('chest-screen');
     AudioMan.setDuck(0.3);
@@ -734,11 +735,11 @@ const UI = (() => {
     hide($('hud'));
     $('title-gold').textContent = '● ' + META.gold.toLocaleString() + ' G';
     const nNew = META.inventory.filter(it => it.isNew).length;
-    $('btn-equip').innerHTML = '装備' + (nNew ? ` <span class="nw-badge">NEW ${nNew}</span>` : '');
+    $('btn-equip').innerHTML = _t('装備') + (nNew ? ` <span class="nw-badge">NEW ${nNew}</span>` : '');
     const b = META.best, arena = b.arenaTime ? `ARENA ${fmtTime(b.arenaTime)}` : b.arenaRound ? `ARENA ROUND ${b.arenaRound}/${DATA.arena.order.length}` : '';
     $('title-best').innerHTML = [b.time ? `BEST ${fmtTime(b.time)} · ${b.kills} KILLS · LV ${b.level}` : '', arena].filter(Boolean).join('<br>');
-    if (metaMigratedGold) { announce('+' + metaMigratedGold.toLocaleString() + ' G 返金', '永続強化は新しいツリーに移行しました'); metaMigratedGold = 0; }
-    if (metaTreeRefund) { announce('+' + metaTreeRefund.toLocaleString() + ' G 返金', '永続ツリーの調整で、なくなったノードを返金しました'); metaTreeRefund = 0; }
+    if (metaMigratedGold) { announce(_t`+${metaMigratedGold.toLocaleString()} G 返金`, _t('永続強化は新しいツリーに移行しました')); metaMigratedGold = 0; }
+    if (metaTreeRefund) { announce(_t`+${metaTreeRefund.toLocaleString()} G 返金`, _t('永続ツリーの調整で、なくなったノードを返金しました')); metaTreeRefund = 0; }
   }
   function levelUp(lv, list) { curLv = lv; openChoices(isClassLv(lv) ? 'class' : 'level', list, isClassLv(lv) ? 'CLASS UP!' : 'LEVEL UP!'); }
 
@@ -750,9 +751,12 @@ const UI = (() => {
     $('set-ui').value = Math.round(SET.ui * 100); $('set-ui-n').textContent = Math.round(SET.ui * 100) + '%';
     for (const b of $('set-gfx').children) b.classList.toggle('on', b.dataset.v === SET.gfx);
     for (const k of ['autoE', 'autoQ', 'cutin', 'hints']) for (const b of $('set-' + k).children) b.classList.toggle('on', (b.dataset.v === '1') === SET[k]);
+    for (const b of $('set-lang').children) { b.classList.toggle('on', b.dataset.v === SET.lang); b.disabled = setBack === 'pause'; } // ラン中は変えられない
   }
   for (const b of $('set-gfx').children) b.onclick = () => { SET.gfx = b.dataset.v; saveSet(); AudioMan.click(); syncSettings(); };
   for (const k of ['autoE', 'autoQ', 'cutin', 'hints']) for (const b of $('set-' + k).children) b.onclick = () => { SET[k] = b.dataset.v === '1'; saveSet(); AudioMan.click(); syncSettings(); last.skSig = null; };
+  // 言語: 保存してページを読み直す
+  for (const b of $('set-lang').children) b.onclick = () => { if (setBack === 'pause' || b.dataset.v === SET.lang) return; SET.lang = b.dataset.v; saveSet(); AudioMan.click(); location.reload(); };
   $('set-fxa').oninput = e => { SET.fxA = e.target.value / 100; $('set-fxa-n').textContent = e.target.value + '%'; saveSet(); };
   $('set-ui').oninput = e => { SET.ui = e.target.value / 100; $('set-ui-n').textContent = e.target.value + '%'; applyUiScale(); saveSet(); };
   function settings(from = 'title') { setBack = from; state = 'settings'; only('settings-screen'); syncSettings(); }
@@ -777,16 +781,16 @@ const UI = (() => {
     $('result-title').textContent = win ? (arena ? 'ARENA CLEAR!' : 'VICTORY!') : 'YOU DIED';
     $('result-title').className = win ? 'win' : 'lose';
     $('btn-endless').classList.toggle('hidden', !win || S.mode !== 'escalation'); // エンドレスはエスカレーションのみ
-    const rows = [arena ? ['撃破ボス', S.arena.idx + ' / ' + DATA.arena.order.length] : null, [arena ? 'タイム' : '生存時間', fmtTime(S.time)], ['レベル', P.level], ['撃破数', S.kills.toLocaleString()], ['最大コンボ', S.bestCombo], ['総ダメージ', Math.round(S.totalDmg).toLocaleString()], ['獲得ゴールド', '● ' + earned]];
+    const rows = [arena ? [_t('撃破ボス'), S.arena.idx + ' / ' + DATA.arena.order.length] : null, [arena ? _t('タイム') : _t('生存時間'), fmtTime(S.time)], [_t('レベル'), P.level], [_t('撃破数'), S.kills.toLocaleString()], [_t('最大コンボ'), S.bestCombo], [_t('総ダメージ'), Math.round(S.totalDmg).toLocaleString()], [_t('獲得ゴールド'), '● ' + earned]];
     $('result-stats').innerHTML = rows.filter(Boolean).map(([a, b]) => `<div class="rs"><span>${a}</span><b>${b}</b></div>`).join('');
     const tot = Object.values(S.dmgBy).reduce((a, b) => a + b, 0) || 1;
     const list = Object.entries(S.dmgBy).filter(([k]) => DATA.weapons[k]).sort((a, b) => b[1] - a[1]);
     // 獲得した装備(ボスの宝箱 + ラン終了時の報酬)とクラス経験値
     const cl = DATA.classes[P.cls], lvUp = cxp.lv > cxp.lv0;
-    $('result-cls').innerHTML = `<b style="color:${cl.col}">${cl.name}</b> クラス経験値 +${cxp.xp}` + (lvUp ? ` <em>Lv ${cxp.lv0} → ${cxp.lv}!</em>` : ` <span class="dim">Lv ${cxp.lv}</span>`)
-      + (cxp.newCls && cxp.newCls.length ? `<div class="unl-new">NEW CLASS! ${cxp.newCls.map(k => `<b style="color:${DATA.classes[k].col}">${DATA.classes[k].name}</b>`).join('・')} が使えるようになりました(クラス画面で選べます)</div>` : '');
-    $('result-loot').innerHTML = (loot.chests ? `<div class="dim">ラン終了の報酬: 宝箱 ×${loot.chests}</div>` : '') +
-      (S.loot.length ? S.loot.map(it => `<span class="loot" style="--rc:${DATA.equip.rarity[it.rarity].col}">${icon('equip', it.type)}${itemName(it)}</span>`).join('') : '<div class="dim">装備の入手なし</div>');
+    $('result-cls').innerHTML = _t`<b style="color:${cl.col}">${cl.name}</b> クラス経験値 +${cxp.xp}` + (lvUp ? ` <em>Lv ${cxp.lv0} → ${cxp.lv}!</em>` : ` <span class="dim">Lv ${cxp.lv}</span>`)
+      + (cxp.newCls && cxp.newCls.length ? _t`<div class="unl-new">NEW CLASS! ${cxp.newCls.map(k => `<b style="color:${DATA.classes[k].col}">${DATA.classes[k].name}</b>`).join(_t('・'))} が使えるようになりました(クラス画面で選べます)</div>` : '');
+    $('result-loot').innerHTML = (loot.chests ? _t`<div class="dim">ラン終了の報酬: 宝箱 ×${loot.chests}</div>` : '') +
+      (S.loot.length ? S.loot.map(it => `<span class="loot" style="--rc:${DATA.equip.rarity[it.rarity].col}">${icon('equip', it.type)}${itemName(it)}</span>`).join('') : _t('<div class="dim">装備の入手なし</div>'));
     $('result-dmg').innerHTML = list.map(([k, v]) => `<div class="dm">${icon('weapon', k)}<div class="dm-bar"><i style="width:${(v / tot * 100).toFixed(1)}%;background:${DATA.weapons[k].col}"></i></div><span>${Math.round(v).toLocaleString()}</span></div>`).join('');
   }
 

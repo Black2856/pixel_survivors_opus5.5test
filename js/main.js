@@ -50,7 +50,7 @@ function startEndless() {
   escStage(1);
   UI.show(UI.$('hud')); UI.pause(false);
   state = 'play';
-  UI.announce('ENDLESS MODE', 'LOOP 2 — 敵はさらに強くなる');
+  UI.announce('ENDLESS MODE', _t('LOOP 2 — 敵はさらに強くなる'));
 }
 function goTitle() {
   state = 'title';

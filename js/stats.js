@@ -4,8 +4,8 @@
 
 const STAT_SRC = ['class', 'classLv', 'tree', 'equip', 'unique', 'chaos', 'run', 'micro'];
 const STAT_SRC_LABEL = {
-  class: 'クラス基礎', classLv: 'クラスLv', tree: '永続ツリー', equip: '装備',
-  unique: '固有効果', chaos: 'カオス強化', run: 'ラン中の強化', micro: '微強化',
+  class: _t('クラス基礎'), classLv: _t('クラスLv'), tree: _t('永続ツリー'), equip: _t('装備'),
+  unique: _t('固有効果'), chaos: _t('カオス強化'), run: _t('ラン中の強化'), micro: _t('微強化'),
 };
 
 // ---------- 永続ツリーのグラフ ----------
@@ -138,7 +138,7 @@ const chaosSetting = key => (chaosFixed(key) ? chaosBase(key) : META.chaos[key] 
 // ---------- クラスの解放 ----------
 // DATA.classUnlock のモード・ステージを初めてクリアすると使える(書いていないクラスは最初から)
 const clsUnlocked = k => !DATA.classUnlock[k] || !!META.stageClear[DATA.classUnlock[k]] || !!(META.clsGrant && META.clsGrant[k]); // clsGrant: 解放の条件を変える前に解放済みだったクラス
-const clsNameShown = k => (clsUnlocked(k) ? DATA.classes[k].name : '？？？'); // 未解放のクラスは名前も伏せる(解放の条件も見せない)
+const clsNameShown = k => (clsUnlocked(k) ? DATA.classes[k].name : _t('？？？')); // 未解放のクラスは名前も伏せる(解放の条件も見せない)
 
 // ---------- クラスLv の効果 ----------
 // 専用 = クラスの lv 表(そのクラスの Lv)/ 共通 = 武器の mastery 表(その武器を持つクラスの Lv)
@@ -160,7 +160,7 @@ function classLvTable(cls) {
   for (let l = 2; l <= DATA.classLevel.need.length + 1; l++) {
     if (c.lv[l]) out.push({ lv: l, kind: '専用', d: c.lv[l].d });
     else if (m && m[l]) out.push({ lv: l, kind: '共通', d: m[l].d });
-    else out.push({ lv: l, kind: '', d: '(準備中)' });
+    else out.push({ lv: l, kind: '', d: _t('(準備中)') });
   }
   return out;
 }

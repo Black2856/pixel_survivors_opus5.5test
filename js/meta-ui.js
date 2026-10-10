@@ -26,7 +26,7 @@ const MetaUI = (() => {
     $('eq-slots').innerHTML = Object.entries(DATA.equip.slots).map(([slot, label]) => {
       const it = itemById(META.loadout[slot]);
       return `<button class="eq-slot ${it && sel === it ? 'sel' : ''}" data-id="${it ? it.id : ''}" style="--rc:${it ? rcol(it) : '#3a3060'}">
-        <span class="lbl">${label}</span>${it ? icon(it, 'big') + `<span class="nm">${itemName(it)}</span>` : '<span class="nm dim">なし</span>'}</button>`;
+        <span class="lbl">${label}</span>${it ? icon(it, 'big') + `<span class="nm">${itemName(it)}</span>` : _t('<span class="nm dim">なし</span>')}</button>`;
     }).join('');
     // 一覧(部位で絞り込み・レアリティの高い順 → 新しい順)
     const list = META.inventory.filter(it => filter === 'all' || itemSlot(it) === filter)
@@ -35,31 +35,31 @@ const MetaUI = (() => {
     for (const b of $('eq-tabs').children) b.classList.toggle('on', b.dataset.f === filter);
     $('eq-list').innerHTML = list.length ? list.map(it => `<button class="eq-item ${sel === it ? 'sel' : ''}" data-id="${it.id}" style="--rc:${rcol(it)}" title="${itemName(it)}">
         ${icon(it)}${it.lock ? '<span class="lk">🔒</span>' : ''}${isEquipped(it) ? '<span class="eqd">E</span>' : ''}${it.enh ? `<span class="en">+${it.enh}</span>` : ''}${it.isNew ? '<span class="nw">NEW</span>' : ''}</button>`).join('')
-      : '<div class="dim eq-empty">装備がありません。ボスを倒すと装備宝箱を落とします</div>';
+      : _t('<div class="dim eq-empty">装備がありません。ボスを倒すと装備宝箱を落とします</div>');
     detail();
     const unlocked = META.inventory.filter(it => !it.lock && !isEquipped(it));
     const b = $('eq-sellall');
     b.disabled = !unlocked.length;
-    if (!sellArm) b.textContent = `ロック以外を売却 (${unlocked.length}個 +${unlocked.reduce((a, it) => a + sellValue(it), 0)}G)`;
+    if (!sellArm) b.textContent = _t`ロック以外を売却 (${unlocked.length}個 +${unlocked.reduce((a, it) => a + sellValue(it), 0)}G)`;
     statusPanel('eq-status');
   }
 
   // 選んだ装備の詳細と操作
   function detail() {
     const box = $('eq-detail'), it = sel;
-    if (!it || !META.inventory.includes(it)) { box.innerHTML = '<div class="dim">装備を選ぶと詳細が表示されます</div>'; return; }
+    if (!it || !META.inventory.includes(it)) { box.innerHTML = _t('<div class="dim">装備を選ぶと詳細が表示されます</div>'); return; }
     const R = DATA.equip.rarity[it.rarity], eq = isEquipped(it);
     box.innerHTML = `
-      <div class="eq-head" style="--rc:${R.col}">${icon(it, 'big')}<div><div class="rar">${R.name} ・ ${DATA.equip.slots[itemSlot(it)]}</div><div class="nm">${itemName(it)}</div></div></div>
-      <div class="eq-opts">${it.opts.map(o => `<div class="eq-opt"><span>${optHTML(o)}</span><em>〜Lv${o.max}</em>${qualHTML(o.q)}</div>`).join('')}</div>
+      <div class="eq-head" style="--rc:${R.col}">${icon(it, 'big')}<div><div class="rar">${R.name}${_t(' ・ ')}${DATA.equip.slots[itemSlot(it)]}</div><div class="nm">${itemName(it)}</div></div></div>
+      <div class="eq-opts">${it.opts.map(o => `<div class="eq-opt"><span>${optHTML(o)}</span><em>${_t`〜Lv${o.max}`}</em>${qualHTML(o.q)}</div>`).join('')}</div>
       ${it.uq ? `<div class="eq-uq">★ ${DATA.uniques[it.uq].desc}</div>` : ''}
-      <div class="dim eq-note">ラン開始時は全オプション Lv0。レベルアップの装備カードで選んだオプションが +1Lv</div>
-      <div class="eq-enh">強化 ${it.enh} / ${R.enh}</div>
+      <div class="dim eq-note">${_t('ラン開始時は全オプション Lv0。レベルアップの装備カードで選んだオプションが +1Lv')}</div>
+      <div class="eq-enh">${_t`強化 ${it.enh} / ${R.enh}`}</div>
       <div class="eq-btns">
-        <button class="btn" data-act="equip">${eq ? '外す' : '装備する'}</button>
-        <button class="btn ghost" data-act="lock">${it.lock ? 'ロック解除' : 'ロック'}</button>
-        <button class="btn" data-act="enh" ${canEnhance(it) && META.gold >= enhCost(it) ? '' : 'disabled'}>${canEnhance(it) ? `強化 ● ${enhCost(it)}` : it.enh >= R.enh ? '強化 回数上限' : '強化 全て最大'}</button>
-        <button class="btn ghost" data-act="sell" ${it.lock || eq ? 'disabled' : ''}>売却 +${sellValue(it)}G</button>
+        <button class="btn" data-act="equip">${eq ? _t('外す') : _t('装備する')}</button>
+        <button class="btn ghost" data-act="lock">${it.lock ? _t('ロック解除') : _t('ロック')}</button>
+        <button class="btn" data-act="enh" ${canEnhance(it) && META.gold >= enhCost(it) ? '' : 'disabled'}>${canEnhance(it) ? _t`強化 ● ${enhCost(it)}` : it.enh >= R.enh ? _t('強化 回数上限') : _t('強化 全て最大')}</button>
+        <button class="btn ghost" data-act="sell" ${it.lock || eq ? 'disabled' : ''}>${_t`売却 +${sellValue(it)}G`}</button>
       </div>`;
   }
 
@@ -70,7 +70,7 @@ const MetaUI = (() => {
     else if (a === 'lock') { it.lock = !it.lock; saveMeta(); AudioMan.click(); }
     else if (a === 'enh') {
       const o = enhanceItem(it);
-      if (o) { AudioMan.levelup(); UI.announce('強化成功!', `${DATA.stats[o.k].label} のロール値アップ`); }
+      if (o) { AudioMan.levelup(); UI.announce(_t('強化成功!'), _t`${DATA.stats[o.k].label} のロール値アップ`); }
     } else if (a === 'sell') { const g = sellItem(it); if (g) { AudioMan.coin(); sel = null; } }
     render();
   }
@@ -90,35 +90,35 @@ const MetaUI = (() => {
     const st = $('cl-list').scrollTop; // 描き直してもスクロール位置を保つ
     $('cl-list').innerHTML = Object.keys(DATA.classes).map(k => {
       const c = DATA.classes[k], m = META.classes[k];
-      if (!clsUnlocked(k)) return `<button class="cl-card ${clSel === k ? 'sel' : ''} locked" data-k="${k}"><span class="en">???</span><img src="${portrait(k)}" alt=""><span class="nm">？？？</span><span class="lv">🔒</span></button>`; // 未解放: 名前・色を伏せたシルエット
+      if (!clsUnlocked(k)) return `<button class="cl-card ${clSel === k ? 'sel' : ''} locked" data-k="${k}"><span class="en">???</span><img src="${portrait(k)}" alt=""><span class="nm">${_t('？？？')}</span><span class="lv">🔒</span></button>`; // 未解放: 名前・色を伏せたシルエット
       return `<button class="cl-card ${clSel === k ? 'sel' : ''} ${clsReady(k) ? '' : 'off'}" data-k="${k}" style="--cc:${c.col}">
         <span class="en">${c.en}</span><img src="${portrait(k)}" alt=""><span class="nm">${c.name}</span>
-        <span class="lv">${clsReady(k) ? 'Lv ' + m.lv : '準備中'}</span>${META.cls === k ? '<span class="use">使用中</span>' : ''}</button>`;
+        <span class="lv">${clsReady(k) ? 'Lv ' + m.lv : _t('準備中')}</span>${META.cls === k ? _t('<span class="use">使用中</span>') : ''}</button>`;
     }).join('');
     $('cl-list').scrollTop = st;
     if (!clsUnlocked(clSel)) { // 未解放: 何も明かさない
-      $('cl-detail').innerHTML = `<div class="cl-head"><span class="nm">？？？</span></div>
-        <div class="cl-lock">🔒 まだ解放されていないクラス</div>
-        <div class="dim cl-note">モード・ステージを初めてクリアすると、新しいクラスが解放されることがある</div>
-        <button class="btn cl-go" disabled>🔒 未解放</button>`;
-      $('cl-status').innerHTML = '<div class="dim sv-note">？？？</div>';
+      $('cl-detail').innerHTML = `<div class="cl-head"><span class="nm">${_t('？？？')}</span></div>
+        <div class="cl-lock">🔒 ${_t('まだ解放されていないクラス')}</div>
+        <div class="dim cl-note">${_t('モード・ステージを初めてクリアすると、新しいクラスが解放されることがある')}</div>
+        <button class="btn cl-go" disabled>🔒 ${_t('未解放')}</button>`;
+      $('cl-status').innerHTML = _t('<div class="dim sv-note">？？？</div>');
       return;
     }
     const k = clSel, c = DATA.classes[k], m = META.classes[k], need = DATA.classLevel.need, max = need.length + 1;
     const xpP = m.lv >= max ? 100 : m.xp / need[m.lv - 1] * 100;
     const rows = classLvTable(k).map(r => `<div class="cl-row ${m.lv >= r.lv ? 'got' : ''} ${m.lv + 1 === r.lv ? 'next' : ''}">
-      <b>Lv${r.lv}</b><span class="tag ${r.kind === '共通' ? 'wp' : ''}">${r.kind}</span><span>${r.d}</span><em>${m.lv >= r.lv ? '✔' : need[r.lv - 2].toLocaleString()}</em></div>`).join('');
+      <b>Lv${r.lv}</b><span class="tag ${r.kind === '共通' ? 'wp' : ''}">${_t(r.kind)}</span><span>${r.d}</span><em>${m.lv >= r.lv ? '✔' : need[r.lv - 2].toLocaleString()}</em></div>`).join('');
     const swap = canSwap(k), cw = m.weapon || c.weapon || c.startW;
-    const note = c.weapon ? `<span class="tag">専用</span>このクラスだけ <span class="tag wp">共通</span>${DATA.weapons[c.weapon].name}を使うどのクラスにも効く`
-      : '<span class="tag">専用</span>このクラスだけ(専用の武器がないので全て専用。武器の熟練は、その武器を専用にしているクラスの Lv で決まる)';
+    const note = c.weapon ? _t`<span class="tag">専用</span>このクラスだけ <span class="tag wp">共通</span>${DATA.weapons[c.weapon].name}を使うどのクラスにも効く`
+      : _t('<span class="tag">専用</span>このクラスだけ(専用の武器がないので全て専用。武器の熟練は、その武器を専用にしているクラスの Lv で決まる)');
     $('cl-detail').innerHTML = `
       <div class="cl-head" style="--cc:${c.col}"><span class="nm">${c.name}</span><span class="lv">Lv ${m.lv}${m.lv >= max ? ' MAX' : ''}</span></div>
       <div class="cl-xp"><i style="width:${xpP.toFixed(1)}%"></i><span>${m.lv >= max ? 'MAX' : `${m.xp.toLocaleString()} / ${need[m.lv - 1].toLocaleString()} EXP`}</span></div>
       <div class="dim cl-note">${note}</div>
       <div class="cl-rows">${rows}</div>
-      <div class="cl-sub">メイン武器 ${swap ? '' : '<span class="dim">(Lv15 で切り替え解放)</span>'}</div>
-      <button class="cl-wsel">${UI.weaponIcon(cw)}<span>${DATA.weapons[cw].name}${cw === c.weapon ? '<small>専用</small>' : ''}</span><em>${swap ? '変更 ▸' : '一覧 ▸'}</em></button>
-      <button class="btn cl-go" ${clsReady(k) ? '' : 'disabled'}>${META.cls === k ? '使用中' : 'このクラスにする'}</button>`;
+      <div class="cl-sub">${_t('メイン武器')} ${swap ? '' : _t('<span class="dim">(Lv15 で切り替え解放)</span>')}</div>
+      <button class="cl-wsel">${UI.weaponIcon(cw)}<span>${DATA.weapons[cw].name}${cw === c.weapon ? _t('<small>専用</small>') : ''}</span><em>${swap ? _t('変更 ▸') : _t('一覧 ▸')}</em></button>
+      <button class="btn cl-go" ${clsReady(k) ? '' : 'disabled'}>${META.cls === k ? _t('使用中') : _t('このクラスにする')}</button>`;
     Help.glossify($('cl-detail'), { cls: k, per: '.cl-row, .cl-note' });
     statusPanel('cl-status', k);
   }
@@ -137,14 +137,14 @@ const MetaUI = (() => {
     const k = clSel, c = DATA.classes[k], m = META.classes[k], swap = canSwap(k), cw = m.weapon || c.weapon || c.startW;
     const weps = [...new Set(Object.values(DATA.classes).map(x => x.weapon).filter(Boolean))];
     const owner = w => Object.values(DATA.classes).find(x => x.weapon === w), ownerName = w => clsNameShown(weaponOwner(w)); // 未解放のクラスの名前は伏せる
-    wpModal.querySelector('.svm-body').innerHTML = `<div class="wp-h">メイン武器を選ぶ <span class="dim">— ${c.name}</span></div>
-      ${swap ? '' : '<div class="dim wp-note">Lv15 で切り替えが解放されます(今はクラス専用の武器だけ)</div>'}
+    wpModal.querySelector('.svm-body').innerHTML = `<div class="wp-h">${_t('メイン武器を選ぶ')} <span class="dim">— ${c.name}</span></div>
+      ${swap ? '' : _t('<div class="dim wp-note">Lv15 で切り替えが解放されます(今はクラス専用の武器だけ)</div>')}
       <div class="wp-list">${weps.map(w => {
         const d = DATA.weapons[w], o = owner(w), ok = swap || w === c.weapon;
         return `<button class="wp-card ${cw === w ? 'on' : ''}" data-w="${w}" ${ok ? '' : 'disabled'} style="--cc:${o ? o.col : '#fff'}">
-          ${UI.weaponIcon(w)}<div class="wp-b"><div class="wp-nm">${d.name}${w === c.weapon ? '<small>専用</small>' : ''}${cw === w ? '<small class="use">使用中</small>' : ''}</div>
+          ${UI.weaponIcon(w)}<div class="wp-b"><div class="wp-nm">${d.name}${w === c.weapon ? _t('<small>専用</small>') : ''}${cw === w ? _t('<small class="use">使用中</small>') : ''}</div>
           <div class="dim">${d.desc}</div>
-          <div class="wp-e">${d.skill ? `E: ${d.skill.name}` : '<span class="dim">E なし</span>'}${o ? `<span class="dim"> ・ ${ownerName(w)}の武器(熟練は${ownerName(w)}の Lv)</span>` : ''}</div></div></button>`;
+          <div class="wp-e">${d.skill ? `E: ${d.skill.name}` : _t('<span class="dim">E なし</span>')}${o ? _t`<span class="dim"> ・ ${ownerName(w)}の武器(熟練は${ownerName(w)}の Lv)</span>` : ''}</div></div></button>`;
       }).join('')}</div>`;
     Help.glossify(wpModal.querySelector('.wp-list'), { per: '.wp-b' });
     wpModal.classList.remove('hidden');
@@ -242,17 +242,17 @@ const MetaUI = (() => {
     treeInfo();
     // 合計(ツリーから得ているステータス)
     const tc = treeCounts(), total = Object.values(TREE).length;
-    $('tr-sum').innerHTML = `<div class="tr-h">取得 ${META.tree.length} / ${total}</div>` + (Object.keys(tc).length
+    $('tr-sum').innerHTML = _t`<div class="tr-h">取得 ${META.tree.length} / ${total}</div>` + (Object.keys(tc).length
       ? Object.keys(tc).map(k => `<div class="tr-s"><span>${DATA.stats[k].label}</span><b>${optVal({ k, v: DATA.stats[k].kind === 'red' ? 1 - Math.pow(1 - treeNodeValue(k), tc[k]) : treeNodeValue(k) * tc[k] })}</b></div>`).join('')
-      : '<div class="dim">まだ何も取得していません</div>');
+      : _t('<div class="dim">まだ何も取得していません</div>'));
   }
   function treeInfo() {
     const box = $('tr-info'), nd = trSel && TREE[trSel];
-    if (!nd) { box.innerHTML = '<div class="dim">ノードを選ぶと詳細が表示されます。中心に近いノードから、取得済みのノードの隣へ広げていきます</div>'; return; }
+    if (!nd) { box.innerHTML = _t('<div class="dim">ノードを選ぶと詳細が表示されます。中心に近いノードから、取得済みのノードの隣へ広げていきます</div>'); return; }
     const D = DATA.tree.dirs[nd.dir], own = treeOwned(nd.id), open = treeOpen(nd), cost = treeCost(nd);
     box.innerHTML = `<div class="tr-nm" style="color:${D.col}">${DATA.tree.glyph[nd.k]} ${nodeName(nd)}</div>
-      <div class="dim">${D.name} ・ 深さ ${nd.depth}${nd.big ? ' ・ 特別なノード' : nd.leaf ? ' ・ 行き止まり' : ''}</div>
-      <button class="btn tr-buy" ${!own && open && META.gold >= cost ? '' : 'disabled'}>${own ? '取得済み' : !open ? '隣のノードを先に取得' : `取得 ● ${cost.toLocaleString()}`}</button>`;
+      <div class="dim">${D.name}${_t` ・ 深さ ${nd.depth}`}${nd.big ? _t(' ・ 特別なノード') : nd.leaf ? _t(' ・ 行き止まり') : ''}</div>
+      <button class="btn tr-buy" ${!own && open && META.gold >= cost ? '' : 'disabled'}>${own ? _t('取得済み') : !open ? _t('隣のノードを先に取得') : _t`取得 ● ${cost.toLocaleString()}`}</button>`;
   }
   $('tr-svg').onclick = e => {
     if (trMoved) { trMoved = false; return; } // ドラッグで移動した後はクリックにしない
@@ -263,7 +263,7 @@ const MetaUI = (() => {
   $('tr-svg').ondblclick = e => { const g = e.target.closest('.nd'); if (g && treeBuy(g.dataset.id)) { AudioMan.levelup(); renderTree(); } };
   $('tr-info').onclick = e => {
     if (!e.target.closest('.tr-buy') || !trSel) return;
-    if (treeBuy(trSel)) { AudioMan.levelup(); UI.announce('強化!', nodeName(TREE[trSel])); renderTree(); }
+    if (treeBuy(trSel)) { AudioMan.levelup(); UI.announce(_t('強化!'), nodeName(TREE[trSel])); renderTree(); }
   };
   $('tr-back').onclick = () => { AudioMan.click(); state = 'title'; UI.title(); };
   $('btn-tree').onclick = () => { AudioMan.click(); treeScreen(); };
@@ -280,16 +280,16 @@ const MetaUI = (() => {
     $('sh-list').innerHTML = sh.items.map(it => {
       const R = DATA.equip.rarity[it.rarity], sold = sh.sold.includes(it.id), p = shopPrice(it);
       return `<div class="sh-item ${sold ? 'sold' : ''}" style="--rc:${R.col}">
-        <div class="eq-head">${icon(it, 'big')}<div><div class="rar">${R.name} ・ ${DATA.equip.slots[itemSlot(it)]}</div><div class="nm">${itemName(it)}</div></div></div>
-        <div class="eq-opts">${it.opts.map(o => `<div class="eq-opt"><span>${optHTML(o)}</span><em>〜Lv${o.max}</em>${qualHTML(o.q)}</div>`).join('')}</div>
+        <div class="eq-head">${icon(it, 'big')}<div><div class="rar">${R.name}${_t(' ・ ')}${DATA.equip.slots[itemSlot(it)]}</div><div class="nm">${itemName(it)}</div></div></div>
+        <div class="eq-opts">${it.opts.map(o => `<div class="eq-opt"><span>${optHTML(o)}</span><em>${_t`〜Lv${o.max}`}</em>${qualHTML(o.q)}</div>`).join('')}</div>
         ${it.uq ? `<div class="eq-uq">★ ${DATA.uniques[it.uq].desc}</div>` : ''}
-        <button class="btn sh-buy" data-id="${it.id}" ${!sold && !full && META.gold >= p ? '' : 'disabled'}>${sold ? '売り切れ' : full ? 'インベントリが一杯' : `購入 ● ${p.toLocaleString()}`}</button>
+        <button class="btn sh-buy" data-id="${it.id}" ${!sold && !full && META.gold >= p ? '' : 'disabled'}>${sold ? _t('売り切れ') : full ? _t('インベントリが一杯') : _t`購入 ● ${p.toLocaleString()}`}</button>
       </div>`;
     }).join('');
   }
   $('sh-list').onclick = e => {
     const b = e.target.closest('.sh-buy'); if (!b || b.disabled) return;
-    if (shopBuy(+b.dataset.id)) { AudioMan.coin(); UI.announce('購入しました', '装備画面で装備できます'); renderShop(); }
+    if (shopBuy(+b.dataset.id)) { AudioMan.coin(); UI.announce(_t('購入しました'), _t('装備画面で装備できます')); renderShop(); }
   };
   $('sh-back').onclick = () => { AudioMan.click(); state = 'title'; UI.title(); };
   $('btn-shop').onclick = () => { AudioMan.click(); shopScreen(); };
@@ -302,10 +302,10 @@ const MetaUI = (() => {
   const TIER_COL = ['#9ff7ff', '#7dff9a', '#ff8a3d', '#c78bff'];
   const startLvOf = key => { const m = chaosMods(key).find(x => x.k === 'startLv'); return (key === 'arena' ? DATA.arena.elv[0] : 1) + chaosLv(chaosSetting(key), m) * m.per; }; // 開始の敵Lv(闘技場は1ラウンド目の敵Lv)+ 深い闇
   const STAGE_ITEMS = () => [
-    { key: 'escalation', mode: 'escalation', n: 1, name: 'エスカレーション', sub: `tier 1 → 4 を通す ・ 敵Lv ${startLvOf('escalation')} から`, col: '#ffd23f' },
-    { key: 'arena', mode: 'arena', n: 1, name: '闘技場', sub: `ボス${DATA.arena.order.length}体の連戦 ・ 敵Lv ${startLvOf('arena')} から`, col: '#ff3b5c' },
+    { key: 'escalation', mode: 'escalation', n: 1, name: _t('エスカレーション'), sub: _t`tier 1 → 4 を通す ・ 敵Lv ${startLvOf('escalation')} から`, col: '#ffd23f' },
+    { key: 'arena', mode: 'arena', n: 1, name: _t('闘技場'), sub: _t`ボス${DATA.arena.order.length}体の連戦 ・ 敵Lv ${startLvOf('arena')} から`, col: '#ff3b5c' },
     ...DATA.stageRuns.map(R => ({ key: 'stage' + R.no, mode: 'stage', n: R.no, tier: R.tier, name: DATA.stages[R.stage - 1].label,
-      sub: `tier ${R.tier} ・ 敵Lv ${startLvOf('stage' + R.no)} から ・ ${R.bosses.map(b => DATA.bosses[b].name.split(' ')[0]).join(' → ')}`, col: TIER_COL[R.tier - 1] }))
+      sub: _t`tier ${R.tier} ・ 敵Lv ${startLvOf('stage' + R.no)} から ・ ${R.bosses.map(b => I18N.bossShort(DATA.bosses[b].name)).join(' → ')}`, col: TIER_COL[R.tier - 1] }))
       .sort((a, b) => a.tier - b.tier), // 通常モード: tier の順
   ];
   function stageSelect() {
@@ -313,16 +313,16 @@ const MetaUI = (() => {
     UI.only('stage-screen');
     const c = DATA.classes[META.cls], m = META.classes[META.cls];
     $('st-class').style.setProperty('--cc', c.col);
-    $('st-class').innerHTML = `<img src="${portrait(META.cls)}" alt=""><span><b>${c.name}</b> Lv${m.lv} ・ ${DATA.weapons[m.weapon].name}</span><small>クラス変更 ▶</small>`;
+    $('st-class').innerHTML = _t`<img src="${portrait(META.cls)}" alt=""><span><b>${c.name}</b> Lv${m.lv} ・ ${DATA.weapons[m.weapon].name}</span><small>クラス変更 ▶</small>`;
     const items = STAGE_ITEMS();
     $('stage-list').innerHTML = items.map(s => {
       const clear = META.stageClear[s.key], open = stageUnlocked(s);
       const pt = open ? chaosPoints(chaosSetting(s.key), s.key) : 0;
-      const right = !open ? `<span class="lock">未解放: tier ${needTier(s)} のステージを1つクリア</span>`
-        : clear ? `<span class="chaos on">カオス強化 <b>${pt} pt</b> <span class="cz-btn" data-chaos="${s.key}">設定 ▶</span></span>`
-        : `<span class="chaos">カオス強化 ${pt ? `<b>${pt} pt</b>` : 'なし'}(クリアまで固定)<span class="cz-btn" data-chaos="${s.key}">見る ▶</span></span>`;
+      const right = !open ? _t`<span class="lock">未解放: tier ${needTier(s)} のステージを1つクリア</span>`
+        : clear ? _t`<span class="chaos on">カオス強化 <b>${pt} pt</b> <span class="cz-btn" data-chaos="${s.key}">設定 ▶</span></span>`
+        : _t`<span class="chaos">カオス強化 ${pt ? `<b>${pt} pt</b>` : _t('なし')}(クリアまで固定)<span class="cz-btn" data-chaos="${s.key}">見る ▶</span></span>`;
       return `<button class="stg${open ? '' : ' locked'}" data-mode="${s.mode}" data-n="${s.n}" style="--sc:${s.col}">
-        <span class="nm">${open ? s.name : '？？？'}${clear ? ' <b class="clr">★ CLEAR</b>' : ''}</span>${right}<span class="sub">${open ? s.sub : '？？？'}</span></button>`;
+        <span class="nm">${open ? s.name : _t('？？？')}${clear ? ' <b class="clr">★ CLEAR</b>' : ''}</span>${right}<span class="sub">${open ? s.sub : _t('？？？')}</span></button>`;
     }).join('');
   }
   // 解放に必要な tier(そのクリアが要る。0 = 最初から): 通常モードは tier − 1、エスカレーション・闘技場は tier 4
@@ -340,22 +340,22 @@ const MetaUI = (() => {
   // 項目ごとに Lv を上げ下げ。合計ポイントと、その報酬(そのランの間だけ効く)を表示する。クリアするまでは tier の値で固定(見るだけ)
   let czKey = null;
   // 報酬の一覧(右の欄に1行ずつ。今の報酬と次の報酬を横に並べる)
-  const REWARD_ROWS = [['装備ロール上限', r => `+${Math.round(r.eqMaxVal * 100)}%`], ['装備Lv上限', r => (r.eqMaxLv ? `+${r.eqMaxLv}` : '—')], ['装備品質', r => `+${Math.round(r.eqQual * 100)}%`], ['宝箱品質', r => `+${Math.round(r.chestQual * 100)}%`], ['獲得ゴールド', r => `+${Math.round(r.gold * 100)}%`]];
+  const REWARD_ROWS = [[_t('装備ロール上限'), r => `+${Math.round(r.eqMaxVal * 100)}%`], [_t('装備Lv上限'), r => (r.eqMaxLv ? `+${r.eqMaxLv}` : '—')], [_t('装備品質'), r => `+${Math.round(r.eqQual * 100)}%`], [_t('宝箱品質'), r => `+${Math.round(r.chestQual * 100)}%`], [_t('獲得ゴールド'), r => `+${Math.round(r.gold * 100)}%`]];
   const rewardRows = (r, nx) => REWARD_ROWS.map(([a, f]) => `<div class="cz-rw"><span>${a}</span><b>${r ? f(r) : '—'}</b><i>${nx ? f(nx) : ''}</i></div>`).join('');
   function chaosPanel(key) {
     czKey = key; const lv = chaosSetting(key), fixed = chaosFixed(key);
     const pt = chaosPoints(lv, key), r = chaosReward(pt), next = DATA.chaos.rewards.find(x => x.pt > pt);
     const item = STAGE_ITEMS().find(s => s.key === key);
     $('chaos-panel').innerHTML = `<div class="cz">
-      <div class="cz-head"><b>カオス強化</b> ${item ? item.name : ''}${fixed ? '<span class="cz-fix">クリアするまで固定(見るだけ)</span>' : ''}<button class="cz-x" data-cz="close">×</button></div>
+      <div class="cz-head"><b>${_t('カオス強化')}</b> ${item ? item.name : ''}${fixed ? _t('<span class="cz-fix">クリアするまで固定(見るだけ)</span>') : ''}<button class="cz-x" data-cz="close">×</button></div>
       <div class="cz-body"><div class="cz-list">${chaosMods(key).map(m => { const l = chaosLv(lv, m); return `<div class="cz-row ${l ? 'on' : ''}">
         <span class="nm">${m.name}<small>${chaosDesc(m, Math.max(1, l))}${m.max > 1 ? ` (1Lv ${m.per}${m.unit ?? '%'})` : ''}</small></span>
         <span class="pt">${m.pt} pt/Lv</span>
         <button data-cz="-" data-k="${m.k}" ${l && !fixed ? '' : 'disabled'}>−</button><b>${l} / ${m.max}</b><button data-cz="+" data-k="${m.k}" ${l < m.max && !fixed ? '' : 'disabled'}>+</button></div>`; }).join('')}</div>
       <div class="cz-sum">
-        <div class="cz-pt">合計<b>${pt}</b><small>pt</small></div>
-        <div class="cz-rw cz-h"><span>報酬</span><b>${r ? `${r.pt} pt` : 'なし'}</b><i>${next ? `次 ${next.pt} pt` : '最大'}</i></div><div class="cz-rws">${rewardRows(r, next)}</div>
-        <div class="dim cz-note">${fixed ? (item && item.tier ? `クリアするまで tier ${item.tier} のカオス強化で固定。` : 'クリアするまでカオス強化なし。') + 'クリアすると変えられる。' : ''}報酬はこのモード・ステージのランの間だけ効く。敵が強くなる分、装備とゴールドが増える</div>
+        <div class="cz-pt">${_t('合計')}<b>${pt}</b><small>pt</small></div>
+        <div class="cz-rw cz-h"><span>${_t('報酬')}</span><b>${r ? `${r.pt} pt` : _t('なし')}</b><i>${next ? _t`次 ${next.pt} pt` : _t('最大')}</i></div><div class="cz-rws">${rewardRows(r, next)}</div>
+        <div class="dim cz-note">${fixed ? (item && item.tier ? _t`クリアするまで tier ${item.tier} のカオス強化で固定。` : _t('クリアするまでカオス強化なし。')) + _t('クリアすると変えられる。') : ''}${_t('報酬はこのモード・ステージのランの間だけ効く。敵が強くなる分、装備とゴールドが増える')}</div>
       </div></div>
     </div>`;
     Help.glossify($('chaos-panel'), { per: '.cz-row .nm small, .cz-rw, .cz-note' });
@@ -390,10 +390,10 @@ const MetaUI = (() => {
   // 一括売却は2回押しで確定(誤操作防止)
   $('eq-sellall').onclick = () => {
     const b = $('eq-sellall');
-    if (!sellArm) { b.textContent = '本当に売却? もう一度押す'; b.classList.add('warn'); sellArm = setTimeout(() => { sellArm = null; b.classList.remove('warn'); render(); }, 3000); return; }
+    if (!sellArm) { b.textContent = _t('本当に売却? もう一度押す'); b.classList.add('warn'); sellArm = setTimeout(() => { sellArm = null; b.classList.remove('warn'); render(); }, 3000); return; }
     clearTimeout(sellArm); sellArm = null; b.classList.remove('warn');
     const [n, g] = sellAllUnlocked();
-    if (n) { AudioMan.coinRain(10); UI.announce(`+${g.toLocaleString()} G`, `${n}個 売却しました`); }
+    if (n) { AudioMan.coinRain(10); UI.announce(`+${g.toLocaleString()} G`, _t`${n}個 売却しました`); }
     sel = null; render();
   };
   function onKey(e) {

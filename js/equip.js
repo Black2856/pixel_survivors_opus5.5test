@@ -184,7 +184,7 @@ function shopBuy(id) {
 // ---------- 表示用 ----------
 // オプション1行: 「攻撃力 +8.0% /Lv」。乗算系・% 系は % 表示
 function optVal(o) {
-  if (DATA.stats[o.k].kind === 'flag') return o.v ? 'あり' : 'なし';
+  if (DATA.stats[o.k].kind === 'flag') return o.v ? _t('あり') : _t('なし');
   if (!o.v) return DATA.stats[o.k].kind !== 'flat' ? '0%' : '0' + (DATA.stats[o.k].unit || ''); // Lv0(装備カードの変化前)
   // 値 × Lv や ツリーの合計は 2.0999… のような誤差が出るので、固定値は小数第2位で丸める
   const d = DATA.stats[o.k], val = d.kind !== 'flat' ? (o.v * 100).toFixed(1) + '%' : String(Math.round(o.v * 100) / 100);

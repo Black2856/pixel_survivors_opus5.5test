@@ -173,6 +173,9 @@
     <h2 class="scr-title">設定</h2>
     <div id="settings-slot">
       <div id="settings-panel">
+        <!-- 言語: 選択肢はそれぞれの言語の名前のまま(translate="no") -->
+        <div class="vol" data-tip="set:lang"><label>🌐 言語</label>
+          <div class="seg" id="set-lang" translate="no"><button data-v="ja">日本語</button><button data-v="en">English</button></div></div>
         <div class="vol"><label>音楽</label><input type="range" id="vol-music" min="0" max="100"></div>
         <div class="vol"><label>効果音</label><input type="range" id="vol-sfx" min="0" max="100"></div>
         <div class="vol" data-tip="set:gfx"><label>画質</label><div class="seg" id="set-gfx"><button data-v="high">高</button><button data-v="mid">中</button><button data-v="low">低</button></div></div>
@@ -207,6 +210,8 @@
 <div id="tooltip" class="hidden"></div>
 
 <script src="js/data.js"></script>
+<script src="js/lang/en.js"></script>
+<script src="js/i18n.js"></script>
 <script src="js/art.js"></script>
 <script src="js/audio.js"></script>
 <script src="js/gfx.js"></script>

@@ -78,12 +78,13 @@ if (metaMigratedGold || metaTreeRefund || !localStorage.getItem(META_KEY)) saveM
 // gfx: high=全演出 / mid=ブルーム弱・歪みや粒状ノイズなし・パーティクル60% / low=ブルームなし・パーティクル35%
 const GFX_Q = { high: { bloom: 1, post: 1, parts: 1 }, mid: { bloom: 0.55, post: 0, parts: 0.6 }, low: { bloom: 0, post: 0, parts: 0.35 } };
 const SET = (() => {
-  const d = { gfx: 'high', fxA: 1, autoE: false, autoQ: false, ui: 1, cutin: true, hints: true }; // autoE / autoQ: スキルの自動発動 / ui: UI の大きさ / cutin: スキルのカットイン / hints: 初見の説明(敵の技・状態異常を初めて見たときの帯)
+  const d = { gfx: 'high', fxA: 1, autoE: false, autoQ: false, ui: 1, cutin: true, hints: true, lang: LANG }; // autoE / autoQ: スキルの自動発動 / ui: UI の大きさ / cutin: スキルのカットイン / hints: 初見の説明(敵の技・状態異常を初めて見たときの帯)/ lang: 言語(i18n.js)
   try { Object.assign(d, JSON.parse(localStorage.getItem('ps55_set') || '{}')); } catch (e) { /* 既定値で続行 */ }
   if (!GFX_Q[d.gfx]) d.gfx = 'high';
   d.fxA = clamp(+d.fxA || 1, 0.15, 1);
   d.autoE = !!d.autoE; d.autoQ = !!d.autoQ; d.cutin = d.cutin !== false; d.hints = d.hints !== false;
   d.ui = clamp(+d.ui || 1, 0.7, 1.5);
+  if (d.lang !== 'ja' && d.lang !== 'en') d.lang = LANG;
   return d;
 })();
 // UI の大きさ(HUD とメニュー画面の中身を拡大縮小する)
@@ -135,7 +136,7 @@ cvsEl.addEventListener('touchend', e => { for (const t of e.changedTouches) { if
 const mouse = { x: 0, y: 0, aim: false };
 function toggleAim() {
   mouse.aim = !mouse.aim;
-  UI.toast(mouse.aim ? '<span class="k">マウス照準</span> ・ SHIFT で戻す' : '<span class="k">自動照準</span>', mouse.aim ? '#ff9aa6' : '#9a8fc0'); // 控えめに(画面の下に小さく)
+  UI.toast(mouse.aim ? _t('<span class="k">マウス照準</span> ・ SHIFT で戻す') : _t('<span class="k">自動照準</span>'), mouse.aim ? '#ff9aa6' : '#9a8fc0'); // 控えめに(画面の下に小さく)
   AudioMan.click();
 }
 addEventListener('pointermove', e => {

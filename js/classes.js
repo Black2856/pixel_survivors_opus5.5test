@@ -103,13 +103,13 @@ const WEAPON_SKILL = {
       const sk = DATA.weapons.katana.skill, m = c.wm;
       const cd = sk.cd * (1 - c.cuV('e', 'cd')) * (1 - (m.cd || 0)) * c.cdMul, one = dmg * sk.pow * (1 + c.cuV('e', 'pow')) * (1 + (m.ePow || 0));
       return { name: sk.name, cat: 'e', desc: [
-        `構え ${sk.windup}秒 → ${sk.dur}秒間、周り(半径 ${sk.radius})を連続で斬る`,
-        `1回の威力: 武器の威力 × ${Math.round(sk.pow * 100)}%`,
-        '使っている間も動ける',
+        _t`構え ${sk.windup}秒 → ${sk.dur}秒間、周り(半径 ${sk.radius})を連続で斬る`,
+        _t`1回の威力: 武器の威力 × ${Math.round(sk.pow * 100)}%`,
+        _t('使っている間も動ける'),
       ], rows: [
-        ['CD', `<b>${cd.toFixed(1)}</b> 秒`],
-        ['斬る回数', `${sk.hits + Math.round(c.cuV('e', 'dur') / 0.15) + (m.eHits || 0)} 回 / ${(sk.dur + c.cuV('e', 'dur')).toFixed(2)} 秒`],
-        ['1回の威力', `${Math.round(one)} → <b>${Math.round(one * c.atkMul)}</b>`, '武器の威力 × ' + Math.round(sk.pow * 100) + '%。攻撃力を掛けた値'],
+        ['CD', _t`<b>${cd.toFixed(1)}</b> 秒`],
+        [_t('斬る回数'), _t`${sk.hits + Math.round(c.cuV('e', 'dur') / 0.15) + (m.eHits || 0)} 回 / ${(sk.dur + c.cuV('e', 'dur')).toFixed(2)} 秒`],
+        [_t('1回の威力'), `${Math.round(one)} → <b>${Math.round(one * c.atkMul)}</b>`, _t`武器の威力 × ${Math.round(sk.pow * 100)}%。攻撃力を掛けた値`],
       ] };
     },
     start() {
@@ -169,14 +169,14 @@ WEAPON_SKILL.bolt = {
   info(c, dmg) {
     const sk = DATA.weapons.bolt.skill, m = c.wm, dur = sk.dur + c.cuV('e', 'dur') + (m.eDur || 0), one = dmg * sk.pow * (1 + c.cuV('e', 'pow')) * (1 + (m.ePow || 0));
     return { name: sk.name, cat: 'e', desc: [
-      `構え ${sk.windup}秒 → ${sk.dur}秒間、照準方向へ毎秒 ${sk.rate}発の魔弾を連射`,
-      `1発の威力: 武器の威力 × ${Math.round(sk.pow * 100)}%`,
-      '連射中も普通に動ける',
-      `弾数は通常攻撃の ${Math.round(sk.countMul * 100)}%。弾速・貫通・追尾は通常攻撃と同じ`,
+      _t`構え ${sk.windup}秒 → ${sk.dur}秒間、照準方向へ毎秒 ${sk.rate}発の魔弾を連射`,
+      _t`1発の威力: 武器の威力 × ${Math.round(sk.pow * 100)}%`,
+      _t('連射中も普通に動ける'),
+      _t`弾数は通常攻撃の ${Math.round(sk.countMul * 100)}%。弾速・貫通・追尾は通常攻撃と同じ`,
     ], rows: [
-      ['CD', `<b>${(sk.cd * (1 - c.cuV('e', 'cd')) * (1 - (m.cd || 0)) * c.cdMul).toFixed(1)}</b> 秒`],
-      ['連射', `${Math.round(dur * sk.rate)} 発 / ${dur.toFixed(1)} 秒`],
-      ['1発の威力', `${Math.round(one)} → <b>${Math.round(one * c.atkMul)}</b>`, '武器の威力 × ' + Math.round(sk.pow * 100) + '%。攻撃力を掛けた値'],
+      ['CD', _t`<b>${(sk.cd * (1 - c.cuV('e', 'cd')) * (1 - (m.cd || 0)) * c.cdMul).toFixed(1)}</b> 秒`],
+      [_t('連射'), _t`${Math.round(dur * sk.rate)} 発 / ${dur.toFixed(1)} 秒`],
+      [_t('1発の威力'), `${Math.round(one)} → <b>${Math.round(one * c.atkMul)}</b>`, _t`武器の威力 × ${Math.round(sk.pow * 100)}%。攻撃力を掛けた値`],
     ] };
   },
   start() {
@@ -278,13 +278,13 @@ WEAPON_SKILL.longbow = {
     const sk = DATA.weapons.longbow.skill, m = c.wm, heavy = c.hasSp('e', 'pow'), dur = (sk.dur + (m.eDur || 0)) * (c.hasSp('e', 'cd') ? 1.5 : 1);
     const one = dmg * sk.pow * (1 + c.cuV('e', 'pow')) * (1 + (m.ePow || 0)) * (heavy ? 0.6 : 1);
     return { name: sk.name, cat: 'e', desc: [
-      `構え ${sk.windup}秒 → 照準位置の半径 ${sk.radius} に ${sk.dur}秒間、矢が降り注ぐ`,
-      `${sk.every}秒ごとに、範囲内の敵全員へ 武器の威力 × ${Math.round(sk.pow * 100)}%`,
-      '放った後は自由に動ける(雨はその場に残る)',
+      _t`構え ${sk.windup}秒 → 照準位置の半径 ${sk.radius} に ${sk.dur}秒間、矢が降り注ぐ`,
+      _t`${sk.every}秒ごとに、範囲内の敵全員へ 武器の威力 × ${Math.round(sk.pow * 100)}%`,
+      _t('放った後は自由に動ける(雨はその場に残る)'),
     ], rows: [
-      ['CD', `<b>${(sk.cd * (1 - c.cuV('e', 'cd')) * (1 - (m.cd || 0)) * c.cdMul).toFixed(1)}</b> 秒`],
-      ['攻撃回数', `${Math.round(dur / (sk.every * (heavy ? 0.5 : 1)))} 回 / ${dur.toFixed(1)} 秒`],
-      ['1回の威力', `${Math.round(one)} → <b>${Math.round(one * c.atkMul)}</b>`, '武器の威力 × ' + Math.round(sk.pow * 100) + '%。攻撃力を掛けた値'],
+      ['CD', _t`<b>${(sk.cd * (1 - c.cuV('e', 'cd')) * (1 - (m.cd || 0)) * c.cdMul).toFixed(1)}</b> 秒`],
+      [_t('攻撃回数'), _t`${Math.round(dur / (sk.every * (heavy ? 0.5 : 1)))} 回 / ${dur.toFixed(1)} 秒`],
+      [_t('1回の威力'), `${Math.round(one)} → <b>${Math.round(one * c.atkMul)}</b>`, _t`武器の威力 × ${Math.round(sk.pow * 100)}%。攻撃力を掛けた値`],
     ] };
   },
   start() {
@@ -336,13 +336,13 @@ WEAPON_SKILL.longsword = {
   info(c, dmg) {
     const sk = DATA.weapons.longsword.skill, m = c.wm, one = dmg * sk.pow * (1 + c.cuV('e', 'pow')) * (1 + (m.ePow || 0));
     return { name: sk.name, cat: 'e', desc: [
-      `使うと、シールドを最大HP の ${Math.round(sk.shield * 100)}% 得る(${sk.shieldT}秒)`,
-      `構え ${sk.windup}秒 → 剣を叩きつけ、前方へ衝撃波が ${sk.steps}段 走る`,
-      `1段の威力: 武器の威力 × ${Math.round(sk.pow * 100)}% + 今のシールド`,
+      _t`使うと、シールドを最大HP の ${Math.round(sk.shield * 100)}% 得る(${sk.shieldT}秒)`,
+      _t`構え ${sk.windup}秒 → 剣を叩きつけ、前方へ衝撃波が ${sk.steps}段 走る`,
+      _t`1段の威力: 武器の威力 × ${Math.round(sk.pow * 100)}% + 今のシールド`,
     ], rows: [
-      ['CD', `<b>${(sk.cd * (1 - c.cuV('e', 'cd')) * (1 - (m.cd || 0)) * c.cdMul).toFixed(1)}</b> 秒`],
-      ['段数', `${sk.steps + (m.eSteps || 0)} 段`],
-      ['1段の威力(シールド 0)', `${Math.round(one)} → <b>${Math.round(one * c.atkMul)}</b>`, 'シールドがあると、その値がそのまま足される'],
+      ['CD', _t`<b>${(sk.cd * (1 - c.cuV('e', 'cd')) * (1 - (m.cd || 0)) * c.cdMul).toFixed(1)}</b> 秒`],
+      [_t('段数'), _t`${sk.steps + (m.eSteps || 0)} 段`],
+      [_t('1段の威力(シールド 0)'), `${Math.round(one)} → <b>${Math.round(one * c.atkMul)}</b>`, _t('シールドがあると、その値がそのまま足される')],
     ] };
   },
   start() {
@@ -407,14 +407,14 @@ WEAPON_SKILL.fire = {
   info(c, dmg) {
     const sk = DATA.weapons.fire.skill, m = c.wm, dur = sk.dur + (m.eDur || 0), one = dmg * sk.pow * (1 + c.cuV('e', 'pow')) * (1 + (m.ePow || 0));
     return { name: sk.name, cat: 'e', desc: [
-      `構え ${sk.windup}秒 → ${sk.dur}秒間、照準方向へ扇形に炎を吹き続ける`,
-      `${sk.every}秒ごとに、範囲内の敵へ 武器の威力 × ${Math.round(sk.pow * 100)}% と炎上(武器の炎上/s × ${Math.round(sk.burn * 100)}% を 3秒)`,
-      '放射中も動ける',
+      _t`構え ${sk.windup}秒 → ${sk.dur}秒間、照準方向へ扇形に炎を吹き続ける`,
+      _t`${sk.every}秒ごとに、範囲内の敵へ 武器の威力 × ${Math.round(sk.pow * 100)}% と炎上(武器の炎上/s × ${Math.round(sk.burn * 100)}% を 3秒)`,
+      _t('放射中も動ける'),
     ], rows: [
-      ['CD', `<b>${(sk.cd * (1 - c.cuV('e', 'cd')) * (1 - (m.cd || 0)) * c.cdMul).toFixed(1)}</b> 秒`],
-      ['放射', `${Math.round(dur / sk.every)} 回 / ${dur.toFixed(1)} 秒`],
-      ['長さ', `${Math.round(sk.len * (1 + c.cuV('e', 'len')) * (1 + c.st.v.area) * c.st.mul.area)}`],
-      ['1回の威力', `${Math.round(one)} → <b>${Math.round(one * c.atkMul)}</b>`, '武器の威力 × ' + Math.round(sk.pow * 100) + '%。攻撃力を掛けた値'],
+      ['CD', _t`<b>${(sk.cd * (1 - c.cuV('e', 'cd')) * (1 - (m.cd || 0)) * c.cdMul).toFixed(1)}</b> 秒`],
+      [_t('放射'), _t`${Math.round(dur / sk.every)} 回 / ${dur.toFixed(1)} 秒`],
+      [_t('長さ'), `${Math.round(sk.len * (1 + c.cuV('e', 'len')) * (1 + c.st.v.area) * c.st.mul.area)}`],
+      [_t('1回の威力'), `${Math.round(one)} → <b>${Math.round(one * c.atkMul)}</b>`, _t`武器の威力 × ${Math.round(sk.pow * 100)}%。攻撃力を掛けた値`],
     ] };
   },
   start() {
@@ -529,14 +529,14 @@ WEAPON_SKILL.blade = {
   info(c, dmg) {
     const sk = DATA.weapons.blade.skill, m = c.wm, pw = (1 + c.cuV('e', 'pow')) * (1 + (m.ePow || 0)), one = dmg * sk.pow * pw, sc = dmg * sk.scatter * pw;
     return { name: sk.name, cat: 'e', desc: [
-      `構え ${sk.windup}秒 → ${sk.dur}秒間、刃の輪が広がる(使っている間も動ける)`,
-      `回転半径 ×${sk.rMul}、刃のサイズ ×${sk.size}、回転速度 ×${sk.rot}、刃の威力 ×${Math.round(sk.pow * 100)}%`,
-      `終わりに刃が回転しながら外へ飛び散る(1枚ごとに 武器の威力 × ${Math.round(sk.scatter * 100)}%、貫通)`,
+      _t`構え ${sk.windup}秒 → ${sk.dur}秒間、刃の輪が広がる(使っている間も動ける)`,
+      _t`回転半径 ×${sk.rMul}、刃のサイズ ×${sk.size}、回転速度 ×${sk.rot}、刃の威力 ×${Math.round(sk.pow * 100)}%`,
+      _t`終わりに刃が回転しながら外へ飛び散る(1枚ごとに 武器の威力 × ${Math.round(sk.scatter * 100)}%、貫通)`,
     ], rows: [
-      ['CD', `<b>${(sk.cd * (1 - c.cuV('e', 'cd')) * (1 - (m.cd || 0)) * c.cdMul).toFixed(1)}</b> 秒`],
-      ['持続', `${(sk.dur + (m.eDur || 0)).toFixed(1)} 秒`],
-      ['展開中の刃の威力', `${Math.round(one)} → <b>${Math.round(one * c.atkMul)}</b>`, '武器の威力 × ' + Math.round(sk.pow * 100) + '%。攻撃力を掛けた値'],
-      ['飛び散る刃の威力', `${Math.round(sc)} → <b>${Math.round(sc * c.atkMul)}</b>`],
+      ['CD', _t`<b>${(sk.cd * (1 - c.cuV('e', 'cd')) * (1 - (m.cd || 0)) * c.cdMul).toFixed(1)}</b> 秒`],
+      [_t('持続'), _t`${(sk.dur + (m.eDur || 0)).toFixed(1)} 秒`],
+      [_t('展開中の刃の威力'), `${Math.round(one)} → <b>${Math.round(one * c.atkMul)}</b>`, _t`武器の威力 × ${Math.round(sk.pow * 100)}%。攻撃力を掛けた値`],
+      [_t('飛び散る刃の威力'), `${Math.round(sc)} → <b>${Math.round(sc * c.atkMul)}</b>`],
     ] };
   },
   start() {
@@ -625,15 +625,15 @@ WEAPON_SKILL.wisp = {
     const sk = DATA.weapons.wisp.skill, m = c.wm, n = sk.n + c.cuV('e', 'n') + (m.eCount || 0), k = (1 + c.cuV('e', 'pow')) * (1 + (m.ePow || 0));
     const one = dmg * sk.pow * k, boom = dmg * sk.burstPow * k, f = v => (v < 10 ? v.toFixed(1) : Math.round(v)); // 1回の威力は小さいので 10 未満は小数1桁
     return { name: sk.name, cat: 'e', desc: [
-      `構え ${sk.windup}秒 → 自分の周りから精霊 ${sk.n}体が渦を巻いて広がり、それぞれ近くの敵へ飛んで取り憑く(まだ取り憑かれていない敵を優先)`,
-      `取り憑いた精霊は ${sk.possT}秒間、${sk.every}秒ごとにその敵へ 武器の威力 × ${Math.round(sk.pow * 100)}%(取り憑いた瞬間にも1回)`,
-      `  → その敵が倒れると、近く(半径 ${sk.hopR})の敵へ乗り移る(残り時間はそのまま。いなければその場で爆ぜる)`,
-      `  → 時間が来ると、取り憑いた敵の中で爆ぜる(武器の威力 × ${Math.round(sk.burstPow * 100)}%、半径 ${sk.burstR})`,
+      _t`構え ${sk.windup}秒 → 自分の周りから精霊 ${sk.n}体が渦を巻いて広がり、それぞれ近くの敵へ飛んで取り憑く(まだ取り憑かれていない敵を優先)`,
+      _t`取り憑いた精霊は ${sk.possT}秒間、${sk.every}秒ごとにその敵へ 武器の威力 × ${Math.round(sk.pow * 100)}%(取り憑いた瞬間にも1回)`,
+      _t`  → その敵が倒れると、近く(半径 ${sk.hopR})の敵へ乗り移る(残り時間はそのまま。いなければその場で爆ぜる)`,
+      _t`  → 時間が来ると、取り憑いた敵の中で爆ぜる(武器の威力 × ${Math.round(sk.burstPow * 100)}%、半径 ${sk.burstR})`,
     ], rows: [
-      ['CD', `<b>${(sk.cd * (1 - c.cuV('e', 'cd')) * (1 - (m.cd || 0)) * c.cdMul).toFixed(1)}</b> 秒`],
-      ['精霊の数', `<b>${n}</b> 体`],
-      ['1回の威力', `${f(one)} → <b>${f(one * c.atkMul)}</b>`, `${sk.every}秒ごと・${sk.possT}秒。武器の威力 × ${Math.round(sk.pow * 100)}%。攻撃力を掛けた値`],
-      ['爆ぜる威力', `${f(boom)} → <b>${f(boom * c.atkMul)}</b>`, '武器の威力 × ' + Math.round(sk.burstPow * 100) + '%'],
+      ['CD', _t`<b>${(sk.cd * (1 - c.cuV('e', 'cd')) * (1 - (m.cd || 0)) * c.cdMul).toFixed(1)}</b> 秒`],
+      [_t('精霊の数'), _t`<b>${n}</b> 体`],
+      [_t('1回の威力'), `${f(one)} → <b>${f(one * c.atkMul)}</b>`, _t`${sk.every}秒ごと・${sk.possT}秒。武器の威力 × ${Math.round(sk.pow * 100)}%。攻撃力を掛けた値`],
+      [_t('爆ぜる威力'), `${f(boom)} → <b>${f(boom * c.atkMul)}</b>`, _t`武器の威力 × ${Math.round(sk.burstPow * 100)}%`],
     ] };
   },
   start() {
@@ -802,14 +802,14 @@ WEAPON_SKILL.blizzard = {
   info(c, dmg) {
     const sk = DATA.weapons.blizzard.skill, m = c.wm, n = sk.n + c.cuV('e', 'n') + (m.eCount || 0), one = dmg * sk.pow * (1 + c.cuV('e', 'pow')) * (1 + (m.ePow || 0));
     return { name: sk.name, cat: 'e', desc: [
-      `構え ${sk.windup}秒 → 照準位置(半径 ${sk.radius})に、${sk.dur}秒かけてつららが降る`,
-      `つららは範囲内の敵を狙って落ちる(いなければランダムな位置)`,
-      `つらら1本: 半径 ${sk.iceR} に 武器の威力 × ${Math.round(sk.pow * 100)}% と凍傷 +${sk.frost}`,
-      '放った後は自由に動ける(つららはその場に降り続ける)',
+      _t`構え ${sk.windup}秒 → 照準位置(半径 ${sk.radius})に、${sk.dur}秒かけてつららが降る`,
+      _t`つららは範囲内の敵を狙って落ちる(いなければランダムな位置)`,
+      _t`つらら1本: 半径 ${sk.iceR} に 武器の威力 × ${Math.round(sk.pow * 100)}% と凍傷 +${sk.frost}`,
+      _t('放った後は自由に動ける(つららはその場に降り続ける)'),
     ], rows: [
-      ['CD', `<b>${(sk.cd * (1 - c.cuV('e', 'cd')) * (1 - (m.cd || 0)) * c.cdMul).toFixed(1)}</b> 秒`],
-      ['つらら', `${Math.round(n * (c.hasSp('e', 'cd') ? sk.rainK : 1))} 本 / ${sk.dur} 秒`],
-      ['1本の威力', `${Math.round(one)} → <b>${Math.round(one * c.atkMul)}</b>`, '武器の威力 × ' + Math.round(sk.pow * 100) + '%。攻撃力を掛けた値'],
+      ['CD', _t`<b>${(sk.cd * (1 - c.cuV('e', 'cd')) * (1 - (m.cd || 0)) * c.cdMul).toFixed(1)}</b> 秒`],
+      [_t('つらら'), _t`${Math.round(n * (c.hasSp('e', 'cd') ? sk.rainK : 1))} 本 / ${sk.dur} 秒`],
+      [_t('1本の威力'), `${Math.round(one)} → <b>${Math.round(one * c.atkMul)}</b>`, _t`武器の威力 × ${Math.round(sk.pow * 100)}%。攻撃力を掛けた値`],
     ] };
   },
   start() {
@@ -854,12 +854,12 @@ WEAPON_SKILL.thunder = {
   info(c, dmg) {
     const sk = DATA.weapons.thunder.skill, m = c.wm, one = dmg * sk.pow * (1 + c.cuV('e', 'pow')) * (1 + (m.ePow || 0)), ar = (1 + c.cuV('e', 'area')) * (1 + c.st.v.area) * c.st.mul.area;
     return { name: sk.name, cat: 'e', desc: [
-      `構え ${sk.windup}秒 → 照準位置に雷の球を放つ`,
-      `周りの敵を中心へ1回だけ大きく引き寄せ(ボス以外)、直後に爆発(武器の威力 × ${Math.round(sk.pow * 100)}%、感電 ${Math.round(sk.shock * 100)}%)`,
+      _t`構え ${sk.windup}秒 → 照準位置に雷の球を放つ`,
+      _t`周りの敵を中心へ1回だけ大きく引き寄せ(ボス以外)、直後に爆発(武器の威力 × ${Math.round(sk.pow * 100)}%、感電 ${Math.round(sk.shock * 100)}%)`,
     ], rows: [
-      ['CD', `<b>${(sk.cd * (1 - c.cuV('e', 'cd')) * (1 - (m.cd || 0)) * c.cdMul).toFixed(1)}</b> 秒`],
-      ['引き寄せ / 爆発の半径', `${Math.round(sk.pullR * ar * (1 + (m.eArea || 0)))} / ${Math.round(sk.boomR * ar)}`],
-      ['爆発の威力', `${Math.round(one)} → <b>${Math.round(one * c.atkMul)}</b>`, '武器の威力 × ' + Math.round(sk.pow * 100) + '%。攻撃力を掛けた値'],
+      ['CD', _t`<b>${(sk.cd * (1 - c.cuV('e', 'cd')) * (1 - (m.cd || 0)) * c.cdMul).toFixed(1)}</b> 秒`],
+      [_t('引き寄せ / 爆発の半径'), `${Math.round(sk.pullR * ar * (1 + (m.eArea || 0)))} / ${Math.round(sk.boomR * ar)}`],
+      [_t('爆発の威力'), `${Math.round(one)} → <b>${Math.round(one * c.atkMul)}</b>`, _t`武器の威力 × ${Math.round(sk.pow * 100)}%。攻撃力を掛けた値`],
     ] };
   },
   start() {
@@ -902,13 +902,13 @@ WEAPON_SKILL.aura = {
     const sk = DATA.weapons.aura.skill, m = c.wm, n = sk.n + (c.hasSp('e', 'cd') ? sk.more : 0) + (m.eCount || 0), k = (1 + c.cuV('e', 'pow')) * (1 + (m.ePow || 0));
     const hp = c.st.v.hp * c.st.mul.hp, one = (sk.pow + hp * sk.hpPow) * k;
     return { name: sk.name, cat: 'e', desc: [
-      `ランダムな敵の位置 ${sk.n}か所に、${sk.gap}秒おきに光の柱が落ちる(動ける)`,
-      `1回: 半径 ${sk.r} に 基礎威力 ${sk.pow} + 最大HP の ${Math.round(sk.hpPow * 100)}%`,
-      `1回ごとに HP を最大HP の ${Math.round(c.cuV('e', 'heal', sk.heal) * 100)}% 回復`,
+      _t`ランダムな敵の位置 ${sk.n}か所に、${sk.gap}秒おきに光の柱が落ちる(動ける)`,
+      _t`1回: 半径 ${sk.r} に 基礎威力 ${sk.pow} + 最大HP の ${Math.round(sk.hpPow * 100)}%`,
+      _t`1回ごとに HP を最大HP の ${Math.round(c.cuV('e', 'heal', sk.heal) * 100)}% 回復`,
     ], rows: [
-      ['CD', `<b>${(sk.cd * (1 - c.cuV('e', 'cd')) * (1 - (m.cd || 0)) * c.cdMul).toFixed(1)}</b> 秒`],
-      ['光の柱', `${n} 本`],
-      ['1回の威力', `${Math.round(one)} → <b>${Math.round(one * c.atkMul)}</b>`, '基礎威力 + 最大HP 比。攻撃力を掛けた値'],
+      ['CD', _t`<b>${(sk.cd * (1 - c.cuV('e', 'cd')) * (1 - (m.cd || 0)) * c.cdMul).toFixed(1)}</b> 秒`],
+      [_t('光の柱'), _t`${n} 本`],
+      [_t('1回の威力'), `${Math.round(one)} → <b>${Math.round(one * c.atkMul)}</b>`, _t('基礎威力 + 最大HP 比。攻撃力を掛けた値')],
     ] };
   },
   start() {
@@ -943,14 +943,14 @@ WEAPON_SKILL.bhole = {
     const sk = DATA.weapons.bhole.skill, m = c.wm, dur = sk.dur + c.cuV('e', 'dur') + (m.eDur || 0), one = dmg * sk.pow * (1 + c.cuV('e', 'pow')) * (1 + (m.ePow || 0));
     const n = Math.floor(dur / sk.every + 1e-6), f = v => (v < 10 ? v.toFixed(1) : Math.round(v)); // 1回の威力は小さいので 10 未満は小数1桁
     return { name: sk.name, cat: 'e', desc: [
-      `構え ${sk.windup}秒 → ${sk.dur}秒間、画面全体を異次元に沈める(放った後は動ける)`,
-      `異次元の間、${sk.every}秒ごとに 画面内の全ての敵(ボスも)へ 武器の威力 × ${Math.round(sk.pow * 100)}%`,
-      '距離に関係なく当たる(範囲のステータスは効かない)。効果中に画面へ入ってきた敵にも当たる',
+      _t`構え ${sk.windup}秒 → ${sk.dur}秒間、画面全体を異次元に沈める(放った後は動ける)`,
+      _t`異次元の間、${sk.every}秒ごとに 画面内の全ての敵(ボスも)へ 武器の威力 × ${Math.round(sk.pow * 100)}%`,
+      _t('距離に関係なく当たる(範囲のステータスは効かない)。効果中に画面へ入ってきた敵にも当たる'),
     ], rows: [
-      ['CD', `<b>${(sk.cd * (1 - c.cuV('e', 'cd')) * (1 - (m.cd || 0)) * c.cdMul).toFixed(1)}</b> 秒`],
-      ['回数', `${n} 回 / ${dur.toFixed(1)} 秒`],
-      ['1回の威力', `${f(one)} → <b>${f(one * c.atkMul)}</b>`, `武器の威力 × ${Math.round(sk.pow * 100)}%。攻撃力を掛けた値`],
-      ['1体あたりの合計', `${f(one * n)} → <b>${f(one * n * c.atkMul)}</b>`, 'ずっと画面内にいた敵'],
+      ['CD', _t`<b>${(sk.cd * (1 - c.cuV('e', 'cd')) * (1 - (m.cd || 0)) * c.cdMul).toFixed(1)}</b> 秒`],
+      [_t('回数'), _t`${n} 回 / ${dur.toFixed(1)} 秒`],
+      [_t('1回の威力'), `${f(one)} → <b>${f(one * c.atkMul)}</b>`, _t`武器の威力 × ${Math.round(sk.pow * 100)}%。攻撃力を掛けた値`],
+      [_t('1体あたりの合計'), `${f(one * n)} → <b>${f(one * n * c.atkMul)}</b>`, _t('ずっと画面内にいた敵')],
     ] };
   },
   start() {
@@ -1037,7 +1037,7 @@ function riftExile(e, cl) {
     for (let i = 0; i < 8; i++) { const a = rand(0, TAU), d = rand(6, 14); part(e.x + Math.cos(a) * d, e.y + Math.sin(a) * d, -Math.cos(a) * d * 5, -Math.sin(a) * d * 5, 0.2, pick(RIFT_FX), { glow: i % 3 === 0, drag: 0 }); }
     if (e.boss || e.elite) { addFlash(e.x, e.y, 70, '#5a1450', 0.35); shockAt(e.x, e.y, 1.2, 0.8); shake(5); }
   });
-  if (e.boss) UI.announce('異次元送り', '');
+  if (e.boss) UI.announce(_t('異次元送り'), '');
   killEnemy(e, { src: 'rift', cl });
 }
 // 次元断層: 最後に画面全体が一度に裂ける(画面を横切る裂け目)
@@ -1066,20 +1066,20 @@ WEAPON_SKILL.axe = {
     const hp = c.run ? P.maxhp : c.st.v.hp * c.st.mul.hp, paid = Math.round(hp * sk.hpCost), add = paid * sk.hpK; // 代償(最大HP のとき。HP が少ないと払える分だけ)
     const inc = c.hasSp('e', 'jump') ? sk.incSp : sk.inc, first = dmg * sk.pow * k + add, last = dmg * (sk.pow + inc * n) * k + add, back = dmg * sk.backPow * k + add;
     return { name: sk.name, cat: 'e', desc: [
-      `使った瞬間に 最大HP の ${Math.round(sk.hpCost * 100)}% のダメージを受ける(防御力・シールドでは減らない。自分の技では倒れない)`,
-      `  → 今回の攻撃 1回ごとの威力に、払った HP × ${sk.hpK} を足す`,
-      `構え ${sk.windup}秒 → 照準方向(照準がなければ一番近い敵)へ、大きな斧(通常の斧の ${sk.big}倍の大きさ)を投げる`,
-      `敵に当たると、近く(半径 ${sk.hopR})のまだ当たっていない敵へ跳ね返る(最大 ${sk.bounces}回)`,
-      `1回の威力: 武器の威力 × ${Math.round(sk.pow * 100)}%、跳ねるたびに +${Math.round(sk.inc * 100)}%`,
-      `跳ね終わると、回りながら自分のところへ戻ってくる(戻る途中も当たる。武器の威力 × ${Math.round(sk.backPow * 100)}%)`,
-      '放った後は自由に動ける',
+      _t`使った瞬間に 最大HP の ${Math.round(sk.hpCost * 100)}% のダメージを受ける(防御力・シールドでは減らない。自分の技では倒れない)`,
+      _t`  → 今回の攻撃 1回ごとの威力に、払った HP × ${sk.hpK} を足す`,
+      _t`構え ${sk.windup}秒 → 照準方向(照準がなければ一番近い敵)へ、大きな斧(通常の斧の ${sk.big}倍の大きさ)を投げる`,
+      _t`敵に当たると、近く(半径 ${sk.hopR})のまだ当たっていない敵へ跳ね返る(最大 ${sk.bounces}回)`,
+      _t`1回の威力: 武器の威力 × ${Math.round(sk.pow * 100)}%、跳ねるたびに +${Math.round(sk.inc * 100)}%`,
+      _t`跳ね終わると、回りながら自分のところへ戻ってくる(戻る途中も当たる。武器の威力 × ${Math.round(sk.backPow * 100)}%)`,
+      _t('放った後は自由に動ける'),
     ], rows: [
-      ['CD', `<b>${(sk.cd * (1 - c.cuV('e', 'cd')) * (1 - (m.cd || 0)) * c.cdMul).toFixed(1)}</b> 秒`],
-      ['代償', `HP <b>${paid}</b>`, `最大HP の ${Math.round(sk.hpCost * 100)}%。1回ごとの威力 +${add}`],
-      ['跳ねる回数', `<b>${n}</b> 回(${n + 1}回 当たる)`],
-      ['1回目の威力', `${Math.round(first)} → <b>${Math.round(first * c.atkMul)}</b>`, `武器の威力 × ${Math.round(sk.pow * 100)}% + 払った HP × ${sk.hpK}。攻撃力を掛けた値`],
-      [`${n + 1}回目の威力`, `${Math.round(last)} → <b>${Math.round(last * c.atkMul)}</b>`, `跳ねるたびに +${Math.round(inc * 100)}%`],
-      ['戻りの威力', `${Math.round(back)} → <b>${Math.round(back * c.atkMul)}</b>`],
+      ['CD', _t`<b>${(sk.cd * (1 - c.cuV('e', 'cd')) * (1 - (m.cd || 0)) * c.cdMul).toFixed(1)}</b> 秒`],
+      [_t('代償'), `HP <b>${paid}</b>`, _t`最大HP の ${Math.round(sk.hpCost * 100)}%。1回ごとの威力 +${add}`],
+      [_t('跳ねる回数'), _t`<b>${n}</b> 回(${n + 1}回 当たる)`],
+      [_t('1回目の威力'), `${Math.round(first)} → <b>${Math.round(first * c.atkMul)}</b>`, _t`武器の威力 × ${Math.round(sk.pow * 100)}% + 払った HP × ${sk.hpK}。攻撃力を掛けた値`],
+      [_t`${n + 1}回目の威力`, `${Math.round(last)} → <b>${Math.round(last * c.atkMul)}</b>`, _t`跳ねるたびに +${Math.round(inc * 100)}%`],
+      [_t('戻りの威力'), `${Math.round(back)} → <b>${Math.round(back * c.atkMul)}</b>`],
     ] };
   },
   start() {
@@ -1366,7 +1366,7 @@ const CLASS_RT = {
     eMul() {
       if (!hasSp('trait', 'ren') || P.ki <= 0) return 1;
       const k = 1 + P.ki * 0.005;
-      addFloat(P.x, P.y - 34, `剣気 ${Math.floor(P.ki)} 解放`, '#ff5d73', 1, -20);
+      addFloat(P.x, P.y - 34, _t`剣気 ${Math.floor(P.ki)} 解放`, '#ff5d73', 1, -20);
       P.ki = 0;
       return k;
     },
@@ -1423,17 +1423,17 @@ const CLASS_RT = {
       if (a.t - a.t0 >= q.recover) P.act = null; // 残心の硬直
     },
     // HUD 用: クラスリソース / スキル
-    res: () => ({ kind: 'blade', label: '剣気', v: P.ki, max: P.kiMax }),
+    res: () => ({ kind: 'blade', label: _t('剣気'), v: P.ki, max: P.kiMax }),
     staBroken: () => P.breakT > 0,
     // HUD 用: いま効いている状態。t / max は残り時間(無期限なら省略)
     statuses() {
       const c = DATA.classes.samurai.params, out = [];
       if (P.zanshinT > 0) {
         const k = zanshinK(), mv = cuV('passive', 'migaru') * k;
-        out.push({ id: 'zanshin', glyph: '残', name: '残心' + (k > 1 ? '(背水)' : ''), fx: `攻撃力 +${Math.round(zanshinAtk() * k * 100)}%` + (mv ? ` 移動 +${Math.round(mv * 100)}%` : '') + (hasSp('passive', 'migaru') ? ' 被ダメージ -25%' : ''), t: P.zanshinT, max: c.zanshinT + cuV('passive', 'jizoku'), kind: 'buff' });
+        out.push({ id: 'zanshin', glyph: '残', name: _t('残心') + (k > 1 ? _t('(背水)') : ''), fx: _t`攻撃力 +${Math.round(zanshinAtk() * k * 100)}%` + (mv ? _t` 移動 +${Math.round(mv * 100)}%` : '') + (hasSp('passive', 'migaru') ? _t(' 被ダメージ -25%') : ''), t: P.zanshinT, max: c.zanshinT + cuV('passive', 'jizoku'), kind: 'buff' });
       }
-      if (kiHigh()) out.push({ id: 'kiHigh', glyph: '気', name: hasSp('trait', 'juu') ? '明鏡止水' : '剣気解放', fx: `攻撃力 +${Math.round(cuV('trait', 'juu', c.kiFullAtk) * 100)}%` + (hasSp('trait', 'juu') ? ' 攻撃速度 +25% 被ダメージ -30%' : ''), kind: 'buff' });
-      if (P.breakT > 0) out.push({ id: 'break', glyph: '崩', name: 'ガードブレイク', fx: `ガード不可 被ダメージ +${Math.round(c.breakDmg * 100)}%`, t: P.breakT, max: c.breakT, kind: 'debuff' });
+      if (kiHigh()) out.push({ id: 'kiHigh', glyph: '気', name: hasSp('trait', 'juu') ? _t('明鏡止水') : _t('剣気解放'), fx: _t`攻撃力 +${Math.round(cuV('trait', 'juu', c.kiFullAtk) * 100)}%` + (hasSp('trait', 'juu') ? _t(' 攻撃速度 +25% 被ダメージ -30%') : ''), kind: 'buff' });
+      if (P.breakT > 0) out.push({ id: 'break', glyph: '崩', name: _t('ガードブレイク'), fx: _t`ガード不可 被ダメージ +${Math.round(c.breakDmg * 100)}%`, t: P.breakT, max: c.breakT, kind: 'debuff' });
       return out;
     },
     qInfo: () => ({ name: DATA.classes.samurai.q.name, glyph: '居' }),
@@ -1442,43 +1442,43 @@ const CLASS_RT = {
       const S2 = DATA.classes.samurai, q = S2.q, p = S2.params, k = 1 + c.cuV('q', 'pow') + (c.lvFx.qPow || 0);
       const zAtk = c.cuV('passive', 'kihaku', p.zanshinAtk) + (c.lvFx.zanshinAtk || 0), zT = p.zanshinT + c.cuV('passive', 'jizoku');
       return [
-        { key: '特性', name: '剣気', cat: 'trait', desc: [
-          `メイン武器の通常攻撃の命中1体につき +${p.kiHit}(1回の攻撃で ${p.kiHitCap} まで)`,
-          `ジャスト見切りで +${p.kiParry}`,
-          `${p.kiFull} 以上の間は攻撃力アップ(全ての攻撃)`,
-          '居合で全て消費し、威力に上乗せする',
+        { key: _t('特性'), name: _t('剣気'), cat: 'trait', desc: [
+          _t`メイン武器の通常攻撃の命中1体につき +${p.kiHit}(1回の攻撃で ${p.kiHitCap} まで)`,
+          _t`ジャスト見切りで +${p.kiParry}`,
+          _t`${p.kiFull} 以上の間は攻撃力アップ(全ての攻撃)`,
+          _t('居合で全て消費し、威力に上乗せする'),
         ], rows: [
-          ['最大値', `${p.kiMax + c.cuV('trait', 'zan')}`],
-          ['獲得量', `+${Math.round((c.cuV('trait', 'ren') + (c.lvFx.kiGain || 0)) * 100)}%`],
-          [`${p.kiFull} 以上の攻撃力`, `<b>+${Math.round(c.cuV('trait', 'juu', p.kiFullAtk) * 100)}%</b>`],
+          [_t('最大値'), `${p.kiMax + c.cuV('trait', 'zan')}`],
+          [_t('獲得量'), `+${Math.round((c.cuV('trait', 'ren') + (c.lvFx.kiGain || 0)) * 100)}%`],
+          [_t`${p.kiFull} 以上の攻撃力`, `<b>+${Math.round(c.cuV('trait', 'juu', p.kiFullAtk) * 100)}%</b>`],
         ] },
-        { key: 'パッシブ', name: '残心', cat: 'passive', desc: [
-          '見切り(ガード)で攻撃を受けた後、一定時間 攻撃力アップ(全ての攻撃)',
-          'ガードで受けるたびに効果時間が戻る',
+        { key: _t('パッシブ'), name: _t('残心'), cat: 'passive', desc: [
+          _t('見切り(ガード)で攻撃を受けた後、一定時間 攻撃力アップ(全ての攻撃)'),
+          _t('ガードで受けるたびに効果時間が戻る'),
         ], rows: [
-          ['攻撃力', `<b>+${Math.round(zAtk * 100)}%</b>`],
-          ['効果時間', `${zT} 秒`],
+          [_t('攻撃力'), `<b>+${Math.round(zAtk * 100)}%</b>`],
+          [_t('効果時間'), _t`${zT} 秒`],
         ] },
         { key: 'Q', name: q.name, cat: 'q', desc: [
-          `構え ${q.windup}秒 → 照準方向へ ${q.dist} 突進(無敵)`,
-          `通過した敵をまとめて斬る(基礎威力 ${q.pow})`,
-          `剣気を全て消費し、剣気1につき威力 +${q.kiPow}`,
+          _t`構え ${q.windup}秒 → 照準方向へ ${q.dist} 突進(無敵)`,
+          _t`通過した敵をまとめて斬る(基礎威力 ${q.pow})`,
+          _t`剣気を全て消費し、剣気1につき威力 +${q.kiPow}`,
         ], rows: [
-          ['CD', `<b>${(q.cd * (1 - c.cuV('q', 'cd')) * c.cdMul).toFixed(1)}</b> 秒`],
-          ['威力', `${Math.round(q.pow * k)} → <b>${Math.round(q.pow * k * c.atkMul)}</b>`, `消費した剣気1につき +${(q.kiPow * k).toFixed(1)}`],
-          ['突進距離', `${Math.round(q.dist * (1 + c.cuV('q', 'reach')))}`],
+          ['CD', _t`<b>${(q.cd * (1 - c.cuV('q', 'cd')) * c.cdMul).toFixed(1)}</b> 秒`],
+          [_t('威力'), `${Math.round(q.pow * k)} → <b>${Math.round(q.pow * k * c.atkMul)}</b>`, _t`消費した剣気1につき +${(q.kiPow * k).toFixed(1)}`],
+          [_t('突進距離'), `${Math.round(q.dist * (1 + c.cuV('q', 'reach')))}`],
         ] },
-        { key: 'Space', name: '見切り', desc: [
-          `長押しでガード(移動 ×${p.guardSlow})。構えた瞬間にスタミナ ${p.guardCost}`,
-          `構えてから ${p.parryWin}秒以内に受けるとジャスト見切り`,
-          `  → スタミナを使わず周りに反撃・剣気 +${p.kiParry}・無敵 ${p.parryIfr}秒`,
-          '  → その後も押している間はガードを続ける',
-          'それ以外は受けたダメージ分のスタミナで受ける',
-          `スタミナ 0 でガードブレイク(${p.breakT}秒 ガード不可・被ダメージ +${Math.round(p.breakDmg * 100)}%)`,
+        { key: 'Space', name: _t('見切り'), desc: [
+          _t`長押しでガード(移動 ×${p.guardSlow})。構えた瞬間にスタミナ ${p.guardCost}`,
+          _t`構えてから ${p.parryWin}秒以内に受けるとジャスト見切り`,
+          _t`  → スタミナを使わず周りに反撃・剣気 +${p.kiParry}・無敵 ${p.parryIfr}秒`,
+          _t('  → その後も押している間はガードを続ける'),
+          _t('それ以外は受けたダメージ分のスタミナで受ける'),
+          _t`スタミナ 0 でガードブレイク(${p.breakT}秒 ガード不可・被ダメージ +${Math.round(p.breakDmg * 100)}%)`,
         ], rows: [
-          ['スタミナ消費', `${p.guardCost} + 受けたダメージ分`, '構えた瞬間に消費。ガード中の被弾はダメージ分'],
-          ['ジャスト受付', `<b>${(p.parryWin + (c.lvFx.parryWin || 0)).toFixed(2)}</b> 秒`],
-          ['反撃の威力', `${p.parryPow} → <b>${Math.round(p.parryPow * c.atkMul)}</b>`],
+          [_t('スタミナ消費'), _t`${p.guardCost} + 受けたダメージ分`, _t('構えた瞬間に消費。ガード中の被弾はダメージ分')],
+          [_t('ジャスト受付'), _t`<b>${(p.parryWin + (c.lvFx.parryWin || 0)).toFixed(2)}</b> 秒`],
+          [_t('反撃の威力'), `${p.parryPow} → <b>${Math.round(p.parryPow * c.atkMul)}</b>`],
         ] },
       ];
     },
@@ -1527,55 +1527,55 @@ const CLASS_RT = {
     // オーバーフロー・余剰魔力: 貯めたスキル威力を使う(別枠で、合算する)
     eMul() { const k = 1 + P.ovf + P.covf; P.ovf = 0; P.covf = 0; return k; },
     atkBonus: () => (hasSp('trait', 'crys') ? P.crystal * MG().ampAtk : 0), // 魔力増幅
-    res: () => ({ kind: 'crystal', label: '魔力結晶', v: P.crystal, max: crystalMax(), seg: true, dk: '#1d4a7a' }),
+    res: () => ({ kind: 'crystal', label: _t('魔力結晶'), v: P.crystal, max: crystalMax(), seg: true, dk: '#1d4a7a' }),
     statuses() {
       const out = [], e = cuV('passive', 'echo'), sp = hasSp('passive', 'echo');
-      if (hasSp('trait', 'crys') && P.crystal > 0) out.push({ id: 'amp', glyph: '晶', name: '魔力増幅', fx: `攻撃力 +${Math.round(P.crystal * MG().ampAtk * 100)}%`, kind: 'buff' });
-      if (P.echoT > 0 && (e || sp)) out.push({ id: 'echo', glyph: '韻', name: sp ? '詠唱加速' : '余韻', fx: (e ? `攻撃速度 +${Math.round(e * 100)}%` : '') + (sp ? ' 弾数 +1' : ''), t: P.echoT, max: 5, kind: 'buff' });
-      if (P.ovf > 0) out.push({ id: 'ovf', glyph: '溢', name: 'オーバーフロー', fx: `次のスキルの威力 +${+(P.ovf * 100).toFixed(1)}%`, kind: 'buff' });
-      if (P.covf > 0) out.push({ id: 'covf', glyph: '余', name: '余剰魔力', fx: `次のスキルの威力 +${+(P.covf * 100).toFixed(1)}%`, kind: 'buff' });
-      if (hasSp('passive', 'cap') && P.calmT >= 3) out.push({ id: 'calm', glyph: '瞑', name: '瞑想', fx: 'HP 2/s で回復', kind: 'buff' });
+      if (hasSp('trait', 'crys') && P.crystal > 0) out.push({ id: 'amp', glyph: '晶', name: _t('魔力増幅'), fx: _t`攻撃力 +${Math.round(P.crystal * MG().ampAtk * 100)}%`, kind: 'buff' });
+      if (P.echoT > 0 && (e || sp)) out.push({ id: 'echo', glyph: '韻', name: sp ? _t('詠唱加速') : _t('余韻'), fx: (e ? _t`攻撃速度 +${Math.round(e * 100)}%` : '') + (sp ? _t(' 弾数 +1') : ''), t: P.echoT, max: 5, kind: 'buff' });
+      if (P.ovf > 0) out.push({ id: 'ovf', glyph: '溢', name: _t('オーバーフロー'), fx: _t`次のスキルの威力 +${+(P.ovf * 100).toFixed(1)}%`, kind: 'buff' });
+      if (P.covf > 0) out.push({ id: 'covf', glyph: '余', name: _t('余剰魔力'), fx: _t`次のスキルの威力 +${+(P.covf * 100).toFixed(1)}%`, kind: 'buff' });
+      if (hasSp('passive', 'cap') && P.calmT >= 3) out.push({ id: 'calm', glyph: '瞑', name: _t('瞑想'), fx: _t('HP 2/s で回復'), kind: 'buff' });
       return out;
     },
     info(c) {
       const p = MG();
       return [
-        { key: '特性', name: '元素循環', cat: 'trait', desc: [
-          'メイン武器の通常攻撃・E の攻撃1回ごとに 炎 → 氷 → 雷 の順で属性が付く',
-          `炎: 与えたダメージの ${Math.round(p.burnPct * 100)}% を ${p.burnDur}秒かけて与える`,
-          `氷: 凍傷 +1(1つにつき移動速度 -${Math.round(DATA.debuff.frostSlow * 100)}%)`,
-          `雷: 近くの敵に ${Math.round(p.chainPct * 100)}% で連鎖`,
-          '共鳴: 2属性を持つ敵に3つ目が当たると爆発。魔力結晶 +1',
-          `魔力結晶が上限のときは、次のスキルの威力 +${+(p.crysOvf * 100).toFixed(1)}%(最大 +${Math.round(p.crysOvfMax * 100)}%。E / Q を使うと全て消費)`,
+        { key: _t('特性'), name: _t('元素循環'), cat: 'trait', desc: [
+          _t('メイン武器の通常攻撃・E の攻撃1回ごとに 炎 → 氷 → 雷 の順で属性が付く'),
+          _t`炎: 与えたダメージの ${Math.round(p.burnPct * 100)}% を ${p.burnDur}秒かけて与える`,
+          _t`氷: 凍傷 +1(1つにつき移動速度 -${Math.round(DATA.debuff.frostSlow * 100)}%)`,
+          _t`雷: 近くの敵に ${Math.round(p.chainPct * 100)}% で連鎖`,
+          _t('共鳴: 2属性を持つ敵に3つ目が当たると爆発。魔力結晶 +1'),
+          _t`魔力結晶が上限のときは、次のスキルの威力 +${+(p.crysOvf * 100).toFixed(1)}%(最大 +${Math.round(p.crysOvfMax * 100)}%。E / Q を使うと全て消費)`,
         ], rows: [
-          ['凍傷の上限', `${MG().frostCap + (c.run && cuLv('trait', 'el') ? DATA.classes.mage.elFrost[cuLv('trait', 'el') - 1] : 0)}`],
-          ['連鎖', `${p.chainN + (c.run ? cuLv('trait', 'el') : 0)} 体`],
-          ['共鳴の威力', `${Math.round(p.resoPow * (1 + c.cuV('trait', 'rpow') + (c.lvFx.resoPow || 0)))} → <b>${Math.round(p.resoPow * (1 + c.cuV('trait', 'rpow') + (c.lvFx.resoPow || 0)) * c.atkMul)}</b>`, '3属性目が当たると爆発。魔力結晶 +1'],
-          ['共鳴の半径', `${Math.round(p.resoR * (1 + c.st.v.area) * c.st.mul.area)}`],
-          ['魔力結晶の上限', `<b>${p.crystalMax + (c.lvFx.crystalMax || 0) + c.cuV('trait', 'crys')}</b>`],
+          [_t('凍傷の上限'), `${MG().frostCap + (c.run && cuLv('trait', 'el') ? DATA.classes.mage.elFrost[cuLv('trait', 'el') - 1] : 0)}`],
+          [_t('連鎖'), _t`${p.chainN + (c.run ? cuLv('trait', 'el') : 0)} 体`],
+          [_t('共鳴の威力'), `${Math.round(p.resoPow * (1 + c.cuV('trait', 'rpow') + (c.lvFx.resoPow || 0)))} → <b>${Math.round(p.resoPow * (1 + c.cuV('trait', 'rpow') + (c.lvFx.resoPow || 0)) * c.atkMul)}</b>`, _t('3属性目が当たると爆発。魔力結晶 +1')],
+          [_t('共鳴の半径'), `${Math.round(p.resoR * (1 + c.st.v.area) * c.st.mul.area)}`],
+          [_t('魔力結晶の上限'), `<b>${p.crystalMax + (c.lvFx.crystalMax || 0) + c.cuV('trait', 'crys')}</b>`],
         ] },
-        { key: 'パッシブ', name: '魔力循環', cat: 'passive', desc: [
-          'メイン武器の通常攻撃が1回当たるごとに、E / Q の CD が短くなる',
-          '1秒あたりに短くなる量には上限がある',
+        { key: _t('パッシブ'), name: _t('魔力循環'), cat: 'passive', desc: [
+          _t('メイン武器の通常攻撃が1回当たるごとに、E / Q の CD が短くなる'),
+          _t('1秒あたりに短くなる量には上限がある'),
         ], rows: [
-          ['1回の短縮', `<b>${(p.flowCut + c.cuV('passive', 'flow') + (c.lvFx.flowCut || 0)).toFixed(2)}</b> 秒`],
-          ['1秒あたりの上限', `${(p.flowCap + c.cuV('passive', 'cap')).toFixed(1)} 秒`],
+          [_t('1回の短縮'), _t`<b>${(p.flowCut + c.cuV('passive', 'flow') + (c.lvFx.flowCut || 0)).toFixed(2)}</b> 秒`],
+          [_t('1秒あたりの上限'), _t`${(p.flowCap + c.cuV('passive', 'cap')).toFixed(1)} 秒`],
         ] },
-        { key: 'Q', name: 'メテオ', cat: 'q', desc: [
-          `構え ${DATA.classes.mage.q.windup}秒 → 照準位置に隕石が落ちる(基礎威力 ${DATA.classes.mage.q.pow}、半径 ${DATA.classes.mage.q.r})`,
-          `当たった敵は炎上: 与えたダメージの ${Math.round(DATA.classes.mage.q.burnPct * 100)}% を ${p.burnDur}秒かけて与える`,
-          `魔力結晶を全て消費し、1つにつき威力 +${Math.round(DATA.classes.mage.q.crystalPow * 100)}%・半径 +${Math.round(DATA.classes.mage.q.crystalR * 100)}%`,
+        { key: 'Q', name: _t('メテオ'), cat: 'q', desc: [
+          _t`構え ${DATA.classes.mage.q.windup}秒 → 照準位置に隕石が落ちる(基礎威力 ${DATA.classes.mage.q.pow}、半径 ${DATA.classes.mage.q.r})`,
+          _t`当たった敵は炎上: 与えたダメージの ${Math.round(DATA.classes.mage.q.burnPct * 100)}% を ${p.burnDur}秒かけて与える`,
+          _t`魔力結晶を全て消費し、1つにつき威力 +${Math.round(DATA.classes.mage.q.crystalPow * 100)}%・半径 +${Math.round(DATA.classes.mage.q.crystalR * 100)}%`,
         ], rows: [
-          ['CD', `<b>${(DATA.classes.mage.q.cd * (1 - c.cuV('q', 'cd')) * c.cdMul).toFixed(1)}</b> 秒`],
-          ['威力', `${Math.round(DATA.classes.mage.q.pow * (1 + c.cuV('q', 'pow') + (c.lvFx.qPow || 0)))} → <b>${Math.round(DATA.classes.mage.q.pow * (1 + c.cuV('q', 'pow') + (c.lvFx.qPow || 0)) * c.atkMul)}</b>`, `魔力結晶1つにつき 威力 +${Math.round(DATA.classes.mage.q.crystalPow * 100)}%・半径 +${Math.round(DATA.classes.mage.q.crystalR * 100)}%`],
-          ['半径', `${Math.round(DATA.classes.mage.q.r * (1 + c.cuV('q', 'area')) * (1 + c.st.v.area) * c.st.mul.area)}`],
+          ['CD', _t`<b>${(DATA.classes.mage.q.cd * (1 - c.cuV('q', 'cd')) * c.cdMul).toFixed(1)}</b> 秒`],
+          [_t('威力'), `${Math.round(DATA.classes.mage.q.pow * (1 + c.cuV('q', 'pow') + (c.lvFx.qPow || 0)))} → <b>${Math.round(DATA.classes.mage.q.pow * (1 + c.cuV('q', 'pow') + (c.lvFx.qPow || 0)) * c.atkMul)}</b>`, _t`魔力結晶1つにつき 威力 +${Math.round(DATA.classes.mage.q.crystalPow * 100)}%・半径 +${Math.round(DATA.classes.mage.q.crystalR * 100)}%`],
+          [_t('半径'), `${Math.round(DATA.classes.mage.q.r * (1 + c.cuV('q', 'area')) * (1 + c.st.v.area) * c.st.mul.area)}`],
         ] },
-        { key: 'Space', name: 'ブリンク', desc: [
-          `移動方向へ ${p.blinkDist} 瞬間移動し、${p.blinkIfr}秒 無敵`,
-          `出発地点に氷の残滓が ${p.residueT}秒残る(触れた敵に凍傷)`,
+        { key: 'Space', name: _t('ブリンク'), desc: [
+          _t`移動方向へ ${p.blinkDist} 瞬間移動し、${p.blinkIfr}秒 無敵`,
+          _t`出発地点に氷の残滓が ${p.residueT}秒残る(触れた敵に凍傷)`,
         ], rows: [
-          ['スタミナ消費', `<b>${p.blinkCost - (c.lvFx.blinkCut || 0)}</b>`],
-          ['距離 / 無敵', `${p.blinkDist} / ${p.blinkIfr} 秒`],
+          [_t('スタミナ消費'), `<b>${p.blinkCost - (c.lvFx.blinkCut || 0)}</b>`],
+          [_t('距離 / 無敵'), _t`${p.blinkDist} / ${p.blinkIfr} 秒`],
         ] },
       ];
     },
@@ -1655,49 +1655,49 @@ const CLASS_RT = {
       archerVolley();
       P.act = null;
     },
-    res: () => ({ kind: 'focus', label: '集中', v: focusN(), max: focusMax(), seg: true, dk: '#1f6a3a' }),
+    res: () => ({ kind: 'focus', label: _t('集中'), v: focusN(), max: focusMax(), seg: true, dk: '#1f6a3a' }),
     staBroken: () => false,
     statuses() {
       const p = AR(), f = focusN(), out = [];
-      if (f > 0) out.push({ id: 'focus', glyph: '集', name: `集中 ${f}段`, fx: `攻撃速度 +${Math.round(f * p.focusAtkSpd * 100)}% クリティカル率 +${(f * (p.focusCrit + cuV('passive', 'eye')) * 100).toFixed(1)}%` + (hasSp('passive', 'calm') && f >= focusMax() ? ' 被ダメージ -20%' : '') + (hasSp('passive', 'eye') && f >= focusMax() ? ' 弾数 +1' : ''), kind: 'buff' });
+      if (f > 0) out.push({ id: 'focus', glyph: '集', name: _t`集中 ${f}段`, fx: _t`攻撃速度 +${Math.round(f * p.focusAtkSpd * 100)}% クリティカル率 +${(f * (p.focusCrit + cuV('passive', 'eye')) * 100).toFixed(1)}%` + (hasSp('passive', 'calm') && f >= focusMax() ? _t(' 被ダメージ -20%') : '') + (hasSp('passive', 'eye') && f >= focusMax() ? _t(' 弾数 +1') : ''), kind: 'buff' });
       return out;
     },
     qInfo: () => ({ name: DATA.classes.archer.q.name, glyph: '射' }),
     info(c) {
       const p = AR(), q = DATA.classes.archer.q, k = 1 + c.cuV('q', 'pow') + (c.lvFx.qPow || 0);
       return [
-        { key: '特性', name: '狩人の印', cat: 'trait', desc: [
-          'メイン武器の通常攻撃・E が命中すると、その敵に印 +1',
-          `印1つにつき、その敵が受けるダメージ +${Math.round((p.markPct + (c.lvFx.markPct || 0)) * 100)}%`,
-          `印が ${p.markMax} 以上で弱点露出: ${p.weakT}秒間 その敵へのクリティカル率 +${Math.round(p.weakCrit * 100)}%`,
-          `印は ${p.markT}秒 刻まれないと消える。一斉射撃で消費する`,
+        { key: _t('特性'), name: _t('狩人の印'), cat: 'trait', desc: [
+          _t('メイン武器の通常攻撃・E が命中すると、その敵に印 +1'),
+          _t`印1つにつき、その敵が受けるダメージ +${Math.round((p.markPct + (c.lvFx.markPct || 0)) * 100)}%`,
+          _t`印が ${p.markMax} 以上で弱点露出: ${p.weakT}秒間 その敵へのクリティカル率 +${Math.round(p.weakCrit * 100)}%`,
+          _t`印は ${p.markT}秒 刻まれないと消える。一斉射撃で消費する`,
         ], rows: [
-          ['印の上限', `${p.markMax + c.cuV('trait', 'carve')}`],
-          ['印の持続', `${p.markT + c.cuV('trait', 'deep')} 秒`],
+          [_t('印の上限'), `${p.markMax + c.cuV('trait', 'carve')}`],
+          [_t('印の持続'), _t`${p.markT + c.cuV('trait', 'deep')} 秒`],
         ] },
-        { key: 'パッシブ', name: '集中', cat: 'passive', desc: [
-          `止まっている間、${p.focusStep}秒ごとに +1段(E / Q の予備動作中も)`,
-          `移動すると1秒ごとに ${p.focusDecay}段 下がる。被弾すると ${p.focusHurt}段 下がる`,
-          `1段につき 攻撃速度 +${Math.round(p.focusAtkSpd * 100)}%(全武器)・クリティカル率 +${Math.round(p.focusCrit * 100)}%(全ての攻撃)`,
+        { key: _t('パッシブ'), name: _t('集中'), cat: 'passive', desc: [
+          _t`止まっている間、${p.focusStep}秒ごとに +1段(E / Q の予備動作中も)`,
+          _t`移動すると1秒ごとに ${p.focusDecay}段 下がる。被弾すると ${p.focusHurt}段 下がる`,
+          _t`1段につき 攻撃速度 +${Math.round(p.focusAtkSpd * 100)}%(全武器)・クリティカル率 +${Math.round(p.focusCrit * 100)}%(全ての攻撃)`,
         ], rows: [
-          ['最大段', `${p.focusMax + (c.lvFx.focusMax || 0)}`],
-          ['最大時の攻撃速度', `<b>+${Math.round((p.focusMax + (c.lvFx.focusMax || 0)) * p.focusAtkSpd * 100)}%</b>`],
+          [_t('最大段'), `${p.focusMax + (c.lvFx.focusMax || 0)}`],
+          [_t('最大時の攻撃速度'), `<b>+${Math.round((p.focusMax + (c.lvFx.focusMax || 0)) * p.focusAtkSpd * 100)}%</b>`],
         ] },
         { key: 'Q', name: q.name, cat: 'q', desc: [
-          `構え ${q.windup}秒 → 画面内の印を持つ敵1体につき1本、その敵へまっすぐ高速の矢(基礎威力 ${q.pow}、貫通無限)`,
-          `矢が当たった敵は、印1つにつき 基礎威力 ${q.markPow} の追加ダメージを連続で受ける(印は消費)`,
-          '  → 途中で貫いた敵も、印を持っていれば同じく受ける',
-          `さらに無条件で、最寄りの ${q.none}体へも1本ずつ(最大 ${q.max}本)`,
+          _t`構え ${q.windup}秒 → 画面内の印を持つ敵1体につき1本、その敵へまっすぐ高速の矢(基礎威力 ${q.pow}、貫通無限)`,
+          _t`矢が当たった敵は、印1つにつき 基礎威力 ${q.markPow} の追加ダメージを連続で受ける(印は消費)`,
+          _t('  → 途中で貫いた敵も、印を持っていれば同じく受ける'),
+          _t`さらに無条件で、最寄りの ${q.none}体へも1本ずつ(最大 ${q.max}本)`,
         ], rows: [
-          ['CD', `<b>${(q.cd * (1 - c.cuV('q', 'cd')) * c.cdMul).toFixed(1)}</b> 秒`],
-          ['矢の威力', `${Math.round(q.pow * k)} → <b>${Math.round(q.pow * k * c.atkMul)}</b>`],
-          ['印1つの追加', `${Math.round(q.markPow * k)} → <b>${Math.round(q.markPow * k * c.atkMul)}</b>`],
+          ['CD', _t`<b>${(q.cd * (1 - c.cuV('q', 'cd')) * c.cdMul).toFixed(1)}</b> 秒`],
+          [_t('矢の威力'), `${Math.round(q.pow * k)} → <b>${Math.round(q.pow * k * c.atkMul)}</b>`],
+          [_t('印1つの追加'), `${Math.round(q.markPow * k)} → <b>${Math.round(q.markPow * k * c.atkMul)}</b>`],
         ] },
-        { key: 'Space', name: 'バックステップ', desc: [
-          `移動方向と逆へ ${p.backDist} 跳ぶ(止まっているときは向きと逆)。${p.backIfr}秒 無敵`,
-          `着地すると集中 +${p.backFocus}段`,
+        { key: 'Space', name: _t('バックステップ'), desc: [
+          _t`移動方向と逆へ ${p.backDist} 跳ぶ(止まっているときは向きと逆)。${p.backIfr}秒 無敵`,
+          _t`着地すると集中 +${p.backFocus}段`,
         ], rows: [
-          ['スタミナ消費', `<b>${p.backCost - (c.lvFx.backCut || 0)}</b>`],
+          [_t('スタミナ消費'), `<b>${p.backCost - (c.lvFx.backCut || 0)}</b>`],
         ] },
       ];
     },
@@ -1776,48 +1776,48 @@ const CLASS_RT = {
       knightVerdict(a);
       P.act = null;
     },
-    res: () => ({ kind: 'shield', label: 'シールド', v: Math.floor(shieldTotal()), max: Math.max(1, Math.round(knCap())), dk: '#6a5a1a' }),
+    res: () => ({ kind: 'shield', label: _t('シールド'), v: Math.floor(shieldTotal()), max: Math.max(1, Math.round(knCap())), dk: '#6a5a1a' }),
     staBroken: () => P.breakT > 0,
     statuses() {
       const out = [], k = knHoldAtk();
-      if (k > 0.005) out.push({ id: 'hold', glyph: '堅', name: '堅守', fx: `攻撃力 +${Math.round(k * 100)}%(シールドの量に比例)`, kind: 'buff' });
-      if (P.breakT > 0) out.push({ id: 'break', glyph: '崩', name: 'ガードブレイク', fx: 'ガード不可', t: P.breakT, max: KN().breakT, kind: 'debuff' });
+      if (k > 0.005) out.push({ id: 'hold', glyph: '堅', name: _t('堅守'), fx: _t`攻撃力 +${Math.round(k * 100)}%(シールドの量に比例)`, kind: 'buff' });
+      if (P.breakT > 0) out.push({ id: 'break', glyph: '崩', name: _t('ガードブレイク'), fx: _t('ガード不可'), t: P.breakT, max: KN().breakT, kind: 'debuff' });
       return out;
     },
     qInfo: () => ({ name: DATA.classes.knight.q.name, glyph: '審' }),
     info(c) {
       const p = KN(), q = DATA.classes.knight.q, k = 1 + c.cuV('q', 'pow') + (c.lvFx.qPow || 0), capP = p.capPct + c.cuV('trait', 'cap') + (c.lvFx.capPct || 0);
       return [
-        { key: '特性', name: '聖盾', cat: 'trait', desc: [
-          `大盾で受けたダメージの ${Math.round(p.convert * 100)}% がシールドになる`,
-          `E / Q を使うと、発動前に最大HP の ${Math.round(p.skillGain * 100)}% のシールドを得る(Q はそのまま消費に含まれる)`,
-          `1秒に今のシールドの ${Math.round(p.decay * 100)}% ずつ減る(聖盾でシールドを得てから ${p.decayWait}秒は減らない)`,
-          '堅守: シールドの量に比例して攻撃力アップ(全ての攻撃)',
-          '  → 魔力障壁などほかのシールドも同じ扱い',
+        { key: _t('特性'), name: _t('聖盾'), cat: 'trait', desc: [
+          _t`大盾で受けたダメージの ${Math.round(p.convert * 100)}% がシールドになる`,
+          _t`E / Q を使うと、発動前に最大HP の ${Math.round(p.skillGain * 100)}% のシールドを得る(Q はそのまま消費に含まれる)`,
+          _t`1秒に今のシールドの ${Math.round(p.decay * 100)}% ずつ減る(聖盾でシールドを得てから ${p.decayWait}秒は減らない)`,
+          _t('堅守: シールドの量に比例して攻撃力アップ(全ての攻撃)'),
+          _t('  → 魔力障壁などほかのシールドも同じ扱い'),
         ], rows: [
-          ['シールドの上限', `最大HP の ${Math.round(capP * 100)}%`],
-          ['堅守(上限のとき)', `<b>+${Math.round(c.cuV('trait', 'hold', p.holdAtk) * 100)}%</b>`],
+          [_t('シールドの上限'), _t`最大HP の ${Math.round(capP * 100)}%`],
+          [_t('堅守(上限のとき)'), `<b>+${Math.round(c.cuV('trait', 'hold', p.holdAtk) * 100)}%</b>`],
         ] },
-        { key: 'パッシブ', name: '不屈', cat: 'passive', desc: [
-          'シールドが割れた瞬間、周りに衝撃波を放って敵を押し返す',
-          `割れた直後 ${p.breakIfr}秒 無敵(${p.breakCd}秒に1回まで)`,
+        { key: _t('パッシブ'), name: _t('不屈'), cat: 'passive', desc: [
+          _t('シールドが割れた瞬間、周りに衝撃波を放って敵を押し返す'),
+          _t`割れた直後 ${p.breakIfr}秒 無敵(${p.breakCd}秒に1回まで)`,
         ], rows: [
-          ['衝撃波の威力', `${Math.round(p.breakPow * (1 + c.cuV('passive', 'shock') + (c.lvFx.breakPow || 0)))} → <b>${Math.round(p.breakPow * (1 + c.cuV('passive', 'shock') + (c.lvFx.breakPow || 0)) * c.atkMul)}</b>`],
+          [_t('衝撃波の威力'), `${Math.round(p.breakPow * (1 + c.cuV('passive', 'shock') + (c.lvFx.breakPow || 0)))} → <b>${Math.round(p.breakPow * (1 + c.cuV('passive', 'shock') + (c.lvFx.breakPow || 0)) * c.atkMul)}</b>`],
         ] },
         { key: 'Q', name: q.name, cat: 'q', desc: [
-          `構え ${q.windup}秒 → シールドを全て消費し、前方の扇形に光の衝撃`,
-          `基礎威力 ${q.pow} + 消費したシールド × ${q.perShield}`,
-          `当たった敵を押し返し、${q.stun} + 消費したシールド × ${q.stunPer}秒 スタン`,
+          _t`構え ${q.windup}秒 → シールドを全て消費し、前方の扇形に光の衝撃`,
+          _t`基礎威力 ${q.pow} + 消費したシールド × ${q.perShield}`,
+          _t`当たった敵を押し返し、${q.stun} + 消費したシールド × ${q.stunPer}秒 スタン`,
         ], rows: [
-          ['CD', `<b>${(q.cd * (1 - c.cuV('q', 'cd')) * c.cdMul).toFixed(1)}</b> 秒`],
-          ['基礎威力(シールド 0)', `${Math.round(q.pow * k)} → <b>${Math.round(q.pow * k * c.atkMul)}</b>`],
+          ['CD', _t`<b>${(q.cd * (1 - c.cuV('q', 'cd')) * c.cdMul).toFixed(1)}</b> 秒`],
+          [_t('基礎威力(シールド 0)'), `${Math.round(q.pow * k)} → <b>${Math.round(q.pow * k * c.atkMul)}</b>`],
         ] },
-        { key: 'Space', name: '大盾', desc: [
-          '長押しで大盾を構え、全方向の攻撃を受け止める(HP は減らない)',
-          `構えた瞬間にスタミナ ${p.guardCost}。受けたダメージの ${Math.round((p.pay - (c.lvFx.payCut || 0)) * 100)}% をスタミナで払う`,
-          `構えている間は移動速度 ×${p.guardSlow}。スタミナ 0 でガードブレイク(${p.breakT}秒)`,
+        { key: 'Space', name: _t('大盾'), desc: [
+          _t('長押しで大盾を構え、全方向の攻撃を受け止める(HP は減らない)'),
+          _t`構えた瞬間にスタミナ ${p.guardCost}。受けたダメージの ${Math.round((p.pay - (c.lvFx.payCut || 0)) * 100)}% をスタミナで払う`,
+          _t`構えている間は移動速度 ×${p.guardSlow}。スタミナ 0 でガードブレイク(${p.breakT}秒)`,
         ], rows: [
-          ['スタミナの払い', `<b>${Math.round((p.pay - (c.lvFx.payCut || 0)) * 100)}%</b>`],
+          [_t('スタミナの払い'), `<b>${Math.round((p.pay - (c.lvFx.payCut || 0)) * 100)}%</b>`],
         ] },
       ];
     },
@@ -1880,50 +1880,50 @@ const CLASS_RT = {
       pyroInferno();
       P.act = null;
     },
-    res: () => ({ kind: 'wear', label: '焔纏い', v: P.pyT, max: Math.max(P.pyT, wearDur()), dk: '#7a2a10' }),
+    res: () => ({ kind: 'wear', label: _t('焔纏い'), v: P.pyT, max: Math.max(P.pyT, wearDur()), dk: '#7a2a10' }),
     staBroken: () => false,
     statuses() {
       const out = [];
-      if (P.pyT > 0) out.push({ id: 'wear', glyph: '焔', name: '焔纏い', fx: `全武器の命中で炎上(与えたダメージの ${Math.round(pyIgnite() * 100)}%)` + (hasSp('passive', 'kindle') ? ' 炎上ダメージ +50% HP 3%/s 消費' : ''), t: P.pyT, max: Math.max(P.pyT, wearDur()), kind: 'buff' });
+      if (P.pyT > 0) out.push({ id: 'wear', glyph: '焔', name: _t('焔纏い'), fx: _t`全武器の命中で炎上(与えたダメージの ${Math.round(pyIgnite() * 100)}%)` + (hasSp('passive', 'kindle') ? _t(' 炎上ダメージ +50% HP 3%/s 消費') : ''), t: P.pyT, max: Math.max(P.pyT, wearDur()), kind: 'buff' });
       return out;
     },
     qInfo: () => ({ name: DATA.classes.pyro.q.name, glyph: '煉' }),
     info(c) {
       const p = PY(), q = DATA.classes.pyro.q, k = 1 + (c.lvFx.qPow || 0), kin = c.cuV('passive', 'kindle');
       return [
-        { key: '特性', name: '業火', cat: 'trait', desc: [
-          `火勢: 敵の炎上 1スタックにつき、その敵の炎上ダメージ +${Math.round((p.stackPct + (c.lvFx.stackPct || 0)) * 100)}%`,
-          `延焼: 炎上中の敵が倒れると、残っていた炎上ダメージを周りの ${p.spreadN}体へ燃え移らせる`,
-          'どの炎上にも効く(武器・スキル・装備のどれで付けた炎上でも)',
+        { key: _t('特性'), name: _t('業火'), cat: 'trait', desc: [
+          _t`火勢: 敵の炎上 1スタックにつき、その敵の炎上ダメージ +${Math.round((p.stackPct + (c.lvFx.stackPct || 0)) * 100)}%`,
+          _t`延焼: 炎上中の敵が倒れると、残っていた炎上ダメージを周りの ${p.spreadN}体へ燃え移らせる`,
+          _t('どの炎上にも効く(武器・スキル・装備のどれで付けた炎上でも)'),
         ], rows: [
-          ['火勢の最大スタック', `${p.stackMax + c.cuV('trait', 'stack')}`],
-          ['燃え移る量', `<b>${Math.round(c.cuV('trait', 'spread', p.spreadPct) * 100)}%</b>`],
-          ['炎上の持続', `+${c.cuV('trait', 'dur')} 秒`],
+          [_t('火勢の最大スタック'), `${p.stackMax + c.cuV('trait', 'stack')}`],
+          [_t('燃え移る量'), `<b>${Math.round(c.cuV('trait', 'spread', p.spreadPct) * 100)}%</b>`],
+          [_t('炎上の持続'), _t`+${c.cuV('trait', 'dur')} 秒`],
         ] },
-        { key: 'パッシブ', name: '焔纏い', cat: 'passive', desc: [
-          'E / Q を使うと、焔を纏う(使うたびに時間が戻る)',
-          '纏っている間、全武器の攻撃(通常攻撃・E)が命中すると、与えたダメージの一部を 3秒の炎上で付ける',
-          '  → 炎上そのもの・Q・爆風からは付かない',
-        ].concat(kin ? [`纏った瞬間、周り(半径 ${p.kindleR})に火の輪`] : []), rows: [
-          ['纏う時間', `<b>${c.cuV('passive', 'wear', p.wearT)}</b> 秒`],
-          ['付与量', `<b>${Math.round((c.cuV('passive', 'ignite', p.ignite) + (c.lvFx.ignite || 0)) * 100)}%</b>`],
-        ].concat(kin ? [['火の輪の威力', `${kin} → <b>${Math.round(kin * c.atkMul)}</b>`]] : []) },
+        { key: _t('パッシブ'), name: _t('焔纏い'), cat: 'passive', desc: [
+          _t('E / Q を使うと、焔を纏う(使うたびに時間が戻る)'),
+          _t('纏っている間、全武器の攻撃(通常攻撃・E)が命中すると、与えたダメージの一部を 3秒の炎上で付ける'),
+          _t('  → 炎上そのもの・Q・爆風からは付かない'),
+        ].concat(kin ? [_t`纏った瞬間、周り(半径 ${p.kindleR})に火の輪`] : []), rows: [
+          [_t('纏う時間'), _t`<b>${c.cuV('passive', 'wear', p.wearT)}</b> 秒`],
+          [_t('付与量'), `<b>${Math.round((c.cuV('passive', 'ignite', p.ignite) + (c.lvFx.ignite || 0)) * 100)}%</b>`],
+        ].concat(kin ? [[_t('火の輪の威力'), `${kin} → <b>${Math.round(kin * c.atkMul)}</b>`]] : []) },
         { key: 'Q', name: q.name, cat: 'q', desc: [
-          `構え ${q.windup}秒 → 画面内の炎上中の敵全員の炎上を、まとめて爆発させる`,
-          `各敵に、基礎威力 ${q.base} + 残っていた炎上ダメージ × 爆発の倍率 をすぐに与える(炎上は消費する)`,
-          `その敵の周り(半径 ${q.r})に 基礎威力 ${q.pow} + 炎上スタック数 × ${q.perStack} の爆風`,
-          '炎上中の敵がいなくても使える(自分の周りに爆風だけ)',
+          _t`構え ${q.windup}秒 → 画面内の炎上中の敵全員の炎上を、まとめて爆発させる`,
+          _t`各敵に、基礎威力 ${q.base} + 残っていた炎上ダメージ × 爆発の倍率 をすぐに与える(炎上は消費する)`,
+          _t`その敵の周り(半径 ${q.r})に 基礎威力 ${q.pow} + 炎上スタック数 × ${q.perStack} の爆風`,
+          _t('炎上中の敵がいなくても使える(自分の周りに爆風だけ)'),
         ], rows: [
-          ['CD', `<b>${(q.cd * (1 - c.cuV('q', 'cd')) * c.cdMul).toFixed(1)}</b> 秒`],
-          ['爆発の基礎威力', `${Math.round(q.base * k)} → <b>${Math.round(q.base * k * c.atkMul)}</b>`],
-          ['爆発の倍率', `<b>${Math.round(c.cuV('q', 'pow', q.mul) * k * 100)}%</b>`, '残っていた炎上ダメージに掛ける'],
-          ['爆風の基礎威力', `${Math.round(q.pow * k)} → <b>${Math.round(q.pow * k * c.atkMul)}</b>`, `炎上1スタックにつき +${Math.round(q.perStack * k)}`],
+          ['CD', _t`<b>${(q.cd * (1 - c.cuV('q', 'cd')) * c.cdMul).toFixed(1)}</b> 秒`],
+          [_t('爆発の基礎威力'), `${Math.round(q.base * k)} → <b>${Math.round(q.base * k * c.atkMul)}</b>`],
+          [_t('爆発の倍率'), `<b>${Math.round(c.cuV('q', 'pow', q.mul) * k * 100)}%</b>`, _t('残っていた炎上ダメージに掛ける')],
+          [_t('爆風の基礎威力'), `${Math.round(q.pow * k)} → <b>${Math.round(q.pow * k * c.atkMul)}</b>`, _t`炎上1スタックにつき +${Math.round(q.perStack * k)}`],
         ] },
-        { key: 'Space', name: '炎壁', desc: [
-          `その場で炎を噴き出し、周り(半径 ${p.wallR})の敵を押し返して炎上させる(${p.wallBurn}/s を 3秒)`,
-          `使った瞬間から ${p.wallIfr}秒 無敵`,
+        { key: 'Space', name: _t('炎壁'), desc: [
+          _t`その場で炎を噴き出し、周り(半径 ${p.wallR})の敵を押し返して炎上させる(${p.wallBurn}/s を 3秒)`,
+          _t`使った瞬間から ${p.wallIfr}秒 無敵`,
         ], rows: [
-          ['スタミナ消費', `<b>${p.wallCost - (c.lvFx.wallCut || 0)}</b>`],
+          [_t('スタミナ消費'), `<b>${p.wallCost - (c.lvFx.wallCut || 0)}</b>`],
         ] },
       ];
     },
@@ -2005,11 +2005,11 @@ const CLASS_RT = {
       cryoDust();
       P.act = null;
     },
-    res: () => ({ kind: 'wear', label: '氷纏い', v: P.cryT, max: Math.max(P.cryT, cryWearDur()), dk: '#1d4a7a' }),
+    res: () => ({ kind: 'wear', label: _t('氷纏い'), v: P.cryT, max: Math.max(P.cryT, cryWearDur()), dk: '#1d4a7a' }),
     staBroken: () => false,
     statuses() {
       const out = [];
-      if (P.cryT > 0) out.push({ id: 'cwear', glyph: '氷', name: '氷纏い', fx: '全武器の命中で凍傷 +1' + (cuV('passive', 'chance') ? `(${Math.round(cuV('passive', 'chance') * 100)}% でさらに +1)` : ''), t: P.cryT, max: Math.max(P.cryT, cryWearDur()), kind: 'buff' });
+      if (P.cryT > 0) out.push({ id: 'cwear', glyph: '氷', name: _t('氷纏い'), fx: _t('全武器の命中で凍傷 +1') + (cuV('passive', 'chance') ? _t`(${Math.round(cuV('passive', 'chance') * 100)}% でさらに +1)` : ''), t: P.cryT, max: Math.max(P.cryT, cryWearDur()), kind: 'buff' });
       return out;
     },
     qInfo: () => ({ name: DATA.classes.cryo.q.name, glyph: '晶' }),
@@ -2017,35 +2017,35 @@ const CLASS_RT = {
       const p = CR(), q = DATA.classes.cryo.q, k = 1 + c.cuV('q', 'pow') + (c.lvFx.qPow || 0), sp2 = c.hasSp('trait', 'brittle') ? 2 : 1;
       const cap = c.hasSp('trait', 'brittle') ? p.capSp : p.frostCap, iv = c.cuV('trait', 'deep', p.decay);
       return [
-        { key: '特性', name: '凍結', cat: 'trait', desc: [
-          `凍傷の上限が ${cap} になる(どの出どころの凍傷も)。上限に達すると凍結する`,
-          '凍結: 行動不能・受けるダメージアップ。凍傷を付ける攻撃なら、さらにアップ',
-          `凍結中は凍傷が ${iv}秒ごとに 1 減り、0 で解除(凍結中は凍傷が増えない)`,
-          'ボスは行動不能にならず、攻撃速度 -30%',
+        { key: _t('特性'), name: _t('凍結'), cat: 'trait', desc: [
+          _t`凍傷の上限が ${cap} になる(どの出どころの凍傷も)。上限に達すると凍結する`,
+          _t('凍結: 行動不能・受けるダメージアップ。凍傷を付ける攻撃なら、さらにアップ'),
+          _t`凍結中は凍傷が ${iv}秒ごとに 1 減り、0 で解除(凍結中は凍傷が増えない)`,
+          _t('ボスは行動不能にならず、攻撃速度 -30%'),
         ], rows: [
-          ['凍結の時間', `<b>${(cap * iv).toFixed(1)}</b> 秒`],
-          ['凍結中の被ダメージ', `<b>+${Math.round((c.cuV('trait', 'brittle', p.freezeDmg) + (c.lvFx.freezeDmg || 0)) * sp2 * 100)}%</b>`, `凍傷を付ける攻撃ならさらに +${Math.round(p.frostHit * sp2 * 100)}%`],
+          [_t('凍結の時間'), _t`<b>${(cap * iv).toFixed(1)}</b> 秒`],
+          [_t('凍結中の被ダメージ'), `<b>+${Math.round((c.cuV('trait', 'brittle', p.freezeDmg) + (c.lvFx.freezeDmg || 0)) * sp2 * 100)}%</b>`, _t`凍傷を付ける攻撃ならさらに +${Math.round(p.frostHit * sp2 * 100)}%`],
         ] },
-        { key: 'パッシブ', name: '氷纏い', cat: 'passive', desc: [
-          'E / Q を使うと、冷気を纏う(使うたびに時間が戻る)',
-          '纏っている間、全武器の攻撃(通常攻撃・E)が命中すると、その敵に凍傷 +1',
+        { key: _t('パッシブ'), name: _t('氷纏い'), cat: 'passive', desc: [
+          _t('E / Q を使うと、冷気を纏う(使うたびに時間が戻る)'),
+          _t('纏っている間、全武器の攻撃(通常攻撃・E)が命中すると、その敵に凍傷 +1'),
         ], rows: [
-          ['纏う時間', `<b>${c.cuV('passive', 'wear', p.wearT) + (c.lvFx.wearT || 0)}</b> 秒`],
-        ].concat(c.cuV('passive', 'armor') ? [['纏った瞬間のシールド', `最大HP の ${Math.round(c.cuV('passive', 'armor') * 100)}%`]] : []) },
+          [_t('纏う時間'), _t`<b>${c.cuV('passive', 'wear', p.wearT) + (c.lvFx.wearT || 0)}</b> 秒`],
+        ].concat(c.cuV('passive', 'armor') ? [[_t('纏った瞬間のシールド'), _t`最大HP の ${Math.round(c.cuV('passive', 'armor') * 100)}%`]] : []) },
         { key: 'Q', name: q.name, cat: 'q', desc: [
-          `構え ${q.windup}秒 → 自分を中心に ${q.dur}秒間、細氷の領域(自分についてくる)`,
-          `範囲内の敵に、${q.every}秒ごとに凍傷 +${q.frost} と基礎威力 ${q.pow} のダメージ`,
-          `この範囲内で凍結した敵は、凍結時間 +${Math.round(q.freezeUp * 100)}%`,
+          _t`構え ${q.windup}秒 → 自分を中心に ${q.dur}秒間、細氷の領域(自分についてくる)`,
+          _t`範囲内の敵に、${q.every}秒ごとに凍傷 +${q.frost} と基礎威力 ${q.pow} のダメージ`,
+          _t`この範囲内で凍結した敵は、凍結時間 +${Math.round(q.freezeUp * 100)}%`,
         ], rows: [
-          ['CD', `<b>${(q.cd * (1 - c.cuV('q', 'cd')) * c.cdMul).toFixed(1)}</b> 秒`],
-          ['威力', `${Math.round(q.pow * k)} → <b>${Math.round(q.pow * k * c.atkMul)}</b>`, `${q.every}秒ごと`],
-          ['半径', `${Math.round(q.r * (1 + c.cuV('q', 'area')) * (1 + c.st.v.area) * c.st.mul.area)}`],
+          ['CD', _t`<b>${(q.cd * (1 - c.cuV('q', 'cd')) * c.cdMul).toFixed(1)}</b> 秒`],
+          [_t('威力'), `${Math.round(q.pow * k)} → <b>${Math.round(q.pow * k * c.atkMul)}</b>`, _t`${q.every}秒ごと`],
+          [_t('半径'), `${Math.round(q.r * (1 + c.cuV('q', 'area')) * (1 + c.st.v.area) * c.st.mul.area)}`],
         ] },
-        { key: 'Space', name: '氷の鏡', desc: [
-          `移動方向と逆へ ${p.mirrorDist} 下がる(${p.mirrorIfr}秒 無敵)`,
-          `元の位置に氷の分身を ${p.decoyT}秒残す。分身は敵を引きつけ、触れた敵に凍傷 +${p.decoyFrost}`,
+        { key: 'Space', name: _t('氷の鏡'), desc: [
+          _t`移動方向と逆へ ${p.mirrorDist} 下がる(${p.mirrorIfr}秒 無敵)`,
+          _t`元の位置に氷の分身を ${p.decoyT}秒残す。分身は敵を引きつけ、触れた敵に凍傷 +${p.decoyFrost}`,
         ], rows: [
-          ['スタミナ消費', `<b>${p.mirrorCost - (c.lvFx.mirrorCut || 0)}</b>`],
+          [_t('スタミナ消費'), `<b>${p.mirrorCost - (c.lvFx.mirrorCut || 0)}</b>`],
         ] },
       ];
     },
@@ -2110,49 +2110,49 @@ const CLASS_RT = {
       electroTowers();
       P.act = null;
     },
-    res: () => ({ kind: 'charge', label: '帯電', v: Math.floor(P.charge), max: elMax(), dk: '#6a5a10' }),
+    res: () => ({ kind: 'charge', label: _t('帯電'), v: Math.floor(P.charge), max: elMax(), dk: '#6a5a10' }),
     staBroken: () => false,
     statuses() {
       const out = [], n = Math.floor(P.charge / EL().perChain);
-      if (n > 0) out.push({ id: 'charge', glyph: '電', name: `帯電 ${Math.floor(P.charge)}`, fx: `感電の連鎖 +${n}` + (hasSp('trait', 'store') && P.charge >= elMax() ? ' クリティカルダメージ +50%' : ''), kind: 'buff' });
-      if (P.elT > 0) out.push({ id: 'elwear', glyph: '雷', name: '雷纏い', fx: `全武器に感電 ${Math.round((cuV('passive', 'shock', EL().wearShock) + (P.lvFx.wearShock || 0)) * 100)}%`, t: P.elT, max: Math.max(P.elT, elWearDur()), kind: 'buff' });
+      if (n > 0) out.push({ id: 'charge', glyph: '電', name: _t`帯電 ${Math.floor(P.charge)}`, fx: _t`感電の連鎖 +${n}` + (hasSp('trait', 'store') && P.charge >= elMax() ? _t(' クリティカルダメージ +50%') : ''), kind: 'buff' });
+      if (P.elT > 0) out.push({ id: 'elwear', glyph: '雷', name: _t('雷纏い'), fx: _t`全武器に感電 ${Math.round((cuV('passive', 'shock', EL().wearShock) + (P.lvFx.wearShock || 0)) * 100)}%`, t: P.elT, max: Math.max(P.elT, elWearDur()), kind: 'buff' });
       return out;
     },
     qInfo: () => ({ name: DATA.classes.electro.q.name, glyph: '塔' }),
     info(c) {
       const p = EL(), q = DATA.classes.electro.q, k = 1 + c.cuV('q', 'pow') + (c.lvFx.qPow || 0);
       return [
-        { key: '特性', name: '帯電', cat: 'trait', desc: [
-          '感電が起きるたびに帯電 +1。帯電 ' + p.perChain + ' につき感電の連鎖 +1',
-          `${p.decayWait}秒間 感電が起きないと、1秒に ${p.decay} ずつ減る`,
-          '放電: E / Q を使うと帯電を消費し、その発動の命中に追加の感電(消費した帯電が多いほど強い)',
-          '感電: 命中した敵から近くの敵へ雷が連鎖し、与えたダメージの一部を与える',
+        { key: _t('特性'), name: _t('帯電'), cat: 'trait', desc: [
+          _t`感電が起きるたびに帯電 +1。帯電 ${p.perChain} につき感電の連鎖 +1`,
+          _t`${p.decayWait}秒間 感電が起きないと、1秒に ${p.decay} ずつ減る`,
+          _t('放電: E / Q を使うと帯電を消費し、その発動の命中に追加の感電(消費した帯電が多いほど強い)'),
+          _t('感電: 命中した敵から近くの敵へ雷が連鎖し、与えたダメージの一部を与える'),
         ], rows: [
-          ['帯電の上限', `${p.max + c.cuV('trait', 'cap')}`],
-          ['放電で消費する帯電', `<b>${Math.round(c.cuV('trait', 'store', p.use) * 100)}%</b>`],
-          ['放電の感電', `${Math.round(p.disShock * 100)}%`, `消費した帯電 1 につき感電ダメージ +${Math.round(p.disPer * 100)}%`],
+          [_t('帯電の上限'), `${p.max + c.cuV('trait', 'cap')}`],
+          [_t('放電で消費する帯電'), `<b>${Math.round(c.cuV('trait', 'store', p.use) * 100)}%</b>`],
+          [_t('放電の感電'), `${Math.round(p.disShock * 100)}%`, _t`消費した帯電 1 につき感電ダメージ +${Math.round(p.disPer * 100)}%`],
         ] },
-        { key: 'パッシブ', name: '雷纏い', cat: 'passive', desc: [
-          'E / Q を使うと、雷を纏う(使うたびに時間が戻る)',
-          '纏っている間、全武器の攻撃(通常攻撃・E)に感電が付く',
+        { key: _t('パッシブ'), name: _t('雷纏い'), cat: 'passive', desc: [
+          _t('E / Q を使うと、雷を纏う(使うたびに時間が戻る)'),
+          _t('纏っている間、全武器の攻撃(通常攻撃・E)に感電が付く'),
         ], rows: [
-          ['纏う時間', `<b>${c.cuV('passive', 'wear', p.wearT)}</b> 秒`],
-          ['感電', `<b>${Math.round((c.cuV('passive', 'shock', p.wearShock) + (c.lvFx.wearShock || 0)) * 100)}%</b>`],
+          [_t('纏う時間'), _t`<b>${c.cuV('passive', 'wear', p.wearT)}</b> 秒`],
+          [_t('感電'), `<b>${Math.round((c.cuV('passive', 'shock', p.wearShock) + (c.lvFx.wearShock || 0)) * 100)}%</b>`],
         ] },
         { key: 'Q', name: q.name, cat: 'q', desc: [
-          `構え ${q.windup}秒 → 画面内のランダムな位置に鉄塔を落とす(落ちた瞬間に落雷: 基礎威力 ${q.landPow})`,
-          `${q.dur}秒間、各鉄塔は ${q.every}秒ごとに近くの敵 1体へ電気を放つ(基礎威力 ${q.pow}、感電 ${Math.round(q.shock * 100)}%)`,
-          '放電は使ったときに1回。この Q の攻撃すべてに放電の感電が乗る',
+          _t`構え ${q.windup}秒 → 画面内のランダムな位置に鉄塔を落とす(落ちた瞬間に落雷: 基礎威力 ${q.landPow})`,
+          _t`${q.dur}秒間、各鉄塔は ${q.every}秒ごとに近くの敵 1体へ電気を放つ(基礎威力 ${q.pow}、感電 ${Math.round(q.shock * 100)}%)`,
+          _t('放電は使ったときに1回。この Q の攻撃すべてに放電の感電が乗る'),
         ], rows: [
-          ['CD', `<b>${(q.cd * (1 - c.cuV('q', 'cd')) * c.cdMul).toFixed(1)}</b> 秒`],
-          ['鉄塔', `${q.n + c.cuV('q', 'n')} 本`],
-          ['落雷 / 放電の威力', `${Math.round(q.landPow * k)} / ${Math.round(q.pow * k)} → <b>${Math.round(q.landPow * k * c.atkMul)} / ${Math.round(q.pow * k * c.atkMul)}</b>`],
+          ['CD', _t`<b>${(q.cd * (1 - c.cuV('q', 'cd')) * c.cdMul).toFixed(1)}</b> 秒`],
+          [_t('鉄塔'), _t`${q.n + c.cuV('q', 'n')} 本`],
+          [_t('落雷 / 放電の威力'), `${Math.round(q.landPow * k)} / ${Math.round(q.pow * k)} → <b>${Math.round(q.landPow * k * c.atkMul)} / ${Math.round(q.pow * k * c.atkMul)}</b>`],
         ] },
-        { key: 'Space', name: '雷走', desc: [
-          `移動方向へ ${p.dashDist} 駆け抜ける(${p.dashIfr}秒 無敵)`,
-          `通り抜けた敵に 基礎威力 ${p.dashPow} と感電 ${Math.round(p.dashShock * 100)}%`,
+        { key: 'Space', name: _t('雷走'), desc: [
+          _t`移動方向へ ${p.dashDist} 駆け抜ける(${p.dashIfr}秒 無敵)`,
+          _t`通り抜けた敵に 基礎威力 ${p.dashPow} と感電 ${Math.round(p.dashShock * 100)}%`,
         ], rows: [
-          ['スタミナ消費', `<b>${p.dashCost - (c.lvFx.dashCut || 0)}</b>`],
+          [_t('スタミナ消費'), `<b>${p.dashCost - (c.lvFx.dashCut || 0)}</b>`],
         ] },
       ];
     },
@@ -2169,7 +2169,7 @@ const CLASS_RT = {
       if (hasSp('passive', 'mercy') && P.prayer >= 1 && P.hp > 0 && P.hp <= P.maxhp * p.lowAt && S.time >= P.lastCd) {
         P.lastCd = S.time + p.lastCd;
         const amt = P.prayer; P.prayer = 0; P.noPray = true; heal(amt); P.noPray = false;
-        addFloat(P.x, P.y - 18, '不屈の祈り', '#ffe38a', 1.2);
+        addFloat(P.x, P.y - 18, _t('不屈の祈り'), '#ffe38a', 1.2);
         asMine(() => { addRing(P.x, P.y, 30, '#ffe38a', { w: 3, life: 0.45 }); burst(P.x, P.y, 30, ['#ffe38a', '#ffffff'], { sp: 100, up: 30, glow: true, life: 0.5 }); });
       }
       if (P.prayer > 0 && Math.random() < dt * 4 * Math.min(1, P.prayer / Math.max(1, prayCap()))) part(P.x + rand(-6, 6), P.y + rand(-2, 6), 0, -rand(15, 30), 0.6, pick(['#ffe38a', '#fff6d8']), { glow: true }); // 祈りの光
@@ -2231,47 +2231,47 @@ const CLASS_RT = {
       clericJudge(a);
       P.act = null;
     },
-    res: () => ({ kind: 'prayer', label: '祈り', v: Math.floor(P.prayer), max: Math.max(1, Math.round(prayCap())), dk: '#7a6a2a' }),
+    res: () => ({ kind: 'prayer', label: _t('祈り'), v: Math.floor(P.prayer), max: Math.max(1, Math.round(prayCap())), dk: '#7a6a2a' }),
     staBroken: () => false,
     statuses() {
       const out = [];
-      if (P.prayer >= 1) out.push({ id: 'prayer', glyph: '祈', name: `祈り ${Math.floor(P.prayer)}`, fx: `メイン武器の通常攻撃・E に +${Math.round(P.prayer * cuV('trait', 'faith', CL().strike))} ダメージ`, kind: 'buff' });
-      if (P.afterT > 0) out.push({ id: 'after', glyph: '光', name: '余光', fx: `HP回復速度 +${cuV('passive', 'after')}/s`, t: P.afterT, max: CL().afterT, kind: 'buff' });
-      if (P.hot) out.push({ id: 'grace', glyph: '恩', name: '恩寵', fx: `HP ${P.hot.rate.toFixed(1)}/s 回復`, t: P.hot.t, max: CL().graceT, kind: 'buff' });
+      if (P.prayer >= 1) out.push({ id: 'prayer', glyph: '祈', name: _t`祈り ${Math.floor(P.prayer)}`, fx: _t`メイン武器の通常攻撃・E に +${Math.round(P.prayer * cuV('trait', 'faith', CL().strike))} ダメージ`, kind: 'buff' });
+      if (P.afterT > 0) out.push({ id: 'after', glyph: '光', name: _t('余光'), fx: _t`HP回復速度 +${cuV('passive', 'after')}/s`, t: P.afterT, max: CL().afterT, kind: 'buff' });
+      if (P.hot) out.push({ id: 'grace', glyph: '恩', name: _t('恩寵'), fx: _t`HP ${P.hot.rate.toFixed(1)}/s 回復`, t: P.hot.t, max: CL().graceT, kind: 'buff' });
       return out;
     },
     qInfo: () => ({ name: DATA.classes.cleric.q.name, glyph: '審' }),
     info(c) {
       const p = CL(), q = DATA.classes.cleric.q, k = (1 + c.cuV('q', 'pow')) * (1 + (c.lvFx.qPow || 0)), hp = c.st.v.hp * c.st.mul.hp;
       return [
-        { key: '特性', name: '祈り', cat: 'trait', desc: [
-          '超過回復(HP が満タンを超えた分)が祈りになる(回復の出どころは問わない)',
-          `祈りの一撃: メイン武器の通常攻撃・E のすべての命中に、祈りの ${Math.round(c.cuV('trait', 'faith', p.strike) * 100)}% の追加ダメージ(攻撃力を掛ける)`,
-          '追加ダメージで祈りは減らない(祈りを使うのは Q だけ)',
+        { key: _t('特性'), name: _t('祈り'), cat: 'trait', desc: [
+          _t('超過回復(HP が満タンを超えた分)が祈りになる(回復の出どころは問わない)'),
+          _t`祈りの一撃: メイン武器の通常攻撃・E のすべての命中に、祈りの ${Math.round(c.cuV('trait', 'faith', p.strike) * 100)}% の追加ダメージ(攻撃力を掛ける)`,
+          _t('追加ダメージで祈りは減らない(祈りを使うのは Q だけ)'),
         ], rows: [
-          ['祈りの上限', `最大HP と同じ(${Math.round(hp)})`],
-          ['祈りの一撃の間隔', `<b>${(p.strikeCd * (1 - c.cuV('trait', 'vessel')) * (1 - (c.lvFx.strikeCd || 0))).toFixed(2)}</b> 秒に1回`],
+          [_t('祈りの上限'), _t`最大HP と同じ(${Math.round(hp)})`],
+          [_t('祈りの一撃の間隔'), _t`<b>${(p.strikeCd * (1 - c.cuV('trait', 'vessel')) * (1 - (c.lvFx.strikeCd || 0))).toFixed(2)}</b> 秒に1回`],
         ] },
-        { key: 'パッシブ', name: '癒しの光', cat: 'passive', desc: [
-          'E / Q を使ったとき、HP を回復する',
-          '回復を受けるとき、今の HP が低いほど回復量が増える(自分が受けるすべての回復に効く)',
+        { key: _t('パッシブ'), name: _t('癒しの光'), cat: 'passive', desc: [
+          _t('E / Q を使ったとき、HP を回復する'),
+          _t('回復を受けるとき、今の HP が低いほど回復量が増える(自分が受けるすべての回復に効く)'),
         ], rows: [
-          ['E / Q の回復', `<b>最大HP の ${Math.round((c.cuV('passive', 'light', p.light) + (c.lvFx.lightHeal || 0)) * 100)}%</b>`],
-          ['低HP の回復量アップ', `最大 +${Math.round(c.cuV('passive', 'mercy', p.mercy) * 100)}%`],
+          [_t('E / Q の回復'), _t`<b>最大HP の ${Math.round((c.cuV('passive', 'light', p.light) + (c.lvFx.lightHeal || 0)) * 100)}%</b>`],
+          [_t('低HP の回復量アップ'), _t`最大 +${Math.round(c.cuV('passive', 'mercy', p.mercy) * 100)}%`],
         ] },
         { key: 'Q', name: q.name, cat: 'q', desc: [
-          `構え ${q.windup}秒 → 祈りを全て消費し、照準方向の扇形に光の一撃`,
-          `基礎威力 ${q.pow} + 消費した祈り × ${q.perPray}`,
-          `消費した祈りの ${Math.round(q.heal * 100)}% だけ HP を回復(この超過回復は祈りにならない)`,
+          _t`構え ${q.windup}秒 → 祈りを全て消費し、照準方向の扇形に光の一撃`,
+          _t`基礎威力 ${q.pow} + 消費した祈り × ${q.perPray}`,
+          _t`消費した祈りの ${Math.round(q.heal * 100)}% だけ HP を回復(この超過回復は祈りにならない)`,
         ], rows: [
-          ['CD', `<b>${(q.cd * (1 - c.cuV('q', 'cd')) * c.cdMul).toFixed(1)}</b> 秒`],
-          ['基礎威力(祈り 0)', `${Math.round(q.pow * k)} → <b>${Math.round(q.pow * k * c.atkMul)}</b>`, `祈り 1 につき +${(q.perPray * k).toFixed(1)}`],
+          ['CD', _t`<b>${(q.cd * (1 - c.cuV('q', 'cd')) * c.cdMul).toFixed(1)}</b> 秒`],
+          [_t('基礎威力(祈り 0)'), `${Math.round(q.pow * k)} → <b>${Math.round(q.pow * k * c.atkMul)}</b>`, _t`祈り 1 につき +${(q.perPray * k).toFixed(1)}`],
         ] },
-        { key: 'Space', name: '聖域の祈り', desc: [
-          `その場で短く祈り、${p.prayIfr}秒 無敵`,
-          `使った瞬間に HP を最大HP の ${Math.round(p.prayHeal * 100)}% 回復(満タンなら祈りになる)`,
+        { key: 'Space', name: _t('聖域の祈り'), desc: [
+          _t`その場で短く祈り、${p.prayIfr}秒 無敵`,
+          _t`使った瞬間に HP を最大HP の ${Math.round(p.prayHeal * 100)}% 回復(満タンなら祈りになる)`,
         ], rows: [
-          ['スタミナ消費', `<b>${p.prayCost - (c.lvFx.prayCut || 0)}</b>`],
+          [_t('スタミナ消費'), `<b>${p.prayCost - (c.lvFx.prayCut || 0)}</b>`],
         ] },
       ];
     },
@@ -2355,13 +2355,13 @@ const CLASS_RT = {
       P.act = null;
     },
     res: () => (P.pact
-      ? { kind: 'pact', label: '血の契約', v: Math.ceil(P.pact.t), max: Math.max(1, Math.ceil(P.pact.max)), dk: '#6a0a1e' }
-      : { kind: 'bleed', label: '出血の上限', v: asBleedCap(), max: Math.max(1, asBleedMax()), dk: '#6a0a1e' }),
+      ? { kind: 'pact', label: _t('血の契約'), v: Math.ceil(P.pact.t), max: Math.max(1, Math.ceil(P.pact.max)), dk: '#6a0a1e' }
+      : { kind: 'bleed', label: _t('出血の上限'), v: asBleedCap(), max: Math.max(1, asBleedMax()), dk: '#6a0a1e' }),
     staBroken: () => false,
     statuses() {
       const out = [], q = DATA.classes.assassin.q, k = asPactK();
-      if (P.pact) out.push({ id: 'pact', glyph: '契', name: '血の契約', fx: `移動速度 +${Math.round(q.spd * k * 100)}% 出血1につき与ダメ +${(q.perStack * k * 100).toFixed(1)}%` + (hasSp('passive', 'feast') ? ` 血の渇きの上限 ×${AS().pactCap}` : ''), t: P.pact.t, max: P.pact.max, kind: 'buff' });
-      if (hasSp('passive', 'greed') && P.hp <= P.maxhp * AS().lowAt) out.push({ id: 'ikiti', glyph: '血', name: '生き血', fx: '血の渇きの回復量 ×2', kind: 'buff' });
+      if (P.pact) out.push({ id: 'pact', glyph: '契', name: _t('血の契約'), fx: _t`移動速度 +${Math.round(q.spd * k * 100)}% 出血1につき与ダメ +${(q.perStack * k * 100).toFixed(1)}%` + (hasSp('passive', 'feast') ? _t` 血の渇きの上限 ×${AS().pactCap}` : ''), t: P.pact.t, max: P.pact.max, kind: 'buff' });
+      if (hasSp('passive', 'greed') && P.hp <= P.maxhp * AS().lowAt) out.push({ id: 'ikiti', glyph: '血', name: _t('生き血'), fx: _t('血の渇きの回復量 ×2'), kind: 'buff' });
       return out;
     },
     qInfo: () => ({ name: DATA.classes.assassin.q.name, glyph: '契' }),
@@ -2369,39 +2369,39 @@ const CLASS_RT = {
       const p = AS(), q = DATA.classes.assassin.q, B = DATA.bleed, k = (1 + c.cuV('q', 'pow')) * (1 + (c.lvFx.qPow || 0));
       const lk = 1 + c.cuV('passive', 'thirst') + (c.lvFx.leech || 0), pk = c.cuV('q', 'price', 1);
       return [
-        { key: '特性', name: '血刃', cat: 'trait', desc: [
-          '斬撃タイプの武器(刀・騎士剣・オービットブレード・スローイングアックス)の命中で、出血 +1(通常攻撃・E とも)',
-          `出血の最大スタック = 斬撃タイプの武器の所持数 × ${p.perCut}`,
-          `出血: 1スタックにつき毎秒 最大HP の ${(B.pct * 100).toFixed(1)}%(ボス ×${B.boss}、エリート ×${B.elite})`,
+        { key: _t('特性'), name: _t('血刃'), cat: 'trait', desc: [
+          _t('斬撃タイプの武器(刀・騎士剣・オービットブレード・スローイングアックス)の命中で、出血 +1(通常攻撃・E とも)'),
+          _t`出血の最大スタック = 斬撃タイプの武器の所持数 × ${p.perCut}`,
+          _t`出血: 1スタックにつき毎秒 最大HP の ${(B.pct * 100).toFixed(1)}%(ボス ×${B.boss}、エリート ×${B.elite})`,
         ], rows: [
-          ['出血の最大スタック', c.run ? `<b>${asBleedCap()}</b>` : `斬撃タイプ 1本につき <b>${p.perCut + c.cuV('trait', 'rend')}</b>`],
-          ['出血ダメージ', `<b>+${Math.round((c.cuV('trait', 'deep') + (c.lvFx.bleedDmg || 0)) * 100)}%</b>`],
-          ['出血の持続', `${B.dur + c.cuV('trait', 'last')} 秒`],
+          [_t('出血の最大スタック'), c.run ? `<b>${asBleedCap()}</b>` : _t`斬撃タイプ 1本につき <b>${p.perCut + c.cuV('trait', 'rend')}</b>`],
+          [_t('出血ダメージ'), `<b>+${Math.round((c.cuV('trait', 'deep') + (c.lvFx.bleedDmg || 0)) * 100)}%</b>`],
+          [_t('出血の持続'), _t`${B.dur + c.cuV('trait', 'last')} 秒`],
         ] },
-        { key: 'パッシブ', name: '血の渇き', cat: 'passive', desc: [
-          `メイン武器の攻撃が当たるたびに HP を ${p.leech} 回復する`,
-          `出血中の敵を倒すと、その敵の出血 1スタックにつき 最大HP の ${(p.killPer * 100).toFixed(2)}% を回復する`,
-          `血の渇きの回復は、合わせて 1秒に 最大HP の ${p.leechCap * 100}% まで`,
+        { key: _t('パッシブ'), name: _t('血の渇き'), cat: 'passive', desc: [
+          _t`メイン武器の攻撃が当たるたびに HP を ${p.leech} 回復する`,
+          _t`出血中の敵を倒すと、その敵の出血 1スタックにつき 最大HP の ${(p.killPer * 100).toFixed(2)}% を回復する`,
+          _t`血の渇きの回復は、合わせて 1秒に 最大HP の ${p.leechCap * 100}% まで`,
         ], rows: [
-          ['命中ごとの回復', `<b>${(p.leech * lk).toFixed(2)}</b>`],
-          ['撃破時の回復', `出血 1 につき 最大HP の <b>${(c.cuV('passive', 'greed', p.killPer) * lk * 100).toFixed(3)}%</b>`],
-          ['1秒の上限', `最大HP の <b>${(c.cuV('passive', 'feast', p.leechCap) * 100).toFixed(1)}%</b>`],
+          [_t('命中ごとの回復'), `<b>${(p.leech * lk).toFixed(2)}</b>`],
+          [_t('撃破時の回復'), _t`出血 1 につき 最大HP の <b>${(c.cuV('passive', 'greed', p.killPer) * lk * 100).toFixed(3)}%</b>`],
+          [_t('1秒の上限'), _t`最大HP の <b>${(c.cuV('passive', 'feast', p.leechCap) * 100).toFixed(1)}%</b>`],
         ] },
         { key: 'Q', name: q.name, cat: 'q', desc: [
-          `構え ${q.windup}秒 → 今の HP の ${Math.round(q.pay * 100)}% を支払う(HP は 1 未満にならない)`,
-          `支払った瞬間、照準方向へ×字に交差する二筋の斬撃: 基礎威力 ${q.pow} + 支払った HP × ${q.perHp}、出血 +${q.bleed}(1体に1回)`,
-          `  → 交差の中心は ${q.crossD} 前、1本の長さ ${q.crossL * 2}、線から ${q.crossW} 以内に当たる`,
-          `${q.dur}秒間、移動速度 +${Math.round(q.spd * 100)}%、敵の出血 1スタックにつき与えるダメージ +${Math.round(q.perStack * 100)}%`,
+          _t`構え ${q.windup}秒 → 今の HP の ${Math.round(q.pay * 100)}% を支払う(HP は 1 未満にならない)`,
+          _t`支払った瞬間、照準方向へ×字に交差する二筋の斬撃: 基礎威力 ${q.pow} + 支払った HP × ${q.perHp}、出血 +${q.bleed}(1体に1回)`,
+          _t`  → 交差の中心は ${q.crossD} 前、1本の長さ ${q.crossL * 2}、線から ${q.crossW} 以内に当たる`,
+          _t`${q.dur}秒間、移動速度 +${Math.round(q.spd * 100)}%、敵の出血 1スタックにつき与えるダメージ +${Math.round(q.perStack * 100)}%`,
         ], rows: [
-          ['CD', `<b>${(q.cd * c.cdMul).toFixed(1)}</b> 秒`],
-          ['斬り裂きの威力', `${q.pow} + 支払った HP × ${q.perHp} → <b>×${(k * c.atkMul).toFixed(2)}</b>`, '強化・攻撃力の倍率'],
-          ['効果', `移動速度 +${Math.round(q.spd * pk * 100)}%、出血1につき +${(q.perStack * pk * 100).toFixed(1)}%、${q.dur + c.cuV('q', 'dur')} 秒`],
+          ['CD', _t`<b>${(q.cd * c.cdMul).toFixed(1)}</b> 秒`],
+          [_t('斬り裂きの威力'), _t`${q.pow} + 支払った HP × ${q.perHp} → <b>×${(k * c.atkMul).toFixed(2)}</b>`, _t('強化・攻撃力の倍率')],
+          [_t('効果'), _t`移動速度 +${Math.round(q.spd * pk * 100)}%、出血1につき +${(q.perStack * pk * 100).toFixed(1)}%、${q.dur + c.cuV('q', 'dur')} 秒`],
         ] },
-        { key: 'Space', name: '瞬影', desc: [
-          `移動方向へ ${p.dashDist} 駆け抜ける(${p.dashIfr}秒 無敵)`,
-          `通り抜けた敵に 基礎威力 ${p.dashPow} と出血 +${p.dashBleed}`,
+        { key: 'Space', name: _t('瞬影'), desc: [
+          _t`移動方向へ ${p.dashDist} 駆け抜ける(${p.dashIfr}秒 無敵)`,
+          _t`通り抜けた敵に 基礎威力 ${p.dashPow} と出血 +${p.dashBleed}`,
         ], rows: [
-          ['スタミナ消費', `<b>${p.dashCost}</b>`],
+          [_t('スタミナ消費'), `<b>${p.dashCost}</b>`],
         ] },
       ];
     },
@@ -2454,12 +2454,12 @@ const CLASS_RT = {
       necRelease(a);
       P.act = null;
     },
-    res: () => ({ kind: 'soul', label: '死霊', v: P.souls.length, max: necMax(), seg: true, dk: '#4a3a8a' }),
+    res: () => ({ kind: 'soul', label: _t('死霊'), v: P.souls.length, max: necMax(), seg: true, dk: '#4a3a8a' }),
     staBroken: () => false,
     statuses() {
       const out = [], p = NC(), left = p.undyingCd - (S.time - P.undyingAt);
-      if (P.rei >= 1) out.push({ id: 'rei', glyph: '霊', name: `霊力 ${Math.floor(P.rei)}`, fx: `死霊の攻撃・葬送の威力 +${((necK() - 1) * 100).toFixed(1)}%`, kind: 'buff' });
-      if (hasSp('passive', 'soul') && left > 0) out.push({ id: 'undying', glyph: '契', name: '不死の契り', fx: '再び使えるまで', t: left, max: p.undyingCd, kind: 'debuff' });
+      if (P.rei >= 1) out.push({ id: 'rei', glyph: '霊', name: _t`霊力 ${Math.floor(P.rei)}`, fx: _t`死霊の攻撃・葬送の威力 +${((necK() - 1) * 100).toFixed(1)}%`, kind: 'buff' });
+      if (hasSp('passive', 'soul') && left > 0) out.push({ id: 'undying', glyph: '契', name: _t('不死の契り'), fx: _t('再び使えるまで'), t: left, max: p.undyingCd, kind: 'debuff' });
       return out;
     },
     qInfo: () => ({ name: DATA.classes.necro.q.name, glyph: '葬' }),
@@ -2467,36 +2467,36 @@ const CLASS_RT = {
       const p = NC(), q = DATA.classes.necro.q, rk = c.run ? necK() : 1, k = (1 + c.cuV('q', 'pow') + (c.lvFx.qPow || 0)) * rk;
       const max = p.max + (c.lvFx.soulMax || 0) + c.cuV('trait', 'herd'), pow = p.pow * (1 + c.cuV('trait', 'fang') + (c.lvFx.soulPow || 0)) * rk, itv = p.every, decay = p.reiDecay * (1 - c.cuV('trait', 'haste'));
       return [
-        { key: '特性', name: '死霊使役', cat: 'trait', desc: [
-          `敵を倒すと、その敵が死霊になって従う(+1。エリートは +${p.eliteN}、ボスは上限まで)`,
-          `死霊は周りを漂い、それぞれ ${p.every}秒ごとに近く(半径 ${p.range})の敵へ飛びかかる(基礎威力 ${p.pow}。なるべく別の敵を狙う)`,
-          '死霊が減るのは、身代わりと葬送で使ったときだけ',
-          `上限のときに得た死霊は霊力になる(1秒に ${p.reiDecay} ずつ減る)。霊力 1 につき、死霊の攻撃(噛みつき・百鬼夜行・報い)と葬送の威力 +${(p.reiK * 100).toFixed(1)}%`,
+        { key: _t('特性'), name: _t('死霊使役'), cat: 'trait', desc: [
+          _t`敵を倒すと、その敵が死霊になって従う(+1。エリートは +${p.eliteN}、ボスは上限まで)`,
+          _t`死霊は周りを漂い、それぞれ ${p.every}秒ごとに近く(半径 ${p.range})の敵へ飛びかかる(基礎威力 ${p.pow}。なるべく別の敵を狙う)`,
+          _t('死霊が減るのは、身代わりと葬送で使ったときだけ'),
+          _t`上限のときに得た死霊は霊力になる(1秒に ${p.reiDecay} ずつ減る)。霊力 1 につき、死霊の攻撃(噛みつき・百鬼夜行・報い)と葬送の威力 +${(p.reiK * 100).toFixed(1)}%`,
         ], rows: [
-          ['死霊', c.run ? `<b>${P.souls.length}</b> / ${max} 体` : `上限 <b>${max}</b> 体`],
-          ['霊力', c.run ? `<b>${Math.floor(P.rei)}</b>(+${((rk - 1) * 100).toFixed(1)}%)` : `上限のときに得た死霊 1体につき +${(p.reiK * 100).toFixed(1)}%`, `1秒に ${+decay.toFixed(2)} ずつ減る`],
-          ['1回の威力', `${Math.round(pow)} → <b>${Math.round(pow * c.atkMul)}</b>`, '霊力・攻撃力を掛けた値'],
-          ['攻撃の間隔', `<b>${itv.toFixed(2)}</b> 秒(1体ごと)`],
+          [_t('死霊'), c.run ? _t`<b>${P.souls.length}</b> / ${max} 体` : _t`上限 <b>${max}</b> 体`],
+          [_t('霊力'), c.run ? `<b>${Math.floor(P.rei)}</b>(+${((rk - 1) * 100).toFixed(1)}%)` : _t`上限のときに得た死霊 1体につき +${(p.reiK * 100).toFixed(1)}%`, _t`1秒に ${+decay.toFixed(2)} ずつ減る`],
+          [_t('1回の威力'), `${Math.round(pow)} → <b>${Math.round(pow * c.atkMul)}</b>`, _t('霊力・攻撃力を掛けた値')],
+          [_t('攻撃の間隔'), _t`<b>${itv.toFixed(2)}</b> 秒(1体ごと)`],
         ] },
-        { key: 'パッシブ', name: '死者の盾', cat: 'passive', desc: [
-          `被弾したとき、死霊を ${p.guardN}体 使って(少ないときはいるだけ)、そのダメージを ${Math.round(p.guard * 100)}% 減らす(死霊がいないときは減らない)。霊力は減らない`,
+        { key: _t('パッシブ'), name: _t('死者の盾'), cat: 'passive', desc: [
+          _t`被弾したとき、死霊を ${p.guardN}体 使って(少ないときはいるだけ)、そのダメージを ${Math.round(p.guard * 100)}% 減らす(死霊がいないときは減らない)。霊力は減らない`,
         ], rows: [
-          ['身代わりの軽減', `<b>${Math.round(c.cuV('passive', 'ward', p.guard) * 100)}%</b>`],
+          [_t('身代わりの軽減'), `<b>${Math.round(c.cuV('passive', 'ward', p.guard) * 100)}%</b>`],
         ] },
         { key: 'Q', name: q.name, cat: 'q', desc: [
-          `構え ${q.windup}秒 → 死霊を全て解き放つ。1体につき霊弾 1発(最低 ${q.minShots}発)`,
-          `霊弾は照準方向へ飛び出し、近くの敵を追って触れると爆ぜる(基礎威力 ${q.pow}、半径 ${q.r})`,
-          '解き放った死霊は戻らない。威力は霊力で上がる',
+          _t`構え ${q.windup}秒 → 死霊を全て解き放つ。1体につき霊弾 1発(最低 ${q.minShots}発)`,
+          _t`霊弾は照準方向へ飛び出し、近くの敵を追って触れると爆ぜる(基礎威力 ${q.pow}、半径 ${q.r})`,
+          _t('解き放った死霊は戻らない。威力は霊力で上がる'),
         ], rows: [
-          ['CD', `<b>${(q.cd * (1 - c.cuV('q', 'cd')) * c.cdMul).toFixed(1)}</b> 秒`],
-          ['1発の威力', `${Math.round(q.pow * k)} → <b>${Math.round(q.pow * k * c.atkMul)}</b>`, '霊力・攻撃力を掛けた値'],
-          ['爆発の半径', `${Math.round(q.r * (1 + c.cuV('q', 'area')) * (1 + c.st.v.area) * c.st.mul.area)}`],
+          ['CD', _t`<b>${(q.cd * (1 - c.cuV('q', 'cd')) * c.cdMul).toFixed(1)}</b> 秒`],
+          [_t('1発の威力'), `${Math.round(q.pow * k)} → <b>${Math.round(q.pow * k * c.atkMul)}</b>`, _t('霊力・攻撃力を掛けた値')],
+          [_t('爆発の半径'), `${Math.round(q.r * (1 + c.cuV('q', 'area')) * (1 + c.st.v.area) * c.st.mul.area)}`],
         ] },
-        { key: 'Space', name: '霊体化', desc: [
-          `${p.phaseT}秒間 霊体になる(無敵、移動速度 +${Math.round(p.phaseSpd * 100)}%)`,
-          '解けた瞬間、死霊が全員、近くの敵へ一斉に飛びかかる',
+        { key: 'Space', name: _t('霊体化'), desc: [
+          _t`${p.phaseT}秒間 霊体になる(無敵、移動速度 +${Math.round(p.phaseSpd * 100)}%)`,
+          _t('解けた瞬間、死霊が全員、近くの敵へ一斉に飛びかかる'),
         ], rows: [
-          ['スタミナ消費', `<b>${p.phaseCost - (c.lvFx.phaseCut || 0)}</b>`],
+          [_t('スタミナ消費'), `<b>${p.phaseCost - (c.lvFx.phaseCut || 0)}</b>`],
         ] },
       ];
     },
@@ -2565,12 +2565,12 @@ const CLASS_RT = {
       astCollapse(a);
       P.act = null;
     },
-    res: () => ({ kind: 'mass', label: '質量', v: P.mass, max: astMax(), dk: '#8a2a6e' }),
+    res: () => ({ kind: 'mass', label: _t('質量'), v: P.mass, max: astMax(), dk: '#8a2a6e' }),
     staBroken: () => false,
     statuses() {
       const out = [];
       const pc = v => String(+(v * 100).toFixed(1));
-      if (P.mass >= 1) out.push({ id: 'mass', glyph: '質', name: `質量 ${Math.floor(P.mass)}`, fx: `攻撃力 +${pc(astAtk())}%・移動速度 -${pc(astSlow())}%・重力圏 ${pc(P.astK)}%`, kind: 'buff' });
+      if (P.mass >= 1) out.push({ id: 'mass', glyph: '質', name: _t`質量 ${Math.floor(P.mass)}`, fx: _t`攻撃力 +${pc(astAtk())}%・移動速度 -${pc(astSlow())}%・重力圏 ${pc(P.astK)}%`, kind: 'buff' });
       return out;
     },
     qInfo: () => ({ name: DATA.classes.astro.q.name, glyph: '崩' }),
@@ -2581,38 +2581,38 @@ const CLASS_RT = {
       const k = 1 + c.cuV('q', 'pow') + (c.lvFx.qPow || 0), qr = (1 + c.cuV('q', 'area')) * ar, rel = mass * p.ejectPart, qd = (q.pow + mass * q.perMass) * k, ej = p.ejectPow + rel * p.ejectPowPer;
       const slow = c.hasSp('trait', 'vessel') && mass >= max ? 0 : Math.min(p.spdCap, mass * p.spdPer);
       return [
-        { key: '特性', name: '質量', cat: 'trait', desc: [
-          `アイテム(経験値の宝石・コイン・肉・磁石・爆弾・宝箱)を拾うと質量が溜まる(1つにつき +${p.pickN})。時間では減らない`,
-          `質量 1 につき攻撃力 +${pc(atkPer)}%、移動速度 -${pc(p.spdPer)}%(移動速度の低下は -${Math.round(p.spdCap * 100)}% まで)`,
-          '減るのは質量放出(Space)と重力崩壊(Q)で使ったときだけ',
+        { key: _t('特性'), name: _t('質量'), cat: 'trait', desc: [
+          _t`アイテム(経験値の宝石・コイン・肉・磁石・爆弾・宝箱)を拾うと質量が溜まる(1つにつき +${p.pickN})。時間では減らない`,
+          _t`質量 1 につき攻撃力 +${pc(atkPer)}%、移動速度 -${pc(p.spdPer)}%(移動速度の低下は -${Math.round(p.spdCap * 100)}% まで)`,
+          _t('減るのは質量放出(Space)と重力崩壊(Q)で使ったときだけ'),
         ], rows: [
-          ['質量', c.run ? `<b>${Math.floor(mass)}</b> / ${max}` : `上限 <b>${max}</b>`],
-          ['攻撃力', `<b>+${pc(mass * atkPer)}%</b>`, c.run ? '今の質量' : `上限で +${pc(max * atkPer)}%`],
-          ['移動速度', `<b>-${pc(slow)}%</b>`, c.run ? '今の質量' : `上限で -${pc(Math.min(p.spdCap, max * p.spdPer))}%`],
+          [_t('質量'), c.run ? `<b>${Math.floor(mass)}</b> / ${max}` : _t`上限 <b>${max}</b>`],
+          [_t('攻撃力'), `<b>+${pc(mass * atkPer)}%</b>`, c.run ? _t('今の質量') : _t`上限で +${pc(max * atkPer)}%`],
+          [_t('移動速度'), `<b>-${pc(slow)}%</b>`, c.run ? _t('今の質量') : _t`上限で -${pc(Math.min(p.spdCap, max * p.spdPer))}%`],
         ] },
-        { key: 'パッシブ', name: '重力圏', cat: 'passive', desc: [
-          `自分の周り(半径 ${Math.round(fieldR)})の敵の移動速度・攻撃速度と、敵の弾が遅くなる`,
-          `遅くなる割合は 質量 1 につき ${pc(slowPer)}%(最大 ${Math.round(p.slowCap * 100)}%)。敵の移動は凍傷と掛け算で重ねる`,
+        { key: _t('パッシブ'), name: _t('重力圏'), cat: 'passive', desc: [
+          _t`自分の周り(半径 ${Math.round(fieldR)})の敵の移動速度・攻撃速度と、敵の弾が遅くなる`,
+          _t`遅くなる割合は 質量 1 につき ${pc(slowPer)}%(最大 ${Math.round(p.slowCap * 100)}%)。敵の移動は凍傷と掛け算で重ねる`,
         ], rows: [
-          ['半径', `<b>${Math.round(fieldR)}</b>`],
-          ['遅くなる割合', `<b>${pc(Math.min(p.slowCap, mass * slowPer))}%</b>`, c.run ? '今の質量' : `上限で ${pc(Math.min(p.slowCap, max * slowPer))}%`],
-        ].concat(inert ? [['被ダメージ', `<b>-${pc(Math.min(p.guardCap, mass * inert))}%</b>`, `慣性: 質量 1 につき -${pc(inert)}%(最大 -${Math.round(p.guardCap * 100)}%)`]] : []) },
+          [_t('半径'), `<b>${Math.round(fieldR)}</b>`],
+          [_t('遅くなる割合'), `<b>${pc(Math.min(p.slowCap, mass * slowPer))}%</b>`, c.run ? _t('今の質量') : _t`上限で ${pc(Math.min(p.slowCap, max * slowPer))}%`],
+        ].concat(inert ? [[_t('被ダメージ'), `<b>-${pc(Math.min(p.guardCap, mass * inert))}%</b>`, _t`慣性: 質量 1 につき -${pc(inert)}%(最大 -${Math.round(p.guardCap * 100)}%)`]] : []) },
         { key: 'Q', name: q.name, cat: 'q', desc: [
-          `構え ${q.windup}秒 → 質量を全て使い、照準位置(射程 ${q.range})に特異点を生む`,
-          `${q.dur}秒間、周り(半径 ${q.pullR} + 使った質量 × ${q.pullPer})の敵を中心へ引き寄せる(中心に近いほど強く。ボス以外)`,
-          `最後に崩壊して、半径 ${q.r} の敵へ 基礎威力 ${q.pow} + 使った質量 × ${q.perMass}(質量 0 でも使える)`,
+          _t`構え ${q.windup}秒 → 質量を全て使い、照準位置(射程 ${q.range})に特異点を生む`,
+          _t`${q.dur}秒間、周り(半径 ${q.pullR} + 使った質量 × ${q.pullPer})の敵を中心へ引き寄せる(中心に近いほど強く。ボス以外)`,
+          _t`最後に崩壊して、半径 ${q.r} の敵へ 基礎威力 ${q.pow} + 使った質量 × ${q.perMass}(質量 0 でも使える)`,
         ], rows: [
-          ['CD', `<b>${(q.cd * (1 - c.cuV('q', 'cd')) * c.cdMul).toFixed(1)}</b> 秒`],
-          ['崩壊の威力', `${Math.round(qd)} → <b>${Math.round(qd * c.atkMul)}</b>`, (c.run ? '今の質量を全て使ったとき' : '質量 0 のとき') + '。攻撃力を掛けた値'],
-          ['引き寄せ / 崩壊の半径', `${Math.round((q.pullR + mass * q.pullPer) * qr)} / ${Math.round(q.r * qr)}`],
+          ['CD', _t`<b>${(q.cd * (1 - c.cuV('q', 'cd')) * c.cdMul).toFixed(1)}</b> 秒`],
+          [_t('崩壊の威力'), `${Math.round(qd)} → <b>${Math.round(qd * c.atkMul)}</b>`, (c.run ? _t('今の質量を全て使ったとき') : _t('質量 0 のとき')) + _t('。攻撃力を掛けた値')],
+          [_t('引き寄せ / 崩壊の半径'), `${Math.round((q.pullR + mass * q.pullPer) * qr)} / ${Math.round(q.r * qr)}`],
         ] },
-        { key: 'Space', name: '質量放出', desc: [
-          `質量の ${Math.round(p.ejectPart * 100)}% を後ろへ噴き出して、移動方向へ跳ぶ(距離 ${p.ejectDist} + 使った質量 × ${p.ejectPer}。${p.ejectIfr}秒 無敵)`,
-          `放出した質量は元の位置で爆ぜる(半径 ${p.ejectR}、基礎威力 ${p.ejectPow} + 使った質量 × ${p.ejectPowPer})`,
+        { key: 'Space', name: _t('質量放出'), desc: [
+          _t`質量の ${Math.round(p.ejectPart * 100)}% を後ろへ噴き出して、移動方向へ跳ぶ(距離 ${p.ejectDist} + 使った質量 × ${p.ejectPer}。${p.ejectIfr}秒 無敵)`,
+          _t`放出した質量は元の位置で爆ぜる(半径 ${p.ejectR}、基礎威力 ${p.ejectPow} + 使った質量 × ${p.ejectPowPer})`,
         ], rows: [
-          ['スタミナ消費', `<b>${p.ejectCost - (c.lvFx.ejectCut || 0)}</b>`],
-          ['跳ぶ距離', `<b>${Math.round(p.ejectDist + rel * p.ejectPer)}</b>`, c.run ? '今の質量' : '質量 0 のとき'],
-          ['爆発の威力', `${Math.round(ej)} → <b>${Math.round(ej * c.atkMul)}</b>`, '攻撃力を掛けた値'],
+          [_t('スタミナ消費'), `<b>${p.ejectCost - (c.lvFx.ejectCut || 0)}</b>`],
+          [_t('跳ぶ距離'), `<b>${Math.round(p.ejectDist + rel * p.ejectPer)}</b>`, c.run ? _t('今の質量') : _t('質量 0 のとき')],
+          [_t('爆発の威力'), `${Math.round(ej)} → <b>${Math.round(ej * c.atkMul)}</b>`, _t('攻撃力を掛けた値')],
         ] },
       ];
     },
@@ -2681,7 +2681,7 @@ const CLASS_RT = {
       if (!f || f.saved || !hasSp('q', 'cd')) return false;
       f.saved = true; P.burnT = 0;
       P.invT = Math.max(P.invT, q.undyingT); P.ifr = Math.max(P.ifr, q.undyingT);
-      UI.announce('不死の狂乱', '');
+      UI.announce(_t('不死の狂乱'), '');
       asMine(() => {
         addRing(P.x, P.y, 40, '#7a1418', { w: 3, life: 0.5 }); addFlash(P.x, P.y, 90, '#3a0610', 0.35);
         burst(P.x, P.y, 30, BK_FX, { sp: 120, up: 30, life: 0.6 }); shockAt(P.x, P.y, 1.2, 1);
@@ -2711,22 +2711,22 @@ const CLASS_RT = {
       bkFrenzy();
       P.act = null;
     },
-    res: () => ({ kind: 'rage', label: '怒り', v: P.rage, max: bkRageMax(), dk: '#5a0a14', pulse: '#a01828' }),
+    res: () => ({ kind: 'rage', label: _t('怒り'), v: P.rage, max: bkRageMax(), dk: '#5a0a14', pulse: '#a01828' }),
     staBroken: () => false,
     statuses() {
       const out = [], p = BK(), q = DATA.classes.berserker.q, fk = bkFervorK(), pc = v => String(+(v * 100).toFixed(1));
-      if (P.rage >= 1) out.push({ id: 'rage', glyph: '怒', name: `怒り ${Math.floor(P.rage)}`, fx: `与えるダメージ +${pc(P.rage * p.dmgPer)}%` + (hasSp('trait', 'fury') && bkFull() ? `・被ダメージ -${Math.round(p.armorCut * 100)}%(憤怒の鎧)` : '') + (hasSp('trait', 'grudge') ? `・HP回復速度 +${+(P.rage * p.burnK).toFixed(2)}/s(焼灼)` : ''), kind: 'buff' });
+      if (P.rage >= 1) out.push({ id: 'rage', glyph: '怒', name: _t`怒り ${Math.floor(P.rage)}`, fx: _t`与えるダメージ +${pc(P.rage * p.dmgPer)}%` + (hasSp('trait', 'fury') && bkFull() ? _t`・被ダメージ -${Math.round(p.armorCut * 100)}%(憤怒の鎧)` : '') + (hasSp('trait', 'grudge') ? _t`・HP回復速度 +${+(P.rage * p.burnK).toFixed(2)}/s(焼灼)` : ''), kind: 'buff' });
       // 昂り: 段の数をまとめて 1つ(残り時間の表示は一番長く残る段。段ごとの残りは説明に)。死に物狂いの間は時間なしで最大
       const n = bkFervorN(), des = bkDesperate();
       if (n > 0) {
         const left = P.fervor.slice().sort((a, b) => b - a).map(v => v.toFixed(1));
-        out.push({ id: 'fervor', glyph: '昂', name: `昂り ${n}段` + (des ? '(死に物狂い)' : ''), kind: 'buff', max: bkFervorT(), t: des ? undefined : Math.max(...P.fervor),
-          fx: `攻撃力 +${pc(n * p.fervorAtk * fk)}%・HP回復速度 +${+(n * p.fervorRegen * fk).toFixed(2)}/s` + (hasSp('passive', 'zeal') ? `・クールダウン -${pc(n * p.fervorCd)}%` : '')
-            + (des ? `(HP ${Math.round(p.desperateAt * 100)}% 以下の間は常に最大)` : `(段ごとの残り ${left.join(' / ')}秒)`) });
+        out.push({ id: 'fervor', glyph: '昂', name: _t`昂り ${n}段` + (des ? _t('(死に物狂い)') : ''), kind: 'buff', max: bkFervorT(), t: des ? undefined : Math.max(...P.fervor),
+          fx: _t`攻撃力 +${pc(n * p.fervorAtk * fk)}%・HP回復速度 +${+(n * p.fervorRegen * fk).toFixed(2)}/s` + (hasSp('passive', 'zeal') ? _t`・クールダウン -${pc(n * p.fervorCd)}%` : '')
+            + (des ? _t`(HP ${Math.round(p.desperateAt * 100)}% 以下の間は常に最大)` : _t`(段ごとの残り ${left.join(' / ')}秒)`) });
       }
-      if (P.firmT > 0) out.push({ id: 'firm', glyph: '屈', name: '不屈', fx: `被ダメージ -${Math.round(p.firmDr * 100)}%・減速を受けない`, t: P.firmT, max: p.firmT, kind: 'buff' });
-      if (P.frenzy) out.push({ id: 'frenzy', glyph: '狂', name: '狂乱', fx: `怒りが上限のまま・与えるダメージ +${Math.round(q.dmg * 100)}%・攻撃速度 +${Math.round(q.atkSpd * 100)}%・HP回復速度 +${q.regen}/s・スタミナ 0`
-        + (hasSp('q', 'cd') ? (P.frenzy.saved ? '・不死の狂乱は使用済み' : '・倒れるダメージを 1回 HP 1 で耐える') : ''), t: P.frenzy.t, max: P.frenzy.max, kind: 'buff' });
+      if (P.firmT > 0) out.push({ id: 'firm', glyph: '屈', name: _t('不屈'), fx: _t`被ダメージ -${Math.round(p.firmDr * 100)}%・減速を受けない`, t: P.firmT, max: p.firmT, kind: 'buff' });
+      if (P.frenzy) out.push({ id: 'frenzy', glyph: '狂', name: _t('狂乱'), fx: _t`怒りが上限のまま・与えるダメージ +${Math.round(q.dmg * 100)}%・攻撃速度 +${Math.round(q.atkSpd * 100)}%・HP回復速度 +${q.regen}/s・スタミナ 0`
+        + (hasSp('q', 'cd') ? (P.frenzy.saved ? _t('・不死の狂乱は使用済み') : _t('・倒れるダメージを 1回 HP 1 で耐える')) : ''), t: P.frenzy.t, max: P.frenzy.max, kind: 'buff' });
       return out;
     },
     qInfo: () => ({ name: DATA.classes.berserker.q.name, glyph: '狂' }),
@@ -2736,41 +2736,41 @@ const CLASS_RT = {
       const fk = 1 + c.cuV('passive', 'zeal'), fT = p.fervorT + c.cuV('passive', 'field') + (c.lvFx.fervorT || 0), edge = c.cuV('passive', 'edge');
       const k = (1 + c.cuV('q', 'pow') + (c.lvFx.qPow || 0)) * (c.hasSp('passive', 'field') ? 1 + p.selfPow : 1), qd = (q.pow + rage * q.perRage) * k, dur = Math.min(q.durMax, q.dur + rage * q.durPer) + c.cuV('q', 'dur'); // 仁王立ち: 威力 +selfPow
       return [
-        { key: '特性', name: '怒り', cat: 'trait', desc: [
-          `被弾すると 怒り +${p.rageHit}(上限 ${p.rageMax})`,
-          `怒り 1 につき 与えるダメージ +${pc(p.dmgPer)}%(攻撃力とは別の倍率で、掛け算で効く)`,
-          `${p.calmT}秒間 被弾しないと、1秒に ${p.decay} ずつ減る`,
+        { key: _t('特性'), name: _t('怒り'), cat: 'trait', desc: [
+          _t`被弾すると 怒り +${p.rageHit}(上限 ${p.rageMax})`,
+          _t`怒り 1 につき 与えるダメージ +${pc(p.dmgPer)}%(攻撃力とは別の倍率で、掛け算で効く)`,
+          _t`${p.calmT}秒間 被弾しないと、1秒に ${p.decay} ずつ減る`,
         ], rows: [
-          ['怒り', c.run ? `<b>${Math.floor(rage)}</b> / ${max}` : `上限 <b>${max}</b>`],
-          ['与えるダメージ', `<b>+${pc(rage * p.dmgPer)}%</b>`, c.run ? '今の怒り' : `上限で +${pc(max * p.dmgPer)}%`],
-          ['被弾で得る怒り', `<b>+${hitN}</b>`],
-          ['減り始めるまで', `${calm} 秒`],
-          ['減る速さ', `1秒に <b>${+decay.toFixed(1)}</b>`],
+          [_t('怒り'), c.run ? `<b>${Math.floor(rage)}</b> / ${max}` : _t`上限 <b>${max}</b>`],
+          [_t('与えるダメージ'), `<b>+${pc(rage * p.dmgPer)}%</b>`, c.run ? _t('今の怒り') : _t`上限で +${pc(max * p.dmgPer)}%`],
+          [_t('被弾で得る怒り'), `<b>+${hitN}</b>`],
+          [_t('減り始めるまで'), _t`${calm} 秒`],
+          [_t('減る速さ'), _t`1秒に <b>${+decay.toFixed(1)}</b>`],
         ] },
-        { key: 'パッシブ', name: '昂り', cat: 'passive', desc: [
-          `不屈の間に被弾すると ${p.fervorT}秒間、HP回復速度 +${p.fervorRegen}/s・攻撃力 +${Math.round(p.fervorAtk * 100)}%(最大 ${p.fervorMax}段。段ごとに別々に数える)`,
-          '攻撃力は与えるダメージ(怒り)とは別の倍率なので、掛け算で伸びる',
+        { key: _t('パッシブ'), name: _t('昂り'), cat: 'passive', desc: [
+          _t`不屈の間に被弾すると ${p.fervorT}秒間、HP回復速度 +${p.fervorRegen}/s・攻撃力 +${Math.round(p.fervorAtk * 100)}%(最大 ${p.fervorMax}段。段ごとに別々に数える)`,
+          _t('攻撃力は与えるダメージ(怒り)とは別の倍率なので、掛け算で伸びる'),
         ], rows: [
-          ['昂り', c.run ? `<b>${bkFervorN()}</b> / ${p.fervorMax} 段` : `最大 <b>${p.fervorMax}</b> 段`],
-          ['1段の効果', `攻撃力 +${pc(p.fervorAtk * fk)}%・HP回復速度 +${+(p.fervorRegen * fk).toFixed(2)}/s`],
-          ['時間', `${fT} 秒`],
-        ].concat(edge ? [['通常の被弾', `昂り +${edge}段`, '極限']] : []) },
+          [_t('昂り'), c.run ? _t`<b>${bkFervorN()}</b> / ${p.fervorMax} 段` : _t`最大 <b>${p.fervorMax}</b> 段`],
+          [_t('1段の効果'), _t`攻撃力 +${pc(p.fervorAtk * fk)}%・HP回復速度 +${+(p.fervorRegen * fk).toFixed(2)}/s`],
+          [_t('時間'), _t`${fT} 秒`],
+        ].concat(edge ? [[_t('通常の被弾'), _t`昂り +${edge}段`, _t('極限')]] : []) },
         { key: 'Q', name: q.name, cat: 'q', desc: [
-          `構え ${q.windup}秒 → 怒りを全て使い、雄叫びとともに周り(半径 ${q.r})を薙ぎ払う(基礎威力 ${q.pow} + 使った怒り × ${q.perRage})`,
-          `そのあと狂乱(${q.dur}秒 + 使った怒り × ${q.durPer}秒。最大 ${q.durMax}秒): 怒りは上限のまま減らない、与えるダメージ +${Math.round(q.dmg * 100)}%、攻撃速度 +${Math.round(q.atkSpd * 100)}%、HP回復速度 +${q.regen}/s`,
-          '  → そのかわりスタミナが 0 になり、回復しなくなる。終わると怒りは 0 から溜め直し',
+          _t`構え ${q.windup}秒 → 怒りを全て使い、雄叫びとともに周り(半径 ${q.r})を薙ぎ払う(基礎威力 ${q.pow} + 使った怒り × ${q.perRage})`,
+          _t`そのあと狂乱(${q.dur}秒 + 使った怒り × ${q.durPer}秒。最大 ${q.durMax}秒): 怒りは上限のまま減らない、与えるダメージ +${Math.round(q.dmg * 100)}%、攻撃速度 +${Math.round(q.atkSpd * 100)}%、HP回復速度 +${q.regen}/s`,
+          _t('  → そのかわりスタミナが 0 になり、回復しなくなる。終わると怒りは 0 から溜め直し'),
         ], rows: [
-          ['CD', `<b>${(q.cd * (1 - c.cuV('q', 'cd')) * c.cdMul).toFixed(1)}</b> 秒`],
-          ['薙ぎ払いの威力', `${Math.round(qd)} → <b>${Math.round(qd * c.atkMul)}</b>`, (c.run ? '今の怒りを全て使ったとき' : '怒り 0 のとき') + '。攻撃力を掛けた値'],
-          ['狂乱の持続', `<b>${+dur.toFixed(1)}</b> 秒`, c.run ? '今の怒りを全て使ったとき' : '怒り 0 のとき'],
-          ['半径', `${Math.round(q.r * (1 + c.st.v.area) * c.st.mul.area)}`],
+          ['CD', _t`<b>${(q.cd * (1 - c.cuV('q', 'cd')) * c.cdMul).toFixed(1)}</b> 秒`],
+          [_t('薙ぎ払いの威力'), `${Math.round(qd)} → <b>${Math.round(qd * c.atkMul)}</b>`, (c.run ? _t('今の怒りを全て使ったとき') : _t('怒り 0 のとき')) + _t('。攻撃力を掛けた値')],
+          [_t('狂乱の持続'), _t`<b>${+dur.toFixed(1)}</b> 秒`, c.run ? _t('今の怒りを全て使ったとき') : _t('怒り 0 のとき')],
+          [_t('半径'), `${Math.round(q.r * (1 + c.st.v.area) * c.st.mul.area)}`],
         ] },
-        { key: 'Space', name: '不屈', desc: [
-          `${p.firmT}秒間、被ダメージ -${Math.round(p.firmDr * 100)}%、減速(粘液・スロウタイム)を受けない。動ける`,
-          `受けたダメージ(減らす前)10 につき 怒り +${+(p.firmRage * 10).toFixed(1)}(被弾の怒りとは別)`,
-          '不屈の間の被弾で 昂り +1段',
+        { key: 'Space', name: _t('不屈'), desc: [
+          _t`${p.firmT}秒間、被ダメージ -${Math.round(p.firmDr * 100)}%、減速(粘液・スロウタイム)を受けない。動ける`,
+          _t`受けたダメージ(減らす前)10 につき 怒り +${+(p.firmRage * 10).toFixed(1)}(被弾の怒りとは別)`,
+          _t('不屈の間の被弾で 昂り +1段'),
         ], rows: [
-          ['スタミナ消費', `<b>${p.firmCost - (c.lvFx.firmCut || 0)}</b>`],
+          [_t('スタミナ消費'), `<b>${p.firmCost - (c.lvFx.firmCut || 0)}</b>`],
         ] },
       ];
     },
@@ -2824,18 +2824,18 @@ const CLASS_RT = {
       wmSummon();
       P.act = null;
     },
-    res: () => ({ kind: 'arms', label: '武器', v: Object.keys(P.weapons).length, max: S.weaponSlots, seg: true, dk: '#7a4a22', pulse: '#e0a060' }),
+    res: () => ({ kind: 'arms', label: _t('武器'), v: Object.keys(P.weapons).length, max: S.weaponSlots, seg: true, dk: '#7a4a22', pulse: '#e0a060' }),
     staBroken: () => false,
     statuses() {
       const out = [], p = WM(), n = wmStack(), pc = v => String(+(v * 100).toFixed(1));
       const atk = n * cuV('trait', 'train', p.stackAtk), deft = Math.min(0.5, n * cuV('trait', 'deft')), hp = Math.round(n * cuV('trait', 'tough')), steady = hasSp('trait', 'tough') && wmFull();
-      out.push({ id: 'wmArts', glyph: '武', name: `武芸百般 ${+n.toFixed(1)}`, kind: 'buff',
-        fx: `攻撃力 +${pc(atk)}%` + (deft ? `・クールダウン -${pc(deft)}%` : '') + (hp ? `・最大HP +${hp}` : '') + (steady ? `・被ダメージ -${Math.round(p.steadyDr * 100)}%(不動)` : '') });
+      out.push({ id: 'wmArts', glyph: '武', name: _t`武芸百般 ${+n.toFixed(1)}`, kind: 'buff',
+        fx: _t`攻撃力 +${pc(atk)}%` + (deft ? _t`・クールダウン -${pc(deft)}%` : '') + (hp ? _t`・最大HP +${hp}` : '') + (steady ? _t`・被ダメージ -${Math.round(p.steadyDr * 100)}%(不動)` : '') });
       const every = wmShadeEvery(), left = Math.max(0, every - P.wmShadeT);
-      out.push({ id: 'wmShade', glyph: '影', name: '影の追撃', fx: `${+every.toFixed(1)}秒ごとに、持っている武器(メイン武器も)のどれかがもう一度攻撃する(次まで ${left.toFixed(1)}秒)`, t: left, max: every, kind: 'buff' });
+      out.push({ id: 'wmShade', glyph: '影', name: _t('影の追撃'), fx: _t`${+every.toFixed(1)}秒ごとに、持っている武器(メイン武器も)のどれかがもう一度攻撃する(次まで ${left.toFixed(1)}秒)`, t: left, max: every, kind: 'buff' });
       const c = P.wmClone;
       if (c) out.push({ id: 'wmClone', glyph: '神', name: DATA.classes.weaponmaster.q.name, kind: 'buff', t: c.stay ? Math.max(0, c.stay - c.t) : undefined, max: c.stay || undefined,
-        fx: `分身が武器スキルを使う(残り ${c.list.length - c.i}つ)` + (c.stay ? `・化身: 使った武器 ${c.used.length}種の通常攻撃` : '') });
+        fx: _t`分身が武器スキルを使う(残り ${c.list.length - c.i}つ)` + (c.stay ? _t`・化身: 使った武器 ${c.used.length}種の通常攻撃` : '') });
       return out;
     },
     qInfo: () => ({ name: DATA.classes.weaponmaster.q.name, glyph: '神' }),
@@ -2846,36 +2846,36 @@ const CLASS_RT = {
       const every = p.shadeT - c.cuV('passive', 'freq') - (c.lvFx.shadeCut || 0), sp = 1 + c.cuV('passive', 'pow') + (c.lvFx.shadePow || 0), edge = c.cuV('passive', 'edge');
       const qn = q.n + c.cuV('q', 'multi') + (c.lvFx.qN || 0), lvA = c.run ? cuLv('q', 'art') : 0, qk = 1 + c.cuV('q', 'art') + (c.lvFx.qPow || 0);
       return [
-        { key: '特性', name: '武芸百般', cat: 'trait', desc: [
-          `持っている武器 1つにつき 攻撃力 +${pc(p.stackAtk)}%`,
-          `進化した武器は 効果 +${Math.round(p.evoK * 100)}%(1つで ${1 + p.evoK}つ分)`,
-        ].concat(c.lvFx.stack ? [`クラスLv3: 常に +${c.lvFx.stack}つ分`] : []), rows: [
-          ['武芸百般', `<b>${+n.toFixed(1)}</b> つ分`, c.run ? `武器 ${owned} / ${slots}。進化した武器は ${1 + evo}つ分` : 'ラン開始時(メイン武器 1つ)'],
-          ['攻撃力', `<b>+${pc(n * per)}%</b>`, `1つにつき +${pc(per)}%`],
-        ].concat(deft ? [['クールダウン', `<b>-${pc(Math.min(0.5, n * deft))}%</b>`, `器用: 1つにつき -${pc(deft)}%`]] : [])
-          .concat(tough ? [['最大HP', `<b>+${Math.round(n * tough)}</b>`, `頑健: 1つにつき +${tough}`]] : []) },
-        { key: 'パッシブ', name: '影の追撃', cat: 'passive', desc: [
-          `${p.shadeT}秒ごとに、持っている武器(メイン武器も)のどれか 1つを影がまねて、その武器がすぐにもう一度攻撃する(威力は通常攻撃と同じ)`,
-          '影は自分の横に現れ、攻撃はそこから出る',
+        { key: _t('特性'), name: _t('武芸百般'), cat: 'trait', desc: [
+          _t`持っている武器 1つにつき 攻撃力 +${pc(p.stackAtk)}%`,
+          _t`進化した武器は 効果 +${Math.round(p.evoK * 100)}%(1つで ${1 + p.evoK}つ分)`,
+        ].concat(c.lvFx.stack ? [_t`クラスLv3: 常に +${c.lvFx.stack}つ分`] : []), rows: [
+          [_t('武芸百般'), _t`<b>${+n.toFixed(1)}</b> つ分`, c.run ? _t`武器 ${owned} / ${slots}。進化した武器は ${1 + evo}つ分` : _t('ラン開始時(メイン武器 1つ)')],
+          [_t('攻撃力'), `<b>+${pc(n * per)}%</b>`, _t`1つにつき +${pc(per)}%`],
+        ].concat(deft ? [[_t('クールダウン'), `<b>-${pc(Math.min(0.5, n * deft))}%</b>`, _t`器用: 1つにつき -${pc(deft)}%`]] : [])
+          .concat(tough ? [[_t('最大HP'), `<b>+${Math.round(n * tough)}</b>`, _t`頑健: 1つにつき +${tough}`]] : []) },
+        { key: _t('パッシブ'), name: _t('影の追撃'), cat: 'passive', desc: [
+          _t`${p.shadeT}秒ごとに、持っている武器(メイン武器も)のどれか 1つを影がまねて、その武器がすぐにもう一度攻撃する(威力は通常攻撃と同じ)`,
+          _t('影は自分の横に現れ、攻撃はそこから出る'),
         ], rows: [
-          ['間隔', `<b>${+every.toFixed(1)}</b> 秒`],
-          ['まねた攻撃の威力', `<b>${Math.round(sp * (c.hasSp('passive', 'freq') ? 1 - p.twinCut : 1) * 100)}%</b>` + (c.hasSp('passive', 'freq') ? ' × 2体' : ''), '通常攻撃の威力に対して'],
-        ].concat(edge ? [['影刃の威力', `${edge} → <b>${Math.round(edge * c.atkMul)}</b>`, `半径 ${Math.round(p.edgeR * ar)}。攻撃力を掛けた値`]] : []) },
+          [_t('間隔'), _t`<b>${+every.toFixed(1)}</b> 秒`],
+          [_t('まねた攻撃の威力'), `<b>${Math.round(sp * (c.hasSp('passive', 'freq') ? 1 - p.twinCut : 1) * 100)}%</b>` + (c.hasSp('passive', 'freq') ? _t(' × 2体') : ''), _t('通常攻撃の威力に対して')],
+        ].concat(edge ? [[_t('影刃の威力'), `${edge} → <b>${Math.round(edge * c.atkMul)}</b>`, _t`半径 ${Math.round(p.edgeR * ar)}。攻撃力を掛けた値`]] : []) },
         { key: 'Q', name: q.name, cat: 'q', desc: [
-          `構え ${q.windup}秒 → 自分の隣に分身をつくる。分身は持っている武器の武器スキルをランダムに ${q.n}種(重複なし)使う`,
-          `分身は ${q.gap}秒おきに 1つずつ使う。自分はすぐに動ける。分身は狙われず、ダメージも受けない`,
-          '威力はその武器の今の値(Lv・進化・熟練)。メイン武器の E の強化も効く',
-          '武器スキルの自分への効果(シールド・回復など)は自分に入る。ワイルドトマホークの代償は払わない',
+          _t`構え ${q.windup}秒 → 自分の隣に分身をつくる。分身は持っている武器の武器スキルをランダムに ${q.n}種(重複なし)使う`,
+          _t`分身は ${q.gap}秒おきに 1つずつ使う。自分はすぐに動ける。分身は狙われず、ダメージも受けない`,
+          _t('威力はその武器の今の値(Lv・進化・熟練)。メイン武器の E の強化も効く'),
+          _t('武器スキルの自分への効果(シールド・回復など)は自分に入る。ワイルドトマホークの代償は払わない'),
         ], rows: [
-          ['CD', `<b>${(q.cd * (1 - c.cuV('q', 'cd')) * c.cdMul).toFixed(1)}</b> 秒`],
-          ['武器スキル', `<b>${qn}</b> 種`, c.run ? `今は ${Math.min(qn, owned)} 種(持っている武器の数まで)` : '持っている武器の数まで'],
-          ['威力', `<b>${Math.round(qk * 100)}%</b>`, '武器スキルの威力に対して(練度・クラスLv)'],
-        ].concat(lvA ? [['範囲 / 射程', `+${Math.round(q.artArea[lvA - 1] * 100)}% / +${Math.round(q.artRange[lvA - 1] * 100)}%`, '練度']] : []) },
-        { key: 'Space', name: '残像', desc: [
-          `移動方向へ ${p.dashDist} 跳ぶ(${p.dashTime}秒。${p.dashIfr}秒 無敵)。元の位置に残像が残る`,
-          '跳んだ直後、メイン武器がすぐにもう一度攻撃する',
+          ['CD', _t`<b>${(q.cd * (1 - c.cuV('q', 'cd')) * c.cdMul).toFixed(1)}</b> 秒`],
+          [_t('武器スキル'), _t`<b>${qn}</b> 種`, c.run ? _t`今は ${Math.min(qn, owned)} 種(持っている武器の数まで)` : _t('持っている武器の数まで')],
+          [_t('威力'), `<b>${Math.round(qk * 100)}%</b>`, _t('武器スキルの威力に対して(練度・クラスLv)')],
+        ].concat(lvA ? [[_t('範囲 / 射程'), `+${Math.round(q.artArea[lvA - 1] * 100)}% / +${Math.round(q.artRange[lvA - 1] * 100)}%`, _t('練度')]] : []) },
+        { key: 'Space', name: _t('残像'), desc: [
+          _t`移動方向へ ${p.dashDist} 跳ぶ(${p.dashTime}秒。${p.dashIfr}秒 無敵)。元の位置に残像が残る`,
+          _t('跳んだ直後、メイン武器がすぐにもう一度攻撃する'),
         ], rows: [
-          ['スタミナ消費', `<b>${wmDashCostOf(c.lvFx)}</b>`],
+          [_t('スタミナ消費'), `<b>${wmDashCostOf(c.lvFx)}</b>`],
         ] },
       ];
     },
@@ -2953,7 +2953,7 @@ function samuraiParry() {
     burst(P.x, P.y, 24, ['#ffffff', '#9ff7ff', '#ff3b5c'], { sp: 120, glow: true, life: 0.35 });
     fxRays(P.x, P.y - 4, R * 1.3, '#4ab8d8', { n: 12, life: 0.28, core: '#9ff7ff' }); fxGlint(P.x + P.facing * 6, P.y - 8, 9, '#9ff7ff', { life: 0.24 }); // 受け流した刃のきらめき
   });
-  addFloat(P.x, P.y - 16, '見切り!', '#9ff7ff', 1.2);
+  addFloat(P.x, P.y - 16, _t('見切り!'), '#9ff7ff', 1.2);
   AudioMan.slash(); AudioMan.crit();
 }
 
@@ -3242,7 +3242,7 @@ function knightBreak() {
   if (v) P.sta = Math.min(P.maxSta, P.sta + v);
   if (hasSp('passive', 'vigor')) heal(P.maxhp * 0.1); // 不死身
   if (hasSp('passive', 'rise')) setTimeout(() => { if (state === 'play') knGain(knCap() * p.rebuild); }, 3000); // 再構築
-  addFloat(P.x, P.y - 18, '不屈!', '#f2c84b', 1.2);
+  addFloat(P.x, P.y - 18, _t('不屈!'), '#f2c84b', 1.2);
   AudioMan.boom();
 }
 // 聖盾の審判: シールドを全て消費して、前方の扇形(全周)に光の衝撃
@@ -3838,7 +3838,7 @@ function necUndying() {
   P.hp = Math.min(P.maxhp, Math.max(P.hp, P.maxhp * p.undyingHp * n));
   P.undyingAt = S.time; P.ifr = Math.max(P.ifr, 1); P.invT = Math.max(P.invT, 1);
   S.hudDirty = true;
-  UI.announce('不死の契り', '');
+  UI.announce(_t('不死の契り'), '');
   asMine(() => {
     addRing(P.x, P.y, 50, '#8a6cff', { w: 3, life: 0.6 }); addFlash(P.x, P.y, 120, '#5a30c0', 0.4);
     burst(P.x, P.y, 40, NEC_FX, { sp: 140, up: 40, glow: true, life: 0.8 });
