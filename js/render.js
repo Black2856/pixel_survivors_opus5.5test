@@ -1154,15 +1154,15 @@ function render() {
       if (h.t < 3) for (let k = 0; k < 4; k++) {
         const A = h.ps[k], B = h.ps[(k + 1) % 4]; if (A.dead || B.dead) continue;
         const ax = A.x - cam.x, ay = A.y - cam.y - 4, bx = B.x - cam.x, by = B.y - cam.y - 4;
-        if (h.t < 0.8) { if (warnBlink) { sx.globalAlpha = 0.8; pLine(sx, ax, ay, bx, by, '#ff3b5c'); sx.globalAlpha = 1; } }
+        if (h.t < 0.4) { if (warnBlink) { sx.globalAlpha = 0.8; pLine(sx, ax, ay, bx, by, '#ff3b5c'); sx.globalAlpha = 1; } }
         else jagBolt(ax, ay, bx, by, { step: 10, j: 3, col: '#f0e8ff', glow: '#4a2a98' });
       }
-      if (h.t >= 0.8 && h.t < 3) addLight(h.x, h.y, 80, '#9a7aff', 0.4);
+      if (h.t >= 0.4 && h.t < 3) addLight(h.x, h.y, 80, '#9a7aff', 0.4);
     } else if (h.kind === 'etrail') { // 雷化の跡(雷獣): 雷の体が通った所に残る紫白のぎざぎざの雷(消える前の 0.5秒は点滅)
       const pts = h.pts;
       for (let i = 0; i < pts.length - 1; i++) {
         const A = pts[i], B = pts[i + 1]; if (!A || !B) continue;
-        if (S.time - A.at > 2.5 && Math.floor(t * 20) % 2) continue;
+        if (S.time - A.at > 4.5 && Math.floor(t * 20) % 2) continue;
         jagBolt(A.x - cam.x, A.y - cam.y, B.x - cam.x, B.y - cam.y, { step: 6, j: 2, col: '#d8c8ff', glow: '#3a2478' });
       }
       for (let i = 0; i < pts.length; i += 8) if (pts[i]) addLight(pts[i].x, pts[i].y, 40, '#9a7aff', 0.3);
@@ -2426,6 +2426,12 @@ function drawBossFx(e) {
     for (let i = 0; i < 12; i++) { const a = t * 2.5 + TAU / 12 * i, rr = 8 + 5 * Math.sin(t * 3 + i) + 6 * k; sx.globalAlpha = 0.3 + 0.5 * k; pDisc(sx, Math.round(hx + Math.cos(a) * rr), Math.round(hy + Math.sin(a) * rr * 0.4), 4, i % 2 ? '#2a2448' : '#3a3460'); }
     sx.globalAlpha = 1;
     if (Math.random() < 0.2 + 0.6 * k) jagBolt(hx + rand(-10, 10), hy + 2, hx + rand(-12, 12), hy + rand(8, 16), { step: 4, j: 2, col: '#c8b8ff', glow: '#3a2478' });
+    // 落ちる時を示す輪: プレイヤーのまわりで、外(半径 160)から当たる大きさ(半径 60。点線の円)へ 2秒かけてまっすぐ縮む。輪が円に重なった時に落ちる(太鼓が光る拍ごとに太くなる)
+    const gt = Math.min(2, S.time - ai.godT0), AR = CHAOS.area, R0 = 60 * AR, Rr = R0 + 100 * AR * (1 - gt / 2), px = P.x - cam.x, py = P.y - cam.y, beat = (S.time - ai.godT0) % 0.25 < 0.06;
+    sx.globalAlpha = 0.85; pCircle(sx, px, py, Math.round(R0), '#b8a0ff', 2); sx.globalAlpha = 1; // 当たる大きさの点線(赤ではない。pCircle の最後の引数は点の間隔)
+    const rr = Math.round(Rr), wide = beat || gt > 1.75; // 縮む輪: 暗い縁取りの上に明るい 2重の線(拍ごと・最後の拍からは 3重)
+    sx.globalAlpha = 0.7; pCircle(sx, px, py, rr + 1, '#140c24'); pCircle(sx, px, py, rr - 2 - (wide ? 1 : 0), '#140c24'); sx.globalAlpha = 1;
+    for (let d = 0; d < (wide ? 3 : 2); d++) { pCircle(sx, px, py, rr - d, gt > 1.75 ? '#ffffff' : '#e8e0ff'); pCircle(gx, px, py, rr - d, gt > 1.75 ? '#7a5ad8' : '#4a2a98'); }
   }
   // 白骨竜の狙い撃ち: 撃つ前に頭(目)が光る
   if (e.boss === 'wyrm' && ai.aiming > 0) {
