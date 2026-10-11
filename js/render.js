@@ -1119,7 +1119,7 @@ function render() {
       const c = Math.cos(h.a), s = Math.sin(h.a), L = h.len / 2, W = h.bw / 2, on = h.t >= h.tele, k0 = on ? 1 : h.t / h.tele;
       const quad = (al, col) => { sx.globalAlpha = al; sx.fillStyle = col; sx.beginPath(); sx.moveTo(hx - c * L - s * W, hy - s * L + c * W); sx.lineTo(hx + c * L - s * W, hy + s * L + c * W); sx.lineTo(hx + c * L + s * W, hy + s * L - c * W); sx.lineTo(hx - c * L + s * W, hy - s * L - c * W); sx.fill(); };
       quad(0.34 * k0 * fade, '#c8a060'); sx.globalAlpha = fade * k0;
-      for (let i = 0; i < 26; i++) { const u = ((hash2(i, h.seed) * 2 - 1) * L + t * 140) % (2 * L) - L, v = (hash2(i + 9, h.seed) * 2 - 1) * W * 0.85, x = hx + c * u - s * v, y = hy + s * u + c * v; pLine(sx, x, y, x - c * 8, y - s * 8, '#f0d8a0'); } // 砂の筋
+      for (let i = 0, ns = Math.max(26, Math.round(h.bw * 0.9)); i < ns; i++) { const u = ((hash2(i, h.seed) * 2 - 1) * L + t * 140) % (2 * L) - L, v = (hash2(i + 9, h.seed) * 2 - 1) * W * 0.85, x = hx + c * u - s * v, y = hy + s * u + c * v; pLine(sx, x, y, x - c * 8, y - s * 8, '#f0d8a0'); } // 砂の筋
       const ec = on ? (warnBlink ? '#ff3b1a' : '#ff8a3d') : '#c8a060';
       for (const sd of [-1, 1]) pLine(sx, hx - c * L - s * W * sd, hy - s * L + c * W * sd, hx + c * L - s * W * sd, hy + s * L + c * W * sd, ec);
       sx.globalAlpha = 1;

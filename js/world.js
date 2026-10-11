@@ -3930,17 +3930,17 @@ function rootCage(e, ai) {
   });
 }
 
-// ---------- 大蠍: プレイヤーへ寄る。★流砂の渦(引き寄せ・砂塵)/ はさみの挟撃(捕まると動けない → 尾の一突き)/ 尾の三連突き / 砂かけ(砂塵の散弾)/ 砂潜り / 激昂: 大地の挟撃 ----------
+// ---------- 大蠍: プレイヤーへ寄る。★流砂の渦(引き寄せ・砂塵)/ はさみの挟撃(捕まると動けない → 尾の一突き)/ 尾の連突き / 砂かけ(砂塵の散弾)/ 砂潜り / 激昂: 大地の挟撃 ----------
 function escorpAI(e, ai, dt, a, dist, slow) {
   const R = CHAOS.rate;
   if (ai.act === 'vortex' || ai.act === 'burrow' || ai.act === 'stab') { e.spr = 'escorp'; return; } // 渦の中心・砂の中・尾を砂に刺している間は動かない(終わりは技の later)
-  if (ai.act === 'grab') { // はさみの挟撃: 0.6秒の予告 → 帯の中にいたら捕まえる → 1秒 動けない(回避で抜けられる)→ 尾の一突き ×1.2
+  if (ai.act === 'grab') { // はさみの挟撃: 0.6秒の予告 → 帯の中にいたら捕まえる → 2秒 動けない(回避で抜けられる)→ 尾の一突き ×1.2
     const g = ai.tl; g.t += dt;
     if (!g.done && g.t >= 0.6) {
       g.done = true;
       const tip = { x: e.x + Math.cos(g.a) * 70 * CHAOS.area, y: e.y + Math.sin(g.a) * 70 * CHAOS.area };
-      if (!P.dead && !(P.invT > 0) && inLine(e.x, e.y, g.a, 80, 24)) {
-        P.rootT = 1.1; ai.grabT = 1; bfx.push({ kind: 'egrab', x: e.x, y: e.y, owner: e, t: 0, life: 1.1, track: f => { if (!(P.rootT > 0)) f.t = f.life; } });
+      if (!P.dead && !(P.invT > 0) && inLine(e.x, e.y, g.a, 80, 30)) {
+        P.rootT = 2.1; ai.grabT = 2; bfx.push({ kind: 'egrab', x: e.x, y: e.y, owner: e, t: 0, life: 2.1, track: f => { if (!(P.rootT > 0)) f.t = f.life; } });
         burst(P.x, P.y - 2, 14, [...SAND, '#2e2622'], { sp: 70, life: 0.35 }); shake(4); AudioMan.crush();
         hint('escorp_grab', _t('はさみの挟撃'), _t('捕まると動けない。回避で抜け出せる'));
       } else { ai.act = null; burst(tip.x, tip.y, 10, SAND, { sp: 60, life: 0.3 }); }
@@ -3965,42 +3965,44 @@ function escorpAI(e, ai, dt, a, dist, slow) {
   else if (ai.stab <= 0 && dist < 160) { ai.stab = ai.enraged ? 5.5 : 7; scorpStab(e, ai); }
   else if (ai.sand <= 0 && dist < 140) { ai.sand = ai.enraged ? 4 : 5; windup(e, 0.4, () => scorpSand(e, ai)); }
 }
-// ★流砂の渦: 1秒の予告(大蠍のまわり 半径 150 の砂が渦を巻きはじめる)→ 5秒 流砂。大蠍へ引かれ(毎秒 30。回避の無敵中は引かれない)、中にいると 1秒ごとに砂塵 +1
+// ★流砂の渦: 0.5秒の予告(大蠍のまわり 半径 150(激昂 180)の砂が渦を巻きはじめる)→ 5秒 流砂。大蠍へ引かれ(毎秒 30(激昂 36)。回避の無敵中は引かれない)、中にいると 1秒ごとに砂塵 +1
 //   中心(半径 45)は 0.5秒ごとにはさみが鳴る ×0.6。大蠍は渦の中心で動かない
 function scorpVortex(e, ai) {
+  const R0 = ai.enraged ? 180 : 150;
   ai.act = 'vortex'; e.sq = 1.2;
-  addHazard('quicksand', e.x, e.y, { r: 150, dur: 6, tele: 1, pull: 30, core: 45, owner2: e, dmg: e.dmg, dustT: 1, snapT: 0 });
-  pushWarn({ kind: 'circle', x: e.x, y: e.y, r: 150, t: 0, life: 1, noFill: true, owner: e }); // 渦の広さ(縁だけ)
-  pushWarn({ kind: 'circle', x: e.x, y: e.y, r: 45, t: 0, life: 1, owner: e }); // はさみの届く中心
-  AudioMan.charge(1); AudioMan.sand(); shake(4);
-  later(ai, 6, () => { if (ai.act === 'vortex') ai.act = null; });
+  addHazard('quicksand', e.x, e.y, { r: R0, dur: 5.5, tele: 0.5, pull: ai.enraged ? 36 : 30, core: 45, owner2: e, dmg: e.dmg, dustT: 1, snapT: 0 });
+  pushWarn({ kind: 'circle', x: e.x, y: e.y, r: R0, t: 0, life: 0.5, noFill: true, owner: e }); // 渦の広さ(縁だけ)
+  pushWarn({ kind: 'circle', x: e.x, y: e.y, r: 45, t: 0, life: 0.5, owner: e }); // はさみの届く中心
+  AudioMan.charge(0.5); AudioMan.sand(); shake(4);
+  later(ai, 5.5, () => { if (ai.act === 'vortex') ai.act = null; });
   hint('escorp_vortex', _t('流砂の渦'), _t('大蠍へ引き寄せられ、砂塵がたまる。中心のはさみに近づくな'));
 }
-// はさみの挟撃: 0.6秒 前方の帯(長さ 80・幅 24。大蠍について動かない)→ 捕まえる(つづきは escorpAI)
+// はさみの挟撃: 0.6秒 前方の帯(長さ 80・幅 30。大蠍について動かない)→ 捕まえる(つづきは escorpAI)
 function scorpGrab(e, ai, a) {
   ai.act = 'grab'; ai.tl = { t: 0, a, done: false };
-  pushWarn({ kind: 'line', x: e.x, y: e.y, a, len: 80, w: 24, t: 0, life: 0.6, owner: e });
+  pushWarn({ kind: 'line', x: e.x, y: e.y, a, len: 80, w: 30, t: 0, life: 0.6, owner: e });
   AudioMan.charge(0.6); e.sq = 1.1;
 }
-// 尾の三連突き: 尾を砂に刺し(1.6秒 動かない)、プレイヤーの足元に 円 半径 22 を 0.5秒おきに 3回(毎回置き直す)。各 0.6秒の予告 → 砂から針が突き出す ×0.9
+// 尾の連突き: 尾を砂に刺し(1.65秒(激昂 2.65秒)動かない)、プレイヤーの足元に 円 半径 25 を 0.5秒おきに 3回(激昂 5回。毎回置き直す)。各 0.6秒の予告 → 砂から針が突き出す ×0.9
 function scorpStab(e, ai) {
+  const n = ai.enraged ? 5 : 3;
   ai.act = 'stab'; e.sq = 1.15; AudioMan.charge(0.6);
   burst(e.x - 8, e.y, 14, SAND, { sp: 60, up: 20, g: 200, life: 0.4 });
-  for (let i = 0; i < 3; i++) later(ai, i * 0.5, () => {
+  for (let i = 0; i < n; i++) later(ai, i * 0.5, () => {
     const x = P.x, y = P.y;
-    pushWarn({ kind: 'circle', x, y, r: 22, t: 0, life: 0.6, owner: e });
+    pushWarn({ kind: 'circle', x, y, r: 25, t: 0, life: 0.6, owner: e });
     later(ai, 0.6, () => {
-      hitCircle(x, y, 22, e.dmg * 0.9);
+      hitCircle(x, y, 25, e.dmg * 0.9);
       bfx.push({ kind: 'estab', x, y, t: 0, life: 0.35 });
-      burst(x, y, 16, SAND, { sp: 80, up: 30, g: 220, life: 0.4 }); addRing(x, y, 22 * CHAOS.area, '#ffb040', { life: 0.25 }); shake(3); AudioMan.slash(); AudioMan.thud();
+      burst(x, y, 16, SAND, { sp: 80, up: 30, g: 220, life: 0.4 }); addRing(x, y, 25 * CHAOS.area, '#ffb040', { life: 0.25 }); shake(3); AudioMan.slash(); AudioMan.thud();
     });
   });
-  later(ai, 1.65, () => { if (ai.act === 'stab') ai.act = null; });
+  later(ai, (n - 1) * 0.5 + 0.65, () => { if (ai.act === 'stab') ai.act = null; }); // 最後の一突きのあとまで
 }
-// 砂かけ: 前方へ砂の散弾 9発(±0.45rad・速さ 100〜140・1.2秒で消える)。×0.5・1発につき砂塵 +1
+// 砂かけ: 前方へ砂の散弾 9発(±0.45rad・速さ 100〜140・1.5秒で消える)。×0.5・1発につき砂塵 +1
 function scorpSand(e, ai) {
   const a = Math.atan2(P.y - e.y, P.x - e.x);
-  for (let i = 0; i < 9; i++) Object.assign(eball(e.x + Math.cos(a) * 12, e.y + 4, a + rand(-0.45, 0.45), rand(100, 140), e.dmg * 0.5, 'sandshot'), { dust: 1, life: 1.2, r: 2.5 * CHAOS.area });
+  for (let i = 0; i < 9; i++) Object.assign(eball(e.x + Math.cos(a) * 12, e.y + 4, a + rand(-0.45, 0.45), rand(100, 140), e.dmg * 0.5, 'sandshot'), { dust: 1, life: 1.5, r: 2.5 * CHAOS.area });
   burst(e.x + Math.cos(a) * 14, e.y + 4, 24, SAND, { sp: 110, life: 0.4, drag: 2 }); e.sq = 0.8; AudioMan.sand(); AudioMan.dash();
 }
 // 砂潜り: 砂に潜り(0.4秒)、砂の中を進んで(盛り上がった砂が動く)、プレイヤーから 60〜90 の所に出る(出る所に 円 半径 30 の予告 1.2秒)。出る所の砂煙で砂塵 +2(ダメージはない)
@@ -4018,32 +4020,33 @@ function scorpBurrow(e, ai) {
   });
   hint('escorp_burrow', _t('砂潜り'), _t('出てくる所の砂煙を浴びると砂塵がたまる'));
 }
-// 大地の挟撃(激昂): プレイヤーの左右(大蠍から見て横)の砂から大きなはさみが出て、両側から 1秒かけて中央へ閉じる(帯 長さ 140・幅 34)→ ×1.4。前後へ逃げる
+// 大地の挟撃(激昂): プレイヤーの左右(大蠍から見て横)の砂から大きなはさみが出て、両側から 1秒かけて中央へ閉じる(帯 長さ 140・幅 40)→ ×1.4。前後へ逃げる
 function earthPincer(e, ai) {
   const sa = Math.atan2(P.y - e.y, P.x - e.x) + Math.PI / 2, cx = P.x, cy = P.y, D = 70, x0 = cx - Math.cos(sa) * D, y0 = cy - Math.sin(sa) * D;
-  pushWarn({ kind: 'line', x: x0, y: y0, a: sa, len: D * 2, w: 34, t: 0, life: 1, owner: e });
+  pushWarn({ kind: 'line', x: x0, y: y0, a: sa, len: D * 2, w: 40, t: 0, life: 1, owner: e });
   bfx.push({ kind: 'epinch', x: cx, y: cy, a: sa, D: D * CHAOS.area, t: 0, life: 1.3 });
   burst(cx - Math.cos(sa) * D, cy - Math.sin(sa) * D, 16, SAND, { sp: 70, up: 30, g: 200 }); burst(cx + Math.cos(sa) * D, cy + Math.sin(sa) * D, 16, SAND, { sp: 70, up: 30, g: 200 });
   AudioMan.charge(1); AudioMan.thud(); shake(4);
   later(ai, 1, () => {
-    hitLine(x0, y0, sa, D * 2, 34, e.dmg * 1.4);
-    burst(cx, cy, 40, [...SAND, '#ffd27a'], { sp: 140, up: 50, g: 200, life: 0.5 }); bossBlast(cx, cy, 34 * CHAOS.area, Object.assign({ n: 14 }, BFX.escorp)); shake(9); hitstop(0.05); AudioMan.crush(); AudioMan.boom();
+    hitLine(x0, y0, sa, D * 2, 40, e.dmg * 1.4);
+    burst(cx, cy, 40, [...SAND, '#ffd27a'], { sp: 140, up: 50, g: 200, life: 0.5 }); bossBlast(cx, cy, 40 * CHAOS.area, Object.assign({ n: 14 }, BFX.escorp)); shake(9); hitstop(0.05); AudioMan.crush(); AudioMan.boom();
   });
   hint('escorp_pinch', _t('大地の挟撃'), _t('左右から大きなはさみが閉じる。前か後ろへ逃げる'));
 }
 
-// ---------- スフィンクス: 距離 120 を保って回り込む。★謎かけ(頭上の印と同じ石板の上だけ安全)/ 陽光の眼(光線で薙ぐ)/ 石の羽根 / 前足の一撃 / 陽炎渡り / 激昂: 砂嵐・逆さの問い ----------
+// ---------- スフィンクス: 距離 120 を保って回り込む。★謎かけ(頭上の印と同じ石板の上だけ安全)/ 陽光の眼(光線がプレイヤーを追う)/ 石の羽根 / 前足の一撃 / 陽炎渡り(現れた所から陽光が 3方向へ走る)/ 激昂: 砂嵐・逆さの問い ----------
 const SUNC = ['#ffd27a', '#fff0c0', '#ffb040', '#ffffff'];
 function sphinxAI(e, ai, dt, a, dist, slow) {
   const R = CHAOS.rate;
-  if (ai.act === 'eyes') { // 陽光の眼: 0.8秒 目が光る → 0.5秒で 60° 薙ぐ(光線 長さ 240・幅 12。×1.0)
+  if (ai.act === 'eyes') { // 陽光の眼: 0.8秒 目が光る → 光線(長さ 240・幅 12)が 1.2秒 プレイヤーを追う。回る速さは角度の差 × 3(毎秒。最大 2.1rad/秒): 離れているほど速く、近づくと遅くなる。当たると ×1.0(1回だけ)
     const tl = ai.tl; tl.t += dt;
     if (tl.t < 0.8) { e.sq = 1.04; return; }
-    const k = Math.min(1, (tl.t - 0.8) / 0.5), ang = tl.a0 + tl.dir * 1.05 * k;
-    ai.beamA = ang; ai.beamO = { x: e.x + tl.ox, y: e.y + tl.oy };
-    if (!tl.hit && hitLine(e.x + tl.ox, e.y + tl.oy, ang, 240, 12, e.dmg)) tl.hit = true;
+    const ox = e.x + tl.ox, oy = e.y + tl.oy;
+    tl.ang += clamp(angDiff(Math.atan2(P.y - oy, P.x - ox), tl.ang) * 3, -2.1, 2.1) * dt;
+    ai.beamA = tl.ang; ai.beamO = { x: ox, y: oy };
+    if (!tl.hit && hitLine(ox, oy, tl.ang, 240, 12, e.dmg)) tl.hit = true;
     if (!tl.snd) { tl.snd = true; AudioMan.cast(); shake(3); }
-    if (k >= 1) { ai.act = null; ai.beamA = null; }
+    if (tl.t >= 2) { ai.act = null; ai.beamA = null; }
     return;
   }
   if (ai.act === 'haze') { // 陽炎渡り: 0.5秒で陽炎に溶ける(溶けかけから攻撃が当たらない)→ プレイヤーから 120〜150 の所に 0.3秒で現れる
@@ -4053,6 +4056,7 @@ function sphinxAI(e, ai, dt, a, dist, slow) {
       const pa = rand(0, TAU), pr = rand(120, 150);
       e.x = P.x + Math.cos(pa) * pr; e.y = P.y + Math.sin(pa) * pr; ai.act = 'hazeIn'; ai.pt = 0.3; e.hideA = 0;
       burst(e.x, e.y, 20, SUNC, { sp: 50, glow: true, life: 0.5 }); AudioMan.dash();
+      sphinxHazeBurst(e, ai); // 現れた所から陽光が 3方向へ走る
     }
     return;
   }
@@ -4090,36 +4094,57 @@ function sphinxRiddle(e, ai) {
   });
   hint('sphinx_riddle', _t('謎かけ'), inv ? _t('印が赤いときは逆さの問い。その印以外の石板の上が安全') : _t('頭上の印と同じ印の石板の上だけが安全'));
 }
-// 陽光の眼: 0.8秒の予告(60° の扇と、薙ぎはじめの光線の帯)→ 両目の光線(長さ 240・幅 12)が 0.5秒で 60° 薙ぐ ×1.0
+// 陽光の眼: 0.8秒の予告(光線の帯。プレイヤーから 30° ずれた向き)→ 両目の光線がプレイヤーを追う(つづきは sphinxAI)
 function sphinxEyes(e, ai, a) {
-  const dir = Math.random() < 0.5 ? 1 : -1, a0 = a - dir * 0.52, f = e.face || 1, ox = 8 * f, oy = -7;
-  ai.act = 'eyes'; ai.tl = { t: 0, a0, dir, ox, oy, hit: false };
-  pushWarn({ kind: 'fan', x: e.x + ox, y: e.y + oy, a, r: 240, h: 0.52, t: 0, life: 1.3, noFill: true, owner: e });
-  pushWarn({ kind: 'line', x: e.x + ox, y: e.y + oy, a: a0, len: 240, w: 12, t: 0, life: 0.8, owner: e });
+  const f = e.face || 1, ox = 8 * f, oy = -7, ang = Math.atan2(P.y - (e.y + oy), P.x - (e.x + ox)) + (Math.random() < 0.5 ? 0.52 : -0.52);
+  ai.act = 'eyes'; ai.tl = { t: 0, ang, ox, oy, hit: false };
+  pushWarn({ kind: 'line', x: e.x + ox, y: e.y + oy, a: ang, len: 240, w: 12, t: 0, life: 0.8, owner: e });
   AudioMan.charge(0.8);
 }
-// 石の羽根: 翼から石の羽根 7発の扇(±0.6rad・速さ 85、×0.6)
+// 石の羽根: 翼から石の羽根 7発の扇(±0.6rad・速さ 120、×0.6)。激昂: 0.5秒後に、同じ向きから 0.3rad ずらした 7発をもう一度(1回目の羽根のすき間に入る。ずらす側はランダム)
 function sphinxFeathers(e, ai, a) {
-  for (let i = -3; i <= 3; i++) Object.assign(eball(e.x, e.y - 10, a + i * 0.2, 85, e.dmg * 0.6, 'feather'), { r: 3 * CHAOS.area });
-  burst(e.x - 6 * (e.face || 1), e.y - 14, 14, ['#e8dcc0', '#fff4dc', '#a89070'], { sp: 60, life: 0.35 }); e.sq = 0.85; AudioMan.shoot();
+  const fan = da => {
+    for (let i = -3; i <= 3; i++) Object.assign(eball(e.x, e.y - 10, a + da + i * 0.2, 120, e.dmg * 0.6, 'feather'), { r: 3 * CHAOS.area });
+    burst(e.x - 6 * (e.face || 1), e.y - 14, 14, ['#e8dcc0', '#fff4dc', '#a89070'], { sp: 60, life: 0.35 }); e.sq = 0.85; AudioMan.shoot();
+  };
+  fan(0);
+  if (ai.enraged) { const s = Math.random() < 0.5 ? 0.3 : -0.3; later(ai, 0.5, () => { if (!e.dead) fan(s); }); }
 }
-// 前足の一撃: 距離 50 以内で 0.5秒 前方の扇(半径 55・±60°)→ ×1.2・80 押す
+// 前足の一撃: 距離 50 以内で 0.5秒 前方の扇(半径 70・±60°)→ ×1.2・80 押す
 function sphinxPaw(e, ai, a) {
-  pushWarn({ kind: 'fan', x: e.x, y: e.y, a, r: 55, h: 1.05, t: 0, life: 0.5, owner: e });
+  pushWarn({ kind: 'fan', x: e.x, y: e.y, a, r: 70, h: 1.05, t: 0, life: 0.5, owner: e });
   windup(e, 0.5, () => {
-    if (hitFan(e.x, e.y, a, 55, 1.05, e.dmg * 1.2)) pushPlayer(a, 80, 0.25);
-    slashes.push({ x: e.x, y: e.y, a, r: 55 * CHAOS.area, t: 0, life: 0.22, flip: Math.random() < 0.5, span: 2.1, pal: SWING_PAL.enemy, enemy: true });
+    if (hitFan(e.x, e.y, a, 70, 1.05, e.dmg * 1.2)) pushPlayer(a, 80, 0.25);
+    slashes.push({ x: e.x, y: e.y, a, r: 70 * CHAOS.area, t: 0, life: 0.22, flip: Math.random() < 0.5, span: 2.1, pal: SWING_PAL.enemy, enemy: true });
     burst(e.x + Math.cos(a) * 30, e.y + Math.sin(a) * 30, 14, SAND, { sp: 80, g: 160 }); e.sq = 0.75; shake(3); AudioMan.slash(); AudioMan.thud();
   });
 }
-// 陽炎渡り: 陽炎に溶けて、プレイヤーから 120〜150 の所に現れる(移動だけ。つづきは sphinxAI)
+// 陽炎渡り: 陽炎に溶けて、プレイヤーから 120〜150 の所に現れる(つづきは sphinxAI。現れたときに sphinxHazeBurst)
 function sphinxHaze(e, ai) {
   ai.act = 'haze'; ai.pt = 0.5; e.hideA = 1; AudioMan.dash();
 }
-// 砂嵐(激昂): 画面を横切る砂の流れ 3本(幅 30・間 90)。1秒で濃くなり、6秒 ゆっくり横へ動く(毎秒 12)。中にいると 0.5秒ごとに砂塵 +1
+// 陽炎渡りの陽光: 現れた所から、プレイヤーの方向とその左右(±0.5rad)の 3方向へ、円(半径 16)が 26 おきに 8つずつ並ぶ(予告は現れたときに全部出る)
+//   スフィンクスに近い方から 0.1秒おきに順に陽光が噴き上がる ×0.8(最初は現れて 0.5秒後)。列と列の間へよける
+function sphinxHazeBurst(e, ai) {
+  const a = Math.atan2(P.y - e.y, P.x - e.x);
+  for (const da of [-0.5, 0, 0.5]) for (let i = 0; i < 8; i++) {
+    const r = 24 + i * 26, x = e.x + Math.cos(a + da) * r, y = e.y + Math.sin(a + da) * r, T = 0.5 + i * 0.1;
+    pushWarn({ kind: 'circle', x, y, r: 16, t: 0, life: T, owner: e });
+    later(ai, T, () => {
+      if (e.dead) return;
+      hitCircle(x, y, 16, e.dmg * 0.8);
+      fxBeam(x, y, { foe: true, up: true, w: 4, H: 44, col: '#5a4018', mid: '#c88a30', core: '#e8b860', life: 0.35, drop: 0.06 }); // 地面から噴き上がる陽光(白く飛ばないように暗めの金・低く)
+      burst(x, y, 8, SUNC, { sp: 50, up: 20, g: 120, life: 0.35 }); addRing(x, y, 16 * CHAOS.area, '#ffb040', { life: 0.2 });
+      if (da === 0) AudioMan.thud();
+    });
+  }
+  hint('sphinx_haze', _t('陽炎渡り'), _t('現れた所から 3方向へ陽光が走る。列と列の間へよける'));
+}
+// 砂嵐(激昂): 画面を横切る砂の流れ 3本(幅 100。流れと流れのすき間 50)。1秒で濃くなり、6秒 ゆっくり横へ動く(毎秒 12)
+//   中にいると 0.5秒ごとに砂塵 +1、流れの向きへ毎秒 60 で運ばれる(回避の無敵中は運ばれない)
 function sphinxStorm(e, ai) {
   const a = rand(0, TAU), c = Math.cos(a + Math.PI / 2), s = Math.sin(a + Math.PI / 2), sg = Math.random() < 0.5 ? 1 : -1, j = rand(-30, 30);
-  for (const o of [-90, 0, 90]) addHazard('sandstream', P.x + c * (o + j), P.y + s * (o + j), { a, len: 640, bw: 30 * CHAOS.area, dur: 7, tele: 1, drift: 12 * sg, tick: 0.5, owner2: e });
+  for (const o of [-150, 0, 150]) addHazard('sandstream', P.x + c * (o + j), P.y + s * (o + j), { a, len: 640, bw: 100 * CHAOS.area, dur: 7, tele: 1, drift: 12 * sg, carry: 60, tick: 0.5, owner2: e });
   burst(e.x, e.y - 10, 30, SAND, { sp: 90, life: 0.5, drag: 1.5 }); AudioMan.sand(); AudioMan.dash(); shake(4);
   hint('sphinx_storm', _t('砂嵐'), _t('砂の流れの中にいると砂塵がたまる。流れのすき間へ'));
 }
@@ -5579,13 +5604,16 @@ function updHazards(dt) {
       if (Math.random() < dt * 8) { const pa = rand(0, TAU), pr = Math.sqrt(Math.random()) * R; part(h.x + Math.cos(pa) * pr, h.y + Math.sin(pa) * pr * 0.8, 0, -rand(4, 10), 0.8, pick(['#2a2a4a', '#3a3a5a', '#1a1a2a']), { drag: 1 }); }
     } else if (h.kind === 'tablet') { // 謎かけの石板(スフィンクス): 床に置かれるだけ(当たり判定なし)
       if (h.owner2 && h.owner2.dead) h.t = h.dur;
-    } else if (h.kind === 'sandstream') { // 砂嵐(スフィンクス): 画面を横切る砂の流れ。tele 秒で濃くなり、ゆっくり横へ動く。中にいると 0.5秒ごとに砂塵 +1
+    } else if (h.kind === 'sandstream') { // 砂嵐(スフィンクス): 画面を横切る砂の流れ。tele 秒で濃くなり、ゆっくり横へ動く。中にいると 0.5秒ごとに砂塵 +1、流れの向きへ毎秒 carry で運ばれる(回避の無敵中は運ばれない)
       if (h.owner2 && h.owner2.dead) h.t = h.dur;
       const c = Math.cos(h.a), s = Math.sin(h.a);
       h.x -= s * h.drift * dt; h.y += c * h.drift * dt;
       if (h.t >= h.tele && h.t < h.dur - 0.3 && !P.dead) {
         const ox = P.x - h.x, oy = P.y - h.y, along = ox * c + oy * s, sd = -ox * s + oy * c;
-        if (Math.abs(along) < h.len / 2 && Math.abs(sd) < h.bw / 2 && (h.tick -= dt) <= 0) { h.tick = 0.5; dustPlayer(1); }
+        if (Math.abs(along) < h.len / 2 && Math.abs(sd) < h.bw / 2) {
+          if ((h.tick -= dt) <= 0) { h.tick = 0.5; dustPlayer(1); }
+          if (P.invT <= 0) { P.x += c * h.carry * dt; P.y += s * h.carry * dt; }
+        }
       }
       if (Math.random() < dt * 40) { const u = rand(-0.5, 0.5) * Math.min(h.len, 420), v = rand(-0.5, 0.5) * h.bw; part(h.x + c * u - s * v, h.y + s * u + c * v, c * 120, s * 120, rand(0.3, 0.6), pick(SAND), { drag: 0.3 }); } // 流れる砂
     } else if (h.kind === 'quicksand') { // 流砂の渦(大蠍): tele 秒の予告のあと、大蠍へ引く(回避の無敵中は引かれない)・中にいると 1秒ごとに砂塵 +1・中心(core)で 0.5秒ごとにはさみ ×0.6

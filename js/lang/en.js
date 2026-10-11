@@ -2496,6 +2496,8 @@ const I18N_EN = {
   "謎かけ": "Riddle",
   "頭上の印と同じ印の石板の上だけが安全": "Only the tablet with the same mark as the one overhead is safe",
   "印が赤いときは逆さの問い。その印以外の石板の上が安全": "A red mark is a reversed riddle: the tablets without that mark are safe",
+  "陽炎渡り": "Haze Walk",
+  "現れた所から 3方向へ陽光が走る。列と列の間へよける": "Sunlight erupts along 3 lines from where it reappears. Dodge into the gaps between the lines",
   "砂嵐": "Sandstorm",
   "砂の流れの中にいると砂塵がたまる。流れのすき間へ": "Standing in the streams of sand builds Sandblind. Move into the gaps",
 };
