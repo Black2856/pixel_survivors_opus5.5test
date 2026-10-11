@@ -700,7 +700,8 @@ function render() {
   GFX.lightMul = LM;
   // 環境光・グレーディングを滑らかに遷移。闇の霧は環境光を暗く、青紫に寄せる(光源のまわりだけが見える)
   const fk = fogDarkK(), ink = S && (S.inInk || (P && P.darkT > 0)) ? 0.4 : 1; // 墨だまり(クラーケン)の中・暗闇(王墓)は暗い
-  GFX.fx.dark = lerp(GFX.fx.dark, S && !S.demo && P && P.darkT > 0 && !P.dead ? 1 : 0, 0.08); // 暗闇(王墓)の間は画面の端も暗く(gfx.js の仕上げのシェーダー)
+  const godDark = S && S.bosses ? S.bosses.reduce((m, b) => (!b.dead && b.ai && b.ai.godLit > 0 ? Math.max(m, 0.4 + b.ai.godLit / 8 * 0.6) : m), 0) : 0; // 神鳴りの溜め(雷神): 太鼓が光るほど画面の端が暗くなる
+  GFX.fx.dark = lerp(GFX.fx.dark, S && !S.demo && P && P.darkT > 0 && !P.dead ? 1 : godDark, 0.08); // 暗闇(王墓)の間は画面の端も暗く(gfx.js の仕上げのシェーダー)
   for (let i = 0; i < 3; i++) { GFX.ambient[i] = lerp(GFX.ambient[i], st.amb[i] * (1 - 0.55 * fk) * (i === 2 ? 1 + 0.3 * fk : 1) * ink, ink < 1 ? 0.08 : 0.03); GFX.tint[i] = lerp(GFX.tint[i], st.tint[i] * (i === 1 ? 1 - 0.12 * fk : 1), 0.03); }
 
   drawGround();
@@ -1157,6 +1158,14 @@ function render() {
         else jagBolt(ax, ay, bx, by, { step: 10, j: 3, col: '#f0e8ff', glow: '#4a2a98' });
       }
       if (h.t >= 0.8 && h.t < 3) addLight(h.x, h.y, 80, '#9a7aff', 0.4);
+    } else if (h.kind === 'etrail') { // 雷化の跡(雷獣): 雷の体が通った所に残る紫白のぎざぎざの雷(消える前の 0.5秒は点滅)
+      const pts = h.pts;
+      for (let i = 0; i < pts.length - 1; i++) {
+        const A = pts[i], B = pts[i + 1]; if (!A || !B) continue;
+        if (S.time - A.at > 2.5 && Math.floor(t * 20) % 2) continue;
+        jagBolt(A.x - cam.x, A.y - cam.y, B.x - cam.x, B.y - cam.y, { step: 6, j: 2, col: '#d8c8ff', glow: '#3a2478' });
+      }
+      for (let i = 0; i < pts.length; i += 8) if (pts[i]) addLight(pts[i].x, pts[i].y, 40, '#9a7aff', 0.3);
     } else if (h.kind === 'eline') { // 雷の線(雷獣の稲妻走りの跡): 折れ線にそって紫白のぎざぎざの雷がはじける(消える前は点滅)
       if (h.t > h.dur - 0.6 && Math.floor(t * 20) % 2) continue;
       for (let i = 0; i < h.pts.length - 1; i++) {
@@ -2402,6 +2411,22 @@ function drawBossFx(e) {
     addLight(e.x, e.y, 120 - ai.wind * 50, '#ff4a8a', 1);
   }
   const t = GFX.fx.time;
+  if (e.boss === 'raijin' && ai.godLit > 0) { // 神鳴りの溜め: 背中の太鼓が真上から時計回りに 1つずつ光り(数えて読む)、光った太鼓どうしを稲妻がつなぐ。体へ稲妻が集まり、プレイヤーの頭上に雷雲が渦を巻く
+    const D = RAIJIN_DRUM, cx = ex, cy = ey + yo + D.cy, n = ai.godLit, k = n / 8;
+    let qx = null, qy = null;
+    for (let i = 0; i < n; i++) {
+      const a = -Math.PI / 2 + TAU / 8 * i, x = Math.round(cx + Math.cos(a) * D.r), y = Math.round(cy + Math.sin(a) * D.r);
+      pDisc(gx, x, y, 3, '#5a3aa8'); pDisc(sx, x, y, 2, '#f0e8ff'); // 光る太鼓(光の層は暗い紫)
+      if (qx !== null) jagBolt(qx, qy, x, y, { step: 5, j: 2, col: '#d8c8ff', glow: '#3a2478' });
+      qx = x; qy = y;
+    }
+    addLight(e.x, e.y - (e.jz || 0) + D.cy, 40 + 50 * k, '#9a7aff', 0.4 + 0.4 * k);
+    if (Math.random() < 0.4 + 0.5 * k) { const a = rand(0, TAU), r = rand(28, 44); jagBolt(cx + Math.cos(a) * r, cy + Math.sin(a) * r, cx + Math.cos(a) * 8, cy + Math.sin(a) * 8, { step: 6, j: 3, col: '#c8b8ff', glow: '#3a2478' }); } // 体へ集まる稲妻
+    const hx = P.x - cam.x, hy = P.y - cam.y - 32; // プレイヤーの頭上の雷雲: 黒紫の雲が渦を巻き、溜まるほど濃く、稲妻がちらつく
+    for (let i = 0; i < 12; i++) { const a = t * 2.5 + TAU / 12 * i, rr = 8 + 5 * Math.sin(t * 3 + i) + 6 * k; sx.globalAlpha = 0.3 + 0.5 * k; pDisc(sx, Math.round(hx + Math.cos(a) * rr), Math.round(hy + Math.sin(a) * rr * 0.4), 4, i % 2 ? '#2a2448' : '#3a3460'); }
+    sx.globalAlpha = 1;
+    if (Math.random() < 0.2 + 0.6 * k) jagBolt(hx + rand(-10, 10), hy + 2, hx + rand(-12, 12), hy + rand(8, 16), { step: 4, j: 2, col: '#c8b8ff', glow: '#3a2478' });
+  }
   // 白骨竜の狙い撃ち: 撃つ前に頭(目)が光る
   if (e.boss === 'wyrm' && ai.aiming > 0) {
     const k = 1 - ai.aiming / 0.3, hx = ex, hy = ey + yo - sp.h / 2 + 7;

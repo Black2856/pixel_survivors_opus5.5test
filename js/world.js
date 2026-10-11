@@ -2375,10 +2375,10 @@ const BOSS_AI0 = {
   elder: { sprout: 6, roots: 3, sweep: 0, fruit: 5, leaves: 8 },
   escorp: { vortex: 8, grab: 3, stab: 5, sand: 2, burrow: 10 },
   sphinx: { rid: 6, eyes: 3, fea: 2, paw: 0, haze: 9, side: 1 },
-  raiju: { dash: 4, claw: 0, dis: 6, orb: 5, side: 1 },
-  raijin: { drum: 4, cage: 9, net: 2, flash: 7, side: 1, busy: 0 },
+  raiju: { dash: 4, blink: 8, dis: 6, orb: 5, side: 1 },
+  raijin: { ring: 4, cage: 9, net: 2, pair: 7, gale: 12, side: 1, busy: 0 },
 };
-const BOSS_ENRAGE = { king: { slam: 6 }, ifrit: { altar: true }, stag: { herd: 4 }, pqueen: { spiral: 3 }, levia: { breath: 4 }, fgiant: { drift: 5 }, squeen: { lance: 3 }, warden: { ringCd: 6 }, reaper: { sum: 7 }, fhour: { cross: 4, echo: 0 }, cerberus: { rain: 5 }, shadowking: { chainCd: 1 }, qbee: { ball: 4 }, elder: { cage: 5 }, escorp: { pinch: 4 }, sphinx: { storm: 4 }, raiju: { form: 3 }, raijin: { gale: 4, god: 2 } };
+const BOSS_ENRAGE = { king: { slam: 6 }, ifrit: { altar: true }, stag: { herd: 4 }, pqueen: { spiral: 3 }, levia: { breath: 4 }, fgiant: { drift: 5 }, squeen: { lance: 3 }, warden: { ringCd: 6 }, reaper: { sum: 7 }, fhour: { cross: 4, echo: 0 }, cerberus: { rain: 5 }, shadowking: { chainCd: 1 }, qbee: { ball: 4 }, elder: { cage: 5 }, escorp: { pinch: 4 }, sphinx: { storm: 4 }, raiju: { form: 3 }, raijin: { god: 5 } };
 
 function bossAI(e, dt) {
   const ai = e.ai, a = Math.atan2(P.y - e.y, P.x - e.x), dist = Math.sqrt(d2(e.x, e.y, P.x, P.y));
@@ -4223,23 +4223,24 @@ function sphinxStorm(e, ai) {
   hint('sphinx_storm', _t('砂嵐'), _t('砂の流れの中にいると砂塵がたまる。流れのすき間へ'));
 }
 
-// ---------- 雷獣: 距離 100 を保って速く回り込む。★稲妻走り(雷の線が床に残る)/ 雷爪 / 放電 / 雷玉 / 激昂: 雷化(雷の線を渡って飛びかかる) ----------
+// ---------- 雷獣: 距離 100 を保って速く回り込む。★稲妻走り(雷の線が床に残る)/ 瞬雷光(消えて、まわりから続けて突進)/ 放電 / 雷玉 / 激昂: 雷化(12秒 雷の体になり、通った所に雷が残る) ----------
 const THUN = ['#e8e0ff', '#b8a0ff', '#7a5ad8', '#ffffff'];
 function raijuAI(e, ai, dt, a, dist, slow) {
   const R = CHAOS.rate;
+  if (ai.trail) raijuTrail(e, ai); // 雷化: 通った所に雷を残す(ほかの技の間も)
   if (ai.act === 'dash') { updRaijuDash(e, ai, dt); return; }
-  if (ai.act === 'form') { updRaijuForm(e, ai, dt); return; }
-  e.spr = Math.floor(e.t * 10) % 2 ? 'raiju' : 'raiju2';
+  if (ai.act === 'blink') { updRaijuBlink(e, ai, dt); return; }
+  e.spr = (ai.formEnd > S.time ? 'raijuL' : 'raiju') + (Math.floor(e.t * 10) % 2 ? '' : '2'); // 雷化の間は雷の体の絵
   // 距離 100 を保ち、速く横へ回り込む(ときどき向きを変える)
   if ((ai.flip = (ai.flip ?? 2.5) - dt) <= 0) { ai.flip = rand(2, 3.5); ai.side = -(ai.side || 1); }
   const dir = dist > 100 ? a : a + Math.PI, k = Math.abs(dist - 100) > 15 ? 1 : 0.25;
   e.x += (Math.cos(dir) * e.spd * k + Math.cos(a + Math.PI / 2) * e.spd * 0.9 * (ai.side || 1)) * slow * dt;
   e.y += (Math.sin(dir) * e.spd * k + Math.sin(a + Math.PI / 2) * e.spd * 0.9 * (ai.side || 1)) * slow * dt;
   if (Math.random() < dt * 12) part(e.x + rand(-12, 12), e.y + rand(-8, 4), rand(-10, 10), -rand(6, 16), 0.3, pick(THUN), { glow: true, drag: 2 }); // 毛並みの火花
-  ai.dash -= dt * R; ai.claw -= dt * R; ai.dis -= dt * R; ai.orb -= dt * R; if (ai.enraged) ai.form -= dt * R;
-  if (ai.enraged && ai.form <= 0) { ai.form = 10; raijuForm(e, ai); }
+  ai.dash -= dt * R; ai.blink -= dt * R; ai.dis -= dt * R; ai.orb -= dt * R; if (ai.enraged) ai.form -= dt * R;
+  if (ai.enraged && ai.form <= 0) { ai.form = 24; raijuForm(e, ai); }
   else if (ai.dash <= 0) { ai.dash = ai.enraged ? 10 : 12; ai.act = 'dash'; ai.dn = ai.enraged ? 4 : 3; raijuDashTele(e, ai); }
-  else if (ai.claw <= 0 && dist < 50) { ai.claw = 4; raijuClaw(e, ai, a); }
+  else if (ai.blink <= 0) { ai.blink = ai.enraged ? 8 : 10; raijuBlink(e, ai); }
   else if (ai.dis <= 0) { ai.dis = ai.enraged ? 6 : 8; raijuDischarge(e, ai); }
   else if (ai.orb <= 0) { ai.orb = ai.enraged ? 7 : 9; raijuOrbs(e, ai); }
 }
@@ -4277,16 +4278,37 @@ function raijuLine(e, pts) {
   if (lines.length >= 6) lines[0].t = lines[0].dur;
   addHazard('eline', pts[0].x, pts[0].y, { pts: pts.map(p => ({ x: p.x, y: p.y })), dur: 4, owner2: e, dmg: e.dmg, tick: 0 });
 }
-// 雷爪: 距離 50 以内で 0.45秒 前方の扇(半径 55・±70°)→ 2回ひっかく(0.15秒おき。各 ×0.6・痺れ +1、無敵無視)
-function raijuClaw(e, ai, a) {
-  pushWarn({ kind: 'fan', x: e.x, y: e.y, a, r: 55, h: 1.22, t: 0, life: 0.45, owner: e });
-  windup(e, 0.45, () => {
-    for (let k = 0; k < 2; k++) later(ai, k * 0.15, () => {
-      if (hitFan(e.x, e.y, a, 55, 1.22, e.dmg * 0.6, { pierce: true })) numbPlayer(1);
-      slashes.push({ x: e.x, y: e.y, a, r: 55 * CHAOS.area, t: 0, life: 0.2, flip: k, span: 2.4, pal: SWING_PAL.enemy, enemy: true });
-      burst(e.x + Math.cos(a) * 30, e.y + Math.sin(a) * 30, 10, THUN, { sp: 80, glow: true, life: 0.3 }); e.sq = 0.8; AudioMan.slash(); AudioMan.zap();
+// 瞬雷光: 雷を放って消え(攻撃が当たらない)、1秒後からプレイヤーのまわり(80 の所)に現れて 3回(激昂 5回)突進する。突進は 0.2秒おき、それぞれ 0.5秒前に経路の帯
+//   (幅 = 体の直径。現れる所からプレイヤーを通って向こう側まで 160)が出る。0.12秒で駆け抜ける ×1.0・痺れ +2。現れる向きは 1回ごとに 2.4rad ずつ回る。次の突進までは消えている
+function raijuBlink(e, ai) {
+  const n = ai.enraged ? 5 : 3, f0 = rand(0, TAU), D = 80;
+  ai.act = 'blink'; ai.bl = { paths: [], i: -1, t: 0, hit: false, n };
+  for (let k = 0; k < 9; k++) { const pa = TAU / 9 * k + rand(-0.2, 0.2), L = rand(30, 55); bfx.push({ kind: 'ebolt', x: e.x, y: e.y - 4, x1: e.x + Math.cos(pa) * L, y1: e.y + Math.sin(pa) * L, t: 0, life: 0.2, w: 1, jit: 4, col: '#c8b8ff' }); } // 雷を放って消える
+  burst(e.x, e.y, 24, THUN, { sp: 100, glow: true, life: 0.4 }); addFlash(e.x, e.y, 60, '#5a3aa8', 0.3); AudioMan.zap(); AudioMan.dash();
+  Object.assign(e, { hidden: true, flying: true, air: true });
+  for (let k = 0; k < n; k++) {
+    later(ai, 1 + k * 0.2, () => {
+      const pa = f0 + k * 2.4, x = P.x + Math.cos(pa) * D, y = P.y + Math.sin(pa) * D, a = pa + Math.PI;
+      ai.bl.paths[k] = { x, y, a, len: D * 2 };
+      pushWarn({ kind: 'line', x, y, a, len: D * 2, w: e.r * 2, t: 0, life: 0.5, fixed: true, owner: e }); // 突進の経路(体当たりなので広げない)
+      burst(x, y, 8, THUN, { sp: 50, glow: true, life: 0.3 }); AudioMan.zap();
     });
-  });
+    later(ai, 1.5 + k * 0.2, () => { const b = ai.bl, p = b.paths[k]; b.i = k; b.t = 0; b.hit = false; e.x = p.x; e.y = p.y; Object.assign(e, { hidden: false, flying: false, air: false }); AudioMan.dash(); });
+  }
+  later(ai, 1.5 + (n - 1) * 0.2 + 0.2, () => { ai.act = null; ai.bl = null; Object.assign(e, { hidden: false, flying: false, air: false }); });
+  hint('raiju_blink', _t('瞬雷光'), _t('消えたあと、まわりから続けて突進してくる。帯の予告を見てよける'));
+}
+function updRaijuBlink(e, ai, dt) {
+  const b = ai.bl; if (!b || b.i < 0 || b.t >= 0.12) return; // 消えている間 / 駆け抜けたあと(次まで消えている)
+  const p = b.paths[b.i], u0 = Math.min(1, b.t / 0.12); b.t += dt; const u = Math.min(1, b.t / 0.12);
+  const x0 = p.x + Math.cos(p.a) * p.len * u0, y0 = p.y + Math.sin(p.a) * p.len * u0;
+  e.x = p.x + Math.cos(p.a) * p.len * u; e.y = p.y + Math.sin(p.a) * p.len * u;
+  if (!b.hit && segD2(P.x, P.y, x0, y0, e.x, e.y) < Math.pow(e.r + 4, 2) && hurtPlayer(e.dmg)) { b.hit = true; numbPlayer(2); } // 速いので、この 1コマで通った線で当てる
+  for (let k = 0; k < 3; k++) part(lerp(x0, e.x, Math.random()) + rand(-4, 4), lerp(y0, e.y, Math.random()) + rand(-4, 4), rand(-20, 20), rand(-20, 20), 0.3, pick(THUN), { glow: true, drag: 3 });
+  if (u >= 1) {
+    bfx.push({ kind: 'ebolt', x: p.x, y: p.y, x1: e.x, y1: e.y, t: 0, life: 0.18, w: 2, jit: 3 }); // 駆け抜けた跡が光る
+    if (b.i < b.n - 1) Object.assign(e, { hidden: true, flying: true, air: true }); // 次の突進まで消える
+  }
 }
 // 放電: 0.7秒 毛が逆立つ(自分のまわり 円 半径 80)→ ×1.0・痺れ +4
 function raijuDischarge(e, ai) {
@@ -4298,63 +4320,50 @@ function raijuDischarge(e, ai) {
     addRing(e.x, e.y, RR, '#b8a0ff', { w: 2, life: 0.35 }); addFlash(e.x, e.y, RR * 1.6, '#5a3aa8', 0.4); shake(7); AudioMan.zap(); AudioMan.boom(); // 光芒は出さない(放射する稲妻と輪で見せる)
   });
 }
-// 雷玉: ゆっくり寄る雷の玉 3個(速さ 22・8秒)。玉の周り 60 に入ると 1秒ごとに小さな稲妻 ×0.4・痺れ +1
+// 雷玉: プレイヤーのまわり(100 の所に等しい間で 3個、激昂 4個)に雷の玉が現れ、ゆっくり寄る(速さ 22・8秒)。玉の周り 60 に入ると 1秒ごとに小さな稲妻 ×0.4・痺れ +1
 function raijuOrbs(e, ai) {
-  for (let k = 0; k < 3; k++) { const pa = rand(0, TAU); addHazard('torb', e.x + Math.cos(pa) * 18, e.y + Math.sin(pa) * 18 - 6, { r: 60, dur: 8, owner2: e, dmg: e.dmg, zapT: 1 + k * 0.33 }); }
-  burst(e.x, e.y - 6, 20, THUN, { sp: 70, glow: true, life: 0.4 }); e.sq = 1.15; AudioMan.zap();
+  const n = ai.enraged ? 4 : 3, a0 = rand(0, TAU);
+  for (let k = 0; k < n; k++) {
+    const pa = a0 + TAU / n * k, x = P.x + Math.cos(pa) * 100, y = P.y + Math.sin(pa) * 100;
+    addHazard('torb', x, y, { r: 60, dur: 8, owner2: e, dmg: e.dmg, zapT: 1 + k * 0.33 });
+    burst(x, y - 6, 16, THUN, { sp: 60, glow: true, life: 0.4 }); bfx.push({ kind: 'ebolt', x: e.x, y: e.y - 6, x1: x, y1: y - 6, t: 0, life: 0.2, w: 1, jit: 5, col: '#c8b8ff' }); // 雷獣から稲妻が飛んで、玉が現れる
+  }
+  e.sq = 1.15; AudioMan.zap();
   hint('raiju_orb', _t('雷玉'), _t('玉のまわりに入ると、小さな稲妻が飛んでくる'));
 }
-// 雷化(激昂): 体が雷になり、残っている雷の線を一瞬で渡って(0.15秒)、線の端から 0.4秒の予告のあとプレイヤーへ飛びかかる ×1.2・痺れ +3
-//   線の端はプレイヤーに近い方へ抜ける。雷の線が 1本もないときは、いまの位置から飛びかかる
+// 雷化(激昂): 12秒 体が雷になり、通った所に雷が残る(各点 3秒)。触れると 0.5秒ごとに ×0.2・痺れ +1。雷化の間もほかの技を使う
 function raijuForm(e, ai) {
-  let best = null, from = null, to = null;
-  for (const h of hazards) if (h.kind === 'eline' && h.owner2 === e && h.t < h.dur - 0.5) for (const rev of [false, true]) { const p = rev ? h.pts.slice().reverse() : h.pts, end = p[p.length - 1], dd = d2(end.x, end.y, P.x, P.y); if (!best || dd < best) { best = dd; from = p; to = end; } }
-  ai.act = 'form'; ai.fm = { t: 0, path: from, ph: from ? 'ride' : 'tele' };
-  if (from) { e.flying = e.hidden = e.air = true; e.x = from[0].x; e.y = from[0].y; AudioMan.zap(); for (let k = 0; k < from.length - 1; k++) bfx.push({ kind: 'ebolt', x: from[k].x, y: from[k].y, x1: from[k + 1].x, y1: from[k + 1].y, t: 0, life: 0.25, w: 3, jit: 2 }); } // 雷になって線を渡る筋
-  else raijuLungeTele(e, ai);
-  hint('raiju_form', _t('雷化'), _t('雷の線を渡り、線の端から飛びかかってくる'));
+  ai.formEnd = S.time + 12; // 終わる時刻(放電の構えなどで AI が止まっても 12秒で終わる)
+  ai.trail = addHazard('etrail', e.x, e.y, { r: 3, dur: 15, pts: [], owner2: e, dmg: e.dmg, tick: 0 });
+  burst(e.x, e.y, 30, THUN, { sp: 110, glow: true, life: 0.4 }); addRing(e.x, e.y, 30, '#6a4ac8', { w: 2, life: 0.3 }); shake(4); AudioMan.zap(); AudioMan.charge(0.6);
+  hint('raiju_form', _t('雷化'), _t('12秒 体が雷になり、通った所に雷が残る。触れると痺れがたまる'));
 }
-function raijuLungeTele(e, ai) {
-  const f = ai.fm; f.ph = 'tele'; f.t = 0; f.a = Math.atan2(P.y - e.y, P.x - e.x); f.len = Math.min(200, Math.hypot(P.x - e.x, P.y - e.y) + 40); f.hit = false;
-  pushWarn({ kind: 'line', x: e.x, y: e.y, a: f.a, len: f.len, w: e.r * 2, t: 0, life: 0.4, fixed: true, owner: e }); // 飛びかかりの経路(体当たりなので広げない)
-  AudioMan.charge(0.4);
-}
-function updRaijuForm(e, ai, dt) {
-  const f = ai.fm; f.t += dt;
-  if (f.ph === 'ride') { // 雷になって線を渡る
-    const p = f.path, segs = [], tot = p.slice(1).reduce((s, q, i) => { const L = Math.hypot(q.x - p[i].x, q.y - p[i].y); segs.push(L); return s + L; }, 0);
-    let at = Math.min(1, f.t / 0.15) * tot, i = 0; while (i < segs.length - 1 && at > segs[i]) at -= segs[i++];
-    const A = p[i], B = p[i + 1], u = Math.min(1, at / (segs[i] || 1)); e.x = lerp(A.x, B.x, u); e.y = lerp(A.y, B.y, u);
-    for (let k = 0; k < 3; k++) part(e.x + rand(-4, 4), e.y + rand(-4, 4), rand(-30, 30), rand(-30, 30), 0.3, pick(THUN), { glow: true, drag: 3 });
-    if (f.t >= 0.15) { e.flying = e.hidden = e.air = false; burst(e.x, e.y, 30, THUN, { sp: 110, glow: true, life: 0.4 }); addRing(e.x, e.y, 20, '#b8a0ff', { life: 0.25 }); AudioMan.zap(); raijuLungeTele(e, ai); }
-    return;
-  }
-  if (f.ph === 'tele') { e.flash = Math.sin(f.t * 40) > 0 ? 0.05 : 0; if (f.t >= 0.4) { f.ph = 'lunge'; f.t = 0; AudioMan.dash(); } return; }
-  if (f.ph === 'lunge') { // 速さ 500 で飛びかかる
-    const sp = 500, step = Math.min(sp * dt, f.len); f.len -= step; e.x += Math.cos(f.a) * step; e.y += Math.sin(f.a) * step;
-    if (!f.hit && d2(e.x, e.y, P.x, P.y) < Math.pow(e.r + 4, 2) && hurtPlayer(e.dmg * 1.2)) { f.hit = true; numbPlayer(3); }
-    if (Math.random() < 0.6) part(e.x + rand(-6, 6), e.y + rand(-6, 6), -Math.cos(f.a) * 40, -Math.sin(f.a) * 40, 0.3, pick(THUN), { glow: true, drag: 3 });
-    if (f.len <= 0) { ai.act = null; e.sq = 0.6; shake(4); }
-  }
+// 雷化の跡: 6 動くごとに点を足す。消えている間(瞬雷光)は跡を切る(null)。雷化が終わったら跡を切って、点を足すのをやめる
+function raijuTrail(e, ai) {
+  const h = ai.trail; if (!h) return;
+  const pts = h.pts, last = pts[pts.length - 1];
+  if (e.hidden || S.time >= ai.formEnd) { if (last) pts.push(null); if (S.time >= ai.formEnd) ai.trail = null; return; }
+  if (!last || d2(last.x, last.y, e.x, e.y) > 36) pts.push({ x: e.x, y: e.y, at: S.time });
+  if (Math.random() < 0.4) part(e.x + rand(-10, 10), e.y + rand(-8, 4), rand(-15, 15), -rand(10, 30), 0.3, pick(THUN), { glow: true, drag: 2 }); // 雷の体から火花
 }
 
-// ---------- 雷神: 太鼓の輪を背負い、距離 110 を保って浮かぶ。★雷太鼓(拍ごとに落雷)/ 雷の檻(雷柱を壊せば出られる)/ 雷の網(玉と線の弾)/ 稲光 / 激昂: 風神の風・神鳴り(1回だけ) ----------
+// ---------- 雷神: 太鼓の輪を背負い、距離 110 を保って浮かぶ。★雷鼓の輪(拍ごとに雷の輪)/ 雷の檻(雷柱を壊せば出られる)/ 雷の網・雷の双玉(玉と線の弾)/ 風神の風 / 激昂: 神鳴り ----------
 function raijinAI(e, ai, dt, a, dist, slow) {
   const R = CHAOS.rate;
   e.jz = 6 + Math.sin(e.t * 2) * 2; // 浮いている
-  if (ai.act) return; // 太鼓を叩いている間・神鳴りの構えの間は動かない(終わりは技の later)
+  if (ai.act) return; // 雷鼓の輪で太鼓を叩いている間・神鳴りの溜めの間は動かない(終わりは技の later)
   if ((ai.flip = (ai.flip ?? 3) - dt) <= 0) { ai.flip = rand(3, 5); ai.side = -ai.side; } // ときどき回り込む向きを変える
   const dir = dist > 110 ? a : a + Math.PI, k = Math.abs(dist - 110) > 15 ? 1 : 0.25; // 距離 110 を保ち、横へ回り込む
   e.x += (Math.cos(dir) * k + Math.cos(a + Math.PI / 2) * 0.7 * ai.side) * e.spd * slow * dt;
   e.y += (Math.sin(dir) * k + Math.sin(a + Math.PI / 2) * 0.7 * ai.side) * e.spd * slow * dt;
   if (Math.random() < dt * 6) part(e.x + rand(-12, 12), e.y + e.r + rand(-2, 2), rand(-8, 8), rand(2, 8), 0.6, pick(['#8a84b8', '#6a6490', '#b8b0e0']), { drag: 1 }); // 足もとの雲がこぼれる
-  ai.drum -= dt * R; ai.cage -= dt * R; ai.net -= dt * R; ai.flash -= dt * R; ai.busy -= dt * R; if (ai.enraged) { ai.gale -= dt * R; ai.god -= dt * R; }
+  ai.ring -= dt * R; ai.cage -= dt * R; ai.net -= dt * R; ai.pair -= dt * R; ai.gale -= dt * R; ai.busy -= dt * R; if (ai.enraged) ai.god -= dt * R;
   if (ai.busy > 0) return; // 技のあとは少しあける(技を重ねない)
-  if (ai.enraged && !ai.godDone && ai.god <= 0) { ai.godDone = true; raijinGod(e, ai); }
-  else if (ai.enraged && ai.gale <= 0) { ai.gale = 15; ai.busy = 2; raijinGale(e, ai); }
-  else if (ai.drum <= 0) { ai.drum = ai.enraged ? 11 : 14; raijinDrum(e, ai); }
+  if (ai.enraged && ai.god <= 0) { ai.god = 15; raijinGod(e, ai); }
+  else if (ai.gale <= 0) { ai.gale = ai.enraged ? 12 : 15; ai.busy = 2; raijinGale(e, ai); }
+  else if (ai.ring <= 0) { ai.ring = ai.enraged ? 11 : 14; raijinRing(e, ai); }
   else if (ai.cage <= 0) { ai.cage = ai.enraged ? 12 : 16; ai.busy = 3.6; raijinCage(e, ai); }
-  else if (ai.flash <= 0) { ai.flash = ai.enraged ? 7 : 9; ai.busy = 2; raijinFlash(e, ai); }
+  else if (ai.pair <= 0) { ai.pair = ai.enraged ? 7 : 9; ai.busy = 2; raijinPair(e, ai, a); }
   else if (ai.net <= 0) { ai.net = ai.enraged ? 5 : 6; ai.busy = 1; raijinNet(e, ai, a); }
 }
 // 落雷(雷神の技で共通): 円(半径 r)の中に ×n・痺れ +numb と、紫白の稲妻
@@ -4362,27 +4371,38 @@ function raijinStrike(e, x, y, r, n, numb, o) {
   if (hitCircle(x, y, r, e.dmg * n)) numbPlayer(numb);
   skyBolt(x, y, r * CHAOS.area, o);
 }
-// ★雷太鼓: 太鼓を「ドン・ドン・ドドン」のリズムで叩き(1小節 = 0・0.5・1.0・1.25秒。1.75秒ごと)、1打ごとにプレイヤーの足元へ円(半径 26・0.8秒)→ 落雷 ×1.0・痺れ +2
-//   8打(激昂 12打)。叩いた拍に太鼓の音が鳴り、0.8秒後に同じリズムで落ちる。叩いている間は動かない
-function raijinDrum(e, ai) {
+// ★雷鼓の輪: 背中の太鼓を「ドン・ドン・ドドン」のリズムで叩き(1小節 = 0・0.5・1.0・1.25秒。1.75秒ごと)、1打ごとに太鼓の輪から雷の玉 8つの輪を撃つ(速さ 55・5秒)。
+//   となりどうしの玉は稲妻でつながり、輪は 1か所だけ切れている(切れ目 = 45°)。切れ目は 1打目がプレイヤーの向きから 0.6rad ずれた所で、1打ごとに 0.15rad ずつ同じ向きへ回る。
+//   玉にも線にも ×0.6・痺れ +2。8打(激昂 12打)。叩いている間は動かない
+const RAIJIN_DRUM = { cy: -2, r: 19 }; // 雷神の絵の太鼓の輪(体の中心からの上下のずれ・半径。太鼓 8つは真上から時計回りに 45° おき。art.js の絵・神鳴りの溜めの描画と合わせる)
+function raijinRing(e, ai) {
   const n = ai.enraged ? 12 : 8, beat = i => Math.floor(i / 4) * 1.75 + [0, 0.5, 1, 1.25][i % 4];
-  ai.act = 'drum';
+  const a0 = Math.atan2(P.y - e.y, P.x - e.x), sg = Math.random() < 0.5 ? 1 : -1;
+  ai.act = 'ring';
   for (let i = 0; i < n; i++) later(ai, beat(i), () => {
-    const x = P.x, y = P.y;
-    e.spr = 'raijin2'; e.sq = 0.88; AudioMan.thump(i % 4 !== 2); // 「ドドン」の「ド」だけ軽い音
+    e.spr = 'raijin2'; e.sq = 0.88; AudioMan.thump(i % 4 !== 2); AudioMan.zap(); // 「ドドン」の「ド」だけ軽い音
     later(ai, 0.12, () => { e.spr = 'raijin'; });
-    addRing(e.x, e.y - e.jz - 4, 22, '#ffd27a', { r0: 12, life: 0.22 }); // 太鼓の輪が鳴る
-    pushWarn({ kind: 'circle', x, y, r: 26, t: 0, life: 0.8, owner: e });
-    later(ai, 0.8, () => raijinStrike(e, x, y, 26, 1, 2));
+    ringShot(e, a0 + sg * (0.6 + i * 0.15));
   });
-  later(ai, beat(n - 1) + 0.85, () => { e.spr = 'raijin'; ai.act = null; ai.busy = 0.8; });
-  hint('raijin_drum', _t('雷太鼓'), _t('太鼓が鳴った所に、少しおくれて雷が落ちる'));
+  later(ai, beat(n - 1) + 0.5, () => { e.spr = 'raijin'; ai.act = null; ai.busy = 0.8; });
+  hint('raijin_ring', _t('雷鼓の輪'), _t('太鼓の拍ごとに雷の輪が広がる。切れ目は 1か所で、拍ごとに少しずつ回る'));
 }
-// 雷の檻: プレイヤーのまわり(四隅 55)に雷柱 4本(壊せる物・HP 各 3%)。0.8秒後に隣どうしが雷の線でつながり(触れると 0.5秒ごとに ×0.6・痺れ +1)、
+// 雷鼓の輪の 1打: 太鼓の輪から玉 8つを外へ。ga = 切れ目の向き(玉 7 と玉 0 の間はつながない)
+function ringShot(e, ga) {
+  const D = RAIJIN_DRUM, cx = e.x, cy = e.y - e.jz + D.cy, th = ga + Math.PI / 8, orbs = [];
+  for (let k = 0; k < 8; k++) {
+    const a = th + TAU / 8 * k;
+    orbs.push({ kind: 'tnet', x: cx + Math.cos(a) * D.r, y: cy + Math.sin(a) * D.r, vx: Math.cos(a) * 55, vy: Math.sin(a) * 55, dmg: e.dmg * 0.6 * (S.eatk ?? 1), numb: 2, life: 5, t: 0, r: 3 * CHAOS.area });
+  }
+  for (let k = 0; k < 7; k++) orbs[k].nx = orbs[k + 1];
+  eprojs.push(...orbs);
+  addRing(cx, cy, D.r + 4, '#ffd27a', { r0: D.r - 4, life: 0.2 }); // 太鼓の輪が鳴る
+}
+// 雷の檻: プレイヤーのまわり(四隅 55)に雷柱 4本(壊せる物・HP 各 8%)。0.8秒後に隣どうしが雷の線でつながり(触れると 0.5秒ごとに ×0.8・痺れ +2)、
 //   3秒後に檻の中(円 半径 39)へ大落雷 ×1.5・痺れ +6。柱を 1本壊すと、その柱から出る線が消えて出られる(柱の置き場所も攻撃範囲の倍率で広がる)
 function raijinCage(e, ai) {
   const cx = P.x, cy = P.y, a0 = rand(0, TAU), D = 55 * CHAOS.area, ps = [];
-  for (let k = 0; k < 4; k++) { const pa = a0 + TAU / 4 * k; ps.push(spawnObj(e, 'tpillar', cx + Math.cos(pa) * D, cy + Math.sin(pa) * D, { pct: 0.03, r: 5, life: 3.6 })); }
+  for (let k = 0; k < 4; k++) { const pa = a0 + TAU / 4 * k; ps.push(spawnObj(e, 'tpillar', cx + Math.cos(pa) * D, cy + Math.sin(pa) * D, { pct: 0.08, r: 5, life: 3.6 })); }
   addHazard('tcage', cx, cy, { r: 39, dur: 3.6, ps, owner2: e, dmg: e.dmg, tick: 0 });
   pushWarn({ kind: 'circle', x: cx, y: cy, r: 39, t: 0, life: 3, owner: e }); // 檻の中の大落雷
   e.spr = 'raijin2'; e.sq = 1.2; later(ai, 0.2, () => { e.spr = 'raijin'; });
@@ -4403,19 +4423,23 @@ function raijinNet(e, ai, a) {
   AudioMan.zap(); AudioMan.shoot();
   hint('raijin_net', _t('雷の網'), _t('玉と玉を結ぶ稲妻もくぐれない。回避で抜けるか、端を回る'));
 }
-// 稲光: 画面が一瞬白く光り、プレイヤーのいた所へ 0.3秒おきに 5回(各 0.45秒の予告 円 半径 20)→ 落雷 ×0.8・痺れ +2(後を追う。止まらずに動けば当たらない)
-function raijinFlash(e, ai) {
-  screenFlash(0.25, '#ffffff'); AudioMan.zap(); AudioMan.boom();
-  e.spr = 'raijin2'; later(ai, 0.3, () => { e.spr = 'raijin'; });
-  for (let i = 0; i < 5; i++) later(ai, i * 0.3, () => {
-    const x = P.x, y = P.y;
-    pushWarn({ kind: 'circle', x, y, r: 20, t: 0, life: 0.45, owner: e });
-    later(ai, 0.45, () => raijinStrike(e, x, y, 20, 0.8, 2));
+// 雷の双玉: 稲妻でつながった 2つの玉(間 56)が、組の真ん中のまわりを回りながら飛ぶ(速さ 55・回る速さ 2.6rad/秒・5秒)。3組(激昂 5組)を扇に(±0.45rad。激昂 ±0.6rad)、となりの組は逆に回る。
+//   玉にも線にも ×0.6・痺れ +2。棒が進む向きにそろって細く見える時のすき間を抜ける
+function raijinPair(e, ai, a) {
+  const das = ai.enraged ? [-0.6, -0.3, 0, 0.3, 0.6] : [-0.45, 0, 0.45], x0 = e.x, y0 = e.y - e.jz - 4;
+  das.forEach((da, i) => {
+    const s = { x0, y0, vx: Math.cos(a + da) * 55, vy: Math.sin(a + da) * 55, a0: rand(0, TAU), w: i % 2 ? -2.6 : 2.6, R: 28 * CHAOS.area };
+    const orb = ph => ({ kind: 'tnet', x: x0 + Math.cos(s.a0 + ph) * s.R, y: y0 + Math.sin(s.a0 + ph) * s.R, vx: 0, vy: 0, dmg: e.dmg * 0.6 * (S.eatk ?? 1), numb: 2, life: 5, t: 0, r: 3 * CHAOS.area, spin: s, ph });
+    const A = orb(0), B = orb(Math.PI); A.nx = B; eprojs.push(A, B);
   });
-  hint('raijin_flash', _t('稲光'), _t('いた所に雷が続けて落ちる。止まらずに動く'));
+  e.spr = 'raijin2'; e.sq = 0.85; later(ai, 0.2, () => { e.spr = 'raijin'; });
+  AudioMan.zap(); AudioMan.shoot();
+  hint('raijin_pair', _t('雷の双玉'), _t('稲妻でつながった 2つの玉が回りながら飛んでくる。棒が細く見える時のすき間を抜ける'));
 }
-// 風神の風(激昂): 風神の幻が風上に現れ、5秒 一定の向きの風(毎秒 40。ダッシュなら逆らえる)で押す。1秒後と 3秒後に、風下(プレイヤーから 70)に
-//   風と直角の落雷の列(円 半径 20 が 5つ・30 おき。1秒の予告、0.12秒おきに落ちる)→ 各 ×0.8・痺れ +2
+// 回る玉(雷の双玉): 組の真ん中がまっすぐ進み、玉はそのまわりを回る(位置は飛んでいる時間から決める。時の歪み・巻き戻しにもそのまま従う)
+function spinOrb(p) { const s = p.spin, a = s.a0 + s.w * p.t + p.ph; p.x = s.x0 + s.vx * p.t + Math.cos(a) * s.R; p.y = s.y0 + s.vy * p.t + Math.sin(a) * s.R; }
+// 風神の風: 風神の幻が風上に現れ、5秒 一定の向きの風(毎秒 40。ダッシュなら逆らえる)で押す。1秒後と 3秒後に、風下(プレイヤーから 70)に
+//   風と直角の落雷の列(円 半径 26 が 5つ・40 おき。1秒の予告、0.12秒おきに落ちる)→ 各 ×0.8・痺れ +2
 function raijinGale(e, ai) {
   const wa = rand(0, TAU), c = Math.cos(wa), s = Math.sin(wa);
   P.current = { vx: c * 40, vy: s * 40, t: 5, cols: ['#c8f0d8', '#e8fff0', '#88b898'] };
@@ -4423,23 +4447,25 @@ function raijinGale(e, ai) {
   for (const t0 of [1, 3]) later(ai, t0, () => {
     const bx = P.x + c * 70, by = P.y + s * 70;
     for (let k = 0; k < 5; k++) {
-      const x = bx - s * (k - 2) * 30, y = by + c * (k - 2) * 30, T = 1 + k * 0.12;
-      pushWarn({ kind: 'circle', x, y, r: 20, t: 0, life: T, owner: e });
-      later(ai, T, () => raijinStrike(e, x, y, 20, 0.8, 2));
+      const x = bx - s * (k - 2) * 40, y = by + c * (k - 2) * 40, T = 1 + k * 0.12;
+      pushWarn({ kind: 'circle', x, y, r: 26, t: 0, life: T, owner: e });
+      later(ai, T, () => raijinStrike(e, x, y, 26, 0.8, 2));
     }
   });
   AudioMan.charge(1); shake(4);
   hint('raijin_gale', _t('風神の風'), _t('風に押される。風下に雷の列が落ちる。ダッシュなら風に逆らえる'));
 }
-// 神鳴り(激昂で 1回だけ): 激昂して 2秒後、巨大な円(半径 60)が 1.4秒 プレイヤーを追い(速さ 40)、1秒止まる → 巨大な稲妻 ×1.2・痺れ +20(痺れがたまりきって麻痺する)
+// 神鳴り(激昂): 激昂して 5秒後から 15秒ごとに、2秒 溜める。雷神は撥を高く掲げ、背中の太鼓が 0.25秒おきに 1つずつ光り(1つごとに音が鳴る)、画面の端が暗くなり、プレイヤーの頭上に雷雲が渦を巻く。
+//   太鼓が 8つ光った次の拍(2秒)に、プレイヤーのいる所へ巨大な稲妻 ×1.2・痺れ +20。予告の円(半径 60)は落ちる 0.1秒前だけ(溜めで時を読んで回避する。0.15秒前に頭上のきらめきと合図の音)
 function raijinGod(e, ai) {
-  ai.act = 'god'; e.spr = 'raijin2'; e.sq = 1.25;
-  const w = chaseWarn({ kind: 'circle', x: P.x, y: P.y, r: 60, t: 0, life: 2.4, owner: e }, 1.4, 40);
-  pushWarn(w);
-  later(ai, 2.4, () => { raijinStrike(e, w.x, w.y, 60, 1.2, 20, { big: true }); hitstop(0.06); }); // 画面の白い光・衝撃波のゆがみは足さない(ゆがみが着弾の光を広げて白く飛ぶ)
-  later(ai, 2.9, () => { e.spr = 'raijin'; ai.act = null; ai.busy = 1; });
-  AudioMan.charge(2.4); AudioMan.warning();
-  hint('raijin_god', _t('神鳴り'), _t('巨大な雷が落ちる。当たると痺れがたまりきって麻痺する'));
+  ai.act = 'god'; ai.godLit = 0; e.spr = 'raijin3'; e.sq = 1.2;
+  for (let k = 0; k < 8; k++) later(ai, k * 0.25, () => { ai.godLit = k + 1; AudioMan.thump(true); shake(1 + k * 0.5); });
+  later(ai, 1.85, () => { fxGlint(e.x, e.y - e.r - 12 - e.jz, 11, '#ff3b5c', { foe: true, life: 0.25 }); AudioMan.cue(); }); // 落ちる直前の合図(ほかの技の構えと同じ)
+  later(ai, 1.9, () => { ai.godAt = { x: P.x, y: P.y }; pushWarn({ kind: 'circle', x: P.x, y: P.y, r: 60, t: 0, life: 0.1, owner: e }); });
+  later(ai, 2, () => { const at = ai.godAt; raijinStrike(e, at.x, at.y, 60, 1.2, 20, { big: true }); hitstop(0.08); ai.godLit = 0; e.spr = 'raijin2'; e.sq = 0.8; });
+  later(ai, 2.5, () => { e.spr = 'raijin'; ai.act = null; ai.godAt = null; ai.busy = 1; });
+  AudioMan.drumroll(2); AudioMan.warning();
+  hint('raijin_god', _t('神鳴り'), _t('背中の太鼓が全部光った次の拍に、巨大な雷が落ちる。その拍で回避する'));
 }
 
 // ---------- 時計仕掛けの番人: プレイヤーへまっすぐ。ゼンマイ巻き(DPSチェック)/ 時針と分針 / 歯車弾 / 鐘の衝撃 / 大歯車 / 歯車の床 / 激昂: リングギア ----------
@@ -5775,7 +5801,7 @@ function updEprojs(dt0) {
         p.x += Math.cos(ta) * p.v * dt; p.y += Math.sin(ta) * p.v * dt;
         if (p.owner.dead || d2(p.x, p.y, p.owner.x, p.owner.y) < 100) p.t = p.life + 1;
       }
-    } else { if (p.kind === 'ray') updRay(p, dt); if (p.kind === 'hshadow') homeShadow(p, dt); p.x += p.vx * dt; p.y += p.vy * dt; }
+    } else { if (p.kind === 'ray') updRay(p, dt); if (p.kind === 'hshadow') homeShadow(p, dt); if (p.spin) spinOrb(p); else { p.x += p.vx * dt; p.y += p.vy * dt; } }
     if ((p.kind === 'cshade' || p.kind === 'shound') && Math.random() < dt * 50) part(p.x + rand(-6, 6), p.y + rand(-8, 4), -p.vx * 0.15 + rand(-10, 10), -p.vy * 0.15 - rand(5, 20), rand(0.3, 0.5), pick(SKC.slice(0, 4)), { glow: Math.random() < 0.3, drag: 2, sz: pick([1, 2]) }); // 影の突進の影・影の猟犬: 黒紫のもや
     if (p.kind === 'cshade' && (p.gT = (p.gT || 0) - dt) <= 0) { p.gT = 0.04; bfx.push({ kind: 'ghost', x: p.x, y: p.y, spr: 'cerberus', flip: p.vx < 0, col: '#7a3ab0', t: 0, life: 0.22 }); } // 影の残像
     if (p.kind === 'vslash' && Math.random() < dt * 40) part(p.x - p.vx * 0.05 + rand(-2, 2), p.y - p.vy * 0.05, rand(-6, 6), -rand(10, 30), 0.4, pick(SKC), { glow: Math.random() < 0.5, drag: 2 }); // 影刃: 地面を裂いて紫の火花
@@ -5897,13 +5923,23 @@ function updHazards(dt) {
       const R = h.r * Math.min(1, h.t * 6);
       if (dd < R * R && h.t < h.dur - 0.3) { P.staLockT = Math.max(P.staLockT, 0.1); S.inInk = true; }
       if (Math.random() < dt * 8) { const pa = rand(0, TAU), pr = Math.sqrt(Math.random()) * R; part(h.x + Math.cos(pa) * pr, h.y + Math.sin(pa) * pr * 0.8, 0, -rand(4, 10), 0.8, pick(['#2a2a4a', '#3a3a5a', '#1a1a2a']), { drag: 1 }); }
-    } else if (h.kind === 'tcage') { // 雷の檻(雷神): 0.8秒後から 3秒まで、隣どうしの雷柱(どちらも残っている)を結ぶ線に触れると 0.5秒ごとに ×0.6・痺れ +1(線は柱の 4 上)
+    } else if (h.kind === 'tcage') { // 雷の檻(雷神): 0.8秒後から 3秒まで、隣どうしの雷柱(どちらも残っている)を結ぶ線に触れると 0.5秒ごとに ×0.8・痺れ +2(線は柱の 4 上)
       if (h.owner2 && h.owner2.dead) h.t = h.dur;
       if (!P.dead && h.t >= 0.8 && h.t < 3) {
         let near = false; const R2 = Math.pow(3 * CHAOS.area + 3, 2), ps = h.ps;
         for (let k = 0; k < 4 && !near; k++) { const A = ps[k], B = ps[(k + 1) % 4]; if (!A.dead && !B.dead && segD2(P.x, P.y, A.x, A.y - 4, B.x, B.y - 4) < R2) near = true; }
-        if (near) { if ((h.tick -= dt) <= 0) { h.tick = 0.5; if (hurtPlayer(h.dmg * 0.6)) numbPlayer(1); } } else h.tick = 0;
+        if (near) { if ((h.tick -= dt) <= 0) { h.tick = 0.5; if (hurtPlayer(h.dmg * 0.8)) numbPlayer(2); } } else h.tick = 0;
         if (Math.random() < dt * 12) { const k = Math.floor(rand(0, 4)), A = ps[k], B = ps[(k + 1) % 4], u = Math.random(); if (!A.dead && !B.dead) part(lerp(A.x, B.x, u), lerp(A.y, B.y, u) - 4, rand(-10, 10), -rand(10, 30), 0.3, pick(THUN), { glow: true, drag: 2 }); } // 線から飛ぶ火花
+      }
+    } else if (h.kind === 'etrail') { // 雷化の跡(雷獣): 雷の体が通った所に残る雷(各点 3秒)。触れると 0.5秒ごとに ×0.2・痺れ +1
+      if (h.owner2 && h.owner2.dead) h.t = h.dur;
+      const pts = h.pts;
+      while (pts.length && (!pts[0] || S.time - pts[0].at > 3)) pts.shift();
+      if (!pts.length && !(h.owner2 && h.owner2.ai.formEnd > S.time)) h.t = h.dur;
+      if (!P.dead) {
+        let near = false; const R2 = Math.pow(3 * CHAOS.area + 3, 2);
+        for (let i = 0; i < pts.length - 1 && !near; i++) { const A = pts[i], B = pts[i + 1]; if (A && B && segD2(P.x, P.y, A.x, A.y, B.x, B.y) < R2) near = true; }
+        if (near) { if ((h.tick -= dt) <= 0) { h.tick = 0.5; if (hurtPlayer(h.dmg * 0.2)) numbPlayer(1); } } else h.tick = 0;
       }
     } else if (h.kind === 'eline') { // 雷の線(雷獣の稲妻走りの跡): 触れると 0.5秒ごとに ×0.4・痺れ +1(線から 3 + 3 以内)
       if (h.owner2 && h.owner2.dead) h.t = h.dur;
