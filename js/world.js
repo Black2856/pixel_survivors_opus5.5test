@@ -1598,10 +1598,10 @@ const SAND = ['#e8c88a', '#c8a060', '#fff0c8', '#a8803a'];
 //   当たり判定は呼ぶ側(hitCircle など)。見た目はここで揃える(自分の雷の黄色と見分ける紫白。光の層は暗い紫で、白く飛ばないように)
 function skyBolt(x, y, r, o = {}) {
   const f = o.from || { x: x + rand(-24, 24), y: Math.min(y - 60, cam.y - 12) };
-  bfx.push({ kind: 'ebolt', x: f.x, y: f.y, x1: x, y1: y, t: 0, life: o.big ? 0.4 : 0.22, w: o.big ? 4 : 2, jit: o.big ? 10 : 6 });
+  bfx.push({ kind: 'ebolt', x: f.x, y: f.y, x1: x, y1: y, t: 0, life: o.big ? 0.4 : 0.22, w: o.big ? 3 : 2, jit: o.big ? 10 : 6, col: o.big ? '#d8c8ff' : undefined }); // 大きな稲妻は芯を淡い紫に(太い白い芯は白く飛ぶ)
   if (r > 0) addRing(x, y, r, '#6a4ac8', { w: o.big ? 3 : 2, life: 0.3 }); // 輪は光の層に描かれる(淡い紫だと大きな輪が白く飛ぶ)
   burst(x, y, o.big ? 40 : 14, ['#e8e0ff', '#b8a0ff', '#7a5ad8', '#ffffff'], { sp: o.big ? 160 : 90, glow: true, life: 0.4 });
-  addFlash(x, y, Math.max(20, r) * 2.2, '#9a7aff', o.big ? 0.4 : 0.35);
+  if (o.big) addFlash(x, y, r * 1.6, '#6a4ac8', 0.4); else addFlash(x, y, Math.max(20, r) * 2.2, '#9a7aff', 0.35); // 大きな落雷の光は狭く暗く(檻・神鳴りの円が白く飛ばないように)
   if (o.big) { shake(10); AudioMan.impact(); AudioMan.boom(); } else { shake(2); AudioMan.zap(); }
 }
 // 雲海の空: 9〜16秒ごとに空が光り(画面がほのかに 2回またたく)、0.6〜1.4秒おくれて遠雷が鳴る(見た目と音だけ)
