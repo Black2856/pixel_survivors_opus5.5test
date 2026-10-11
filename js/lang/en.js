@@ -2432,7 +2432,7 @@ const I18N_EN = {
   "衰弱": "Weakness",
   "与えるダメージが下がる。受けないでいると消える": "Your damage drops. Fades if you avoid it",
   "周りが暗くなり、攻撃の予告が見えない。自分の攻撃も外れやすくなる": "Your surroundings go dark and attack telegraphs are hidden. Your attacks also miss more often",
-  "当たると凍傷が大きくたまる(たまりきると凍結する)": "On hit, you gain a lot of Frostbite (you Freeze when it maxes out)",
+  "当たると凍傷が上限までたまり、そのまま凍結する": "On hit, your Frostbite fills to the cap and you Freeze on the spot",
   "{0}スタック ・ 移動速度 -{1}%({2}スタックで凍結。受けないでいると {3}秒で消える)": "{0} {0|stack|stacks} · Move Speed -{1}% (Freeze at {2} stacks; fades after {3}s without being hit)",
   "動けず、攻撃もできない(回避・スキルも使えない)": "Can't move or attack (no dodging or skills either)",
   "{0}スタック ・ CD回復 -{1}%({2}スタックで麻痺。受けないでいると {3}秒で消える)": "{0} {0|stack|stacks} · CD Recovery -{1}% (Paralysis at {2} stacks; fades after {3}s without being hit)",

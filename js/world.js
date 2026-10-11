@@ -3554,16 +3554,16 @@ function snowDance(e, ai) {
     shake(4); AudioMan.frost(); AudioMan.thud();
   });
 }
-// 氷の槍(激昂): 女王からプレイヤーへの帯(長さ 240・幅 10)が 0.9秒追い、0.3秒止まる → 氷の槍(速さ 300)。×1.2・凍傷 +6(凍結は凍傷が上限に達したときだけ)
+// 氷の槍(激昂): 女王からプレイヤーへの帯(長さ 240・幅 10)が 0.9秒追い、0.3秒止まる → 氷の槍(速さ 300)。×1.2・凍傷を上限まで(pFrostMax。当たるとそのまま凍結する)
 function iceLance(e, ai) {
   const w = { kind: 'line', x: e.x, y: e.y, a: Math.atan2(P.y - e.y, P.x - e.x), len: 240, w: 10, t: 0, life: 1.2 };
   w.track = q => { if (q.t < 0.9) { q.x = e.x; q.y = e.y; q.a = Math.atan2(P.y - e.y, P.x - e.x); } };
   pushWarn(w);
   AudioMan.charge(1.2);
   later(ai, 1.2, () => {
-    eprojs.push({ kind: 'ispear', x: w.x, y: w.y, vx: Math.cos(w.a) * 300, vy: Math.sin(w.a) * 300, dmg: e.dmg * 1.2 * (S.eatk ?? 1), frost: 6, life: w.len / 300, t: 0, r: 5 * CHAOS.area });
+    eprojs.push({ kind: 'ispear', x: w.x, y: w.y, vx: Math.cos(w.a) * 300, vy: Math.sin(w.a) * 300, dmg: e.dmg * 1.2 * (S.eatk ?? 1), frost: DATA.debuff.pFrostMax, life: w.len / 300, t: 0, r: 5 * CHAOS.area });
     burst(w.x, w.y, 14, SNOW, { sp: 90, glow: true, life: 0.35 }); AudioMan.spearThrow(); AudioMan.frost();
-    hint('lance', _t('氷の槍'), _t('当たると凍傷が大きくたまる(たまりきると凍結する)'));
+    hint('lance', _t('氷の槍'), _t('当たると凍傷が上限までたまり、そのまま凍結する'));
   });
 }
 
