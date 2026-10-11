@@ -4038,15 +4038,15 @@ function earthPincer(e, ai) {
 const SUNC = ['#ffd27a', '#fff0c0', '#ffb040', '#ffffff'];
 function sphinxAI(e, ai, dt, a, dist, slow) {
   const R = CHAOS.rate;
-  if (ai.act === 'eyes') { // 陽光の眼: 0.8秒 目が光る → 光線(長さ 240・幅 12)が 1.2秒 プレイヤーを追う。回る速さは角度の差 × 3(毎秒。最大 2.1rad/秒): 離れているほど速く、近づくと遅くなる。当たると ×1.0(1回だけ)
+  if (ai.act === 'eyes') { // 陽光の眼: 0.8秒 目が光る → 光線(長さ 240・幅 16)が 2.5秒 プレイヤーを追う。回る速さは角度の差 × 3(毎秒。最大 2.1rad/秒): 離れているほど速く、近づくと遅くなる。当たると ×0.8(光線の中にいる間は、受けたあとの無敵が切れるたびに当たる。カオスドラゴンの光線と同じ)
     const tl = ai.tl; tl.t += dt;
     if (tl.t < 0.8) { e.sq = 1.04; return; }
     const ox = e.x + tl.ox, oy = e.y + tl.oy;
     tl.ang += clamp(angDiff(Math.atan2(P.y - oy, P.x - ox), tl.ang) * 3, -2.1, 2.1) * dt;
     ai.beamA = tl.ang; ai.beamO = { x: ox, y: oy };
-    if (!tl.hit && hitLine(ox, oy, tl.ang, 240, 12, e.dmg)) tl.hit = true;
+    hitLine(ox, oy, tl.ang, 240, 16, e.dmg * 0.8);
     if (!tl.snd) { tl.snd = true; AudioMan.cast(); shake(3); }
-    if (tl.t >= 2) { ai.act = null; ai.beamA = null; }
+    if (tl.t >= 3.3) { ai.act = null; ai.beamA = null; } // 溜め 0.8秒 + 光線 2.5秒
     return;
   }
   if (ai.act === 'haze') { // 陽炎渡り: 0.5秒で陽炎に溶ける(溶けかけから攻撃が当たらない)→ プレイヤーから 120〜150 の所に 0.3秒で現れる
@@ -4097,8 +4097,8 @@ function sphinxRiddle(e, ai) {
 // 陽光の眼: 0.8秒の予告(光線の帯。プレイヤーから 30° ずれた向き)→ 両目の光線がプレイヤーを追う(つづきは sphinxAI)
 function sphinxEyes(e, ai, a) {
   const f = e.face || 1, ox = 8 * f, oy = -7, ang = Math.atan2(P.y - (e.y + oy), P.x - (e.x + ox)) + (Math.random() < 0.5 ? 0.52 : -0.52);
-  ai.act = 'eyes'; ai.tl = { t: 0, ang, ox, oy, hit: false };
-  pushWarn({ kind: 'line', x: e.x + ox, y: e.y + oy, a: ang, len: 240, w: 12, t: 0, life: 0.8, owner: e });
+  ai.act = 'eyes'; ai.tl = { t: 0, ang, ox, oy };
+  pushWarn({ kind: 'line', x: e.x + ox, y: e.y + oy, a: ang, len: 240, w: 16, t: 0, life: 0.8, owner: e });
   AudioMan.charge(0.8);
 }
 // 石の羽根: 翼から石の羽根 7発の扇(±0.6rad・速さ 120、×0.6)。激昂: 0.5秒後に、同じ向きから 0.3rad ずらした 7発をもう一度(1回目の羽根のすき間に入る。ずらす側はランダム)
@@ -4123,11 +4123,11 @@ function sphinxPaw(e, ai, a) {
 function sphinxHaze(e, ai) {
   ai.act = 'haze'; ai.pt = 0.5; e.hideA = 1; AudioMan.dash();
 }
-// 陽炎渡りの陽光: 現れた所から、プレイヤーの方向とその左右(±0.5rad)の 3方向へ、円(半径 16)が 26 おきに 8つずつ並ぶ(予告は現れたときに全部出る)
+// 陽炎渡りの陽光: 現れた所から、プレイヤーの方向とその左右(±0.35rad)の 3方向へ、円(半径 16)が 26 おきに 8つずつ並ぶ(予告は現れたときに全部出る)
 //   スフィンクスに近い方から 0.1秒おきに順に陽光が噴き上がる ×0.8(最初は現れて 0.5秒後)。列と列の間へよける
 function sphinxHazeBurst(e, ai) {
   const a = Math.atan2(P.y - e.y, P.x - e.x);
-  for (const da of [-0.5, 0, 0.5]) for (let i = 0; i < 8; i++) {
+  for (const da of [-0.35, 0, 0.35]) for (let i = 0; i < 8; i++) {
     const r = 24 + i * 26, x = e.x + Math.cos(a + da) * r, y = e.y + Math.sin(a + da) * r, T = 0.5 + i * 0.1;
     pushWarn({ kind: 'circle', x, y, r: 16, t: 0, life: T, owner: e });
     later(ai, T, () => {

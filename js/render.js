@@ -2313,10 +2313,10 @@ function drawBossFx(e) {
   if (e.boss === 'sphinx') { // スフィンクス: 謎かけの頭上の印(逆さの問いは赤)/ 陽光の眼の溜めと光線
     if (ai.rq) { const s2 = ART.S['sym_' + ai.rq.ans + (ai.rq.inv ? '_r' : '')], bob = Math.round(Math.sin(GFX.fx.time * 4) * 1.5); drawSp(s2, e.x, e.y + yo - sp.h / 2 - 9 + bob, { scale: 1 }); addLight(e.x, e.y - sp.h / 2 - 9, 34, ai.rq.inv ? '#ff3b5c' : '#ffd27a', 0.7); }
     if (ai.act === 'eyes' && ai.tl && ai.tl.t < 0.8) { const k = ai.tl.t / 0.8, gx2 = Math.round(ex + ai.tl.ox), gy2 = Math.round(ey + ai.tl.oy); gx.fillStyle = '#7ad7ff'; gx.fillRect(gx2 - 2, gy2, 5, 1); addLight(e.x + ai.tl.ox, e.y + ai.tl.oy, 20 + 40 * k, '#7ad7ff', 0.5 + 0.5 * k); }
-    if (ai.beamA != null && ai.beamO) { // 両目の光線(2本の細い線が並ぶ)
+    if (ai.beamA != null && ai.beamO) { // 両目の光線(2本の細い線が並ぶ。光の太さは当たり判定の幅 16 に合わせる)
       const BL = 240 * A, ca = Math.cos(ai.beamA), sa = Math.sin(ai.beamA), ox2 = ai.beamO.x - cam.x, oy2 = ai.beamO.y - cam.y, fl = Math.floor(GFX.fx.time * 30) % 2;
-      pLine(gx, ox2, oy2, ox2 + ca * BL, oy2 + sa * BL, '#8a6a20', Math.round((8 + fl * 2) * A));
-      for (const s of [-2, 2]) { const nx = -sa * s, ny = ca * s; pLine(sx, ox2 + nx, oy2 + ny, ox2 + ca * BL + nx, oy2 + sa * BL + ny, '#fff0c0', 2); }
+      pLine(gx, ox2, oy2, ox2 + ca * BL, oy2 + sa * BL, '#8a6a20', Math.round((12 + fl * 2) * A));
+      for (const s of [-3, 3]) { const nx = -sa * s, ny = ca * s; pLine(sx, ox2 + nx, oy2 + ny, ox2 + ca * BL + nx, oy2 + sa * BL + ny, '#fff0c0', 2); }
       pLine(sx, ox2, oy2, ox2 + ca * BL, oy2 + sa * BL, '#7ad7ff', 1);
       for (let r = 0; r < BL; r += 48) addLight(ai.beamO.x + ca * r, ai.beamO.y + sa * r, 50, '#ffd27a', 0.6);
     }
