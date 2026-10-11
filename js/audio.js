@@ -13,6 +13,8 @@ const AudioMan = (() => {
     f_peak: '霜天の霊峰-フィールド', b_peak: '霜天の霊峰-ボス',
     f_clock: '終刻の時計塔-フィールド', b_clock1: '終刻の時計塔-ボス1', b_clock2: '終刻の時計塔-ボス2',
     f_tomb: '常闇の王墓-フィールド', b_tomb1: '常闇の王墓-ボス1', b_tomb2: '常闇の王墓-ボス2', // 王墓: 影の王は激昂でボス2 に変わる
+    f_forest: '木漏れ日の森-フィールド', b_forest: '木漏れ日の森-ボス',
+    f_desert: '陽炎の砂海-フィールド', b_desert: '陽炎の砂海-ボス',
   };
   const musicSrc = name => encodeURI('music/' + (MUSIC[name] || (name && name[0] === 'b' ? MUSIC.b_grass : MUSIC.f_grass)) + '.mp3');
   let ctx = null, bus = null, noiseBuf = null;

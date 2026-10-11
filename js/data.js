@@ -116,9 +116,9 @@ const DATA = {
     warden:  { name: '時計仕掛けの番人 CLOCKWORK WARDEN', hp: 1900, spd: 13, dmg: 22, r: 15, music: 'b_clock1', col: '#c8a050' },
     cerberus:   { name: '冥犬ケルベロス CERBERUS', hp: 1800, spd: 21, dmg: 22, r: 16, music: 'b_tomb1', col: '#9dff5a' }, // 合体形態と分裂形態をくり返す(分裂すると首が1本ずつの犬 3匹に)
     shadowking: { name: '影の王 SHADOW KING',      hp: 2000, spd: 15, dmg: 20, r: 12, music: 'b_tomb1', col: '#a66bff', noTwin: true }, // 激昂で曲がボス2 に変わる / noTwin: 双王の相方に選ばれない
-    qbee:    { name: '女王蜂 QUEEN BEE',            hp: 1400, spd: 25, dmg: 20, r: 11, music: 'b_forest', col: '#ffd23f' }, // 木漏れ日の森 1体目(曲は用意されるまで草原の曲)
+    qbee:    { name: '女王蜂 QUEEN BEE',            hp: 1400, spd: 25, dmg: 20, r: 11, music: 'b_forest', col: '#ffd23f' }, // 木漏れ日の森 1体目
     elder:   { name: '古樹の主 ELDER TREANT',       hp: 1900, spd: 10, dmg: 22, r: 16, music: 'b_forest', col: '#8fd06a' }, // 木漏れ日の森 2体目
-    escorp:  { name: '大蠍 EMPEROR SCORPION',       hp: 1800, spd: 16, dmg: 22, r: 15, music: 'b_desert', col: '#ffb040' }, // 陽炎の砂海 1体目(曲は用意されるまで草原の曲)
+    escorp:  { name: '大蠍 EMPEROR SCORPION',       hp: 1800, spd: 16, dmg: 22, r: 15, music: 'b_desert', col: '#ffb040' }, // 陽炎の砂海 1体目
     sphinx:  { name: 'スフィンクス SPHINX',          hp: 1500, spd: 14, dmg: 22, r: 14, music: 'b_desert', col: '#ffd27a' }, // 陽炎の砂海 2体目
     raiju:   { name: '雷獣 RAIJU',                  hp: 1500, spd: 26, dmg: 22, r: 13, music: 'b_thunder', col: '#6a7ae8' }, // 雷鳴の雲海 1体目(曲は用意されるまで草原の曲)
     raijin:  { name: '雷神 RAIJIN',                 hp: 1600, spd: 16, dmg: 24, r: 13, music: 'b_thunder', col: '#6ac0b8' }, // 雷鳴の雲海 2体目
@@ -1409,7 +1409,7 @@ const DATA = {
     // 闘技場モード専用(石畳 + 円形の壁と観客席)
     { label: '血戦の闘技場', music: 'f_wild',   ground: ['#5a4838', '#65513f', '#4d3d30', '#6f5a45'], deco: ['#3a2c22', '#8a7058', '#7a1e24', '#cfc2a8'],
       amb: [0.6, 0.52, 0.5], tint: [1.06, 0.98, 0.94], motes: { col: '#ffcf8a', rise: true }, tiles: true },
-    // 七彩の晶窟(tier 1): 暗い紫の洞窟。七色に光る結晶の群れと、色とりどりのきらめき(曲は用意されるまで草原の曲)
+    // 七彩の晶窟(tier 1): 暗い紫の洞窟。七色に光る結晶の群れと、色とりどりのきらめき
     { label: '七彩の晶窟', music: 'f_crystal', ground: ['#1c1530', '#231a3a', '#161026', '#2a2044'], deco: ['#3a2c5a', '#5a4a8a', '#9ff7ff', '#ff8ad8'],
       amb: [0.5, 0.44, 0.74], tint: [1.04, 0.98, 1.1], motes: { col: '#c78bff', cols: ['#ff6a8a', '#ffd23f', '#7dff9a', '#7ad7ff', '#c78bff', '#ff9a3d'], rise: false }, crystal: true },
     // 沈黙の海淵(tier 2): 深い青緑の海の底。珊瑚と海藻、昇る泡、揺らめく光の筋
@@ -1424,10 +1424,10 @@ const DATA = {
     // 常闇の王墓(tier 4): 地下にある王の墓所。黒紫の石畳・棺と墓標・ところどころ残る蝋燭の灯・床から昇る緑と紫の瘴気。今までで一番暗い(光源が際立つ)
     { label: '常闇の王墓', music: 'f_tomb', ground: ['#17121f', '#1c1627', '#120e19', '#231b2f'], deco: ['#08060c', '#3a3048', '#7dff6a', '#b07aff'],
       amb: [0.3, 0.27, 0.4], tint: [0.98, 0.94, 1.08], motes: { col: '#9a7dff', cols: ['#7dff6a', '#9a7dff', '#c79bff', '#5aff9a'], rise: true }, tomb: true },
-    // 木漏れ日の森(tier 1): 深い緑の森。木の根・倒木・シダ・キノコ、梢のすき間から差す光(木漏れ日。地面の光のまだらがゆっくり明るさを変える)、舞う花粉(曲は用意されるまで草原の曲)
+    // 木漏れ日の森(tier 1): 深い緑の森。木の根・倒木・シダ・キノコ、梢のすき間から差す光(木漏れ日。地面の光のまだらがゆっくり明るさを変える)、舞う花粉
     { label: '木漏れ日の森', music: 'f_forest', ground: ['#1e3a24', '#24442a', '#18301e', '#2a4c30'], deco: ['#3a6a34', '#5a9a48', '#c8a060', '#e8d890'],
       amb: [0.46, 0.56, 0.42], tint: [1.0, 1.04, 0.95], motes: { col: '#fff0a0', cols: ['#fff0a0', '#d8ff9a', '#ffe8c0'], rise: false }, forest: true },
-    // 陽炎の砂海(tier 2): まぶしい砂丘と風紋、半分埋もれた古代の石柱と獣の骨、地面がゆらぐ陽炎、流れる砂(曲は用意されるまで草原の曲)
+    // 陽炎の砂海(tier 2): まぶしい砂丘と風紋、半分埋もれた古代の石柱と獣の骨、地面がゆらぐ陽炎、流れる砂
     { label: '陽炎の砂海', music: 'f_desert', ground: ['#c8a468', '#d2b074', '#b8945a', '#dcbc84'], deco: ['#a8844c', '#e8d0a0', '#8a7a68', '#efe6d0'],
       amb: [0.7, 0.66, 0.58], tint: [1.04, 1.0, 0.94], motes: { col: '#fff0c8', cols: ['#fff0c8', '#e8d0a0', '#ffe0a0'], rise: false }, desert: true, light: 0.3 }, // light: 明るい砂丘なので光源を弱める
     // 雷鳴の雲海(tier 3): 雷雲の上に残る古い社の跡。黒紫の雲の床、雲の中を走る稲光、銅の柱と太鼓、降る雨。ときどき空が光って遠雷が鳴る(曲は用意されるまで草原の曲)
