@@ -25,6 +25,8 @@ const I18N_EN = {
   "影の王 SHADOW KING": "SHADOW KING",
   "女王蜂 QUEEN BEE": "QUEEN BEE",
   "古樹の主 ELDER TREANT": "ELDER TREANT",
+  "大蠍 EMPEROR SCORPION": "EMPEROR SCORPION",
+  "スフィンクス SPHINX": "SPHINX",
 
   // ===== data.js: 武器 bolt =====
   "マジックボルト": "Magic Bolt",
@@ -1328,6 +1330,7 @@ const I18N_EN = {
   "終刻の時計塔": "Final Hour Clocktower",
   "常闇の王墓": "Evernight Tomb",
   "木漏れ日の森": "Dappled Forest",
+  "陽炎の砂海": "Mirage Dunes",
 
   // ===== data.js: カオス強化 =====
   "加速する夜": "Quickening Night",
@@ -2477,6 +2480,24 @@ const I18N_EN = {
   "若芽を 8秒のうちに壊さないと、通れない茨の木に育つ": "Break the sprouts within 8s, or they grow into Thorn Trees you can't pass through",
   "根の檻": "Root Cage",
   "根の輪の抜け道から出るか、回避で根を飛び越える": "Escape through the gap in the ring of roots, or dodge to leap over them",
+  // ===== 段階8: 陽炎の砂海(敵・ボスの初見のヒント) =====
+  "砂山": "Sand Mound",
+  "倒した砂人形は砂山になり、4秒で 1回だけ立ち上がる。砂山を攻撃すると崩れる": "A defeated Sand Doll becomes a mound and rises once after 4s. Attack the mound to crumble it",
+  "すり鉢": "Sand Pit",
+  "中にいると底へ引かれ、砂塵がたまる。底の大あごに噛まれる": "Inside, you're dragged toward the bottom and Sandblind builds up. The jaws at the bottom bite",
+  "流砂の渦": "Quicksand Vortex",
+  "大蠍へ引き寄せられ、砂塵がたまる。中心のはさみに近づくな": "It drags you toward the Emperor Scorpion and Sandblind builds up. Keep away from the pincers at the center",
+  "はさみの挟撃": "Pincer Grab",
+  "捕まると動けない。回避で抜け出せる": "Once caught you can't move. Dodge to break free",
+  "砂潜り": "Burrow",
+  "出てくる所の砂煙を浴びると砂塵がたまる": "The sand cloud where it surfaces gives you Sandblind",
+  "大地の挟撃": "Earth Pincer",
+  "左右から大きなはさみが閉じる。前か後ろへ逃げる": "Giant pincers close in from both sides. Escape forward or back",
+  "謎かけ": "Riddle",
+  "頭上の印と同じ印の石板の上だけが安全": "Only the tablet with the same mark as the one overhead is safe",
+  "印が赤いときは逆さの問い。その印以外の石板の上が安全": "A red mark is a reversed riddle: the tablets without that mark are safe",
+  "砂嵐": "Sandstorm",
+  "砂の流れの中にいると砂塵がたまる。流れのすき間へ": "Standing in the streams of sand builds Sandblind. Move into the gaps",
 };
 
 // ガイドの用語に印を付ける英語の書き方(help.js)。キーは用語集の k。書いていない用語は見出し(t の英語)で印を付ける

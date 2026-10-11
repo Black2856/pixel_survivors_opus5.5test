@@ -356,6 +356,16 @@ function desertDeco(x, hx, hy, kind, h2, [d0, d1, d2c, d3]) {
     x.fillStyle = '#efe6d0'; x.fillRect(hx + 11, hy + 1, 2, 3); x.fillStyle = d1; x.fillRect(hx + 3, hy + 3, 5, 1);
   }
 }
+// 陽炎(砂海): 地面を 2行ずつの帯に分け、ゆっくり進む波の山にかかった帯だけを 1px 左右へずらして描き直す(熱で地面がゆらいで見える)
+function drawHaze() {
+  const sx = GFX.sctx, c = sx.canvas, t = GFX.fx.time, VW = GFX.VW, VH = GFX.VH;
+  for (let y = 0; y < VH; y += 2) {
+    const wave = Math.sin(y * 0.045 - t * 1.1) * Math.sin(y * 0.013 + t * 0.37); // 2つの波の山が重なった所だけゆらぐ
+    if (wave < 0.45) continue;
+    const dx = Math.sin(t * 5 + y * 0.6) > 0 ? 1 : -1;
+    sx.drawImage(c, 0, y, VW, 2, dx, y, VW, 2);
+  }
+}
 function drawGround() {
   const st = DATA.stages[S ? S.stage - 1 : 0];
   const x0 = Math.floor(cam.x / CH), y0 = Math.floor(cam.y / CH);
@@ -656,6 +666,7 @@ function render() {
   for (let i = 0; i < 3; i++) { GFX.ambient[i] = lerp(GFX.ambient[i], st.amb[i] * (1 - 0.55 * fk) * (i === 2 ? 1 + 0.3 * fk : 1) * ink, ink < 1 ? 0.08 : 0.03); GFX.tint[i] = lerp(GFX.tint[i], st.tint[i] * (i === 1 ? 1 - 0.12 * fk : 1), 0.03); }
 
   drawGround();
+  if (st.desert) drawHaze(); // 陽炎: 地面だけをゆらす(敵・自分は描く前)
   if (!S || S.demo) return drawMotes(st);
   const t = GFX.fx.time;
   if (S.mode === 'arena') drawArena(t);
@@ -1099,6 +1110,19 @@ function render() {
         for (let k = 0; k < fh; k++) { const col = k === fh - 1 ? '#ffe9a0' : k > fh / 2 ? '#ffc34a' : '#ff6a2a'; sx.fillStyle = gx.fillStyle = col; sx.fillRect(fx, fy - k, 1, 1); gx.fillRect(fx, fy - k, 1, 1); }
       }
       addLight(h.x, h.y, R * 3, '#ff6a2a', 0.75 * fade * (h.lite || 1));
+    } else if (h.kind === 'tablet') { // 謎かけの石板(スフィンクス): 砂から浮き上がる平たい石。印が金に光る。答えの出る最後の 0.6秒は、安全な石板が明るく光る
+      const sp = ART.S['tab_' + h.k], k = Math.min(1, h.t / 0.3, Math.max(0, (h.dur - h.t) / 0.3));
+      if (k > 0.05) drawSp(sp, h.x, h.y + 3 - sp.h / 2, { sy: k });
+      addLight(h.x, h.y, 30, '#ffd27a', 0.5 * k);
+      if (h.ok && h.t > 3.4 && h.t < 4.1) addLight(h.x, h.y, 70, '#fff0c0', 0.9);
+    } else if (h.kind === 'sandstream') { // 砂嵐(スフィンクス): 画面を横切る砂の帯。砂の筋が流れる。縁は危険を示す赤(濃くなるまでは薄い)
+      const c = Math.cos(h.a), s = Math.sin(h.a), L = h.len / 2, W = h.bw / 2, on = h.t >= h.tele, k0 = on ? 1 : h.t / h.tele;
+      const quad = (al, col) => { sx.globalAlpha = al; sx.fillStyle = col; sx.beginPath(); sx.moveTo(hx - c * L - s * W, hy - s * L + c * W); sx.lineTo(hx + c * L - s * W, hy + s * L + c * W); sx.lineTo(hx + c * L + s * W, hy + s * L - c * W); sx.lineTo(hx - c * L + s * W, hy - s * L - c * W); sx.fill(); };
+      quad(0.34 * k0 * fade, '#c8a060'); sx.globalAlpha = fade * k0;
+      for (let i = 0; i < 26; i++) { const u = ((hash2(i, h.seed) * 2 - 1) * L + t * 140) % (2 * L) - L, v = (hash2(i + 9, h.seed) * 2 - 1) * W * 0.85, x = hx + c * u - s * v, y = hy + s * u + c * v; pLine(sx, x, y, x - c * 8, y - s * 8, '#f0d8a0'); } // 砂の筋
+      const ec = on ? (warnBlink ? '#ff3b1a' : '#ff8a3d') : '#c8a060';
+      for (const sd of [-1, 1]) pLine(sx, hx - c * L - s * W * sd, hy - s * L + c * W * sd, hx + c * L - s * W * sd, hy + s * L + c * W * sd, ec);
+      sx.globalAlpha = 1;
     } else if (h.kind === 'quicksand') { // 流砂の渦(大蠍): 渦を巻く砂(予告の間は薄く)。中心のはさみの届く所は暗く、縁は危険を示す赤
       const R = Math.round(h.r), on = h.t >= h.tele, k0 = on ? 1 : h.t / h.tele, RC = Math.round(h.core * CHAOS.area);
       sx.globalAlpha = 0.32 * fade * k0; pDisc(sx, hx, hy, R, '#a8803a');
@@ -1941,6 +1965,7 @@ function render() {
     if (blind || (w.ink && S.inInk)) continue; // 墨だまりの中では触手の予告が見えない
     const k = w.t / w.life, wx = w.x - cam.x, wy = w.y - cam.y;
     if (w.snap) { drawWarnSnap(w, wx, wy, 1 - k); continue; }
+    if (w.kind === 'sun') { drawSunWarn(w, k); continue; } // 謎かけの陽光: 安全な円の外すべて
     if (w.kind === 'line' && w.sever) { // 断界: 画面の端まで届く細い線が点滅する(当たれば即死)
       const ca = Math.cos(w.a), sa = Math.sin(w.a), fl = Math.floor(t * (8 + 16 * k)) % 2, ex2 = wx + ca * w.len, ey2 = wy + sa * w.len, nx = -sa * w.w / 2, ny = ca * w.w / 2;
       sx.globalAlpha = 0.14 + 0.16 * k; sx.fillStyle = '#ff3b5c'; sx.beginPath(); sx.moveTo(wx + nx, wy + ny); sx.lineTo(ex2 + nx, ey2 + ny); sx.lineTo(ex2 - nx, ey2 - ny); sx.lineTo(wx - nx, wy - ny); sx.fill(); sx.globalAlpha = 1;
@@ -2051,6 +2076,7 @@ function drawWarnSnap(w, wx, wy, f) {
   const sx = GFX.sctx, gx = GFX.gctx, ge = dimCol('#ff3b5c', 0.8 * f); // 光の層は色で弱める
   const edge = (x0, y0, x1, y1) => { sx.globalAlpha = f; pLine(sx, x0, y0, x1, y1, '#ffffff'); pLine(gx, x0, y0, x1, y1, ge); };
   sx.fillStyle = '#ffd0d8';
+  if (w.kind === 'sun') { drawSunWarn(w, 1, f); sx.globalAlpha = 1; return; }
   if (w.kind === 'line') {
     const ca = Math.cos(w.a), sa = Math.sin(w.a), nx = -sa * w.w / 2, ny = ca * w.w / 2;
     sx.globalAlpha = 0.22 * f; sx.beginPath(); sx.moveTo(wx + nx, wy + ny); sx.lineTo(wx + ca * w.len + nx, wy + sa * w.len + ny); sx.lineTo(wx + ca * w.len - nx, wy + sa * w.len - ny); sx.lineTo(wx - nx, wy - ny); sx.fill();
@@ -2081,6 +2107,23 @@ function drawWarnCircle(wx, wy, R, k, edge, o = {}) {
   }
   pCircle(sx, wx, wy, R, edge); if (gx) pCircle(gx, wx, wy, R, '#ff3b5c');
   if (k < 1) { const TR = Math.round(R * (1 + 0.35 * (1 - k))); sx.globalAlpha = 0.25 + 0.5 * k; pCircle(sx, wx, wy, TR, '#ff3b5c', 2); sx.globalAlpha = 1; if (gx) pCircle(gx, wx, wy, TR, dimCol('#ff3b5c', 0.3 + 0.4 * k), 2); } // 外から縁へ縮む輪(当たる時)
+}
+// 謎かけの陽光(スフィンクス): 安全な円(石板)の外がすべて危ない。画面を赤く塗り、安全な円だけを抜く(行ごとに円の弦を除いて塗る)。縁は白く光る
+//   snapF: 当たる瞬間の光(drawWarnSnap から。淡い色で一瞬)
+function drawSunWarn(w, k, snapF) {
+  const sx = GFX.sctx, gx = GFX.gctx, VW = GFX.VW, VH = GFX.VH, holes = w.safe.map(s => ({ x: s.x - cam.x, y: s.y - cam.y, r: s.r }));
+  sx.globalAlpha = snapF !== undefined ? 0.3 * snapF : 0.16 + 0.22 * k; sx.fillStyle = snapF !== undefined ? '#ffd0d8' : '#ff3b5c';
+  for (let y = 0; y < VH; y++) {
+    const cut = [];
+    for (const h of holes) { const dy = y - h.y; if (Math.abs(dy) <= h.r) { const hw = Math.sqrt(h.r * h.r - dy * dy); cut.push([Math.round(h.x - hw), Math.round(h.x + hw)]); } }
+    cut.sort((a, b) => a[0] - b[0]);
+    let x0 = 0;
+    for (const [a, b] of cut) { if (a > x0) sx.fillRect(x0, y, a - x0, 1); x0 = Math.max(x0, b + 1); }
+    if (x0 < VW) sx.fillRect(x0, y, VW - x0, 1);
+  }
+  sx.globalAlpha = snapF !== undefined ? snapF : 1;
+  for (const h of holes) { pCircle(sx, h.x, h.y, Math.round(h.r), '#ffffff'); pCircle(gx, h.x, h.y, Math.round(h.r), '#6a5a1a'); }
+  sx.globalAlpha = 1;
 }
 // ボスの構え(予備動作。windup の間): 足元に縮んでいく赤い破線の輪(回る)と、ボスの色の内側の輪。溜まるほど明るい
 //   技の直前の頭上の赤いきらめきは world.js の bossAI
@@ -2267,6 +2310,17 @@ function drawBossFx(e) {
   if (e.hold) drawSp(ART.S.rock, e.x, e.y + yo - sp.h / 2 - 5);
   if (e.boss === 'cerberus') drawCerbFx(e, sx, gx, ex, ey, A);
   if (e.boss === 'shadowking' && !e.shadow) drawSkFx(e, sx, gx, ex, ey);
+  if (e.boss === 'sphinx') { // スフィンクス: 謎かけの頭上の印(逆さの問いは赤)/ 陽光の眼の溜めと光線
+    if (ai.rq) { const s2 = ART.S['sym_' + ai.rq.ans + (ai.rq.inv ? '_r' : '')], bob = Math.round(Math.sin(GFX.fx.time * 4) * 1.5); drawSp(s2, e.x, e.y + yo - sp.h / 2 - 9 + bob, { scale: 1 }); addLight(e.x, e.y - sp.h / 2 - 9, 34, ai.rq.inv ? '#ff3b5c' : '#ffd27a', 0.7); }
+    if (ai.act === 'eyes' && ai.tl && ai.tl.t < 0.8) { const k = ai.tl.t / 0.8, gx2 = Math.round(ex + ai.tl.ox), gy2 = Math.round(ey + ai.tl.oy); gx.fillStyle = '#7ad7ff'; gx.fillRect(gx2 - 2, gy2, 5, 1); addLight(e.x + ai.tl.ox, e.y + ai.tl.oy, 20 + 40 * k, '#7ad7ff', 0.5 + 0.5 * k); }
+    if (ai.beamA != null && ai.beamO) { // 両目の光線(2本の細い線が並ぶ)
+      const BL = 240 * A, ca = Math.cos(ai.beamA), sa = Math.sin(ai.beamA), ox2 = ai.beamO.x - cam.x, oy2 = ai.beamO.y - cam.y, fl = Math.floor(GFX.fx.time * 30) % 2;
+      pLine(gx, ox2, oy2, ox2 + ca * BL, oy2 + sa * BL, '#8a6a20', Math.round((8 + fl * 2) * A));
+      for (const s of [-2, 2]) { const nx = -sa * s, ny = ca * s; pLine(sx, ox2 + nx, oy2 + ny, ox2 + ca * BL + nx, oy2 + sa * BL + ny, '#fff0c0', 2); }
+      pLine(sx, ox2, oy2, ox2 + ca * BL, oy2 + sa * BL, '#7ad7ff', 1);
+      for (let r = 0; r < BL; r += 48) addLight(ai.beamO.x + ca * r, ai.beamO.y + sa * r, 50, '#ffd27a', 0.6);
+    }
+  }
   if (e.stun > 0 || e.stunVis) for (let i = 0; i < 3; i++) { const a = GFX.fx.time * 6 + TAU / 3 * i, x = Math.round(ex + Math.cos(a) * 10), y = Math.round(ey + yo - sp.h / 2 - 4 + Math.sin(a) * 3); sx.fillStyle = gx.fillStyle = '#ffe14a'; sx.fillRect(x - 1, y, 3, 1); sx.fillRect(x, y - 1, 1, 3); gx.fillRect(x, y, 1, 1); } // ひるみ(砂時計・終刻の時計を壊した): 頭の上を星が回る
   if (ai.act === 'breath' && e.boss === 'cdragon') for (let r = 20; r < 125 * A; r += 26 * A) addLight(e.x + Math.cos(ai.ba) * r, e.y + Math.sin(ai.ba) * r, r * 0.9, '#ff6a2a', 0.7);
   if (ai.act === 'beam' && ai.bA != null) {
@@ -2820,6 +2874,15 @@ function drawMotes(st) {
       addLight(lx, ly, 60 + h * 55, '#fff0c0', 0.3 + 0.1 * Math.sin(t * 0.6 + h * 11));
     }
   }
+  if (st.desert) { // 流れる砂: 風に吹かれた細い砂の筋が地面すれすれを流れる(ときどき強い風で多くなる)
+    const sx = GFX.sctx, gust = 0.5 + 0.5 * Math.sin(t * 0.4), n = Math.round(14 + 22 * gust);
+    for (let i = 0; i < n; i++) {
+      const sp = 50 + hash2(i, 3) * 40, wx = ((hash2(i, 7) * 1000 + t * sp - cam.x) % (VW + 40) + VW + 40) % (VW + 40) - 20;
+      const wy = ((hash2(i, 13) * 1000 - cam.y + Math.sin(t * 2 + i) * 2) % (VH + 20) + VH + 20) % (VH + 20) - 10, L = 2 + Math.round(hash2(i, 5) * 4);
+      sx.globalAlpha = 0.35 + 0.35 * hash2(i, 9); sx.fillStyle = hash2(i, 11) < 0.5 ? '#f0d8a0' : '#fff0c8'; sx.fillRect(Math.round(wx), Math.round(wy), L, 1);
+    }
+    sx.globalAlpha = 1;
+  }
   if (m.bubble) for (let i = 0; i < 4; i++) { // 海面から差しこむ光のゆらぎ(ゆっくり動く大きな淡い光)
     const lx = cam.x + VW * (0.5 + 0.45 * Math.sin(t * 0.13 + i * 1.9)), ly = cam.y + VH * (0.5 + 0.4 * Math.sin(t * 0.09 + i * 2.7));
     addLight(lx, ly, 120 + 30 * Math.sin(t * 0.7 + i), '#5ab8d8', 0.22 + 0.08 * Math.sin(t * 1.3 + i * 2));
@@ -3024,7 +3087,7 @@ function updFx(dt) {
     const o = arr[i], gone = arr === warns && o.owner && o.owner.dead; // 予兆は出した敵が倒れたら消す
     o.t += dt;
     if (o.t < o.life && !gone) continue;
-    if (arr === warns && !gone && !o.snap) warns.push({ kind: o.kind, x: o.x, y: o.y, a: o.a, r: o.r, r0: o.r0, h: o.h, len: o.len, w: o.w, ink: o.ink, sever: o.sever, snap: true, t: 0, life: 0.12 }); // 当たる瞬間: 同じ形が一瞬光る
+    if (arr === warns && !gone && !o.snap) warns.push({ kind: o.kind, x: o.x, y: o.y, a: o.a, r: o.r, r0: o.r0, h: o.h, len: o.len, w: o.w, ink: o.ink, sever: o.sever, safe: o.safe, snap: true, t: 0, life: 0.12 }); // 当たる瞬間: 同じ形が一瞬光る
     arr.splice(i, 1);
   }
   // 斬撃のイベント(鬼神・村正の一閃など): 決まった時刻に一度だけ。処理中に slashes が増えてもいいように、集めてから実行する
