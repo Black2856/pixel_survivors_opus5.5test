@@ -128,6 +128,7 @@ const AudioMan = (() => {
     evolve()  { if (!this._ok()) return; [262, 330, 392, 523, 659, 784, 1047, 1319, 1568, 2093].forEach((f, i) => this.tone(f, f * 1.02, 0.3, { vol: 0.08, delay: i * 0.05, type: i % 2 ? 'square' : 'sawtooth' })); this.noise(1.2, { vol: 0.12, f0: 9000, f1: 400, delay: 0.5 }); },
     hurt()    { if (this._ok('hurt', 0.1)) { this.tone(220, 55, 0.22, { vol: 0.14, type: 'sawtooth' }); this.noise(0.15, { vol: 0.12, f0: 2000, f1: 200 }); } },
     boom()    { if (this._ok('boom', 0.06)) { this.noise(0.6, { vol: 0.3, f0: 2500, f1: 60 }); this.tone(120, 30, 0.5, { vol: 0.16, type: 'sine' }); } },
+    rumble()  { if (!this._ok('rumble', 2)) return; this.noise(2.4, { vol: 0.09, f0: 300, f1: 40 }); this.noise(1.3, { vol: 0.05, f0: 700, f1: 90, delay: 0.2 }); this.tone(50, 30, 2, { vol: 0.05, type: 'sine' }); }, // 遠雷(雲海の空): 低く長くごろごろ鳴る
     zap()     { if (this._ok('zap', 0.05)) { this.noise(0.25, { vol: 0.16, f0: 9000, f1: 1500, ftype: 'highpass' }); this.tone(1800, 200, 0.15, { vol: 0.05, type: 'sawtooth' }); } },
     slash()   { if (this._ok('slash', 0.05)) this.noise(0.12, { vol: 0.16, f0: 7000, f1: 900, ftype: 'bandpass', rate: 1.6 }); },
     // 鬼神・村正の一閃: 抜刀の「チャキ」→ 一閃の「シャッ」→ 遅れて「ザンッ」

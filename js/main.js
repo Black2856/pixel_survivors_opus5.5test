@@ -103,6 +103,7 @@ function update(rdt) {
   if (S.mode === 'arena') confineArena();
   if (!P.dead) { updGems(dt); updDrops(dt); updSpawner(dt); }
   updFx(dt);
+  if (!P.dead) updSky(dt); // ステージの空(雲海の稲光と遠雷)
   S.comboT -= dt;
   if (S.comboT <= 0 && S.combo > 0) S.combo = 0;
 

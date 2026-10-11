@@ -1604,6 +1604,14 @@ function skyBolt(x, y, r, o = {}) {
   addFlash(x, y, Math.max(20, r) * 2.2, '#9a7aff', o.big ? 0.4 : 0.35);
   if (o.big) { shake(10); AudioMan.impact(); AudioMan.boom(); } else { shake(2); AudioMan.zap(); }
 }
+// 雲海の空: 9〜16秒ごとに空が光り(画面がほのかに 2回またたく)、0.6〜1.4秒おくれて遠雷が鳴る(見た目と音だけ)
+function updSky(dt) {
+  if (!DATA.stages[S.stage - 1].thunder) return;
+  const k = S.sky || (S.sky = { t: rand(4, 8), flick: 0, rumble: 0 });
+  if (k.flick > 0 && (k.flick -= dt) <= 0) screenFlash(0.1, '#c8b8ff'); // 2回目のまたたき
+  if (k.rumble > 0 && (k.rumble -= dt) <= 0) AudioMan.rumble();
+  if ((k.t -= dt) <= 0) { k.t = rand(9, 16); k.flick = 0.14; k.rumble = rand(0.6, 1.4); screenFlash(0.14, '#c8b8ff'); }
+}
 // 対の雷精の組の時計(1体目が進める): 遠い間は近づく → 回り込み(最長 move 秒)→ 細く点滅(tele 秒)→ 線(on 秒。触れると tick 秒ごとに ×n・痺れ +numb)→ 休み(rest 秒)→ 回り込み…
 function twinPairUpdate(a, b, pr, lk, dt) {
   pr.t += dt;

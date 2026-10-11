@@ -395,6 +395,13 @@ function drawHaze() {
     sx.drawImage(c, 0, y, VW, 2, dx, y, VW, 2);
   }
 }
+// 雲の中を走る稲光(雲海): 2.3秒ごとに、画面のどこかの雲の床を細い稲光が 0.16秒 走る(またたく)。光の層は暗い紫で
+function drawCloudBolts() {
+  const t = GFX.fx.time, cyc = Math.floor(t / 2.3), u = t / 2.3 - cyc;
+  if (u >= 0.07 || Math.floor(u * 100) % 3 === 2) return;
+  const x0 = hash2(cyc, 31) * GFX.VW, y0 = hash2(cyc, 37) * GFX.VH, a = hash2(cyc, 41) * TAU, L = 30 + hash2(cyc, 43) * 40;
+  jagBolt(x0, y0, x0 + Math.cos(a) * L, y0 + Math.sin(a) * L * 0.5, { step: 6, j: 3, col: '#8a72d8', glow: '#2a1a5a' });
+}
 function drawGround() {
   const st = DATA.stages[S ? S.stage - 1 : 0];
   const x0 = Math.floor(cam.x / CH), y0 = Math.floor(cam.y / CH);
@@ -698,6 +705,7 @@ function render() {
 
   drawGround();
   if (st.desert) drawHaze(); // 陽炎: 地面だけをゆらす(敵・自分は描く前)
+  if (st.thunder) drawCloudBolts(); // 雲の中を走る稲光(敵・自分は描く前)
   if (!S || S.demo) return drawMotes(st);
   const t = GFX.fx.time;
   if (S.mode === 'arena') drawArena(t);
@@ -2937,6 +2945,22 @@ function drawBfx() {
 // 環境パーティクル(ホタル・火の粉)。カメラに対して視差を付けて漂わせる
 function drawMotes(st) {
   const gx = GFX.gctx, VW = GFX.VW, VH = GFX.VH, t = GFX.fx.time, m = st.motes;
+  if (m.rain) { // 雲海: 斜めに降る雨(手前の粒ほど長く速い)と、地面ではねるしぶき
+    const sx = GFX.sctx;
+    for (let i = 0; i < 70; i++) {
+      const near = i % 5 === 0, sp = near ? 260 : 170 + hash2(i, 5) * 50, L = near ? 7 : 4 + Math.round(hash2(i, 9) * 2);
+      const wx = ((hash2(i, 7) * 1000 - t * sp * 0.25 - cam.x * (near ? 1.1 : 0.9)) % (VW + 20) + VW + 20) % (VW + 20) - 10;
+      const wy = ((hash2(i, 13) * 1000 + t * sp - cam.y * (near ? 1.1 : 0.9)) % (VH + 20) + VH + 20) % (VH + 20) - 10;
+      sx.globalAlpha = near ? 0.55 : 0.35; pLine(sx, wx, wy, wx + L * 0.25, wy - L, '#9a94d8');
+    }
+    for (let i = 0; i < 12; i++) { // しぶき: 0.77秒ごとに場所を変えて、はじめの 0.2秒だけ
+      const k = t * 1.3 + hash2(i, 21), cyc = Math.floor(k), ph = k - cyc; if (ph >= 0.25) continue;
+      const x = Math.round(((hash2(i, cyc * 7 + 1) * 2000 - cam.x) % VW + VW) % VW), y = Math.round(((hash2(i, cyc * 11 + 3) * 2000 - cam.y) % VH + VH) % VH);
+      sx.globalAlpha = 1 - ph * 4; sx.fillStyle = '#8a84c8'; sx.fillRect(x - 1, y, 1, 1); sx.fillRect(x + 1, y, 1, 1); sx.fillRect(x, y - 1, 1, 1);
+    }
+    sx.globalAlpha = 1;
+    return;
+  }
   if (m.snow) { // 霊峰: 揺れながら降る雪(手前の大きな粒ほど速い)
     const sx = GFX.sctx;
     for (let i = 0; i < 48; i++) {
