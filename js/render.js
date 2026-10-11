@@ -2411,7 +2411,8 @@ function drawBossFx(e) {
     addLight(e.x, e.y, 120 - ai.wind * 50, '#ff4a8a', 1);
   }
   const t = GFX.fx.time;
-  if (e.boss === 'raijin' && ai.godLit > 0) { // 神鳴りの溜め: 背中の太鼓が真上から時計回りに 1つずつ光り(数えて読む)、光った太鼓どうしを稲妻がつなぐ。体へ稲妻が集まり、プレイヤーの頭上に雷雲が渦を巻く
+  if (e.boss === 'raijin' && ai.godLit > 0) { // 神鳴りの溜め(雷神の側だけで読ませる): 背中の太鼓が真上から時計回りに 1つずつ光り、光った太鼓どうしを稲妻がつなぐ
+    //   掲げた撥の先(頭の上)へ、稲妻の輪と渦を巻いて吸いこまれる光の筋が集まる。ゆっくり始まって最後に一気に収束し(ease-in の 3乗)、収束した瞬間に落ちる
     const D = RAIJIN_DRUM, cx = ex, cy = ey + yo + D.cy, n = ai.godLit, k = n / 8;
     let qx = null, qy = null;
     for (let i = 0; i < n; i++) {
@@ -2421,17 +2422,18 @@ function drawBossFx(e) {
       qx = x; qy = y;
     }
     addLight(e.x, e.y - (e.jz || 0) + D.cy, 40 + 40 * k, '#5a3aa8', 0.25 + 0.3 * k); // 照らす光は暗い紫で弱く(体が白く飛ばないように)
-    if (Math.random() < 0.4 + 0.5 * k) { const a = rand(0, TAU), r = rand(28, 44); jagBolt(cx + Math.cos(a) * r, cy + Math.sin(a) * r, cx + Math.cos(a) * 8, cy + Math.sin(a) * 8, { step: 6, j: 3, col: '#c8b8ff', glow: '#3a2478' }); } // 体へ集まる稲妻
-    const hx = P.x - cam.x, hy = P.y - cam.y - 32; // プレイヤーの頭上の雷雲: 黒紫の雲が渦を巻き、溜まるほど濃く、稲妻がちらつく
-    for (let i = 0; i < 12; i++) { const a = t * 2.5 + TAU / 12 * i, rr = 8 + 5 * Math.sin(t * 3 + i) + 6 * k; sx.globalAlpha = 0.3 + 0.5 * k; pDisc(sx, Math.round(hx + Math.cos(a) * rr), Math.round(hy + Math.sin(a) * rr * 0.4), 4, i % 2 ? '#2a2448' : '#3a3460'); }
-    sx.globalAlpha = 1;
-    if (Math.random() < 0.2 + 0.6 * k) jagBolt(hx + rand(-10, 10), hy + 2, hx + rand(-12, 12), hy + rand(8, 16), { step: 4, j: 2, col: '#c8b8ff', glow: '#3a2478' });
-    // 落ちる時を示す輪: プレイヤーのまわりで、外(半径 160)から当たる大きさ(半径 60。点線の円)へ 2秒かけてまっすぐ縮む。輪が円に重なった時に落ちる(太鼓が光る拍ごとに太くなる)
-    const gt = Math.min(2, S.time - ai.godT0), AR = CHAOS.area, R0 = 60 * AR, Rr = R0 + 100 * AR * (1 - gt / 2), px = P.x - cam.x, py = P.y - cam.y, beat = (S.time - ai.godT0) % 0.25 < 0.06;
-    sx.globalAlpha = 0.85; pCircle(sx, px, py, Math.round(R0), '#b8a0ff', 2); sx.globalAlpha = 1; // 当たる大きさの点線(赤ではない。pCircle の最後の引数は点の間隔)
-    const rr = Math.round(Rr), wide = beat || gt > 1.75; // 縮む輪: 暗い縁取りの上に明るい 2重の線(拍ごと・最後の拍からは 3重)
-    sx.globalAlpha = 0.7; pCircle(sx, px, py, rr + 1, '#140c24'); pCircle(sx, px, py, rr - 2 - (wide ? 1 : 0), '#140c24'); sx.globalAlpha = 1;
-    for (let d = 0; d < (wide ? 3 : 2); d++) { pCircle(sx, px, py, rr - d, gt > 1.75 ? '#ffffff' : '#e8e0ff'); pCircle(gx, px, py, rr - d, gt > 1.75 ? '#7a5ad8' : '#4a2a98'); }
+    const gt = Math.min(2, S.time - ai.godT0), u = gt / 2, ez = u * u * u, last = gt > 1.75, beat = (S.time - ai.godT0) % 0.25 < 0.06; // ez: 収束のイージング
+    const fx = cx, fy = ey + yo - 23, RG = 4 + 52 * (1 - ez), rot = t * 1.5 + ez * 3; // 収束する点(掲げた撥の先)と、稲妻の輪の半径(56 → 4。雷神のまわりに収め、プレイヤーの近くまで広げない)
+    let p0x = 0, p0y = 0;
+    for (let i = 0; i <= 16; i++) { const a = rot + TAU / 16 * i, x = fx + Math.cos(a) * RG, y = fy + Math.sin(a) * RG; if (i) jagBolt(p0x, p0y, x, y, { step: 5, j: last ? 3 : 2, col: last ? '#ffffff' : '#d8c8ff', glow: last ? '#5a3aa8' : '#3a2478' }); p0x = x; p0y = y; } // 稲妻の輪(16 の点を結ぶ、はじける雷)
+    for (let j = 0; j < 14; j++) { // 渦を巻いて吸いこまれる光の筋(収束が速くなるほど長く)
+      const a = TAU / 14 * j + hash2(j, 5) * 0.4 - ez * 4 - t * 0.8, rr = RG * (1.15 + 0.5 * hash2(j, 9)) + 6, L = 3 + 14 * u * u;
+      const x0 = fx + Math.cos(a) * rr, y0 = fy + Math.sin(a) * rr, x1 = fx + Math.cos(a + 0.25) * Math.max(0, rr - L), y1 = fy + Math.sin(a + 0.25) * Math.max(0, rr - L);
+      sx.globalAlpha = 0.5 + 0.5 * u; pLine(sx, x0, y0, x1, y1, '#c8b8ff'); sx.globalAlpha = 1; pLine(gx, x0, y0, x1, y1, '#2a1a5a');
+    }
+    const cr = Math.round(1 + 3 * u) + (beat ? 1 : 0) + (last && Math.floor(t * 30) % 2 ? 1 : 0); // 撥の先の光の芯(溜まるほど大きく、拍ごとに強く、最後の拍からはまたたく)
+    pDisc(gx, fx, fy, cr + 2, '#5a3aa8'); pDisc(sx, fx, fy, cr, '#f0e8ff');
+    addLight(e.x, e.y - (e.jz || 0) - 23, 30 + 40 * u, '#5a3aa8', 0.3 + 0.4 * u);
   }
   // 白骨竜の狙い撃ち: 撃つ前に頭(目)が光る
   if (e.boss === 'wyrm' && ai.aiming > 0) {

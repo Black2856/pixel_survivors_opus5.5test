@@ -4458,14 +4458,18 @@ function raijinGale(e, ai) {
   hint('raijin_gale', _t('風神の風'), _t('風に押される。風下に雷の列が落ちる。ダッシュなら風に逆らえる'));
 }
 // 神鳴り(激昂): 激昂して 5秒後から 15秒ごとに、2秒 溜める。雷神は撥を高く掲げ、背中の太鼓が 0.25秒おきに 1つずつ光り(1つごとに音が鳴る)、画面の端が暗くなり、プレイヤーの頭上に雷雲が渦を巻く。
-//   太鼓が 8つ光った次の拍(2秒)に、プレイヤーのいる所へ巨大な稲妻 ×1.2・痺れ +20。予告の円(半径 60)は落ちる 0.1秒前だけ。落ちる時は、プレイヤーのまわりで
-//   外から縮む輪(2秒で半径 60 まで)と太鼓のカウントダウンで読む(0.15秒前に雷神とプレイヤーの頭上に赤いきらめきと合図の音)
+//   太鼓が 8つ光った次の拍(2秒)に、プレイヤーのいる所へ巨大な稲妻 ×1.2・痺れ +20。予告の円(半径 60)は落ちる 0.1秒前だけ。落ちる時は雷神の側で読む:
+//   太鼓のカウントダウンと、掲げた撥の先へイージングで収束する稲妻の輪(render.js。収束した瞬間に落ちる)。0.15秒前に雷神の頭上に赤いきらめきと合図の音
 function raijinGod(e, ai) {
-  ai.act = 'god'; ai.godLit = 0; ai.godT0 = S.time; e.spr = 'raijin3'; e.sq = 1.2; // godT0: 溜めの始まり(落ちる時を示す輪の時計)
+  ai.act = 'god'; ai.godLit = 0; ai.godT0 = S.time; e.spr = 'raijin3'; e.sq = 1.2; // godT0: 溜めの始まり(収束する稲妻の輪の時計)
   for (let k = 0; k < 8; k++) later(ai, k * 0.25, () => { ai.godLit = k + 1; AudioMan.thump(true); shake(1 + k * 0.5); });
-  later(ai, 1.85, () => { fxGlint(e.x, e.y - e.r - 12 - e.jz, 11, '#ff3b5c', { foe: true, life: 0.25 }); fxGlint(P.x, P.y - 26, 11, '#ff3b5c', { foe: true, life: 0.25 }); AudioMan.cue(); }); // 落ちる直前の合図(雷神とプレイヤーの頭上)
+  later(ai, 1.85, () => { fxGlint(e.x, e.y - e.r - 12 - e.jz, 11, '#ff3b5c', { foe: true, life: 0.25 }); AudioMan.cue(); }); // 落ちる直前の合図(雷神の頭上)
   later(ai, 1.9, () => { ai.godAt = { x: P.x, y: P.y }; pushWarn({ kind: 'circle', x: P.x, y: P.y, r: 60, t: 0, life: 0.1, owner: e }); });
-  later(ai, 2, () => { const at = ai.godAt; raijinStrike(e, at.x, at.y, 60, 1.2, 20, { big: true }); hitstop(0.08); ai.godLit = 0; e.spr = 'raijin2'; e.sq = 0.8; });
+  later(ai, 2, () => { // 収束した力を撥の先から空へ放ち、プレイヤーのいる所へ落とす
+    const fx = e.x, fy = e.y - e.jz - 23, at = ai.godAt;
+    bfx.push({ kind: 'ebolt', x: fx, y: fy, x1: fx + rand(-8, 8), y1: Math.min(fy - 120, cam.y - 20), t: 0, life: 0.3, w: 3, jit: 6 }); burst(fx, fy, 24, THUN, { sp: 90, glow: true, life: 0.4 });
+    raijinStrike(e, at.x, at.y, 60, 1.2, 20, { big: true }); hitstop(0.08); ai.godLit = 0; e.spr = 'raijin2'; e.sq = 0.8;
+  });
   later(ai, 2.5, () => { e.spr = 'raijin'; ai.act = null; ai.godAt = null; ai.busy = 1; });
   AudioMan.drumroll(2); AudioMan.warning();
   hint('raijin_god', _t('神鳴り'), _t('背中の太鼓が全部光った次の拍に、巨大な雷が落ちる。その拍で回避する'));
