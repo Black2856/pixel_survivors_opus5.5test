@@ -120,7 +120,7 @@ const DATA = {
     elder:   { name: '古樹の主 ELDER TREANT',       hp: 1900, spd: 10, dmg: 22, r: 16, music: 'b_forest', col: '#8fd06a' }, // 木漏れ日の森 2体目
     escorp:  { name: '大蠍 EMPEROR SCORPION',       hp: 1800, spd: 16, dmg: 22, r: 15, music: 'b_desert', col: '#ffb040' }, // 陽炎の砂海 1体目(曲は用意されるまで草原の曲)
     sphinx:  { name: 'スフィンクス SPHINX',          hp: 1500, spd: 14, dmg: 22, r: 14, music: 'b_desert', col: '#ffd27a' }, // 陽炎の砂海 2体目
-    raiju:   { name: '雷獣 RAIJU',                  hp: 1500, spd: 26, dmg: 22, r: 13, music: 'b_thunder', col: '#9aa8ff' }, // 雷鳴の雲海 1体目(曲は用意されるまで草原の曲)
+    raiju:   { name: '雷獣 RAIJU',                  hp: 1500, spd: 26, dmg: 22, r: 13, music: 'b_thunder', col: '#6a7ae8' }, // 雷鳴の雲海 1体目(曲は用意されるまで草原の曲)
     raijin:  { name: '雷神 RAIJIN',                 hp: 1600, spd: 16, dmg: 24, r: 13, music: 'b_thunder', col: '#6ac0b8' }, // 雷鳴の雲海 2体目
   },
   // 状態異常(プレイヤー): 粘液・スロウタイムの移動速度倍率 / スロウタイムのCD回復倍率 / 炎上

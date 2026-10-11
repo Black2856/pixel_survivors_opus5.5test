@@ -1141,6 +1141,19 @@ function render() {
         for (let k = 0; k < fh; k++) { const col = k === fh - 1 ? '#ffe9a0' : k > fh / 2 ? '#ffc34a' : '#ff6a2a'; sx.fillStyle = gx.fillStyle = col; sx.fillRect(fx, fy - k, 1, 1); gx.fillRect(fx, fy - k, 1, 1); }
       }
       addLight(h.x, h.y, R * 3, '#ff6a2a', 0.75 * fade * (h.lite || 1));
+    } else if (h.kind === 'eline') { // 雷の線(雷獣の稲妻走りの跡): 折れ線にそって紫白のぎざぎざの雷がはじける(消える前は点滅)
+      if (h.t > h.dur - 0.6 && Math.floor(t * 20) % 2) continue;
+      for (let i = 0; i < h.pts.length - 1; i++) {
+        const A = h.pts[i], B = h.pts[i + 1], L = Math.hypot(B.x - A.x, B.y - A.y), n = Math.max(2, Math.round(L / 9)), nxu = -(B.y - A.y) / (L || 1), nyu = (B.x - A.x) / (L || 1);
+        let px0 = A.x - cam.x, py0 = A.y - cam.y;
+        for (let k = 1; k <= n; k++) { const v = k / n, j = k === n ? 0 : rand(-2, 2), nx = lerp(A.x, B.x, v) - cam.x + nxu * j, ny = lerp(A.y, B.y, v) - cam.y + nyu * j; pLine(sx, px0, py0, nx, ny, '#d8c8ff'); pLine(gx, px0, py0, nx, ny, '#3a2478', 2); px0 = nx; py0 = ny; }
+      }
+      const m = h.pts[2]; addLight(m.x, m.y, 60, '#9a7aff', 0.4);
+    } else if (h.kind === 'torb') { // 雷玉(雷獣): 稲妻をまとう玉と、稲妻が飛ぶ範囲(細い点線の輪)
+      const sp = ART.S.torb[Math.floor(t * 12 + h.seed) % 2], bob = Math.round(Math.sin(t * 5 + h.seed) * 2);
+      sx.globalAlpha = 0.45 * fade; pCircle(sx, hx, hy, Math.round(h.r), '#9a7aff', 3); sx.globalAlpha = 1;
+      drawSp(sp, h.x, h.y - 6 + bob, {});
+      addLight(h.x, h.y - 6, 40, '#9a7aff', 0.6 * fade);
     } else if (h.kind === 'tablet') { // 謎かけの石板(スフィンクス): 砂から浮き上がる平たい石。印が金に光る。答えの出る最後の 0.6秒は、安全な石板が明るく光る
       const sp = ART.S['tab_' + h.k], k = Math.min(1, h.t / 0.3, Math.max(0, (h.dur - h.t) / 0.3));
       if (k > 0.05) drawSp(sp, h.x, h.y + 3 - sp.h / 2, { sy: k });
@@ -2593,7 +2606,7 @@ function drawBfx() {
       const k = 1 - u, J = f.jit ?? 6; let px0 = f.x, py0 = f.y;
       for (let i = 1; i <= 9; i++) {
         const v = i / 9, nx = lerp(f.x, f.x1, v) + (i === 9 ? 0 : rand(-J, J)), ny = lerp(f.y, f.y1, v) + (i === 9 ? 0 : rand(-2, 2) * J / 6);
-        pLine(sx, px0 - cam.x, py0 - cam.y, nx - cam.x, ny - cam.y, '#f0e8ff', f.w);
+        pLine(sx, px0 - cam.x, py0 - cam.y, nx - cam.x, ny - cam.y, f.col || '#f0e8ff', f.w); // col: 芯の色(放射する細い稲妻は淡い紫)
         pLine(gx, px0 - cam.x, py0 - cam.y, nx - cam.x, ny - cam.y, dimCol('#5a3aa8', k), f.w + 1);
         px0 = nx; py0 = ny;
       }
