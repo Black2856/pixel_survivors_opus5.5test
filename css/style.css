@@ -403,6 +403,7 @@ input[type=range] { width: 220px; accent-color: var(--gold); }
 .stg:hover { transform: translateX(6px); box-shadow: inset 4px 0 0 0 var(--sc), inset 0 0 0 2px var(--sc); }
 .stg .nm { font-size: 18px; color: var(--sc); }
 .stg .clr { font: 9px 'Press Start 2P'; color: var(--gold); margin-left: 8px; }
+.stg .fc { font-size: 11px; color: var(--gold); margin-left: 8px; opacity: .85; } /* 初クリアのゴールド(まだクリアしていないステージ) */
 .stg .sub { font-size: 12px; color: var(--txt); }
 .stg .chaos { font-size: 11px; color: var(--dim); }
 .stg .chaos.on { color: #c78bff; }

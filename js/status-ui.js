@@ -57,7 +57,10 @@ const StatusUI = (() => {
   // 内訳: 出どころごとの値
   function breakdown(c, k) {
     const rows = STAT_SRC.filter(s => c.st.by[k][s]).map(s => `<div class="sv-row"><span>${STAT_SRC_LABEL[s]}</span><b>${fmt(k, c.st.by[k][s])}</b></div>`);
-    if ((c.st.mul[k] || 1) !== 1) rows.push(_t`<div class="sv-row"><span>固有効果の倍率</span><b>×${num(c.st.mul[k])}</b></div>`);
+    const rew = ['gold', 'eqQual', 'chestQual', 'classXp'].includes(k) && c.st.rew ? c.st.rew : 1; // tier の報酬の倍率(クラス経験値は倒したときに掛ける)
+    const um = (c.st.mul[k] || 1) / (k === 'classXp' ? 1 : rew);
+    if (Math.abs(um - 1) > 1e-9) rows.push(_t`<div class="sv-row"><span>固有効果の倍率</span><b>×${num(um)}</b></div>`);
+    if (rew !== 1) rows.push(_t`<div class="sv-row"><span>tier の報酬の倍率</span><b>×${num(rew)}</b></div>`);
     return _t`<div class="sv-g">${DATA.stats[k].label} の内訳</div>` + (rows.join('') || _t('<div class="dim">なし</div>'));
   }
   // スキルの説明のまとまり(通常攻撃 / E / 特性 / パッシブ / Q / 防御スキル)。ガイドの用語の説明にも使う

@@ -140,9 +140,10 @@ function runEndLoot(win) {
   return { chests: n, items: got };
 }
 // クラス経験値: 討伐数 × killK + 撃破ボス数 × bossK(クラス経験値% で増える)。上がった Lv を返す
+//   討伐数・撃破ボス数は、倒したときの tier の報酬の倍率を掛けて数えたもの(S.cxpK・S.cxpB。エスカレーションは tier ごとに倍率が違う)
 function gainClassXp() {
   const cl = DATA.classLevel, c = META.classes[P.cls];
-  const xp = Math.round((S.kills * cl.killK + S.bossKills * cl.bossK) * (1 + (P.stats.v.classXp || 0)));
+  const xp = Math.round((S.cxpK * cl.killK + S.cxpB * cl.bossK) * (1 + (P.stats.v.classXp || 0)));
   const lv0 = c.lv;
   c.xp += xp;
   while (c.lv <= cl.need.length && c.xp >= cl.need[c.lv - 1]) { c.xp -= cl.need[c.lv - 1]; c.lv++; }

@@ -35,6 +35,9 @@ function endRun(win) {
     META.best.level = Math.max(META.best.level, P.level);
   }
   const locked = Object.keys(DATA.classes).filter(k => !clsUnlocked(k));
+  // 初クリアのゴールド: ステージ(通常モード)を初めてクリアしたとき、そのステージの tier の額(エスカレーション・闘技場には無い)
+  const first = win && S.mode === 'stage' && !META.stageClear[runKey()] ? DATA.flow.firstClear[S.tier - 1] || 0 : 0;
+  META.gold += first;
   if (win) META.stageClear[runKey()] = true; // クリアしたモード・ステージ(カオス強化・クラスの解放条件)
   const loot = runEndLoot(win), cxp = gainClassXp(); // 装備の報酬(インベントリへ)とクラス経験値
   cxp.newCls = locked.filter(clsUnlocked); // このクリアで解放されたクラス
@@ -42,7 +45,7 @@ function endRun(win) {
   saveMeta();
   state = win ? 'victory' : 'over';
   if (!win) AudioMan.stopMusic(1.5);
-  UI.result(win, earned, loot, cxp);
+  UI.result(win, earned, loot, cxp, first);
 }
 function startEndless() {
   // エスカレーションのクリア後もそのまま続行(tier 1 のステージから。ゴールドはリザルト時に精算済みなのでリセット)

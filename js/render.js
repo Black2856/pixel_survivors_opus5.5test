@@ -1489,7 +1489,7 @@ function render() {
       if (dimE && psp.e) { gx.globalAlpha = 0.9; gx.drawImage(dimEmit(P.facing < 0 ? ART.variant(psp, 'flipE') : psp.e, bkPaintLv()), Math.round(P.x - cam.x - psp.w / 2), Math.round(py - cam.y - psp.h / 2)); gx.globalAlpha = 1; }
     }
     drawAstroBody(t, true); // アストロマンサー: 質量の塵・手前を回る星
-    if (P.frzT > 0) { // 凍結(氷の槍): 体が氷に閉じ込められる
+    if (P.frzT > 0) { // 凍結(凍傷が上限に達した): 体が氷に閉じ込められる
       const ix = Math.round(P.x - cam.x), iy = Math.round(py - cam.y), a0 = Math.min(1, P.frzT * 4);
       sx.globalAlpha = 0.25 * a0; sx.fillStyle = '#9ff7ff'; sx.fillRect(ix - 7, iy - 10, 15, 19);
       sx.globalAlpha = 0.7 * a0; sx.fillStyle = '#ffffff'; sx.fillRect(ix - 7, iy - 10, 15, 1); sx.fillRect(ix - 7, iy + 8, 15, 1); sx.fillRect(ix - 7, iy - 10, 1, 19); sx.fillRect(ix + 7, iy - 10, 1, 19); sx.fillRect(ix - 4, iy - 7, 1, 4); sx.fillRect(ix - 3, iy - 8, 2, 1);
@@ -1693,14 +1693,14 @@ function render() {
       case 'orbShot': pDisc(sx, p.x - cam.x, p.y - cam.y, 3, '#05020a'); pCircle(gx, p.x - cam.x, p.y - cam.y, 3, '#c78bff'); addLight(p.x, p.y, 20, '#c78bff', 0.7); break;
     }
   }
-  for (const b of bolts) {
-    const k = 1 - b.t / b.life;
+  for (const b of bolts) { // b.jit: 横の揺れ幅(既定 6)/ b.gcol: 光の層の色(既定 '#fff27a'。光の層は色で明るさが決まるので、弱めるなら暗い色)
+    const k = 1 - b.t / b.life, J = b.jit ?? 6;
     let px = b.x0, py = b.y0;
     const segs = 9;
     for (let i = 1; i <= segs; i++) {
-      const u = i / segs, jx = i === segs ? 0 : rand(-6, 6), nx = lerp(b.x0, b.x1, u) + jx, ny = lerp(b.y0, b.y1, u) + (i === segs ? 0 : rand(-2, 2));
+      const u = i / segs, jx = i === segs ? 0 : rand(-J, J), nx = lerp(b.x0, b.x1, u) + jx, ny = lerp(b.y0, b.y1, u) + (i === segs ? 0 : rand(-2, 2) * J / 6);
       pLine(sx, px - cam.x, py - cam.y, nx - cam.x, ny - cam.y, '#ffffff', b.w);
-      gx.globalAlpha = k; pLine(gx, px - cam.x, py - cam.y, nx - cam.x, ny - cam.y, '#fff27a', b.w + 1); gx.globalAlpha = 1;
+      gx.globalAlpha = k; pLine(gx, px - cam.x, py - cam.y, nx - cam.x, ny - cam.y, b.gcol || '#fff27a', b.w + 1); gx.globalAlpha = 1;
       px = nx; py = ny;
     }
   }

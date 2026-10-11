@@ -208,6 +208,9 @@ function computeStats({ cls = META.cls, run = false, eq = run ? 'run' : 'zero' }
 
   // カオス強化の報酬(そのランの合計ポイントに応じて)
   if (run && S && S.chaosReward) for (const k in S.chaosReward) if (k !== 'pt') add('chaos', k, S.chaosReward[k]);
+  // tier の報酬の倍率(獲得ゴールド・装備品質・宝箱品質。クラス経験値は倒したときに数える: gainClassXp)。rew はステータス画面の内訳用
+  let rew = 1;
+  if (run && S) { rew = rewMul(); mul.gold *= rew; mul.eqQual *= rew; mul.chestQual *= rew; }
 
   // 微強化(hpPct は最大HP の倍率)
   if (run && P) for (const k in P.micro) { if (k === 'hpPct') mul.hp *= 1 + P.micro[k]; else add('micro', k, P.micro[k]); }
@@ -217,7 +220,7 @@ function computeStats({ cls = META.cls, run = false, eq = run ? 'run' : 'zero' }
     const vals = Object.values(by[k]);
     v[k] = DATA.stats[k].kind === 'red' ? 1 - vals.reduce((p, x) => p * (1 - x), 1) : vals.reduce((a, b) => a + b, 0);
   }
-  return { v, by, mul, uq };
+  return { v, by, mul, uq, rew };
 }
 
 // computeStats の結果をプレイヤーの実数値に反映する

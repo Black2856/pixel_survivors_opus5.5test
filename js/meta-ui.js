@@ -301,11 +301,13 @@ const MetaUI = (() => {
   // 未解放のカードは、名前を「？？？」にして説明(tier・敵Lv・ボス)を伏せる。解放の条件だけ出す(クラス画面の未解放と同じ考え)
   const TIER_COL = ['#9ff7ff', '#7dff9a', '#ff8a3d', '#c78bff'];
   const startLvOf = key => { const m = chaosMods(key).find(x => x.k === 'startLv'); return (key === 'arena' ? DATA.arena.elv[0] : 1) + chaosLv(chaosSetting(key), m) * m.per; }; // 開始の敵Lv(闘技場は1ラウンド目の敵Lv)+ 深い闇
+  // 報酬の倍率(tier): 通常モードはステージの tier の値、エスカレーションは tier が進むたびに上がる(最大 escRew.max)、闘技場は 2ラウンドごとに上がる / first: 初クリアのゴールド
+  const rewX = x => '×' + x.toFixed(1), TR = DATA.flow.tierRew;
   const STAGE_ITEMS = () => [
-    { key: 'escalation', mode: 'escalation', n: 1, name: _t('エスカレーション'), sub: _t`tier 1 → 4 を通す ・ 敵Lv ${startLvOf('escalation')} から`, col: '#ffd23f' },
-    { key: 'arena', mode: 'arena', n: 1, name: _t('闘技場'), sub: _t`ボス${DATA.arena.order.length}体の連戦 ・ 敵Lv ${startLvOf('arena')} から`, col: '#ff3b5c' },
-    ...DATA.stageRuns.map(R => ({ key: 'stage' + R.no, mode: 'stage', n: R.no, tier: R.tier, name: DATA.stages[R.stage - 1].label,
-      sub: _t`tier ${R.tier} ・ 敵Lv ${startLvOf('stage' + R.no)} から ・ ${R.bosses.map(b => I18N.bossShort(DATA.bosses[b].name)).join(' → ')}`, col: TIER_COL[R.tier - 1] }))
+    { key: 'escalation', mode: 'escalation', n: 1, name: _t('エスカレーション'), sub: _t`tier 1 → 4 を通す ・ 敵Lv ${startLvOf('escalation')} から ・ 報酬 ${rewX(TR[0])}〜${rewX(DATA.flow.escRew.max)}`, col: '#ffd23f' },
+    { key: 'arena', mode: 'arena', n: 1, name: _t('闘技場'), sub: _t`ボス${DATA.arena.order.length}体の連戦 ・ 敵Lv ${startLvOf('arena')} から ・ 報酬 ${rewX(TR[0])}〜${rewX(TR[TR.length - 1])}`, col: '#ff3b5c' },
+    ...DATA.stageRuns.map(R => ({ key: 'stage' + R.no, mode: 'stage', n: R.no, tier: R.tier, name: DATA.stages[R.stage - 1].label, first: DATA.flow.firstClear[R.tier - 1],
+      sub: _t`tier ${R.tier} ・ 報酬 ${rewX(TR[R.tier - 1])} ・ 敵Lv ${startLvOf('stage' + R.no)} から ・ ${R.bosses.map(b => I18N.bossShort(DATA.bosses[b].name)).join(' → ')}`, col: TIER_COL[R.tier - 1] }))
       .sort((a, b) => a.tier - b.tier), // 通常モード: tier の順
   ];
   function stageSelect() {
@@ -322,7 +324,7 @@ const MetaUI = (() => {
         : clear ? _t`<span class="chaos on">カオス強化 <b>${pt} pt</b> <span class="cz-btn" data-chaos="${s.key}">設定 ▶</span></span>`
         : _t`<span class="chaos">カオス強化 ${pt ? `<b>${pt} pt</b>` : _t('なし')}(クリアまで固定)<span class="cz-btn" data-chaos="${s.key}">見る ▶</span></span>`;
       return `<button class="stg${open ? '' : ' locked'}" data-mode="${s.mode}" data-n="${s.n}" style="--sc:${s.col}">
-        <span class="nm">${open ? s.name : _t('？？？')}${clear ? ' <b class="clr">★ CLEAR</b>' : ''}</span>${right}<span class="sub">${open ? s.sub : _t('？？？')}</span></button>`;
+        <span class="nm">${open ? s.name : _t('？？？')}${clear ? ' <b class="clr">★ CLEAR</b>' : open && s.first ? _t` <span class="fc">初クリア ● ${s.first.toLocaleString()}</span>` : ''}</span>${right}<span class="sub">${open ? s.sub : _t('？？？')}</span></button>`;
     }).join('');
   }
   // 解放に必要な tier(そのクリアが要る。0 = 最初から): 通常モードは tier − 1、エスカレーション・闘技場は tier 4

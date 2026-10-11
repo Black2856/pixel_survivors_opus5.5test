@@ -92,13 +92,25 @@ function escSchedule(R, tier) {
   else out.push({ t: F.seg, boss: R.bosses });
   return out;
 }
+// 報酬の倍率(獲得ゴールド・装備品質・宝箱品質・クラス経験値。stats.js の computeStats が掛ける)
+//   通常モード = ステージの tier(DATA.flow.tierRew)/ エスカレーション = S.rewMul(tier が進むたびに上がる)/ 闘技場 = ラウンドの tier(2ラウンドごと)
+function rewMul() {
+  if (!S) return 1;
+  const T = DATA.flow.tierRew;
+  if (S.mode === 'escalation') return S.rewMul || 1;
+  if (S.mode === 'arena') return T[Math.min(T.length - 1, Math.floor((S.arena ? S.arena.idx : 0) / 2))];
+  return T[Math.max(0, Math.min(T.length - 1, (S.tier || 1) - 1))];
+}
 function escStage(tier, first) {
   const R = pick(DATA.stageRuns.filter(r => r.tier === tier));
   S.tier = tier; S.escRun = R.no; setStage(R.stage);
   S.ptime = 0; S.schedIdx = 0; S.sched = escSchedule(R, tier);
   if (first) return;
+  const ER = DATA.flow.escRew; // 報酬の倍率: tier が進むたびに +step(周回してからは +loopStep。max まで)
+  S.rewMul = Math.min(ER.max, Math.round(((S.rewMul || 1) + (S.loop > 1 ? ER.loopStep : ER.step)) * 100) / 100);
+  recalc();
   AudioMan.playMusic(DATA.stages[R.stage - 1].music);
-  UI.banner('TIER ' + tier, DATA.stages[R.stage - 1].label, 2200);
+  UI.banner('TIER ' + tier, _t`${DATA.stages[R.stage - 1].label} ・ 報酬 ×${S.rewMul.toFixed(1)}`, 2200);
   screenFlash(0.4); shockAt(P.x, P.y, 1.5, 0.8);
 }
 function initRun(mode = 'escalation', stageNo = 1) {
@@ -111,6 +123,7 @@ function initRun(mode = 'escalation', stageNo = 1) {
     ptime: 0, phase: null, tier: 0, // ptime: フェーズの時計(通常モード) / phase: ボス・エリート群のフェーズ { kind, t } / tier: ステージの tier(通常モード)
     rerolls: 0, weaponSlots: 4, lvQueue: [],
     gold: 0, deathT: 0, victoryT: 0, hudDirty: true, won: false, hint: {}, decoy: null, bossKills: 0, loot: [],
+    rewMul: 1, cxpK: 0, cxpB: 0, // rewMul: エスカレーションの報酬の倍率(tier が進むたびに上がる)/ cxpK・cxpB: 撃破数・ボス撃破数に、倒したときの報酬の倍率を掛けて足したもの(クラス経験値)
   };
   P = {
     cls: META.cls, mainW: META.classes[META.cls].weapon, micro: {}, lvFx: classLvFx(META.cls), wm: {}, x: 0, y: 0, hp: 0, maxhp: 100, level: 1, xp: 0, xpNext: xpFor(1), weapons: {},
@@ -118,9 +131,10 @@ function initRun(mode = 'escalation', stageNo = 1) {
     slowT: 0, cdSlowT: 0, burnT: 0, burnDmg: 0, burnTick: 0, shield: 0, oShield: 0, oChunks: [],
     frost: 0, frostT: 0, bleed: 0, bleedT: 0, bleedTick: 0, // 自分の凍傷・出血(スタック数と、消えるまでの秒)
     push: null, rootT: 0, current: null, // ボスの押し出し・引き寄せ / 絡め取りで動けない(秒)/ 海流
-    frzT: 0, iceT: 0, ivx: 0, ivy: 0, // 凍結(氷の槍。歩けない秒)/ 滑る床の上(秒)と、そのときの速度
+    frzT: 0, iceT: 0, ivx: 0, ivy: 0, // 凍結(凍傷が上限に達した。行動不能・攻撃不能の秒)/ 滑る床の上(秒)と、そのときの速度
     fatigueT: 0, // 疲労(スタミナを減らす攻撃を受けた): スタミナ回復 -50% の残り秒
     poison: 0, poisonT: 0, darkT: 0, // 毒(スタック数・消えるまでの秒)/ 暗闇の残り秒(王墓)
+    numb: 0, numbT: 0, paraT: 0, dust: 0, dustT: 0, weak: 0, weakT: 0, // 痺れ・砂塵・衰弱(スタック数・消えるまでの秒)/ 麻痺(痺れが上限に達した。攻撃不能の秒)
   };
   enemies = []; projs = []; eprojs = []; gems = []; drops = []; props = []; hazards = [];
   parts = []; floats = []; rings = []; zones = []; slashes = []; bolts = []; warns = []; flashes = []; bfx = []; sfx = [];
@@ -214,7 +228,7 @@ function heal(n, silent) {
 function updPlayer(dt) {
   let [mx, my] = moveInput();
   if (P.rootT > 0) { P.rootT -= dt; if (P.invT > 0) P.rootT = 0; mx = my = 0; } // 絡め取り(クラーケン): 動けない。回避の無敵で抜けられる
-  if (P.frzT > 0) mx = my = 0; // 凍結(雪華の女王の氷の槍): 歩けない。回避の無敵では解けない(回避の移動とスキルは使える)
+  if (P.frzT > 0) mx = my = 0; // 凍結(凍傷が上限に達した): 歩けない。回避・防御スキル・E・Q・攻撃もできない(defHeld・atkLock)
   P.moving = mx !== 0 || my !== 0;
   if (P.moving) { P.dir = [mx, my]; if (mx) P.facing = mx > 0 ? 1 : -1; }
   const aim = mouseAimPt();
@@ -284,16 +298,17 @@ function breakCombo() {
   S.combo = 0; S.comboT = 0;
 }
 // 自分の凍傷・出血(敵の技から)。どちらも最後に受けてから DATA.debuff.pDur 秒で全部消える
-//   凍傷: 1スタックにつき移動速度 −frostSlow(最大 ×0.2)。減速を受けない状態(不屈)では付かない
+//   凍傷: 1スタックにつき移動速度 −pFrostSlow。pFrostMax に達すると凍結(pFrzT 秒)して 0 に戻る。凍結の間は付かない。減速を受けない状態(不屈)では付かない
 //   出血: 1スタックにつき 1秒ごとに 最大HP × pBleed(最大 pBleedMax スタック)。防御力・シールドでは減らない
-const playerFrostMul = () => Math.max(0.2, 1 - DATA.debuff.frostSlow * P.frost);
+const playerFrostMul = () => Math.max(0.2, 1 - DATA.debuff.pFrostSlow * P.frost);
 function frostPlayer(n) {
-  if (!(n > 0) || P.invT > 0 || P.dead || clsSlowImmune()) return;
-  const was = P.frost;
-  P.frost = Math.min(Math.round(0.8 / DATA.debuff.frostSlow), P.frost + n); P.frostT = DATA.debuff.pDur * CHAOS.debuff;
+  if (!(n > 0) || P.invT > 0 || P.dead || P.frzT > 0 || clsSlowImmune()) return;
+  const D = DATA.debuff, was = P.frost;
+  P.frost = Math.min(D.pFrostMax, P.frost + n); P.frostT = D.pDur * CHAOS.debuff;
   burst(P.x, P.y - 4, 6 + n * 3, ['#bff4ff', '#ffffff', '#7ad7ff'], { sp: 50, glow: true, life: 0.4 }); // 霜が弾ける
-  if (Math.floor(was / 4) < Math.floor(P.frost / 4)) { addRing(P.x, P.y, 14, '#9ff7ff', { life: 0.3 }); AudioMan.frost(); } // 4スタックごとに凍みる音
   S.hudDirty = true;
+  if (P.frost >= D.pFrostMax) { P.frost = 0; P.frostT = 0; freezePlayer(D.pFrzT); return; } // 上限: 凍りついて 0 に戻る
+  if (Math.floor(was / 4) < Math.floor(P.frost / 4)) { addRing(P.x, P.y, 14, '#9ff7ff', { life: 0.3 }); AudioMan.frost(); } // 4スタックごとに凍みる音
 }
 // 減速(粘液・スロウタイム・時の歪み): k = 移動速度の倍率(重なったら強い方)。cd: クールダウンの回復も遅くする。減速を受けない状態(不屈)では付かない
 function slowPlayer(k, t, cd) {
@@ -302,12 +317,60 @@ function slowPlayer(k, t, cd) {
   P.slowT = Math.max(P.slowT, t);
   if (cd) P.cdSlowT = Math.max(P.cdSlowT, t);
 }
-// 凍結(雪華の女王の氷の槍): t 秒 歩けない。減速を受けない状態(不屈)では付かない
+// 凍結(凍傷が上限に達した): t 秒、行動不能(歩く・回避・防御スキル・E・Q)・攻撃不能(atkLock)。凍結の間は凍傷が付かない
 function freezePlayer(t) {
-  if (P.invT > 0 || P.dead || clsSlowImmune()) return;
+  if (P.dead) return;
   P.frzT = Math.max(P.frzT, t * CHAOS.debuff);
-  addRing(P.x, P.y, 12, '#9ff7ff', { life: 0.3 }); burst(P.x, P.y - 2, 14, ['#ffffff', '#bff4ff', '#7ad7ff'], { sp: 60, glow: true, life: 0.4 }); AudioMan.frost();
+  addRing(P.x, P.y, 12, '#9ff7ff', { life: 0.3 }); addRing(P.x, P.y, 22, '#3a6a7a', { life: 0.4 }); burst(P.x, P.y - 2, 14, ['#ffffff', '#bff4ff', '#7ad7ff'], { sp: 60, glow: true, life: 0.4 }); AudioMan.frost(); AudioMan.crush(); // 外の輪は暗い色(光の層で白く飛ばさない)
+  S.hudDirty = true;
+  hint('pfrz', _t('凍結'), _t('凍傷がたまりきると凍りつき、少しの間 動けず、攻撃もできない'));
 }
+// 痺れ(雷鳴の雲海): 1スタックにつきクールダウンの回復 −numbCd(武器の攻撃間隔と E・Q)。numbMax に達すると麻痺して 0 に戻る。麻痺の間は付かない
+function numbPlayer(n) {
+  if (!(n > 0) || P.invT > 0 || P.dead || P.paraT > 0) return;
+  const D = DATA.debuffStage;
+  P.numb = Math.min(D.numbMax, P.numb + n); P.numbT = DATA.debuff.pDur * CHAOS.debuff;
+  for (let i = 0; i < 2 + Math.min(4, n); i++) { const a = rand(0, TAU), r = rand(6, 12); bolts.push({ x0: P.x, y0: P.y - 4, x1: P.x + Math.cos(a) * r, y1: P.y - 4 + Math.sin(a) * r, t: 0, life: 0.12, w: 1, jit: 2, gcol: '#6a5a14' }); } // 体を走る火花(光は暗い黄色: 体を白く飛ばさない)
+  AudioMan.zap(); S.hudDirty = true;
+  if (P.numb >= D.numbMax) { P.numb = 0; P.numbT = 0; paralyzePlayer(D.paraT); return; } // 上限: 麻痺して 0 に戻る
+  hint('pnumb', _t('痺れ'), _t('クールダウンの回復が遅くなる。たまりきると麻痺して、しばらく攻撃できない'));
+}
+// 麻痺(痺れが上限に達した): t 秒、攻撃不能(atkLock。歩く・回避はできる)。E・Q のクールダウンが最初からになる(麻痺の間も回復する)
+function paralyzePlayer(t) {
+  if (P.dead) return;
+  P.paraT = Math.max(P.paraT, t * CHAOS.debuff);
+  clsResetSkillCd();
+  for (let i = 0; i < 5; i++) { const a = TAU / 5 * i + rand(-0.3, 0.3), r = rand(10, 15); bolts.push({ x0: P.x + Math.cos(a) * 5, y0: P.y - 4 + Math.sin(a) * 5, x1: P.x + Math.cos(a) * r, y1: P.y - 4 + Math.sin(a) * r, t: 0, life: 0.15, w: 1, jit: 2, gcol: '#6a5a14' }); } // 体から外へ散る稲妻(体は隠さない)
+  addRing(P.x, P.y, 20, '#8a7a24', { w: 1, life: 0.35 }); addFlash(P.x, P.y, 30, '#6a5a14', 0.2); AudioMan.zap(); AudioMan.thud(); // 光の層は色で明るさが決まるので暗い黄色(体を白く飛ばさない)
+  S.hudDirty = true;
+  hint('ppara', _t('麻痺'), _t('しばらく攻撃できない(歩く・回避はできる)。E・Q のクールダウンも最初からになる'));
+}
+// 砂塵(陽炎の砂海): 1スタックにつき命中率 −dustHit(dustMax まで)
+function dustPlayer(n) {
+  if (!(n > 0) || P.invT > 0 || P.dead) return;
+  const D = DATA.debuffStage;
+  P.dust = Math.min(D.dustMax, P.dust + n); P.dustT = DATA.debuff.pDur * CHAOS.debuff;
+  burst(P.x, P.y - 4, 8 + n * 3, ['#e8c88a', '#c8a060', '#fff0c8'], { sp: 55, life: 0.45, drag: 2 }); // 砂が顔にかかる
+  AudioMan.sand(); S.hudDirty = true;
+  hint('pdust', _t('砂塵'), _t('攻撃が外れやすくなる(外れると、当たったときの効果も出ない)'));
+}
+// 衰弱(木漏れ日の森): 1スタックにつき攻撃力 −weakAtk(weakMax まで。与えるダメージに掛ける)
+function weakPlayer(n) {
+  if (!(n > 0) || P.invT > 0 || P.dead) return;
+  const D = DATA.debuffStage;
+  P.weak = Math.min(D.weakMax, P.weak + n); P.weakT = DATA.debuff.pDur * CHAOS.debuff;
+  for (let i = 0; i < 6 + n * 2; i++) part(P.x + rand(-5, 5), P.y - 8 + rand(-3, 3), rand(-12, 12), rand(10, 30), rand(0.4, 0.6), pick(['#8aa070', '#5a6a48', '#c8d8a0']), { drag: 1.5 }); // 力が抜けて落ちる胞子
+  AudioMan.drain(); S.hudDirty = true;
+  hint('pweak', _t('衰弱'), _t('与えるダメージが下がる。受けないでいると消える'));
+}
+// 攻撃不能(凍結・麻痺): 武器の攻撃が止まり、E・Q を使えず、攻撃が当たらない(hitEnemy)
+const atkLock = () => P.frzT > 0 || P.paraT > 0;
+// クールダウンの回復の速さ(武器の攻撃間隔と E・Q): スロウタイム・時の歪みは ×cdRate、痺れは 1スタックにつき −numbCd(掛け算)
+const cdRateK = () => (P.cdSlowT > 0 ? DATA.debuff.cdRate : 1) * Math.max(0, 1 - DATA.debuffStage.numbCd * P.numb);
+// 命中率: 砂塵 1スタックにつき −dustHit、暗闇の間 −darkHit(足し算)。外れると当たったときの効果も出ない(hitEnemy)
+const hitRate = () => Math.max(0, 1 - DATA.debuffStage.dustHit * P.dust - (P.darkT > 0 ? DATA.debuffTomb.darkHit : 0));
+// 衰弱: 与えるダメージの倍率(hitEnemy。継続ダメージには掛けない)
+const weakMul = () => Math.max(0, 1 - DATA.debuffStage.weakAtk * P.weak);
 function bleedPlayer(n) {
   if (!(n > 0) || P.invT > 0 || P.dead) return;
   if (P.bleed <= 0) P.bleedTick = 1;
@@ -334,7 +397,7 @@ function poisonPlayer(n) {
   AudioMan.poison(); S.hudDirty = true;
   hint('ppoison', _t('毒'), _t('最大HP が下がる。受けないでいるか、肉を拾うと消える'));
 }
-// 暗闇(王墓): t 秒、周りが暗くなり(墨だまりと同じ。画面の端も少し暗くなる)、敵の攻撃の予告が見えない。また受けると t 秒に戻る
+// 暗闇(王墓): t 秒、周りが暗くなり(墨だまりと同じ。画面の端も少し暗くなる)、敵の攻撃の予告が見えない。命中率 −darkHit(hitRate)。また受けると t 秒に戻る
 function darkPlayer(t) {
   if (!(t > 0) || P.invT > 0 || P.dead) return;
   const was = P.darkT > 0;
@@ -344,12 +407,13 @@ function darkPlayer(t) {
     addRing(P.x, P.y, 26, '#7a3ab0', { r0: 40, w: 2, life: 0.35 }); AudioMan.blind();
   }
   S.hudDirty = true;
-  hint('pdark', _t('暗闇'), _t('周りが暗くなり、攻撃の予告が見えない'));
+  hint('pdark', _t('暗闇'), _t('周りが暗くなり、攻撃の予告が見えない。自分の攻撃も外れやすくなる'));
 }
-// 自分の状態異常を全て消す(食べ物でデバフ解除): 炎上・凍傷・出血・減速・スロウタイム・凍結・疲労・毒・暗闇。消えたものがあれば白緑の光
+// 自分の状態異常を全て消す(食べ物でデバフ解除): 炎上・凍傷・出血・減速・スロウタイム・凍結・疲労・毒・暗闇・痺れ・麻痺・砂塵・衰弱。消えたものがあれば白緑の光
 function cleansePlayer() {
-  const had = P.burnT > 0 || P.frost > 0 || P.bleed > 0 || P.slowT > 0 || P.cdSlowT > 0 || P.frzT > 0 || P.fatigueT > 0 || P.poison > 0 || P.darkT > 0, pz = P.poison > 0;
+  const had = P.burnT > 0 || P.frost > 0 || P.bleed > 0 || P.slowT > 0 || P.cdSlowT > 0 || P.frzT > 0 || P.fatigueT > 0 || P.poison > 0 || P.darkT > 0 || P.numb > 0 || P.paraT > 0 || P.dust > 0 || P.weak > 0, pz = P.poison > 0;
   P.burnT = 0; P.frost = 0; P.frostT = 0; P.bleed = 0; P.bleedT = 0; P.slowT = 0; P.cdSlowT = 0; P.frzT = 0; P.fatigueT = 0; P.poison = 0; P.poisonT = 0; P.darkT = 0;
+  P.numb = 0; P.numbT = 0; P.paraT = 0; P.dust = 0; P.dustT = 0; P.weak = 0; P.weakT = 0;
   if (pz) recalc(); // 毒で下がった最大HP を戻す
   if (!had) return;
   S.hudDirty = true;
@@ -365,6 +429,23 @@ function updFrostBleed(dt) {
     P.darkT -= dt;
     if (Math.random() < dt * 16) { const a = rand(0, TAU), r = rand(6, 14); part(P.x + Math.cos(a) * r, P.y + Math.sin(a) * r * 0.7, -Math.sin(a) * 18, Math.cos(a) * 12 - 6, 0.6, pick(['#1a0a2a', '#2a1240', '#3a1a5a']), { drag: 1, sz: pick([1, 2]) }); }
     if (P.darkT <= 0) { P.darkT = 0; S.hudDirty = true; }
+  }
+  if (P.paraT > 0) { // 麻痺: 体に稲妻がまとわりつく
+    P.paraT -= dt;
+    if (Math.random() < dt * 14) { const a = rand(0, TAU), r = rand(5, 11); bolts.push({ x0: P.x + rand(-3, 3), y0: P.y - 6 + rand(-3, 3), x1: P.x + Math.cos(a) * r, y1: P.y - 4 + Math.sin(a) * r, t: 0, life: 0.08, w: 1, jit: 2, gcol: '#6a5a14' }); }
+    if (P.paraT <= 0) { P.paraT = 0; S.hudDirty = true; }
+  }
+  if (P.numb > 0) { // 痺れ: 積むほど小さな火花が散る
+    if ((P.numbT -= dt) <= 0) { P.numb = 0; P.numbT = 0; S.hudDirty = true; }
+    else if (Math.random() < dt * (1 + P.numb * 0.4)) part(P.x + rand(-5, 5), P.y - 6 + rand(-4, 4), rand(-20, 20), rand(-20, 5), 0.18, pick(['#fff27a', '#ffffff']), { glow: true, drag: 2 });
+  }
+  if (P.dust > 0) { // 砂塵: 体のまわりを砂が流れる
+    if ((P.dustT -= dt) <= 0) { P.dust = 0; P.dustT = 0; S.hudDirty = true; }
+    else if (Math.random() < dt * (2 + P.dust)) part(P.x + rand(-7, 7), P.y - 4 + rand(-6, 4), rand(14, 28) * pick([-1, 1]), rand(-4, 4), 0.4, pick(['#e8c88a', '#c8a060']), { drag: 1.5 });
+  }
+  if (P.weak > 0) { // 衰弱: 力が抜ける(くすんだ胞子が落ちる)
+    if ((P.weakT -= dt) <= 0) { P.weak = 0; P.weakT = 0; S.hudDirty = true; }
+    else if (Math.random() < dt * (1.5 + P.weak * 0.3)) part(P.x + rand(-5, 5), P.y - 8 + rand(-2, 2), rand(-4, 4), rand(8, 16), 0.6, pick(['#8aa070', '#5a6a48']), { drag: 1 });
   }
   if (P.frost > 0) {
     if ((P.frostT -= dt) <= 0) { P.frost = 0; burst(P.x, P.y, 10, ['#bff4ff', '#ffffff'], { sp: 40, life: 0.3 }); S.hudDirty = true; } // 溶けて消える
@@ -534,7 +615,7 @@ function orgOf(p, hk = '') {
 
 function updWeapons(dt) {
   // クールダウン(P.cdMul)は全ての武器と E / Q に、攻撃速度(P.atkSpd)は全ての武器の通常攻撃にだけ効く(E / Q には効かない)
-  const cdt = dt * (P.cdSlowT > 0 ? DATA.debuff.cdRate : 1); // スロウタイム中はCD回復が遅い
+  const cdt = atkLock() ? 0 : dt * cdRateK(); // スロウタイム・痺れの間は CD の回復が遅い / 凍結・麻痺の間は攻撃が出ない(回り続ける刃・オーラは hitEnemy で当たらない)
   for (const k in P.weapons) weaponStep(k, P.weapons[k], dt, cdt, P_ORG);
 }
 // 武器 k を dt 進める(攻撃間隔 → 攻撃、時間差の攻撃、回り続ける刃、オーラ)
@@ -632,7 +713,7 @@ function weaponFire(k, w, st, o) {
       let healed = 0;
       forEachNear(o.x, o.y, st.radius * P.area, e => {
         hitEnemy(e, st.dmg, { src: k, noNum: Math.random() < 0.5, ang: Math.atan2(e.y - o.y, e.x - o.x), kb: 6 });
-        if (w.evo && healed < 5) { heal(0.4, true); healed++; }
+        if (w.evo && healed < 5 && missed !== e) { heal(0.4, true); healed++; } // 外れた命中では回復しない
       });
       return true;
     }
@@ -712,7 +793,7 @@ function spawnHole(x, y, st, evo) {
 // 敵の炎上: 燃やすたびに別々の炎上として積む(スタック)。perSec = 1秒あたりの基礎ダメージ(攻撃力を掛ける前)
 // 0.5秒ごとに、残っている炎上の合計を出どころごとにまとめて与える。1体あたり最大 40 個
 function addBurn(e, perSec, dur = DATA.debuff.burnDur, src = 'fire') {
-  if (!(perSec > 0) || e.dead || e.prop) return;
+  if (!(perSec > 0) || e.dead || e.prop || missed === e) return; // 外れた攻撃(砂塵・暗闇)では付かない
   dur += clsBurnDur(); // クラスの持続の追加(パイロマンサー)
   const b = e.burns || (e.burns = []);
   b.push({ v: perSec, t: dur, src });
@@ -722,7 +803,7 @@ function addBurn(e, perSec, dur = DATA.debuff.burnDur, src = 'fire') {
 }
 // 敵の出血: n スタック積み、持続を戻す。上限と持続の追加はクラスが決める(上限が無いクラスは無制限)
 function addBleed(e, n) {
-  if (!(n > 0) || e.dead || e.prop) return;
+  if (!(n > 0) || e.dead || e.prop || missed === e) return; // 外れた攻撃(砂塵・暗闇)では付かない
   e.bleed = Math.min(clsBleedCap(), (e.bleed || 0) + n);
   e.bleedT = DATA.bleed.dur + clsBleedDur();
 }
@@ -757,7 +838,7 @@ function sweep(a, st, flip, o, org = P_ORG) {
     diff = Math.atan2(Math.sin(diff), Math.cos(diff));
     if (Math.abs(diff) > o.arc) return;
     hitEnemy(e, st.dmg, { src: o.src, ang: a, kb: o.kb, col: o.col, el });
-    if (!e.prop) hits.push(e);
+    if (!e.prop && missed !== e) hits.push(e); // 外れた敵には追撃・シールドなし
   });
   if (hits.length && o.evo) timedShield(1, 5); // 聖剣
   AudioMan.slash();
@@ -788,7 +869,7 @@ function doSlash(a, st, evo, flip, org = P_ORG, w = P.weapons.katana) {
     diff = Math.atan2(Math.sin(diff), Math.cos(diff));
     if (Math.abs(diff) > KATANA_ARC) return;
     hitEnemy(e, st.dmg, { src: 'katana', ang: a, kb: 55, col: '#ff8a9a', el });
-    if (!e.prop) hits++;
+    if (!e.prop && missed !== e) hits++; // 外れた斬撃は村正の数に数えない
   });
   // 鬼神・村正: 刀が CUT_EVERY 回当たるごとに、一閃の切り裂き(CD CUT_CD 秒。CD 中は CUT_EVERY で止めて待ち、明けた後の命中で出る)
   if (evo && hits && w) {
@@ -939,6 +1020,7 @@ function updProjs(dt) {
       let dmg = p.dmg;
       if (p.focus) { if (e.fcId !== p.focus) { e.fcId = p.focus; e.fcN = 0; } dmg *= 1 + Math.min(0.5, 0.05 * e.fcN++); } // 集中砲火
       hitEnemy(e, dmg, { src: p.src, ang, kb: p.kind === 'axe' ? 50 : 22, col: p.col, el: p.el, eHit: p.eHit, forceCrit: p.forceCrit, cl: p.cl });
+      if (missed === e) return; // 外れ(砂塵・暗闇)・攻撃不能: 弾はそのまま抜ける(貫通を減らさない。当たったときの効果・爆発もない)
       if (p.onHit) p.onHit(e);
       if (p.dbl && p.pierce > 0 && !e.dead) { p.pierce--; tenkyuEcho(e, dmg, ang, { src: p.src, col: p.col, el: p.el, eHit: p.eHit, cl: p.cl }); } // 天弓: 二重ヒット(貫通を1消費)
       if (p.burn) addBurn(e, p.burn, 3, p.src);
@@ -1020,7 +1102,7 @@ function updZones(dt) {
       if (z.tick <= 0) {
         z.tick = 0.25;
         forEachNear(z.x, z.y, z.r, e => {
-          if (z.dmg) hitEnemy(e, z.dmg, { src: 'blizzard', noNum: Math.random() < 0.6, col: '#bff4ff', frost: true });
+          if (z.dmg) hitEnemy(e, z.dmg, { src: 'blizzard', noNum: Math.random() < 0.6, col: '#bff4ff', frost: true }); else rollHit(e); // ダメージのない吹雪も外れる
           if (z.maxFrost) addFrost(e, mageFrostCap(), mageFrostCap()); else addFrost(e, 1, 10); // maxFrost: 絶対零度
         });
       }
@@ -1085,7 +1167,7 @@ function updZones(dt) {
             if (e.prop) { killEnemy(e); return; }
             const dealt = hitEnemy(e, z.dmg, { src: 'gspark', ang: Math.atan2(e.y - z.y, e.x - z.x), kb: 30, col: '#9fd8ff', el, eHit: true, cl: z.cl });
             if (dealt && !e.dead) addShock(e, dealt, sk.shock);
-            if (z.stun && !e.dead) e.stun = Math.max(e.stun || 0, e.boss ? sk.bossStun : sk.stun); // 超電磁
+            if (z.stun && dealt && !e.dead) e.stun = Math.max(e.stun || 0, e.boss ? sk.bossStun : sk.stun); // 超電磁(外れた敵は止まらない)
           });
           for (let i = 0; i < 8; i++) { const a = i * TAU / 8 + rand(-0.2, 0.2), L = z.boomR * rand(1, 1.6); bolts.push({ x0: z.x, y0: z.y, x1: z.x + Math.cos(a) * L, y1: z.y + Math.sin(a) * L, t: 0, life: 0.2, w: 1 }); }
           addFlash(z.x, z.y, z.boomR * 2.2, '#9fd8ff', 0.22); addRing(z.x, z.y, z.boomR, '#ffffff', { w: 2, life: 0.35 });
@@ -1175,7 +1257,7 @@ function updZones(dt) {
       z.ices = z.ices.filter(ic => !ic.done || ic.t < ICE_FALL + 0.4);
       if (z.left > 0 || z.ices.length) z.dur = Math.max(z.dur, z.t + 0.1); // 降り終わるまで残す
     } else if (z.kind === 'frostpatch') { // 凍てつく大地: 触れた敵に凍傷 +1 / 0.5秒
-      if (z.tick <= 0) { z.tick = 0.5; forEachNear(z.x, z.y, z.r, e => { if (!e.prop) addFrost(e, 1, 10); }); }
+      if (z.tick <= 0) { z.tick = 0.5; forEachNear(z.x, z.y, z.r, e => { if (!e.prop && rollHit(e)) addFrost(e, 1, 10); }); } // 効果だけの攻撃も外れる
     } else if (z.kind === 'ddust') { // ダイヤモンドダスト: 自分についてくる細氷の領域
       z.x = P.x; z.y = P.y;
       if (z.tick <= 0) {
@@ -1201,7 +1283,7 @@ function updZones(dt) {
       if (Math.random() < dt * 20) part(z.x + rand(-z.r, z.r), z.y + rand(-z.r, z.r) * 0.6, 0, -10, 0.5, pick(['#bff4ff', '#ffffff']), { glow: true });
       if (z.tick <= 0) {
         z.tick = 0.3;
-        forEachNear(z.x, z.y, z.r, e => { if (!e.prop) addFrost(e, 1, mageFrostCap()); });
+        forEachNear(z.x, z.y, z.r, e => { if (!e.prop && rollHit(e)) addFrost(e, 1, mageFrostCap()); }); // 効果だけの攻撃も外れる
       }
     } else if (z.kind === 'hole') {
       const R = z.r * Math.min(1, z.t * 5);
@@ -1235,11 +1317,27 @@ function updZones(dt) {
 // ============================================================
 // ダメージ・撃破
 // ============================================================
+// 直前の hitEnemy が外れた(または攻撃不能だった)敵。当たったときの効果(addBurn・addBleed・addFrost・mageAddEl)はこれを見て付けない
+let missed = null;
+// ダメージのない、効果だけの攻撃(ダメージ 0 の吹雪など)の命中判定。外れ・攻撃不能なら missed = e にして false
+function rollHit(e) {
+  missed = null;
+  if (atkLock() || Math.random() >= hitRate()) { missed = e; return false; }
+  return true;
+}
+// o.dot: 継続ダメージ(外れない・衰弱を掛けない)/ o.item: アイテムの効果(爆弾。外れず、攻撃不能の間も当たる)
 function hitEnemy(e, base, o = {}) {
+  missed = null;
   if (e.dead) return 0;
+  if (!o.dot && !o.item && atkLock()) { missed = e; return 0; } // 凍結・麻痺: 攻撃が当たらない(篝火も壊せない)
   if (e.prop) { killEnemy(e, o); return 0; }
   if (e.flying || e.invuln) return 0; // 空を飛んでいるボス(カオスドラゴンの空襲)・変身中の死神には当たらない
-  let dmg = (base + clsHitBonus(e, o)) * dmgMul() * clsDmgTaken(e, o) * wsDmgTaken(e) * (e.takeK || 1); // 祈りの一撃などの追加 / 印・凍結・侵蝕などで敵が受けるダメージが増える / takeK: ボスの状態(岩の鎧・ひるみ・分裂など)
+  if (!o.dot && !o.item && Math.random() >= hitRate()) { // 砂塵・暗闇: 外れ。ダメージも当たったときの効果もない
+    missed = e;
+    if (!o.noNum && !o.quiet) addFloat(e.x, e.y - e.r - 3, 'MISS', '#a8a8b8');
+    return 0;
+  }
+  let dmg = (base + clsHitBonus(e, o)) * dmgMul() * clsDmgTaken(e, o) * wsDmgTaken(e) * (e.takeK || 1) * (o.dot ? 1 : weakMul()); // 祈りの一撃などの追加 / 印・凍結・侵蝕などで敵が受けるダメージが増える / takeK: ボスの状態(岩の鎧・ひるみ・分裂など)/ 衰弱
   if (e.frost > 0 && P.weapons.blizzard && P.weapons.blizzard.evo) dmg *= 1 + 0.01 * e.frost;
   const crit = o.forceCrit || (!o.noCrit && Math.random() < critRate() + clsCritBonus(e));
   if (crit) dmg *= P.critMul + clsCritDmgBonus(e); else if (P.uq.exec) dmg *= 0.8; // 処刑人の
@@ -1291,7 +1389,7 @@ function killEnemy(e, o = {}) {
     AudioMan.kill();
     return;
   }
-  S.kills++;
+  S.kills++; S.cxpK += rewMul(); // クラス経験値は倒したときの報酬の倍率で数える
   S.combo++; S.comboT = DATA.player.comboTime; S.bestCombo = Math.max(S.bestCombo, S.combo);
   if (S.combo % 100 === 0) { UI.announce(S.combo + ' COMBO!!', _t`ボーナス +${Math.round(S.combo / 10)}G`); addGold(S.combo / 10); }
   burst(e.x, e.y, e.elite ? 40 : 7, [col[0], col[1], '#ffffff'], { sp: e.elite ? 120 : 60, up: 15, g: 120, drag: 3 });
@@ -3456,16 +3554,16 @@ function snowDance(e, ai) {
     shake(4); AudioMan.frost(); AudioMan.thud();
   });
 }
-// 氷の槍(激昂): 女王からプレイヤーへの帯(長さ 240・幅 10)が 0.9秒追い、0.3秒止まる → 氷の槍(速さ 300)。×1.2・凍傷 +3、当たると 1秒 凍結(歩けない)
+// 氷の槍(激昂): 女王からプレイヤーへの帯(長さ 240・幅 10)が 0.9秒追い、0.3秒止まる → 氷の槍(速さ 300)。×1.2・凍傷 +6(凍結は凍傷が上限に達したときだけ)
 function iceLance(e, ai) {
   const w = { kind: 'line', x: e.x, y: e.y, a: Math.atan2(P.y - e.y, P.x - e.x), len: 240, w: 10, t: 0, life: 1.2 };
   w.track = q => { if (q.t < 0.9) { q.x = e.x; q.y = e.y; q.a = Math.atan2(P.y - e.y, P.x - e.x); } };
   pushWarn(w);
   AudioMan.charge(1.2);
   later(ai, 1.2, () => {
-    eprojs.push({ kind: 'ispear', x: w.x, y: w.y, vx: Math.cos(w.a) * 300, vy: Math.sin(w.a) * 300, dmg: e.dmg * 1.2 * (S.eatk ?? 1), frost: 3, freeze: 1, life: w.len / 300, t: 0, r: 5 * CHAOS.area });
+    eprojs.push({ kind: 'ispear', x: w.x, y: w.y, vx: Math.cos(w.a) * 300, vy: Math.sin(w.a) * 300, dmg: e.dmg * 1.2 * (S.eatk ?? 1), frost: 6, life: w.len / 300, t: 0, r: 5 * CHAOS.area });
     burst(w.x, w.y, 14, SNOW, { sp: 90, glow: true, life: 0.35 }); AudioMan.spearThrow(); AudioMan.frost();
-    hint('lance', _t('氷の槍'), _t('当たると 1秒 凍結して歩けなくなる(回避は使える)'));
+    hint('lance', _t('氷の槍'), _t('当たると凍傷が大きくたまる(たまりきると凍結する)'));
   });
 }
 
@@ -4652,7 +4750,7 @@ function onBossDeath(e) {
   // 2体のボス(カオス: 双王): 両方倒すまで次へ進まない
   const rest = (S.bosses || []).filter(b => b !== e && !b.dead);
   if (rest.length) {
-    S.bosses = rest; S.boss = rest[0]; UI.bossBar(rest[0]); S.bossKills++; S.twinFinal = S.twinFinal || e.final;
+    S.bosses = rest; S.boss = rest[0]; UI.bossBar(rest[0]); S.bossKills++; S.cxpB += rewMul(); S.twinFinal = S.twinFinal || e.final;
     burst(e.x, e.y, 90, [e.col, '#ffd23f', '#ffffff'], { sp: 180, glow: true, life: 1.2 }); addFlash(e.x, e.y, 200, '#ffd23f', 0.8); shake(10); AudioMan.boom();
     UI.announce(_t('1体 撃破!'), _t('もう1体を倒せ')); // 宝箱はフェーズのクリア(2体目)で
     return;
@@ -4671,7 +4769,7 @@ function onBossDeath(e) {
   AudioMan.boom(); AudioMan.chest();
   eprojs = []; warns = []; hazards = []; bfx = []; P.push = null; P.current = null; P.rootT = 0; S.tstop = 0; S.madClock = null; S.rewind = 0;
   P.chain = null; S.cine = null; S.shadows = []; // 影の王: 鎖・影
-  S.bossKills++;
+  S.bossKills++; S.cxpB += rewMul(); // クラス経験値は倒したときの報酬の倍率で数える
   if (S.mode === 'arena') return arenaBossDown(e);
   if (CHAOS.bossLv) { S.elv += CHAOS.bossLv; UI.enemyLvUp(); } // カオス: ボスを倒すたびに敵Lv アップ
   const rk = S.tier; // 撃破報酬: tier で数える(通常モード・エスカレーション)
@@ -4842,7 +4940,7 @@ function updEprojs(dt0) {
     if (near < Math.pow(p.r + 3, 2)) {
       if (P.invT > 0) continue;
       if (!p.keep && clsBlockProj()) { burst(p.x, p.y, 8, ['#fff27a', '#ffffff'], { sp: 60, glow: true, life: 0.25 }); eprojs.splice(i, 1); continue; } // 静電気
-      if (hurtPlayer(p.dmg)) { if (p.burn) burnPlayer(p.burn); if (p.sta) drainSta(p.sta); if (p.frost) frostPlayer(p.frost); if (p.freeze) freezePlayer(p.freeze); if (p.dark) darkPlayer(p.dark); if (p.poison) poisonPlayer(p.poison); if (p.taint) shadowTaint(); if (p.pushK) pushPlayer(Math.atan2(p.vy, p.vx), p.pushK, 0.2); } // 火の玉: 炎上 / 海淵の弾: スタミナ / 霊峰の弾: 凍傷・氷の槍の凍結 / 王墓の弾: 暗闇・毒
+      if (hurtPlayer(p.dmg)) { if (p.burn) burnPlayer(p.burn); if (p.sta) drainSta(p.sta); if (p.frost) frostPlayer(p.frost); if (p.dark) darkPlayer(p.dark); if (p.poison) poisonPlayer(p.poison); if (p.taint) shadowTaint(); if (p.numb) numbPlayer(p.numb); if (p.dust) dustPlayer(p.dust); if (p.weak) weakPlayer(p.weak); if (p.pushK) pushPlayer(Math.atan2(p.vy, p.vx), p.pushK, 0.2); } // 火の玉: 炎上 / 海淵の弾: スタミナ / 霊峰の弾: 凍傷 / 王墓の弾: 暗闇・毒 / 痺れ・砂塵・衰弱
       if (p.keep) continue;
       const icy = p.frost > 0;
       if (p.dark) { burst(p.x, p.y, 14, ['#c79bff', '#7a3ab0', '#2a1240', '#ffffff'], { sp: 60, glow: true, life: 0.4 }); eprojs.splice(i, 1); continue; } // 闇の玉: 黒紫のしぶき
@@ -5105,7 +5203,7 @@ function updDrops(dt) {
       case 'bomb': {
         screenFlash(0.85, '#fff4d0'); shockAt(P.x, P.y, 2.5, 0.7); shake(12); hitstop(0.08); AudioMan.boom();
         addFlash(P.x, P.y, 300, '#ffb347', 0.8);
-        for (const e of enemies) if (!e.dead && !e.prop && onScreen(e.x, e.y, 10)) { if (e.boss || e.obj || e.owner || e.elite) hitEnemy(e, 250, { src: 'bomb', noCrit: true, noKill: e.elite }); else killEnemy(e, {}); } // ボス・ボスの出した物は一撃では壊れない / エリートは倒れない(HP 1 で残る)
+        for (const e of enemies) if (!e.dead && !e.prop && onScreen(e.x, e.y, 10)) { if (e.boss || e.obj || e.owner || e.elite) hitEnemy(e, 250, { src: 'bomb', noCrit: true, noKill: e.elite, item: true }); else killEnemy(e, {}); } // ボス・ボスの出した物は一撃では壊れない / エリートは倒れない(HP 1 で残る)
         UI.announce('BOOM!!', '');
         break;
       }
@@ -5210,6 +5308,7 @@ function arenaBossDown(e) {
   dropItem('chest', e.x, e.y - 14); // 装備宝箱
   A.idx++;
   if (A.idx >= cfg.order.length) { S.won = true; S.victoryT = 3.2; AudioMan.stopMusic(1.5); UI.announce('ARENA CLEAR!!', _t('全ボス撃破')); return; }
+  recalc(); // 報酬の倍率はラウンドの tier(2ラウンドごとに上がる)
   A.restT = cfg.rest; A.warned = false;
   UI.announce('ROUND ' + A.idx + ' CLEAR!', _t('報酬を拾って次に備えよ'));
   AudioMan.playMusic(DATA.stages[S.stage - 1].music);

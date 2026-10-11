@@ -90,9 +90,13 @@ const DATA = {
     shadowking: { name: '影の王 SHADOW KING',      hp: 2000, spd: 15, dmg: 20, r: 12, music: 'b_tomb1', col: '#a66bff', noTwin: true }, // 激昂で曲がボス2 に変わる / noTwin: 双王の相方に選ばれない
   },
   // 状態異常(プレイヤー): 粘液・スロウタイムの移動速度倍率 / スロウタイムのCD回復倍率 / 炎上
-  debuff: { slow: 0.6, cdRate: 0.5, burnTick: 0.5, burnDur: 3, burnHeal: 0.5, fatigueDur: 3, fatigue: 0.5, slowRegen: 0.5, frostSlow: 0.05, shockR: 60, pDur: 5, pBleed: 0.01, pBleedMax: 5 }, // burnHeal: 炎上中の HP回復の倍率 / slowRegen: スロウタイム・時の歪みの中のスタミナ回復・HP回復速度の倍率 / fatigueDur・fatigue: 疲労(スタミナを減らされた)の秒とスタミナ回復の倍率 / frostSlow: 凍傷1スタックあたりの減速(敵・自分) / shockR: 感電の連鎖距離 / pDur: 自分の凍傷・出血が消えるまでの秒 / pBleed: 自分の出血1スタックの毎秒ダメージ(最大HP の割合)
-  // 毒(王墓): poison = 1スタックの最大HP の減り(poisonMax スタックまで。最後に受けてから poisonDur 秒で全部消える)/ darkDur: 暗闇の秒
-  debuffTomb: { poison: 0.03, poisonMax: 20, poisonDur: 10, darkDur: 5 },
+  debuff: { slow: 0.6, cdRate: 0.5, burnTick: 0.5, burnDur: 3, burnHeal: 0.5, fatigueDur: 3, fatigue: 0.5, slowRegen: 0.5, frostSlow: 0.05, pFrostSlow: 0.03, pFrostMax: 20, pFrzT: 2, shockR: 60, pDur: 5, pBleed: 0.01, pBleedMax: 5 }, // burnHeal: 炎上中の HP回復の倍率 / slowRegen: スロウタイム・時の歪みの中のスタミナ回復・HP回復速度の倍率 / fatigueDur・fatigue: 疲労(スタミナを減らされた)の秒とスタミナ回復の倍率 / frostSlow: 敵の凍傷1スタックあたりの減速 / pFrostSlow・pFrostMax・pFrzT: 自分の凍傷1スタックあたりの減速・上限(上限で凍結して 0 に戻る)・凍結の秒(行動不能・攻撃不能) / shockR: 感電の連鎖距離 / pDur: 自分の凍傷・出血・痺れ・砂塵・衰弱が消えるまでの秒 / pBleed: 自分の出血1スタックの毎秒ダメージ(最大HP の割合)
+  // 毒(王墓): poison = 1スタックの最大HP の減り(poisonMax スタックまで。最後に受けてから poisonDur 秒で全部消える)/ darkDur: 暗闇の秒 / darkHit: 暗闇の間の命中率の減り
+  debuffTomb: { poison: 0.03, poisonMax: 20, poisonDur: 10, darkDur: 5, darkHit: 0.2 },
+  // 痺れ(雷鳴の雲海): 1スタックごとにクールダウンの回復 −numbCd(武器の攻撃間隔と E・Q)。numbMax で麻痺 paraT 秒(攻撃不能。歩く・回避はできる)して 0 に戻り、E・Q の CD が最初からになる
+  // 砂塵(陽炎の砂海): 1スタックごとに命中率 −dustHit(dustMax まで)/ 衰弱(木漏れ日の森): 1スタックごとに攻撃力 −weakAtk(weakMax まで。与えるダメージに掛ける)
+  //   どれも最後に受けてから debuff.pDur 秒で全部消える(カオス強化「蝕む呪い」で延びる。麻痺の秒も延びる)
+  debuffStage: { numbCd: 0.03, numbMax: 20, paraT: 5, dustHit: 0.05, dustMax: 10, weakAtk: 0.03, weakMax: 20 },
   // 敵の出血: 1スタックごとに毎秒 最大HP × bleedPct(ボス ×bleedBoss・エリート ×bleedElite)、bleedDur 秒
   bleed: { pct: 0.002, dur: 5, boss: 0.1, elite: 0.25 },
 
@@ -1455,6 +1459,8 @@ const DATA = {
   //   fog: フェーズが始まって start 秒たつと闇の霧(1秒ごとに HP −dmg、step 秒ごとに +dmg。防御力・シールドでは減らない)
   //   tierChaos: tier 1〜4 のカオス強化(そのステージをクリアするまでこの値で固定。開始の敵Lv は 1 + 深い闇 = 1 / 3 / 5 / 7。報酬はカオス強化のポイントから)
   //   esc: エスカレーションの各ステージ(全 tier)。waves = 0・60・120秒の間隔・上限(敵は 3種 → 5種 → 全種)/ add: 60秒で足す、同じ tier のもう一方のステージの敵の数 / rest: tier 4 のボスを倒してからラスボスまでの秒
+  //   tierRew: tier 1〜4 の報酬の倍率(獲得ゴールド・装備品質・宝箱品質・クラス経験値に掛ける。闘技場はラウンドの tier = 2ラウンドごと)
+  //   escRew: エスカレーションは tier が進むたびに +step(周回してからは +loopStep。max まで)/ firstClear: ステージ(通常モード)を初めてクリアしたときのゴールド(tier 1〜4)
   flow: {
     seg: 180,
     waves: [
@@ -1466,6 +1472,9 @@ const DATA = {
     fog: { start: 180, dmg: 1, step: 10 },
     tierChaos: [{}, { lvSpeed: 1, startLv: 1, bossLv: 1, spawn: 1 }, { lvSpeed: 2, startLv: 2, bossLv: 2, spawn: 2 }, { lvSpeed: 3, startLv: 3, bossLv: 3, spawn: 3 }],
     esc: { waves: [{ t: 0, interval: 0.7, max: 60 }, { t: 60, interval: 0.6, max: 100 }, { t: 120, interval: 0.5, max: 130 }], add: 2, rest: 8 },
+    tierRew: [1, 1.2, 1.4, 1.6],
+    escRew: { step: 0.2, loopStep: 0.1, max: 2 },
+    firstClear: [500, 2000, 5000, 10000],
   },
 
   // ---------- 闘技場(ボスラッシュ) ----------

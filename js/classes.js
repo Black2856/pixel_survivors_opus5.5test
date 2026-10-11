@@ -51,6 +51,15 @@ const ME = {
   aim: maxD => aimDir(maxD), tgt: R => aimPt(P.x, P.y, R, P.facing),
   cdCut(n) { P.sk.e.cd = Math.max(0, P.sk.e.cd - n); },
 };
+// 防御スキル(回避・ガードなど)のキーを押しているか。スキルの実行中と凍結の間(行動不能)は使えない
+const defHeld = () => (keys.Space || keys.TouchDef) && !P.act && !(P.frzT > 0);
+// 麻痺: E・Q のクールダウンを最初からにする(使ったときと同じ式。クラスごとの特別な式(居合の残心など)は使わない)
+function clsResetSkillCd() {
+  const sk = weaponSkill(), m = P.wm[P.mainW] || {}, q = DATA.classes[P.cls].q;
+  if (sk && sk.cd) P.sk.e.cd = P.sk.e.max = Math.max(1, sk.cd * (1 - cuV('e', 'cd')) * (1 - (m.cd || 0)) * P.cdMul);
+  if (q && q.cd) P.sk.q.cd = P.sk.q.max = Math.max(1, q.cd * (1 - cuV('q', 'cd')) * P.cdMul);
+  S.hudDirty = true;
+}
 // 半径 r 以内に敵が n 体以上いるか(自動発動の条件)。ボスは1体で条件を満たす
 function crowd(r, n) {
   let c = 0;
@@ -387,7 +396,7 @@ function slamWaves(X, a, x0, y0, k) {
       forEachNear(x, y, R, e => {
         if (e.prop) { killEnemy(e); return; }
         hitEnemy(e, dmg, { src: 'slam', ang: a.a, kb: fly ? 220 : 70, col: '#ffe9a0', el, eHit: true, cl: X.cl });
-        if (fly && !e.dead) e.stun = Math.max(e.stun || 0, 1.5); // 吹き飛ばし
+        if (fly && !e.dead && missed !== e) e.stun = Math.max(e.stun || 0, 1.5); // 吹き飛ばし(外れた敵は止まらない)
       });
       addRing(x, y, R, '#ffe9a0', { w: 2, life: 0.3 }); addFlash(x, y, R * 2.4, '#fff1d0', 0.25);
       burst(x, y, 18, ['#8a7a60', '#5a4a3a', '#ffe9a0', '#ffffff'], { sp: 110, up: 50, g: 180, life: 0.6 }); // 岩の破片と土煙
@@ -1243,7 +1252,7 @@ function holyPillar(X, pow) {
     forEachNear(x, y, R, e => {
       if (e.prop) { killEnemy(e); return; }
       hitEnemy(e, dmg, { src: 'hstrike', ang: Math.atan2(e.y - y, e.x - x), kb: 40, col: '#ffe38a', el, eHit: true, cl: X.cl });
-      if (mark && !e.dead) { e.stigmaT = S.time + sk.stigmaT; S.stigmaUntil = Math.max(S.stigmaUntil || 0, e.stigmaT); } // 聖痕
+      if (mark && !e.dead && missed !== e) { e.stigmaT = S.time + sk.stigmaT; S.stigmaUntil = Math.max(S.stigmaUntil || 0, e.stigmaT); } // 聖痕(外れた敵には付かない)
     });
     zones.push({ kind: 'pillar', x, y, r: R, t: 0, dur: 0.45, tick: 0 });
     if (X.sp('heal')) zones.push({ kind: 'lightrain', x, y, r: R, t: 0, dur: sk.rainT, tick: 0 }); // 光の雨
@@ -1318,7 +1327,7 @@ const CLASS_RT = {
       P.atkSpd = hasSp('trait', 'juu') && kiHigh() ? 1.25 : 1; // 明鏡止水: 剣気100以上の間 攻撃速度 +25%
       // 見切り(Space 長押しでガード)。構えた瞬間にスタミナ guardCost を消費する(連打でジャストを狙いやすくしないため)
       // 押し直すまで再び構えない / スタミナ不足・ガードブレイク中・スキル中は構えられない
-      const held = (keys.Space || keys.TouchDef) && !P.act;
+      const held = defHeld();
       if (held && !P.guard && !P.guardHeld && P.breakT <= 0) {
         if (P.sta >= c.guardCost) { staUse(c.guardCost); P.guard = true; P.guardT = 0; AudioMan.click(); }
         else { addFloat(P.x, P.y - 16, 'STAMINA', '#6a7a88'); }
@@ -1498,7 +1507,7 @@ const CLASS_RT = {
       P.shots = Math.round(P.stats.v.shots || 0) + (hasSp('passive', 'echo') && P.echoT > 0 ? 1 : 0); // 詠唱加速
       if (hasSp('passive', 'cap') && P.calmT >= 3) heal(2 * dt, true); // 瞑想(満タンで余った分は超過回復)
       // ブリンク(Space を押した瞬間)
-      const held = (keys.Space || keys.TouchDef) && !P.act;
+      const held = defHeld();
       if (held && !P.blinkHeld) { if (P.sta >= blinkCost()) mageBlink(); else addFloat(P.x, P.y - 16, 'STAMINA', '#6a7a88'); }
       P.blinkHeld = held;
       P.moveMul = 1;
@@ -1601,7 +1610,7 @@ const CLASS_RT = {
         if (Math.random() < 0.5) P.after = (P.after || []).concat([{ x: P.x, y: P.y, t: 0.1, f: P.facing }]).slice(-3);
         if (P.dash.t <= 0) { P.dash = null; P.focus = Math.min(max, P.focus + p.backFocus); burst(P.x, P.y + 6, 8, ['#8a8098', '#6a6078'], { sp: 40, up: 10, life: 0.3 }); }
       }
-      const held = (keys.Space || keys.TouchDef) && !P.act;
+      const held = defHeld();
       if (held && !P.backHeld && !P.dash) { if (P.sta >= backCost()) archerBackstep(); else addFloat(P.x, P.y - 16, 'STAMINA', '#6a7a88'); }
       P.backHeld = held;
       P.moveMul = P.dash ? 0 : 1;
@@ -1710,7 +1719,7 @@ const CLASS_RT = {
       const p = KN();
       P.breakT -= dt;
       // 大盾(Space 長押し)。構えた瞬間にスタミナ guardCost。押し直すまで再び構えない
-      const held = (keys.Space || keys.TouchDef) && !P.act;
+      const held = defHeld();
       if (held && !P.guard && !P.guardHeld && P.breakT <= 0) {
         if (P.sta >= p.guardCost) { staUse(p.guardCost); P.guard = true; P.guardT = 0; AudioMan.click(); }
         else addFloat(P.x, P.y - 16, 'STAMINA', '#6a7a88');
@@ -1834,7 +1843,7 @@ const CLASS_RT = {
         if (Math.random() < dt * 30) part(P.x + rand(-6, 6), P.y + rand(-4, 6), rand(-8, 8), -rand(20, 40), 0.45, pick(['#ff6a2a', '#ffc34a', '#b8261a']), { glow: true }); // 纏った炎
       }
       // 炎壁(Space): 押した瞬間に1回
-      const held = (keys.Space || keys.TouchDef) && !P.act;
+      const held = defHeld();
       if (held && !P.wallHeld) { if (P.sta >= wallCost()) pyroWall(); else addFloat(P.x, P.y - 16, 'STAMINA', '#6a7a88'); }
       P.wallHeld = held;
       P.moveMul = 1;
@@ -1942,8 +1951,8 @@ const CLASS_RT = {
         if (P.dash.t <= 0) P.dash = null;
       }
       const dc = S.decoy;
-      if (dc && dc.cryo) forEachNear(dc.x, dc.y, p.decoyR + 6, e => { if (!e.prop && !e.dead && !dc.hit.has(e.id)) { dc.hit.add(e.id); addFrost(e, p.decoyFrost, 10); part(e.x, e.y, 0, -15, 0.4, '#bff4ff', { glow: true }); } });
-      const held = (keys.Space || keys.TouchDef) && !P.act;
+      if (dc && dc.cryo) forEachNear(dc.x, dc.y, p.decoyR + 6, e => { if (!e.prop && !e.dead && !dc.hit.has(e.id)) { dc.hit.add(e.id); if (rollHit(e)) { addFrost(e, p.decoyFrost, 10); part(e.x, e.y, 0, -15, 0.4, '#bff4ff', { glow: true }); } } }); // 効果だけの攻撃も外れる
+      const held = defHeld();
       if (held && !P.mirrorHeld && !P.dash) { if (P.sta >= mirrorCost()) cryoMirror(); else addFloat(P.x, P.y - 16, 'STAMINA', '#6a7a88'); }
       P.mirrorHeld = held;
       P.moveMul = P.dash ? 0 : 1;
@@ -1951,7 +1960,7 @@ const CLASS_RT = {
     onHurt(dmg) {
       if (P.cryT > 0 && hasSp('passive', 'armor')) { // 冷気の反撃
         const p = CR();
-        forEachNear(P.x, P.y, p.counterR, e => { if (!e.prop) addFrost(e, p.counterFrost, 10); });
+        forEachNear(P.x, P.y, p.counterR, e => { if (!e.prop && rollHit(e)) addFrost(e, p.counterFrost, 10); }); // 効果だけの攻撃も外れる
         addRing(P.x, P.y, p.counterR, '#bff4ff', { w: 2, life: 0.3 });
       }
       return dmg;
@@ -2072,7 +2081,7 @@ const CLASS_RT = {
         }));
         if (P.dash.t <= 0) P.dash = null;
       }
-      const held = (keys.Space || keys.TouchDef) && !P.act;
+      const held = defHeld();
       if (held && !P.dashHeld && !P.dash) { if (P.sta >= dashCost()) electroDash(); else addFloat(P.x, P.y - 16, 'STAMINA', '#6a7a88'); }
       P.dashHeld = held;
       P.moveMul = P.dash ? 0 : 1;
@@ -2174,7 +2183,7 @@ const CLASS_RT = {
       }
       if (P.prayer > 0 && Math.random() < dt * 4 * Math.min(1, P.prayer / Math.max(1, prayCap()))) part(P.x + rand(-6, 6), P.y + rand(-2, 6), 0, -rand(15, 30), 0.6, pick(['#ffe38a', '#fff6d8']), { glow: true }); // 祈りの光
       // 聖域の祈り(Space)
-      const held = (keys.Space || keys.TouchDef) && !P.act;
+      const held = defHeld();
       if (held && !P.prayHeld) { if (P.sta >= prayCost()) clericPray(); else addFloat(P.x, P.y - 16, 'STAMINA', '#6a7a88'); }
       P.prayHeld = held;
       P.moveMul = 1;
@@ -2304,7 +2313,7 @@ const CLASS_RT = {
         }));
         if (P.dash.t <= 0) P.dash = null;
       }
-      const held = (keys.Space || keys.TouchDef) && !P.act;
+      const held = defHeld();
       if (held && !P.dashHeld && !P.dash) { if (P.sta >= p.dashCost) assassinDash(); else addFloat(P.x, P.y - 16, 'STAMINA', '#6a7a88'); }
       P.dashHeld = held;
       P.moveMul = P.dash ? 0 : P.pact ? 1 + q.spd * asPactK() : 1;
@@ -2424,7 +2433,7 @@ const CLASS_RT = {
         if (Math.random() < dt * 30) asMine(() => part(P.x + rand(-5, 5), P.y + rand(-6, 6), rand(-10, 10), -rand(5, 20), 0.4, pick(NEC_FX), { glow: true }));
         if (P.phase.t <= 0) { P.phase = null; necVolley(); }
       }
-      const held = (keys.Space || keys.TouchDef) && !P.act;
+      const held = defHeld();
       if (held && !P.phaseHeld && !P.phase) { if (P.sta >= necPhaseCost()) necPhase(); else addFloat(P.x, P.y - 16, 'STAMINA', '#6a7a88'); }
       P.phaseHeld = held;
       P.moveMul = P.phase ? 1 + p.phaseSpd : 1;
@@ -2513,7 +2522,7 @@ const CLASS_RT = {
         P.after = (P.after || []).concat([{ x: P.x, y: P.y, t: 0.05, f: P.facing }]).slice(-6);
         if (P.dash.t <= 0) P.dash = null;
       }
-      const held = (keys.Space || keys.TouchDef) && !P.act;
+      const held = defHeld();
       if (held && !P.ejectHeld && !P.dash) { if (P.sta >= astEjectCost()) astEject(); else addFloat(P.x, P.y - 16, 'STAMINA', '#6a7a88'); }
       P.ejectHeld = held;
       const slow = astSlow();
@@ -2628,7 +2637,7 @@ const CLASS_RT = {
       //   狂乱中はスタミナが 0 のまま(被弾でスタミナを得る固有効果があっても使えない)
       if (P.frenzy) P.sta = 0;
       if (P.firmT > 0) P.firmT = Math.max(0, P.firmT - dt);
-      const held = (keys.Space || keys.TouchDef) && !P.act;
+      const held = defHeld();
       if (held && !P.firmHeld && P.firmT <= 0) { if (P.sta >= bkFirmCost()) bkFirm(); else addFloat(P.x, P.y - 16, 'STAMINA', '#6a7a88'); }
       P.firmHeld = held;
       // 昂り: 段ごとに残り時間を数える
@@ -2787,7 +2796,7 @@ const CLASS_RT = {
         P.after = (P.after || []).concat([{ x: P.x, y: P.y, t: 0.12, f: P.facing, col: '#4a2e16' }]).slice(-4); // 跳んだ跡(暗い銅。明るいと光で塊に見える)
         if (P.dash.t <= 0) { P.dash = null; wmAgain(); } // 跳んだ直後: メイン武器がもう一度攻撃する
       }
-      const held = (keys.Space || keys.TouchDef) && !P.act;
+      const held = defHeld();
       if (held && !P.dashHeld && !P.dash) { if (P.sta >= wmDashCost()) wmDash(); else addFloat(P.x, P.y - 16, 'STAMINA', '#6a7a88'); }
       P.dashHeld = held;
       P.moveMul = P.dash ? 0 : 1;
@@ -2977,7 +2986,7 @@ function elEffect(e, el, dealt) {
 }
 // 属性を付与して、3属性そろったら共鳴。depth: 連鎖共鳴の深さ(無限に続かないように)
 function mageAddEl(e, el, dealt, depth = 0) {
-  if (e.prop) return;
+  if (e.prop || missed === e) return; // 外れた攻撃(砂塵・暗闇)では属性が付かない
   const list = el === 'all' ? ELS : [el];
   for (const x of list) elEffect(e, x, dealt);
   const bits = e.els || 0;
@@ -3133,7 +3142,7 @@ const markOn = e => e.mark > 0 && S.time < e.markT;
 const weakOn = e => S.time < (e.weakT || 0);
 // 印を刻む。上限(基本の markMax)に届いたら弱点露出
 function addMark(e, n) {
-  if (e.prop || e.dead) return;
+  if (e.prop || e.dead || missed === e) return; // 外れた攻撃(砂塵・暗闇)では刻まない
   const p = AR();
   if (!markOn(e)) e.mark = 0;
   e.mark = Math.min(markMax(), e.mark + n);
@@ -3259,7 +3268,7 @@ function knightVerdict(a) {
       if (!full && Math.abs(diff) > q.arc / 2) return;
       if (e.prop) { killEnemy(e); return; }
       const dealt = hitEnemy(e, pow, { src: 'verdict', ang: Math.atan2(e.y - P.y, e.x - P.x), kb: 170, col: '#fff1d0' });
-      if (!e.dead) e.stun = Math.max(e.stun || 0, q.stun + used * q.stunPer); // 消費したシールドが多いほど長い
+      if (dealt && !e.dead) e.stun = Math.max(e.stun || 0, q.stun + used * q.stunPer); // 消費したシールドが多いほど長い(外れた敵は止まらない)
       if (holy && dealt && !e.dead) addBurn(e, dealt * 0.5 / 3 / dmgMul(), 3, 'verdict'); // 聖炎
     });
     // 見た目は攻撃判定と同じ形(扇形。全周のときだけ円)
@@ -3349,7 +3358,7 @@ function pyroWall() {
       if (e.prop || e.dead) return;
       const a = Math.atan2(e.y - P.y, e.x - P.x);
       if (!e.boss) { const k = 150 * (1 - (e.kbRes || 0)); e.kx += Math.cos(a) * k; e.ky += Math.sin(a) * k; }
-      addBurn(e, p.wallBurn, 3, 'wall');
+      if (rollHit(e)) addBurn(e, p.wallBurn, 3, 'wall'); // 炎上は外れる(押し返しは防御なので外れない)
     });
     addRing(P.x, P.y, R, '#ff6a2a', { w: 3, life: 0.35 }); addRing(P.x, P.y, R * 0.55, '#ffc34a', { w: 2, life: 0.25 });
     for (let i = 0; i < 36; i++) { const a = i / 36 * TAU; part(P.x + Math.cos(a) * 6, P.y + Math.sin(a) * 6, Math.cos(a) * R * 2.6, Math.sin(a) * R * 2.6 - 20, rand(0.25, 0.4), pick(['#ff6a2a', '#ffc34a', '#b8261a']), { glow: true }); }
@@ -3567,7 +3576,7 @@ function clericJudge(a) {
       if (!full && Math.abs(diff) > q.arc / 2) return;
       if (e.prop) { killEnemy(e); return; }
       hitEnemy(e, dmg, { src: 'judge', ang: Math.atan2(e.y - P.y, e.x - P.x), kb: 120, col: '#fff6d8' });
-      if (hasSp('q', 'pow') && !e.dead) e.stun = Math.max(e.stun || 0, e.boss ? q.bossStun : q.stun); // 神罰
+      if (hasSp('q', 'pow') && !e.dead && missed !== e) e.stun = Math.max(e.stun || 0, e.boss ? q.bossStun : q.stun); // 神罰(外れた敵は止まらない)
     });
     slashes.push({ x: P.x, y: P.y, a: a.a, r: R, t: 0, life: 0.45, col: '#ffe38a', fan: true, span: full ? TAU : q.arc });
     const n = 6 + Math.min(10, Math.floor(used / 15));
@@ -3786,7 +3795,7 @@ function necBite(s, e) {
   const p = NC();
   asMine(() => {
     hitEnemy(e, necPow(), { src: 'nsoul', ang: Math.atan2(s.vy, s.vx), kb: 18, col: '#a58cff', noNum: Math.random() < 0.3 });
-    if (hasSp('trait', 'fang') && !e.dead) e.curseT = S.time + p.curseT;
+    if (hasSp('trait', 'fang') && !e.dead && missed !== e) e.curseT = S.time + p.curseT; // 外れた敵には付かない
     burst(e.x, e.y, 5, NEC_FX, { sp: 50, glow: true, life: 0.25 });
   });
   if (hasSp('trait', 'haste') && !s.hop) {
@@ -4040,7 +4049,7 @@ function astCrush(s) {
       if (e.prop) { killEnemy(e); return; }
       const a = out(e);
       hitEnemy(e, s.dmg, { src: 'gcrush', ang: a, kb: 60, col: '#ff7ad9' });
-      if (!s.white || e.dead) return;
+      if (!s.white || e.dead || missed === e) return; // 外れた敵は吹き飛ばない
       if (!e.boss) { const kb = q.whiteKb * (1 - (e.kbRes || 0)); e.kx += Math.cos(a) * kb; e.ky += Math.sin(a) * kb; }
       e.stun = Math.max(e.stun || 0, q.whiteStun); // ホワイトホール
     });
@@ -4222,7 +4231,7 @@ function wmShade(k, side, twin) {
       forEachNear(s.x, s.y, R, e => {
         if (e.prop) { killEnemy(e); return; }
         hitEnemy(e, edge, { src: 'wshade', ang: Math.atan2(e.y - s.y, e.x - s.x), kb: 30, col: WM_COL, noNum: Math.random() < 0.4 });
-        if (stun && !e.dead) e.stun = Math.max(e.stun || 0, p.stunT); // 影縫い
+        if (stun && !e.dead && missed !== e) e.stun = Math.max(e.stun || 0, p.stunT); // 影縫い(外れた敵は止まらない)
         if (marks++ < 8) { const a = rand(0, Math.PI), L = (e.r || 4) + 3; slashes.push({ mark: true, x: e.x - Math.cos(a) * L, y: e.y - 2 - Math.sin(a) * L, x1: e.x + Math.cos(a) * L, y1: e.y - 2 + Math.sin(a) * L, t: 0, life: 0.2, col: '#2a1a0e', core: '#d08a48' }); }
       });
       addRing(s.x, s.y, R, '#8a5a2a', { r0: R * 0.6, life: 0.22 });
@@ -4300,7 +4309,7 @@ function wmCloneTick(dt) {
   c.face = e ? (e.x < c.x ? -1 : 1) : P.facing;
   if ((c.next -= dt) <= 0 && c.i < c.list.length) { c.next += q.gap; wmCloneCast(c, c.list[c.i], c.extra[c.i]); c.i++; }
   c.chans = c.chans.filter(ch => !ch.step(dt));
-  if (c.stay) { const cdt = dt * (P.cdSlowT > 0 ? DATA.debuff.cdRate : 1); for (const k2 of c.used) weaponStep(k2, c.cws[k2], dt, cdt, c.org); } // 化身
+  if (c.stay) { const cdt = atkLock() ? 0 : dt * cdRateK(); for (const k2 of c.used) weaponStep(k2, c.cws[k2], dt, cdt, c.org); } // 化身(凍結・麻痺の間は攻撃が出ない)
   if (c.i >= c.list.length && !c.chans.length && c.t >= Math.max(c.stay, c.lastT + 0.35)) wmCloneEnd(c);
 }
 // 分身が武器 k の武器スキルを使う: 持ち替え(煙)→ 分身の使い手から cast。威力: 熟練の E の威力 ×(1 + 練度 + クラスLv8・11)/ extra: 秘伝の特殊強化
@@ -4345,7 +4354,7 @@ function clsInit() {
 function clsUpdate(dt) {
   updStamina(dt);
   P.invT -= dt;
-  const cdt = dt * (P.cdSlowT > 0 ? DATA.debuff.cdRate : 1); // スロウタイム中は武器と同じく CD の回復が遅い
+  const cdt = dt * cdRateK(); // スロウタイム・痺れの間は武器と同じく CD の回復が遅い(凍結・麻痺の間も回復はする)
   for (const k in P.sk) P.sk[k].cd = Math.max(0, P.sk[k].cd - cdt);
   if (S.decoy && (S.decoy.t -= dt) <= 0) S.decoy = null;
   if (S.dimK > 0) S.dimK = Math.max(0, S.dimK - dt * 1.5); // 構えで暗くした周りを戻す
@@ -4353,7 +4362,7 @@ function clsUpdate(dt) {
   if (rt) rt.update(dt);
   for (const w of WS_TICK) w.tick(dt); // 武器スキルの残る効果(オーブ・刃輪・精霊・異次元・斧など)。メイン武器以外の武器スキルも分身などが使うので全て
   // スキルの発動(実行中は他のスキルを使えない)。自動発動は周りに敵が集まっているときだけ(ガード中は使わない)
-  if (!P.act && rt) {
+  if (!P.act && rt && !atkLock()) { // 凍結・麻痺の間は E・Q を使えない
     const ws = weaponSkill(), auto = !P.guard;
     const wantQ = keys._q || (auto && SET.autoQ && crowd(90, 5));
     const wantE = keys._e || (auto && SET.autoE && ws && crowd(ws.radius * P.area, 4));
@@ -4444,7 +4453,7 @@ function addShock(e, dealt, pct, o = {}) {
 }
 // 凍傷を付ける(cap: 出どころの上限。クラスが上限を決めるときはそちら)。凍結中は増えない
 function addFrost(e, n, cap) {
-  if (!(n > 0) || e.dead || e.prop || e.freeze) return;
+  if (!(n > 0) || e.dead || e.prop || e.freeze || missed === e) return; // 外れた攻撃(砂塵・暗闇)では付かない
   cap = clsFrostCap() || cap;
   e.frost = Math.max(e.frost || 0, Math.min(cap, (e.frost || 0) + n)); e.frostT = 5;
   clsOnFrost(e);

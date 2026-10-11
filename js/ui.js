@@ -234,12 +234,17 @@ const UI = (() => {
     if (P.cdSlowT > 0) { const rg = Math.round((1 - d.slowRegen) * 100); out.push({ id: 'cdslow', glyph: '遅', name: _t('スロウタイム'), fx: _t`移動 -${Math.round((1 - sk) * 100)}% CD回復 -${Math.round((1 - d.cdRate) * 100)}% スタミナ回復 -${rg}% HP回復速度 -${rg}%`, t: P.cdSlowT, kind: 'debuff' }); } // 砂時計の精の時の歪みも同じ
     if (P.burnT > 0) out.push({ id: 'burn', glyph: '炎', name: _t('炎上'), fx: _t`毎${d.burnTick}秒 ${Math.round(P.burnDmg)} ダメージ ・ HP回復 -${Math.round((1 - d.burnHeal) * 100)}%`, t: P.burnT, max: d.burnDur, kind: 'debuff' });
     if (P.fatigueT > 0) out.push({ id: 'fatigue', glyph: '疲', name: _t('疲労'), fx: _t`スタミナ回復 -${Math.round((1 - d.fatigue) * 100)}%`, t: P.fatigueT, max: d.fatigueDur, kind: 'debuff' });
-    if (P.frost > 0) out.push({ id: 'pfrost', glyph: '凍', name: _t('凍傷'), fx: _t`${P.frost}スタック ・ 移動速度 -${Math.round((1 - playerFrostMul()) * 100)}%(受けないでいると ${d.pDur}秒で消える)`, t: P.frostT, max: d.pDur, kind: 'debuff' });
-    if (P.frzT > 0) out.push({ id: 'pfrz', glyph: '氷', name: _t('凍結'), fx: _t('歩けない(回避とスキルは使える)'), t: P.frzT, max: 1, kind: 'debuff' });
+    if (P.frost > 0) out.push({ id: 'pfrost', glyph: '凍', name: _t('凍傷'), fx: _t`${P.frost}スタック ・ 移動速度 -${Math.round((1 - playerFrostMul()) * 100)}%(${d.pFrostMax}スタックで凍結。受けないでいると ${d.pDur}秒で消える)`, t: P.frostT, max: d.pDur, kind: 'debuff' });
+    if (P.frzT > 0) out.push({ id: 'pfrz', glyph: '氷', name: _t('凍結'), fx: _t('動けず、攻撃もできない(回避・スキルも使えない)'), t: P.frzT, max: d.pFrzT, kind: 'debuff' });
+    const ds = DATA.debuffStage;
+    if (P.numb > 0) out.push({ id: 'pnumb', glyph: '痺', name: _t('痺れ'), fx: _t`${P.numb}スタック ・ CD回復 -${Math.round(ds.numbCd * P.numb * 100)}%(${ds.numbMax}スタックで麻痺。受けないでいると ${d.pDur}秒で消える)`, t: P.numbT, max: d.pDur, kind: 'debuff' });
+    if (P.paraT > 0) out.push({ id: 'ppara', glyph: '麻', name: _t('麻痺'), fx: _t('攻撃できない(歩く・回避はできる)'), t: P.paraT, max: ds.paraT, kind: 'debuff' });
+    if (P.dust > 0) out.push({ id: 'pdust', glyph: '砂', name: _t('砂塵'), fx: _t`${P.dust}スタック ・ 命中率 -${Math.round(ds.dustHit * P.dust * 100)}%(受けないでいると ${d.pDur}秒で消える)`, t: P.dustT, max: d.pDur, kind: 'debuff' });
+    if (P.weak > 0) out.push({ id: 'pweak', glyph: '衰', name: _t('衰弱'), fx: _t`${P.weak}スタック ・ 攻撃力 -${Math.round(ds.weakAtk * P.weak * 100)}%(受けないでいると ${d.pDur}秒で消える)`, t: P.weakT, max: d.pDur, kind: 'debuff' });
     if (P.bleed > 0) out.push({ id: 'pbleed', glyph: '血', name: _t('出血'), fx: _t`${P.bleed}スタック ・ 毎秒 最大HP の ${Math.round(P.bleed * d.pBleed * 100)}%`, t: P.bleedT, max: d.pDur, kind: 'debuff' });
     const dt2 = DATA.debuffTomb;
     if (P.poison > 0) out.push({ id: 'ppoison', glyph: '毒', name: _t('毒'), fx: _t`${P.poison}スタック ・ 最大HP -${Math.round(P.poison * dt2.poison * 100)}%(受けないでいると ${dt2.poisonDur}秒で消える)`, t: P.poisonT, max: dt2.poisonDur, kind: 'debuff' });
-    if (P.darkT > 0) out.push({ id: 'pdark', glyph: '闇', name: _t('暗闇'), fx: _t('周りが暗くなり、敵の攻撃の予告が見えない'), t: P.darkT, max: dt2.darkDur, kind: 'debuff' });
+    if (P.darkT > 0) out.push({ id: 'pdark', glyph: '闇', name: _t('暗闇'), fx: _t`周りが暗くなり、敵の攻撃の予告が見えない ・ 命中率 -${Math.round(dt2.darkHit * 100)}%`, t: P.darkT, max: dt2.darkDur, kind: 'debuff' });
     if (S.phase && S.phase.fogOn && !(S.phase.fogPause > 0)) out.push({ id: 'fog', glyph: '霧', name: _t('闇の霧'), fx: _t`毎秒 HP -${S.phase.fogDmg}(10秒ごとに +1)。フェーズをクリアすると晴れる`, kind: 'debuff' });
     if (P.shield >= 1) out.push({ id: 'shield', glyph: '盾', name: _t('シールド'), fx: _t`${Math.floor(P.shield)} のダメージを先に受ける`, kind: 'buff' });
     if (P.oShield >= 1) out.push({ id: 'oshield', glyph: '守', name: _t('一時シールド'), fx: _t`${Math.floor(P.oShield)} のダメージを先に受ける(得た分ごとに時間で消える)`, t: Math.min(...P.oChunks.map(c => c.t)), max: Math.max(...P.oChunks.map(c => c.dur)), kind: 'buff' });
@@ -774,14 +779,14 @@ const UI = (() => {
   $('vol-music').oninput = e => AudioMan.setVol('music', e.target.value / 100);
   $('vol-sfx').oninput = e => { AudioMan.setVol('sfx', e.target.value / 100); AudioMan.click(); };
 
-  function result(win, earned, loot, cxp) {
+  function result(win, earned, loot, cxp, first = 0) { // first: 初クリアのゴールド(ステージを初めてクリアしたとき)
     only('result-screen');
     hide($('hud'));
     const arena = S.mode === 'arena';
     $('result-title').textContent = win ? (arena ? 'ARENA CLEAR!' : 'VICTORY!') : 'YOU DIED';
     $('result-title').className = win ? 'win' : 'lose';
     $('btn-endless').classList.toggle('hidden', !win || S.mode !== 'escalation'); // エンドレスはエスカレーションのみ
-    const rows = [arena ? [_t('撃破ボス'), S.arena.idx + ' / ' + DATA.arena.order.length] : null, [arena ? _t('タイム') : _t('生存時間'), fmtTime(S.time)], [_t('レベル'), P.level], [_t('撃破数'), S.kills.toLocaleString()], [_t('最大コンボ'), S.bestCombo], [_t('総ダメージ'), Math.round(S.totalDmg).toLocaleString()], [_t('獲得ゴールド'), '● ' + earned]];
+    const rows = [arena ? [_t('撃破ボス'), S.arena.idx + ' / ' + DATA.arena.order.length] : null, [arena ? _t('タイム') : _t('生存時間'), fmtTime(S.time)], [_t('レベル'), P.level], [_t('撃破数'), S.kills.toLocaleString()], [_t('最大コンボ'), S.bestCombo], [_t('総ダメージ'), Math.round(S.totalDmg).toLocaleString()], [_t('獲得ゴールド'), '● ' + earned], first ? [_t('初クリア報酬'), '● ' + first.toLocaleString()] : null];
     $('result-stats').innerHTML = rows.filter(Boolean).map(([a, b]) => `<div class="rs"><span>${a}</span><b>${b}</b></div>`).join('');
     const tot = Object.values(S.dmgBy).reduce((a, b) => a + b, 0) || 1;
     const list = Object.entries(S.dmgBy).filter(([k]) => DATA.weapons[k]).sort((a, b) => b[1] - a[1]);
