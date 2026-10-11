@@ -1141,6 +1141,14 @@ function render() {
         for (let k = 0; k < fh; k++) { const col = k === fh - 1 ? '#ffe9a0' : k > fh / 2 ? '#ffc34a' : '#ff6a2a'; sx.fillStyle = gx.fillStyle = col; sx.fillRect(fx, fy - k, 1, 1); gx.fillRect(fx, fy - k, 1, 1); }
       }
       addLight(h.x, h.y, R * 3, '#ff6a2a', 0.75 * fade * (h.lite || 1));
+    } else if (h.kind === 'tcage') { // 雷の檻(雷神): 隣どうしの雷柱を結ぶ線(つながるまでは細い赤の線が点滅、つながると紫白のぎざぎざの雷)。柱が壊れると、その柱の線は消える
+      if (h.t < 3) for (let k = 0; k < 4; k++) {
+        const A = h.ps[k], B = h.ps[(k + 1) % 4]; if (A.dead || B.dead) continue;
+        const ax = A.x - cam.x, ay = A.y - cam.y - 4, bx = B.x - cam.x, by = B.y - cam.y - 4;
+        if (h.t < 0.8) { if (warnBlink) { sx.globalAlpha = 0.8; pLine(sx, ax, ay, bx, by, '#ff3b5c'); sx.globalAlpha = 1; } }
+        else jagBolt(ax, ay, bx, by, { step: 10, j: 3, col: '#f0e8ff', glow: '#4a2a98' });
+      }
+      if (h.t >= 0.8 && h.t < 3) addLight(h.x, h.y, 80, '#9a7aff', 0.4);
     } else if (h.kind === 'eline') { // 雷の線(雷獣の稲妻走りの跡): 折れ線にそって紫白のぎざぎざの雷がはじける(消える前は点滅)
       if (h.t > h.dur - 0.6 && Math.floor(t * 20) % 2) continue;
       for (let i = 0; i < h.pts.length - 1; i++) {
@@ -1908,6 +1916,7 @@ function render() {
   drawParts(false);
   drawRings(false);
   for (const p of eprojs) {
+    if (p.nx && !p.stopT && eprojs.includes(p.nx)) jagBolt(p.x - cam.x, p.y - cam.y, p.nx.x - cam.x, p.nx.y - cam.y, { step: 8, j: 2, col: '#d8c8ff', glow: '#3a2478' }); // 雷の網(雷神): となりの玉と結ぶ稲妻(玉より先に描く)
     if (!onScreen(p.x, p.y, 30)) continue;
     const a = Math.atan2(p.vy, p.vx);
     // アストロマンサーの重力圏: 止まった弾(時間停止)は暗い桃色の縁で薄く、ゆっくりになった弾(時の歪み)は少しくすむ
@@ -1956,6 +1965,7 @@ function render() {
       gx.globalAlpha = 1; gx.drawImage(ART.tint(p.face < 0 ? ART.variant(sp2, 'flip') : sp2.c, '#3a2a5a'), dx, dy); // ほのかに光る(光の層は暗い色で)
       addLight(p.x, p.y, 50, '#d88aff', 0.7);
     }
+    else if (p.kind === 'tnet') { drawSp(ART.S.nethead, p.x, p.y, ol); addLight(p.x, p.y, 24, '#9a7aff', 0.4); } // 雷の網の玉
     else if (p.kind === 'scythe' || p.kind === 'rscythe') drawRot(p.kind, p.t * 14, p.x, p.y, ol);
     else if (p.kind === 'vslash') { // 影刃・五月雨: 地面に垂直に立った三日月の刃が飛んでいく(当たり判定は地面の線)
       const c = Math.cos(p.a), s = Math.sin(p.a), x = p.x - cam.x, y = p.y - cam.y, L = Math.round(p.len), H = 24 * A, fl = Math.floor(t * 30) % 2;
@@ -2575,6 +2585,13 @@ function drawBossFx(e) {
 }
 
 // ボスの技の見た目だけの演出(bfx。world.js の各ボスの技が積む)
+// 2点を結ぶぎざぎざの稲妻(画面の座標)。o.step: 折れ目の間隔 / o.j: 揺れ幅 / o.col: 芯の色 / o.glow: 光の層の色(透明度が効かないので暗い色で)
+function jagBolt(ax, ay, bx, by, o) {
+  const L = Math.hypot(bx - ax, by - ay); if (L < 1) return;
+  const sx = GFX.sctx, gx = GFX.gctx, n = Math.max(2, Math.round(L / o.step)), nxu = -(by - ay) / L, nyu = (bx - ax) / L;
+  let px0 = ax, py0 = ay;
+  for (let i = 1; i <= n; i++) { const v = i / n, j = i === n ? 0 : rand(-o.j, o.j), nx = lerp(ax, bx, v) + nxu * j, ny = lerp(ay, by, v) + nyu * j; pLine(sx, px0, py0, nx, ny, o.col); pLine(gx, px0, py0, nx, ny, o.glow, 2); px0 = nx; py0 = ny; }
+}
 // 対の雷精の線: 予告は細い赤の線が点滅 → 張られている間は紫白のぎざぎざの雷の線(光の層は暗い紫)
 function drawTwinLinks() {
   const sx = GFX.sctx, gx = GFX.gctx, t = GFX.fx.time;
@@ -2600,6 +2617,14 @@ function drawBfx() {
         sx.fillStyle = '#1a1008'; sx.fillRect(bx - 2, by + 1, 5, 1);
         for (let j = 0; j < H; j++) { const w = j < H * 0.4 ? 3 : j < H * 0.75 ? 2 : 1; sx.fillStyle = j === H - 1 ? '#c8a060' : j % 3 === 0 ? '#3a2410' : '#6a4424'; sx.fillRect(bx - (w >> 1), by - j, w, 1); }
       }
+      continue;
+    }
+    if (f.kind === 'fujin') { // 風神の幻(雷神の激昂): 風上に半透明の風神が浮かび、風の筋が画面を流れる
+      const ca = Math.cos(f.a), sa = Math.sin(f.a), k = Math.max(0, Math.min(1, f.t / 0.4, (f.life - f.t) / 0.4));
+      drawSp(ART.S.fujin, P.x - ca * 120, P.y - sa * 80 - 20 + Math.sin(t * 2) * 3, { alpha: 0.6 * k, emit: false });
+      sx.globalAlpha = 0.5 * k;
+      for (let i = 0; i < 30; i++) { const u = ((hash2(i, 3) * 2 - 1) * 300 + t * 200) % 300, v = (hash2(i, 7) * 2 - 1) * 170, x = P.x - cam.x + ca * u - sa * v, y = P.y - cam.y + sa * u + ca * v; pLine(sx, x, y, x - ca * 14, y - sa * 14, '#c8f0d8'); } // 風の筋
+      sx.globalAlpha = 1;
       continue;
     }
     if (f.kind === 'ebolt') { // 敵の稲妻: 紫白のぎざぎざの線(光の層は暗い紫。光の層は透明度が効かないので、消えるときは色を暗くする)

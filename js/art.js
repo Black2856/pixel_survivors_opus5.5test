@@ -1626,6 +1626,7 @@ const ART = (() => {
   S.tarmorUp = mk(taPal, ['........s.', '.......ss.', '..d...dsd.', '..dd.dds..', '..abbbas..', '.abeaebs..', '.abbbbbs..', 'ddbcbcbdd.', 'abcbcbcba.', 'abbdddbba.', '.abcbcba..', '.arrrrra..', '.ab...ba..', '.aa...aa..'], { emit: 'es' });
   // 雷柱(雷神の雷の檻): 緑青の浮いた銅の柱。先の玉が光る
   S.tpillar = mk({ a: '#1a2a24', b: '#3a7a64', c: '#6ab89a', d: '#a8603a', w: '#e8e0ff', l: '#b8a0ff' }, ['.lwl.', '.wlw.', '..d..', '.bcb.', '.bcb.', '.dbd.', '.bcb.', '.bcb.', '.bcb.', '.dbd.', '.bcb.', '.bcb.', 'abcba', 'ddddd'], { emit: 'lw' });
+  S.obj_tpillar = S.tpillar; // 雷神が出す物(spawnObj)としての名前
   // 雷の玉(雷獣の雷玉・雷神の雷の網): ぱちぱちと稲妻をまとう玉(2コマ)
   const orbPal = { a: '#4a2a9a', b: '#9a7aff', c: '#e8e0ff', w: '#ffffff' };
   S.torb = [mk(orbPal, ['.b...b.', '..bcb..', '.bcwcb.', 'bcwwwcb', '.bcwcb.', '..bcb..', '.b...b.'], { emit: 'bcw' }), mk(orbPal, ['...b...', 'b.bcb.b', '.bcwcb.', '.cwwwc.', '.bcwcb.', 'b.bcb.b', '...b...'], { emit: 'bcw' })];
