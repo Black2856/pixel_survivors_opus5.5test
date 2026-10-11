@@ -69,6 +69,17 @@ const DATA = {
     bee:      { hp: 12, spd: 32, dmg: 6,  xp: 1, r: 3, ai: 'flutter', wobble: 1.0, pack: [5, 5], rush: { cd: 5, range: 60, wind: 0.4, len: 80, spd: 200, weak: 1 } }, // 森蜂
     squirrel: { hp: 22, spd: 20, dmg: 8,  xp: 1, r: 4, ai: 'keep', keep: [100, 130], snowball: { cd: 4.5, range: 180, r: 12, n: 0.8, frost: 0, floor: 0, kind: 'acorn', wind: 0.4 } }, // リス
     bear:     { hp: 70, spd: 12, dmg: 14, xp: 2, r: 9, ai: 'chase', kbRes: 0.6, swipe: { cd: 3, range: 35, wind: 0.5, r: 45, arc: 1.05, n: 1.2 } }, // クマ
+    // 陽炎の砂海 / strike.front: 予告の円をプレイヤーの位置ではなく、自分の前(向き × front)に置く
+    // swoop: 射程 range 以内で cd 秒ごとに舞い上がり(rise 秒。攻撃が当たらない・触れても当たらない)、影の円(半径 r)が follow 秒プレイヤーを追い(速さ spd)、lock 秒止まる
+    //   → 急降下 ×n・砂塵 +dust。降りて rest 秒は地上で止まる
+    // revive: 倒れると砂山になり、t 秒後に HP ×hp で 1回だけ立ち上がる(立ち上がった砂人形は経験値なし)。砂山に攻撃を当てると崩れて消える。エリートは立ち上がらない
+    // pit: 砂に潜ったまま(攻撃が当たらない)、cd 秒ごとにプレイヤーから near[0]〜near[1] の所に wind 秒の予告 → すり鉢(半径 r・dur 秒)。すり鉢の間だけ攻撃が当たる
+    //   すり鉢の中では中心へ引かれ(毎秒 pull。回避の無敵中は引かれない)、1秒ごとに砂塵 +1。中心の大あご(半径 jaw)に 0.5秒ごとに ×n
+    scorpion: { hp: 34, spd: 18, dmg: 10, xp: 1, r: 5, ai: 'chase', kbRes: 0.5, strike: { cd: 3.5, range: 40, wind: 0.5, r: 18, n: 1.3, front: 14, kind: 'tail' } }, // サソリ(砂塵は付けない)
+    vulture:  { hp: 24, spd: 28, dmg: 9,  xp: 1, r: 5, ai: 'flutter', wobble: 1.2, swoop: { cd: 6, range: 150, rise: 0.4, follow: 1, lock: 0.3, spd: 50, r: 16, n: 1.2, dust: 2, rest: 1 } }, // ハゲワシ
+    sanddoll: { hp: 30, spd: 14, dmg: 9,  xp: 1, r: 5, ai: 'chase', touchDust: 1, revive: { t: 4, hp: 0.5 } }, // 砂人形
+    sandmound:{ hp: 1,  spd: 0,  dmg: 0,  xp: 0, r: 5, ai: 'mound', kbRes: 1, noElite: true }, // 砂人形が倒れた砂山(出現の候補には入れない)
+    antlion:  { hp: 40, spd: 0,  dmg: 10, xp: 2, r: 6, ai: 'pit', kbRes: 1, noElite: true, noGroup: true, noTouch: true, maxAlive: 2, spawnW: 0.6, pit: { cd: 3, near: [80, 120], wind: 0.8, r: 45, dur: 6, pull: 25, jaw: 10, n: 1.0 } }, // アリジゴク
     goblin:   { hp: 160, spd: 44, dmg: 0, xp: 12, r: 5, ai: 'flee', kbRes: 0.5, noElite: true },
   },
 
@@ -99,6 +110,8 @@ const DATA = {
     shadowking: { name: '影の王 SHADOW KING',      hp: 2000, spd: 15, dmg: 20, r: 12, music: 'b_tomb1', col: '#a66bff', noTwin: true }, // 激昂で曲がボス2 に変わる / noTwin: 双王の相方に選ばれない
     qbee:    { name: '女王蜂 QUEEN BEE',            hp: 1400, spd: 25, dmg: 20, r: 11, music: 'b_forest', col: '#ffd23f' }, // 木漏れ日の森 1体目(曲は用意されるまで草原の曲)
     elder:   { name: '古樹の主 ELDER TREANT',       hp: 1900, spd: 10, dmg: 22, r: 16, music: 'b_forest', col: '#8fd06a' }, // 木漏れ日の森 2体目
+    escorp:  { name: '大蠍 EMPEROR SCORPION',       hp: 1800, spd: 16, dmg: 22, r: 15, music: 'b_desert', col: '#ffb040' }, // 陽炎の砂海 1体目(曲は用意されるまで草原の曲)
+    sphinx:  { name: 'スフィンクス SPHINX',          hp: 1500, spd: 14, dmg: 22, r: 14, music: 'b_desert', col: '#ffd27a' }, // 陽炎の砂海 2体目
   },
   // 状態異常(プレイヤー): 粘液・スロウタイムの移動速度倍率 / スロウタイムのCD回復倍率 / 炎上
   debuff: { slow: 0.6, cdRate: 0.5, burnTick: 0.5, burnDur: 3, burnHeal: 0.5, fatigueDur: 3, fatigue: 0.5, slowRegen: 0.5, frostSlow: 0.05, pFrostSlow: 0.03, pFrostMax: 20, pFrzT: 2, shockR: 60, pDur: 5, pBleed: 0.01, pBleedMax: 5 }, // burnHeal: 炎上中の HP回復の倍率 / slowRegen: スロウタイム・時の歪みの中のスタミナ回復・HP回復速度の倍率 / fatigueDur・fatigue: 疲労(スタミナを減らされた)の秒とスタミナ回復の倍率 / frostSlow: 敵の凍傷1スタックあたりの減速 / pFrostSlow・pFrostMax・pFrzT: 自分の凍傷1スタックあたりの減速・上限(上限で凍結して 0 に戻る)・凍結の秒(行動不能・攻撃不能) / shockR: 感電の連鎖距離 / pDur: 自分の凍傷・出血・痺れ・砂塵・衰弱が消えるまでの秒 / pBleed: 自分の出血1スタックの毎秒ダメージ(最大HP の割合)
@@ -1265,7 +1278,7 @@ const DATA = {
   },
   // クラスLv: need[i] = Lv(i+1) → Lv(i+2) に必要な経験値。獲得量 = 討伐数 × killK + 撃破ボス数 × bossK
   // クラスの解放: このモード・ステージを初めてクリアすると使える(書いていないクラスは最初から: サムライ・メイジ・アーチャー・ナイト)
-  //   キーは runKey(escalation / arena / stage1〜9。stage の番号は stageRuns の no)
+  //   キーは runKey(escalation / arena / stage1〜10。stage の番号は stageRuns の no)
   classUnlock: { cleric: 'stage1', electro: 'stage2', pyro: 'stage3', necro: 'stage4', cryo: 'stage5', assassin: 'stage6', astro: 'stage7', weaponmaster: 'escalation', berserker: 'stage8' },
   classLevel: {
     need: [100, 150, 200, 300, 400, 500, 650, 800, 1000, 1250, 1500, 1750, 2000, 2500, 3000, 4000, 5000, 7500, 10000],
@@ -1404,6 +1417,9 @@ const DATA = {
     // 木漏れ日の森(tier 1): 深い緑の森。木の根・倒木・シダ・キノコ、梢のすき間から差す光(木漏れ日。地面の光のまだらがゆっくり明るさを変える)、舞う花粉(曲は用意されるまで草原の曲)
     { label: '木漏れ日の森', music: 'f_forest', ground: ['#1e3a24', '#24442a', '#18301e', '#2a4c30'], deco: ['#3a6a34', '#5a9a48', '#c8a060', '#e8d890'],
       amb: [0.46, 0.56, 0.42], tint: [1.0, 1.04, 0.95], motes: { col: '#fff0a0', cols: ['#fff0a0', '#d8ff9a', '#ffe8c0'], rise: false }, forest: true },
+    // 陽炎の砂海(tier 2): まぶしい砂丘と風紋、半分埋もれた古代の石柱と獣の骨、地面がゆらぐ陽炎、流れる砂(曲は用意されるまで草原の曲)
+    { label: '陽炎の砂海', music: 'f_desert', ground: ['#c8a468', '#d2b074', '#b8945a', '#dcbc84'], deco: ['#a8844c', '#e8d0a0', '#8a7a68', '#efe6d0'],
+      amb: [0.7, 0.66, 0.58], tint: [1.04, 1.0, 0.94], motes: { col: '#fff0c8', cols: ['#fff0c8', '#e8d0a0', '#ffe0a0'], rise: false }, desert: true, light: 0.3 }, // light: 明るい砂丘なので光源を弱める
   ],
 
   // ---------- カオス強化(db.xlsx「カオス強化」)----------
@@ -1455,7 +1471,7 @@ const DATA = {
   },
 
   // ---------- 通常モード(ステージを1つ選ぶ) ----------
-  // no = ステージのキーの番号(stage1〜9。クリア記録・カオス強化) / stage = DATA.stages の番号 / tier = 開始の敵Lv・報酬 / bosses = ボス1 → ボス2(倒すとクリア)
+  // no = ステージのキーの番号(stage1〜10。クリア記録・カオス強化) / stage = DATA.stages の番号 / tier = 開始の敵Lv・報酬 / bosses = ボス1 → ボス2(倒すとクリア)
   //   segs = 3分ごとの区間の出現の候補(1つ目は 0・60・120秒で1種ずつ足す / 2つ目 / 3つ目。null = その前の全部)
   stageRuns: [
     { no: 1, stage: 1, tier: 1, bosses: ['gslime', 'king'], segs: [['zombie', 'bat', 'slime'], ['bat', 'slime', 'brute'], null] },
@@ -1464,6 +1480,7 @@ const DATA = {
     { no: 3, stage: 3, tier: 3, bosses: ['cdragon', 'ifrit'], segs: [['imp', 'hound', 'mworm'], ['hound', 'mworm', 'lslime'], null] },
     { no: 4, stage: 5, tier: 2, bosses: ['stag', 'pqueen'], segs: [['bat', 'jslime', 'beetle'], ['jslime', 'beetle', 'fairy'], null] }, // 七彩の晶窟
     { no: 6, stage: 6, tier: 2, bosses: ['kraken', 'levia'], segs: [['jelly', 'sahagin', 'puffer'], ['sahagin', 'puffer', 'angler'], null] }, // 沈黙の海淵
+    { no: 10, stage: 11, tier: 2, bosses: ['escorp', 'sphinx'], segs: [['scorpion', 'vulture', 'sanddoll'], ['vulture', 'sanddoll', 'antlion'], null] }, // 陽炎の砂海
     { no: 5, stage: 7, tier: 3, bosses: ['fgiant', 'squeen'], segs: [['wolf', 'ghost', 'icesprite'], ['ghost', 'icesprite', 'yeti'], null] }, // 霜天の霊峰
     // 終刻の時計塔: 3つ目の候補は「今までの敵」のまとまり(1枠として選ばれ、その中から1種)
     { no: 7, stage: 8, tier: 4, bosses: ['warden', 'reaper'], segs: [['gear', 'clockman', ['skeleton', 'archer', 'lslime', 'wolf', 'sahagin', 'beetle']], ['clockman', 'hglass', ['skeleton', 'archer', 'lslime', 'wolf', 'sahagin', 'beetle']], null] },

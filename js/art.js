@@ -1513,6 +1513,98 @@ const ART = (() => {
   S.stinger = mk({ a: '#8a6a10', b: '#ffd23f', c: '#ffffff' }, ['abb..', 'abbbc', 'abb..'], { emit: 'bc' });
   S.leaf = mk({ b: '#5a9a48', c: '#c8e890' }, ['..bb.', '.bccb', 'bccb.', '.bb..'], { emit: 'c' });
 
+  // ---------- 陽炎の砂海 ----------
+  // サソリ: 尾を背中の上へ巻き上げた橙の甲殻(右向き)。歩く 2コマ / 尾を振り上げた構え
+  const scPal = { a: '#3a1e0c', b: '#b8642a', c: '#e09048', d: '#7a3a14', e: '#fff0c0', r: '#ff4a2a' };
+  const scTop = ['...aaa.......', '..acdca......', '..ac..ea.....', '..ac.........', '..aca........'];
+  const scBody = ['...acaaaaaa.aa', '...abcbcbbbacca', '..aabbbbbbbrba.', '...addddddda...'];
+  S.scorpion = [mk(scPal, [...scTop, '...acaaaaaaa.aa', '...abcbcbcbbacca', '..aabbbbbbbbrba.', '...adddddddda...', '...a.a.a.a.a....', '..a.a.a.a.a.....'], { emit: 'r' }),
+    mk(scPal, [...scTop, '...acaaaaaaa.aa', '...abcbcbcbbacca', '..aabbbbbbbbrba.', '...adddddddda...', '..a.a.a.a.a.....', '...a.a.a.a.a....'], { emit: 'r' })];
+  S.scorpionUp = mk(scPal, ['......aea.......', '.....acdca......', '....acda........', '...acda.........', '...aca..........', '...acaaaaaaa.aa', '...abcbcbcbbacca', '..aabbbbbbbbrba.', '...adddddddda...', '...a.a.a.a.a....', '..a.a.a.a.a.....'], { emit: 're' });
+  // ハゲワシ: 黒褐色の翼を広げて飛ぶ(羽ばたきの 2コマ。白い襟巻きと桃色の禿げ頭)/ 地上に降りて翼をたたんだ姿
+  const vuPal = { a: '#1e140e', b: '#4a3020', c: '#7a5a3a', w: '#e8e0d0', p: '#d8907a', k: '#c8b090', r: '#ff3b2a' };
+  S.vulture = [mk(vuPal, ['cb.............bc', '.cbb...pp....bbc.', '..cbbb.prk.bbbc..', '...bbbwwwwbbb....', '....abbbbbba.....', '.....abbbba......', '......a..a.......'], { emit: 'r' }),
+    mk(vuPal, ['.......pp........', '.......prk.......', '.....bwwwwb......', '...cbbbbbbbbc....', '.cbbb.abba.bbbc..', 'cb....abba....bc.', '......a..a.......'], { emit: 'r' })];
+  S.vultureLand = mk(vuPal, ['....pp...', '...prpk..', '...pp....', '..www....', '.bbbbbb..', 'bcbbbbbb.', 'bccbbbbb.', '.bbbbbba.', '...a.a...', '..aa.aa..'], { emit: 'r' });
+  // 砂人形: 砂でできた人形(暗い目の穴がほのかに光る)。歩く 2コマ / 倒れた砂山
+  const sdPal = { a: '#6a4a2a', b: '#d8b070', c: '#f0d8a0', d: '#a8803a', g: '#ffb040' };
+  const sdTop = ['...ccc...', '..cbbbd..', '..bgbgd..', '..bbbbd..', '...bdd...', '.cbbbbbd.', 'cb.bbbd.d', 'b..bbbd..', '...bbdd..'];
+  S.sanddoll = [mk(sdPal, [...sdTop, '...b..d..', '..bb..dd.', '.aaa..aaa'], { emit: 'g' }), mk(sdPal, [...sdTop, '..b...d..', '..b....d.', '.aa...aaa'], { emit: 'g' })];
+  S.sandmound = mk(sdPal, ['....ccc....', '..ccbbbdd..', '.cbbbbbbdd.', 'cbbbdbbbbdd', 'aaaaaaaaaaa']);
+  // アリジゴク: すり鉢の底から大あごを開け閉めする(2コマ)
+  const alPal = { a: '#2a1a0a', b: '#8a6a4a', c: '#b8946a', k: '#e8d8b0', m: '#5a3a1a', r: '#ff5a2a' };
+  S.antlion = [mk(alPal, ['.k.......k.', 'kk.......kk', 'k.k.....k.k', '.k.kaaak.k.', '..kabcbak..', '..arbbbra..', '.abbcbcbba.', 'abmbbbbbmba'], { emit: 'r' }),
+    mk(alPal, ['...........', '...k...k...', '..kk...kk..', '..k.kak.k..', '...kabak...', '..arbbbra..', '.abbcbcbba.', 'abmbbbbbmba'], { emit: 'r' })];
+  // 弾: 砂の礫(大蠍の砂かけ)・石の羽根(スフィンクス。右向き)
+  S.sandshot = mk({ b: '#e8c88a', c: '#fff0c8', d: '#a8803a' }, ['.c.', 'cbd', '.d.']);
+  S.feather = mk({ a: '#6a5030', b: '#c8a878', c: '#f0e0c0' }, ['.aab...', 'abbbbcc', '.aab...']);
+  // 大蠍: 黒い甲殻に金の縁。尾を背中の上へ巻き、毒の袋と針の先が琥珀色に光る(脚を入れ替えた 2コマ: escorp / escorp2)
+  const esPal = { b: '#2e2622', c: '#5e4c3c', d: '#16100c', e: '#ffd27a', g: '#8a6a2a', r: '#ff3b2a', s: '#ffb040' };
+  S.escorp = mk(esPal, [
+    '........ce..ec........................', '.....c.ccgccgbc.......................', '....ccccbbbbbbbec.....................', '...ccbbdddddddbgbc....................',
+    '...cbbdd......dbbse...................', '..ccbdd........dssgs..................', '..cbbd..........ssss................d.', '..cbbb..........sss.............dddddd',
+    '..cbbbc...........e............ddddd..', '...bbbb............e...........dddddd.', '..ccbbbc......................dddddddd', '...bbbbbc.....ccccccc......ccddd...ddd',
+    '...cdbbbbccccccbbbbbbeccecccddrb......', '.....bbbbbbbbbbbbbbbbgbbgbbbbdbrc.....', '.....cbbbbbbbbbbbbbbbbbbbbbbbbbbd.....', '......dbbbbbbbbbbbbbbbbbbbbbbbbbb...ce',
+    '.......dbbbbbbbbbbbbbbbbbbbbbbbbbccccd', '........dbbbbbbbbbbbbbbbdddbbddbbbbdd.', '.........ddddddbbbbdddddd..ddd.bbbbd..', '........d.....ddddddd...d......cbbbb..',
+    '.......d.....d...d.....d........dddbcc', '......d......d..d......d...........dde', '.....dd.....dd.dd.....dd..............', '.....d......d..d......d...............',
+  ], { emit: 'rs' });
+  S.escorp2 = mk(esPal, [
+    '........ce..ec........................', '.....c.ccgccgbc.......................', '....ccccbbbbbbbec.....................', '...ccbbdddddddbgbc....................',
+    '...cbbdd......dbbse...................', '..ccbdd........dssgs..................', '..cbbd..........ssss................d.', '..cbbb..........sss.............dddddd',
+    '..cbbbc...........e............ddddd..', '...bbbb............e...........dddddd.', '..ccbbbc......................dddddddd', '...bbbbbc.....ccccccc......ccddd...ddd',
+    '...cdbbbbccccccbbbbbbeccecccddrb......', '.....bbbbbbbbbbbbbbbbgbbgbbbbdbrc.....', '.....cbbbbbbbbbbbbbbbbbbbbbbbbbbd.....', '......dbbbbbbbbbbbbbbbbbbbbbbbbbb...ce',
+    '.......dbbbbbbbbbbbbbbbbbbbbbbbbbccccd', '........dbbbbbbbbbbbbbbbdddbbddbbbbdd.', '.........ddddbdbbbbdddddd..ddd.bbbbd..', '.........d...dddddddd..d.......cbbbb..',
+    '........d...d.....d...d.........dddbcc', '........d..d......d..d.............dde', '.......dd.dd.....dd.dd................', '.......d..d......d..d.................',
+  ], { emit: 'rs' });
+  // 大蠍が出す物: 大地の挟撃の大きなはさみ(右向き。左右で反転して使う)/ 砂潜りで進む盛り上がった砂
+  S.eclaw = mk(esPal, [
+    '....................', '................c...', '.............cccccec', '........ccceccbbbbbe',
+    '......cecbbbbbdddddd', '.....ccbbbbbbbd.....', '.....cbbbbbbbbd.....', '.....cbbbbbbbbb.....',
+    '.....cbbbbbbbbbcccc.', '....ccbbbbbbbbbbbbbe', '...ecbbdddddddbbbbed', '...cbbdd......ddddd.',
+    '..ccbdd.............', '.ccbbd..............', '.cbbdd..............', 'ccddd...............',
+  ]);
+  S.emound = mk({ b: '#d8b070', c: '#f0d8a0', d: '#a8803a' }, [
+    '.......................', '.......ccccccccc.......', '....ccccbbdbbbbbccc....', '..cccbbbbbbbbbdbbbbcc..',
+    '.ccbbbdbbbbbbbbbbbbbbc.', '.cbbbbbbbbbbbbbbbdbbbb.', 'ccddddddddddddddddddddc',
+  ]);
+  // スフィンクス: 翼のある金色の獅子の体、青と金の縞の頭巾(額に蛇の飾り)、青く光る目。右向きに伏せる
+  const sxPal = { b: '#d0a050', c: '#f0c878', d: '#9a6a2a', w: '#e8dcc0', v: '#fff4dc', k: '#a89070', r: '#ff3b5c', h: '#2a4a9a', y: '#ffd27a', f: '#e8c890', e: '#7ad7ff', n: '#b08850', m: '#8a6040' };
+  S.sphinx = mk(sxPal, [
+    '......v..vvv........................', '.....vvv.vww.vvv....................', '.....vww.vwwvvwk..........ry........',
+    '..vvvvwwv.wwwwww.........hyyh.......', '..vww.www.vwwwwwv......yyyyyyyy.....', '..vwwvvwwkvwwkwwk.....hhhhhhhhhh....',
+    '...wwwkwwwwwwwwwk.....yyyyyyyyyy....', '.vvvwwvvwwkwwkwwk....hhhhhffhhhhh...', '.vwwwwwkwwwwwwwwk....yyyyffffyyyy...',
+    '.vwwkwwwwwwkwwkww....hhhfeffefhhh...', '..kwwkwwkwwkwwwwwv..yyyyffffffyyyy..', '...wwwkwwkwwwwkwwk..hhhhffnnffhhhh..',
+    '...vwwwwwwwwkwwkwk..yyyyffffffyyyy..', '....kwwkwwkwwwwwwk.hhhhhhfmmfhhhhhh.', '.....wwwkwwwwkwkww.yyyyyyyffyyyyyyy.',
+    '.....vwwkwkwwwwwwwhhhhhhhhhhhhhhhhhh', '......kwwwwwwwwwwwyyyyyyyyyyyyyyyyyy', '.......wwwbbbbbbbwwbbbbbbbhh........',
+    '......ccbbbbbbbbbbbbbbbbbbbd........', '...ccccbbbbbbbbbbbbbbbbbbbdd........', '..ccbbbbbbbbbbbbbbbbbbbbbbd.........',
+    '.ccbbbbbbbbbbbbbbbbbbbbbbbd.........', '.cbbbbbbbbbbbbbbbbbbbbbbbbd.........', '.cbbbbbbbbbbbbbbbbbbbbbbbbb.........',
+    '.cbbbbbbbbbbbbbbbbbbbbdddbbc........', '..bbbbbbbbbbbbbbbbbbbbb..bbb........', '..cdddddddbbbbbbdddddbbc.cbbcccc....',
+    '.cc.......ddddddd....bbbccbbbbbbc...', 'kc...................cdbbdddbbbdd...', '.k.....................ddd..dddd....',
+  ], { emit: 'e' });
+  // 謎かけ: 床の石板(太陽・月・星の印が金に光る)/ スフィンクスの頭上の印(逆さの問いは赤)
+  const tbPal = { b: '#b8a07a', c: '#d8c49a', d: '#8a7656', y: '#ffd27a' };
+  S.tab_sun = mk(tbPal, [
+    '..ccccccccccccc..', '.ccbbbbbbbbbbbbc.', 'ccbbbbbbybbbbbbbc', 'cbbbbbybbbybbbbbd',
+    'cbbbbbbyyybbbbbbd', 'cbbbbybyyybybbbbd', 'cbbbbbbyyybbbbbbd', 'cbbbbbybbbybbbbbd',
+    'cbbbbbbbybbbbbbdd', '.dbbbbbbbbbbbbdd.', '..ddddddddddddd..',
+  ], { emit: 'y' });
+  S.tab_moon = mk(tbPal, [
+    '..ccccccccccccc..', '.ccbbbbbbbbbbbbc.', 'ccbbbbbyyybbbbbbc', 'cbbbbbyybbbbbbbbd',
+    'cbbbbyybbbbbbbbbd', 'cbbbbyybbbbbbbbbd', 'cbbbbyybbbbbbbbbd', 'cbbbbbyybbbbbbbbd',
+    'cbbbbbbyyybbbbbdd', '.dbbbbbbbbbbbbdd.', '..ddddddddddddd..',
+  ], { emit: 'y' });
+  S.tab_star = mk(tbPal, [
+    '..ccccccccccccc..', '.ccbbbbbbbbbbbbc.', 'ccbbbbbbybbbbbbbc', 'cbbbbbbbybbbbbbbd',
+    'cbbbbyyyyyyybbbbd', 'cbbbbbyyyyybbbbbd', 'cbbbbbbyyybbbbbbd', 'cbbbbbyybyybbbbbd',
+    'cbbbbyybbbyybbbdd', '.dbbbbbbbbbbbbdd.', '..ddddddddddddd..',
+  ], { emit: 'y' });
+  S.sym_sun = mk({ y: '#ffd27a' }, ['...y...', '.y...y.', '..yyy..', 'y.yyy.y', '..yyy..', '.y...y.', '...y...'], { emit: 'y' });
+  S.sym_sun_r = mk({ y: '#ff3b5c' }, ['...y...', '.y...y.', '..yyy..', 'y.yyy.y', '..yyy..', '.y...y.', '...y...'], { emit: 'y' });
+  S.sym_moon = mk({ y: '#ffd27a' }, ['..yyy..', '.yy....', 'yy.....', 'yy.....', 'yy.....', '.yy....', '..yyy..'], { emit: 'y' });
+  S.sym_moon_r = mk({ y: '#ff3b5c' }, ['..yyy..', '.yy....', 'yy.....', 'yy.....', 'yy.....', '.yy....', '..yyy..'], { emit: 'y' });
+  S.sym_star = mk({ y: '#ffd27a' }, ['...y...', '...y...', 'yyyyyyy', '.yyyyy.', '..yyy..', '.yy.yy.', 'yy...yy'], { emit: 'y' });
+  S.sym_star_r = mk({ y: '#ff3b5c' }, ['...y...', '...y...', 'yyyyyyy', '.yyyyy.', '..yyy..', '.yy.yy.', 'yy...yy'], { emit: 'y' });
+
   // 炎魔イフリート: 黒い角と燃える髪、赤黒い筋骨の上半身、両手に炎。下半身は炎になって浮いている
   const ifritRows = sym([
     '..h.........',
@@ -1730,7 +1822,7 @@ const ART = (() => {
 
   // 回転フレーム(16方向)
   const ROT = {};
-  for (const k of ['axe', 'blade', 'bladeEvo', 'arrow', 'scythe', 'espear', 'bspear', 'trident', 'needle', 'eice', 'ispear', 'tick', 'rscythe', 'stinger', 'leaf']) {
+  for (const k of ['axe', 'blade', 'bladeEvo', 'arrow', 'scythe', 'espear', 'bspear', 'trident', 'needle', 'eice', 'ispear', 'tick', 'rscythe', 'stinger', 'leaf', 'feather']) {
     ROT[k] = rotFrames(S[k].c, 16);
     ROT[k + 'E'] = S[k].e ? rotFrames(S[k].e, 16) : null;
   }

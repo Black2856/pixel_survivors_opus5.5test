@@ -12,6 +12,7 @@ const ECOL = {
   gear: ['#c8a050', '#5a4a30'], clockman: ['#c8a050', '#e8e0c8'], hglass: ['#e8c88a', '#9ff7ff'],
   spider: ['#6a4a8a', '#7dff6a'], ghoul: ['#8aa86a', '#5a3a6a'], shadoweye: ['#c79bff', '#3a1a5a'], stalker: ['#4a3a6a', '#c79bff'],
   sapling: ['#8fd06a', '#5a3a1a'], treant: ['#6a8a3a', '#4a3020'], bee: ['#ffd23f', '#2a2010'], squirrel: ['#c8783a', '#f0d8b0'], bear: ['#7a4a2a', '#3a2010'],
+  scorpion: ['#e09048', '#3a1e0c'], vulture: ['#4a3020', '#e8e0d0'], sanddoll: ['#e8c88a', '#a8803a'], sandmound: ['#e8c88a', '#a8803a'], antlion: ['#b8946a', '#e8d8b0'],
 };
 const xpFor = l => Math.floor(4 + l * 2.6 + Math.pow(l, 1.72));
 
@@ -47,7 +48,7 @@ function pushWarn(w) {
 
 // 通常モード(ステージを1つ選ぶ)の出現スケジュール。t はフェーズの時計(ボス・エリート群の間は止まる)
 // 3分 → エリート群 → 3分 → ボス1 → 3分 → ボス2(倒すとクリア)。同じ t ではフェーズの開始を波の切り替えより先に処理する
-const stageRun = n => DATA.stageRuns.find(r => r.no === n); // ステージのキーの番号(stage1〜9)から
+const stageRun = n => DATA.stageRuns.find(r => r.no === n); // ステージのキーの番号(stage1〜10)から
 // 出現の候補には「敵のまとまり」(配列)が入ることがある(時計塔の「今までの敵」)。まとまりは 1枠として選ばれ、その中から1種
 // spawnW: 選ばれやすさ(既定 1)/ group: 6体の小集団(noGroup の敵は出ない)/ maxAlive: 同時にいられる数(超えるなら選ばない)。選べないときは null
 function pickType(types, group) {
@@ -1376,6 +1377,7 @@ function killEnemy(e, o = {}) {
   if (e.hpFloor > 0) { e.hp = Math.max(e.hp, e.hpFloor); return; } // 影の王: 影がいる間は倒れない(異次元送りなども)
   if (e.boss === 'reaper' && !e.morphed) { startReaperMorph(e); return; } // 死神の第一形態は倒れると終刻の死神に変身する(報酬は第二形態で)
   e.dead = true;
+  if (e.mound) return moundCrumble(e); // 砂人形の砂山: 攻撃が当たると崩れる(倒した扱いにしない)
   if (e.boss) return onBossDeath(e);
   if (e.obj) return objDown(e, true); // ボスが出した物(壊した)
   const col = ECOL[e.type] || ['#ffffff', '#888888'];
@@ -1413,6 +1415,7 @@ function killEnemy(e, o = {}) {
   if (ed.split && !e.elite && !e.owner) for (let i = 0; i < 2; i++) spawnEnemy(ed.split, { x: e.x + rand(-4, 4), y: e.y + rand(-4, 4) }); // ボスの中スライムは分裂しない
   if (ed.fireFloor) lavaPool(e, ed.fireFloor); // 溶岩スライム: 倒れた場所に燃える床
   if (ed.miasma) miasmaCloud(e, ed.miasma); // 腐毒のグール: 倒れた場所に瘴気の霧
+  if (ed.revive && !e.elite && !e.revived) dollMound(e, ed.revive); // 砂人形: 倒れた場所に砂山(エリート・立ち上がった砂人形は砂山にならない)
   if (e.phaseElite && S.phase && S.phase.kind === 'elite') { S.phase.lastX = e.x; S.phase.lastY = e.y; } // エリート群: 宝箱は最後の1体の位置に
   if (e.elite || e.type === 'goblin') {
     hitstop(0.06); shake(6); shockAt(e.x, e.y, 1.2, 0.8); addFlash(e.x, e.y, 100, '#ffd23f', 0.4);
@@ -1441,11 +1444,12 @@ function spawnEnemy(type, o = {}) {
     rateK: o.elite ? EL.eliteRate : 1, areaK: o.elite ? EL.eliteArea : 1, // エリート: 攻撃速度・攻撃範囲
     r: d.r * (o.elite ? 2 : 1), xp: d.xp * lvK('xp'), ai: d.ai, kbRes: o.elite ? 0.9 : d.kbRes || 0, ghost: d.ghost,
     t: rand(0, 5), seed: Math.random(), kx: 0, ky: 0, flash: 0, elite: !!o.elite, scale: o.elite ? 2 : 1,
-    frost: 0, frostT: 0, burns: [], burnT: 0, burnTick: 0, stun: 0, slowT: 0, bleed: 0, bleedT: 0, shotT: (d.shot || d.throw || d.rush || d.puff || d.lantern || d.snowball || d.blink || d.warp || d.strike || d.swipe) ? rand(1, (d.shot || d.throw || d.rush || d.puff || d.lantern || d.snowball || d.blink || d.warp || d.strike || d.swipe).cd) : 0, wind: 0, hopT: rand(0, 1),
+    frost: 0, frostT: 0, burns: [], burnT: 0, burnTick: 0, stun: 0, slowT: 0, bleed: 0, bleedT: 0, shotT: (d.shot || d.throw || d.rush || d.puff || d.lantern || d.snowball || d.blink || d.warp || d.strike || d.swipe || d.swoop || d.pit) ? rand(1, (d.shot || d.throw || d.rush || d.puff || d.lantern || d.snowball || d.blink || d.warp || d.strike || d.swipe || d.swoop || d.pit).cd) : 0, wind: 0, hopT: rand(0, 1),
     life: type === 'goblin' ? 16 : 0,
     noChest: !!o.noChest, phaseElite: !!o.phaseElite, // 宝箱を落とさない / エリート群のエリート
   };
   if (d.burrow) Object.assign(e, { under: true, hidden: true, flying: true, air: true, rise: 0 }); // マグマワーム: 地中から始まる
+  if (d.pit) Object.assign(e, { hidden: true, flying: true, air: true }); // アリジゴク: 砂の中から始まる(見えない・攻撃が当たらない)
   enemies.push(e);
   return e;
 }
@@ -1531,6 +1535,9 @@ function groundStrike(e, st) {
   const R = st.r * e.areaK;
   if (hitCircle(e.tx, e.ty, R, e.dmg * st.n)) { if (st.weak) weakPlayer(st.weak); if (st.numb) numbPlayer(st.numb); if (st.dust) dustPlayer(st.dust); }
   const RR = R * CHAOS.area;
+  if (st.kind === 'tail') { // サソリの尾: 振り下ろした針が砂を突く
+    burst(e.tx, e.ty, 14, SAND, { sp: 80, up: 30, g: 220, life: 0.4 }); addRing(e.tx, e.ty, RR, '#e8c88a', { life: 0.25 }); AudioMan.slash();
+  }
   if (st.kind === 'root') { // 根が地面を割って突き上げる
     for (let k = 0; k < 5; k++) { const pa = TAU / 5 * k + rand(-0.3, 0.3), pr = RR * rand(0.2, 0.6); bfx.push({ kind: 'rootspike', x: e.tx + Math.cos(pa) * pr, y: e.ty + Math.sin(pa) * pr, t: 0, life: 0.7, h: rand(7, 12), a: pa }); }
     burst(e.tx, e.ty, 18, ['#5a3a1a', '#8a5a2a', '#3a6a34', '#c8a060'], { sp: 90, up: 40, g: 240, life: 0.5 });
@@ -1572,6 +1579,41 @@ function wormDive(e, bu) {
   Object.assign(e, { under: true, hidden: true, flying: true, air: true, rise: 0, upT: 0 });
   e.shotT = bu.cd;
   burst(e.x, e.y + 2, 10, ['#3a1a10', '#5a2a1a', '#ff6a2a'], { sp: 50, up: 20, g: 160, life: 0.4 });
+}
+// ---------- 陽炎の砂海の敵 ----------
+const SAND = ['#e8c88a', '#c8a060', '#fff0c8', '#a8803a'];
+// ハゲワシの急降下: 影の円に ×n・砂塵 +dust。砂が舞い上がる
+function vultureLand(e, sw) {
+  const R = sw.r * e.areaK;
+  if (hitCircle(e.x, e.y, R, e.dmg * sw.n)) dustPlayer(sw.dust);
+  burst(e.x, e.y, 18, [...SAND, '#4a3020'], { sp: 90, up: 30, g: 200, life: 0.45 });
+  addRing(e.x, e.y, R * CHAOS.area, '#e8c88a', { w: 2, life: 0.3 }); shake(2); AudioMan.thud();
+  e.sq = 0.7;
+}
+// アリジゴク: すり鉢を開く(半径 r・dur 秒)。底に現れて、すり鉢の間だけ攻撃が当たる
+function antlionPit(e, pt) {
+  Object.assign(e, { hidden: false, flying: false, air: false });
+  e.pitH = addHazard('pit', e.tx, e.ty, { r: pt.r * e.areaK, dur: pt.dur, pull: pt.pull, owner2: e, dmg: e.dmg * pt.n, jaw: pt.jaw * e.areaK, jawT: 0, dustT: 1 });
+  burst(e.tx, e.ty, 24, SAND, { sp: 80, up: 30, g: 200, life: 0.5 }); shake(2); AudioMan.thud();
+  hint('antlion', _t('すり鉢'), _t('中にいると底へ引かれ、砂塵がたまる。底の大あごに噛まれる'));
+}
+// 砂人形が倒れた: その場に砂山(攻撃を当てると崩れる)。t 秒たつと HP ×hp で 1回だけ立ち上がる
+function dollMound(e, rv) {
+  const m = spawnEnemy('sandmound', { x: e.x, y: e.y });
+  Object.assign(m, { hp: 1, maxhp: 1, mound: true, moundT: rv.t, hpK: rv.hp, maxhp0: e.maxhp, noChest: e.noChest, face: e.face });
+  burst(e.x, e.y, 14, SAND, { sp: 60, up: 20, g: 180, life: 0.45 });
+  hint('sandmound', _t('砂山'), _t('倒した砂人形は砂山になり、4秒で 1回だけ立ち上がる。砂山を攻撃すると崩れる'));
+}
+// 砂山が崩れた(攻撃が当たった): 倒した扱いにしない(経験値・撃破数・コンボなし)
+function moundCrumble(e) {
+  burst(e.x, e.y, 16, SAND, { sp: 70, up: 20, g: 200, life: 0.45 }); addRing(e.x, e.y, 8, '#e8c88a', { life: 0.2 }); AudioMan.sand();
+}
+// 砂山から砂人形が立ち上がる(HP は元の最大HP × hp・経験値なし・もう立ち上がらない)
+function dollRise(m) {
+  m.dead = true;
+  const o = spawnEnemy('sanddoll', { x: m.x, y: m.y });
+  Object.assign(o, { revived: true, xp: 0, hp: m.maxhp0 * m.hpK, maxhp: m.maxhp0, noChest: m.noChest, face: m.face, riseAt: S.time }); // riseAt: 砂から伸び上がる(render.js)
+  burst(m.x, m.y - 4, 18, SAND, { sp: 70, up: 30, g: 160, life: 0.5 }); AudioMan.thud();
 }
 
 function updEnemies(dt) {
@@ -1682,6 +1724,25 @@ function updEnemies(dt) {
         e.life -= dt;
         if (Math.random() < dt * 20) part(e.x, e.y, rand(-10, 10), rand(-20, 0), 0.6, '#ffcc33', { glow: true });
         if (e.life <= 0) { e.dead = true; UI.announce(_t('逃げられた…'), ''); burst(e.x, e.y, 20, ['#ffffff', '#ffcc33'], { sp: 60 }); continue; }
+      } else if (e.ai === 'pit') { // アリジゴク: 砂の中(見えない)→ プレイヤーの近くに予告 → すり鉢を開き、底で大あごを鳴らす。すり鉢の間だけ攻撃が当たる
+        const pt = d.pit; mx = my = 0;
+        if (e.pitH) { // すり鉢: 底(中心)に止まる。終わる少し前に潜る
+          const h = e.pitH; e.x = h.x; e.y = h.y;
+          if (h.t >= h.dur - 0.3 || !hazards.includes(h)) { e.pitH = null; Object.assign(e, { hidden: true, flying: true, air: true }); e.shotT = pt.cd; burst(e.x, e.y, 14, SAND, { sp: 50, up: 20, g: 160, life: 0.4 }); }
+        } else if (e.wind > 0) { // 予告: 砂が渦を巻きはじめる
+          e.wind -= dt;
+          if (Math.random() < dt * 40) { const pa = rand(0, TAU), pr = rand(0.3, 1) * pt.r * e.areaK * CHAOS.area; part(e.tx + Math.cos(pa) * pr, e.ty + Math.sin(pa) * pr * 0.8, -Math.sin(pa) * 30, Math.cos(pa) * 20, 0.4, pick(SAND), { drag: 2 }); }
+          if (e.wind <= 0) antlionPit(e, pt);
+        } else if ((e.shotT -= dt * CHAOS.rate * tw * e.rateK) <= 0) {
+          const pa = rand(0, TAU), pr = rand(pt.near[0], pt.near[1]);
+          e.x = e.tx = dc.x + Math.cos(pa) * pr; e.y = e.ty = dc.y + Math.sin(pa) * pr; e.wind = pt.wind; // 砂の中をすり鉢の場所へ
+          pushWarn({ kind: 'circle', x: e.tx, y: e.ty, r: pt.r * e.areaK, t: 0, life: pt.wind, owner: e });
+          AudioMan.sand();
+        }
+      } else if (e.ai === 'mound') { // 砂人形の砂山: t 秒たつと立ち上がる(最後の 1秒は震えて砂がこぼれる)
+        mx = my = 0; e.moundT -= dt;
+        if (e.moundT < 1 && Math.random() < dt * 20) part(e.x + rand(-5, 5), e.y + rand(-2, 2), rand(-10, 10), -rand(10, 30), 0.4, pick(SAND), { g: 120 });
+        if (e.moundT <= 0) { dollRise(e); continue; }
       } else if (e.ai === 'burrow') { // マグマワーム: 地中を進み、プレイヤーの足元に予告の円 → 飛び出す。出ている間だけ攻撃が当たり、また潜る
         const bu = d.burrow;
         if (e.upT > 0) { // 出ている: その場で止まる(最後の sink 秒で沈む)
@@ -1831,7 +1892,8 @@ function updEnemies(dt) {
         } else {
           e.shotT -= dt * CHAOS.rate * tw * e.rateK;
           if (e.shotT <= 0 && d2(e.x, e.y, P.x, P.y) < st.range * st.range) {
-            e.shotT = st.cd; e.wind = st.wind; e.tx = P.x; e.ty = P.y;
+            e.shotT = st.cd; e.wind = st.wind;
+            if (st.front) { e.tx = e.x + Math.cos(a) * st.front * e.areaK; e.ty = e.y + Math.sin(a) * st.front * e.areaK; } else { e.tx = P.x; e.ty = P.y; } // サソリ: 自分の前に
             pushWarn({ kind: 'circle', x: e.tx, y: e.ty, r: st.r * e.areaK, t: 0, life: st.wind, owner: e });
           }
         }
@@ -1852,6 +1914,23 @@ function updEnemies(dt) {
           }
         }
       }
+      if (d.swoop) { // ハゲワシ: 舞い上がり(攻撃が当たらない)、影の円がプレイヤーを追って止まる → 急降下(砂塵)。降りて少しの間は地上で止まる
+        const sw = d.swoop, T1 = sw.rise, T2 = T1 + sw.follow + sw.lock, T3 = T2 + 0.15, H = 56;
+        if (e.swT !== undefined) { // 空の上
+          mx = my = 0; e.swT += dt;
+          const w = e.swW;
+          if (e.swT < T1) e.jz = H * e.swT / T1; // 舞い上がる
+          else if (e.swT < T2) { e.jz = H; const k = Math.min(1, dt * 5); e.x += (w.x - e.x) * k; e.y += (w.y - e.y) * k; } // 影の上へ回る
+          else if (e.swT < T3) { e.x = w.x; e.y = w.y; e.jz = H * (1 - (e.swT - T2) / 0.15); } // 急降下
+          else { e.jz = 0; e.swT = undefined; e.hidden = e.air = false; e.restT = sw.rest; vultureLand(e, sw); }
+        } else if (e.restT > 0) { mx = my = 0; e.restT -= dt; } // 降りたあと: 地上で翼をたたんで止まる
+        else if ((e.shotT -= dt * CHAOS.rate * tw * e.rateK) <= 0 && d2(e.x, e.y, P.x, P.y) < sw.range * sw.range) {
+          e.shotT = sw.cd; e.swT = 0; e.hidden = e.air = true;
+          e.swW = chaseWarn({ kind: 'circle', x: P.x, y: P.y, r: sw.r * e.areaK, t: 0, life: T3, owner: e }, T1 + sw.follow, sw.spd);
+          pushWarn(e.swW); AudioMan.dash();
+        }
+        e.landed = e.restT > 0;
+      }
       if (d.blast) { // 鬼火: プレイヤーのそばで止まり、膨らみながら点滅して自爆する
         const bl = d.blast;
         if (e.wind > 0) {
@@ -1867,7 +1946,7 @@ function updEnemies(dt) {
       e.x += mx * sp * dt; e.y += my * sp * dt;
       e.face = (mx || dc.x - e.x) < 0 ? -1 : 1; // 止まっている間はプレイヤーの方を向く
       // 分離(重なり防止)
-      if (!e.ghost && e.ai !== 'roll' && !e.under) { // 地中のマグマワームはぶつからない
+      if (!e.ghost && e.ai !== 'roll' && !e.under && !e.air) { // 地中のマグマワーム・空の上のハゲワシ・砂の中のアリジゴクはぶつからない
         let n = 0;
         forEachNear(e.x, e.y, e.r, o => {
           if (o === e || o.ghost || o.prop) return;
@@ -1877,7 +1956,7 @@ function updEnemies(dt) {
         });
       }
       // 遠すぎる敵は進行方向の反対側へ再配置
-      if (d2(e.x, e.y, P.x, P.y) > R2 && e.type !== 'goblin' && e.ai !== 'roll') {
+      if (d2(e.x, e.y, P.x, P.y) > R2 && e.type !== 'goblin' && e.ai !== 'roll' && !e.pitH) { // すり鉢を開いているアリジゴクは動かさない
         const a2 = Math.atan2(P.y - e.y, P.x - e.x) + rand(-0.5, 0.5), R = Math.hypot(GFX.VW, GFX.VH) / 2 + 12;
         e.x = P.x + Math.cos(a2) * R; e.y = P.y + Math.sin(a2) * R;
       }
@@ -2006,6 +2085,7 @@ const BFX = {
   fhour: { col: '#8a0c22', core: '#ff3b5c', hot: '#ff3b5c', dark: '#0a0204' },
   qbee: { col: '#8a6a10', core: '#ffd23f', hot: '#ffd23f', dark: '#141004' },
   elder: { col: '#3a5a2a', core: '#8fd06a', hot: '#c8a060', dark: '#0e1408' },
+  escorp: { col: '#6a4a1a', core: '#ffb040', hot: '#ffd27a', dark: '#140c04' },
 };
 // ノックバック: ang の向きへ dist を dur 秒かけて(一定の速さ)。回避の無敵中は押されない(押されている途中で回避すると止まる)。闘技場では壁で止まる
 function pushPlayer(ang, dist, dur) {
@@ -2222,8 +2302,9 @@ const BOSS_AI0 = {
   shadowking: { sword: 4, rings: 8, blades: 10, chase: 6, sever: 15, gap: 0 },
   qbee: { sting: 2, ring: 8, dive: 4, call: 7, side: 1 },
   elder: { sprout: 6, roots: 3, sweep: 0, fruit: 5, leaves: 8 },
+  escorp: { vortex: 8, grab: 3, stab: 5, sand: 2, burrow: 10 },
 };
-const BOSS_ENRAGE = { king: { slam: 6 }, ifrit: { altar: true }, stag: { herd: 4 }, pqueen: { spiral: 3 }, levia: { breath: 4 }, fgiant: { drift: 5 }, squeen: { lance: 3 }, warden: { ringCd: 6 }, reaper: { sum: 7 }, fhour: { cross: 4, echo: 0 }, cerberus: { rain: 5 }, shadowking: { chainCd: 1 }, qbee: { ball: 4 }, elder: { cage: 5 } };
+const BOSS_ENRAGE = { king: { slam: 6 }, ifrit: { altar: true }, stag: { herd: 4 }, pqueen: { spiral: 3 }, levia: { breath: 4 }, fgiant: { drift: 5 }, squeen: { lance: 3 }, warden: { ringCd: 6 }, reaper: { sum: 7 }, fhour: { cross: 4, echo: 0 }, cerberus: { rain: 5 }, shadowking: { chainCd: 1 }, qbee: { ball: 4 }, elder: { cage: 5 }, escorp: { pinch: 4 } };
 
 function bossAI(e, dt) {
   const ai = e.ai, a = Math.atan2(P.y - e.y, P.x - e.x), dist = Math.sqrt(d2(e.x, e.y, P.x, P.y));
@@ -2272,6 +2353,7 @@ function bossAI(e, dt) {
     case 'shadowking': shadowKingAI(e, ai, dt, a, dist, slow); break;
     case 'qbee': qbeeAI(e, ai, dt, a, dist, slow); break;
     case 'elder': elderAI(e, ai, dt, a, dist, slow); break;
+    case 'escorp': escorpAI(e, ai, dt, a, dist, slow); break;
   }
 }
 
@@ -3845,6 +3927,108 @@ function rootCage(e, ai) {
   });
 }
 
+// ---------- 大蠍: プレイヤーへ寄る。★流砂の渦(引き寄せ・砂塵)/ はさみの挟撃(捕まると動けない → 尾の一突き)/ 尾の三連突き / 砂かけ(砂塵の散弾)/ 砂潜り / 激昂: 大地の挟撃 ----------
+function escorpAI(e, ai, dt, a, dist, slow) {
+  const R = CHAOS.rate;
+  if (ai.act === 'vortex' || ai.act === 'burrow' || ai.act === 'stab') { e.spr = 'escorp'; return; } // 渦の中心・砂の中・尾を砂に刺している間は動かない(終わりは技の later)
+  if (ai.act === 'grab') { // はさみの挟撃: 0.6秒の予告 → 帯の中にいたら捕まえる → 1秒 動けない(回避で抜けられる)→ 尾の一突き ×1.2
+    const g = ai.tl; g.t += dt;
+    if (!g.done && g.t >= 0.6) {
+      g.done = true;
+      const tip = { x: e.x + Math.cos(g.a) * 70 * CHAOS.area, y: e.y + Math.sin(g.a) * 70 * CHAOS.area };
+      if (!P.dead && !(P.invT > 0) && inLine(e.x, e.y, g.a, 80, 24)) {
+        P.rootT = 1.1; ai.grabT = 1; bfx.push({ kind: 'egrab', x: e.x, y: e.y, owner: e, t: 0, life: 1.1, track: f => { if (!(P.rootT > 0)) f.t = f.life; } });
+        burst(P.x, P.y - 2, 14, [...SAND, '#2e2622'], { sp: 70, life: 0.35 }); shake(4); AudioMan.crush();
+        hint('escorp_grab', _t('はさみの挟撃'), _t('捕まると動けない。回避で抜け出せる'));
+      } else { ai.act = null; burst(tip.x, tip.y, 10, SAND, { sp: 60, life: 0.3 }); }
+      AudioMan.slash(); e.sq = 0.8; slashes.push({ x: e.x, y: e.y, a: g.a, r: 80 * CHAOS.area, t: 0, life: 0.2, flip: 0, span: 0.5, pal: SWING_PAL.enemy, enemy: true });
+    }
+    if (g.done && ai.act === 'grab') {
+      if (!(P.rootT > 0)) { ai.act = null; ai.grabT = 0; } // 回避で抜けた
+      else if ((ai.grabT -= dt) <= 0) {
+        P.rootT = 0; ai.act = null; hurtPlayer(e.dmg * 1.2);
+        bfx.push({ kind: 'estab', x: P.x, y: P.y, t: 0, life: 0.35 }); burst(P.x, P.y - 4, 18, ['#ffb040', '#ffd27a', '#2e2622'], { sp: 90, life: 0.4 }); shake(5); hitstop(0.04); AudioMan.slash(); AudioMan.thud();
+      }
+    }
+    return;
+  }
+  if (dist > 34) { e.x += Math.cos(a) * e.spd * slow * dt; e.y += Math.sin(a) * e.spd * slow * dt; e.spr = Math.floor(e.t * 6) % 2 ? 'escorp' : 'escorp2'; } else e.spr = 'escorp'; // 34 まで近づくと止まる
+  if (Math.random() < dt * 6) part(e.x + rand(-14, 14), e.y + e.r * 0.7, rand(-10, 10), -rand(4, 12), 0.5, pick(SAND), { g: 60, drag: 1 }); // 歩く砂ぼこり
+  ai.vortex -= dt * R; ai.grab -= dt * R; ai.stab -= dt * R; ai.sand -= dt * R; ai.burrow -= dt * R; if (ai.enraged) ai.pinch -= dt * R;
+  if (ai.enraged && ai.pinch <= 0) { ai.pinch = 11; earthPincer(e, ai); }
+  else if (ai.vortex <= 0) { ai.vortex = ai.enraged ? 12 : 16; scorpVortex(e, ai); }
+  else if (ai.grab <= 0 && dist < 90) { ai.grab = ai.enraged ? 4.5 : 6; scorpGrab(e, ai, a); }
+  else if (ai.burrow <= 0) { ai.burrow = ai.enraged ? 9 : 12; scorpBurrow(e, ai); }
+  else if (ai.stab <= 0 && dist < 160) { ai.stab = ai.enraged ? 5.5 : 7; scorpStab(e, ai); }
+  else if (ai.sand <= 0 && dist < 140) { ai.sand = ai.enraged ? 4 : 5; windup(e, 0.4, () => scorpSand(e, ai)); }
+}
+// ★流砂の渦: 1秒の予告(大蠍のまわり 半径 150 の砂が渦を巻きはじめる)→ 5秒 流砂。大蠍へ引かれ(毎秒 30。回避の無敵中は引かれない)、中にいると 1秒ごとに砂塵 +1
+//   中心(半径 45)は 0.5秒ごとにはさみが鳴る ×0.6。大蠍は渦の中心で動かない
+function scorpVortex(e, ai) {
+  ai.act = 'vortex'; e.sq = 1.2;
+  addHazard('quicksand', e.x, e.y, { r: 150, dur: 6, tele: 1, pull: 30, core: 45, owner2: e, dmg: e.dmg, dustT: 1, snapT: 0 });
+  pushWarn({ kind: 'circle', x: e.x, y: e.y, r: 150, t: 0, life: 1, noFill: true, owner: e }); // 渦の広さ(縁だけ)
+  pushWarn({ kind: 'circle', x: e.x, y: e.y, r: 45, t: 0, life: 1, owner: e }); // はさみの届く中心
+  AudioMan.charge(1); AudioMan.sand(); shake(4);
+  later(ai, 6, () => { if (ai.act === 'vortex') ai.act = null; });
+  hint('escorp_vortex', _t('流砂の渦'), _t('大蠍へ引き寄せられ、砂塵がたまる。中心のはさみに近づくな'));
+}
+// はさみの挟撃: 0.6秒 前方の帯(長さ 80・幅 24。大蠍について動かない)→ 捕まえる(つづきは escorpAI)
+function scorpGrab(e, ai, a) {
+  ai.act = 'grab'; ai.tl = { t: 0, a, done: false };
+  pushWarn({ kind: 'line', x: e.x, y: e.y, a, len: 80, w: 24, t: 0, life: 0.6, owner: e });
+  AudioMan.charge(0.6); e.sq = 1.1;
+}
+// 尾の三連突き: 尾を砂に刺し(1.6秒 動かない)、プレイヤーの足元に 円 半径 22 を 0.5秒おきに 3回(毎回置き直す)。各 0.6秒の予告 → 砂から針が突き出す ×0.9
+function scorpStab(e, ai) {
+  ai.act = 'stab'; e.sq = 1.15; AudioMan.charge(0.6);
+  burst(e.x - 8, e.y, 14, SAND, { sp: 60, up: 20, g: 200, life: 0.4 });
+  for (let i = 0; i < 3; i++) later(ai, i * 0.5, () => {
+    const x = P.x, y = P.y;
+    pushWarn({ kind: 'circle', x, y, r: 22, t: 0, life: 0.6, owner: e });
+    later(ai, 0.6, () => {
+      hitCircle(x, y, 22, e.dmg * 0.9);
+      bfx.push({ kind: 'estab', x, y, t: 0, life: 0.35 });
+      burst(x, y, 16, SAND, { sp: 80, up: 30, g: 220, life: 0.4 }); addRing(x, y, 22 * CHAOS.area, '#ffb040', { life: 0.25 }); shake(3); AudioMan.slash(); AudioMan.thud();
+    });
+  });
+  later(ai, 1.65, () => { if (ai.act === 'stab') ai.act = null; });
+}
+// 砂かけ: 前方へ砂の散弾 9発(±0.45rad・速さ 100〜140・1.2秒で消える)。×0.5・1発につき砂塵 +1
+function scorpSand(e, ai) {
+  const a = Math.atan2(P.y - e.y, P.x - e.x);
+  for (let i = 0; i < 9; i++) Object.assign(eball(e.x + Math.cos(a) * 12, e.y + 4, a + rand(-0.45, 0.45), rand(100, 140), e.dmg * 0.5, 'sandshot'), { dust: 1, life: 1.2, r: 2.5 * CHAOS.area });
+  burst(e.x + Math.cos(a) * 14, e.y + 4, 24, SAND, { sp: 110, life: 0.4, drag: 2 }); e.sq = 0.8; AudioMan.sand(); AudioMan.dash();
+}
+// 砂潜り: 砂に潜り(0.4秒)、砂の中を進んで(盛り上がった砂が動く)、プレイヤーから 60〜90 の所に出る(出る所に 円 半径 30 の予告 1.2秒)。出る所の砂煙で砂塵 +2(ダメージはない)
+function scorpBurrow(e, ai) {
+  const pa = rand(0, TAU), pr = rand(60, 90), tx = P.x + Math.cos(pa) * pr, ty = P.y + Math.sin(pa) * pr;
+  ai.act = 'burrow'; e.sq = 0.6;
+  burst(e.x, e.y, 30, SAND, { sp: 90, up: 40, g: 200, life: 0.5 }); shake(3); AudioMan.thud(); AudioMan.sand();
+  pushWarn({ kind: 'circle', x: tx, y: ty, r: 30, t: 0, life: 1.2, owner: e });
+  later(ai, 0.4, () => { e.flying = e.hidden = e.air = true; bfx.push({ kind: 'emound', x: e.x, y: e.y, x0: e.x, y0: e.y, x1: tx, y1: ty, t: 0, life: 0.8 }); });
+  later(ai, 1.2, () => {
+    e.x = tx; e.y = ty; e.flying = e.hidden = e.air = false; ai.act = null; e.sq = 0.6;
+    if (!P.dead && d2(tx, ty, P.x, P.y) < Math.pow(30 * CHAOS.area + 3, 2)) dustPlayer(2);
+    burst(tx, ty, 40, SAND, { sp: 130, up: 60, g: 200, life: 0.6 }); addRing(tx, ty, 30 * CHAOS.area, '#e8c88a', { w: 2, life: 0.35 }); shake(6); AudioMan.boom();
+    for (let i = 0; i < 16; i++) part(tx + rand(-20, 20), ty + rand(-10, 10), rand(-20, 20), -rand(10, 40), rand(0.8, 1.4), pick(SAND), { drag: 1.5, sz: pick([2, 3]) }); // 砂煙
+  });
+  hint('escorp_burrow', _t('砂潜り'), _t('出てくる所の砂煙を浴びると砂塵がたまる'));
+}
+// 大地の挟撃(激昂): プレイヤーの左右(大蠍から見て横)の砂から大きなはさみが出て、両側から 1秒かけて中央へ閉じる(帯 長さ 140・幅 34)→ ×1.4。前後へ逃げる
+function earthPincer(e, ai) {
+  const sa = Math.atan2(P.y - e.y, P.x - e.x) + Math.PI / 2, cx = P.x, cy = P.y, D = 70, x0 = cx - Math.cos(sa) * D, y0 = cy - Math.sin(sa) * D;
+  pushWarn({ kind: 'line', x: x0, y: y0, a: sa, len: D * 2, w: 34, t: 0, life: 1, owner: e });
+  bfx.push({ kind: 'epinch', x: cx, y: cy, a: sa, D: D * CHAOS.area, t: 0, life: 1.3 });
+  burst(cx - Math.cos(sa) * D, cy - Math.sin(sa) * D, 16, SAND, { sp: 70, up: 30, g: 200 }); burst(cx + Math.cos(sa) * D, cy + Math.sin(sa) * D, 16, SAND, { sp: 70, up: 30, g: 200 });
+  AudioMan.charge(1); AudioMan.thud(); shake(4);
+  later(ai, 1, () => {
+    hitLine(x0, y0, sa, D * 2, 34, e.dmg * 1.4);
+    burst(cx, cy, 40, [...SAND, '#ffd27a'], { sp: 140, up: 50, g: 200, life: 0.5 }); bossBlast(cx, cy, 34 * CHAOS.area, Object.assign({ n: 14 }, BFX.escorp)); shake(9); hitstop(0.05); AudioMan.crush(); AudioMan.boom();
+  });
+  hint('escorp_pinch', _t('大地の挟撃'), _t('左右から大きなはさみが閉じる。前か後ろへ逃げる'));
+}
+
 // ---------- 時計仕掛けの番人: プレイヤーへまっすぐ。ゼンマイ巻き(DPSチェック)/ 時針と分針 / 歯車弾 / 鐘の衝撃 / 大歯車 / 歯車の床 / 激昂: リングギア ----------
 const BRASS = ['#c8a050', '#ffd27a', '#8a6a30', '#fff0c8'];
 function wardenAI(e, ai, dt, a, dist, slow) {
@@ -5298,6 +5482,30 @@ function updHazards(dt) {
       const R = h.r * Math.min(1, h.t * 6);
       if (dd < R * R && h.t < h.dur - 0.3) { P.staLockT = Math.max(P.staLockT, 0.1); S.inInk = true; }
       if (Math.random() < dt * 8) { const pa = rand(0, TAU), pr = Math.sqrt(Math.random()) * R; part(h.x + Math.cos(pa) * pr, h.y + Math.sin(pa) * pr * 0.8, 0, -rand(4, 10), 0.8, pick(['#2a2a4a', '#3a3a5a', '#1a1a2a']), { drag: 1 }); }
+    } else if (h.kind === 'quicksand') { // 流砂の渦(大蠍): tele 秒の予告のあと、大蠍へ引く(回避の無敵中は引かれない)・中にいると 1秒ごとに砂塵 +1・中心(core)で 0.5秒ごとにはさみ ×0.6
+      if (h.owner2 && h.owner2.dead) h.t = h.dur;
+      const d = Math.sqrt(dd), on = h.t >= h.tele && h.t < h.dur - 0.2;
+      if (on && !P.dead && d < h.r) {
+        if (P.invT <= 0 && d > 1) { const k = Math.min(d, h.pull * dt); P.x += (h.x - P.x) / d * k; P.y += (h.y - P.y) / d * k; }
+        if ((h.dustT -= dt) <= 0) { h.dustT = 1; dustPlayer(1); }
+      }
+      if (on && (h.snapT -= dt) <= 0) { // はさみが鳴る(中心にいれば ×0.6)
+        h.snapT = 0.5;
+        hitCircle(h.x, h.y, h.core, h.dmg * 0.6);
+        const RC = h.core * CHAOS.area, sa = rand(0, TAU);
+        for (const s of [0, Math.PI]) slashes.push({ x: h.x, y: h.y, a: sa + s, r: RC, t: 0, life: 0.2, flip: 0, span: 1.4, pal: SWING_PAL.enemy, enemy: true });
+        AudioMan.slash();
+      }
+      if (Math.random() < dt * (h.t < h.tele ? 20 : 50)) { const pa = rand(0, TAU), pr = rand(0.15, 1) * h.r; part(h.x + Math.cos(pa) * pr, h.y + Math.sin(pa) * pr, -Math.cos(pa) * 30 - Math.sin(pa) * 40, -Math.sin(pa) * 30 + Math.cos(pa) * 40, 0.7, pick(SAND), { drag: 0.5 }); } // 渦を巻いて流れ込む砂
+    } else if (h.kind === 'pit') { // すり鉢(アリジゴク): 中では中心へ引かれ(回避の無敵中は引かれない)、1秒ごとに砂塵 +1。底の大あごに 0.5秒ごとに ×n
+      if (h.owner2 && h.owner2.dead) h.t = h.dur;
+      const d = Math.sqrt(dd), R = h.r * Math.min(1, h.t * 4);
+      if (!P.dead && d < R && h.t < h.dur - 0.3) {
+        if (P.invT <= 0 && d > 1) { const k = Math.min(d, h.pull * dt); P.x += (h.x - P.x) / d * k; P.y += (h.y - P.y) / d * k; }
+        if ((h.dustT -= dt) <= 0) { h.dustT = 1; dustPlayer(1); }
+        if (d < h.jaw * CHAOS.area + 3 && (h.jawT -= dt) <= 0) { h.jawT = 0.5; hurtPlayer(h.dmg); h.owner2.biteT = S.time + 0.2; } // 噛むときは大あごを閉じる(render.js)
+      }
+      if (Math.random() < dt * 24) { const pa = rand(0, TAU), pr = rand(0.4, 1) * R; part(h.x + Math.cos(pa) * pr, h.y + Math.sin(pa) * pr * 0.8, -Math.cos(pa) * 26 - Math.sin(pa) * 14, -Math.sin(pa) * 20 + Math.cos(pa) * 10, 0.6, pick(SAND), { drag: 0.5 }); } // 斜面を滑り落ちる砂
     } else if (h.kind === 'thorn') { // 茨の木(古樹の主の芽吹き): 通れない(幹の円の外へ押し出す)。60 以内に来ると 0.5秒の予告(円 半径 30)のあと枝で叩く ×0.8(2.5秒に1回)
       if (h.owner2 && h.owner2.dead) h.t = h.dur;
       h.rise = Math.min(1, (h.rise || 0) + dt * 4);

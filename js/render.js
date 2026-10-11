@@ -180,6 +180,7 @@ function buildChunk(cx, cy, st) {
     if (st.sea) { seaDeco(x, gx, hx, hy, kind, hash2(hx * 3 + ox, hy * 5 + oy), st.deco); continue; }
     if (st.snow) { snowDeco(x, gx, hx, hy, kind, hash2(hx * 3 + ox, hy * 5 + oy), st.deco); continue; }
     if (st.forest) { forestDeco(x, gx, hx, hy, kind, hash2(hx * 3 + ox, hy * 5 + oy), st.deco); continue; }
+    if (st.desert) { desertDeco(x, hx, hy, kind, hash2(hx * 3 + ox, hy * 5 + oy), st.deco); continue; }
     if (kind < 0.45) { // 草むら
       x.fillStyle = d0; x.fillRect(hx, hy + 2, 1, 2); x.fillRect(hx + 2, hy + 1, 1, 3); x.fillRect(hx + 4, hy + 2, 1, 2);
       x.fillStyle = d1; x.fillRect(hx + 2, hy, 1, 1); x.fillRect(hx, hy + 1, 1, 1);
@@ -329,6 +330,32 @@ function forestDeco(x, gx, hx, hy, kind, h2, [d0, d1, d2c, d3]) {
     x.fillStyle = d1; x.fillRect(hx + 2, hy + 6, 2, 1);
   }
 }
+// 砂海の地面の装飾: 風紋 / 小石 / 枯れ草 / 獣の骨(角のある頭骨・砂から出たあばら)/ 倒れた柱 / 半分埋もれた石柱
+function desertDeco(x, hx, hy, kind, h2, [d0, d1, d2c, d3]) {
+  if (kind < 0.36) { // 風紋: 平行に波打つ砂の筋(明るい稜線と、その下の影)
+    for (let r = 0; r < 3; r++) for (let k = 0; k < 12; k++) { const yy = hy + r * 3 + Math.round(Math.sin(k * 0.55 + h2 * 6 + r) * 1); x.fillStyle = d1; x.fillRect(hx + k, yy, 1, 1); x.fillStyle = d0; x.fillRect(hx + k, yy + 1, 1, 1); }
+  } else if (kind < 0.46) { // 小石
+    x.fillStyle = '#6a5a48'; x.fillRect(hx, hy + 2, 3, 1); x.fillStyle = d2c; x.fillRect(hx, hy + 1, 3, 1); x.fillRect(hx + 1, hy, 1, 1); x.fillRect(hx + 5, hy + 3, 2, 1);
+  } else if (kind < 0.54) { // 枯れ草
+    x.fillStyle = '#8a7048'; x.fillRect(hx + 1, hy + 1, 1, 3); x.fillRect(hx + 3, hy, 1, 4); x.fillRect(hx + 5, hy + 2, 1, 2); x.fillRect(hx, hy + 2, 1, 1); x.fillRect(hx + 4, hy + 1, 1, 1);
+  } else if (kind < 0.58) { // 獣の骨: 角のある頭骨
+    x.fillStyle = d0; x.fillRect(hx, hy + 5, 8, 1);
+    x.fillStyle = d3; x.fillRect(hx + 2, hy + 1, 4, 3); x.fillRect(hx + 3, hy + 4, 2, 1); x.fillRect(hx, hy, 2, 1); x.fillRect(hx + 6, hy, 2, 1); x.fillRect(hx, hy - 1, 1, 1); x.fillRect(hx + 7, hy - 1, 1, 1);
+    x.fillStyle = '#5a4a3a'; x.fillRect(hx + 2, hy + 2, 1, 1); x.fillRect(hx + 5, hy + 2, 1, 1);
+  } else if (kind < 0.62) { // 獣の骨: 砂から出たあばら
+    x.fillStyle = d0; x.fillRect(hx - 1, hy + 4, 12, 1);
+    for (let k = 0; k < 4; k++) { x.fillStyle = d3; x.fillRect(hx + k * 3, hy + 1, 1, 3); x.fillRect(hx + k * 3 + 1, hy, 1, 1); }
+  } else if (kind > 0.96) { // 半分埋もれた石柱: 折れた柱(縦の溝)と、根元の砂だまり
+    x.fillStyle = d0; x.fillRect(hx - 1, hy + 9, 9, 2);
+    x.fillStyle = '#b8a888'; x.fillRect(hx + 1, hy, 5, 9); x.fillStyle = '#d8ccb0'; x.fillRect(hx + 1, hy, 2, 9); x.fillStyle = '#8a7a60'; x.fillRect(hx + 4, hy + 1, 1, 8);
+    x.fillStyle = '#efe6d0'; x.fillRect(hx + 1, hy, 5, 1); x.fillStyle = '#8a7a60'; x.fillRect(hx + 3, hy, 1, 1);
+    x.fillStyle = d1; x.fillRect(hx, hy + 7, 7, 2); x.fillRect(hx - 1, hy + 8, 9, 1);
+  } else if (kind > 0.92) { // 倒れた柱: 横たわる柱の胴(溝と切り口)に砂がかぶる
+    x.fillStyle = d0; x.fillRect(hx, hy + 4, 13, 1);
+    x.fillStyle = '#b8a888'; x.fillRect(hx, hy + 1, 12, 3); x.fillStyle = '#d8ccb0'; x.fillRect(hx, hy + 1, 12, 1); x.fillStyle = '#8a7a60'; for (let k = 2; k < 11; k += 3) x.fillRect(hx + k, hy + 2, 1, 2);
+    x.fillStyle = '#efe6d0'; x.fillRect(hx + 11, hy + 1, 2, 3); x.fillStyle = d1; x.fillRect(hx + 3, hy + 3, 5, 1);
+  }
+}
 function drawGround() {
   const st = DATA.stages[S ? S.stage - 1 : 0];
   const x0 = Math.floor(cam.x / CH), y0 = Math.floor(cam.y / CH);
@@ -443,6 +470,9 @@ function spriteOf(e) {
   if (e.type === 'bear') return e.stand ? ART.S.bearStand : s[Math.floor(e.t * 5) % s.length]; // クマ: 爪の前に立ち上がる
   if (e.type === 'squirrel' && e.aim) return ART.S.squirrelThrow; // リス: ドングリを振りかぶる
   if (e.type === 'bee' || e.obj === 'wbee') return s[Math.floor(e.t * 24 + e.seed * 5) % s.length]; // 蜂: 速い羽ばたき
+  if (e.type === 'scorpion' && e.aim) return ART.S.scorpionUp; // サソリ: 尾を振り上げる
+  if (e.type === 'vulture') return e.landed ? ART.S.vultureLand : s[Math.floor(e.t * (e.jz > 0 ? 10 : 6) + e.seed * 5) % s.length]; // ハゲワシ: 降りたあとは翼をたたむ。空の上では速く羽ばたく
+  if (e.type === 'antlion') return s[e.biteT > S.time ? 1 : Math.floor(e.t * 1.5 + e.seed * 3) % s.length]; // アリジゴク: 大あごをゆっくり開け閉め(噛むときは閉じる)
   if (Array.isArray(s)) return s[Math.floor(e.t * 8) % s.length];
   return s;
 }
@@ -1069,6 +1099,20 @@ function render() {
         for (let k = 0; k < fh; k++) { const col = k === fh - 1 ? '#ffe9a0' : k > fh / 2 ? '#ffc34a' : '#ff6a2a'; sx.fillStyle = gx.fillStyle = col; sx.fillRect(fx, fy - k, 1, 1); gx.fillRect(fx, fy - k, 1, 1); }
       }
       addLight(h.x, h.y, R * 3, '#ff6a2a', 0.75 * fade * (h.lite || 1));
+    } else if (h.kind === 'quicksand') { // 流砂の渦(大蠍): 渦を巻く砂(予告の間は薄く)。中心のはさみの届く所は暗く、縁は危険を示す赤
+      const R = Math.round(h.r), on = h.t >= h.tele, k0 = on ? 1 : h.t / h.tele, RC = Math.round(h.core * CHAOS.area);
+      sx.globalAlpha = 0.32 * fade * k0; pDisc(sx, hx, hy, R, '#a8803a');
+      sx.globalAlpha = 0.5 * fade * k0; pDisc(sx, hx, hy, RC, '#6a4a22'); sx.globalAlpha = fade * k0;
+      for (let k = 0; k < 5; k++) for (let i = 0; i < 70; i++) { const u = i / 70, pa = t * 1.3 + k * TAU / 5 + u * 5, pr = R * (1 - u); if (pr < 6) continue; sx.fillStyle = u > 0.65 ? '#5a4220' : u > 0.3 ? '#c8a060' : '#f0d8a0'; sx.fillRect(Math.round(hx + Math.cos(pa) * pr), Math.round(hy + Math.sin(pa) * pr), 1, 1); }
+      if (on) { pCircle(sx, hx, hy, R, warnBlink ? '#ff3b1a' : '#ff8a3d'); pCircle(sx, hx, hy, RC, '#ff3b5c', 2); }
+      sx.globalAlpha = 1;
+    } else if (h.kind === 'pit') { // すり鉢(アリジゴク): 底ほど暗い砂のくぼみ。3本の筋が渦を巻いて中心へ流れ込む。縁は危険を示す赤
+      const R = Math.round(h.r * Math.min(1, h.t * 4));
+      sx.globalAlpha = 0.5 * fade; pDisc(sx, hx, hy, R, '#a8803a');
+      sx.globalAlpha = 0.55 * fade; pDisc(sx, hx, hy, Math.round(R * 0.66), '#8a6a32');
+      sx.globalAlpha = 0.6 * fade; pDisc(sx, hx, hy, Math.round(R * 0.33), '#5a4220'); sx.globalAlpha = fade;
+      for (let k = 0; k < 3; k++) for (let i = 0; i < 28; i++) { const u = i / 28, pa = t * 1.6 + k * TAU / 3 + u * 4, pr = R * (1 - u); sx.fillStyle = u > 0.6 ? '#4a3418' : '#e8c88a'; sx.fillRect(Math.round(hx + Math.cos(pa) * pr), Math.round(hy + Math.sin(pa) * pr), 1, 1); }
+      pCircle(sx, hx, hy, R, warnBlink ? '#ff3b1a' : '#ff8a3d'); sx.globalAlpha = 1;
     } else if (h.kind === 'magma') { // マグマ溜まり: 黒い岩の縁の中で赤く煮えたつ溶岩。泡がはじける(縁は危険を示す赤)
       const R = Math.round(h.r * Math.min(1, h.t * 6));
       sx.globalAlpha = 0.85 * fade; pDisc(sx, hx, hy, R, '#2a1008');
@@ -1424,6 +1468,10 @@ function render() {
     else if (!e.prop && !e.boss) { const w = Math.abs(Math.sin(e.t * 7 + e.seed * 6)); sy = 1 - w * 0.06; sxk = 1 + w * 0.04; }
     if (e.ripe) { const pk = 1 + 0.1 * Math.abs(Math.sin(e.t * 12)); sy *= pk; sxk *= pk; } // 若木: 育つ前の 3秒はふくらんで光る
     if (e.boss) { sy = (e.sq || 1) + Math.sin(e.t * 3) * 0.03; sxk = 2 - sy; yo = -(e.jz || 0); }
+    if (e.type === 'vulture' && e.jz > 0) yo -= e.jz; // ハゲワシ: 空の上(影は地面に残る)
+    else if (e.type === 'antlion') yo += 2; // アリジゴク: すり鉢の底に半分埋まる
+    if (e.riseAt !== undefined) { const k = Math.min(1, (S.time - e.riseAt) / 0.35); sy *= 0.2 + 0.8 * k; } // 立ち上がった砂人形: 砂から伸び上がる
+    if (e.mound && e.moundT < 1) { const k = Math.abs(Math.sin(e.t * 30)) * 0.12; sy *= 1 + k; sxk *= 1 - k * 0.5; } // 砂山: 立ち上がる前に震える
     const flip = (e.face || 1) < 0;
     let alpha = e.ghost ? 0.7 : 1;
     if (e.hideA !== undefined) alpha *= e.hideA;
@@ -1802,8 +1850,8 @@ function render() {
     const A = CHAOS.area, ol = { outline: oc, alpha: al, scale: A * (p.sk || 1) }; // sk: エリートの弾は範囲 ×1.5 で大きい
     if (al !== undefined) sx.globalAlpha = al; // drawRot は透明度を受け取らないので、ここで掛けて戻す
     if (p.kind === 'boomer') drawRot('scythe', p.t * 16, p.x, p.y, { scale: 2 * A, outline: oc });
-    else if (p.kind === 'glob' || p.kind === 'rbit' || p.kind === 'efire' || p.kind === 'esand' || p.kind === 'bball' || p.kind === 'vball') drawSp(ART.S[p.kind], p.x, p.y, ol);
-    else if (p.kind === 'arrow' || p.kind === 'espear' || p.kind === 'bspear' || p.kind === 'trident' || p.kind === 'needle' || p.kind === 'eice' || p.kind === 'ispear' || p.kind === 'tick' || p.kind === 'stinger') drawRot(p.kind, a, p.x, p.y, ol);
+    else if (p.kind === 'glob' || p.kind === 'rbit' || p.kind === 'efire' || p.kind === 'esand' || p.kind === 'bball' || p.kind === 'vball' || p.kind === 'sandshot') drawSp(ART.S[p.kind], p.x, p.y, ol);
+    else if (p.kind === 'arrow' || p.kind === 'espear' || p.kind === 'bspear' || p.kind === 'trident' || p.kind === 'needle' || p.kind === 'eice' || p.kind === 'ispear' || p.kind === 'tick' || p.kind === 'stinger' || p.kind === 'feather') drawRot(p.kind, a, p.x, p.y, ol);
     else if (p.kind === 'leaf') drawRot('leaf', p.t * 9 + p.x * 0.1, p.x, p.y, ol); // 葉の嵐: くるくる回る葉
     else if (p.kind === 'flake') drawSp(p.small ? ART.S.flakeS : ART.S.flake, p.x, p.y, ol); // 雪華弾(割れた後は小さな結晶)
     else if (p.kind === 'cog') drawSp(ART.S.gear[Math.floor(p.spin || 0) % 2], p.x, p.y, ol); // 番人の歯車弾
@@ -2434,6 +2482,30 @@ function drawBfx() {
         sx.fillStyle = '#1a1008'; sx.fillRect(bx - 2, by + 1, 5, 1);
         for (let j = 0; j < H; j++) { const w = j < H * 0.4 ? 3 : j < H * 0.75 ? 2 : 1; sx.fillStyle = j === H - 1 ? '#c8a060' : j % 3 === 0 ? '#3a2410' : '#6a4424'; sx.fillRect(bx - (w >> 1), by - j, w, 1); }
       }
+      continue;
+    }
+    if (f.kind === 'emound') { // 砂潜り(大蠍): 盛り上がった砂が、出る所へ砂の中を進む
+      const k = easeOutCubic(Math.min(1, u)), x = lerp(f.x0, f.x1, k), y = lerp(f.y0, f.y1, k);
+      drawSp(ART.S.emound, x, y, {});
+      if (Math.random() < 0.6) part(x + rand(-10, 10), y + rand(-2, 2), rand(-15, 15), -rand(10, 30), 0.4, pick(['#e8c88a', '#c8a060', '#fff0c8']), { g: 120 });
+      continue;
+    }
+    if (f.kind === 'estab') { // 尾の針(大蠍): 砂から黒い尾が突き出し、琥珀色の針で突いて沈む
+      const k = u < 0.3 ? u / 0.3 : Math.max(0, (1 - u) / 0.7), H = Math.round(18 * k), bx = Math.round(fx), by = Math.round(fy);
+      sx.fillStyle = '#16100c'; sx.fillRect(bx - 3, by, 7, 2);
+      for (let j = 0; j < H; j++) { const w = j < H - 4 ? 3 : 2; sx.fillStyle = j % 3 === 0 ? '#ffd27a' : j % 2 ? '#2e2622' : '#5e4c3c'; sx.fillRect(bx - (w >> 1), by - j, w, 1); }
+      if (H > 3) { sx.fillStyle = gx.fillStyle = '#ffb040'; sx.fillRect(bx - 1, by - H, 3, 2); gx.fillRect(bx - 1, by - H, 3, 2); sx.fillStyle = '#fff0c0'; sx.fillRect(bx, by - H - 2, 1, 2); }
+      continue;
+    }
+    if (f.kind === 'egrab') { // はさみの挟撃(大蠍): 伸ばした腕の先のはさみが、プレイヤーを挟む
+      const o = f.owner, ox = o.x - cam.x, oy = o.y - cam.y, px2 = P.x - cam.x, py2 = P.y - cam.y;
+      pLine(sx, ox, oy, px2, py2, '#16100c', 4); pLine(sx, ox, oy, px2, py2, '#2e2622', 2);
+      drawSp(ART.S.eclaw, P.x - (px2 < ox ? -6 : 6), P.y - 4, { flip: px2 < ox });
+      continue;
+    }
+    if (f.kind === 'epinch') { // 大地の挟撃(大蠍): 左右の砂から大きなはさみが出て、中央へ閉じる。閉じたあと沈む
+      const k = Math.min(1, f.t), rise = Math.min(1, f.t / 0.2, Math.max(0, (f.life - f.t) / 0.25)), off = f.D * (1 - k * k * k) + 8, ca = Math.cos(f.a), sa = Math.sin(f.a);
+      for (const s of [-1, 1]) { const x = f.x + ca * off * s, y = f.y + sa * off * s, toward = (f.x - x) > 0; if (rise > 0.05) drawSp(ART.S.eclaw, x, y + 4 - ART.S.eclaw.h / 2, { flip: !toward, sy: rise }); }
       continue;
     }
     if (f.kind === 'rootline') { // 根の波: 地中を進む根(盛り上がった土の線が、古樹から予告の円へ伸びる)
