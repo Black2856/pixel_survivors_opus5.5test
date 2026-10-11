@@ -27,6 +27,8 @@ const I18N_EN = {
   "古樹の主 ELDER TREANT": "ELDER TREANT",
   "大蠍 EMPEROR SCORPION": "EMPEROR SCORPION",
   "スフィンクス SPHINX": "SPHINX",
+  "雷獣 RAIJU": "RAIJU",
+  "雷神 RAIJIN": "RAIJIN",
 
   // ===== data.js: 武器 bolt =====
   "マジックボルト": "Magic Bolt",
@@ -1331,6 +1333,7 @@ const I18N_EN = {
   "常闇の王墓": "Evernight Tomb",
   "木漏れ日の森": "Dappled Forest",
   "陽炎の砂海": "Mirage Dunes",
+  "雷鳴の雲海": "Thundercloud Sea",
 
   // ===== data.js: カオス強化 =====
   "加速する夜": "Quickening Night",
@@ -2500,6 +2503,27 @@ const I18N_EN = {
   "現れた所から 3方向へ陽光が走る。列と列の間へよける": "Sunlight erupts along 3 lines from where it reappears. Dodge into the gaps between the lines",
   "砂嵐": "Sandstorm",
   "砂の流れの中にいると砂塵がたまる。流れのすき間へ": "Standing in the streams of sand builds Sandblind. Move into the gaps",
+  // ===== 段階8: 雷鳴の雲海(敵・ボスの初見のヒント) =====
+  "対の雷精": "Twin Sprites",
+  "2体の間に雷の線を張る。片方を倒すと線が消える": "They stretch a line of lightning between them. Defeat one to break the line",
+  "稲妻走り": "Lightning Dash",
+  "通った跡に雷の線が残る。線に触れると痺れがたまる": "It leaves lines of lightning along its path. Touching them builds Numbness",
+  "雷玉": "Thunder Orbs",
+  "玉のまわりに入ると、小さな稲妻が飛んでくる": "Get near an orb and small bolts leap at you",
+  "雷化": "Lightning Form",
+  "雷の線を渡り、線の端から飛びかかってくる": "It rides the lightning lines and pounces from the end of a line",
+  "雷太鼓": "Thunder Drums",
+  "太鼓が鳴った所に、少しおくれて雷が落ちる": "Each drumbeat marks where you stand. Lightning strikes there a moment later",
+  "雷の檻": "Thunder Cage",
+  "雷柱を 1本壊すと線が切れて、檻から出られる": "Break one Thunder Pillar to cut the lines and escape the cage",
+  "雷の網": "Thunder Net",
+  "玉と玉を結ぶ稲妻もくぐれない。回避で抜けるか、端を回る": "The lightning between the orbs hurts too. Dodge through or go around the ends",
+  "稲光": "Lightning Flash",
+  "いた所に雷が続けて落ちる。止まらずに動く": "Lightning keeps striking where you were. Keep moving",
+  "風神の風": "Fujin's Gale",
+  "風に押される。風下に雷の列が落ちる。ダッシュなら風に逆らえる": "The wind pushes you, and rows of lightning strike downwind. Dashing lets you resist the wind",
+  "神鳴り": "Divine Thunder",
+  "巨大な雷が落ちる。当たると痺れがたまりきって麻痺する": "A colossal bolt strikes. If it hits, your Numbness maxes out and you're paralyzed",
 };
 
 // ガイドの用語に印を付ける英語の書き方(help.js)。キーは用語集の k。書いていない用語は見出し(t の英語)で印を付ける
