@@ -1445,6 +1445,74 @@ const ART = (() => {
     '...bbb...', '..bcccb..', '.bcceccb.', '.bcdcdcb.', '.bcccccb.', '..bcccb..', '.bbcecbb.', 'bccceccb.', 'bcccecccb', 'bccceccb.', '.bccccb..', '.bcbcbcb.', '.b.b.b.b.', 'b...b...b',
   ], { emit: 'd' });
 
+  // ---------- 木漏れ日の森 ----------
+  // 若木: 頭に若葉を付けた小さな苗木。幹の顔の目がほのかに光る
+  S.sapling = mk({ a: '#2a5a2a', b: '#5a9a48', c: '#8fd06a', d: '#7a5430', e: '#4a3018', f: '#e8ff9a' }, ['....c....', '..cbc.c..', '.bbcbbcb.', '.abbbbba.', '..aabaa..', '...ddd...', '..dfdfd..', '..ddddd..', '..ed.de..', '.ee...ee.'], { emit: 'f' });
+  // 樹人: 葉の冠を頂いて歩く木。枝の腕を振り上げ、幹の顔に琥珀色の目
+  S.treant = mk({ a: '#24481e', b: '#3e7a32', c: '#6aa84a', d: '#6a4a2a', h: '#8a6a3a', e: '#2e1e0e', f: '#ffd27a', g: '#4a7a2a' }, [
+    '.....aabbaa.....', '...aabbccbbaa...', '..abbcbbbbcbba..', '.abbbbbbbbbbbba.', '.abcbbbccbbbcba.', '..abbbabbabbba..', '.d.aaa.dd.aaa.d.', '..d...hddd...d..', '...ddhddddddd...',
+    '.....hddddd.....', '.....hfeefd.....', '.....hddddd.....', '.....hdeedd.....', '.....gddddg.....', '.....hddddd.....', '....ddd..ddd....', '...dd......dd...', '..ee........ee..',
+  ], { emit: 'f' });
+  // 森蜂: 黄と黒の縞の小さな蜂(羽ばたきの 2コマ)
+  const beePal = { a: '#1e1608', b: '#ffd23f', c: '#d8f0ff', e: '#ffffff' };
+  S.bee = [mk(beePal, ['...cc...', '...ccc..', '.bababae', 'abababaa', '.babab..']), mk(beePal, ['........', '..cccc..', '.bababae', 'abababaa', '.babab..'])];
+  // リス: くるりと巻いた大きな尾(跳ねる 2コマ)/ 投げる前はドングリを頭の上に振りかぶる
+  const sqPal = { a: '#3a2010', b: '#b8682e', c: '#e8b878', d: '#140a04', e: '#7a4018', g: '#5a3a1a', h: '#c8a060' };
+  const sqTop = ['ebbbbe......', 'bbcbbb......', 'bcb.bb...e..', 'bb...b..ebb.', 'bb.....ebdbb', 'bbe...ebbbbc', '.bbe.ebbcc..', '..bbebbccb..', '...bbbbbbb..'];
+  S.squirrel = [mk(sqPal, ['.ebbe.......', ...sqTop, '....ae..ae..']), mk(sqPal, ['.ebbe.......', ...sqTop, '...ae...ae..'])];
+  S.squirrelThrow = mk(sqPal, ['.ebbe...gg..', 'ebbbbe..hh..', 'bbcbbb.cc...', 'bcb.bb.b.e..', 'bb...b..ebb.', 'bb.....ebdbb', 'bbe...ebbbbc', '.bbe.ebbcc..', '..bbebbccb..', '...bbbbbbb..', '....ae..ae..']);
+  // クマ: 四つ足で歩く茶色のクマ(2コマ)/ 爪を振り下ろす前は後ろ足で立ち上がる(白い爪)
+  const bearPal = { a: '#1e120a', b: '#5a3820', c: '#7a5030', d: '#c8a070', e: '#0e0804', f: '#e8e0c0', g: '#3a2414' };
+  const bearTop = ['.....bbbbbb.......', '...bbccccccbb.gg..', '..bccccccccccbbbb.', '.bbccccccccccbbebb', '.bbbcccccccbbbbbdd', 'bbbbbbbbbbbbbbbdde', 'bbbbbbbbbbbbbbbb..', '.gbbbbbbbbbbbbbg..', '.ggggggggggggggg..'];
+  S.bear = [mk(bearPal, [...bearTop, '.bbb.bb...bbb.bb..', '.bb..bb...bb..bb..', '.aa..aa...aa..aa..']), mk(bearPal, [...bearTop, '..bbbbb...bbbbb...', '..bb..bb..bb.bb...', '..aa..aa..aa.aa...'])];
+  S.bearStand = mk(bearPal, sym(['f.f....', '.fb.bb.', '.bb.bbb', '..bbbbb', '..bbcbe', '..bbccd', '..bbbde', '...bbdd', '..bbbbb', '..bcccc', '..bcccc', '..bbccc', '..bbbbb', '..bbb..', '..bb...', '.aaa...']));
+  // 女王蜂: 金の冠と赤い複眼、淡い羽と大きな縞の腹、腹の先に針。羽を上げた絵と下げた絵を交互に描いて羽ばたく
+  const qbPal = { a: '#1e1608', h: '#2a2010', b: '#ffd23f', l: '#fff0a0', c: '#ffb13a', d: '#8a6a10', w: '#d8f0ff', x: '#8ab0d0', k: '#ffd23f', p: '#ff5d73', r: '#ff3b5c', m: '#e8e0c0', s: '#e8e0c0' };
+  const qbLow = [
+    '.....aaaacccdd........', '...lbbbbbbddd.........', '..lbbbbbbbd.h.h.......', '.aaaaaaaaaah.h........', '.lbbbbbbbbd...........', '.bbbbbbbbdd...........',
+    '.aaaaaaaaa............', '..lbbbbbdd............', '..bbbbbdd.............', '..aaaaa...............', '..sa..................', '.s....................',
+  ];
+  S.qbee = mk(qbPal, ['...xwwwx......k.kk.k..', '.xwwwwwwwx....kkkkkk.a', 'xwwxwwwwwwx...kpkkpka.', 'xwwwxwwwwwwx...hhhhh..', '.xwwwwxwwwwx..hhhrrhh.', '..xxwwwxwwcccchhhrrhh.', '.xwwwwwxxcbbcchhhhhhm.', 'xwwwwwwxcbbccchhhhhh..', '.xxwwx..ccbcccdhhhh...', ...qbLow], { emit: 'kpr' });
+  S.qbee2 = mk(qbPal, ['..............k.kk.k..', '..............kkkkkk.a', '....xxxx......kpkkpka.', 'xxwwwwwwwwx....hhhhh..', '.xwwwwxwwwwx..hhhrrhh.', '..xwwwwwxwcccchhhrrhh.', '...xxwwwxcbbcchhhhhhm.', '.xxwwwwxcbbccchhhhhh..', '..xxxx..ccbcccdhhhh...', ...qbLow], { emit: 'kpr' });
+  // 古樹の主: 森の大樹。白い花の咲く葉の冠・幹の顔に光る目と苔のひげ・枝の腕・地面をつかむ根
+  S.elder = mk({ a: '#1a3418', b: '#2e5a26', c: '#4a8a3a', l: '#8fd06a', f: '#e8d890', d: '#3a2616', e: '#6a4a2a', h: '#8a6a3a', k: '#160c06', g: '#d8ff7a', m: '#5a8a3a', n: '#3a6a2a' }, [
+    '........lllllllcccbccllc........', '.......llclclcccccbbccbba.......', '......lllccbcccfcbbbcccbba......', '......llccbcccccbbaacbfbba......',
+    '....lllccbbbccbbbaaabbbaaalc....', '...lllccbbbbbbbaaaaabbbaaacbc...', '...cclcbcfllclbaaallccaaaabbc...', '..lccllalllclccbllllccccabbbba..',
+    '..llccbclllllcbcllclcccaccbbla..', '.lclccblccccbbblllfccccbabllccc.', 'llclbballlcbbbbcccccbbbbalfcccbb', 'llccbfaccbbbbbbccccbbbabalccbbba',
+    'cbbbbaacbbcbbaabcbbbbaaaalcbbbaa', 'cbbabbaacbhhedeeeededdaaaabbbbaa', '.abaaaaaaahhedeeeededdaaaaabaaa.', '...a....eehhddddedddddee....a...',
+    '.......eeehdkkedeekkddeee.......', '......eeeehkggkdekggkdeeee......', '....eeeee.hedeehhdeeed.eeeee....', '.ddddde...hedeeeddeeed...eedddd.',
+    '.d..de....hedeeeededed....ed..d.', '...dd....hhekkkkkkkkedd....dd...', '...dd....hhemkmkmkmdedd....ddd..', '....d....hhemmmmmmmmedd....d....',
+    '.........hednmmmmmmmedd.........', '.........hedemnmmmnnedd.........', '.........hedememnmeeedd.........', '.........heeenememdeeed.........',
+    '........heeeeeeneneeeeed........', '.......eeeeeeee.e.eeeeeee.......', '.....dddeeddee..e..eddeeddd.....', '...dddddeddde...d...ddd.ddddd...',
+    '...ddd...ddd....d....ddd..dddd..',
+  ], { emit: 'g' }); // 光るのは目だけ
+  // 女王蜂が出す物: 蜂の陣の働き蜂(森蜂と同じ絵)/ 蜂球(黄と黒の蜂がひしめいてうごめく 2コマ。縁から羽がはみ出す)
+  S.obj_wbee = S.bee;
+  const bbPal = { a: '#1e1608', b: '#ffd23f', c: '#ffb13a', d: '#8a6a10', l: '#fff0a0', w: '#d8f0ff' };
+  S.obj_beeball = [mk(bbPal, [
+    '..........w........', '......wwwwww.w.....', '....w..lllla.w.....', '...w.cccaaaaaaww...', '..w.laaaalbaabb....', '.w.aaalllbccaabbww.', '.w.aaaaccbbaacca...',
+    '.wlllllbaaaabbaad..', '..lllccaaaaaabcccw.', '..aalbbbbbbbbcccd.w', '.waaabbbbbbaaccccw.', '.waaccbbaabcddccaw.', '...ccbbbbbccccca.w.', '..wcbbbbbcddccdd.w.',
+    '...wabbaaddccccw...', '.....baaddaaaa.....', '.....w.ccccd.ww....', '.....w......ww.....', '........ww.........',
+  ]), mk(bbPal, [
+    '...................', '......www..........', '.......laall.w.....', '.....llllaaaaaw....', '...wllllaabbbbbww..', '..wllccllaabbbbb...', '...lllllbbaabbccw..',
+    '..aaaccbbaabbbbaaw.', '.waaccaabbaaaaaac.w', 'w.accaaccaaccddaa..', '..aaccccbbccccaadw.', '.waccccaabbccaaaa..', '...cccbbbbccaacc.w.', '...ccccbbddaaddc...',
+    '..w.ccccaaaaddcww..', '....wbbaaccaacw....', '.......cccddw.w....', '.....ww.ww..w......', '..........w........',
+  ])];
+  // 古樹の主が出す物: 若芽(壊せないまま育つと茨の木になる)/ 茨の木(通れない。暗い茂みから棘の枝が突き出し、赤い実がなる)
+  S.obj_sprout = mk({ b: '#4a8a3a', c: '#8fd06a', e: '#3a6a34', d: '#4a3018', h: '#6a4a2a' }, ['c.......c', 'bcc...ccb', '.bbc.cbb.', '..bbebb..', '....e....', '..ddedd..', '.dhhdddd.']);
+  S.thorn = mk({ a: '#1a3014', b: '#2e5a26', d: '#3a2410', e: '#5a3a1a', h: '#7a5430', t: '#e0d8b8', r: '#b8203a' }, [
+    '........t..t..t........', '...td...dt.dtdd...t....', '....tdt.d..d.dt...dt...', '.....ddtdbdaaa...d.....', '......d.ddddtdatddt....', '.....tdtdbataaadd......',
+    '.td...bdraaadadaa.....t', 't.dddddabaadtdaaat..ddt', '....tbdaaadadaraadddt..', '....ddaaaaaaaadadaa....', '....adadadadaaddtad....', '..t.ddraadddraadaaa....',
+    '..ddaaaddatddadaaadd.t.', '.td..aaaadadadtdadt.dtd', '.t.....d..hee..d.......', '..........hee..........', '..........hee..........', '..........hee..........',
+    '.........dheed.........', '........d.....d........',
+  ]);
+  // 弾: ドングリ(リス)・種と木の実(古樹の主)は放物線 / 針(女王蜂)と葉(古樹の主)は回転フレームで描く(右向き)
+  S.acorn = mk({ g: '#5a3a1a', h: '#c8a060', d: '#8a5a2a' }, ['..g..', 'ggggg', 'hhhhd', 'hhhdd', '.hdd.', '..d..']);
+  S.seed = mk({ c: '#8fd06a', b: '#5a9a48', d: '#3a6a34' }, ['.c.', 'cbc', 'bbd', '.d.']);
+  S.fruit = mk({ r: '#c8302a', h: '#ff8a6a', o: '#7a1a14', d: '#5a3a1a', l: '#5a9a48' }, ['...dl..', '..d.ll.', '.rrdrr.', 'rrhrrrr', 'rhrrrro', 'rrrrroo', '.rrooo.']);
+  S.stinger = mk({ a: '#8a6a10', b: '#ffd23f', c: '#ffffff' }, ['abb..', 'abbbc', 'abb..'], { emit: 'bc' });
+  S.leaf = mk({ b: '#5a9a48', c: '#c8e890' }, ['..bb.', '.bccb', 'bccb.', '.bb..'], { emit: 'c' });
+
   // 炎魔イフリート: 黒い角と燃える髪、赤黒い筋骨の上半身、両手に炎。下半身は炎になって浮いている
   const ifritRows = sym([
     '..h.........',
@@ -1662,7 +1730,7 @@ const ART = (() => {
 
   // 回転フレーム(16方向)
   const ROT = {};
-  for (const k of ['axe', 'blade', 'bladeEvo', 'arrow', 'scythe', 'espear', 'bspear', 'trident', 'needle', 'eice', 'ispear', 'tick', 'rscythe']) {
+  for (const k of ['axe', 'blade', 'bladeEvo', 'arrow', 'scythe', 'espear', 'bspear', 'trident', 'needle', 'eice', 'ispear', 'tick', 'rscythe', 'stinger', 'leaf']) {
     ROT[k] = rotFrames(S[k].c, 16);
     ROT[k + 'E'] = S[k].e ? rotFrames(S[k].e, 16) : null;
   }

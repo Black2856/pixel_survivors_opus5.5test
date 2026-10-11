@@ -11,6 +11,7 @@ const ECOL = {
   wolf: ['#d8e4f4', '#6a7a9a'], icesprite: ['#9ff7ff', '#ffffff'], yeti: ['#f0f4ff', '#7a8aa8'],
   gear: ['#c8a050', '#5a4a30'], clockman: ['#c8a050', '#e8e0c8'], hglass: ['#e8c88a', '#9ff7ff'],
   spider: ['#6a4a8a', '#7dff6a'], ghoul: ['#8aa86a', '#5a3a6a'], shadoweye: ['#c79bff', '#3a1a5a'], stalker: ['#4a3a6a', '#c79bff'],
+  sapling: ['#8fd06a', '#5a3a1a'], treant: ['#6a8a3a', '#4a3020'], bee: ['#ffd23f', '#2a2010'], squirrel: ['#c8783a', '#f0d8b0'], bear: ['#7a4a2a', '#3a2010'],
 };
 const xpFor = l => Math.floor(4 + l * 2.6 + Math.pow(l, 1.72));
 
@@ -46,7 +47,7 @@ function pushWarn(w) {
 
 // 通常モード(ステージを1つ選ぶ)の出現スケジュール。t はフェーズの時計(ボス・エリート群の間は止まる)
 // 3分 → エリート群 → 3分 → ボス1 → 3分 → ボス2(倒すとクリア)。同じ t ではフェーズの開始を波の切り替えより先に処理する
-const stageRun = n => DATA.stageRuns.find(r => r.no === n); // ステージのキーの番号(stage1〜8)から
+const stageRun = n => DATA.stageRuns.find(r => r.no === n); // ステージのキーの番号(stage1〜9)から
 // 出現の候補には「敵のまとまり」(配列)が入ることがある(時計塔の「今までの敵」)。まとまりは 1枠として選ばれ、その中から1種
 // spawnW: 選ばれやすさ(既定 1)/ group: 6体の小集団(noGroup の敵は出ない)/ maxAlive: 同時にいられる数(超えるなら選ばない)。選べないときは null
 function pickType(types, group) {
@@ -79,8 +80,8 @@ function stageSchedule(n) {
 // エスカレーション: tier 1 → 4 を通す。tier ごとに同じ tier のステージからランダムに1つ選び、3分(3種 → 5種 → 全種。DATA.flow.esc)→ ボス → 次の tier
 //   ボスはそのステージのボス2体からランダム。敵Lv は通して上がり続ける(ボスの間は止まる)
 //   tier 4 は 3分 → ボス(そのステージの1体目)→ esc.rest 秒 → ラスボス(2体目。時計塔 = 死神(→ 終刻の死神)/ 王墓 = 影の王)で、倒すとクリア
-//   敵: 0秒 = そのステージの最初の3種 / 60秒 = 同じ tier のもう一方のステージの敵からランダムに add 種を足す / 120秒 = その tier の2ステージの敵の全部
-//   もう一方のステージからは、そのステージの敵だけを足す(時計塔の「今までの敵」のまとまりは、時計塔のときだけ出る)
+//   敵: 0秒 = そのステージの最初の3種 / 60秒 = 同じ tier のほかのステージの敵からランダムに add 種を足す / 120秒 = その tier のステージの敵の全部
+//   ほかのステージからは、そのステージの敵だけを足す(時計塔の「今までの敵」のまとまりは、時計塔のときだけ出る)
 function escSchedule(R, tier) {
   const F = DATA.flow, E = F.esc;
   const cands = r => r.segs.filter(Boolean).flat(); // ステージの出現の候補(まとまりは 1つの候補のまま)
@@ -145,7 +146,7 @@ function initRun(mode = 'escalation', stageNo = 1) {
   S.rerolls = st.v.reroll; S.weaponSlots = st.v.wslot;
   clsInit();
   S.stageNo = stageNo; S.sched = mode === 'stage' ? stageSchedule(stageNo) : []; // エスカレーションは下の escStage で、闘技場は使わない
-  if (mode === 'arena') { S.stage = 4; S.elv = DATA.arena.elv[0]; S.arena = { idx: 0, restT: 3, warned: false }; } // 開始時の敵Lv(深い闇)は下で足す。ラウンドの敵Lv は arenaLv
+  if (mode === 'arena') { S.stage = 4; S.elv = DATA.arena.elv[0]; S.arena = { idx: 0, restT: 3, warned: false, order: arenaOrder() }; } // 開始時の敵Lv(深い闇)は下で足す。ラウンドの敵Lv は arenaLv
   if (mode === 'stage') { const R = stageRun(stageNo); S.stage = R.stage; S.tier = R.tier; } // 開始の敵Lv は 1 + 深い闇(tier のカオス強化)
   if (mode === 'escalation') escStage(1, true); // エスカレーション: tier 1 のステージから
   // カオス強化: クリアするまでは tier の値で固定(エスカレーション・闘技場は無し)。クリア後は META.chaos[キー]
@@ -1440,7 +1441,7 @@ function spawnEnemy(type, o = {}) {
     rateK: o.elite ? EL.eliteRate : 1, areaK: o.elite ? EL.eliteArea : 1, // エリート: 攻撃速度・攻撃範囲
     r: d.r * (o.elite ? 2 : 1), xp: d.xp * lvK('xp'), ai: d.ai, kbRes: o.elite ? 0.9 : d.kbRes || 0, ghost: d.ghost,
     t: rand(0, 5), seed: Math.random(), kx: 0, ky: 0, flash: 0, elite: !!o.elite, scale: o.elite ? 2 : 1,
-    frost: 0, frostT: 0, burns: [], burnT: 0, burnTick: 0, stun: 0, slowT: 0, bleed: 0, bleedT: 0, shotT: (d.shot || d.throw || d.rush || d.puff || d.lantern || d.snowball || d.blink || d.warp) ? rand(1, (d.shot || d.throw || d.rush || d.puff || d.lantern || d.snowball || d.blink || d.warp).cd) : 0, wind: 0, hopT: rand(0, 1),
+    frost: 0, frostT: 0, burns: [], burnT: 0, burnTick: 0, stun: 0, slowT: 0, bleed: 0, bleedT: 0, shotT: (d.shot || d.throw || d.rush || d.puff || d.lantern || d.snowball || d.blink || d.warp || d.strike || d.swipe) ? rand(1, (d.shot || d.throw || d.rush || d.puff || d.lantern || d.snowball || d.blink || d.warp || d.strike || d.swipe).cd) : 0, wind: 0, hopT: rand(0, 1),
     life: type === 'goblin' ? 16 : 0,
     noChest: !!o.noChest, phaseElite: !!o.phaseElite, // 宝箱を落とさない / エリート群のエリート
   };
@@ -1502,17 +1503,48 @@ function drainSta(n) {
   for (let i = 0; i < 8; i++) part(P.x + rand(-4, 4), P.y - 4 + rand(-3, 3), rand(-40, 40), rand(-50, -10), 0.5, pick(['#7ad7ff', '#bff4ff', '#2a8ac8']), { g: 160, drag: 1 });
   AudioMan.drain();
 }
-// イエティの雪玉: 1秒の放物線。着弾 半径 r に ×n・凍傷 +frost と、雪の床(floor 秒)
+// イエティの雪玉・リスのドングリ: 1秒の放物線。着弾 半径 r に ×n(凍傷 +frost)と、雪の床(floor 秒)。kind: 投げる物の見た目
 function yetiThrow(e, sb) {
-  const dmg = e.dmg * sb.n;
-  lob('snowball', e.x, e.y - 8, e.tx, e.ty, 1.0, 45, p => {
-    if (hitCircle(p.x, p.y, sb.r * e.areaK, dmg)) frostPlayer(sb.frost);
-    addHazard('snow', p.x, p.y, { r: sb.r * e.areaK, dur: sb.floor, tick: 1 });
-    burst(p.x, p.y, 22, ['#ffffff', '#e8f4ff', '#bff4ff'], { sp: 90, up: 40, g: 200, life: 0.6 }); addRing(p.x, p.y, sb.r * CHAOS.area * e.areaK, '#ffffff', { life: 0.3 });
+  const dmg = e.dmg * sb.n, kind = sb.kind || 'snowball', acorn = kind === 'acorn';
+  lob(kind, e.x, e.y - (acorn ? 4 : 8), e.tx, e.ty, 1.0, acorn ? 38 : 45, p => {
+    if (hitCircle(p.x, p.y, sb.r * e.areaK, dmg) && sb.frost) frostPlayer(sb.frost);
+    if (sb.floor) addHazard('snow', p.x, p.y, { r: sb.r * e.areaK, dur: sb.floor, tick: 1 });
+    if (acorn) { burst(p.x, p.y, 12, ['#8a5a2a', '#c8a060', '#5a3a1a', '#e8d890'], { sp: 70, up: 30, g: 220, life: 0.45 }); addRing(p.x, p.y, sb.r * CHAOS.area * e.areaK, '#c8a060', { life: 0.25 }); }
+    else { burst(p.x, p.y, 22, ['#ffffff', '#e8f4ff', '#bff4ff'], { sp: 90, up: 40, g: 200, life: 0.6 }); addRing(p.x, p.y, sb.r * CHAOS.area * e.areaK, '#ffffff', { life: 0.3 }); }
     AudioMan.thud();
   });
   e.sq = 0.7; e.kx -= Math.cos(Math.atan2(e.ty - e.y, e.tx - e.x)) * 20;
-  burst(e.x, e.y - 8, 8, ['#ffffff', '#e8f4ff'], { sp: 40, life: 0.3 }); AudioMan.dash();
+  burst(e.x, e.y - 8, 8, acorn ? ['#c8a060', '#8a5a2a'] : ['#ffffff', '#e8f4ff'], { sp: 40, life: 0.3 }); AudioMan.dash();
+}
+// 若木が育つ: その場で樹人になる(倒した扱いにしない: 経験値・撃破数なし)。葉が舞い、土が盛り上がる
+function growInto(e, into) {
+  e.dead = true;
+  const o = spawnEnemy(into, { x: e.x, y: e.y });
+  o.noChest = e.noChest; o.face = e.face;
+  burst(e.x, e.y - 4, 26, ['#8fd06a', '#5a9a48', '#c8e890', '#5a3a1a'], { sp: 80, up: 40, g: 120, life: 0.6 });
+  for (let i = 0; i < 10; i++) part(e.x + rand(-8, 8), e.y + rand(-12, 2), rand(-20, 20), -rand(20, 50), rand(0.6, 1), pick(['#8fd06a', '#c8e890', '#5a9a48']), { g: 60, drag: 1.5, sz: pick([1, 2]) }); // 散る葉
+  addRing(e.x, e.y + 4, 14, '#8fd06a', { life: 0.3 }); AudioMan.thud();
+  hint('sapgrow', _t('若木が育った'), _t('若木は 20秒 生き残ると、根で攻撃する樹人に育つ'));
+}
+// 足元の一撃(樹人の根): 予告の円の中に ×n。衰弱 +weak・痺れ +numb・砂塵 +dust(当たったときだけ)
+function groundStrike(e, st) {
+  const R = st.r * e.areaK;
+  if (hitCircle(e.tx, e.ty, R, e.dmg * st.n)) { if (st.weak) weakPlayer(st.weak); if (st.numb) numbPlayer(st.numb); if (st.dust) dustPlayer(st.dust); }
+  const RR = R * CHAOS.area;
+  if (st.kind === 'root') { // 根が地面を割って突き上げる
+    for (let k = 0; k < 5; k++) { const pa = TAU / 5 * k + rand(-0.3, 0.3), pr = RR * rand(0.2, 0.6); bfx.push({ kind: 'rootspike', x: e.tx + Math.cos(pa) * pr, y: e.ty + Math.sin(pa) * pr, t: 0, life: 0.7, h: rand(7, 12), a: pa }); }
+    burst(e.tx, e.ty, 18, ['#5a3a1a', '#8a5a2a', '#3a6a34', '#c8a060'], { sp: 90, up: 40, g: 240, life: 0.5 });
+    addRing(e.tx, e.ty, RR, '#8a6a3a', { w: 2, life: 0.3 }); shake(2); AudioMan.thud();
+  }
+  e.sq = 0.75;
+}
+// クマの爪: 立ち上がった向き(予告の扇)へ振り下ろす
+function bearSwipe(e, sw) {
+  const R = sw.r * e.areaK;
+  hitFan(e.x, e.y, e.ta, R, sw.arc, e.dmg * sw.n);
+  slashes.push({ x: e.x, y: e.y, a: e.ta, r: R * CHAOS.area, t: 0, life: 0.22, flip: Math.random() < 0.5, span: sw.arc * 2, pal: SWING_PAL.enemy, enemy: true });
+  burst(e.x + Math.cos(e.ta) * R * 0.6, e.y + Math.sin(e.ta) * R * 0.6, 10, ['#7a4a2a', '#c8a060', '#e8e0c0'], { sp: 70, g: 160 });
+  e.sq = 0.7; AudioMan.slash(); AudioMan.thud(); shake(2);
 }
 // 溶岩スライム: 着地・倒れた場所に燃える床
 function lavaPool(e, f) {
@@ -1779,11 +1811,46 @@ function updEnemies(dt) {
         } else {
           e.shotT -= dt * CHAOS.rate * tw * e.rateK;
           if (e.shotT <= 0 && d2(e.x, e.y, P.x, P.y) < sb.range * sb.range) {
-            e.shotT = sb.cd; e.wind = 0.5; e.tx = P.x; e.ty = P.y;
-            pushWarn({ kind: 'circle', x: P.x, y: P.y, r: sb.r * e.areaK, t: 0, life: 1.5, owner: e });
+            e.shotT = sb.cd; e.wind = sb.wind ?? 0.5; e.tx = P.x; e.ty = P.y;
+            pushWarn({ kind: 'circle', x: P.x, y: P.y, r: sb.r * e.areaK, t: 0, life: (sb.wind ?? 0.5) + 1.0, owner: e });
           }
         }
         e.aim = e.wind > 0;
+      }
+      if (d.grow && !e.elite) { // 若木: 出てから t 秒生き残ると樹人に育つ(エリートは育たない)。育つ前の 3秒は葉が光ってふくらむ
+        e.growT = (e.growT || 0) + dt;
+        if (e.growT >= d.grow.t) { growInto(e, d.grow.into); continue; }
+        e.ripe = e.growT > d.grow.t - 3;
+        if (e.ripe && Math.random() < dt * 10) part(e.x + rand(-4, 4), e.y - rand(2, 8), rand(-6, 6), -rand(8, 18), 0.5, pick(['#d8ff9a', '#8fd06a']), { glow: true, drag: 1 });
+      }
+      if (d.strike) { // 樹人: 止まって両腕の枝を上げ、プレイヤーの位置に予告の円 → 根が突き上げる(衰弱)
+        const st = d.strike;
+        if (e.wind > 0) {
+          mx = my = 0; e.wind -= dt * CHAOS.rate * tw;
+          if (e.wind <= 0) groundStrike(e, st);
+        } else {
+          e.shotT -= dt * CHAOS.rate * tw * e.rateK;
+          if (e.shotT <= 0 && d2(e.x, e.y, P.x, P.y) < st.range * st.range) {
+            e.shotT = st.cd; e.wind = st.wind; e.tx = P.x; e.ty = P.y;
+            pushWarn({ kind: 'circle', x: e.tx, y: e.ty, r: st.r * e.areaK, t: 0, life: st.wind, owner: e });
+          }
+        }
+        e.aim = e.wind > 0;
+      }
+      if (d.swipe) { // クマ: 近づくと立ち上がり(前方の扇の予告。クマについて動く)、爪を振り下ろす
+        const sw = d.swipe;
+        if (e.wind > 0) {
+          mx = my = 0; e.wind -= dt * CHAOS.rate * tw; e.stand = true;
+          if (e.wind <= 0) { e.stand = false; bearSwipe(e, sw); }
+        } else {
+          e.stand = false;
+          e.shotT -= dt * CHAOS.rate * tw * e.rateK;
+          if (e.shotT <= 0 && d2(e.x, e.y, P.x, P.y) < sw.range * sw.range) {
+            e.shotT = sw.cd; e.wind = sw.wind; e.ta = a;
+            pushWarn({ kind: 'fan', x: e.x, y: e.y, a, r: sw.r * e.areaK, h: sw.arc, t: 0, life: sw.wind, owner: e, track: w => { w.x = e.x; w.y = e.y; } });
+            AudioMan.charge(sw.wind);
+          }
+        }
       }
       if (d.blast) { // 鬼火: プレイヤーのそばで止まり、膨らみながら点滅して自爆する
         const bl = d.blast;
@@ -1818,7 +1885,7 @@ function updEnemies(dt) {
     const td = !e.boss && DATA.enemies[e.type]; // 触れたとき: 鬼火は当たらない / ヘルハウンドは噛みつくと炎上 / クラゲはスタミナを吸う / 毒蜘蛛は毒 / 影法師の飛びかかりは ×n
     const tk = e.dash > 0 && td && td.lunge ? td.lunge.n : 1;
     S.taint = e.boss === 'shadowking' && !e.shadow && e.ai.enraged; // 蝕む影: 体当たりでも
-    if (e.dmg > 0 && !e.air && !(td && td.noTouch) && d2(e.x, e.y, P.x, P.y) < Math.pow(e.r + 4, 2) && hurtPlayer(e.dmg * tk) && td) { if (td.touchBurn) burnPlayer(e.dmg * td.touchBurn); if (td.touchSta) drainSta(td.touchSta); if (td.touchFrost) frostPlayer(td.touchFrost); if (td.touchPoison) poisonPlayer(td.touchPoison); }
+    if (e.dmg > 0 && !e.air && !(td && td.noTouch) && d2(e.x, e.y, P.x, P.y) < Math.pow(e.r + 4, 2) && hurtPlayer(e.dmg * tk) && td) { if (td.touchBurn) burnPlayer(e.dmg * td.touchBurn); if (td.touchSta) drainSta(td.touchSta); if (td.touchFrost) frostPlayer(td.touchFrost); if (td.touchPoison) poisonPlayer(td.touchPoison); if (td.touchNumb) numbPlayer(td.touchNumb); if (td.touchDust) dustPlayer(td.touchDust); if (td.rush && td.rush.weak && e.dash > 0) weakPlayer(td.rush.weak); } // 森蜂: 突っ込んだ針が当たると衰弱
     S.taint = false;
   }
   S.eatk = 1; FX_MINE = false;
@@ -1937,6 +2004,8 @@ const BFX = {
   shadowking: { col: '#3a1a5a', core: '#a66bff', hot: '#a66bff', dark: '#06030c' },
   reaper: { col: '#5a3a8a', core: '#c29bff', hot: '#c29bff', dark: '#0a0614' },
   fhour: { col: '#8a0c22', core: '#ff3b5c', hot: '#ff3b5c', dark: '#0a0204' },
+  qbee: { col: '#8a6a10', core: '#ffd23f', hot: '#ffd23f', dark: '#141004' },
+  elder: { col: '#3a5a2a', core: '#8fd06a', hot: '#c8a060', dark: '#0e1408' },
 };
 // ノックバック: ang の向きへ dist を dur 秒かけて(一定の速さ)。回避の無敵中は押されない(押されている途中で回避すると止まる)。闘技場では壁で止まる
 function pushPlayer(ang, dist, dur) {
@@ -2035,6 +2104,20 @@ function updObj(e, dt) {
   } else if (e.obj === 'cdog') updCerbDog(e, dt); // 冥犬の犬(分裂形態): 走る・技
   else if (e.obj === 'iceblock') { // 氷塊(霜の巨人): 冷気が立ちのぼる
     if (Math.random() < dt * 4) part(e.x + rand(-8, 8), e.y - rand(0, 12), rand(-3, 3), -rand(3, 8), 0.8, pick(SNOW), { drag: 1 });
+  } else if (e.obj === 'wbee') { // 蜂の陣の働き蜂: 1秒で輪の位置へ集まり、2.5秒かけて輪が中心へ縮む。縮みきると散る。触れると ×0.6
+    const g = e.ring, k = e.t, R = k < 1 ? g.R : g.R * Math.max(0.04, 1 - (k - 1) / 2.5), wob = Math.sin(e.t * 9 + e.ang * 5) * 2;
+    const tx = g.cx + Math.cos(e.ang) * (R + wob), ty = g.cy + Math.sin(e.ang) * (R + wob);
+    if (k < 1) { const u = easeOutCubic(k); e.x = lerp(e.sx, tx, u); e.y = lerp(e.sy, ty, u); } else { e.x = tx; e.y = ty; }
+    e.face = Math.cos(e.ang) > 0 ? -1 : 1; // 中心の方を向く
+    if (k >= 3.5) { e.dead = true; objDown(e, false); return; }
+    if (k > 0.8 && d2(e.x, e.y, P.x, P.y) < Math.pow(e.r + 4, 2)) hurtPlayer(e.owner.dmg * 0.6);
+  } else if (e.obj === 'beeball') { // 蜂球(女王蜂): プレイヤーを追う(速さ 30)。触れると 0.5秒ごとに ×0.8
+    const pa = Math.atan2(P.y - e.y, P.x - e.x);
+    e.x += Math.cos(pa) * 30 * dt; e.y += Math.sin(pa) * 30 * dt; e.face = Math.cos(pa) < 0 ? -1 : 1;
+    if ((e.tick -= dt) <= 0 && d2(e.x, e.y, P.x, P.y) < Math.pow(e.r + 4, 2)) { e.tick = 0.5; hurtPlayer(e.owner.dmg * 0.8); }
+    if (Math.random() < dt * 14) part(e.x + rand(-9, 9), e.y + rand(-9, 9), rand(-20, 20), rand(-20, 20), 0.3, pick(HONEY), { drag: 2 }); // まわりを飛ぶ蜂
+  } else if (e.obj === 'sprout') { // 若芽(古樹の主): 葉がふるえる。育つ前の 2秒は光る
+    if (e.life < 2 && Math.random() < dt * 10) part(e.x + rand(-4, 4), e.y - rand(2, 8), 0, -rand(8, 16), 0.5, pick(['#d8ff9a', '#8fd06a']), { glow: true, drag: 1 });
   } else if (e.obj === 'altar') { // 炎の祭壇: 炎が燃えさかり、火の粉がイフリートへ流れる
     if (Math.random() < dt * 16) part(e.x + rand(-3, 3), e.y - 10 + rand(-2, 2), rand(-6, 6), -rand(20, 40), rand(0.3, 0.6), pick(['#ff6a2a', '#ffc34a', '#fff0b0']), { glow: true, drag: 1 });
     if (Math.random() < dt * 6) { const o = e.owner, pa = Math.atan2(o.y - e.y, o.x - e.x); part(e.x, e.y - 10, Math.cos(pa) * 90, Math.sin(pa) * 90, 0.8, '#ffc34a', { glow: true, drag: 0 }); }
@@ -2097,6 +2180,21 @@ function objDown(e, broken) {
       else hint('dogdown', _t('首を落とした'), _t('倒した犬の首は、合体しても戻らない(次の分裂で生え直す)'));
     }
     return;
+  } else if (e.obj === 'wbee') { // 働き蜂: 落ちる / 散る(金の輪は出さない)
+    burst(e.x, e.y, broken ? 6 : 3, HONEY, { sp: broken ? 50 : 30, life: 0.3 });
+    return;
+  } else if (e.obj === 'beeball') { // 蜂球: 壊すと蜂が散る
+    burst(e.x, e.y, Math.round(40 * k), [...HONEY, '#2a2010'], { sp: 130 * k, life: 0.55, drag: 1 });
+    if (broken) { addFlash(e.x, e.y, 60, '#8a6a10', 0.4); shake(3); AudioMan.puff(); }
+  } else if (e.obj === 'sprout') { // 若芽: 壊すと葉が散る。壊せないまま育つと茨の木(15秒 通れない。近づくと枝で叩く)
+    burst(e.x, e.y - 4, Math.round(16 * k), ['#8fd06a', '#5a9a48', '#5a3a1a'], { sp: 70 * k, g: 160, life: 0.5 });
+    if (broken) AudioMan.slash();
+    else if (!e.owner.dead && e.life <= 0) {
+      addHazard('thorn', e.x, e.y, { r: 10, dur: 15, owner2: e.owner, dmg: e.owner.dmg, lashT: 1, rise: 0 });
+      burst(e.x, e.y - 8, 26, ['#3a6a34', '#5a9a48', '#5a3a1a', '#c8e890'], { sp: 90, up: 40, g: 160, life: 0.6 }); shake(2); AudioMan.thud();
+      hint('elder_thorn', _t('茨の木'), _t('茨の木は通れない。近づくと枝で叩かれる'));
+    }
+    return;
   } else if (e.obj === 'clone') { // 鏡の分身: 鏡のように割れて消える
     burst(e.x, e.y - 6, 26, ['#ffffff', '#d8e8ff', '#ffd0f0', '#9ff7ff'], { sp: 110, glow: true, life: 0.45 });
     addRing(e.x, e.y, 14, '#ffffff', { life: 0.25 }); AudioMan.chime();
@@ -2122,8 +2220,10 @@ const BOSS_AI0 = {
   pqueen: { tp: 3, beam: 3, mirror: 8, scatter: 6, orb: 4, blink: 6 },
   cerberus: { howl: 8, rush: 3, breath: 6, orb: 9, gap: 0 },
   shadowking: { sword: 4, rings: 8, blades: 10, chase: 6, sever: 15, gap: 0 },
+  qbee: { sting: 2, ring: 8, dive: 4, call: 7, side: 1 },
+  elder: { sprout: 6, roots: 3, sweep: 0, fruit: 5, leaves: 8 },
 };
-const BOSS_ENRAGE = { king: { slam: 6 }, ifrit: { altar: true }, stag: { herd: 4 }, pqueen: { spiral: 3 }, levia: { breath: 4 }, fgiant: { drift: 5 }, squeen: { lance: 3 }, warden: { ringCd: 6 }, reaper: { sum: 7 }, fhour: { cross: 4, echo: 0 }, cerberus: { rain: 5 }, shadowking: { chainCd: 1 } };
+const BOSS_ENRAGE = { king: { slam: 6 }, ifrit: { altar: true }, stag: { herd: 4 }, pqueen: { spiral: 3 }, levia: { breath: 4 }, fgiant: { drift: 5 }, squeen: { lance: 3 }, warden: { ringCd: 6 }, reaper: { sum: 7 }, fhour: { cross: 4, echo: 0 }, cerberus: { rain: 5 }, shadowking: { chainCd: 1 }, qbee: { ball: 4 }, elder: { cage: 5 } };
 
 function bossAI(e, dt) {
   const ai = e.ai, a = Math.atan2(P.y - e.y, P.x - e.x), dist = Math.sqrt(d2(e.x, e.y, P.x, P.y));
@@ -2170,6 +2270,8 @@ function bossAI(e, dt) {
     case 'warden': wardenAI(e, ai, dt, a, dist, slow); break;
     case 'cerberus': cerberusAI(e, ai, dt, a, dist, slow); break;
     case 'shadowking': shadowKingAI(e, ai, dt, a, dist, slow); break;
+    case 'qbee': qbeeAI(e, ai, dt, a, dist, slow); break;
+    case 'elder': elderAI(e, ai, dt, a, dist, slow); break;
   }
 }
 
@@ -3564,6 +3666,181 @@ function iceLance(e, ai) {
     eprojs.push({ kind: 'ispear', x: w.x, y: w.y, vx: Math.cos(w.a) * 300, vy: Math.sin(w.a) * 300, dmg: e.dmg * 1.2 * (S.eatk ?? 1), frost: DATA.debuff.pFrostMax, life: w.len / 300, t: 0, r: 5 * CHAOS.area });
     burst(w.x, w.y, 14, SNOW, { sp: 90, glow: true, life: 0.35 }); AudioMan.spearThrow(); AudioMan.frost();
     hint('lance', _t('氷の槍'), _t('当たると凍傷が上限までたまり、そのまま凍結する'));
+  });
+}
+
+// ---------- 女王蜂: 距離 110 を保って飛び回る。★蜂の陣(倒せる働き蜂の輪が縮む)/ 針の連射 / 急降下突き(衰弱)/ 呼び寄せ(森蜂の群れ)/ 激昂: 蜂球 ----------
+const HONEY = ['#ffd23f', '#ffb13a', '#fff0a0', '#8a6a10'];
+function qbeeAI(e, ai, dt, a, dist, slow) {
+  const R = CHAOS.rate;
+  e.spr = Math.floor(e.t * 18) % 2 ? 'qbee' : 'qbee2'; // 羽ばたき
+  if (ai.ph === 'tele') { // 急降下突きの予告: 経路の帯。体を後ろへ引いて構える
+    ai.pt -= dt; e.flash = Math.sin(ai.pt * 40) > 0 ? 0.05 : 0; e.sq = 0.85;
+    if (ai.pt <= 0) { ai.ph = 'dive'; ai.pt = ai.diveLen / 360; ai.hit = false; AudioMan.dash(); }
+    return;
+  }
+  if (ai.ph === 'dive') { // 急降下突き: 速さ 360 で突く(×1.2・衰弱 +3)
+    ai.pt -= dt;
+    e.x += Math.cos(ai.dir) * 360 * dt; e.y += Math.sin(ai.dir) * 360 * dt;
+    if (Math.random() < dt * 40) part(e.x + rand(-4, 4), e.y + rand(-4, 4), -Math.cos(ai.dir) * 60, -Math.sin(ai.dir) * 60, 0.3, pick(HONEY), { glow: true, drag: 3 });
+    if (!ai.hit && d2(e.x, e.y, P.x, P.y) < Math.pow(e.r + 5, 2) && hurtPlayer(e.dmg * 1.2)) { ai.hit = true; weakPlayer(3); }
+    if (ai.pt <= 0) { ai.ph = 'fly'; }
+    return;
+  }
+  // 距離 110 を保ち、横へ回り込む(ときどき向きを変える)
+  if ((ai.flip = (ai.flip ?? 3) - dt) <= 0) { ai.flip = rand(2.5, 4.5); ai.side = -(ai.side || 1); }
+  const dir = dist > 110 ? a : a + Math.PI, k = Math.abs(dist - 110) > 15 ? 1 : 0.25;
+  e.x += (Math.cos(dir) * e.spd * k + Math.cos(a + Math.PI / 2) * e.spd * 0.8 * (ai.side || 1)) * slow * dt;
+  e.y += (Math.sin(dir) * e.spd * k + Math.sin(a + Math.PI / 2) * e.spd * 0.8 * (ai.side || 1)) * slow * dt;
+  if (Math.random() < dt * 10) part(e.x + rand(-8, 8), e.y + rand(-4, 6), rand(-6, 6), rand(4, 12), 0.5, pick(['#fff0a0', '#ffd23f']), { glow: true, drag: 1 }); // 金の花粉がこぼれる
+  if (ai.stN > 0 && (ai.stGap -= dt * R) <= 0) { // 針の連射: 3発の扇を 0.3秒おきに 3回
+    ai.stGap = 0.3; ai.stN--;
+    for (let i = -1; i <= 1; i++) Object.assign(eball(e.x, e.y + 2, a + i * 0.25, 90, e.dmg * 0.5, 'stinger'), { r: 2.5 * CHAOS.area });
+    AudioMan.shoot();
+  }
+  ai.sting -= dt * R; ai.ring -= dt * R; ai.dive -= dt * R; ai.call -= dt * R; if (ai.enraged) ai.ball -= dt * R;
+  if (ai.sting <= 0) { ai.sting = ai.enraged ? 3 : 4; ai.stN = 3; ai.stGap = 0; } // 弾はほかの技と並んで撃つ
+  if (ai.ring <= 0) { ai.ring = ai.enraged ? 11 : 14; beeRing(e, ai); }
+  else if (ai.dive <= 0) { ai.dive = ai.enraged ? 4.5 : 6; beeDive(e, ai, a); }
+  else if (ai.call <= 0) { ai.call = ai.enraged ? 9 : 12; beeCall(e, ai); }
+  else if (ai.enraged && ai.ball <= 0) { ai.ball = 10; beeBall(e, ai); }
+}
+// 急降下突き: 0.6秒 経路の帯(長さ 220・幅 = 体の直径)→ 速さ 360 で突く。×1.2・衰弱 +3
+function beeDive(e, ai, a) {
+  ai.ph = 'tele'; ai.pt = 0.6; ai.dir = a; ai.diveLen = 220;
+  pushWarn({ kind: 'line', x: e.x, y: e.y, a, len: 220, w: e.r * 2, t: 0, life: 0.6, fixed: true }); // 突進の経路(体当たりなので広げない)
+  AudioMan.charge(0.6);
+}
+// ★蜂の陣: 働き蜂 36匹が女王から飛び出し、使ったときのプレイヤーの位置を囲む輪(半径 110)になる(1秒)→ 2.5秒かけて輪が中心へ縮む
+//   働き蜂はボスが出した物(1撃で落ちる・経験値なし)。触れると ×0.6。蜂を落とすと輪に穴が開く。縮みきると散る
+function beeRing(e, ai) {
+  const ring = { cx: P.x, cy: P.y, n: 36, R: 110 };
+  for (let i = 0; i < ring.n; i++) {
+    const o = spawnObj(e, 'wbee', e.x + rand(-6, 6), e.y + rand(-6, 6), { pct: 0.00001, r: 3, life: 4 });
+    Object.assign(o, { ring, ang: TAU / ring.n * i, sx: o.x, sy: o.y, tiny: true });
+  }
+  pushWarn({ kind: 'circle', x: ring.cx, y: ring.cy, r: ring.R, t: 0, life: 1, fixed: true, noFill: true });
+  burst(e.x, e.y, 24, HONEY, { sp: 90, glow: true, life: 0.4 }); AudioMan.hum(3.5); AudioMan.warning();
+  hint('qbee_ring', _t('蜂の陣'), _t('働き蜂の輪が縮んでくる。蜂を落とせば輪に穴が開く'));
+}
+// 呼び寄せ: 森蜂の群れ(5匹)を、画面の外の 2方向から
+function beeCall(e, ai) {
+  const a0 = rand(0, TAU), R = Math.hypot(GFX.VW, GFX.VH) / 2 + 16;
+  for (const da of [0, Math.PI + rand(-0.6, 0.6)]) {
+    const pa = a0 + da;
+    for (let i = 0; i < 5; i++) { const b = spawnEnemy('bee', { x: P.x + Math.cos(pa) * R + rand(-10, 10), y: P.y + Math.sin(pa) * R + rand(-10, 10) }); b.noChest = true; }
+  }
+  e.sq = 1.2; burst(e.x, e.y, 16, HONEY, { sp: 60, glow: true, life: 0.4 }); AudioMan.summon();
+}
+// 蜂球(激昂): 働き蜂が固まった球(HP 5%・12秒)がプレイヤーを追う(速さ 30)。触れると 0.5秒ごとに ×0.8。壊すと蜂が散る
+function beeBall(e, ai) {
+  const o = spawnObj(e, 'beeball', e.x, e.y + 6, { pct: 0.05, r: 9, life: 12 });
+  o.tick = 0;
+  burst(e.x, e.y, 30, HONEY, { sp: 80, glow: true, life: 0.5 }); AudioMan.summon(); AudioMan.hum(1.2);
+  hint('qbee_ball', _t('蜂球'), _t('働き蜂の塊が追ってくる。壊すと散る'));
+}
+
+// ---------- 古樹の主: ゆっくり歩く。★芽吹き(若芽を壊さないと通れない茨の木に育つ)/ 根の波(衰弱)/ 枝の薙ぎ払い / 木の実落とし / 葉の嵐 / 激昂: 根の檻 ----------
+const LEAF = ['#5a9a48', '#8fd06a', '#c8e890', '#3a6a34'];
+function elderAI(e, ai, dt, a, dist, slow) {
+  const R = CHAOS.rate;
+  if (ai.act === 'sweep') { // 枝の薙ぎ払い: 0.8秒の予告(止まって枝を振りかぶる)→ 同じ軌道を 0.4秒で薙ぐ。×1.0・60 押す
+    const tl = ai.tl;
+    tl.t += dt;
+    if (tl.t < 0.8) { e.sq = 1.1; return; }
+    const k = Math.min(1, (tl.t - 0.8) / 0.4), ang = tl.a0 + tl.dir * Math.PI * k, L = 110 * CHAOS.area;
+    if (!tl.swung) {
+      tl.swung = true; AudioMan.slash(); AudioMan.dash(); shake(3);
+      slashes.push({ x: e.x, y: e.y, a: tl.a0 + tl.dir * Math.PI / 2, r: L, t: 0, life: 0.5, flip: tl.dir < 0 ? 1 : 0, span: Math.PI, pal: SWING_PAL.enemy, enemy: true });
+    }
+    if (!tl.hit && hitLine(e.x, e.y, ang, 110, 18, e.dmg)) { tl.hit = true; pushPlayer(ang + tl.dir * Math.PI / 2, 60, 0.25); }
+    for (let i = 0; i < 2; i++) { const r = rand(0.5, 1) * L; part(e.x + Math.cos(ang) * r, e.y + Math.sin(ang) * r, rand(-20, 20), -rand(10, 40), 0.5, pick(LEAF), { g: 80, drag: 1 }); } // 散る葉
+    if (k >= 1) { ai.act = null; shake(4); AudioMan.thud(); }
+    return;
+  }
+  if (dist > 30) { e.x += Math.cos(a) * e.spd * slow * dt; e.y += Math.sin(a) * e.spd * slow * dt; }
+  if (Math.random() < dt * 5) part(e.x + rand(-14, 14), e.y - rand(10, 26), rand(-8, 8), rand(6, 14), rand(0.8, 1.2), pick(LEAF), { g: 20, drag: 1 }); // 梢から葉が舞い落ちる
+  if (ai.lvN > 0 && (ai.lvGap -= dt * R) <= 0) { // 葉の嵐: 2本の腕の螺旋(0.12秒ごと)
+    ai.lvGap = 0.12; ai.lvN--; ai.lvA += 0.42;
+    for (const o of [0, Math.PI]) Object.assign(eball(e.x, e.y - 6, ai.lvA + o, 60, e.dmg * 0.5, 'leaf'), { r: 3 * CHAOS.area });
+    if (ai.lvN % 4 === 0) AudioMan.dash();
+  }
+  ai.sprout -= dt * R; ai.roots -= dt * R; ai.sweep -= dt * R; ai.fruit -= dt * R; ai.leaves -= dt * R; if (ai.enraged) ai.cage -= dt * R;
+  if (ai.leaves <= 0) { ai.leaves = ai.enraged ? 7 : 9; ai.lvN = 21; ai.lvGap = 0; ai.lvA = rand(0, TAU); } // 弾はほかの技と並んで撃つ(2.5秒)
+  if (ai.enraged && ai.cage <= 0) { ai.cage = 14; rootCage(e, ai); }
+  else if (ai.sprout <= 0) { ai.sprout = ai.enraged ? 12 : 16; elderSprout(e, ai); }
+  else if (ai.sweep <= 0 && dist < 80) { ai.sweep = ai.enraged ? 4 : 5; elderSweep(e, ai, a); }
+  else if (ai.roots <= 0) { ai.roots = ai.enraged ? 4.5 : 6; rootWave(e, ai, a, dist); }
+  else if (ai.fruit <= 0) { ai.fruit = ai.enraged ? 6 : 8; fruitDrop(e, ai); }
+}
+// 枝の薙ぎ払い: 枝の帯(長さ 110・幅 18)が 0.8秒かけて 180° 回りながら出る → 同じ軌道を 0.4秒で薙ぐ
+function elderSweep(e, ai, a) {
+  const dir = Math.random() < 0.5 ? 1 : -1, a0 = a - dir * Math.PI / 2;
+  ai.act = 'sweep'; ai.tl = { t: 0, a0, dir };
+  pushWarn({ kind: 'fan', x: e.x, y: e.y, a: a0, r: 120, h: 0.001, t: 0, life: 1.2, noFill: true, track: w => { const k = Math.min(1, w.t / 0.8); w.h = Math.max(0.001, Math.PI * k / 2); w.a = a0 + dir * w.h; } });
+  pushWarn({ kind: 'line', x: e.x, y: e.y, a: a0, len: 110, w: 18, t: 0, life: 0.8, track: w => { w.a = a0 + dir * Math.PI * Math.min(1, w.t / 0.8); } });
+  AudioMan.charge(0.8);
+}
+// ★芽吹き: 種を 4つ(激昂 6つ)プレイヤーの周りへ飛ばす → 若芽(壊せる物、HP 2%)。8秒のうちに壊さないと茨の木に育ち、15秒 通れない(近づくと予告のあと枝で叩く ×0.8)
+function elderSprout(e, ai) {
+  const n = ai.enraged ? 6 : 4, a0 = rand(0, TAU);
+  for (let i = 0; i < n; i++) {
+    const pa = a0 + TAU / n * i + rand(-0.3, 0.3), pr = rand(50, 90), tx = P.x + Math.cos(pa) * pr, ty = P.y + Math.sin(pa) * pr;
+    later(ai, i * 0.12, () => lob('seed', e.x, e.y - 22, tx, ty, 0.8, 50, p => {
+      spawnObj(e, 'sprout', p.x, p.y, { pct: 0.02, r: 5, life: 8 });
+      burst(p.x, p.y, 10, ['#5a3a1a', '#8a5a2a', '#8fd06a'], { sp: 50, up: 20, g: 200, life: 0.4 }); AudioMan.thud();
+    }));
+  }
+  e.sq = 1.25; AudioMan.charge(0.5);
+  hint('elder_sprout', _t('芽吹き'), _t('若芽を 8秒のうちに壊さないと、通れない茨の木に育つ'));
+}
+// 根の波: 地中を根が 3本、プレイヤーとその左右へ伸び(盛り上がる土の線)、1秒で突き上げる(円 半径 20、×1.2・衰弱 +2)
+function rootWave(e, ai, a, dist) {
+  const D = Math.max(40, dist), pts = [-0.35, 0, 0.35].map(da => ({ x: e.x + Math.cos(a + da) * D, y: e.y + Math.sin(a + da) * D }));
+  for (const q of pts) {
+    pushWarn({ kind: 'circle', x: q.x, y: q.y, r: 20, t: 0, life: 1 });
+    bfx.push({ kind: 'rootline', x: e.x, y: e.y + e.r * 0.6, x1: q.x, y1: q.y, t: 0, life: 1 });
+  }
+  AudioMan.charge(1); e.sq = 1.15;
+  later(ai, 1, () => {
+    let hit = false;
+    for (const q of pts) {
+      if (!hit && hitCircle(q.x, q.y, 20, e.dmg * 1.2)) { hit = true; weakPlayer(2); }
+      const RR = 20 * CHAOS.area;
+      for (let k = 0; k < 5; k++) { const pa = TAU / 5 * k + rand(-0.3, 0.3), pr = RR * rand(0.2, 0.7); bfx.push({ kind: 'rootspike', x: q.x + Math.cos(pa) * pr, y: q.y + Math.sin(pa) * pr, t: 0, life: 0.8, h: rand(9, 15), a: pa }); }
+      burst(q.x, q.y, 20, ['#5a3a1a', '#8a5a2a', '#3a6a34', '#c8a060'], { sp: 100, up: 50, g: 240, life: 0.5 });
+      bossBlast(q.x, q.y, RR, Object.assign({ n: 10 }, BFX.elder));
+    }
+    shake(5); AudioMan.boom();
+  });
+}
+// 木の実落とし: 枝をゆすって木の実 6個(プレイヤーの位置と周り 70 以内。着弾 円 半径 16、×0.8)
+function fruitDrop(e, ai) {
+  e.sq = 1.2; AudioMan.charge(0.4);
+  for (let i = 0; i < 6; i++) {
+    const pa = rand(0, TAU), pr = i ? rand(20, 70) : 0, tx = P.x + Math.cos(pa) * pr, ty = P.y + Math.sin(pa) * pr, T = 0.9 + i * 0.06;
+    pushWarn({ kind: 'circle', x: tx, y: ty, r: 16, t: 0, life: T });
+    lob('fruit', e.x + rand(-10, 10), e.y - 26, tx, ty, T, 60, p => {
+      hitCircle(p.x, p.y, 16, e.dmg * 0.8);
+      burst(p.x, p.y, 14, ['#ff6a4a', '#ffb070', '#c83a2a', '#8fd06a'], { sp: 80, up: 30, g: 220, life: 0.45 }); addRing(p.x, p.y, 16 * CHAOS.area, '#ffb070', { life: 0.25 }); AudioMan.thud();
+    });
+  }
+}
+// 根の檻(激昂): プレイヤーの周り(半径 70)に根の輪がせり上がる(抜け道 1か所。輪は歩いて越えられない。回避の無敵なら抜けられる)→ 1.2秒後に輪の中を締めつける ×1.3・衰弱 +5
+function rootCage(e, ai) {
+  const cx = P.x, cy = P.y, gap = rand(0, TAU);
+  pushWarn({ kind: 'circle', x: cx, y: cy, r: 70, t: 0, life: 1.2 });
+  const h = addHazard('rootring', cx, cy, { r: 70, dur: 1.7, gap, gapH: 0.45, w: 8, owner2: e, dmg: e.dmg });
+  AudioMan.charge(1.2); AudioMan.thud(); shake(4);
+  hint('elder_cage', _t('根の檻'), _t('根の輪の抜け道から出るか、回避で根を飛び越える'));
+  later(ai, 1.2, () => {
+    if (h.done) return;
+    h.done = true;
+    if (hitCircle(cx, cy, 70, e.dmg * 1.3)) weakPlayer(5);
+    const RR = 70 * CHAOS.area;
+    for (let k = 0; k < 14; k++) { const pa = TAU / 14 * k + rand(-0.2, 0.2), pr = RR * rand(0.15, 0.85); bfx.push({ kind: 'rootspike', x: cx + Math.cos(pa) * pr, y: cy + Math.sin(pa) * pr, t: 0, life: 0.9, h: rand(10, 18), a: pa }); }
+    burst(cx, cy, 50, ['#5a3a1a', '#8a5a2a', '#3a6a34', '#c8a060'], { sp: 150, up: 60, g: 240, life: 0.6 });
+    bossBlast(cx, cy, RR * 0.8, Object.assign({ n: 18 }, BFX.elder)); shockAt(cx, cy, 2, 0.75); shake(10); hitstop(0.05); AudioMan.boom(); AudioMan.crush();
   });
 }
 
@@ -5020,6 +5297,28 @@ function updHazards(dt) {
       const R = h.r * Math.min(1, h.t * 6);
       if (dd < R * R && h.t < h.dur - 0.3) { P.staLockT = Math.max(P.staLockT, 0.1); S.inInk = true; }
       if (Math.random() < dt * 8) { const pa = rand(0, TAU), pr = Math.sqrt(Math.random()) * R; part(h.x + Math.cos(pa) * pr, h.y + Math.sin(pa) * pr * 0.8, 0, -rand(4, 10), 0.8, pick(['#2a2a4a', '#3a3a5a', '#1a1a2a']), { drag: 1 }); }
+    } else if (h.kind === 'thorn') { // 茨の木(古樹の主の芽吹き): 通れない(幹の円の外へ押し出す)。近づくと 0.5秒の予告(円 半径 30)のあと枝で叩く ×0.8(2.5秒に1回)
+      if (h.owner2 && h.owner2.dead) h.t = h.dur;
+      h.rise = Math.min(1, (h.rise || 0) + dt * 4);
+      const d = Math.sqrt(dd), R0 = h.r + 4;
+      if (!P.dead && d < R0) { const k = R0 - d, ux = d > 0.01 ? (P.x - h.x) / d : 1, uy = d > 0.01 ? (P.y - h.y) / d : 0; P.x += ux * k; P.y += uy * k; }
+      if ((h.lashT -= dt) <= 0 && d < 34 * CHAOS.area && h.t < h.dur - 0.6) { h.lashT = 2.5; h.lashAt = h.t + 0.5; pushWarn({ kind: 'circle', x: h.x, y: h.y, r: 30, t: 0, life: 0.5 }); AudioMan.charge(0.5); }
+      if (h.lashAt && h.t >= h.lashAt) {
+        h.lashAt = 0; h.swing = 0.25;
+        hitCircle(h.x, h.y, 30, h.dmg * 0.8);
+        burst(h.x, h.y - 6, 14, ['#3a6a34', '#5a9a48', '#8a5a2a'], { sp: 90, life: 0.35 }); addRing(h.x, h.y, 30 * CHAOS.area, '#5a9a48', { life: 0.25 }); AudioMan.slash();
+      }
+      if (h.swing > 0) h.swing -= dt;
+    } else if (h.kind === 'rootring') { // 根の檻(古樹の主): 根の輪(抜け道 1か所)。歩いては越えられない(回避の無敵なら抜けられる)。締めつけは rootCage の later
+      if (h.owner2 && h.owner2.dead) h.t = h.dur;
+      if (!P.dead) {
+        const d = Math.sqrt(dd), half = h.w / 2, ang = Math.atan2(P.y - h.y, P.x - h.x), free = P.invT > 0 || Math.abs(angDiff(ang, h.gap)) < h.gapH || h.t > h.dur - 0.3;
+        if (!h.side) h.side = d < h.r ? -1 : 1;
+        if (free) { if (Math.abs(d - h.r) > half) h.side = d < h.r ? -1 : 1; }
+        else if (h.side < 0 && d > h.r - half) { const k = d - (h.r - half); P.x -= Math.cos(ang) * k; P.y -= Math.sin(ang) * k; }
+        else if (h.side > 0 && d < h.r + half) { const k = h.r + half - d; P.x += Math.cos(ang) * k; P.y += Math.sin(ang) * k; }
+      }
+      if (h.t < 0.3 && Math.random() < dt * 60) { const pa = rand(0, TAU); if (Math.abs(angDiff(pa, h.gap)) > h.gapH) part(h.x + Math.cos(pa) * h.r, h.y + Math.sin(pa) * h.r, rand(-10, 10), -rand(20, 50), 0.4, pick(['#5a3a1a', '#8a5a2a', '#3a6a34']), { g: 160 }); } // せり上がる土
     } else if (h.kind === 'rift') { // 断界の裂け目(影の王): プレイヤーだけ越えられない(歩き・回避・押し出し・鎖の引きでも)。敵・弾は通る
       const c = Math.cos(h.a), s = Math.sin(h.a);
       if (!P.dead) {
@@ -5280,12 +5579,24 @@ function updArena(dt) {
   if (!A.warned && A.restT <= 2.5) { A.warned = true; UI.announce('ROUND ' + (A.idx + 1) + ' / ' + cfg.order.length, _t('次の挑戦者が入場する…')); AudioMan.warning(); }
   if (A.restT > 0) return;
   S.elv = arenaLv(A.idx); UI.enemyLvUp();
-  const ord = cfg.order[A.idx], e = spawnBoss(Array.isArray(ord) ? pick(ord) : ord, A.idx === cfg.order.length - 1); // 配列のラウンドはステージのボス2体のどちらか
+  const ord = (A.order || cfg.order)[A.idx], e = spawnBoss(Array.isArray(ord) ? pick(ord) : ord, A.idx === cfg.order.length - 1); // 配列のラウンドはステージのボス2体のどちらか
   // 闘技場の中、プレイヤーと中心を挟んだ反対側から入場
   const a = Math.hypot(P.x, P.y) > 30 ? Math.atan2(-P.y, -P.x) : rand(0, TAU), R = cfg.r * 0.6;
   e.x = Math.cos(a) * R; e.y = Math.sin(a) * R;
   shockAt(e.x, e.y, 1.5, 0.6); burst(e.x, e.y, 40, [e.col, '#ffffff'], { sp: 120, glow: true });
   if (CHAOS.escort) arenaEscort(e, CHAOS.escort, a, R);
+}
+// 闘技場の顔ぶれ(ラン開始時に1回): tier 1〜3 は、その tier のステージから2つ(ランダム。順番はステージの並び順)をラウンドに。各ラウンドはそのステージのボス2体のどちらか
+//   ラウンド 7・8 は tier 4 のステージの1体目どうし・2体目どうしから(番人かケルベロス → 死神か影の王)。ステージが2つずつなら今までと同じ
+function arenaOrder() {
+  const out = [];
+  for (const t of [1, 2, 3]) {
+    const rs = DATA.stageRuns.filter(r => r.tier === t);
+    for (const r of shuffle(rs.slice()).slice(0, 2).sort((a, b) => rs.indexOf(a) - rs.indexOf(b))) out.push(r.bosses.slice());
+  }
+  const t4 = DATA.stageRuns.filter(r => r.tier === 4);
+  out.push(t4.map(r => r.bosses[0]), t4.map(r => r.bosses[1]));
+  return out;
 }
 // 闘技場のラウンド i の敵Lv: ラウンドごとの値 + カオス(深い闇 + 復讐の連鎖 × それまでに倒したボスの数)
 const arenaLv = i => DATA.arena.elv[i] + CHAOS.startLv + CHAOS.bossLv * i;

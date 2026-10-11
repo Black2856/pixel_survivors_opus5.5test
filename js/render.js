@@ -179,6 +179,7 @@ function buildChunk(cx, cy, st) {
     if (st.crystal) { crystalDeco(x, gx, hx, hy, kind, hash2(hx * 3 + ox, hy * 5 + oy)); continue; }
     if (st.sea) { seaDeco(x, gx, hx, hy, kind, hash2(hx * 3 + ox, hy * 5 + oy), st.deco); continue; }
     if (st.snow) { snowDeco(x, gx, hx, hy, kind, hash2(hx * 3 + ox, hy * 5 + oy), st.deco); continue; }
+    if (st.forest) { forestDeco(x, gx, hx, hy, kind, hash2(hx * 3 + ox, hy * 5 + oy), st.deco); continue; }
     if (kind < 0.45) { // 草むら
       x.fillStyle = d0; x.fillRect(hx, hy + 2, 1, 2); x.fillRect(hx + 2, hy + 1, 1, 3); x.fillRect(hx + 4, hy + 2, 1, 2);
       x.fillStyle = d1; x.fillRect(hx + 2, hy, 1, 1); x.fillRect(hx, hy + 1, 1, 1);
@@ -289,6 +290,43 @@ function snowDeco(x, gx, hx, hy, kind, h2, [d0, d1, d2c, d3]) {
   } else if (kind < 0.9) { // 氷の結晶(ほのかに光る)
     x.fillStyle = d3; x.fillRect(hx + 1, hy, 1, 3); x.fillRect(hx, hy + 1, 3, 1);
     gx.fillStyle = '#2a5a6a'; gx.fillRect(hx + 1, hy + 1, 1, 1);
+  }
+}
+// 森の地面の装飾: シダ / 落ち葉 / キノコ(ほのかに光るものも)/ 木の根 / 倒木 / 苔むした石 / 小さな白い花 / 大きな木の根元
+function forestDeco(x, gx, hx, hy, kind, h2, [d0, d1, d2c, d3]) {
+  if (kind < 0.24) { // シダ: 根元から左右へ広がる葉
+    for (const [dx, dy, w] of [[3, 0, 1], [2, 1, 1], [4, 1, 1], [1, 2, 2], [4, 2, 2], [0, 3, 2], [5, 3, 2], [3, 3, 1], [3, 4, 1]]) { x.fillStyle = dy < 2 ? d1 : d0; x.fillRect(hx + dx, hy + dy, w, 1); }
+    x.fillStyle = '#10200e'; x.fillRect(hx + 1, hy + 5, 5, 1);
+  } else if (kind < 0.38) { // 落ち葉
+    for (let k = 0; k < 5; k++) { x.fillStyle = (h2 * 7 + k) % 3 < 1 ? '#a85a2a' : (h2 * 5 + k) % 2 < 1 ? d2c : '#8a6a2a'; x.fillRect(hx + ((h2 * 37 + k * 5) % 9 | 0), hy + ((h2 * 23 + k * 3) % 5 | 0), 2, 1); }
+  } else if (kind < 0.5) { // キノコ: 2本。赤い傘に白い点か、ほのかに光る青白い傘
+    const glow = h2 > 0.7, cap = glow ? '#7ad7c8' : h2 > 0.35 ? '#c83a2a' : d2c;
+    for (const [bx, H] of [[0, 3], [4, 2]]) {
+      x.fillStyle = '#e8e0c8'; x.fillRect(hx + bx + 1, hy + 4 - H + 2, 1, H);
+      x.fillStyle = cap; x.fillRect(hx + bx, hy + 3 - H, 3, 1); x.fillRect(hx + bx + 1, hy + 2 - H, 1, 1);
+      if (!glow && h2 > 0.35) { x.fillStyle = '#ffffff'; x.fillRect(hx + bx, hy + 3 - H, 1, 1); }
+      if (glow) { gx.fillStyle = '#1a4a44'; gx.fillRect(hx + bx, hy + 3 - H, 3, 1); }
+    }
+    x.fillStyle = '#10200e'; x.fillRect(hx, hy + 6, 7, 1);
+  } else if (kind < 0.6) { // 木の根: うねる茶色の根
+    let lx = hx, ly = hy + 2;
+    for (let k = 0; k < 11; k++) { x.fillStyle = k % 4 === 0 ? '#3a2410' : '#5a3a1a'; x.fillRect(lx, ly, 1, 2); x.fillStyle = '#7a5a30'; x.fillRect(lx, ly, 1, 1); lx = clamp(lx + 1, 0, CH - 1); ly = clamp(ly + (hash2(lx * 7, k + h2 * 50) < 0.5 ? 1 : -1), 0, CH - 2); }
+  } else if (kind < 0.68) { // 倒木: 横たわる丸太(切り口の年輪と苔)
+    x.fillStyle = '#10200e'; x.fillRect(hx, hy + 4, 11, 1);
+    x.fillStyle = '#5a3a1a'; x.fillRect(hx, hy + 1, 10, 3); x.fillStyle = '#7a5a30'; x.fillRect(hx, hy + 1, 10, 1);
+    x.fillStyle = '#c8a060'; x.fillRect(hx + 9, hy + 1, 2, 3); x.fillStyle = '#8a6a3a'; x.fillRect(hx + 10, hy + 2, 1, 1); // 切り口
+    x.fillStyle = d1; x.fillRect(hx + 2, hy, 3, 1); x.fillRect(hx + 6, hy, 2, 1); // 苔
+  } else if (kind < 0.76) { // 苔むした石
+    x.fillStyle = '#10200e'; x.fillRect(hx, hy + 4, 7, 1);
+    x.fillStyle = '#4a5050'; x.fillRect(hx, hy + 2, 7, 2); x.fillRect(hx + 1, hy + 1, 5, 1);
+    x.fillStyle = d1; x.fillRect(hx + 1, hy + 1, 3, 1); x.fillRect(hx, hy + 2, 2, 1);
+  } else if (kind < 0.86) { // 小さな白い花
+    for (let k = 0; k < 3; k++) { const fx = hx + k * 3, fy = hy + (k % 2) * 2; x.fillStyle = d0; x.fillRect(fx + 1, fy + 2, 1, 2); x.fillStyle = '#f0f0e0'; x.fillRect(fx, fy + 1, 3, 1); x.fillRect(fx + 1, fy, 1, 3); x.fillStyle = d3; x.fillRect(fx + 1, fy + 1, 1, 1); }
+  } else if (kind > 0.95) { // 大きな木の根元: 幹と、四方へ張った根
+    x.fillStyle = '#10200e'; x.fillRect(hx - 1, hy + 8, 12, 2);
+    x.fillStyle = '#3a2410'; x.fillRect(hx + 2, hy, 6, 8); x.fillStyle = '#5a3a1a'; x.fillRect(hx + 3, hy, 4, 8); x.fillStyle = '#7a5a30'; x.fillRect(hx + 4, hy, 1, 8);
+    x.fillStyle = '#5a3a1a'; x.fillRect(hx, hy + 7, 3, 1); x.fillRect(hx + 7, hy + 7, 3, 1); x.fillRect(hx - 1, hy + 8, 2, 1); x.fillRect(hx + 9, hy + 8, 2, 1);
+    x.fillStyle = d1; x.fillRect(hx + 2, hy + 6, 2, 1);
   }
 }
 function drawGround() {
@@ -402,6 +440,9 @@ function spriteOf(e) {
   if (e.ai === 'skitter') return s[e.run ? Math.floor(e.t * 14) % s.length : 0]; // 毒蜘蛛: 走っている間だけ脚を動かす
   if (e.type === 'shadoweye') return s[e.wind > 0 ? 1 : 0]; // 影の眼: 撃つ前に見開く
   if (e.obj === 'cdog') return s[e.run ? Math.floor(e.t * 10) % s.length : 0]; // 冥犬の犬: 走っている間だけ脚を動かす
+  if (e.type === 'bear') return e.stand ? ART.S.bearStand : s[Math.floor(e.t * 5) % s.length]; // クマ: 爪の前に立ち上がる
+  if (e.type === 'squirrel' && e.aim) return ART.S.squirrelThrow; // リス: ドングリを振りかぶる
+  if (e.type === 'bee' || e.obj === 'wbee') return s[Math.floor(e.t * 24 + e.seed * 5) % s.length]; // 蜂: 速い羽ばたき
   if (Array.isArray(s)) return s[Math.floor(e.t * 8) % s.length];
   return s;
 }
@@ -984,6 +1025,24 @@ function render() {
   for (const h of hazards) {
     if (h.delay > 0) continue; // 予告のあとに出る床
     const hx = h.x - cam.x, hy = h.y - cam.y, fade = Math.min(1, (h.dur - h.t) * 3, h.t * 8);
+    if (h.kind === 'thorn') { // 茨の木(古樹の主の芽吹き): 地面からせり上がる、棘だらけの低い木。叩くときは枝が揺れる
+      const sp = ART.S.thorn, k = Math.min(h.rise || 0, Math.max(0, (h.dur - h.t) * 2)), sw = h.swing > 0 ? Math.round(Math.sin(t * 60) * 2) : 0;
+      shadow(h.x, h.y + 2, sp.w * 0.9);
+      if (k > 0.02) drawSp(sp, h.x + sw, h.y + 3 - sp.h / 2, { sy: k }); // 根元(h.y + 3)を地面に固定して上へ伸びる
+      continue;
+    }
+    if (h.kind === 'rootring') { // 根の檻(古樹の主): 円に沿ってせり上がる根の柵(抜け道 1か所は根がない)
+      const R = h.r, rise = Math.min(1, h.t / 0.3, Math.max(0, (h.dur - h.t) / 0.3)), n = Math.ceil(TAU * R / 3);
+      for (let i = 0; i < n; i++) {
+        const a = TAU / n * i;
+        if (Math.abs(angDiff(a, h.gap)) < h.gapH) continue;
+        const x = Math.round(hx + Math.cos(a) * R), y = Math.round(hy + Math.sin(a) * R), H = Math.round((8 + 6 * hash2(i, h.seed | 0)) * rise);
+        sx.fillStyle = '#1a1008'; sx.fillRect(x - 2, y, 4, 2); // 根元の盛り上がった土
+        for (let j = 0; j < H; j++) { const w = j < H * 0.35 ? 3 : j < H * 0.7 ? 2 : 1; sx.fillStyle = j === H - 1 ? '#c8a060' : j % 3 ? '#5a3a1a' : '#3a2410'; sx.fillRect(x - (w >> 1), y - j, w, 1); } // 根元ほど太い(壁に見えるように)
+      }
+      for (const sd of [-1, 1]) { const a = h.gap + sd * h.gapH, x = Math.round(hx + Math.cos(a) * R), y = Math.round(hy + Math.sin(a) * R); gx.fillStyle = '#2a4a1a'; gx.fillRect(x - 1, y - 10, 2, 10); } // 抜け道の両端の根はほのかに光る(出口の目印)
+      continue;
+    }
     if (h.kind === 'goo') {
       const R = Math.round(h.r * Math.min(1, h.t * 6));
       sx.globalAlpha = 0.45 * fade; pDisc(sx, hx, hy, R, '#2f9c7c');
@@ -1356,6 +1415,7 @@ function render() {
     if (e.obj === 'cdog') { yo -= e.jz || 0; sy = 1 + (e.pulse || 0) * 0.15; sxk = 1 + (e.pulse || 0) * 0.1; } // 冥犬の犬: 跳ぶ高さ。ふくらみは控えめに
     else if (e.type === 'mworm') { sy = Math.max(0.1, e.rise ?? 1); sxk = 1 + (1 - sy) * 0.4; } // マグマワーム: 地面から伸び出る・沈む
     else if (!e.prop && !e.boss) { const w = Math.abs(Math.sin(e.t * 7 + e.seed * 6)); sy = 1 - w * 0.06; sxk = 1 + w * 0.04; }
+    if (e.ripe) { const pk = 1 + 0.1 * Math.abs(Math.sin(e.t * 12)); sy *= pk; sxk *= pk; } // 若木: 育つ前の 3秒はふくらんで光る
     if (e.boss) { sy = (e.sq || 1) + Math.sin(e.t * 3) * 0.03; sxk = 2 - sy; yo = -(e.jz || 0); }
     const flip = (e.face || 1) < 0;
     let alpha = e.ghost ? 0.7 : 1;
@@ -1417,6 +1477,8 @@ function render() {
       addLight(e.x, e.y, e.wind > 0 ? 44 : 20, '#a66bff', e.wind > 0 ? 0.85 : 0.4);
     }
     else if (e.type === 'stalker' && !e.veil) addLight(e.x, e.y - 4, 18, '#c79bff', 0.3);
+    else if (e.type === 'sapling' && e.ripe) addLight(e.x, e.y - 3, 20, '#d8ff9a', 0.45);
+    else if (e.obj === 'beeball') addLight(e.x, e.y, 24, '#ffb13a', 0.15); // 蜂球: 黄色の体が明るいので光は控えめに(強いと白く飛んで蜂の模様が消える)
     else if (e.obj === 'doom') { // 終刻の時計: 文字盤に残り秒(12 → 0)。少なくなると赤く脈打つ
       const n = Math.max(0, Math.ceil(e.life)), img = ART.text(String(n), n <= 3 ? '#ff3b5c' : '#ffd0d8', 2);
       const cx2 = Math.round(e.x - cam.x), cy2 = Math.round(e.y + yo - cam.y - sp.h * sc / 2), fy2 = cy2 + 11; // 文字盤の中心
@@ -1435,7 +1497,7 @@ function render() {
     else if (e.obj === 'tomb') addLight(e.x, e.y - 10, 50 + Math.sin(t * 3 + e.seed * 6) * 6, '#9ff7ff', 0.6); // 氷柱の墓標: 青白く光る
     else if (e.obj === 'cdog') addLight(e.x + 8 * (e.face || 1), e.y + yo - 8, 30 + (e.pulse || 0) * 30, e.owner.shadow ? '#7a3ab0' : CERB[e.hk][0], 0.45 + (e.pulse || 0) * 0.4); // 冥犬の犬: 目と首の色の光
     if (e.disguise) addLight(e.x, e.y, 90, '#ff8ad8', 0.8); // 鏡の分身: 本物と同じ光(HP バーは出さない)
-    else if (e.obj) { // ボスが出した物: いつも金色の HP バー(壊せることを示す)と、足元の金の輪
+    else if (e.obj && !e.tiny) { // ボスが出した物: いつも金色の HP バー(壊せることを示す)と、足元の金の輪(蜂の陣の働き蜂は出さない)
       const w = Math.max(10, Math.round(sp.w * sc)), bx = Math.round(e.x - cam.x - w / 2), by = Math.round(e.y + (e.hz ? yo - sp.h * sc - 4 : 0) - cam.y + sp.h * sc / 2 + 2); // 宙にある首は頭の上に
       sx.fillStyle = '#0c0913'; sx.fillRect(bx - 1, by - 1, w + 2, 3);
       sx.fillStyle = '#ffd23f'; sx.fillRect(bx, by, Math.max(1, Math.round(w * e.hp / e.maxhp)), 1);
@@ -1734,7 +1796,8 @@ function render() {
     if (al !== undefined) sx.globalAlpha = al; // drawRot は透明度を受け取らないので、ここで掛けて戻す
     if (p.kind === 'boomer') drawRot('scythe', p.t * 16, p.x, p.y, { scale: 2 * A, outline: oc });
     else if (p.kind === 'glob' || p.kind === 'rbit' || p.kind === 'efire' || p.kind === 'esand' || p.kind === 'bball' || p.kind === 'vball') drawSp(ART.S[p.kind], p.x, p.y, ol);
-    else if (p.kind === 'arrow' || p.kind === 'espear' || p.kind === 'bspear' || p.kind === 'trident' || p.kind === 'needle' || p.kind === 'eice' || p.kind === 'ispear' || p.kind === 'tick') drawRot(p.kind, a, p.x, p.y, ol);
+    else if (p.kind === 'arrow' || p.kind === 'espear' || p.kind === 'bspear' || p.kind === 'trident' || p.kind === 'needle' || p.kind === 'eice' || p.kind === 'ispear' || p.kind === 'tick' || p.kind === 'stinger') drawRot(p.kind, a, p.x, p.y, ol);
+    else if (p.kind === 'leaf') drawRot('leaf', p.t * 9 + p.x * 0.1, p.x, p.y, ol); // 葉の嵐: くるくる回る葉
     else if (p.kind === 'flake') drawSp(p.small ? ART.S.flakeS : ART.S.flake, p.x, p.y, ol); // 雪華弾(割れた後は小さな結晶)
     else if (p.kind === 'cog') drawSp(ART.S.gear[Math.floor(p.spin || 0) % 2], p.x, p.y, ol); // 番人の歯車弾
     else if (p.kind === 'bigsnow') { // 大雪玉: 転がる白い雪の玉(凹凸が回る)
@@ -2353,6 +2416,23 @@ function drawBfx() {
   const sx = GFX.sctx, gx = GFX.gctx, t = GFX.fx.time;
   for (const f of bfx) {
     const fx = f.x - cam.x, fy = f.y - cam.y, u = f.t / f.life;
+    if (f.kind === 'rootspike') { // 突き上げる根(樹人・古樹の主): 地面から尖った根が伸び、少しして沈む
+      const k = u < 0.18 ? u / 0.18 : u > 0.7 ? Math.max(0, (1 - u) / 0.3) : 1, H = Math.round(f.h * k), bx = Math.round(fx), by = Math.round(fy);
+      if (H >= 1) {
+        sx.fillStyle = '#1a1008'; sx.fillRect(bx - 2, by + 1, 5, 1);
+        for (let j = 0; j < H; j++) { const w = j < H * 0.4 ? 3 : j < H * 0.75 ? 2 : 1; sx.fillStyle = j === H - 1 ? '#c8a060' : j % 3 === 0 ? '#3a2410' : '#6a4424'; sx.fillRect(bx - (w >> 1), by - j, w, 1); }
+      }
+      continue;
+    }
+    if (f.kind === 'rootline') { // 根の波: 地中を進む根(盛り上がった土の線が、古樹から予告の円へ伸びる)
+      const L = Math.hypot(f.x1 - f.x, f.y1 - f.y), k = Math.min(1, u * 1.1), n = Math.max(1, Math.floor(L * k / 3));
+      for (let i = 0; i <= n; i++) {
+        const v = i * 3 / L, x = Math.round(lerp(f.x, f.x1, v) - cam.x + Math.sin(i * 1.7 + f.x) * 1.2), y = Math.round(lerp(f.y, f.y1, v) - cam.y);
+        sx.fillStyle = '#3a2410'; sx.fillRect(x - 1, y, 3, 1); sx.fillStyle = i === n ? '#c8a060' : '#6a4424'; sx.fillRect(x, y - 1, 1, 1);
+      }
+      if (k < 1 && Math.random() < 0.5) part(lerp(f.x, f.x1, k), lerp(f.y, f.y1, k), rand(-10, 10), -rand(10, 30), 0.35, pick(['#3a2410', '#6a4424', '#5a3a1a']), { g: 120 }); // 先端で土が跳ねる
+      continue;
+    }
     if (f.kind === 'portal') { // 影喚び: 床に影の門が開く(黒い楕円が広がり、紫のルーンが回る)→ 影が出ると閉じる
       const k = Math.min(1, f.t / 0.5), close = f.t > 1.25 ? Math.max(0, 1 - (f.t - 1.25) / 0.45) : 1, R = f.r * easeOutCubic(k) * close;
       if (R >= 1) {
@@ -2647,6 +2727,15 @@ function drawMotes(st) {
     if (i % 3 === 0) addLight(wx + cam.x, wy + cam.y, 14, col, 0.5);
   }
   gx.globalAlpha = 1;
+  if (st.forest) { // 木漏れ日: 梢のすき間から差す光のまだら(地面に貼りつき、ゆっくり揺れる)
+    const G = 150, x0 = Math.floor((cam.x - 80) / G), y0 = Math.floor((cam.y - 80) / G), x1 = Math.floor((cam.x + VW + 80) / G), y1 = Math.floor((cam.y + VH + 80) / G);
+    for (let i = x0; i <= x1; i++) for (let j = y0; j <= y1; j++) {
+      const h = hash2(i * 7 + 3, j * 13 + 5);
+      if (h < 0.3) continue;
+      const lx = (i + 0.15 + 0.7 * hash2(i, j)) * G + Math.sin(t * 0.25 + h * 9) * 12, ly = (j + 0.15 + 0.7 * hash2(j, i + 9)) * G + Math.cos(t * 0.21 + h * 7) * 9;
+      addLight(lx, ly, 60 + h * 55, '#fff0c0', 0.3 + 0.1 * Math.sin(t * 0.6 + h * 11));
+    }
+  }
   if (m.bubble) for (let i = 0; i < 4; i++) { // 海面から差しこむ光のゆらぎ(ゆっくり動く大きな淡い光)
     const lx = cam.x + VW * (0.5 + 0.45 * Math.sin(t * 0.13 + i * 1.9)), ly = cam.y + VH * (0.5 + 0.4 * Math.sin(t * 0.09 + i * 2.7));
     addLight(lx, ly, 120 + 30 * Math.sin(t * 0.7 + i), '#5ab8d8', 0.22 + 0.08 * Math.sin(t * 1.3 + i * 2));

@@ -23,6 +23,8 @@ const I18N_EN = {
   "時計仕掛けの番人 CLOCKWORK WARDEN": "CLOCKWORK WARDEN",
   "冥犬ケルベロス CERBERUS": "CERBERUS",
   "影の王 SHADOW KING": "SHADOW KING",
+  "女王蜂 QUEEN BEE": "QUEEN BEE",
+  "古樹の主 ELDER TREANT": "ELDER TREANT",
 
   // ===== data.js: 武器 bolt =====
   "マジックボルト": "Magic Bolt",
@@ -1325,6 +1327,7 @@ const I18N_EN = {
   "霜天の霊峰": "Frostsky Peak",
   "終刻の時計塔": "Final Hour Clocktower",
   "常闇の王墓": "Evernight Tomb",
+  "木漏れ日の森": "Dappled Forest",
 
   // ===== data.js: カオス強化 =====
   "加速する夜": "Quickening Night",
@@ -2460,6 +2463,20 @@ const I18N_EN = {
   "1スタックにつき命中率 −{0}(最大 {1}スタック。{2}秒 受けないと消える)": "Accuracy −{0} per stack (max {1} stacks; fades after {2}s without being hit)",
   "1スタックにつき攻撃力 −{0}(最大 {1}スタック。与えるダメージが下がる。{2}秒 受けないと消える)": "Attack −{0} per stack (max {1} stacks; lowers the damage you deal; fades after {2}s without being hit)",
   "ランの終わりに、倒した数 + 倒したボス × {0} のクラス経験値が入る(倒したときの tier の報酬の倍率が掛かる)。Lv が上がると、そのクラスの専用の強化と、武器の熟練が解放される": "At the end of a run you earn Class XP equal to kills + bosses defeated × {0} (each multiplied by the tier reward multiplier when it was defeated). Leveling up unlocks that class's Exclusive upgrades and Weapon Mastery",
+
+  // ===== 段階8: 木漏れ日の森(敵・ボスの初見のヒント) =====
+  "若木が育った": "A Sapling Grew Up",
+  "若木は 20秒 生き残ると、根で攻撃する樹人に育つ": "A sapling that survives for 20s grows into a Treant that attacks with its roots",
+  "茨の木": "Thorn Tree",
+  "茨の木は通れない。近づくと枝で叩かれる": "You can't pass through a Thorn Tree. Get close and its branches lash you",
+  "蜂の陣": "Bee Ring",
+  "働き蜂の輪が縮んでくる。蜂を落とせば輪に穴が開く": "A ring of worker bees closes in. Shoot bees down to open a gap in the ring",
+  "蜂球": "Bee Ball",
+  "働き蜂の塊が追ってくる。壊すと散る": "A ball of worker bees chases you. Break it to scatter them",
+  "芽吹き": "Sprouting",
+  "若芽を 8秒のうちに壊さないと、通れない茨の木に育つ": "Break the sprouts within 8s, or they grow into Thorn Trees you can't pass through",
+  "根の檻": "Root Cage",
+  "根の輪の抜け道から出るか、回避で根を飛び越える": "Escape through the gap in the ring of roots, or dodge to leap over them",
 };
 
 // ガイドの用語に印を付ける英語の書き方(help.js)。キーは用語集の k。書いていない用語は見出し(t の英語)で印を付ける

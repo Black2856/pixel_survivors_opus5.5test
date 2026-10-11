@@ -60,6 +60,15 @@ const DATA = {
     ghoul:    { hp: 60, spd: 11, dmg: 12, xp: 2, r: 7, ai: 'chase', spawnW: 0.6, miasma: { r: 24, dur: 4 } }, // 腐毒のグール
     shadoweye:{ hp: 24, spd: 14, dmg: 8,  xp: 1, r: 4, ai: 'keep', keep: [100, 130], spawnW: 0.5, noGroup: true, maxAlive: 4, shot: { cd: 5, range: 180, spd: 70, n: 0.8, kind: 'darkorb', wind: 0.6, dark: 5 } }, // 影の眼
     stalker:  { hp: 30, spd: 24, dmg: 11, xp: 1, r: 5, ai: 'chase', lunge: { range: 80, wind: 0.4, len: 120, w: 8, spd: 300, n: 1.3, rest: 3 } }, // 影法師
+    // 木漏れ日の森 / grow: 出てから t 秒生き残ると into に育つ(エリートは育たない。育つときは倒した扱いにしない)
+    // strike: 足元の一撃(射程 range 以内で cd 秒ごとに止まり、プレイヤーの位置に wind 秒の予告 円 半径 r → ×n。weak: 衰弱 +n / kind: 見た目)
+    // swipe: 爪(射程 range 以内で cd 秒ごとに wind 秒立ち上がり、前方の扇(半径 r・片側 arc rad)→ ×n)
+    // rush.weak: 突進が当たると衰弱 +n / snowball.kind: 投げる物の見た目(floor 0 で床なし・frost 0 で凍傷なし)/ snowball.wind: 振りかぶる秒(既定 0.5)
+    sapling:  { hp: 18, spd: 12, dmg: 8,  xp: 1, r: 4, ai: 'chase', grow: { t: 20, into: 'treant' } }, // 若木
+    treant:   { hp: 70, spd: 9,  dmg: 13, xp: 2, r: 8, ai: 'chase', strike: { cd: 5, range: 130, wind: 0.8, r: 16, n: 1.2, weak: 2, kind: 'root' } }, // 樹人(若木が育つ。出現の候補には入れない)
+    bee:      { hp: 12, spd: 32, dmg: 6,  xp: 1, r: 3, ai: 'flutter', wobble: 1.0, pack: [5, 5], rush: { cd: 5, range: 60, wind: 0.4, len: 80, spd: 200, weak: 1 } }, // 森蜂
+    squirrel: { hp: 22, spd: 20, dmg: 8,  xp: 1, r: 4, ai: 'keep', keep: [100, 130], snowball: { cd: 4.5, range: 180, r: 12, n: 0.8, frost: 0, floor: 0, kind: 'acorn', wind: 0.4 } }, // リス
+    bear:     { hp: 70, spd: 12, dmg: 14, xp: 2, r: 9, ai: 'chase', kbRes: 0.6, swipe: { cd: 3, range: 35, wind: 0.5, r: 45, arc: 1.05, n: 1.2 } }, // クマ
     goblin:   { hp: 160, spd: 44, dmg: 0, xp: 12, r: 5, ai: 'flee', kbRes: 0.5, noElite: true },
   },
 
@@ -88,6 +97,8 @@ const DATA = {
     warden:  { name: '時計仕掛けの番人 CLOCKWORK WARDEN', hp: 1900, spd: 13, dmg: 22, r: 15, music: 'b_clock1', col: '#c8a050' },
     cerberus:   { name: '冥犬ケルベロス CERBERUS', hp: 1800, spd: 21, dmg: 22, r: 16, music: 'b_tomb1', col: '#9dff5a' }, // 合体形態と分裂形態をくり返す(分裂すると首が1本ずつの犬 3匹に)
     shadowking: { name: '影の王 SHADOW KING',      hp: 2000, spd: 15, dmg: 20, r: 12, music: 'b_tomb1', col: '#a66bff', noTwin: true }, // 激昂で曲がボス2 に変わる / noTwin: 双王の相方に選ばれない
+    qbee:    { name: '女王蜂 QUEEN BEE',            hp: 1400, spd: 25, dmg: 20, r: 11, music: 'b_forest', col: '#ffd23f' }, // 木漏れ日の森 1体目(曲は用意されるまで草原の曲)
+    elder:   { name: '古樹の主 ELDER TREANT',       hp: 1900, spd: 10, dmg: 22, r: 16, music: 'b_forest', col: '#8fd06a' }, // 木漏れ日の森 2体目
   },
   // 状態異常(プレイヤー): 粘液・スロウタイムの移動速度倍率 / スロウタイムのCD回復倍率 / 炎上
   debuff: { slow: 0.6, cdRate: 0.5, burnTick: 0.5, burnDur: 3, burnHeal: 0.5, fatigueDur: 3, fatigue: 0.5, slowRegen: 0.5, frostSlow: 0.05, pFrostSlow: 0.03, pFrostMax: 20, pFrzT: 2, shockR: 60, pDur: 5, pBleed: 0.01, pBleedMax: 5 }, // burnHeal: 炎上中の HP回復の倍率 / slowRegen: スロウタイム・時の歪みの中のスタミナ回復・HP回復速度の倍率 / fatigueDur・fatigue: 疲労(スタミナを減らされた)の秒とスタミナ回復の倍率 / frostSlow: 敵の凍傷1スタックあたりの減速 / pFrostSlow・pFrostMax・pFrzT: 自分の凍傷1スタックあたりの減速・上限(上限で凍結して 0 に戻る)・凍結の秒(行動不能・攻撃不能) / shockR: 感電の連鎖距離 / pDur: 自分の凍傷・出血・痺れ・砂塵・衰弱が消えるまでの秒 / pBleed: 自分の出血1スタックの毎秒ダメージ(最大HP の割合)
@@ -1254,7 +1265,7 @@ const DATA = {
   },
   // クラスLv: need[i] = Lv(i+1) → Lv(i+2) に必要な経験値。獲得量 = 討伐数 × killK + 撃破ボス数 × bossK
   // クラスの解放: このモード・ステージを初めてクリアすると使える(書いていないクラスは最初から: サムライ・メイジ・アーチャー・ナイト)
-  //   キーは runKey(escalation / arena / stage1〜8。stage の番号は stageRuns の no)
+  //   キーは runKey(escalation / arena / stage1〜9。stage の番号は stageRuns の no)
   classUnlock: { cleric: 'stage1', electro: 'stage2', pyro: 'stage3', necro: 'stage4', cryo: 'stage5', assassin: 'stage6', astro: 'stage7', weaponmaster: 'escalation', berserker: 'stage8' },
   classLevel: {
     need: [100, 150, 200, 300, 400, 500, 650, 800, 1000, 1250, 1500, 1750, 2000, 2500, 3000, 4000, 5000, 7500, 10000],
@@ -1390,6 +1401,9 @@ const DATA = {
     // 常闇の王墓(tier 4): 地下にある王の墓所。黒紫の石畳・棺と墓標・ところどころ残る蝋燭の灯・床から昇る緑と紫の瘴気。今までで一番暗い(光源が際立つ)
     { label: '常闇の王墓', music: 'f_tomb', ground: ['#17121f', '#1c1627', '#120e19', '#231b2f'], deco: ['#08060c', '#3a3048', '#7dff6a', '#b07aff'],
       amb: [0.3, 0.27, 0.4], tint: [0.98, 0.94, 1.08], motes: { col: '#9a7dff', cols: ['#7dff6a', '#9a7dff', '#c79bff', '#5aff9a'], rise: true }, tomb: true },
+    // 木漏れ日の森(tier 1): 深い緑の森。木の根・倒木・シダ・キノコ、梢のすき間から差す光(木漏れ日。地面の光のまだらがゆっくり明るさを変える)、舞う花粉(曲は用意されるまで草原の曲)
+    { label: '木漏れ日の森', music: 'f_forest', ground: ['#1e3a24', '#24442a', '#18301e', '#2a4c30'], deco: ['#3a6a34', '#5a9a48', '#c8a060', '#e8d890'],
+      amb: [0.46, 0.56, 0.42], tint: [1.0, 1.04, 0.95], motes: { col: '#fff0a0', cols: ['#fff0a0', '#d8ff9a', '#ffe8c0'], rise: false }, forest: true },
   ],
 
   // ---------- カオス強化(db.xlsx「カオス強化」)----------
@@ -1441,11 +1455,12 @@ const DATA = {
   },
 
   // ---------- 通常モード(ステージを1つ選ぶ) ----------
-  // no = ステージのキーの番号(stage1〜8。クリア記録・カオス強化) / stage = DATA.stages の番号 / tier = 開始の敵Lv・報酬 / bosses = ボス1 → ボス2(倒すとクリア)
+  // no = ステージのキーの番号(stage1〜9。クリア記録・カオス強化) / stage = DATA.stages の番号 / tier = 開始の敵Lv・報酬 / bosses = ボス1 → ボス2(倒すとクリア)
   //   segs = 3分ごとの区間の出現の候補(1つ目は 0・60・120秒で1種ずつ足す / 2つ目 / 3つ目。null = その前の全部)
   stageRuns: [
     { no: 1, stage: 1, tier: 1, bosses: ['gslime', 'king'], segs: [['zombie', 'bat', 'slime'], ['bat', 'slime', 'brute'], null] },
     { no: 2, stage: 2, tier: 1, bosses: ['golem', 'wyrm'], segs: [['skeleton', 'archer', 'sandmage'], ['archer', 'sandmage', 'spear'], null] },
+    { no: 9, stage: 10, tier: 1, bosses: ['qbee', 'elder'], segs: [['sapling', 'bee', 'squirrel'], ['bee', 'squirrel', 'bear'], null] }, // 木漏れ日の森
     { no: 3, stage: 3, tier: 3, bosses: ['cdragon', 'ifrit'], segs: [['imp', 'hound', 'mworm'], ['hound', 'mworm', 'lslime'], null] },
     { no: 4, stage: 5, tier: 2, bosses: ['stag', 'pqueen'], segs: [['bat', 'jslime', 'beetle'], ['jslime', 'beetle', 'fairy'], null] }, // 七彩の晶窟
     { no: 6, stage: 6, tier: 2, bosses: ['kraken', 'levia'], segs: [['jelly', 'sahagin', 'puffer'], ['sahagin', 'puffer', 'angler'], null] }, // 沈黙の海淵
@@ -1458,7 +1473,7 @@ const DATA = {
   //   seg: 区間の長さ / waves: 区間ごとの出現の間隔・上限(t は区間の中の秒) / horde: 2つ目・3つ目の区間で大群を出す秒 / elites: エリート群の数
   //   fog: フェーズが始まって start 秒たつと闇の霧(1秒ごとに HP −dmg、step 秒ごとに +dmg。防御力・シールドでは減らない)
   //   tierChaos: tier 1〜4 のカオス強化(そのステージをクリアするまでこの値で固定。開始の敵Lv は 1 + 深い闇 = 1 / 3 / 5 / 7。報酬はカオス強化のポイントから)
-  //   esc: エスカレーションの各ステージ(全 tier)。waves = 0・60・120秒の間隔・上限(敵は 3種 → 5種 → 全種)/ add: 60秒で足す、同じ tier のもう一方のステージの敵の数 / rest: tier 4 のボスを倒してからラスボスまでの秒
+  //   esc: エスカレーションの各ステージ(全 tier)。waves = 0・60・120秒の間隔・上限(敵は 3種 → 5種 → 全種)/ add: 60秒で足す、同じ tier のほかのステージの敵の数 / rest: tier 4 のボスを倒してからラスボスまでの秒
   //   tierRew: tier 1〜4 の報酬の倍率(獲得ゴールド・装備品質・宝箱品質・クラス経験値に掛ける。闘技場はラウンドの tier = 2ラウンドごと)
   //   escRew: エスカレーションは tier が進むたびに +step(周回してからは +loopStep。max まで)/ firstClear: ステージ(通常モード)を初めてクリアしたときのゴールド(tier 1〜4)
   flow: {
@@ -1478,7 +1493,7 @@ const DATA = {
   },
 
   // ---------- 闘技場(ボスラッシュ) ----------
-  // order: 登場順(配列はその中からランダムに1体。ステージのボス2体のどちらか) / elv: 各ラウンドの敵Lv(固定) / startLv: 開始時のレベルアップ回数
+  // order: 登場順の型(ラウンド数 = 長さ。実際の顔ぶれはラン開始時に arenaOrder が作る: tier 1〜3 は、その tier のステージから2つ(ステージの並び順)、ラウンド 7・8 は tier 4 の1体目・2体目から。配列はその中からランダムに1体) / elv: 各ラウンドの敵Lv(固定) / startLv: 開始時のレベルアップ回数
   // rewardLv: ボス撃破で得るレベルアップ回数(ジェムで配布) / rest: 次のボスまでの休憩秒 / r: 闘技場の半径
   arena: {
     r: 250, rest: 8, startLv: 6, rewardLv: 5,
