@@ -389,7 +389,7 @@ input[type=range] { width: 220px; accent-color: var(--gold); }
 .st .gl { position: relative; font: calc(var(--px) * 7) 'DotGothic16'; color: var(--sc); text-shadow: 0 0 calc(var(--px) * 2) var(--sc); line-height: 1; }
 
 /* ---------- ステージ選択 ---------- */
-#stage-list { display: flex; flex-direction: column; gap: 8px; width: min(760px, 94vw); max-height: 60vh; min-height: 0; overflow-y: auto; padding: 2px 8px 2px 2px; } /* 1列で、枠の中をスクロール(エスカレーション・闘技場・ステージを tier の順に) */
+#stage-list { display: flex; flex-direction: column; gap: 8px; width: min(760px, 94vw); max-height: 60vh; min-height: 0; overflow-y: auto; padding: 2px 8px 2px 2px; } /* 1列で、枠の中をスクロール(エスカレーション・闘技場・ステージを tier の順に)。枠の高さはカード 10枚ぶん(meta-ui.js が並べてから測って決める。60vh は測る前の値) */
 #stage-list .stg { flex: 0 0 auto; grid-template-columns: 1fr auto; column-gap: 12px; row-gap: 0; padding: 5px 12px 6px; } /* 2行に詰める: 上に名前とカオス強化、下に説明 */
 #stage-list .stg .nm { font-size: 15px; }
 #stage-list .stg .chaos, #stage-list .stg .lock { grid-column: 2; grid-row: 1; align-self: center; text-align: right; font-size: 11px; }

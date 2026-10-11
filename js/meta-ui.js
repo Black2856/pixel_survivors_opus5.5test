@@ -326,6 +326,10 @@ const MetaUI = (() => {
       return `<button class="stg${open ? '' : ' locked'}" data-mode="${s.mode}" data-n="${s.n}" style="--sc:${s.col}">
         <span class="nm">${open ? s.name : _t('？？？')}${clear ? ' <b class="clr">★ CLEAR</b>' : open && s.first ? _t` <span class="fc">初クリア ● ${s.first.toLocaleString()}</span>` : ''}</span>${right}<span class="sub">${open ? s.sub : _t('？？？')}</span></button>`;
     }).join('');
+    // 枠の高さはカード 10枚ぶん(それより下はスクロール)。カードの高さは言語・画面の幅で変わるので、並べてから測る。画面が低いときは枠がさらに縮む
+    const L = $('stage-list'), its = L.children, LIST_N = 10;
+    L.style.maxHeight = '';
+    if (its.length > LIST_N) { const cs = getComputedStyle(L); L.style.maxHeight = (its[LIST_N - 1].offsetTop + its[LIST_N - 1].offsetHeight - its[0].offsetTop + parseFloat(cs.paddingTop) + parseFloat(cs.paddingBottom)) + 'px'; }
   }
   // 解放に必要な tier(そのクリアが要る。0 = 最初から): 通常モードは tier − 1、エスカレーション・闘技場は tier 4
   const tierCleared = t => DATA.stageRuns.some(R => R.tier === t && META.stageClear['stage' + R.no]);
