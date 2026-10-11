@@ -2420,7 +2420,7 @@ function drawBossFx(e) {
       if (qx !== null) jagBolt(qx, qy, x, y, { step: 5, j: 2, col: '#d8c8ff', glow: '#3a2478' });
       qx = x; qy = y;
     }
-    addLight(e.x, e.y - (e.jz || 0) + D.cy, 40 + 50 * k, '#9a7aff', 0.4 + 0.4 * k);
+    addLight(e.x, e.y - (e.jz || 0) + D.cy, 40 + 40 * k, '#5a3aa8', 0.25 + 0.3 * k); // 照らす光は暗い紫で弱く(体が白く飛ばないように)
     if (Math.random() < 0.4 + 0.5 * k) { const a = rand(0, TAU), r = rand(28, 44); jagBolt(cx + Math.cos(a) * r, cy + Math.sin(a) * r, cx + Math.cos(a) * 8, cy + Math.sin(a) * 8, { step: 6, j: 3, col: '#c8b8ff', glow: '#3a2478' }); } // 体へ集まる稲妻
     const hx = P.x - cam.x, hy = P.y - cam.y - 32; // プレイヤーの頭上の雷雲: 黒紫の雲が渦を巻き、溜まるほど濃く、稲妻がちらつく
     for (let i = 0; i < 12; i++) { const a = t * 2.5 + TAU / 12 * i, rr = 8 + 5 * Math.sin(t * 3 + i) + 6 * k; sx.globalAlpha = 0.3 + 0.5 * k; pDisc(sx, Math.round(hx + Math.cos(a) * rr), Math.round(hy + Math.sin(a) * rr * 0.4), 4, i % 2 ? '#2a2448' : '#3a3460'); }

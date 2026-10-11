@@ -2153,7 +2153,7 @@ const BFX = {
   escorp: { col: '#6a4a1a', core: '#ffb040', hot: '#ffd27a', dark: '#140c04' },
   sphinx: { col: '#8a6a2a', core: '#ffd27a', hot: '#ffd27a', dark: '#14100a' },
   raiju: { col: '#3a3aa0', core: '#7a8aff', hot: '#b8a0ff', dark: '#0a0a1e', light: 0.5 }, // 暗い雲の床で明るい光芒は白く飛ぶので、照らす光は弱く
-  raijin: { col: '#1e5a5a', core: '#6ac0b8', hot: '#b8a0ff', dark: '#081414', light: 0.5 },
+  raijin: { col: '#7a2a20', core: '#e8805a', hot: '#b8a0ff', dark: '#140806', light: 0.5 },
 };
 // ノックバック: ang の向きへ dist を dur 秒かけて(一定の速さ)。回避の無敵中は押されない(押されている途中で回避すると止まる)。闘技場では壁で止まる
 function pushPlayer(ang, dist, dur) {

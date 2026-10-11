@@ -1631,59 +1631,86 @@ const ART = (() => {
   const orbPal = { a: '#4a2a9a', b: '#9a7aff', c: '#e8e0ff', w: '#ffffff' };
   S.torb = [mk(orbPal, ['.b...b.', '..bcb..', '.bcwcb.', 'bcwwwcb', '.bcwcb.', '..bcb..', '.b...b.'], { emit: 'bcw' }), mk(orbPal, ['...b...', 'b.bcb.b', '.bcwcb.', '.cwwwc.', '.bcwcb.', 'b.bcb.b', '...b...'], { emit: 'bcw' })];
   S.nethead = mk(orbPal, ['.bcb.', 'bcwcb', 'cwwwc', 'bcwcb', '.bcb.'], { emit: 'bcw' });
-  // 雷獣: 青紫の毛並みの大きな獣。背の毛が逆立ち、白い稲妻の縞、稲妻の形の尾が光る(脚を入れ替えた 2コマ: raiju / raiju2)
-  const rjPal = { b: '#5a6ae8', c: '#9aa8ff', d: '#3a3aa0', w: '#f0f0ff', e: '#fff0a0', m: '#1a1030', l: '#d8c8ff' };
-  S.raiju = mk(rjPal, [
-    '.....l..................................', '....lll.................................', '....ll..................................', '..ll.........................c.c...c....',
-    '.lll..........................c...c.....', '..lll.....c.....c.....c.......ccccc.....', '....lllc..cc.c..cc.c..cc.c..cccbbbbcc...', '.....lllc..c.cc..c.cc..c.ccccbbbbeebd...',
-    '....lll.c..c..c..c..c..ccccbbbbbbbbbb...', '...lll..cc.cc.cc.cc.cc.ccbccbbbbbbbbbcc.', '..lll....c..c.cccccccccccbbcbbbbbbbbbbwc', '...lll.....ccccbbbbbbbbwbbbbbbbbbbddmmd.',
-    '....lll..cccbwbbbbwbbbbbwbbbbbbbddd.....', '.....lllccbbbbwbbbbwbbbwbbbbbbbdd.......', '......l.bbbbbwbbbbwbbbbbbbbbbbbd........', '.......ccbbbbbbbbbbbbbbbbbbbbbdd........',
-    '........bbbbbbbbbbbbbbbbbbbbddd.........', '........cbbbbbbbbbbbbbbbbbbbd...........', '.......ccddbbbbbbbbbbbbbbbbbd...........', '.......cbd.bbbbbbbbbbbbbddbbd...........',
-    '.......cbd.cbdddddddddbbd.bbd...........', '.......cbd.cbd........bbd.cbd...........', '.......cbd.cbd........cbd.cbd...........', '.......cdd.cdd........cdd.ddd...........',
-    '........dd..ddd........ddddd............', '.........d...dd.........ddd.............',
-  ], { emit: 'el' });
-  S.raiju2 = mk(rjPal, [
-    '.....l..................................', '....lll.................................', '....ll..................................', '..ll.........................c.c...c....',
-    '.lll..........................c...c.....', '..lll.....c.....c.....c.......ccccc.....', '....lllc..cc.c..cc.c..cc.c..cccbbbbcc...', '.....lllc..c.cc..c.cc..c.ccccbbbbeebd...',
-    '....lll.c..c..c..c..c..ccccbbbbbbbbbb...', '...lll..cc.cc.cc.cc.cc.ccbccbbbbbbbbbcc.', '..lll....c..c.cccccccccccbbcbbbbbbbbbbwc', '...lll.....ccccbbbbbbbbwbbbbbbbbbbddmmd.',
-    '....lll..cccbwbbbbwbbbbbwbbbbbbbddd.....', '.....lllccbbbbwbbbbwbbbwbbbbbbbdd.......', '......l.bbbbbwbbbbwbbbbbbbbbbbbd........', '.......ccbbbbbbbbbbbbbbbbbbbbbdd........',
-    '........bbbbbbbbbbbbbbbbbbbbddd.........', '........cbbbbbbbbbbbbbbbbbbbd...........', '.......ccddbbbbbbbbbbbbbbbbbd...........', '.......cbd.bbbbbbbbbbbbbddbbd...........',
-    '.......cbd.cbdddddddddbbd.bbd...........', '.......cbd.cbd........bbd.cbd...........', '.......cbd.cbd........cbd.cbd...........', '.......cdd.ddd........ddd.cdd...........',
-    '.......dd.ddd........ddd...ddd..........', '.......d..dd.........dd.....dd..........',
-  ], { emit: 'el' });
-  // 雷神: 太鼓の輪(金の輪に太鼓 8つ)を背負った青緑の鬼。白い髪・虎の皮・足もとの雲。撥を振り上げた絵(raijin)と下ろした絵(raijin2)
-  const rnPal = { b: '#3a8a8a', c: '#6ac0b8', d: '#1e5a5a', h: '#e8e0c8', w: '#f0f0ff', e: '#ffd23f', m: '#3a1010', k: '#c8a060', y: '#e8b830', a: '#2a1a10', g: '#ffd27a', r: '#a8402a', q: '#e8d0a0', v: '#8a84b8' };
+  // 雷獣: 濃い藍の毛並みの細身の獣。首から肩へ逆立つ稲妻のたてがみ(先が光る)、体に白い稲妻の縞、ぎざぎざの稲妻の尾。顎を開いて駆ける(脚を伸ばす raiju / 脚を集める raiju2)
+  //   雷化の間は体が紫白の雷になる(raijuL / raijuL2。同じ形で、上の縁・縞・たてがみ・尾が光る)
+  const rjRows = [[
+    '.L...........................L..LL............', '.LLLL.........................Lv.LL...........', '....LLL....................L...LBBBB..........', '....LLLL................L...L.BBBBbbBBBBB.....',
+    '...LLL...................L..BLBB.BBbbbbVVVBB..', '.....LLL..............L..BLBB.BB.BBbbbVEEbbbBV', '......LLL......L..L...BL.B..B..BBbbbbbbbbbvvvV', '.......LLL..LB.BB.BB..BB.BB.BBBBbbbbbvvvvv....',
+    '.....BLLL....B..B..B..BBBBBBBBbbbbbbb.....W.W.', '......LBBBBBBBBBBBBBBBbBbbbbbbbbbbbbbBBBWBBW..', '.......vvbbbbbbbbbbbbbwbbbbwbbbbbbbbbvvvvvv...', '.........bbbbbbbbwbbbbwbbbbbwbbbbbbbv.........',
+    '.........vbbbbbbbbwbbbbwbbbbwbbbbvbv..........', '..........bbbbbbbwbvvvwbbbbbwbbbbvb...........', '..........bbbbbvvwv.vvvvvvvbbbbbbbb...........', '.........BbbbbvV..........vvbvvvbbbB..........',
+    '........BbbbbvV.............vvvvbbbb..........', '........bbbbvV...............VvvvbbbB.........', '.......BbbvvV.................vvvvbbbB........', '....BBBbbvvV..................VvvvvbbbBB......',
+    '..BBbbvvvVV....................VVvvvvvbbBB....', '..WWvvVV.........................VVvv.vvvbB...', '....VV.............................VVvv..vWW..', '.....................................VV.......',
+    '..............................................', '..............................................', '..............................................', '..............................................',
+  ], [
+    '.L...........................L..LL............', '.LLLL.........................Lv.LL...........', '....LLL....................L...LBBBB..........', '....LLLL................L...L.BBBBbbBBBBB.....',
+    '...LLL...................L..BLBB.BBbbbbVVVBB..', '.....LLL..............L..BLBB.BB.BBbbbVEEbbbBV', '......LLL......L..L...BL.B..B..BBbbbbbbbbbvvvV', '.......LLL..LB.BB.BB..BB.BB.BBBBbbbbbvvvvv....',
+    '.....BLLL....B..B..B..BBBBBBBBbbbbbbb.....W.W.', '......LBBBBBBBBBBBBBBBbBbbbbbbbbbbbbbBBBWBBW..', '.......vvbbbbbbbbbbbbbwbbbbwbbbbbbbbbvvvvvv...', '.........bbbbbbbbwbbbbwbbbbbwbbbbbbbv.........',
+    '.........vbbbbbbbbwbbbbwbbbbwbbbbvbv..........', '..........bbbbbbbwbvvvwbbbbbwbbbbvb...........', '..........vbbbbbvwv.vvvvvvvbbbbbbbv...........', '...........vbbbbV.........vvbvvvbb............',
+    '............vbbbBv.........vvvbbbb............', '.............vbbbB.........vvvbbbb............', '..............vbbbv........vvvbbbb............', '...............vbbB........vvvbbbv............',
+    '................vbbv.......vvVbbb.............', '.................vbBv.....vvVBbbv.............', '..................bbVv...vvV.bbv..............', '..................vbBVv.vvV.Bbv...............',
+    '...................vbBV.VV.Bbv................', '....................WW.....vWW................', '..............................................', '..............................................',
+  ]];
+  const rjPal = { 'B': '#6a7ae6', 'b': '#3c46a8', 'v': '#232a6a', 'V': '#121640', 'w': '#c8d8ff', 'L': '#b8d8ff', 'E': '#fff27a', 'M': '#2a0818', 'W': '#f4f4ff' };
+  const rjPalL = { 'B': '#d8ccff', 'b': '#8a6cf0', 'v': '#5434b0', 'V': '#2c1a70', 'w': '#ffffff', 'L': '#e8e0ff', 'E': '#fff27a', 'M': '#1a0830', 'W': '#ffffff' }; // 雷化
+  S.raiju = mk(rjPal, rjRows[0], { emit: 'wLE' }); S.raiju2 = mk(rjPal, rjRows[1], { emit: 'wLE' });
+  S.raijuL = mk(rjPalL, rjRows[0], { emit: 'BwLE' }); S.raijuL2 = mk(rjPalL, rjRows[1], { emit: 'BwLE' });
+  // 雷神: 太鼓の輪(金の輪に朱の太鼓 8つ)を背負った赤銅の鬼。逆立つ白い髪・金の角・虎の皮・腰の注連縄・足もとの雷雲
+  //   撥を振り上げた絵(raijin)・横の太鼓を打つ絵(raijin2)・両腕を高く掲げて溜める絵(raijin3。神鳴り)。太鼓の輪(中心は絵の中心から上へ 2・半径 19)は world.js の RAIJIN_DRUM と合わせる
+  const rnPal = { 'S': '#ec8a62', 's': '#c4523a', 'z': '#7e2a20', 'H': '#f4f0ff', 'h': '#b8b0d8', 'N': '#ffe8a0', 'n': '#d8a040', 'o': '#8a5a20', 'E': '#fff27a', 'W': '#f8f8ff', 'M': '#2a0808', 'B': '#2a0c0c', 'T': '#f0b040', 't': '#b8701a', 'K': '#2a1a10', 'R': '#ece4cc', 'r': '#a89878', 'C': '#a8a0d0', 'c': '#6a6498', 'd': '#3e3868', 'G': '#ffe08a', 'g': '#d8a840', 'k': '#7a5418', 'D': '#b8382a', 'x': '#7a1e18', 'y': '#ffd27a', 'Q': '#f0e2bc', 'q': '#c8b48c', 'm': '#3a1414', 'A': '#ffd27a', 'b': '#c8a060', 'L': '#d8c8ff' };
   S.raijin = mk(rnPal, [
-    '...................rrr..................', '..................rrrrr.................', '................ggrrqrrgg...............',
-    '.............gg....rrr....gg............', '........rrrg...h.........h...grrr.......', '.......rrqrr...h...www...h...rrqrr......',
-    '.......rrrrr....hww...wwh....rrrrr......', '.......krrr........ccc........rrrk......', '.......kk.......wcccbbccw.......kk......',
-    '......g.k......wcbbbbbbbdw......k.g.....', '......g.kk......bbbbbbbbd......kk.g.....', '.....g..ckc.....cbebbbebd.....ckd..g....',
-    '.....g...bbc....cbbbbbbbd....ccd...g....', '....rr...cbbc...cbbbbbbdd...ccdd...rr...', '...rrrr...dbbc...bbmmmbd...ccdd...rrrr..',
-    '..rrrqrr...dbbc..cbwbwbb..ccdd...rrrqrr.', '...rrrr.....dbb.ccbbbbbbc.cdd.....rrrr..', '....rr.......dbccbbbbbbbbccd.......rr...',
-    '.....g........bbbbbbbbbbbbd........g....', '.....g........cbbbbbbbbbbbd........g....', '......g.......cbbbbbbbbbbbd.......g.....',
-    '......g.......cbbbbbbbbbbbd.......g.....', '..............cbbbbbbbbbbbd.............', '.......grrr...cbbbbbbbbbbdd...rrrg......',
-    '.......rrrrr...bbbbbbbbbbd...rrrrr......', '.......rrqrr...cbbbbbbbbdd...rrqrr......', '........rrrg....yyyyyyyyy....grrr.......',
-    '.............gyayyayyayyayyg............', '..............yyyyyyyyyyyyy.............', '..............yyabyayyabyay.............',
-    '................bbdyyybbd...............', '................cdd...dbd...............', '................cd.....bd...............',
-    '................cd.....cb...............', '...............ccb.....cbc..............', '...............cbvvvvvvvbb..............',
-    '.............vvvvvvvvvvvvvvv............', '.............vvvvvvvvvvvvvvv............',
-  ], { emit: 'e' });
+    '.....................yDDy.....................', '....................DQQQQD....................', '..............N.GGHGDQmmqDGHG..N..............',
+    '..............HNkkhkDQmqqDkhGGNH..............', '...........HLHHHNHH.xqqqqx.HHNHHHLH...........', '...Lb...yDDyhLHHoNhHHHxxHHHhNoHHLhyDDy...bL...',
+    '...bb..DQQQQLhhHHohHHH..HHHhoHHhhLQQQQD..bb...', '....bb.DQmmqD..hhoNhHHHHHHhNohh..DQmmqD.bb....', '....bbbDQHHHH....HoNhhhhhhNoH....HHHHqDbbb....',
+    '.....bbxqqqhHHHHHHHSSSSSSSSHHHHHHHhqqqxbb.....', '.....bbbyxxhHHHHHHBBssssssBBHHHHHHhxxybbb.....', '.....SbbS.LhhHHHHHzsBBssBBszHHHHHhhL.SbbS.....',
+    '.....zSSzH...hHhHhzzEEssEEzzhHhHh...HzSSz.....', '....GzAAA....hh.h.zssszzsssz.h.hh....AAAz.....', '....GkAAAS...h....zsWszzsWsz....h...SAAAG.....',
+    '....GkSSSs.........zMMMMMMz.........sSSSG.....', '...GGk.zssS........zMWMMWMz........SsszkkG....', '...Gk..zsssSS......zssssssz......SSsssz.kG....',
+    '...Gk..zsssssSSSSSSssssssssSSSSSSsssssz.kG....', '..yDDy.zzsssssssssssssssssssssssssssszz.yDDy..', '.DQQQQD..zzssszsSSSSsszzssSSSSszssszz..DQQQQD.',
+    '.DQmmqD....zzsszsSSssszzsssSSszsszz....DQmmqD.', '.DQmqqD......zsssssssszzssssssssz......DQmqqD.', '.xqqqqx.......zszsssszsszsssszsz.......xqqqqx.',
+    '..yxxy.........zszzzzsssszzzzsz.........yxxy..', '...gkk.........zssssssssssssssz........kgg....', '....gk..........zsssSzzzzSsssz.........kg.....',
+    '....gk..........zsszsssssszssz.........kg.....', '....gkk..........zssSzzzzSssz.........kgg.....', '.....gk........RrRrRrRrrRrRrRrR.......kg......',
+    '.....ggk.......tKTTKTTKKTTKTTKt......kgg......', '......gkk......tTKTTKTTTTKTTKTt.....kkg.......', '.......gyDDy...KTTKtTKttKTtKTTK...yDDy........',
+    '.......DQQQQD.TttKtStt..ttStKttT.DQQQQD.......', '.......DQmmqD..SStSsS....SsStSS..DQmmqD.......', '.......DQmqqD.SSsSsz......zsSsSSkDQmqqD.......',
+    '.......xqqqqxkzsssz........zssszkxqqqqx.......', '........yxxygSssssz........zssssS.yxxy........', '.............zssszkkCCDDCCkkzsssz.............',
+    '............CzssssCCCcCCcCCCsssszC............', '.......CCCCSSsssssccccccccccsssssSSCCCC.......', '...CC.CccCczzzzzzzcccccccccczzzzzzzcCccC.CC...',
+    '.CCcCCccccccccccccccccccccccccccccccccccCCcCC.', '.dccccccccccccccccccccccccccccccccccccccccccd.', '.dcccccddccddddccccccccccccccccddddccddcccccd.',
+    '..ddddd..dd....dddddddddddddddd....dd..ddddd..',
+  ], { emit: 'EL' });
   S.raijin2 = mk(rnPal, [
-    '...................rrr..................', '..................rrrrr.................', '................ggrrqrrgg...............',
-    '.............gg....rrr....gg............', '........rrrg...h.........h...grrr.......', '.......rrqrr...h...www...h...rrqrr......',
-    '.......rrrrr....hww...wwh....rrrrr......', '.......grrr........ccc........rrrg......', '................wcccbbccw...............',
-    '......g........wcbbbbbbbdw........g.....', '......g.........bbbbbbbbd.........g.....', '.....g..........cbebbbebd..........g....',
-    '.....g..........cbbbbbbbd..........g....', '....rr..........cbbbbbbdd..........rr...', '...rrrr..........bbmmmbd..........rrrr..',
-    '..rrrqrr.........cbwbwbb.........rrrqrr.', '...rrrr......cc.ccbbbbbbc.cc......rrrr..', '....rkk....cccbccbbbbbbbbccbcc....kkr...',
-    '.....gkkkcccddbbbbbbbbbbbbddbbcckkkg....', '.....g..kkddd.bbbbbbbbbbbbd.ddbkk..g....', '......g..dd...cbbbbbbbbbbbd...dd..g.....',
-    '......g.......cbbbbbbbbbbbd.......g.....', '..............cbbbbbbbbbbbd.............', '.......grrr...cbbbbbbbbbbdd...rrrg......',
-    '.......rrrrr...bbbbbbbbbbd...rrrrr......', '.......rrqrr...cbbbbbbbbdd...rrqrr......', '........rrrg....yyyyyyyyy....grrr.......',
-    '.............gyayyayyayyayyg............', '..............yyyyyyyyyyyyy.............', '..............yyabyayyabyay.............',
-    '................bbdyyybbd...............', '................cdd...dbd...............', '................cd.....bd...............',
-    '................cd.....cb...............', '...............ccb.....cbc..............', '...............cbvvvvvvvbb..............',
-    '.............vvvvvvvvvvvvvvv............', '.............vvvvvvvvvvvvvvv............',
-  ], { emit: 'e' });
-  S.raijuL = S.raiju; S.raijuL2 = S.raiju2; S.raijin3 = S.raijin; // (仮)雷化の絵・神鳴りの溜めの絵
+    '.....................yDDy.....................', '....................DQQQQD....................', '..............N.GGHGDQmmqDGHG..N..............',
+    '..............HNkkhkDQmqqDkhGGNH..............', '...........HLHHHNHH.xqqqqx.HHNHHHLH...........', '........yDDyhLHHoNhHHHxxHHHhNoHHLhyDDy........',
+    '.......DQQQQLhhHHohHHH..HHHhoHHhhLQQQQD.......', '.......DQmmqD..hhoNhHHHHHHhNohh..DQmmqD.......', '.......DQHHHH....HoNhhhhhhNoH....HHHHqD.......',
+    '.......xqqqhHHHHHHHSSSSSSSSHHHHHHHhqqqx.......', '......GkyxxhHHHHHHBBssssssBBHHHHHHhxxyG.......', '.....GGk..LhhHHHHHzsBBssBBszHHHHHhhL.kGG......',
+    '.....Gk..H...hHhHhzzEEssEEzzhHhHh...H.kG......', '....GGk......hh.h.zssszzsssz.h.hh.....kkG.....', '....Gk.......h....zsWszzsWsz....h......kG.....',
+    '....Gk.............zMMMMMMz............kG.....', '...GGk.............zMWMMWMz............kkG....', 'L..Gk..............zssssssz.............kG...L',
+    '...Gk........SSSSSSssssssssSSSSSS.......kG....', '.bbDDy......SssssssssssssssssssssS......yDDbb.', '.bLbbbSS....zszsSSSSsszzssSSSSszsz....SSbbbLb.',
+    'LDQbbbbzS.SSssszsSSssszzsssSSszsssSS.SzbbbbqDL', '.DQmqbbAASsssssssssssszzssssssssssssSAAbbmqqD.', '.LqqqSSSSssssszszsssszsszsssszszsssssSSSSqqqL.',
+    '..yxxy.zsssssz.zszzzzsssszzzzsz.zsssssz.yxxy..', '...gkk..zsszz..zssssssssssssssz..zzssz.kgg....', '....gk...zz.....zsssSzzzzSsssz.....zz..kg.....',
+    '....gk..........zsszsssssszssz.........kg.....', '....gkk..........zssSzzzzSssz.........kgg.....', '.....gk........RrRrRrRrrRrRrRrR.......kg......',
+    '.....ggk.......tKTTKTTKKTTKTTKt......kgg......', '......gkk......tTKTTKTTTTKTTKTt.....kkg.......', '.......gyDDy...KTTKtTKttKTtKTTK...yDDy........',
+    '.......DQQQQD.TttKtStt..ttStKttT.DQQQQD.......', '.......DQmmqD..SStSsS....SsStSS..DQmmqD.......', '.......DQmqqD.SSsSsz......zsSsSSkDQmqqD.......',
+    '.......xqqqqxkzsssz........zssszkxqqqqx.......', '........yxxygSssssz........zssssS.yxxy........', '.............zssszkkCCDDCCkkzsssz.............',
+    '............CzssssCCCcCCcCCCsssszC............', '.......CCCCSSsssssccccccccccsssssSSCCCC.......', '...CC.CccCczzzzzzzcccccccccczzzzzzzcCccC.CC...',
+    '.CCcCCccccccccccccccccccccccccccccccccccCCcCC.', '.dccccccccccccccccccccccccccccccccccccccccccd.', '.dcccccddccddddccccccccccccccccddddccddcccccd.',
+    '..ddddd..dd....dddddddddddddddd....dd..ddddd..',
+  ], { emit: 'EL' });
+  S.raijin3 = mk(rnPal, [
+    '.................bL..yDDy..Lb.................', '................bbb.DQQQQD.bbb................', '..............bbbbHGDQmmqDGHbbbb..............',
+    '............SbbbkkhkDQmqqDkhGGbbbS............', '...........SLbbHNHH.xqqqqx.HHNHbbLS...........', '........yDDzsLShoNhHHHxxHHHhNohSLszDDy........',
+    '.......DQQQzLzshHohHHH..HHHhoHhszLzQQQD.......', '.......DQmmAAAzhhoNhHHHHHHhNohhzAAAmmqD.......', '.......DQHHSSS...HoNhhhhhhNoH...SSSHHqD.......',
+    '.......xqqqzssHHHHHSSSSSSSSHHHHHsszqqqx.......', '......GkyxSssshHHHBBssssssBBHHHhsssSxyG.......', '.....GGk..LssshHHHzsBBssBBszHHHhsssL.kGG......',
+    '.....Gk..HzLsshhHhzzEEssEEzzhHhhssLzH.kG......', '....GGk...zsssh.h.zssszzsssz.h.hsssz..kkG.....', '....Gk....zsssS...zsWszzsWsz...Ssssz...kG.....',
+    '....Gk.....zsss....zMMMMMMz....sssz....kG.....', '...GGk.....zsssS...zMWMMWMz...Ssssz....kkG....', '...Gk......zssss...zssssssz...ssssz.....kG....',
+    '...Gk.......zsssSSSssssssssSSSsssz......kG....', '..yDDy......zssssssssssssssssssssz......yDDy..', '.DQQQQD......zzsSSSSsszzssSSSSszz......DQQQQD.',
+    '.DQmmqD......zszsSSssszzsssSSszsz......DQmmqD.', '.DQmqqD.......zssssssszzsssssssz.......DQmqqD.', '.xqqqqx.......zszsssszsszsssszsz.......xqqqqx.',
+    '..yxxy.........zszzzzsssszzzzsz.........yxxy..', '...gkk.........zssssssssssssssz........kgg....', '....gk..........zsssSzzzzSsssz.........kg.....',
+    '....gk..........zsszsssssszssz.........kg.....', '....gkk..........zssSzzzzSssz.........kgg.....', '.....gk........RrRrRrRrrRrRrRrR.......kg......',
+    '.....ggk.......tKTTKTTKKTTKTTKt......kgg......', '......gkk......tTKTTKTTTTKTTKTt.....kkg.......', '.......gyDDy...KTTKtTKttKTtKTTK...yDDy........',
+    '.......DQQQQD.TttKtStt..ttStKttT.DQQQQD.......', '.......DQmmqD..SStSsS....SsStSS..DQmmqD.......', '.......DQmqqD.SSsSsz......zsSsSSkDQmqqD.......',
+    '.......xqqqqxkzsssz........zssszkxqqqqx.......', '........yxxygSssssz........zssssS.yxxy........', '.............zssszkkCCDDCCkkzsssz.............',
+    '............CzssssCCCcCCcCCCsssszC............', '.......CCCCSSsssssccccccccccsssssSSCCCC.......', '...CC.CccCczzzzzzzcccccccccczzzzzzzcCccC.CC...',
+    '.CCcCCccccccccccccccccccccccccccccccccccCCcCC.', '.dccccccccccccccccccccccccccccccccccccccccccd.', '.dcccccddccddddccccccccccccccccddddccddcccccd.',
+    '..ddddd..dd....dddddddddddddddd....dd..ddddd..',
+  ], { emit: 'EL' });
   // 風神の幻(雷神の激昂: 風神の風): 風の袋を頭の上に構えた緑の鬼(半透明で描く)
   S.fujin = mk({ b: '#3a8a4a', c: '#6ac07a', d: '#1e5a2a', h: '#e8e0c8', w: '#c8f0d8', v: '#e8fff0', u: '#88b898', e: '#ffd23f' }, [
     '................................', '..............vvvvv.............', '..........vvvvvwwwwvvvv.........', '........vvvwwwwwwwwwwwwvv.......',
