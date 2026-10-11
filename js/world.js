@@ -3693,9 +3693,9 @@ function qbeeAI(e, ai, dt, a, dist, slow) {
   e.x += (Math.cos(dir) * e.spd * k + Math.cos(a + Math.PI / 2) * e.spd * 0.8 * (ai.side || 1)) * slow * dt;
   e.y += (Math.sin(dir) * e.spd * k + Math.sin(a + Math.PI / 2) * e.spd * 0.8 * (ai.side || 1)) * slow * dt;
   if (Math.random() < dt * 10) part(e.x + rand(-8, 8), e.y + rand(-4, 6), rand(-6, 6), rand(4, 12), 0.5, pick(['#fff0a0', '#ffd23f']), { glow: true, drag: 1 }); // 金の花粉がこぼれる
-  if (ai.stN > 0 && (ai.stGap -= dt * R) <= 0) { // 針の連射: 3発の扇を 0.3秒おきに 3回
+  if (ai.stN > 0 && (ai.stGap -= dt * R) <= 0) { // 針の連射: 3発(激昂 5発)の扇(±0.25rad)を 0.3秒おきに 3回。激昂は扇の広さが同じまま、すき間が狭くなる
     ai.stGap = 0.3; ai.stN--;
-    for (let i = -1; i <= 1; i++) Object.assign(eball(e.x, e.y + 2, a + i * 0.25, 90, e.dmg * 0.5, 'stinger'), { r: 2.5 * CHAOS.area });
+    for (const o of ai.enraged ? [-0.25, -0.125, 0, 0.125, 0.25] : [-0.25, 0, 0.25]) Object.assign(eball(e.x, e.y + 2, a + o, 90, e.dmg * 0.5, 'stinger'), { r: 2.5 * CHAOS.area });
     AudioMan.shoot();
   }
   ai.sting -= dt * R; ai.ring -= dt * R; ai.dive -= dt * R; ai.call -= dt * R; if (ai.enraged) ai.ball -= dt * R;
@@ -3705,11 +3705,11 @@ function qbeeAI(e, ai, dt, a, dist, slow) {
   else if (ai.call <= 0) { ai.call = ai.enraged ? 9 : 12; beeCall(e, ai); }
   else if (ai.enraged && ai.ball <= 0) { ai.ball = 10; beeBall(e, ai); }
 }
-// 急降下突き: 0.6秒 経路の帯(長さ 220・幅 = 体の直径)→ 速さ 360 で突く。×1.2・衰弱 +3
+// 急降下突き: 1秒 経路の帯(長さ 220・幅 = 体の直径)がプレイヤーを追い、最後の 0.25秒は向きが止まる → 速さ 360 で突く。×1.2・衰弱 +3
 function beeDive(e, ai, a) {
-  ai.ph = 'tele'; ai.pt = 0.6; ai.dir = a; ai.diveLen = 220;
-  pushWarn({ kind: 'line', x: e.x, y: e.y, a, len: 220, w: e.r * 2, t: 0, life: 0.6, fixed: true }); // 突進の経路(体当たりなので広げない)
-  AudioMan.charge(0.6);
+  ai.ph = 'tele'; ai.pt = 1; ai.dir = a; ai.diveLen = 220;
+  pushWarn({ kind: 'line', x: e.x, y: e.y, a, len: 220, w: e.r * 2, t: 0, life: 1, fixed: true, owner: e, track: q => { q.x = e.x; q.y = e.y; if (q.t < 0.75) ai.dir = q.a = Math.atan2(P.y - e.y, P.x - e.x); } }); // 突進の経路(体当たりなので広げない)
+  AudioMan.charge(1);
 }
 // ★蜂の陣: 働き蜂 36匹が女王から飛び出し、使ったときのプレイヤーの位置を囲む輪(半径 110)になる(1秒)→ 2.5秒かけて輪が中心へ縮む
 //   働き蜂はボスが出した物(1撃で落ちる・経験値なし)。触れると ×0.6。蜂を落とすと輪に穴が開く。縮みきると散る
@@ -3732,9 +3732,9 @@ function beeCall(e, ai) {
   }
   e.sq = 1.2; burst(e.x, e.y, 16, HONEY, { sp: 60, glow: true, life: 0.4 }); AudioMan.summon();
 }
-// 蜂球(激昂): 働き蜂が固まった球(HP 5%・12秒)がプレイヤーを追う(速さ 30)。触れると 0.5秒ごとに ×0.8。壊すと蜂が散る
+// 蜂球(激昂): 働き蜂が固まった球(HP 10%・12秒)がプレイヤーを追う(速さ 30)。触れると 0.5秒ごとに ×0.8。壊すと蜂が散る
 function beeBall(e, ai) {
-  const o = spawnObj(e, 'beeball', e.x, e.y + 6, { pct: 0.05, r: 9, life: 12 });
+  const o = spawnObj(e, 'beeball', e.x, e.y + 6, { pct: 0.1, r: 9, life: 12 });
   o.tick = 0;
   burst(e.x, e.y, 30, HONEY, { sp: 80, glow: true, life: 0.5 }); AudioMan.summon(); AudioMan.hum(1.2);
   hint('qbee_ball', _t('蜂球'), _t('働き蜂の塊が追ってくる。壊すと散る'));
@@ -3781,13 +3781,13 @@ function elderSweep(e, ai, a) {
   pushWarn({ kind: 'line', x: e.x, y: e.y, a: a0, len: 110, w: 18, t: 0, life: 0.8, track: w => { w.a = a0 + dir * Math.PI * Math.min(1, w.t / 0.8); } });
   AudioMan.charge(0.8);
 }
-// ★芽吹き: 種を 4つ(激昂 6つ)プレイヤーの周りへ飛ばす → 若芽(壊せる物、HP 2%)。8秒のうちに壊さないと茨の木に育ち、15秒 通れない(近づくと予告のあと枝で叩く ×0.8)
+// ★芽吹き: 種を 4つ(激昂 6つ)プレイヤーの周りへ飛ばす → 若芽(壊せる物、HP 5%)。8秒のうちに壊さないと茨の木に育ち、15秒 通れない(近づくと予告のあと枝で叩く ×0.8)
 function elderSprout(e, ai) {
   const n = ai.enraged ? 6 : 4, a0 = rand(0, TAU);
   for (let i = 0; i < n; i++) {
     const pa = a0 + TAU / n * i + rand(-0.3, 0.3), pr = rand(50, 90), tx = P.x + Math.cos(pa) * pr, ty = P.y + Math.sin(pa) * pr;
     later(ai, i * 0.12, () => lob('seed', e.x, e.y - 22, tx, ty, 0.8, 50, p => {
-      spawnObj(e, 'sprout', p.x, p.y, { pct: 0.02, r: 5, life: 8 });
+      spawnObj(e, 'sprout', p.x, p.y, { pct: 0.05, r: 5, life: 8 });
       burst(p.x, p.y, 10, ['#5a3a1a', '#8a5a2a', '#8fd06a'], { sp: 50, up: 20, g: 200, life: 0.4 }); AudioMan.thud();
     }));
   }
@@ -3826,16 +3826,17 @@ function fruitDrop(e, ai) {
     });
   }
 }
-// 根の檻(激昂): プレイヤーの周り(半径 70)に根の輪がせり上がる(抜け道 1か所。輪は歩いて越えられない。回避の無敵なら抜けられる)→ 1.2秒後に輪の中を締めつける ×1.3・衰弱 +5
+// 根の檻(激昂): プレイヤーの周り(半径 70)に根の輪がせり上がる(抜け道 1か所。輪は歩いて越えられない。回避の無敵なら抜けられる)→ 2秒後に輪の中を締めつける ×1.3・衰弱 +5。輪は 2.5秒で消える
+//   予告の赤い円は根の輪が自分の下に描く(tele 秒。ふつうの予告は最前面に描かれ、根が赤に埋もれる)。当たる瞬間の光(snap)はふつうの予告と同じ
 function rootCage(e, ai) {
   const cx = P.x, cy = P.y, gap = rand(0, TAU);
-  pushWarn({ kind: 'circle', x: cx, y: cy, r: 70, t: 0, life: 1.2 });
-  const h = addHazard('rootring', cx, cy, { r: 70, dur: 1.7, gap, gapH: 0.45, w: 8, owner2: e, dmg: e.dmg });
-  AudioMan.charge(1.2); AudioMan.thud(); shake(4);
+  const h = addHazard('rootring', cx, cy, { r: 70, dur: 2.5, tele: 2, gap, gapH: 0.45, w: 8, owner2: e, dmg: e.dmg });
+  AudioMan.charge(2); AudioMan.thud(); shake(4);
   hint('elder_cage', _t('根の檻'), _t('根の輪の抜け道から出るか、回避で根を飛び越える'));
-  later(ai, 1.2, () => {
+  later(ai, 2, () => {
     if (h.done) return;
     h.done = true;
+    warns.push({ kind: 'circle', x: cx, y: cy, r: h.r, snap: true, t: 0, life: 0.12 }); // 当たる瞬間: 円が一瞬光る(h.r は攻撃範囲の倍率が掛かっている)
     if (hitCircle(cx, cy, 70, e.dmg * 1.3)) weakPlayer(5);
     const RR = 70 * CHAOS.area;
     for (let k = 0; k < 14; k++) { const pa = TAU / 14 * k + rand(-0.2, 0.2), pr = RR * rand(0.15, 0.85); bfx.push({ kind: 'rootspike', x: cx + Math.cos(pa) * pr, y: cy + Math.sin(pa) * pr, t: 0, life: 0.9, h: rand(10, 18), a: pa }); }
@@ -5297,12 +5298,12 @@ function updHazards(dt) {
       const R = h.r * Math.min(1, h.t * 6);
       if (dd < R * R && h.t < h.dur - 0.3) { P.staLockT = Math.max(P.staLockT, 0.1); S.inInk = true; }
       if (Math.random() < dt * 8) { const pa = rand(0, TAU), pr = Math.sqrt(Math.random()) * R; part(h.x + Math.cos(pa) * pr, h.y + Math.sin(pa) * pr * 0.8, 0, -rand(4, 10), 0.8, pick(['#2a2a4a', '#3a3a5a', '#1a1a2a']), { drag: 1 }); }
-    } else if (h.kind === 'thorn') { // 茨の木(古樹の主の芽吹き): 通れない(幹の円の外へ押し出す)。近づくと 0.5秒の予告(円 半径 30)のあと枝で叩く ×0.8(2.5秒に1回)
+    } else if (h.kind === 'thorn') { // 茨の木(古樹の主の芽吹き): 通れない(幹の円の外へ押し出す)。60 以内に来ると 0.5秒の予告(円 半径 30)のあと枝で叩く ×0.8(2.5秒に1回)
       if (h.owner2 && h.owner2.dead) h.t = h.dur;
       h.rise = Math.min(1, (h.rise || 0) + dt * 4);
       const d = Math.sqrt(dd), R0 = h.r + 4;
       if (!P.dead && d < R0) { const k = R0 - d, ux = d > 0.01 ? (P.x - h.x) / d : 1, uy = d > 0.01 ? (P.y - h.y) / d : 0; P.x += ux * k; P.y += uy * k; }
-      if ((h.lashT -= dt) <= 0 && d < 34 * CHAOS.area && h.t < h.dur - 0.6) { h.lashT = 2.5; h.lashAt = h.t + 0.5; pushWarn({ kind: 'circle', x: h.x, y: h.y, r: 30, t: 0, life: 0.5 }); AudioMan.charge(0.5); }
+      if ((h.lashT -= dt) <= 0 && d < 60 * CHAOS.area && h.t < h.dur - 0.6) { h.lashT = 2.5; h.lashAt = h.t + 0.5; pushWarn({ kind: 'circle', x: h.x, y: h.y, r: 30, t: 0, life: 0.5 }); AudioMan.charge(0.5); }
       if (h.lashAt && h.t >= h.lashAt) {
         h.lashAt = 0; h.swing = 0.25;
         hitCircle(h.x, h.y, 30, h.dmg * 0.8);

@@ -1032,15 +1032,22 @@ function render() {
       continue;
     }
     if (h.kind === 'rootring') { // 根の檻(古樹の主): 円に沿ってせり上がる根の柵(抜け道 1か所は根がない)
-      const R = h.r, rise = Math.min(1, h.t / 0.3, Math.max(0, (h.dur - h.t) / 0.3)), n = Math.ceil(TAU * R / 3);
-      for (let i = 0; i < n; i++) {
-        const a = TAU / n * i;
-        if (Math.abs(angDiff(a, h.gap)) < h.gapH) continue;
-        const x = Math.round(hx + Math.cos(a) * R), y = Math.round(hy + Math.sin(a) * R), H = Math.round((8 + 6 * hash2(i, h.seed | 0)) * rise);
-        sx.fillStyle = '#1a1008'; sx.fillRect(x - 2, y, 4, 2); // 根元の盛り上がった土
-        for (let j = 0; j < H; j++) { const w = j < H * 0.35 ? 3 : j < H * 0.7 ? 2 : 1; sx.fillStyle = j === H - 1 ? '#c8a060' : j % 3 ? '#5a3a1a' : '#3a2410'; sx.fillRect(x - (w >> 1), y - j, w, 1); } // 根元ほど太い(壁に見えるように)
+      // 予告の赤い円は根の下に描く(最前面の予告に重ねると根が赤に埋もれる)。光の縁は根に重なるので描かない。暗闇の間は見えない(ほかの予告と同じ)
+      if (h.t < h.tele && !(P.darkT > 0)) drawWarnCircle(hx, hy, Math.round(h.r), h.t / h.tele, warnBlink ? '#ff3b5c' : '#ffd0d8', { glow: false }); // h.r は攻撃範囲の倍率が掛かっている(締めつけの hitCircle と同じ)
+      const R = h.r, rise = Math.min(1, h.t / 0.3, Math.max(0, (h.dur - h.t) / 0.3)), n = Math.ceil(TAU * R / 3), posts = [];
+      for (let i = 0; i < n; i++) { const a = TAU / n * i; if (Math.abs(angDiff(a, h.gap)) >= h.gapH) posts.push({ i, x: Math.round(hx + Math.cos(a) * R), y: Math.round(hy + Math.sin(a) * R) }); }
+      posts.sort((p, q) => p.y - q.y); // 奥(上)の根から描く
+      sx.fillStyle = '#0e0804'; for (const p of posts) sx.fillRect(p.x - 3, p.y - 1, 6, 3); // 根元の暗い土の帯(柵の足元を赤い塗りから浮かせる)
+      for (const p of posts) {
+        const H = Math.round((10 + 6 * hash2(p.i, h.seed | 0)) * rise);
+        for (let j = 0; j < H; j++) { // 根元ほど太い。左が明るく右が暗い木肌(赤の上でも形が見える)
+          const w = j < H * 0.3 ? 4 : j < H * 0.6 ? 3 : j < H * 0.85 ? 2 : 1, x0 = p.x - (w >> 1), y = p.y - j;
+          sx.fillStyle = j % 3 ? '#6a4626' : '#4a2e14'; sx.fillRect(x0, y, w, 1);
+          if (w > 1) { sx.fillStyle = '#b8884e'; sx.fillRect(x0, y, 1, 1); sx.fillStyle = '#1a0e06'; sx.fillRect(x0 + w - 1, y, 1, 1); }
+        }
+        if (H > 2) { sx.fillStyle = hash2(p.i + 7, h.seed | 0) < 0.5 ? '#8fd06a' : '#d8b070'; sx.fillRect(p.x, p.y - H + 1, 1, 1); } // 先端: 若葉か明るい木肌
       }
-      for (const sd of [-1, 1]) { const a = h.gap + sd * h.gapH, x = Math.round(hx + Math.cos(a) * R), y = Math.round(hy + Math.sin(a) * R); gx.fillStyle = '#2a4a1a'; gx.fillRect(x - 1, y - 10, 2, 10); } // 抜け道の両端の根はほのかに光る(出口の目印)
+      for (const sd of [-1, 1]) { const a = h.gap + sd * h.gapH, x = Math.round(hx + Math.cos(a) * R), y = Math.round(hy + Math.sin(a) * R), H = Math.round(14 * rise); gx.fillStyle = '#4a8a2a'; gx.fillRect(x - 1, y - H, 2, H); } // 抜け道の両端の根は光る(出口の目印)
       continue;
     }
     if (h.kind === 'goo') {
@@ -1932,13 +1939,7 @@ function render() {
       pCircle(sx, wx, wy, R, edge); pCircle(gx, wx, wy, R, '#ff3b5c');
       if (R0 > 0) { pCircle(sx, wx, wy, R0, edge); pCircle(gx, wx, wy, R0, '#ff3b5c'); }
       if (k < 1) { const TR = Math.round(R * (1 + 0.25 * (1 - k))); sx.globalAlpha = 0.25 + 0.5 * k; pCircle(sx, wx, wy, TR, '#ff3b5c', 2); sx.globalAlpha = 1; }
-    } else {
-      const R = Math.round(w.r);
-      sx.globalAlpha = 0.18; pDisc(sx, wx, wy, R, '#ff3b5c');
-      sx.globalAlpha = 0.22; pDisc(sx, wx, wy, Math.round(R * k), '#ff3b5c'); sx.globalAlpha = 1;
-      pCircle(sx, wx, wy, R, edge); pCircle(gx, wx, wy, R, '#ff3b5c');
-      if (k < 1) { const TR = Math.round(R * (1 + 0.35 * (1 - k))); sx.globalAlpha = 0.25 + 0.5 * k; pCircle(sx, wx, wy, TR, '#ff3b5c', 2); sx.globalAlpha = 1; pCircle(gx, wx, wy, TR, dimCol('#ff3b5c', 0.3 + 0.4 * k), 2); } // 外から縁へ縮む輪(当たる時)
-    }
+    } else drawWarnCircle(wx, wy, Math.round(w.r), k, edge, { noFill: w.noFill });
   }
   // エリート群: 画面の外にいるエリートの方向を、画面の縁に赤い二重の矢印で示す
   if (S.phase && S.phase.kind === 'elite') {
@@ -2021,6 +2022,17 @@ function drawWarnSnap(w, wx, wy, f) {
     sx.globalAlpha = 0.22 * f; pDisc(sx, wx, wy, R, '#ffd0d8'); sx.globalAlpha = f; pCircle(sx, wx, wy, R, '#ffffff'); pCircle(gx, wx, wy, R, ge);
   }
   sx.globalAlpha = 1;
+}
+// 円の予兆: 赤い半透明の塗り(時間とともに内側が満ちる)+ 点滅する縁 + 外から縁へ縮む輪(当たる時)。k = 経過の割合
+//   noFill: 縁だけ(蜂の陣)/ glow: false なら光の層に描かない(根の檻は予告の上に根を描くので、光の縁が根に重ならないように)
+function drawWarnCircle(wx, wy, R, k, edge, o = {}) {
+  const sx = GFX.sctx, gx = o.glow === false ? null : GFX.gctx;
+  if (!o.noFill) {
+    sx.globalAlpha = 0.18; pDisc(sx, wx, wy, R, '#ff3b5c');
+    sx.globalAlpha = 0.22; pDisc(sx, wx, wy, Math.round(R * k), '#ff3b5c'); sx.globalAlpha = 1;
+  }
+  pCircle(sx, wx, wy, R, edge); if (gx) pCircle(gx, wx, wy, R, '#ff3b5c');
+  if (k < 1) { const TR = Math.round(R * (1 + 0.35 * (1 - k))); sx.globalAlpha = 0.25 + 0.5 * k; pCircle(sx, wx, wy, TR, '#ff3b5c', 2); sx.globalAlpha = 1; if (gx) pCircle(gx, wx, wy, TR, dimCol('#ff3b5c', 0.3 + 0.4 * k), 2); } // 外から縁へ縮む輪(当たる時)
 }
 // ボスの構え(予備動作。windup の間): 足元に縮んでいく赤い破線の輪(回る)と、ボスの色の内側の輪。溜まるほど明るい
 //   技の直前の頭上の赤いきらめきは world.js の bossAI
