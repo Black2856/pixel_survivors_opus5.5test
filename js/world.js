@@ -13,6 +13,7 @@ const ECOL = {
   spider: ['#6a4a8a', '#7dff6a'], ghoul: ['#8aa86a', '#5a3a6a'], shadoweye: ['#c79bff', '#3a1a5a'], stalker: ['#4a3a6a', '#c79bff'],
   sapling: ['#8fd06a', '#5a3a1a'], treant: ['#6a8a3a', '#4a3020'], bee: ['#ffd23f', '#2a2010'], squirrel: ['#c8783a', '#f0d8b0'], bear: ['#7a4a2a', '#3a2010'],
   scorpion: ['#e09048', '#3a1e0c'], vulture: ['#4a3020', '#e8e0d0'], sanddoll: ['#e8c88a', '#a8803a'], sandmound: ['#e8c88a', '#a8803a'], antlion: ['#b8946a', '#e8d8b0'],
+  raichild: ['#8aa8ff', '#e8f0ff'], raincloud: ['#8a84b8', '#d8c8ff'], twinsprite: ['#b8a0ff', '#5ac8ff'], tarmor: ['#6a7aa8', '#d8b060'],
 };
 const xpFor = l => Math.floor(4 + l * 2.6 + Math.pow(l, 1.72));
 
@@ -48,7 +49,7 @@ function pushWarn(w) {
 
 // 通常モード(ステージを1つ選ぶ)の出現スケジュール。t はフェーズの時計(ボス・エリート群の間は止まる)
 // 3分 → エリート群 → 3分 → ボス1 → 3分 → ボス2(倒すとクリア)。同じ t ではフェーズの開始を波の切り替えより先に処理する
-const stageRun = n => DATA.stageRuns.find(r => r.no === n); // ステージのキーの番号(stage1〜10)から
+const stageRun = n => DATA.stageRuns.find(r => r.no === n); // ステージのキーの番号(stage1〜11)から
 // 出現の候補には「敵のまとまり」(配列)が入ることがある(時計塔の「今までの敵」)。まとまりは 1枠として選ばれ、その中から1種
 // spawnW: 選ばれやすさ(既定 1)/ group: 6体の小集団(noGroup の敵は出ない)/ maxAlive: 同時にいられる数(超えるなら選ばない)。選べないときは null
 function pickType(types, group) {
@@ -1451,6 +1452,10 @@ function spawnEnemy(type, o = {}) {
   if (d.burrow) Object.assign(e, { under: true, hidden: true, flying: true, air: true, rise: 0 }); // マグマワーム: 地中から始まる
   if (d.pit) Object.assign(e, { hidden: true, flying: true, air: true }); // アリジゴク: 砂の中から始まる(見えない・攻撃が当たらない)
   enemies.push(e);
+  if (d.pair && !o.mate) { // 対の雷精: 相方も出す(2体で 1組。線の状態 pr を共有。1体目 twinIdx 0 が組の時計を進める)
+    const m = spawnEnemy(type, { x: x + rand(-14, 14), y: y + rand(-14, 14), mate: e, noChest: o.noChest });
+    e.mate = m; m.mate = e; e.twinIdx = 0; m.twinIdx = 1; e.pr = m.pr = { ph: 'chase', t: 0, ang: 0, tick: 0 };
+  }
   return e;
 }
 
@@ -1535,6 +1540,12 @@ function groundStrike(e, st) {
   const R = st.r * e.areaK;
   if (hitCircle(e.tx, e.ty, R, e.dmg * st.n)) { if (st.weak) weakPlayer(st.weak); if (st.numb) numbPlayer(st.numb); if (st.dust) dustPlayer(st.dust); }
   const RR = R * CHAOS.area;
+  if (st.kind === 'bolt') skyBolt(e.tx, e.ty, RR, { from: { x: e.x, y: e.y + 2 } }); // 雷雲: 雲の下から稲妻が落ちる
+  if (st.kind === 'discharge') { // 雷の甲冑: 掲げた刀に雷が落ち、まわりへ放電する
+    skyBolt(e.x, e.y - 16, 0);
+    for (let k = 0; k < 7; k++) { const pa = TAU / 7 * k + rand(-0.3, 0.3); bfx.push({ kind: 'ebolt', x: e.x, y: e.y - 6, x1: e.x + Math.cos(pa) * RR, y1: e.y + Math.sin(pa) * RR, t: 0, life: 0.2, w: 1, jit: 4 }); }
+    addRing(e.x, e.y, RR, '#b8a0ff', { w: 2, life: 0.3 }); shake(3);
+  }
   if (st.kind === 'tail') { // サソリの尾: 振り下ろした針が砂を突く
     burst(e.tx, e.ty, 14, SAND, { sp: 80, up: 30, g: 220, life: 0.4 }); addRing(e.tx, e.ty, RR, '#e8c88a', { life: 0.25 }); AudioMan.slash();
   }
@@ -1582,6 +1593,33 @@ function wormDive(e, bu) {
 }
 // ---------- 陽炎の砂海の敵 ----------
 const SAND = ['#e8c88a', '#c8a060', '#fff0c8', '#a8803a'];
+// ---------- 雷鳴の雲海の敵 ----------
+// 敵の稲妻: 空(または o.from)から x, y へ落ちる紫白の稲妻と、着地の輪・光・音。r: 着地の輪の半径(攻撃範囲込み。0 なら輪なし)/ o.big: 大きな稲妻
+//   当たり判定は呼ぶ側(hitCircle など)。見た目はここで揃える(自分の雷の黄色と見分ける紫白。光の層は暗い紫で、白く飛ばないように)
+function skyBolt(x, y, r, o = {}) {
+  const f = o.from || { x: x + rand(-24, 24), y: Math.min(y - 60, cam.y - 12) };
+  bfx.push({ kind: 'ebolt', x: f.x, y: f.y, x1: x, y1: y, t: 0, life: o.big ? 0.4 : 0.22, w: o.big ? 4 : 2, jit: o.big ? 10 : 6 });
+  if (r > 0) addRing(x, y, r, '#b8a0ff', { w: o.big ? 3 : 2, life: 0.3 });
+  burst(x, y, o.big ? 40 : 14, ['#e8e0ff', '#b8a0ff', '#7a5ad8', '#ffffff'], { sp: o.big ? 160 : 90, glow: true, life: 0.4 });
+  addFlash(x, y, Math.max(20, r) * 2.2, '#9a7aff', o.big ? 0.6 : 0.35);
+  if (o.big) { shake(10); AudioMan.impact(); AudioMan.boom(); } else { shake(2); AudioMan.zap(); }
+}
+// 対の雷精の組の時計(1体目が進める): 遠い間は近づく → 回り込み(最長 move 秒)→ 細く点滅(tele 秒)→ 線(on 秒。触れると tick 秒ごとに ×n・痺れ +numb)→ 休み(rest 秒)→ 回り込み…
+function twinPairUpdate(a, b, pr, lk, dt) {
+  pr.t += dt;
+  if (pr.ph === 'chase') {
+    if (d2(a.x, a.y, P.x, P.y) < lk.near * lk.near || d2(b.x, b.y, P.x, P.y) < lk.near * lk.near) { pr.ph = 'move'; pr.t = 0; pr.ang = twinAxis(a); }
+  } else if (pr.ph === 'move') {
+    const near = (e, s) => d2(e.x, e.y, P.x + Math.cos(pr.ang) * lk.flank * s, P.y + Math.sin(pr.ang) * lk.flank * s) < 20 * 20;
+    if ((near(a, 1) && near(b, -1)) || pr.t >= lk.move) { pr.ph = 'tele'; pr.t = 0; AudioMan.charge(lk.tele); hint('twinlink', _t('対の雷精'), _t('2体の間に雷の線を張る。片方を倒すと線が消える')); }
+  } else if (pr.ph === 'tele') { if (pr.t >= lk.tele) { pr.ph = 'on'; pr.t = 0; pr.tick = 0; AudioMan.zap(); } }
+  else if (pr.ph === 'on') {
+    if (!P.dead && segD2(P.x, P.y, a.x, a.y, b.x, b.y) < Math.pow(3 * CHAOS.area + 3, 2)) { if ((pr.tick -= dt) <= 0) { pr.tick = lk.tick; if (hurtPlayer(a.dmg * lk.n)) numbPlayer(lk.numb); } } else pr.tick = 0;
+    if (pr.t >= lk.on) { pr.ph = 'rest'; pr.t = 0; }
+  } else if (pr.ph === 'rest' && pr.t >= lk.rest) { pr.ph = 'move'; pr.t = 0; pr.ang = twinAxis(a); }
+}
+// はさむ向き: 1体目のいる向きから 90° 回した向き(1体目はそちら、2体目は反対側へ。2体が左右に分かれて 90° ずつ回り込む)
+const twinAxis = a => Math.atan2(a.y - P.y, a.x - P.x) + (Math.random() < 0.5 ? 1 : -1) * Math.PI / 2;
 // ハゲワシの急降下: 影の円に ×n・砂塵 +dust。砂が舞い上がる
 function vultureLand(e, sw) {
   const R = sw.r * e.areaK;
@@ -1724,6 +1762,24 @@ function updEnemies(dt) {
         e.life -= dt;
         if (Math.random() < dt * 20) part(e.x, e.y, rand(-10, 10), rand(-20, 0), 0.6, '#ffcc33', { glow: true });
         if (e.life <= 0) { e.dead = true; UI.announce(_t('逃げられた…'), ''); burst(e.x, e.y, 20, ['#ffffff', '#ffcc33'], { sp: 60 }); continue; }
+      } else if (e.ai === 'zigzag') { // 雷獣の子: 稲妻のようにジグザグに走って近づく(every 秒ごとに、プレイヤーへの向きから ±ang へ交互に)
+        const zz = d.zigzag;
+        if ((e.zzT = (e.zzT ?? rand(0, zz.every)) - dt) <= 0) { e.zzT = zz.every; e.zzS = -(e.zzS || 1); }
+        const za = a + (e.zzS || 1) * zz.ang; mx = Math.cos(za); my = Math.sin(za);
+        if (Math.random() < dt * 10) part(e.x + rand(-3, 3), e.y + rand(-3, 2), -mx * 20, -my * 20, 0.25, pick(['#d8c8ff', '#9aa8ff', '#ffffff']), { glow: true, drag: 3 }); // 走った跡の火花
+      } else if (e.ai === 'twin') { // 対の雷精: 2体でプレイヤーをはさむ位置へ回り込み、間に雷の線を張る(相方が倒れると追跡だけ)
+        const lk = d.link, m = e.mate, pr = e.pr, wob = () => { const w = Math.sin(e.t * 5 + e.seed * 10) * 0.8; mx -= Math.sin(a) * w; my += Math.cos(a) * w; };
+        if (!m || m.dead || !pr) wob();
+        else {
+          if (e.twinIdx === 0) twinPairUpdate(e, m, pr, lk, dt); // 組の時計は 1体目が進める
+          if (pr.ph === 'move') { // 回り込み: プレイヤーのまわりを弧を描いて(真ん中を突っ切らない)、はさむ位置へ。速さ ×fast
+            const ta = pr.ang + (e.twinIdx ? Math.PI : 0), ca = Math.atan2(e.y - P.y, e.x - P.x), wa = ca + clamp(angDiff(ta, ca), -0.6, 0.6);
+            const tx = P.x + Math.cos(wa) * lk.flank, ty = P.y + Math.sin(wa) * lk.flank, dd = Math.hypot(tx - e.x, ty - e.y);
+            if (dd > 3) { mx = (tx - e.x) / dd * lk.fast; my = (ty - e.y) / dd * lk.fast; } else mx = my = 0;
+          }
+          else if (pr.ph === 'tele' || pr.ph === 'on') mx = my = 0; // 線を張る間は止まる
+          else wob(); // 遠い間・休み: 揺れて飛ぶ
+        }
       } else if (e.ai === 'pit') { // アリジゴク: 砂の中(見えない)→ プレイヤーの近くに予告 → すり鉢を開き、底で大あごを鳴らす。すり鉢の間だけ攻撃が当たる
         const pt = d.pit; mx = my = 0;
         if (e.pitH) { // すり鉢: 底(中心)に止まる。終わる少し前に潜る
@@ -1893,7 +1949,8 @@ function updEnemies(dt) {
           e.shotT -= dt * CHAOS.rate * tw * e.rateK;
           if (e.shotT <= 0 && d2(e.x, e.y, P.x, P.y) < st.range * st.range) {
             e.shotT = st.cd; e.wind = st.wind;
-            if (st.front) { e.tx = e.x + Math.cos(a) * st.front * e.areaK; e.ty = e.y + Math.sin(a) * st.front * e.areaK; } else { e.tx = P.x; e.ty = P.y; } // サソリ: 自分の前に
+            if (st.self) { e.tx = e.x; e.ty = e.y; } // 雷の甲冑: 自分のまわりに
+            else if (st.front) { e.tx = e.x + Math.cos(a) * st.front * e.areaK; e.ty = e.y + Math.sin(a) * st.front * e.areaK; } else { e.tx = P.x; e.ty = P.y; } // サソリ: 自分の前に
             pushWarn({ kind: 'circle', x: e.tx, y: e.ty, r: st.r * e.areaK, t: 0, life: st.wind, owner: e });
           }
         }

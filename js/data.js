@@ -80,6 +80,14 @@ const DATA = {
     sanddoll: { hp: 30, spd: 14, dmg: 9,  xp: 1, r: 5, ai: 'chase', touchDust: 1, revive: { t: 4, hp: 0.5 } }, // 砂人形
     sandmound:{ hp: 1,  spd: 0,  dmg: 0,  xp: 0, r: 5, ai: 'mound', kbRes: 1, noElite: true }, // 砂人形が倒れた砂山(出現の候補には入れない)
     antlion:  { hp: 40, spd: 0,  dmg: 10, xp: 2, r: 6, ai: 'pit', kbRes: 1, noElite: true, noGroup: true, noTouch: true, maxAlive: 2, spawnW: 0.6, pit: { cd: 3, near: [80, 120], wind: 0.8, r: 45, dur: 6, pull: 25, jaw: 10, n: 1.0 } }, // アリジゴク
+    // 雷鳴の雲海 / zigzag: 稲妻のようにジグザグに走って近づく(every 秒ごとに、プレイヤーへの向きから ±ang rad へ交互に向きを変える)
+    // strike.numb: 当たると痺れ +n / strike.self: 予告の円を自分の位置に置く / strike.kind 'bolt': 空(雷雲)から稲妻 / 'discharge': 掲げた刀に雷が落ちて放電
+    // pair: 2体1組で出る(1体を出すと相方も出る)/ link: プレイヤーをはさむ位置(プレイヤーから flank)へ回り込み、2体の間に雷の線を張る
+    //   tele 秒 細く点滅 → on 秒 線が張られる(触れると tick 秒ごとに ×n・痺れ +numb)→ rest 秒 休む、をくり返す(回り込みは最長 move 秒、速さ ×fast)。片方が倒れると線は消え、残った 1体は追跡だけ
+    raichild: { hp: 22, spd: 34, dmg: 9,  xp: 1, r: 5, ai: 'zigzag', zigzag: { every: 0.4, ang: 0.87 }, touchNumb: 2 }, // 雷獣の子
+    raincloud:{ hp: 26, spd: 14, dmg: 9,  xp: 1, r: 6, ai: 'keep', keep: [100, 130], strike: { cd: 5, range: 220, wind: 0.9, r: 18, n: 1.2, numb: 3, kind: 'bolt' } }, // 雷雲
+    twinsprite:{ hp: 24, spd: 18, dmg: 8, xp: 1, r: 4, ai: 'twin', noElite: true, noGroup: true, maxAlive: 6, pair: true, link: { near: 150, flank: 60, move: 4, fast: 2, tele: 0.6, on: 3, rest: 2, n: 0.8, numb: 1, tick: 0.5 } }, // 対の雷精
+    tarmor:   { hp: 75, spd: 10, dmg: 14, xp: 2, r: 8, ai: 'chase', kbRes: 0.8, strike: { cd: 6, range: 80, wind: 0.8, r: 50, n: 1.3, numb: 4, self: true, kind: 'discharge' } }, // 雷の甲冑
     goblin:   { hp: 160, spd: 44, dmg: 0, xp: 12, r: 5, ai: 'flee', kbRes: 0.5, noElite: true },
   },
 
@@ -112,6 +120,8 @@ const DATA = {
     elder:   { name: '古樹の主 ELDER TREANT',       hp: 1900, spd: 10, dmg: 22, r: 16, music: 'b_forest', col: '#8fd06a' }, // 木漏れ日の森 2体目
     escorp:  { name: '大蠍 EMPEROR SCORPION',       hp: 1800, spd: 16, dmg: 22, r: 15, music: 'b_desert', col: '#ffb040' }, // 陽炎の砂海 1体目(曲は用意されるまで草原の曲)
     sphinx:  { name: 'スフィンクス SPHINX',          hp: 1500, spd: 14, dmg: 22, r: 14, music: 'b_desert', col: '#ffd27a' }, // 陽炎の砂海 2体目
+    raiju:   { name: '雷獣 RAIJU',                  hp: 1500, spd: 26, dmg: 22, r: 13, music: 'b_thunder', col: '#9aa8ff' }, // 雷鳴の雲海 1体目(曲は用意されるまで草原の曲)
+    raijin:  { name: '雷神 RAIJIN',                 hp: 1600, spd: 16, dmg: 24, r: 13, music: 'b_thunder', col: '#6ac0b8' }, // 雷鳴の雲海 2体目
   },
   // 状態異常(プレイヤー): 粘液・スロウタイムの移動速度倍率 / スロウタイムのCD回復倍率 / 炎上
   debuff: { slow: 0.6, cdRate: 0.5, burnTick: 0.5, burnDur: 3, burnHeal: 0.5, fatigueDur: 3, fatigue: 0.5, slowRegen: 0.5, frostSlow: 0.05, pFrostSlow: 0.03, pFrostMax: 20, pFrzT: 2, shockR: 60, pDur: 5, pBleed: 0.01, pBleedMax: 5 }, // burnHeal: 炎上中の HP回復の倍率 / slowRegen: スロウタイム・時の歪みの中のスタミナ回復・HP回復速度の倍率 / fatigueDur・fatigue: 疲労(スタミナを減らされた)の秒とスタミナ回復の倍率 / frostSlow: 敵の凍傷1スタックあたりの減速 / pFrostSlow・pFrostMax・pFrzT: 自分の凍傷1スタックあたりの減速・上限(上限で凍結して 0 に戻る)・凍結の秒(行動不能・攻撃不能) / shockR: 感電の連鎖距離 / pDur: 自分の凍傷・出血・痺れ・砂塵・衰弱が消えるまでの秒 / pBleed: 自分の出血1スタックの毎秒ダメージ(最大HP の割合)
@@ -1278,7 +1288,7 @@ const DATA = {
   },
   // クラスLv: need[i] = Lv(i+1) → Lv(i+2) に必要な経験値。獲得量 = 討伐数 × killK + 撃破ボス数 × bossK
   // クラスの解放: このモード・ステージを初めてクリアすると使える(書いていないクラスは最初から: サムライ・メイジ・アーチャー・ナイト)
-  //   キーは runKey(escalation / arena / stage1〜10。stage の番号は stageRuns の no)
+  //   キーは runKey(escalation / arena / stage1〜11。stage の番号は stageRuns の no)
   classUnlock: { cleric: 'stage1', electro: 'stage2', pyro: 'stage3', necro: 'stage4', cryo: 'stage5', assassin: 'stage6', astro: 'stage7', weaponmaster: 'escalation', berserker: 'stage8' },
   classLevel: {
     need: [100, 150, 200, 300, 400, 500, 650, 800, 1000, 1250, 1500, 1750, 2000, 2500, 3000, 4000, 5000, 7500, 10000],
@@ -1420,6 +1430,9 @@ const DATA = {
     // 陽炎の砂海(tier 2): まぶしい砂丘と風紋、半分埋もれた古代の石柱と獣の骨、地面がゆらぐ陽炎、流れる砂(曲は用意されるまで草原の曲)
     { label: '陽炎の砂海', music: 'f_desert', ground: ['#c8a468', '#d2b074', '#b8945a', '#dcbc84'], deco: ['#a8844c', '#e8d0a0', '#8a7a68', '#efe6d0'],
       amb: [0.7, 0.66, 0.58], tint: [1.04, 1.0, 0.94], motes: { col: '#fff0c8', cols: ['#fff0c8', '#e8d0a0', '#ffe0a0'], rise: false }, desert: true, light: 0.3 }, // light: 明るい砂丘なので光源を弱める
+    // 雷鳴の雲海(tier 3): 雷雲の上に残る古い社の跡。黒紫の雲の床、雲の中を走る稲光、銅の柱と太鼓、降る雨。ときどき空が光って遠雷が鳴る(曲は用意されるまで草原の曲)
+    { label: '雷鳴の雲海', music: 'f_thunder', ground: ['#241c38', '#2a2242', '#1e1830', '#30284c'], deco: ['#3a3260', '#5a5288', '#8a6a3a', '#b8a0ff'],
+      amb: [0.44, 0.42, 0.6], tint: [0.98, 0.96, 1.08], motes: { col: '#b8a0ff', rain: true }, thunder: true },
   ],
 
   // ---------- カオス強化(db.xlsx「カオス強化」)----------
@@ -1471,7 +1484,7 @@ const DATA = {
   },
 
   // ---------- 通常モード(ステージを1つ選ぶ) ----------
-  // no = ステージのキーの番号(stage1〜10。クリア記録・カオス強化) / stage = DATA.stages の番号 / tier = 開始の敵Lv・報酬 / bosses = ボス1 → ボス2(倒すとクリア)
+  // no = ステージのキーの番号(stage1〜11。クリア記録・カオス強化) / stage = DATA.stages の番号 / tier = 開始の敵Lv・報酬 / bosses = ボス1 → ボス2(倒すとクリア)
   //   segs = 3分ごとの区間の出現の候補(1つ目は 0・60・120秒で1種ずつ足す / 2つ目 / 3つ目。null = その前の全部)
   stageRuns: [
     { no: 1, stage: 1, tier: 1, bosses: ['gslime', 'king'], segs: [['zombie', 'bat', 'slime'], ['bat', 'slime', 'brute'], null] },
@@ -1482,6 +1495,7 @@ const DATA = {
     { no: 6, stage: 6, tier: 2, bosses: ['kraken', 'levia'], segs: [['jelly', 'sahagin', 'puffer'], ['sahagin', 'puffer', 'angler'], null] }, // 沈黙の海淵
     { no: 10, stage: 11, tier: 2, bosses: ['escorp', 'sphinx'], segs: [['scorpion', 'vulture', 'sanddoll'], ['vulture', 'sanddoll', 'antlion'], null] }, // 陽炎の砂海
     { no: 5, stage: 7, tier: 3, bosses: ['fgiant', 'squeen'], segs: [['wolf', 'ghost', 'icesprite'], ['ghost', 'icesprite', 'yeti'], null] }, // 霜天の霊峰
+    { no: 11, stage: 12, tier: 3, bosses: ['raiju', 'raijin'], segs: [['raichild', 'raincloud', 'twinsprite'], ['raincloud', 'twinsprite', 'tarmor'], null] }, // 雷鳴の雲海
     // 終刻の時計塔: 3つ目の候補は「今までの敵」のまとまり(1枠として選ばれ、その中から1種)
     { no: 7, stage: 8, tier: 4, bosses: ['warden', 'reaper'], segs: [['gear', 'clockman', ['skeleton', 'archer', 'lslime', 'wolf', 'sahagin', 'beetle']], ['clockman', 'hglass', ['skeleton', 'archer', 'lslime', 'wolf', 'sahagin', 'beetle']], null] },
     { no: 8, stage: 9, tier: 4, bosses: ['cerberus', 'shadowking'], segs: [['spider', 'shadoweye', 'ghoul'], ['shadoweye', 'ghoul', 'stalker'], null] }, // 常闇の王墓

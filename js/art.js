@@ -1605,6 +1605,94 @@ const ART = (() => {
   S.sym_star = mk({ y: '#ffd27a' }, ['...y...', '...y...', 'yyyyyyy', '.yyyyy.', '..yyy..', '.yy.yy.', 'yy...yy'], { emit: 'y' });
   S.sym_star_r = mk({ y: '#ff3b5c' }, ['...y...', '...y...', 'yyyyyyy', '.yyyyy.', '..yyy..', '.yy.yy.', 'yy...yy'], { emit: 'y' });
 
+  // ---------- 雷鳴の雲海 ----------
+  // 雷獣の子: 青い毛並みの小さな獣。稲妻の形の尾が光る(走る 2コマ。右向き)
+  const rcPal = { a: '#1e1a3a', b: '#4a6ad0', c: '#8aa8ff', d: '#e8f0ff', e: '#fff0a0', l: '#d8c8ff' };
+  S.raichild = [mk(rcPal, ['l........c..', '.l......cbc.', 'l.l...cbbbbc', '.l.bbbcbebbd', '..bbbbbbbbb.', '.cbbbbbbbb..', '.b.b...b.b..', 'a..a...a..a.'], { emit: 'el' }),
+    mk(rcPal, ['.l.......c..', 'l.l.....cbc.', '.l....cbbbbc', 'l..bbbcbebbd', '..bbbbbbbbb.', '.cbbbbbbbb..', '..b.b.b.b...', '..a..a.a..a.'], { emit: 'el' })];
+  // 雷雲: 怒った目の黒紫の雲。下に小さな稲妻がちらつく(2コマ)
+  const clPal = { a: '#3a3460', b: '#6a6490', c: '#8a84b8', d: '#b8b0e0', e: '#f0e8ff', l: '#d8c8ff' };
+  S.raincloud = [mk(clPal, ['....cdc.......', '..ccdddc.cdc..', '.cbcccccccddc.', 'cbbebbbbbebbcc', 'bbbbbbbbbbbbbb', '.abbabbbabbba.', '..l.....l.....', '.l.......l....'], { emit: 'el' }),
+    mk(clPal, ['.....cdc......', '..cdc.cddcc...', '.cddcccccccc..', 'ccbebbbbbebbbc', 'bbbbbbbbbbbbbb', '.abbbabbabbba.', '.....l.....l..', '....l.....l...'], { emit: 'el' })];
+  // 対の雷精: 尾を引く小さな光の玉。2体で色が違う(紫・水色)
+  const tsA = { a: '#4a2a9a', b: '#9a7aff', c: '#e8e0ff', w: '#ffffff' }, tsB = { a: '#1a5a8a', b: '#5ac8ff', c: '#d8f8ff', w: '#ffffff' };
+  const tsRows = [['..bb...', '.bccb..', 'bcwwcb.', 'bcwwcbb', '.bccbab', '..bbab.', '....a..'], ['..bb...', '.bccb..', 'bcwwcb.', 'bcwwcb.', '.bccbb.', '..bba.a', '...a...']];
+  S.twinsprite = tsRows.map(r => mk(tsA, r, { emit: 'bcw' }));
+  S.twinsprite2 = tsRows.map(r => mk(tsB, r, { emit: 'bcw' }));
+  // 雷の甲冑: 中身のない鎧武者(兜の奥の目が青く光る)。歩く 2コマ / 刀を掲げて雷を受ける
+  const taPal = { a: '#1e2030', b: '#3e4e74', c: '#6a7aa8', d: '#d8b060', e: '#9ab8ff', s: '#d8e0f0', r: '#8a3a3a' };
+  const taTop = ['..d...d...', '..dd.dd...', '..abbba...', '.abeaeba..', '.abbbbba..', 'ddbcbcbdd.', 'abcbcbcba.', 'abbdddbba.', '.abcbcba..', '.arrrrra..'];
+  S.tarmor = [mk(taPal, [...taTop, '.ab...ba..', '.aa...aa..'], { emit: 'e' }), mk(taPal, [...taTop, '..ab.ba...', '..aa.aa...'], { emit: 'e' })];
+  S.tarmorUp = mk(taPal, ['........s.', '.......ss.', '..d...dsd.', '..dd.dds..', '..abbbas..', '.abeaebs..', '.abbbbbs..', 'ddbcbcbdd.', 'abcbcbcba.', 'abbdddbba.', '.abcbcba..', '.arrrrra..', '.ab...ba..', '.aa...aa..'], { emit: 'es' });
+  // 雷柱(雷神の雷の檻): 緑青の浮いた銅の柱。先の玉が光る
+  S.tpillar = mk({ a: '#1a2a24', b: '#3a7a64', c: '#6ab89a', d: '#a8603a', w: '#e8e0ff', l: '#b8a0ff' }, ['.lwl.', '.wlw.', '..d..', '.bcb.', '.bcb.', '.dbd.', '.bcb.', '.bcb.', '.bcb.', '.dbd.', '.bcb.', '.bcb.', 'abcba', 'ddddd'], { emit: 'lw' });
+  // 雷の玉(雷獣の雷玉・雷神の雷の網): ぱちぱちと稲妻をまとう玉(2コマ)
+  const orbPal = { a: '#4a2a9a', b: '#9a7aff', c: '#e8e0ff', w: '#ffffff' };
+  S.torb = [mk(orbPal, ['.b...b.', '..bcb..', '.bcwcb.', 'bcwwwcb', '.bcwcb.', '..bcb..', '.b...b.'], { emit: 'bcw' }), mk(orbPal, ['...b...', 'b.bcb.b', '.bcwcb.', '.cwwwc.', '.bcwcb.', 'b.bcb.b', '...b...'], { emit: 'bcw' })];
+  S.nethead = mk(orbPal, ['.bcb.', 'bcwcb', 'cwwwc', 'bcwcb', '.bcb.'], { emit: 'bcw' });
+  // 雷獣: 青紫の毛並みの大きな獣。背の毛が逆立ち、白い稲妻の縞、稲妻の形の尾が光る(脚を入れ替えた 2コマ: raiju / raiju2)
+  const rjPal = { b: '#5a6ae8', c: '#9aa8ff', d: '#3a3aa0', w: '#f0f0ff', e: '#fff0a0', m: '#1a1030', l: '#d8c8ff' };
+  S.raiju = mk(rjPal, [
+    '.....l..................................', '....lll.................................', '....ll..................................', '..ll.........................c.c...c....',
+    '.lll..........................c...c.....', '..lll.....c.....c.....c.......ccccc.....', '....lllc..cc.c..cc.c..cc.c..cccbbbbcc...', '.....lllc..c.cc..c.cc..c.ccccbbbbeebd...',
+    '....lll.c..c..c..c..c..ccccbbbbbbbbbb...', '...lll..cc.cc.cc.cc.cc.ccbccbbbbbbbbbcc.', '..lll....c..c.cccccccccccbbcbbbbbbbbbbwc', '...lll.....ccccbbbbbbbbwbbbbbbbbbbddmmd.',
+    '....lll..cccbwbbbbwbbbbbwbbbbbbbddd.....', '.....lllccbbbbwbbbbwbbbwbbbbbbbdd.......', '......l.bbbbbwbbbbwbbbbbbbbbbbbd........', '.......ccbbbbbbbbbbbbbbbbbbbbbdd........',
+    '........bbbbbbbbbbbbbbbbbbbbddd.........', '........cbbbbbbbbbbbbbbbbbbbd...........', '.......ccddbbbbbbbbbbbbbbbbbd...........', '.......cbd.bbbbbbbbbbbbbddbbd...........',
+    '.......cbd.cbdddddddddbbd.bbd...........', '.......cbd.cbd........bbd.cbd...........', '.......cbd.cbd........cbd.cbd...........', '.......cdd.cdd........cdd.ddd...........',
+    '........dd..ddd........ddddd............', '.........d...dd.........ddd.............',
+  ], { emit: 'el' });
+  S.raiju2 = mk(rjPal, [
+    '.....l..................................', '....lll.................................', '....ll..................................', '..ll.........................c.c...c....',
+    '.lll..........................c...c.....', '..lll.....c.....c.....c.......ccccc.....', '....lllc..cc.c..cc.c..cc.c..cccbbbbcc...', '.....lllc..c.cc..c.cc..c.ccccbbbbeebd...',
+    '....lll.c..c..c..c..c..ccccbbbbbbbbbb...', '...lll..cc.cc.cc.cc.cc.ccbccbbbbbbbbbcc.', '..lll....c..c.cccccccccccbbcbbbbbbbbbbwc', '...lll.....ccccbbbbbbbbwbbbbbbbbbbddmmd.',
+    '....lll..cccbwbbbbwbbbbbwbbbbbbbddd.....', '.....lllccbbbbwbbbbwbbbwbbbbbbbdd.......', '......l.bbbbbwbbbbwbbbbbbbbbbbbd........', '.......ccbbbbbbbbbbbbbbbbbbbbbdd........',
+    '........bbbbbbbbbbbbbbbbbbbbddd.........', '........cbbbbbbbbbbbbbbbbbbbd...........', '.......ccddbbbbbbbbbbbbbbbbbd...........', '.......cbd.bbbbbbbbbbbbbddbbd...........',
+    '.......cbd.cbdddddddddbbd.bbd...........', '.......cbd.cbd........bbd.cbd...........', '.......cbd.cbd........cbd.cbd...........', '.......cdd.ddd........ddd.cdd...........',
+    '.......dd.ddd........ddd...ddd..........', '.......d..dd.........dd.....dd..........',
+  ], { emit: 'el' });
+  // 雷神: 太鼓の輪(金の輪に太鼓 8つ)を背負った青緑の鬼。白い髪・虎の皮・足もとの雲。撥を振り上げた絵(raijin)と下ろした絵(raijin2)
+  const rnPal = { b: '#3a8a8a', c: '#6ac0b8', d: '#1e5a5a', h: '#e8e0c8', w: '#f0f0ff', e: '#ffd23f', m: '#3a1010', k: '#c8a060', y: '#e8b830', a: '#2a1a10', g: '#ffd27a', r: '#a8402a', q: '#e8d0a0', v: '#8a84b8' };
+  S.raijin = mk(rnPal, [
+    '...................rrr..................', '..................rrrrr.................', '................ggrrqrrgg...............',
+    '.............gg....rrr....gg............', '........rrrg...h.........h...grrr.......', '.......rrqrr...h...www...h...rrqrr......',
+    '.......rrrrr....hww...wwh....rrrrr......', '.......krrr........ccc........rrrk......', '.......kk.......wcccbbccw.......kk......',
+    '......g.k......wcbbbbbbbdw......k.g.....', '......g.kk......bbbbbbbbd......kk.g.....', '.....g..ckc.....cbebbbebd.....ckd..g....',
+    '.....g...bbc....cbbbbbbbd....ccd...g....', '....rr...cbbc...cbbbbbbdd...ccdd...rr...', '...rrrr...dbbc...bbmmmbd...ccdd...rrrr..',
+    '..rrrqrr...dbbc..cbwbwbb..ccdd...rrrqrr.', '...rrrr.....dbb.ccbbbbbbc.cdd.....rrrr..', '....rr.......dbccbbbbbbbbccd.......rr...',
+    '.....g........bbbbbbbbbbbbd........g....', '.....g........cbbbbbbbbbbbd........g....', '......g.......cbbbbbbbbbbbd.......g.....',
+    '......g.......cbbbbbbbbbbbd.......g.....', '..............cbbbbbbbbbbbd.............', '.......grrr...cbbbbbbbbbbdd...rrrg......',
+    '.......rrrrr...bbbbbbbbbbd...rrrrr......', '.......rrqrr...cbbbbbbbbdd...rrqrr......', '........rrrg....yyyyyyyyy....grrr.......',
+    '.............gyayyayyayyayyg............', '..............yyyyyyyyyyyyy.............', '..............yyabyayyabyay.............',
+    '................bbdyyybbd...............', '................cdd...dbd...............', '................cd.....bd...............',
+    '................cd.....cb...............', '...............ccb.....cbc..............', '...............cbvvvvvvvbb..............',
+    '.............vvvvvvvvvvvvvvv............', '.............vvvvvvvvvvvvvvv............',
+  ], { emit: 'e' });
+  S.raijin2 = mk(rnPal, [
+    '...................rrr..................', '..................rrrrr.................', '................ggrrqrrgg...............',
+    '.............gg....rrr....gg............', '........rrrg...h.........h...grrr.......', '.......rrqrr...h...www...h...rrqrr......',
+    '.......rrrrr....hww...wwh....rrrrr......', '.......grrr........ccc........rrrg......', '................wcccbbccw...............',
+    '......g........wcbbbbbbbdw........g.....', '......g.........bbbbbbbbd.........g.....', '.....g..........cbebbbebd..........g....',
+    '.....g..........cbbbbbbbd..........g....', '....rr..........cbbbbbbdd..........rr...', '...rrrr..........bbmmmbd..........rrrr..',
+    '..rrrqrr.........cbwbwbb.........rrrqrr.', '...rrrr......cc.ccbbbbbbc.cc......rrrr..', '....rkk....cccbccbbbbbbbbccbcc....kkr...',
+    '.....gkkkcccddbbbbbbbbbbbbddbbcckkkg....', '.....g..kkddd.bbbbbbbbbbbbd.ddbkk..g....', '......g..dd...cbbbbbbbbbbbd...dd..g.....',
+    '......g.......cbbbbbbbbbbbd.......g.....', '..............cbbbbbbbbbbbd.............', '.......grrr...cbbbbbbbbbbdd...rrrg......',
+    '.......rrrrr...bbbbbbbbbbd...rrrrr......', '.......rrqrr...cbbbbbbbbdd...rrqrr......', '........rrrg....yyyyyyyyy....grrr.......',
+    '.............gyayyayyayyayyg............', '..............yyyyyyyyyyyyy.............', '..............yyabyayyabyay.............',
+    '................bbdyyybbd...............', '................cdd...dbd...............', '................cd.....bd...............',
+    '................cd.....cb...............', '...............ccb.....cbc..............', '...............cbvvvvvvvbb..............',
+    '.............vvvvvvvvvvvvvvv............', '.............vvvvvvvvvvvvvvv............',
+  ], { emit: 'e' });
+  // 風神の幻(雷神の激昂: 風神の風): 風の袋を頭の上に構えた緑の鬼(半透明で描く)
+  S.fujin = mk({ b: '#3a8a4a', c: '#6ac07a', d: '#1e5a2a', h: '#e8e0c8', w: '#c8f0d8', v: '#e8fff0', u: '#88b898', e: '#ffd23f' }, [
+    '................................', '..............vvvvv.............', '..........vvvvvwwwwvvvv.........', '........vvvwwwwwwwwwwwwvv.......',
+    '.......vvwwwhwwwwwwwhwwwwv......', '......vvwwwuuhwwwwuhuwwwwwv.....', '.....vvwwuuu..bbbbb..uuwwwwv....', '....vvwwuu...ccbbbbc...uwwwwv...',
+    '....vwwuu....cbbbbbb....uwwww...', '...vvbwu....ccebbbedc....wwbwv..', '...vbbbb.....bbbbbbd.....cbbbw..', '..vvwbbbc....cbbbbbd....ccbbwuv.',
+    '...wwuddbcc..cbbbbbb..cccddwwu..', '...vuu..dbbcccbbbbbbcccdd..uuu..', '.........ddbbbbbbbbbbddd........', '...........bbbbbbbbbbd..........',
+    '...........cbbbbbbbbbd..........', '...........cbbbbbbbbbd..........', '...........cbbbbbbbbbd..........', '...........cbbbbbbbbdd..........',
+    '............bbbbbbbbd...........', '............cbbbbbbdd...........', '.............bbbbbbd............', '.............cddddbd............',
+    '.............cd...bd............', '.............cd...cb............', '............ccd...cbc...........', '............cdd...cdd...........',
+  ], { emit: 'e' });
+
   // 炎魔イフリート: 黒い角と燃える髪、赤黒い筋骨の上半身、両手に炎。下半身は炎になって浮いている
   const ifritRows = sym([
     '..h.........',

@@ -181,6 +181,7 @@ function buildChunk(cx, cy, st) {
     if (st.snow) { snowDeco(x, gx, hx, hy, kind, hash2(hx * 3 + ox, hy * 5 + oy), st.deco); continue; }
     if (st.forest) { forestDeco(x, gx, hx, hy, kind, hash2(hx * 3 + ox, hy * 5 + oy), st.deco); continue; }
     if (st.desert) { desertDeco(x, hx, hy, kind, hash2(hx * 3 + ox, hy * 5 + oy), st.deco); continue; }
+    if (st.thunder) { thunderDeco(x, gx, hx, hy, kind, hash2(hx * 3 + ox, hy * 5 + oy), st.deco); continue; }
     if (kind < 0.45) { // 草むら
       x.fillStyle = d0; x.fillRect(hx, hy + 2, 1, 2); x.fillRect(hx + 2, hy + 1, 1, 3); x.fillRect(hx + 4, hy + 2, 1, 2);
       x.fillStyle = d1; x.fillRect(hx + 2, hy, 1, 1); x.fillRect(hx, hy + 1, 1, 1);
@@ -328,6 +329,34 @@ function forestDeco(x, gx, hx, hy, kind, h2, [d0, d1, d2c, d3]) {
     x.fillStyle = '#3a2410'; x.fillRect(hx + 2, hy, 6, 8); x.fillStyle = '#5a3a1a'; x.fillRect(hx + 3, hy, 4, 8); x.fillStyle = '#7a5a30'; x.fillRect(hx + 4, hy, 1, 8);
     x.fillStyle = '#5a3a1a'; x.fillRect(hx, hy + 7, 3, 1); x.fillRect(hx + 7, hy + 7, 3, 1); x.fillRect(hx - 1, hy + 8, 2, 1); x.fillRect(hx + 9, hy + 8, 2, 1);
     x.fillStyle = d1; x.fillRect(hx + 2, hy + 6, 2, 1);
+  }
+}
+// 雲海の床の装飾: 雲の盛り上がり / 雲の中を走る稲光の筋(光る)/ 雨の水たまり / 小石 / 社の朱の梁のかけら / 太鼓 / 緑青の銅の柱
+function thunderDeco(x, gx, hx, hy, kind, h2, [d0, d1, d2c, d3]) {
+  if (kind < 0.3) { // 雲の盛り上がり: 明るい紫の丸いふくらみ
+    for (const [dx, dy, r] of [[2, 2, 2], [5, 1, 2.5], [8, 2, 2]]) for (let yy = -3; yy <= 3; yy++) for (let xx = -3; xx <= 3; xx++) if (xx * xx + yy * yy <= r * r) { x.fillStyle = yy < 0 ? d1 : d0; x.fillRect(hx + dx + xx, hy + dy + yy + 2, 1, 1); }
+    x.fillStyle = '#7a72a8'; x.fillRect(hx + 4, hy, 2, 1); x.fillRect(hx + 1, hy + 1, 2, 1);
+  } else if (kind < 0.38) { // 稲光の筋: 雲の中を走るぎざぎざの光(光の層は暗い紫で)
+    let lx = hx, ly = hy;
+    for (let k = 0; k < 10; k++) { x.fillStyle = k % 3 ? '#8a72d8' : d3; x.fillRect(lx, ly, 1, 1); gx.fillStyle = '#2a1a5a'; gx.fillRect(lx, ly, 1, 1); lx = clamp(lx + 1, 0, CH - 1); ly = clamp(ly + (hash2(lx * 7, k + h2 * 50) < 0.5 ? 1 : -1), 0, CH - 1); }
+  } else if (kind < 0.5) { // 雨の水たまり: 暗い水面に空の光
+    x.fillStyle = '#16122a'; x.fillRect(hx + 1, hy + 1, 7, 2); x.fillRect(hx, hy + 2, 9, 1);
+    x.fillStyle = '#4a4278'; x.fillRect(hx + 2, hy + 1, 2, 1); x.fillStyle = '#6a62a0'; x.fillRect(hx + 6, hy + 2, 1, 1);
+  } else if (kind < 0.6) { // 小石
+    x.fillStyle = '#14101e'; x.fillRect(hx, hy + 2, 4, 1); x.fillStyle = '#4a4466'; x.fillRect(hx, hy + 1, 4, 1); x.fillRect(hx + 1, hy, 2, 1);
+  } else if (kind > 0.96) { // 緑青の銅の柱: 雨に打たれて青緑になった銅の柱(上に輪)
+    x.fillStyle = '#14101e'; x.fillRect(hx - 1, hy + 11, 7, 1);
+    x.fillStyle = '#2a5a4a'; x.fillRect(hx + 1, hy + 1, 3, 10); x.fillStyle = '#4a9a7a'; x.fillRect(hx + 1, hy + 1, 1, 10); x.fillStyle = '#7ac8a0'; x.fillRect(hx + 2, hy + 2, 1, 1);
+    x.fillStyle = d2c; x.fillRect(hx, hy, 5, 1); x.fillRect(hx, hy + 5, 5, 1); x.fillRect(hx, hy + 10, 5, 1);
+  } else if (kind > 0.93) { // 太鼓: 台に載った朱の胴の太鼓(金の鋲)
+    x.fillStyle = '#14101e'; x.fillRect(hx, hy + 8, 9, 1);
+    x.fillStyle = '#5a3a2a'; x.fillRect(hx + 1, hy + 6, 1, 2); x.fillRect(hx + 7, hy + 6, 1, 2);
+    x.fillStyle = '#a8402a'; x.fillRect(hx + 1, hy + 1, 7, 5); x.fillStyle = '#c85a3a'; x.fillRect(hx + 1, hy + 1, 7, 1);
+    x.fillStyle = '#e8d0a0'; x.fillRect(hx + 2, hy, 5, 1); x.fillStyle = '#ffd27a'; x.fillRect(hx + 1, hy + 2, 1, 1); x.fillRect(hx + 7, hy + 2, 1, 1); x.fillRect(hx + 1, hy + 4, 1, 1); x.fillRect(hx + 7, hy + 4, 1, 1);
+  } else if (kind > 0.9) { // 社の朱の梁のかけら: 倒れた鳥居の梁が雲に埋もれる
+    x.fillStyle = '#14101e'; x.fillRect(hx, hy + 3, 12, 1);
+    x.fillStyle = '#a8302a'; x.fillRect(hx, hy + 1, 11, 2); x.fillStyle = '#d84a3a'; x.fillRect(hx, hy + 1, 11, 1); x.fillStyle = '#2a1a1a'; x.fillRect(hx + 11, hy, 1, 3);
+    x.fillStyle = d1; x.fillRect(hx + 3, hy + 2, 4, 1);
   }
 }
 // 砂海の地面の装飾: 風紋 / 小石 / 枯れ草 / 獣の骨(角のある頭骨・砂から出たあばら)/ 倒れた柱 / 半分埋もれた石柱
@@ -483,6 +512,8 @@ function spriteOf(e) {
   if (e.type === 'scorpion' && e.aim) return ART.S.scorpionUp; // サソリ: 尾を振り上げる
   if (e.type === 'vulture') return e.landed ? ART.S.vultureLand : s[Math.floor(e.t * (e.jz > 0 ? 10 : 6) + e.seed * 5) % s.length]; // ハゲワシ: 降りたあとは翼をたたむ。空の上では速く羽ばたく
   if (e.type === 'antlion') return s[e.biteT > S.time ? 1 : Math.floor(e.t * 1.5 + e.seed * 3) % s.length]; // アリジゴク: 大あごをゆっくり開け閉め(噛むときは閉じる)
+  if (e.type === 'tarmor' && e.aim) return ART.S.tarmorUp; // 雷の甲冑: 刀を掲げて雷を受ける
+  if (e.type === 'twinsprite') { const f = e.twinIdx ? ART.S.twinsprite2 : ART.S.twinsprite; return f[Math.floor(e.t * 10 + e.seed * 5) % f.length]; } // 対の雷精: 2体で色が違う(紫・水色)
   if (Array.isArray(s)) return s[Math.floor(e.t * 8) % s.length];
   return s;
 }
@@ -1483,7 +1514,7 @@ function render() {
     if (!e.hz) shadow(e.x, e.y + sp.h * sc / 2 - 1, sp.w * sc * 0.8); // 宙にある物(ケルベロスの首)は影なし
     let sy = 1, sxk = 1, yo = 0;
     if (e.ai === 'hop') { const ha = e.hopAir || 0.35, h = e.hopT < ha ? Math.sin((e.hopT / ha) * Math.PI) : 0; yo = -h * 5; sy = 1 + h * 0.15 - (e.hopT > (e.hopEvery || 1.1) - 0.2 ? 0.15 : 0); sxk = 2 - sy; }
-    else if (e.ai === 'flutter' || e.type === 'imp') yo = Math.sin(e.t * 12) * 1.5; // 飛ぶ敵は上下に揺れる(火の小鬼は浮いたまま射撃)
+    else if (e.ai === 'flutter' || e.type === 'imp' || e.ai === 'twin' || e.type === 'raincloud') yo = Math.sin(e.t * 12) * 1.5; // 飛ぶ敵は上下に揺れる(火の小鬼は浮いたまま射撃。雷雲・対の雷精も浮く)
     if (e.swell > 0) { sy = sxk = 1 + 0.45 * e.swell; } // 鬼火の自爆: 膨らむ
     else if (e.disguise) { sy = 1 + Math.sin(e.t * 3) * 0.03; sxk = 2 - sy; } // 鏡の分身: 女王と同じ揺れ
     else if (e.obj) { if (e.dropT > 0) yo = -e.dropT * 260; sy = e.rise * (1 + (e.pulse || 0) * 0.6); sxk = 1 + (e.pulse || 0) * 0.4 + (e.obj === 'meat' ? Math.sin(e.t * 4 + e.seed * 9) * 0.04 : 0); } // せり上がる / 肉塊は脈打つ // 砂時計は空から落ちてくる
@@ -1557,6 +1588,10 @@ function render() {
     }
     else if (e.type === 'stalker' && !e.veil) addLight(e.x, e.y - 4, 18, '#c79bff', 0.3);
     else if (e.type === 'sapling' && e.ripe) addLight(e.x, e.y - 3, 20, '#d8ff9a', 0.45);
+    else if (e.type === 'twinsprite') addLight(e.x, e.y, 30, e.twinIdx ? '#5ac8ff' : '#9a7aff', 0.6); // 対の雷精: 体の光
+    else if (e.type === 'raichild') addLight(e.x, e.y, 18, '#9aa8ff', 0.35);
+    else if (e.type === 'raincloud') addLight(e.x, e.y + 4, e.aim ? 40 : 16, '#b8a0ff', e.aim ? 0.7 : 0.3); // 雷雲: 稲妻を溜める間は光る
+    else if (e.type === 'tarmor') addLight(e.x, e.y - 6, e.aim ? 46 : 16, e.aim ? '#b8a0ff' : '#9ab8ff', e.aim ? 0.8 : 0.3); // 雷の甲冑: 兜の奥の目 / 掲げた刀
     else if (e.obj === 'beeball') addLight(e.x, e.y, 24, '#ffb13a', 0.15); // 蜂球: 黄色の体が明るいので光は控えめに(強いと白く飛んで蜂の模様が消える)
     else if (e.obj === 'doom') { // 終刻の時計: 文字盤に残り秒(12 → 0)。少なくなると赤く脈打つ
       const n = Math.max(0, Math.ceil(e.life)), img = ART.text(String(n), n <= 3 ? '#ff3b5c' : '#ffd0d8', 2);
@@ -1854,6 +1889,7 @@ function render() {
   // ======== 敵の攻撃(最前面): ボスの技・敵弾・予兆 ========
   for (const b of [...(S.bosses || []), ...(S.shadows || [])]) if (!b.dead) drawBossFx(b); // 双王(カオス)の2体目・影の王が呼んだ影の技も描く
   drawBfx();
+  drawTwinLinks(); // 対の雷精の線
   drawSkillFx(2, true); // ボスの攻撃の光芒・光の柱・きらめき
   drawSlashes(true);
   drawParts(false);
@@ -2526,6 +2562,21 @@ function drawBossFx(e) {
 }
 
 // ボスの技の見た目だけの演出(bfx。world.js の各ボスの技が積む)
+// 対の雷精の線: 予告は細い赤の線が点滅 → 張られている間は紫白のぎざぎざの雷の線(光の層は暗い紫)
+function drawTwinLinks() {
+  const sx = GFX.sctx, gx = GFX.gctx, t = GFX.fx.time;
+  for (const e of enemies) {
+    if (e.dead || e.ai !== 'twin' || e.twinIdx !== 0 || !e.mate || e.mate.dead || !e.pr) continue;
+    const m = e.mate, pr = e.pr, ax = e.x - cam.x, ay = e.y - cam.y - 1, bx = m.x - cam.x, by = m.y - cam.y - 1, L = Math.hypot(bx - ax, by - ay) || 1;
+    if (pr.ph === 'tele') { if (Math.floor(t * 16) % 2) { sx.globalAlpha = 0.8; pLine(sx, ax, ay, bx, by, '#ff3b5c'); sx.globalAlpha = 1; pLine(gx, ax, ay, bx, by, '#5a1020'); } }
+    else if (pr.ph === 'on') {
+      const n = Math.max(4, Math.round(L / 10)), nxu = -(by - ay) / L, nyu = (bx - ax) / L;
+      let px0 = ax, py0 = ay;
+      for (let i = 1; i <= n; i++) { const v = i / n, j = i === n ? 0 : rand(-3, 3), nx = lerp(ax, bx, v) + nxu * j, ny = lerp(ay, by, v) + nyu * j; pLine(sx, px0, py0, nx, ny, '#f0e8ff'); pLine(gx, px0, py0, nx, ny, '#4a2a98', 2); px0 = nx; py0 = ny; }
+      addLight((e.x + m.x) / 2, (e.y + m.y) / 2, Math.min(80, L * 0.6), '#9a7aff', 0.5);
+    }
+  }
+}
 function drawBfx() {
   const sx = GFX.sctx, gx = GFX.gctx, t = GFX.fx.time;
   for (const f of bfx) {
@@ -2536,6 +2587,17 @@ function drawBfx() {
         sx.fillStyle = '#1a1008'; sx.fillRect(bx - 2, by + 1, 5, 1);
         for (let j = 0; j < H; j++) { const w = j < H * 0.4 ? 3 : j < H * 0.75 ? 2 : 1; sx.fillStyle = j === H - 1 ? '#c8a060' : j % 3 === 0 ? '#3a2410' : '#6a4424'; sx.fillRect(bx - (w >> 1), by - j, w, 1); }
       }
+      continue;
+    }
+    if (f.kind === 'ebolt') { // 敵の稲妻: 紫白のぎざぎざの線(光の層は暗い紫。光の層は透明度が効かないので、消えるときは色を暗くする)
+      const k = 1 - u, J = f.jit ?? 6; let px0 = f.x, py0 = f.y;
+      for (let i = 1; i <= 9; i++) {
+        const v = i / 9, nx = lerp(f.x, f.x1, v) + (i === 9 ? 0 : rand(-J, J)), ny = lerp(f.y, f.y1, v) + (i === 9 ? 0 : rand(-2, 2) * J / 6);
+        pLine(sx, px0 - cam.x, py0 - cam.y, nx - cam.x, ny - cam.y, '#f0e8ff', f.w);
+        pLine(gx, px0 - cam.x, py0 - cam.y, nx - cam.x, ny - cam.y, dimCol('#5a3aa8', k), f.w + 1);
+        px0 = nx; py0 = ny;
+      }
+      addLight(f.x1, f.y1, 40, '#9a7aff', 0.6 * k);
       continue;
     }
     if (f.kind === 'emound') { // 砂潜り(大蠍): 盛り上がった砂が、出る所へ砂の中を進む
