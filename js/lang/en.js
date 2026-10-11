@@ -2526,6 +2526,13 @@ const I18N_EN = {
   "風に押される。風下に雷の列が落ちる。ダッシュなら風に逆らえる": "The wind pushes you, and rows of lightning strike downwind. Dashing lets you resist the wind",
   "神鳴り": "Divine Thunder",
   "背中の太鼓が全部光った次の拍に、巨大な雷が落ちる。その拍で回避する": "When every drum on its back has lit up, a colossal bolt falls on the next beat. Dodge on that beat",
+  // ===== tier 3 のメイジ(バフの初見のヒント) =====
+  "ファイアーメイジ": "Fire Mage",
+  "まわりの敵の攻撃力 +{0}%({1}秒。足元に橙の輪)": "Nearby enemies deal +{0}% damage ({1}s, orange ring at their feet)",
+  "フロストメイジ": "Frost Mage",
+  "まわりの敵の受けるダメージ −{0}%({1}秒。足元に水色の輪)": "Nearby enemies take −{0}% damage ({1}s, light-blue ring at their feet)",
+  "サンダーメイジ": "Thunder Mage",
+  "まわりの敵の移動速度 +{0}%({1}秒。足元に黄色の輪)": "Nearby enemies move +{0}% faster ({1}s, yellow ring at their feet)",
 };
 
 // ガイドの用語に印を付ける英語の書き方(help.js)。キーは用語集の k。書いていない用語は見出し(t の英語)で印を付ける

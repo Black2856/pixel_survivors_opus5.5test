@@ -88,6 +88,12 @@ const DATA = {
     raincloud:{ hp: 26, spd: 14, dmg: 9,  xp: 1, r: 6, ai: 'keep', keep: [100, 130], strike: { cd: 5, range: 220, wind: 0.9, r: 18, n: 1.2, numb: 3, kind: 'bolt' } }, // 雷雲
     twinsprite:{ hp: 24, spd: 18, dmg: 8, xp: 1, r: 4, ai: 'twin', noElite: true, noGroup: true, maxAlive: 6, pair: true, link: { near: 150, flank: 60, move: 4, fast: 2, tele: 0.6, on: 3, rest: 2, n: 0.8, numb: 1, tick: 0.5 } }, // 対の雷精
     tarmor:   { hp: 75, spd: 10, dmg: 14, xp: 2, r: 8, ai: 'chase', kbRes: 0.8, strike: { cd: 6, range: 80, wind: 0.8, r: 50, n: 1.3, numb: 4, self: true, kind: 'discharge' } }, // 雷の甲冑
+    // メイジ(tier 3 の属性のステージ。まばらに 1体ずつ): 距離を取って、4秒ごとに属性の弾を 3方向に(待ち cd 3.5秒 + 構え wind 0.5秒。shot.numb: 当たると痺れ +n)
+    //   buff: プレイヤーが射程(shot.range)にいる間、cd 秒ごとに(最初は出て first 秒)、まわり(半径 r)の敵に dur 秒のバフ(自分にも。ボス・ボスが出した物は除く)
+    //   k 'atk': 攻撃力 +v / 'def': 受けるダメージ −v / 'spd': 移動速度 +v。同じバフはかけ直すと時間が戻る(重ならない)
+    firemage:   { hp: 34, spd: 14, dmg: 9, xp: 2, r: 5, ai: 'keep', keep: [100, 130], noElite: true, spawnW: 0.1, noGroup: true, maxAlive: 1, shot: { cd: 3.5, range: 200, spd: 70, n: 0.8, kind: 'efire', burn: 0.1, wind: 0.5, count: 3, spread: 0.3 }, buff: { k: 'atk', v: 0.2, cd: 12, first: 3, r: 120, dur: 10 } }, // ファイアーメイジ
+    frostmage:  { hp: 34, spd: 14, dmg: 9, xp: 2, r: 5, ai: 'keep', keep: [100, 130], noElite: true, spawnW: 0.1, noGroup: true, maxAlive: 1, shot: { cd: 3.5, range: 200, spd: 70, n: 0.8, kind: 'eice', frost: 1, wind: 0.5, count: 3, spread: 0.3 }, buff: { k: 'def', v: 0.2, cd: 12, first: 3, r: 120, dur: 10 } }, // フロストメイジ
+    thundermage:{ hp: 34, spd: 14, dmg: 9, xp: 2, r: 5, ai: 'keep', keep: [100, 130], noElite: true, spawnW: 0.1, noGroup: true, maxAlive: 1, shot: { cd: 3.5, range: 200, spd: 70, n: 0.8, kind: 'tspark', numb: 1, wind: 0.5, count: 3, spread: 0.3 }, buff: { k: 'spd', v: 0.2, cd: 12, first: 3, r: 120, dur: 10 } }, // サンダーメイジ
     goblin:   { hp: 160, spd: 44, dmg: 0, xp: 12, r: 5, ai: 'flee', kbRes: 0.5, noElite: true },
   },
 
@@ -1490,12 +1496,12 @@ const DATA = {
     { no: 1, stage: 1, tier: 1, bosses: ['gslime', 'king'], segs: [['zombie', 'bat', 'slime'], ['bat', 'slime', 'brute'], null] },
     { no: 2, stage: 2, tier: 1, bosses: ['golem', 'wyrm'], segs: [['skeleton', 'archer', 'sandmage'], ['archer', 'sandmage', 'spear'], null] },
     { no: 9, stage: 10, tier: 1, bosses: ['qbee', 'elder'], segs: [['sapling', 'bee', 'squirrel'], ['bee', 'squirrel', 'bear'], null] }, // 木漏れ日の森
-    { no: 3, stage: 3, tier: 3, bosses: ['cdragon', 'ifrit'], segs: [['imp', 'hound', 'mworm'], ['hound', 'mworm', 'lslime'], null] },
+    { no: 3, stage: 3, tier: 3, bosses: ['cdragon', 'ifrit'], segs: [['imp', 'hound', 'mworm'], ['hound', 'mworm', 'lslime', 'firemage'], null] },
     { no: 4, stage: 5, tier: 2, bosses: ['stag', 'pqueen'], segs: [['bat', 'jslime', 'beetle'], ['jslime', 'beetle', 'fairy'], null] }, // 七彩の晶窟
     { no: 6, stage: 6, tier: 2, bosses: ['kraken', 'levia'], segs: [['jelly', 'sahagin', 'puffer'], ['sahagin', 'puffer', 'angler'], null] }, // 沈黙の海淵
     { no: 10, stage: 11, tier: 2, bosses: ['escorp', 'sphinx'], segs: [['scorpion', 'vulture', 'sanddoll'], ['vulture', 'sanddoll', 'antlion'], null] }, // 陽炎の砂海
-    { no: 5, stage: 7, tier: 3, bosses: ['fgiant', 'squeen'], segs: [['wolf', 'ghost', 'icesprite'], ['ghost', 'icesprite', 'yeti'], null] }, // 霜天の霊峰
-    { no: 11, stage: 12, tier: 3, bosses: ['raiju', 'raijin'], segs: [['raichild', 'raincloud', 'twinsprite'], ['raincloud', 'twinsprite', 'tarmor'], null] }, // 雷鳴の雲海
+    { no: 5, stage: 7, tier: 3, bosses: ['fgiant', 'squeen'], segs: [['wolf', 'ghost', 'icesprite'], ['ghost', 'icesprite', 'yeti', 'frostmage'], null] }, // 霜天の霊峰
+    { no: 11, stage: 12, tier: 3, bosses: ['raiju', 'raijin'], segs: [['raichild', 'raincloud', 'twinsprite'], ['raincloud', 'twinsprite', 'tarmor', 'thundermage'], null] }, // 雷鳴の雲海
     // 終刻の時計塔: 3つ目の候補は「今までの敵」のまとまり(1枠として選ばれ、その中から1種)
     { no: 7, stage: 8, tier: 4, bosses: ['warden', 'reaper'], segs: [['gear', 'clockman', ['skeleton', 'archer', 'lslime', 'wolf', 'sahagin', 'beetle']], ['clockman', 'hglass', ['skeleton', 'archer', 'lslime', 'wolf', 'sahagin', 'beetle']], null] },
     { no: 8, stage: 9, tier: 4, bosses: ['cerberus', 'shadowking'], segs: [['spider', 'shadoweye', 'ghoul'], ['shadoweye', 'ghoul', 'stalker'], null] }, // 常闇の王墓

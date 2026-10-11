@@ -14,7 +14,17 @@ const ECOL = {
   sapling: ['#8fd06a', '#5a3a1a'], treant: ['#6a8a3a', '#4a3020'], bee: ['#ffd23f', '#2a2010'], squirrel: ['#c8783a', '#f0d8b0'], bear: ['#7a4a2a', '#3a2010'],
   scorpion: ['#e09048', '#3a1e0c'], vulture: ['#4a3020', '#e8e0d0'], sanddoll: ['#e8c88a', '#a8803a'], sandmound: ['#e8c88a', '#a8803a'], antlion: ['#b8946a', '#e8d8b0'],
   raichild: ['#8aa8ff', '#e8f0ff'], raincloud: ['#8a84b8', '#d8c8ff'], twinsprite: ['#b8a0ff', '#5ac8ff'], tarmor: ['#6a7aa8', '#d8b060'],
+  firemage: ['#d8583a', '#ffd27a'], frostmage: ['#dceeff', '#5a8ac8'], thundermage: ['#f0c840', '#3c3c5c'],
 };
+// メイジのバフ(DATA.enemies の buff.k)の色: 足元の輪の [手前, 光, 奥] と、バフの間に昇る粒 / メイジの構えで杖の珠へ集まる光
+const BUFF_COL = {
+  atk: { ring: ['#ff8a3d', '#7a3010', '#a8481a'], parts: ['#ff8a3d', '#ffc34a'] },
+  def: { ring: ['#7ad7ff', '#1a4a6a', '#3a7aa8'], parts: ['#9ff7ff', '#e8f8ff'] },
+  spd: { ring: ['#ffe14a', '#6a5a14', '#a8902a'], parts: ['#ffe14a', '#fff6a0'] },
+};
+const MAGE_COL = { firemage: ['#ff6a2a', '#ffc34a', '#fff6c8'], frostmage: ['#9ff7ff', '#7ad7ff', '#ffffff'], thundermage: ['#ffe14a', '#d8c8ff', '#ffffff'] };
+// メイジのバフの量(かかっていなければ 0): atk = 攻撃力 +v / def = 受けるダメージ −v / spd = 移動速度 +v
+const buffOn = (e, k) => { const b = e.buffs && e.buffs[k]; return b && b.t > S.time ? b.v : 0; };
 const xpFor = l => Math.floor(4 + l * 2.6 + Math.pow(l, 1.72));
 
 // ============================================================
@@ -1340,7 +1350,7 @@ function hitEnemy(e, base, o = {}) {
     if (!o.noNum && !o.quiet) addFloat(e.x, e.y - e.r - 3, 'MISS', '#a8a8b8');
     return 0;
   }
-  let dmg = (base + clsHitBonus(e, o)) * dmgMul() * clsDmgTaken(e, o) * wsDmgTaken(e) * (e.takeK || 1) * (o.dot ? 1 : weakMul()); // 祈りの一撃などの追加 / 印・凍結・侵蝕などで敵が受けるダメージが増える / takeK: ボスの状態(岩の鎧・ひるみ・分裂など)/ 衰弱
+  let dmg = (base + clsHitBonus(e, o)) * dmgMul() * clsDmgTaken(e, o) * wsDmgTaken(e) * (e.takeK || 1) * (1 - buffOn(e, 'def')) * (o.dot ? 1 : weakMul()); // 祈りの一撃などの追加 / 印・凍結・侵蝕などで敵が受けるダメージが増える / takeK: ボスの状態(岩の鎧・ひるみ・分裂など)/ フロストメイジのバフ / 衰弱
   if (e.frost > 0 && P.weapons.blizzard && P.weapons.blizzard.evo) dmg *= 1 + 0.01 * e.frost;
   const crit = o.forceCrit || (!o.noCrit && Math.random() < critRate() + clsCritBonus(e));
   if (crit) dmg *= P.critMul + clsCritDmgBonus(e); else if (P.uq.exec) dmg *= 0.8; // 処刑人の
@@ -1467,13 +1477,15 @@ function spawnProp() {
 
 // ---------- 通常敵の攻撃 ----------
 // 射撃(弓兵・火の小鬼・砂術師): 弾のダメージ = その敵のダメージ × n。count 発を spread rad おきの扇に(count が [最小, 最大] なら1回ごとにランダム)
-const SHOT_R = { arrow: 2, efire: 3, esand: 2.5, eice: 2.5, darkorb: 3 }; // 弾の当たり判定の半径(見た目の大きさ。攻撃範囲の倍率で広がる)
+const SHOT_R = { arrow: 2, efire: 3, esand: 2.5, eice: 2.5, darkorb: 3, tspark: 2.5 }; // 弾の当たり判定の半径(見た目の大きさ。攻撃範囲の倍率で広がる)
 function enemyShoot(e, s, a) {
   const n = Array.isArray(s.count) ? randi(s.count[0], s.count[1]) : s.count || 1;
   for (let i = 0; i < n; i++) {
     const aa = a + (i - (n - 1) / 2) * (s.spread || 0);
-    eprojs.push({ kind: s.kind, x: e.x, y: e.y - 2, vx: Math.cos(aa) * s.spd, vy: Math.sin(aa) * s.spd, dmg: e.dmg * s.n * S.eatk, burn: s.burn ? e.dmg * s.burn * S.eatk : 0, frost: s.frost || 0, dark: s.dark || 0, life: 4, t: 0, r: (SHOT_R[s.kind] || 3) * CHAOS.area * e.areaK, sk: e.areaK }); // sk: 弾の見た目の大きさ(エリートは範囲 ×1.5)
+    eprojs.push({ kind: s.kind, x: e.x, y: e.y - 2, vx: Math.cos(aa) * s.spd, vy: Math.sin(aa) * s.spd, dmg: e.dmg * s.n * S.eatk, burn: s.burn ? e.dmg * s.burn * S.eatk : 0, frost: s.frost || 0, dark: s.dark || 0, numb: s.numb || 0, life: 4, t: 0, r: (SHOT_R[s.kind] || 3) * CHAOS.area * e.areaK, sk: e.areaK }); // sk: 弾の見た目の大きさ(エリートは範囲 ×1.5)
   }
+  if (MAGE_COL[e.type]) { const M = MAGE_COL[e.type], tx = e.x + (e.face || 1) * 3.5, ty = e.y - 7; burst(tx, ty, 10, M, { sp: 50, glow: true, life: 0.3 }); addRing(tx, ty, 8, M[0], { life: 0.25 }); } // メイジ: 杖の珠から放つ
+  if (s.kind === 'tspark') { for (let k = 0; k < 3; k++) { const ba = a + rand(-0.8, 0.8), r = rand(6, 11); bolts.push({ x0: e.x, y0: e.y - 2, x1: e.x + Math.cos(ba) * r, y1: e.y - 2 + Math.sin(ba) * r, t: 0, life: 0.12, w: 1, jit: 2, gcol: '#3a2478' }); } AudioMan.zap(); }
   if (s.kind === 'darkorb') { burst(e.x + Math.cos(a) * 4, e.y - 2 + Math.sin(a) * 4, 12, ['#c79bff', '#7a3ab0', '#2a1240', '#ffffff'], { sp: 55, glow: true, life: 0.35 }); addRing(e.x, e.y - 2, 9, '#a66bff', { life: 0.25 }); AudioMan.shade2(); }
   if (s.kind === 'eice') { burst(e.x + Math.cos(a) * 4, e.y - 2 + Math.sin(a) * 4, 7, ['#9ff7ff', '#ffffff', '#7ad7ff'], { sp: 45, glow: true, life: 0.3 }); AudioMan.frost(); }
   if (s.kind === 'efire') { burst(e.x + Math.cos(a) * 4, e.y - 2 + Math.sin(a) * 4, 7, ['#ff6a2a', '#ffc34a', '#fff6c8'], { sp: 45, glow: true, life: 0.3 }); AudioMan.fire(); }
@@ -1485,6 +1497,26 @@ function splitDarkOrb(p) {
   for (const da of [-0.3, -0.1, 0.1, 0.3]) eprojs.push({ kind: 'darkorb', frag: true, x: p.x, y: p.y, vx: Math.cos(a + da) * 100, vy: Math.sin(a + da) * 100, dmg: p.dmg, dark: p.dark, life: 2.5, t: 0, r: 2 * CHAOS.area * sk, sk });
   burst(p.x, p.y, 18, ['#c79bff', '#7a3ab0', '#2a1240', '#ffffff'], { sp: 80, glow: true, life: 0.35 });
   addRing(p.x, p.y, 12, '#a66bff', { r0: 3, life: 0.25 }); addFlash(p.x, p.y, 40, '#a66bff', 0.4); AudioMan.shade2();
+}
+// メイジのバフ: まわり(半径 r。広がる輪で見せる)の敵に dur 秒(自分にも。ボス・ボスが出した物・篝火は除く)。同じバフはかけ直すと時間が戻る
+const MAGE_HINT = {
+  firemage: bf => [_t('ファイアーメイジ'), _t`まわりの敵の攻撃力 +${Math.round(bf.v * 100)}%(${bf.dur}秒。足元に橙の輪)`],
+  frostmage: bf => [_t('フロストメイジ'), _t`まわりの敵の受けるダメージ −${Math.round(bf.v * 100)}%(${bf.dur}秒。足元に水色の輪)`],
+  thundermage: bf => [_t('サンダーメイジ'), _t`まわりの敵の移動速度 +${Math.round(bf.v * 100)}%(${bf.dur}秒。足元に黄色の輪)`],
+};
+function mageBuff(e, bf) {
+  const R = bf.r * e.areaK, C = BUFF_COL[bf.k], M = MAGE_COL[e.type], t1 = S.time + bf.dur;
+  for (const o of enemies) {
+    if (o.dead || o.boss || o.obj || o.prop || d2(o.x, o.y, e.x, e.y) > R * R) continue;
+    (o.buffs || (o.buffs = {}))[bf.k] = { t: t1, v: bf.v };
+    if (o !== e) addRing(o.x, o.y + 3, 9, C.ring[0], { r0: 3, life: 0.35 });
+  }
+  e.castT = S.time + 0.6; // 杖を掲げる(render.js)
+  const tx = e.x + (e.face || 1) * 3.5, ty = e.y - 7;
+  addRing(e.x, e.y, R, C.ring[0], { r0: 8, life: 0.55, w: 2 }); addRing(tx, ty, 12, M[2], { life: 0.3 });
+  burst(tx, ty, 16, M, { sp: 60, glow: true, life: 0.45 }); addFlash(tx, ty, 40, C.ring[1], 0.4);
+  AudioMan.summon();
+  const h = MAGE_HINT[e.type](bf); hint(e.type, h[0], h[1]);
 }
 // 投槍兵: 予告の帯の長さだけ飛ぶ槍(帯と同じく攻撃範囲の倍率で伸びる。槍の判定の幅 = 帯の幅)
 function throwSpear(e, th) {
@@ -1666,7 +1698,7 @@ function updEnemies(dt) {
   const R2 = Math.pow(Math.hypot(GFX.VW, GFX.VH) * 0.75, 2);
   for (const e of enemies) {
     if (e.dead) continue;
-    S.eatk = e.atkDownT > S.time ? 1 - DATA.weapons.bhole.evo.atkDown : 1; // ビッグクランチ: ブラックホールの中の敵は攻撃力が下がる(体当たり・矢・ボスの攻撃)
+    S.eatk = (e.atkDownT > S.time ? 1 - DATA.weapons.bhole.evo.atkDown : 1) * (1 + buffOn(e, 'atk')); // ビッグクランチ: ブラックホールの中の敵は攻撃力が下がる(体当たり・矢・ボスの攻撃)/ ファイアーメイジのバフ
     e.t += dt; e.flash -= dt;
     if (e.prop) { if (d2(e.x, e.y, P.x, P.y) > R2 * 2) e.dead = true; continue; }
     // 状態異常: 自分の攻撃で付いたものなので、火の粉・しずく・継続ダメージの火花などは「攻撃の濃さ」の対象(途中で倒れて continue しても、次の敵・ループの後で戻す)
@@ -1724,7 +1756,7 @@ function updEnemies(dt) {
     else {
       const tw = clsEnemySlow(e); // 時の歪み(アストロマンサーの重力圏): 移動・攻撃が遅くなる
       const slow = Math.max(0.2, 1 - DATA.debuff.frostSlow * (e.frost || 0)) * (e.slowT > 0 ? 0.6 : 1) * tw; // 凍傷(時の歪みと掛け算)
-      const sp = e.spd * slow;
+      const sp = e.spd * slow * (1 + buffOn(e, 'spd')); // サンダーメイジのバフ
       const dc = S.decoy && d2(e.x, e.y, S.decoy.x, S.decoy.y) < 200 * 200 ? S.decoy : P; // 空蝉の分身
       const a = Math.atan2(dc.y - e.y, dc.x - e.x), d = DATA.enemies[e.type];
       let mx = Math.cos(a), my = Math.sin(a);
@@ -1748,13 +1780,14 @@ function updEnemies(dt) {
         else if (e.wind > 0) { // 構え(砂術師): 足元で砂が渦を巻き、終わると撃つ
           e.wind -= dt * CHAOS.rate * tw;
           if (s.kind === 'darkorb') { if (Math.random() < dt * 40) { const pa = rand(0, TAU), pr = rand(10, 18); part(e.x + Math.cos(pa) * pr, e.y - 2 + Math.sin(pa) * pr, -Math.cos(pa) * pr * 3, -Math.sin(pa) * pr * 3, 0.3, pick(['#c79bff', '#7a3ab0', '#2a1240']), { glow: Math.random() < 0.4, drag: 0 }); } } // 影の眼: 闇が瞳へ吸い込まれる
+          else if (MAGE_COL[e.type]) { if (Math.random() < dt * 40) { const pa = rand(0, TAU), pr = rand(8, 14), tx = e.x + (e.face || 1) * 3.5, ty = e.y - 7; part(tx + Math.cos(pa) * pr, ty + Math.sin(pa) * pr, -Math.cos(pa) * pr * 3, -Math.sin(pa) * pr * 3, 0.3, pick(MAGE_COL[e.type]), { glow: Math.random() < 0.5, drag: 0 }); } } // メイジ: 属性の光が掲げた杖の珠へ集まる
           else if (Math.random() < dt * 45) { const pa = rand(0, TAU), pr = rand(5, 10); part(e.x + Math.cos(pa) * pr, e.y + 4 + Math.sin(pa) * pr * 0.5, -Math.sin(pa) * 34, Math.cos(pa) * 16 - 10, 0.35, pick(['#e8c88a', '#c8a060', '#fff0c0']), { drag: 2 }); }
           if (e.wind <= 0) enemyShoot(e, s, Math.atan2(dc.y - e.y, dc.x - e.x));
         } else {
           e.shotT -= dt * CHAOS.rate * tw * e.rateK; // カオス: 攻撃頻度 / 時の歪み
           if (e.shotT <= 0 && dd < s.range) {
             e.shotT = s.cd;
-            if (s.wind) { e.wind = s.wind; if (s.kind === 'darkorb') AudioMan.charge(s.wind); else AudioMan.sand(); } else enemyShoot(e, s, a);
+            if (s.wind) { e.wind = s.wind; if (s.kind === 'esand') AudioMan.sand(); else AudioMan.charge(s.wind); } else enemyShoot(e, s, a); // 影の眼・メイジは溜める音
           }
         }
         if (s) e.aim = s.wind ? e.wind > 0 : e.shotT < 0.4; // 撃つ前に構える(予兆)
@@ -2008,6 +2041,11 @@ function updEnemies(dt) {
           AudioMan.fuse();
         }
       }
+      if (d.buff) { // メイジ: プレイヤーが射程(shot.range)にいる間、cd 秒ごとに まわりの敵にバフ(最初は出て first 秒。遠くで時が来たら、射程に入ったときに)
+        e.buffT = (e.buffT ?? d.buff.first) - dt * tw;
+        if (e.buffT <= 0 && d2(e.x, e.y, P.x, P.y) < d.shot.range * d.shot.range) { e.buffT = d.buff.cd; mageBuff(e, d.buff); }
+      }
+      if (e.buffs && Math.random() < dt * 3) for (const k in e.buffs) if (e.buffs[k].t > S.time) part(e.x + rand(-4, 4), e.y + rand(0, 4), rand(-3, 3), -rand(12, 22), 0.5, pick(BUFF_COL[k].parts), { glow: true, drag: 1 }); // バフの間: 属性の色の粒が昇る
       e.x += mx * sp * dt; e.y += my * sp * dt;
       e.face = (mx || dc.x - e.x) < 0 ? -1 : 1; // 止まっている間はプレイヤーの方を向く
       // 分離(重なり防止)

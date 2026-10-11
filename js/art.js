@@ -1022,6 +1022,50 @@ const ART = (() => {
     '..aa...aa...',
   ], { emit: 'egh' });
 
+  // メイジ(tier 3。ファイアー・フロスト・サンダー): とんがり帽子と属性の色の衣(赤・白・黄。プレイヤーのメイジの青紫と見分ける)、属性の珠の杖。〜Cast は杖を掲げた構え(撃つ前・バフの時)
+  const mageIdle = [
+    '............',
+    '.....a......',
+    '....aba..gh.',
+    '....abba.gg.',
+    '...abbbba.f.',
+    '..aiiiiiiaf.',
+    '...addddd.f.',
+    '...adedeb.f.',
+    '...abddbb.f.',
+    '..bccccccbf.',
+    '.bcccgcccbf.',
+    '.bcccccccbf.',
+    '.bccccccccf.',
+    '..bcccccbbf.',
+    '..bbcccbb.f.',
+    '..aa...aa...',
+  ];
+  const mageCast = [
+    '.........gh.',
+    '.....a..hggh',
+    '....aba..gf.',
+    '....abba..f.',
+    '...abbbba.f.',
+    '..aiiiiiiaf.',
+    '...addddd.f.',
+    '...adedeb.f.',
+    '...abddbbbf.',
+    '..bccccccb..',
+    '.bcccgcccb..',
+    '.bcccccccb..',
+    '.bccccccccb.',
+    '..bcccccbb..',
+    '..bbcccbb...',
+    '..aa...aa...',
+  ];
+  const magePal = {
+    fire: { a: '#4a1410', b: '#a8302a', c: '#d8583a', d: '#1a0a08', e: '#ffd23f', f: '#6a4a2a', g: '#ff8a3d', h: '#fff0a0', i: '#ffd27a' },
+    frost: { a: '#22324e', b: '#5a8ac8', c: '#dceeff', d: '#0a1020', e: '#7ad7ff', f: '#6a5a4a', g: '#7ad7ff', h: '#ffffff', i: '#3a6aa8' },
+    thunder: { a: '#3a2a10', b: '#3c3c5c', c: '#f0c840', d: '#100820', e: '#fff27a', f: '#4a3a2a', g: '#ffe14a', h: '#ffffff', i: '#9a7aff' },
+  };
+  for (const k in magePal) { S[k + 'mage'] = mk(magePal[k], mageIdle, { emit: 'egh' }); S[k + 'mageCast'] = mk(magePal[k], mageCast, { emit: 'egh' }); }
+
   // 投槍兵: 青銅の兜と革鎧、長い槍を立てて持つ
   S.spear = mk({ a: '#3a2a1a', b: '#a0703a', c: '#e8e6da', d: '#c8b89a', e: '#ff5a3a', f: '#6b4a2a', g: '#dfe8f5', h: '#7a3a2a' }, [
     '..........g.',
@@ -1865,6 +1909,8 @@ const ART = (() => {
   S.pshard = ['#ff5d73', '#ff9a3d', '#ffd23f', '#7dff9a', '#7ad7ff', '#8a7aff', '#d88aff'].map(c => mk({ a: c, b: '#ffffff' }, ['.a.', 'aba', '.a.'], { outline: false, emit: 'ab' }));
   S.efire = mk({ a: '#b8261a', b: '#ff6a2a', c: '#ffc34a', d: '#fff6c8' }, ['.aba.', 'abcba', 'bcdcb', 'abcba', '.aba.'], { outline: false, emit: 'bcd' });
   S.esand = mk({ a: '#8a5a2a', b: '#e8c88a', c: '#fff0c0' }, ['.ab.', 'abcb', 'bccb', '.bb.'], { emit: 'c' });
+  const tsparkPal = { a: '#7a5ad8', b: '#d8c8ff', c: '#fff6c0' };
+  S.tspark = [mk(tsparkPal, ['..a..', '.aba.', 'abcba', '.aba.', '..a..'], { outline: false, emit: 'bc' }), mk(tsparkPal, ['a...a', '.aba.', '.bcb.', '.aba.', 'a...a'], { outline: false, emit: 'bc' })]; // サンダーメイジの雷の弾(またたく火花)
   S.espear = mk({ a: '#6b4a2a', b: '#dfe8f5', c: '#ffffff' }, ['.........b..', 'aaaaaaaaabbc', '.........b..']);
   S.scythe = mk({ a: '#c29bff', b: '#ffffff', c: '#5a3a9a' }, ['..aaa..', '.a...a.', 'b.....a', '.....ca', '....c..', '...c...'], { emit: 'ab' });
   S.rscythe = mk({ a: '#ff3b5c', b: '#ffd0d8', c: '#5a1020' }, ['..aaa..', '.a...a.', 'b.....a', '.....ca', '....c..', '...c...'], { emit: 'a' }); // 終刻の死神の赤い鎌

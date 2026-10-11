@@ -521,8 +521,30 @@ function spriteOf(e) {
   if (e.type === 'antlion') return s[e.biteT > S.time ? 1 : Math.floor(e.t * 1.5 + e.seed * 3) % s.length]; // アリジゴク: 大あごをゆっくり開け閉め(噛むときは閉じる)
   if (e.type === 'tarmor' && e.aim) return ART.S.tarmorUp; // 雷の甲冑: 刀を掲げて雷を受ける
   if (e.type === 'twinsprite') { const f = e.twinIdx ? ART.S.twinsprite2 : ART.S.twinsprite; return f[Math.floor(e.t * 10 + e.seed * 5) % f.length]; } // 対の雷精: 2体で色が違う(紫・水色)
+  if (MAGE_COL[e.type]) return e.aim || e.castT > S.time ? ART.S[e.type + 'Cast'] : s; // メイジ: 撃つ前・バフの時は杖を掲げる
   if (Array.isArray(s)) return s[Math.floor(e.t * 8) % s.length];
   return s;
+}
+
+// メイジのバフ: 足元を囲む属性の色の楕円(攻撃力 = 橙・受けるダメージ = 水色・移動速度 = 黄。いくつもかかると外へ重なる)
+//   明るい点が楕円を回る。切れる前の 1.5秒は点滅。光の層は手前の半分だけ(体の上に光がにじまないように)
+function drawBuffRings(e, sp, sc) {
+  const sx = GFX.sctx, gx = GFX.gctx, cx = e.x - cam.x, cy = e.y - cam.y + sp.h * sc / 2 - 1;
+  let k = 0;
+  for (const bk in BUFF_COL) {
+    const b = e.buffs[bk];
+    if (!b || b.t <= S.time) continue;
+    const left = b.t - S.time, on = left > 1.5 || Math.floor(left * 8) % 2;
+    const rx = sp.w * sc * 0.5 + 1 + k * 3, ry = Math.max(2, rx * 0.4), C = BUFF_COL[bk].ring, n = Math.max(16, Math.round(TAU * rx)), rot = S.time * 2.5 * (k % 2 ? -1 : 1) + e.seed * 9;
+    k++;
+    if (!on) continue;
+    for (let i = 0; i < n; i++) {
+      const a = TAU / n * i, front = Math.sin(a) > 0, x = Math.round(cx + Math.cos(a) * rx), y = Math.round(cy + Math.sin(a) * ry);
+      const hi = Math.cos(a * 2 - rot) > 0.85; // 回る明るい点(2つ)
+      sx.fillStyle = hi ? '#ffffff' : front ? C[0] : C[2]; sx.fillRect(x, y, 1, 1);
+      if (front || hi) { gx.fillStyle = C[1]; gx.fillRect(x, y, 1, 1); }
+    }
+  }
 }
 
 // スキルのモーション中の描画(motions.js の状態): 姿勢を足元基準で前傾・伸縮し、武器を任意の角度で1ドットずつ描く
@@ -1550,6 +1572,7 @@ function render() {
     const sp = e.boss ? ART.S[e.spr || e.boss] : e.prop ? ART.S.brazier[Math.floor(t * 6 + e.seed * 5) % 2] : spriteOf(e);
     const sc = e.scale;
     if (!e.hz) shadow(e.x, e.y + sp.h * sc / 2 - 1, sp.w * sc * 0.8); // 宙にある物(ケルベロスの首)は影なし
+    if (e.buffs) drawBuffRings(e, sp, sc); // メイジのバフ(体の後ろ側は体に隠れるので、体より先に)
     let sy = 1, sxk = 1, yo = 0;
     if (e.ai === 'hop') { const ha = e.hopAir || 0.35, h = e.hopT < ha ? Math.sin((e.hopT / ha) * Math.PI) : 0; yo = -h * 5; sy = 1 + h * 0.15 - (e.hopT > (e.hopEvery || 1.1) - 0.2 ? 0.15 : 0); sxk = 2 - sy; }
     else if (e.ai === 'flutter' || e.type === 'imp' || e.ai === 'twin' || e.type === 'raincloud') yo = Math.sin(e.t * 12) * 1.5; // 飛ぶ敵は上下に揺れる(火の小鬼は浮いたまま射撃。雷雲・対の雷精も浮く)
@@ -1983,6 +2006,7 @@ function render() {
       addLight(p.x, p.y, 50, '#d88aff', 0.7);
     }
     else if (p.kind === 'tnet') { drawSp(ART.S.nethead, p.x, p.y, ol); addLight(p.x, p.y, 24, '#9a7aff', 0.4); } // 雷の網の玉
+    else if (p.kind === 'tspark') { drawSp(ART.S.tspark[Math.floor(t * 14 + p.x * 0.05) % 2], p.x, p.y, ol); if (Math.random() < 0.25) part(p.x, p.y, rand(-10, 10), rand(-10, 10), 0.15, pick(['#d8c8ff', '#fff6c0']), { glow: true, drag: 3 }); } // サンダーメイジの雷の弾: またたく火花
     else if (p.kind === 'scythe' || p.kind === 'rscythe') drawRot(p.kind, p.t * 14, p.x, p.y, ol);
     else if (p.kind === 'vslash') { // 影刃・五月雨: 地面に垂直に立った三日月の刃が飛んでいく(当たり判定は地面の線)
       const c = Math.cos(p.a), s = Math.sin(p.a), x = p.x - cam.x, y = p.y - cam.y, L = Math.round(p.len), H = 24 * A, fl = Math.floor(t * 30) % 2;
@@ -2031,7 +2055,7 @@ function render() {
     }
     else drawSp(ART.S.ball, p.x, p.y, ol);
     sx.globalAlpha = 1;
-    addLight(p.x, p.y, (p.kind === 'boomer' ? 40 : p.kind === 'efire' ? 34 : 22) * A, p.kind === 'efire' && !stop ? '#ff6a2a' : oc, stop ? 0.2 : 0.6);
+    addLight(p.x, p.y, (p.kind === 'boomer' ? 40 : p.kind === 'efire' ? 34 : 22) * A, stop ? oc : p.kind === 'efire' ? '#ff6a2a' : p.kind === 'tspark' ? '#9a7aff' : oc, stop ? 0.2 : 0.6);
   }
   // 予兆: 赤い半透明の塗り(時間とともに内側が満ちる) + 点滅する縁
   //   当たる時を示す動き: 円は外から縁へ縮む輪 / 帯は攻撃の向きへ流れる山形 / 扇は外から縁へ縮む弧。当たった瞬間は形が一瞬白く光る(snap)
