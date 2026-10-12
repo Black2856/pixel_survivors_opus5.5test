@@ -1134,6 +1134,44 @@ const ART = (() => {
   }
   S.trichroma = mk({ W: '#ffffff', w: '#e8f0ff', a: '#dfe8f8', b: '#b8c4dc', c: '#8a96b4', B: '#a0acc8' }, triRows, { emit: 'W' });
   // 三原の光精の分光の玉(白・赤・緑・青)は render.js で描く(tchroma)
+  // 熾天使(天光の聖堂 2体目): 金の髪・冠の宝石・閉じた目、胸の前の光の珠、ひだのある白い衣と金の縁(左半分を書いて左右反転。30×40)
+  //   6枚の翼・光輪・光の衣は render.js で描く(drawSerWings / drawSerFx)。Cast = 技: 目を開いて青白く光り、珠が大きく光る / Still = 立ち尽くす: 目を伏せ、光が消える
+  const serMir = half => half.map(r => r + r.split('').reverse().join(''));
+  const serPal = {
+    a: '#3a2c1c', y: '#d8a830', Y: '#f0d880', k: '#a07018', s: '#ecd4bc', S: '#d0ae8c', E: '#ffffff', e: '#8a6a50',
+    w: '#dcd8d0', v: '#bcb8cc', V: '#9690b0', g: '#c89428', G: '#e8d088', h: '#9a6e1c', o: '#ffffff', O: '#fff2b8', c: '#bff4ff',
+  };
+  const serHead = [
+    '.............aG', '............aGc', '..........aagGg', '.........akyYYY', '........akyyYYY', '........akyyyYY', '.......akyyysss',
+    '.......akyyssss', '.......akyysEEs', '.......akyysssS', '.......akyyssse', '.......akyyysss', '.......akyyyass', '......akyyy.ahg',
+  ];
+  const serBody = [
+    '......akyyagGGg', '.....akyywwgGOg', '....akkywwwgOoO', '....akywwwwvOOO', '...akwwwwwvvgOg', '...awwwwwwvvsgG', '..awwwwwwvvsssg',
+    '..awwwvwwvvssSg', '..awwvwwwvwhggg', '.awwwvwwwwwgGGG', '.awwwvwwwwwwgGg', '.awwwvvwwwwwwgG', '.awwwwvwwwwwvgg', 'awwwwwvwwwwwvgG',
+    'awwwwwvvwwwvvgg', 'awwwwwwvwwwvvgG', 'awvwwwwvwwvvVgg', 'awvvwwwvvwvVVgG', 'awvVwwwvvvvVVgg', 'agggGgggGgggGGg', '.ahhhhhhhhhhhhh', '..aaaaaaaaaaaaa',
+  ];
+  S.seraph = mk(serPal, serMir([...serHead.map(r => r.replace('sEEs', 'sees')), ...serBody]), { emit: 'oc' }); // ふだんは目を閉じている。光るのは珠の芯・冠の宝石だけ(白い衣は明るい床で白く飛ぶので、光らせない)
+  S.seraphCast = mk(serPal, serMir([...serHead.map(r => r.replace('sEEs', 'sccs')), ...serBody.map((r, i) => i === 0 ? r.replace('gGGg', 'gOOO') : i === 1 ? r.replace('wgGOg', 'wOOoO') : i === 2 ? r.replace('wgOoO', 'OOooo') : i === 3 ? r.replace('vOOO', 'OOoo') : i === 4 ? r.replace('vgOg', 'vOOO') : r)]), { emit: 'EoOc' });
+  S.seraphStill = mk(serPal, serMir([...serHead.map(r => r.replace('sEEs', 'sSes')), ...serBody.map(r => r.replace(/[oO]/g, 'w'))]), {});
+  // 熾天使のクリスタル: 回るクリスタル(小さな双角錐)/ 巨大クリスタル(六角柱。左の面は明るく、右は青い影。稜は白く光る)/ 壊れた巨大クリスタル(ぎざぎざに折れた根元)
+  const crysPal = { W: '#ffffff', a: '#e8fbff', b: '#a8d8f0', c: '#6a9ac8', d: '#3a5a88' };
+  S.obj_scrystal = mk(crysPal, ['...W...', '..WaW..', '.Waabd.', '.Waabd.', 'Waaabbd', 'Waaabbd', 'Waaabbd', '.Wabbd.', '.Wabbd.', '..Wbd..', '..Wbd..', '...d...'], { emit: 'W' });
+  const tcRows = [];
+  for (let r = 0; r < 28; r++) {
+    let row = '';
+    for (let c = 0; c < 15; c++) {
+      const top = r < 7 ? 7 - r : 0, inside = c >= top && c <= 14 - top;
+      if (!inside) { row += '.'; continue; }
+      if (r >= 26 && (c + r) % 3 === 0) { row += '.'; continue; } // 根元のぎざぎざ
+      row += c === top || c === 5 || c === 10 ? 'W' : c < 5 ? 'a' : c < 10 ? (r % 6 === 2 && c === 7 ? 'W' : 'b') : r > 20 ? 'd' : 'c';
+    }
+    tcRows.push(row);
+  }
+  S.obj_tcrystal = mk(crysPal, tcRows, { emit: 'W' });
+  S.husk = mk(crysPal, tcRows.slice(16).map((r, i) => i === 0 ? r.replace(/[a-dW]/g, (m, j) => (j % 3 ? '.' : m)) : i === 1 ? r.replace(/[a-dW]/g, (m, j) => (j % 4 === 1 ? '.' : m)) : r), { emit: '' });
+  // 熾天使の弾: 光弾(クリスタルサテライト)/ 光の羽根(セラフィムレイ)
+  S.sbolt = mk({ a: '#7ad7ff', b: '#e8fbff', c: '#ffffff' }, ['.aba.', 'abcba', 'bcccb', 'abcba', '.aba.'], { outline: false, emit: 'bc' });
+  S.sfeather = mk({ a: '#c89a3a', b: '#ffe8a0', c: '#ffffff' }, ['..a..', '.aba.', 'abcba', '.aba.', '..a..'], { outline: false, emit: 'bc' });
   // 玻璃の天使が割れた破片(赤・緑・青・金のガラスの三角のかけら)
   S.gshard = ['#e84860', '#58d878', '#4878e8', '#ffd23f'].map(c => mk({ a: c, b: '#ffffff', o: '#1a1420' }, ['o..', 'aao', 'aba'], { emit: 'b' }));
 

@@ -138,6 +138,7 @@ const DATA = {
     raiju:   { name: '雷獣 RAIJU',                  hp: 1500, spd: 26, dmg: 22, r: 13, music: 'b_thunder', col: '#6a7ae8' }, // 雷鳴の雲海 1体目
     raijin:  { name: '雷神 RAIJIN',                 hp: 1600, spd: 16, dmg: 24, r: 13, music: 'b_thunder', col: '#c8603a' }, // 雷鳴の雲海 2体目
     trichroma: { name: '三原の光精 TRICHROMA',      hp: 1800, spd: 16, dmg: 22, r: 13, music: 'b_holy', col: '#e8f0ff' }, // 天光の聖堂 1体目(光の三原色。曲は用意されるまで草原の曲)
+    seraph:  { name: '熾天使 SERAPH',               hp: 1600, spd: 19, dmg: 19, r: 13, music: 'b_holy', col: '#c8b888', noTwin: true }, // 天光の聖堂 2体目(全部の攻撃が無敵無視なので 1発は低め。ラストラディアンスがあるので双王の相方にならない)
   },
   // 状態異常(プレイヤー): 粘液・スロウタイムの移動速度倍率 / スロウタイムのCD回復倍率 / 炎上
   debuff: { slow: 0.6, cdRate: 0.5, burnTick: 0.5, burnDur: 3, burnHeal: 0.5, fatigueDur: 3, fatigue: 0.5, slowRegen: 0.5, frostSlow: 0.05, pFrostSlow: 0.03, pFrostMax: 20, pFrzT: 2, shockR: 60, pDur: 5, pBleed: 0.01, pBleedMax: 5 }, // burnHeal: 炎上中の HP回復の倍率 / slowRegen: スロウタイム・時の歪みの中のスタミナ回復・HP回復速度の倍率 / fatigueDur・fatigue: 疲労(スタミナを減らされた)の秒とスタミナ回復の倍率 / frostSlow: 敵の凍傷1スタックあたりの減速 / pFrostSlow・pFrostMax・pFrzT: 自分の凍傷1スタックあたりの減速・上限(上限で凍結して 0 に戻る)・凍結の秒(行動不能・攻撃不能) / shockR: 感電の連鎖距離 / pDur: 自分の凍傷・出血・痺れ・砂塵・衰弱が消えるまでの秒 / pBleed: 自分の出血1スタックの毎秒ダメージ(最大HP の割合)
@@ -1304,7 +1305,7 @@ const DATA = {
   },
   // クラスLv: need[i] = Lv(i+1) → Lv(i+2) に必要な経験値。獲得量 = 討伐数 × killK + 撃破ボス数 × bossK
   // クラスの解放: このモード・ステージを初めてクリアすると使える(書いていないクラスは最初から: サムライ・メイジ・アーチャー・ナイト)
-  //   キーは runKey(escalation / arena / stage1〜11。stage の番号は stageRuns の no)
+  //   キーは runKey(escalation / arena / stage1〜12。stage の番号は stageRuns の no)
   classUnlock: { cleric: 'stage1', electro: 'stage2', pyro: 'stage3', necro: 'stage4', cryo: 'stage5', assassin: 'stage6', astro: 'stage7', weaponmaster: 'escalation', berserker: 'stage8' },
   classLevel: {
     need: [100, 150, 200, 300, 400, 500, 650, 800, 1000, 1250, 1500, 1750, 2000, 2500, 3000, 4000, 5000, 7500, 10000],
@@ -1504,7 +1505,7 @@ const DATA = {
   },
 
   // ---------- 通常モード(ステージを1つ選ぶ) ----------
-  // no = ステージのキーの番号(stage1〜11。クリア記録・カオス強化) / stage = DATA.stages の番号 / tier = 開始の敵Lv・報酬 / bosses = ボス1 → ボス2(倒すとクリア)
+  // no = ステージのキーの番号(stage1〜12。クリア記録・カオス強化) / stage = DATA.stages の番号 / tier = 開始の敵Lv・報酬 / bosses = ボス1 → ボス2(倒すとクリア)
   //   segs = 3分ごとの区間の出現の候補(1つ目は 0・60・120秒で1種ずつ足す / 2つ目 / 3つ目。null = その前の全部)
   stageRuns: [
     { no: 1, stage: 1, tier: 1, bosses: ['gslime', 'king'], segs: [['zombie', 'bat', 'slime'], ['bat', 'slime', 'brute'], null] },
@@ -1519,6 +1520,7 @@ const DATA = {
     // 終刻の時計塔: 3つ目の候補は「今までの敵」のまとまり(1枠として選ばれ、その中から1種)
     { no: 7, stage: 8, tier: 4, bosses: ['warden', 'reaper'], segs: [['gear', 'clockman', ['skeleton', 'archer', 'lslime', 'wolf', 'sahagin', 'beetle']], ['clockman', 'hglass', ['skeleton', 'archer', 'lslime', 'wolf', 'sahagin', 'beetle']], null] },
     { no: 8, stage: 9, tier: 4, bosses: ['cerberus', 'shadowking'], segs: [['spider', 'shadoweye', 'ghoul'], ['shadoweye', 'ghoul', 'stalker'], null] }, // 常闇の王墓
+    { no: 12, stage: 13, tier: 4, bosses: ['trichroma', 'seraph'], segs: [['lightmoth', 'lampkeeper', 'glassangel'], ['lampkeeper', 'glassangel', 'holymage', 'firemage', 'frostmage', 'thundermage'], null] }, // 天光の聖堂(2つ目の区間はメイジが 4種。メイジはどれも同時に 3体まで・出にくい)
   ],
   // 通常モードの流れ(フェーズの時計で進む。ボス・エリート群のフェーズの間は止まる)
   //   seg: 区間の長さ / waves: 区間ごとの出現の間隔・上限(t は区間の中の秒) / horde: 2つ目・3つ目の区間で大群を出す秒 / elites: エリート群の数
