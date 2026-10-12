@@ -7119,12 +7119,12 @@ function updSpawner(dt) {
 // ============================================================
 function updArena(dt) {
   const A = S.arena, cfg = DATA.arena;
-  if (S.boss || S.won || A.idx >= cfg.order.length || S.pendingLv > 0) return; // レベルアップ処理中は休憩時間を止める
+  if (S.boss || S.won || A.idx >= cfg.rounds || S.pendingLv > 0) return; // レベルアップ処理中は休憩時間を止める
   A.restT -= dt;
-  if (!A.warned && A.restT <= 2.5) { A.warned = true; UI.announce('ROUND ' + (A.idx + 1) + ' / ' + cfg.order.length, _t('次の挑戦者が入場する…')); AudioMan.warning(); }
+  if (!A.warned && A.restT <= 2.5) { A.warned = true; UI.announce('ROUND ' + (A.idx + 1) + ' / ' + cfg.rounds, _t('次の挑戦者が入場する…')); AudioMan.warning(); }
   if (A.restT > 0) return;
   S.elv = arenaLv(A.idx); UI.enemyLvUp();
-  const ord = (A.order || cfg.order)[A.idx], e = spawnBoss(Array.isArray(ord) ? pick(ord) : ord, A.idx === cfg.order.length - 1); // 配列のラウンドはステージのボス2体のどちらか
+  const ord = A.order[A.idx], e = spawnBoss(Array.isArray(ord) ? pick(ord) : ord, A.idx === cfg.rounds - 1); // 配列のラウンドはステージのボス2体のどちらか
   // 闘技場の中、プレイヤーと中心を挟んだ反対側から入場
   const a = Math.hypot(P.x, P.y) > 30 ? Math.atan2(-P.y, -P.x) : rand(0, TAU), R = cfg.r * 0.6;
   e.x = Math.cos(a) * R; e.y = Math.sin(a) * R;
@@ -7163,7 +7163,7 @@ function arenaBossDown(e) {
   dropItem('meat', e.x + 14, e.y); dropItem('magnet', e.x - 14, e.y);
   dropItem('chest', e.x, e.y - 14); // 装備宝箱
   A.idx++;
-  if (A.idx >= cfg.order.length) { S.won = true; S.victoryT = 3.2; AudioMan.stopMusic(1.5); UI.announce('ARENA CLEAR!!', _t('全ボス撃破')); return; }
+  if (A.idx >= cfg.rounds) { S.won = true; S.victoryT = 3.2; AudioMan.stopMusic(1.5); UI.announce('ARENA CLEAR!!', _t('全ボス撃破')); return; }
   recalc(); // 報酬の倍率はラウンドの tier(2ラウンドごとに上がる)
   A.restT = cfg.rest; A.warned = false;
   UI.announce('ROUND ' + A.idx + ' CLEAR!', _t('報酬を拾って次に備えよ'));

@@ -100,7 +100,7 @@ const UI = (() => {
     $('xpfill').style.width = (P.xp / P.xpNext * 100).toFixed(1) + '%';
     set('lvl', 'LV ' + P.level);
     set('timer', fmtTime(S.time));
-    const pre = S.mode === 'arena' ? 'ROUND ' + Math.min(S.arena.idx + 1, DATA.arena.order.length) + '/' + DATA.arena.order.length + ' · ' : (S.loop > 1 ? 'LOOP ' + S.loop + ' · ' : '') + (S.mode === 'escalation' ? 'TIER ' + S.tier + ' · ' : '');
+    const pre = S.mode === 'arena' ? 'ROUND ' + Math.min(S.arena.idx + 1, DATA.arena.rounds) + '/' + DATA.arena.rounds + ' · ' : (S.loop > 1 ? 'LOOP ' + S.loop + ' · ' : '') + (S.mode === 'escalation' ? 'TIER ' + S.tier + ' · ' : '');
     const ph = phaseInfo();
     set('stage-name', pre + DATA.stages[S.stage - 1].label + (ph ? ' · ' + ph : ''));
     set('kills', '☠ ' + S.kills.toLocaleString());
@@ -744,7 +744,7 @@ const UI = (() => {
     $('title-gold').textContent = '● ' + META.gold.toLocaleString() + ' G';
     const nNew = META.inventory.filter(it => it.isNew).length;
     $('btn-equip').innerHTML = _t('装備') + (nNew ? ` <span class="nw-badge">NEW ${nNew}</span>` : '');
-    const b = META.best, arena = b.arenaTime ? `ARENA ${fmtTime(b.arenaTime)}` : b.arenaRound ? `ARENA ROUND ${b.arenaRound}/${DATA.arena.order.length}` : '';
+    const b = META.best, arena = b.arenaTime ? `ARENA ${fmtTime(b.arenaTime)}` : b.arenaRound ? `ARENA ROUND ${b.arenaRound}/${DATA.arena.rounds}` : '';
     $('title-best').innerHTML = [b.time ? `BEST ${fmtTime(b.time)} · ${b.kills} KILLS · LV ${b.level}` : '', arena].filter(Boolean).join('<br>');
     if (metaMigratedGold) { announce(_t`+${metaMigratedGold.toLocaleString()} G 返金`, _t('永続強化は新しいツリーに移行しました')); metaMigratedGold = 0; }
     if (metaTreeRefund) { announce(_t`+${metaTreeRefund.toLocaleString()} G 返金`, _t('永続ツリーの調整で、なくなったノードを返金しました')); metaTreeRefund = 0; }
@@ -789,7 +789,7 @@ const UI = (() => {
     $('result-title').textContent = win ? (arena ? 'ARENA CLEAR!' : 'VICTORY!') : 'YOU DIED';
     $('result-title').className = win ? 'win' : 'lose';
     $('btn-endless').classList.toggle('hidden', !win || S.mode !== 'escalation'); // エンドレスはエスカレーションのみ
-    const rows = [arena ? [_t('撃破ボス'), S.arena.idx + ' / ' + DATA.arena.order.length] : null, [arena ? _t('タイム') : _t('生存時間'), fmtTime(S.time)], [_t('レベル'), P.level], [_t('撃破数'), S.kills.toLocaleString()], [_t('最大コンボ'), S.bestCombo], [_t('総ダメージ'), Math.round(S.totalDmg).toLocaleString()], [_t('獲得ゴールド'), '● ' + earned], first ? [_t('初クリア報酬'), '● ' + first.toLocaleString()] : null];
+    const rows = [arena ? [_t('撃破ボス'), S.arena.idx + ' / ' + DATA.arena.rounds] : null, [arena ? _t('タイム') : _t('生存時間'), fmtTime(S.time)], [_t('レベル'), P.level], [_t('撃破数'), S.kills.toLocaleString()], [_t('最大コンボ'), S.bestCombo], [_t('総ダメージ'), Math.round(S.totalDmg).toLocaleString()], [_t('獲得ゴールド'), '● ' + earned], first ? [_t('初クリア報酬'), '● ' + first.toLocaleString()] : null];
     $('result-stats').innerHTML = rows.filter(Boolean).map(([a, b]) => `<div class="rs"><span>${a}</span><b>${b}</b></div>`).join('');
     const tot = Object.values(S.dmgBy).reduce((a, b) => a + b, 0) || 1;
     const list = Object.entries(S.dmgBy).filter(([k]) => DATA.weapons[k]).sort((a, b) => b[1] - a[1]);

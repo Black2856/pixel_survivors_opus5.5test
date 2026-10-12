@@ -1560,7 +1560,7 @@ const DATA = {
   // rewardLv: ボス撃破で得るレベルアップ回数(ジェムで配布) / rest: 次のボスまでの休憩秒 / r: 闘技場の半径
   arena: {
     r: 250, rest: 8, startLv: 6, rewardLv: 5,
-    order: [['king', 'gslime'], ['golem', 'wyrm'], ['stag', 'pqueen'], ['kraken', 'levia'], ['cdragon', 'ifrit'], ['fgiant', 'squeen'], ['warden', 'cerberus'], ['reaper', 'shadowking']], // tier の順: 草原 → 荒野 → 晶窟 → 海淵 → 奈落 → 霊峰 → tier 4 の1体目(番人かケルベロス)→ 最後(死神(→ 終刻の死神)か影の王)
+    rounds: 8, // ラウンドの数(顔ぶれは world.js の arenaOrder が stageRuns から決める: tier 1〜3 から 2ラウンドずつ → tier 4 の1体目 → 最後は tier 4 の2体目)
     elv:   [5, 10, 15, 20, 25, 30, 35, 40], // 5 から 5ずつ
   },
 };

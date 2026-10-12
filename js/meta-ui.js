@@ -305,7 +305,7 @@ const MetaUI = (() => {
   const rewX = x => '×' + x.toFixed(1), TR = DATA.flow.tierRew;
   const STAGE_ITEMS = () => [
     { key: 'escalation', mode: 'escalation', n: 1, name: _t('エスカレーション'), sub: _t`tier 1 → 4 を通す ・ 敵Lv ${startLvOf('escalation')} から ・ 報酬 ${rewX(TR[0])}〜${rewX(DATA.flow.escRew.max)}`, col: '#ffd23f' },
-    { key: 'arena', mode: 'arena', n: 1, name: _t('闘技場'), sub: _t`ボス${DATA.arena.order.length}体の連戦 ・ 敵Lv ${startLvOf('arena')} から ・ 報酬 ${rewX(TR[0])}〜${rewX(TR[TR.length - 1])}`, col: '#ff3b5c' },
+    { key: 'arena', mode: 'arena', n: 1, name: _t('闘技場'), sub: _t`ボス${DATA.arena.rounds}体の連戦 ・ 敵Lv ${startLvOf('arena')} から ・ 報酬 ${rewX(TR[0])}〜${rewX(TR[TR.length - 1])}`, col: '#ff3b5c' },
     ...DATA.stageRuns.map(R => ({ key: 'stage' + R.no, mode: 'stage', n: R.no, tier: R.tier, name: DATA.stages[R.stage - 1].label, first: DATA.flow.firstClear[R.tier - 1],
       sub: _t`tier ${R.tier} ・ 報酬 ${rewX(TR[R.tier - 1])} ・ 敵Lv ${startLvOf('stage' + R.no)} から ・ ${R.bosses.map(b => I18N.bossShort(DATA.bosses[b].name)).join(' → ')}`, col: TIER_COL[R.tier - 1] }))
       .sort((a, b) => a.tier - b.tier), // 通常モード: tier の順
