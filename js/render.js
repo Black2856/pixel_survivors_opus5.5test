@@ -2241,8 +2241,8 @@ function render() {
           const f = (d - u0) / du, i = Math.min(n - 2, Math.floor(f)), cw = Math.min(lerp(w.vs[i], w.vs[i + 1], f - i) * 0.4, 7), px = wx + ca * d, py = wy + sa * d;
           for (const s of [-1, 1]) pLine(sx, px + ca * 3, py + sa * 3, px - ca * 2 - sa * cw * s, py - sa * 2 + ca * cw * s, '#ff3b5c');
         }
-      } else { // 傾いている間: 縁の破線(だんだん薄く)
-        sx.globalAlpha = 0.6 * (1 - (w.t - w.aim) / (w.life - w.aim));
+      } else { // 傾いている間: 縁の破線(光が消えるまで同じ濃さで残す。今の楕円の外でも、最後の速く伸びる所で当たるので)
+        sx.globalAlpha = 0.55;
         for (let i = 0; i < full.length; i += 2) { const p = full[i], q = full[(i + 1) % full.length]; pLine(sx, p[0], p[1], q[0], q[1], '#ff3b5c'); }
       }
       sx.globalAlpha = 1;
