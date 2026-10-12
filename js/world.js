@@ -61,9 +61,9 @@ function pushWarn(w) {
 // 3分 → エリート群 → 3分 → ボス1 → 3分 → ボス2(倒すとクリア)。同じ t ではフェーズの開始を波の切り替えより先に処理する
 const stageRun = n => DATA.stageRuns.find(r => r.no === n); // ステージのキーの番号(stage1〜11)から
 // 出現の候補には「敵のまとまり」(配列)が入ることがある(時計塔の「今までの敵」)。まとまりは 1枠として選ばれ、その中から1種
-// spawnW: 選ばれやすさ(既定 1)/ group: 6体の小集団(noGroup の敵は出ない)/ maxAlive: 同時にいられる数(超えるなら選ばない)。選べないときは null
-function pickType(types, group) {
-  const ok = t => { const d = DATA.enemies[t]; return !(group && d.noGroup) && !(d.maxAlive && enemies.filter(e => !e.dead && e.type === t).length >= d.maxAlive); };
+// spawnW: 選ばれやすさ(既定 1)/ group: 6体の小集団(noGroup の敵は出ない)/ maxAlive: 同時にいられる数(超えるなら選ばない)/ skip: 選ばない種類(大群で一度出た solo の敵)。選べないときは null
+function pickType(types, group, skip) {
+  const ok = t => { const d = DATA.enemies[t]; return !(group && d.noGroup) && !(skip && skip.has(t)) && !(d.maxAlive && enemies.filter(e => !e.dead && e.type === t).length >= d.maxAlive); };
   const slots = [];
   for (const t of types) {
     if (Array.isArray(t)) { const m = t.filter(ok); if (m.length) slots.push({ w: 1, ts: m }); }
@@ -6381,8 +6381,8 @@ function confineArena() {
 function horde() {
   UI.banner('HORDE INCOMING!!', _t('大群が迫ってくる…'), 2000);
   AudioMan.warning(); shake(5);
-  const cfg = S.spawnCfg || { types: ['zombie'] }, R = Math.hypot(GFX.VW, GFX.VH) / 2 + 20, n = 48;
-  for (let i = 0; i < n; i++) { const a = TAU / n * i, t = pickType(cfg.types); if (t) spawnEnemy(t, { x: P.x + Math.cos(a) * R, y: P.y + Math.sin(a) * R }); }
+  const cfg = S.spawnCfg || { types: ['zombie'] }, R = Math.hypot(GFX.VW, GFX.VH) / 2 + 20, n = 48, once = new Set(); // once: solo の敵(メイジ)は大群にも 1体まで
+  for (let i = 0; i < n; i++) { const a = TAU / n * i, t = pickType(cfg.types, false, once); if (t) { if (DATA.enemies[t].solo) once.add(t); spawnEnemy(t, { x: P.x + Math.cos(a) * R, y: P.y + Math.sin(a) * R }); } }
 }
 
 // ============================================================

@@ -48,7 +48,7 @@ const DATA = {
     icesprite:{ hp: 24, spd: 16, dmg: 8,  xp: 1, r: 4, ai: 'keep', keep: [90, 120], shot: { cd: 3.5, range: 180, spd: 75, n: 1.0, kind: 'eice', frost: 1 } }, // 氷の精
     yeti:     { hp: 70, spd: 10, dmg: 14, xp: 2, r: 8, ai: 'chase', snowball: { cd: 5, range: 150, r: 18, n: 1.0, frost: 2, floor: 3 } }, // イエティ
     // 終刻の時計塔 / roll: 出たときのプレイヤーの位置へ一直線に転がり、通り過ぎると消える(遠くても移し直さない)
-    // spawnW: 出現の候補から選ばれやすさ(既定 1)/ noGroup: 6体の小集団で出ない / maxAlive: 同時にいられる数
+    // spawnW: 出現の候補から選ばれやすさ(既定 1)/ noGroup: 6体の小集団で出ない / maxAlive: 同時にいられる数 / solo: まとめて出ない(大群にも 1体まで。いる数の上限はない)
     // blink: cd 秒ごとに wind 秒光って、プレイヤーの方向へ dist 瞬間移動 / warp: cd 秒ごとに、プレイヤーの位置に wind 秒の予告 → 時の歪み(半径 r・dur 秒。移動速度 ×slow・クールダウンの回復 ×0.5)
     gear:     { hp: 34, spd: 110, dmg: 13, xp: 1, r: 6, ai: 'roll', kbRes: 1, noElite: true }, // 歯車(金属で硬い: 押されない)
     clockman: { hp: 28, spd: 22, dmg: 11, xp: 1, r: 5, ai: 'chase', blink: { cd: 2.5, wind: 0.3, dist: 45 } }, // 時計兵
@@ -91,9 +91,9 @@ const DATA = {
     // メイジ(tier 3 の属性のステージ。まばらに 1体ずつ): 距離を取って、4秒ごとに属性の弾を 3方向に(待ち cd 3.5秒 + 構え wind 0.5秒。shot.numb: 当たると痺れ +n)
     //   buff: プレイヤーが射程(shot.range)にいる間、cd 秒ごとに(最初は出て first 秒)、まわり(半径 r)の敵に dur 秒のバフ(自分にも。ボス・ボスが出した物は除く)
     //   k 'atk': 攻撃力 +v / 'def': 受けるダメージ −v / 'spd': 移動速度 +v。同じバフはかけ直すと時間が戻る(重ならない)
-    firemage:   { hp: 34, spd: 14, dmg: 9, xp: 2, r: 5, ai: 'keep', keep: [100, 130], noElite: true, spawnW: 0.1, noGroup: true, maxAlive: 1, shot: { cd: 3.5, range: 200, spd: 70, n: 0.8, kind: 'efire', burn: 0.1, wind: 0.5, count: 3, spread: 0.3 }, buff: { k: 'atk', v: 0.2, cd: 12, first: 3, r: 120, dur: 10 } }, // ファイアーメイジ
-    frostmage:  { hp: 34, spd: 14, dmg: 9, xp: 2, r: 5, ai: 'keep', keep: [100, 130], noElite: true, spawnW: 0.1, noGroup: true, maxAlive: 1, shot: { cd: 3.5, range: 200, spd: 70, n: 0.8, kind: 'eice', frost: 1, wind: 0.5, count: 3, spread: 0.3 }, buff: { k: 'def', v: 0.2, cd: 12, first: 3, r: 120, dur: 10 } }, // フロストメイジ
-    thundermage:{ hp: 34, spd: 14, dmg: 9, xp: 2, r: 5, ai: 'keep', keep: [100, 130], noElite: true, spawnW: 0.1, noGroup: true, maxAlive: 1, shot: { cd: 3.5, range: 200, spd: 70, n: 0.8, kind: 'tspark', numb: 1, wind: 0.5, count: 3, spread: 0.3 }, buff: { k: 'spd', v: 0.2, cd: 12, first: 3, r: 120, dur: 10 } }, // サンダーメイジ
+    firemage:   { hp: 34, spd: 14, dmg: 9, xp: 2, r: 5, ai: 'keep', keep: [100, 130], noElite: true, spawnW: 0.1, noGroup: true, solo: true, shot: { cd: 3.5, range: 200, spd: 70, n: 0.8, kind: 'efire', burn: 0.1, wind: 0.5, count: 3, spread: 0.3 }, buff: { k: 'atk', v: 0.2, cd: 12, first: 3, r: 120, dur: 10 } }, // ファイアーメイジ
+    frostmage:  { hp: 34, spd: 14, dmg: 9, xp: 2, r: 5, ai: 'keep', keep: [100, 130], noElite: true, spawnW: 0.1, noGroup: true, solo: true, shot: { cd: 3.5, range: 200, spd: 70, n: 0.8, kind: 'eice', frost: 1, wind: 0.5, count: 3, spread: 0.3 }, buff: { k: 'def', v: 0.2, cd: 12, first: 3, r: 120, dur: 10 } }, // フロストメイジ
+    thundermage:{ hp: 34, spd: 14, dmg: 9, xp: 2, r: 5, ai: 'keep', keep: [100, 130], noElite: true, spawnW: 0.1, noGroup: true, solo: true, shot: { cd: 3.5, range: 200, spd: 70, n: 0.8, kind: 'tspark', numb: 1, wind: 0.5, count: 3, spread: 0.3 }, buff: { k: 'spd', v: 0.2, cd: 12, first: 3, r: 120, dur: 10 } }, // サンダーメイジ
     goblin:   { hp: 160, spd: 44, dmg: 0, xp: 12, r: 5, ai: 'flee', kbRes: 0.5, noElite: true },
   },
 
