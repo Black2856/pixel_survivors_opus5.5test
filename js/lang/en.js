@@ -2567,7 +2567,7 @@ const I18N_EN = {
   "分光": "Spectral Split",
   "白い光の玉は、少しすると赤・緑・青の 3つに割れて広がる": "The white orbs soon split into red, green, and blue and spread out",
   "スポットライト": "Spotlights",
-  "スポットライトの光が、光精と自分の間を照らして動き回る。光の楕円に入ると乱光。台は壊せる": "Spotlight beams sweep the ground between the spirit and you. Standing in a lit ellipse inflicts Scatterlight. The stands can be destroyed",
+  "赤・緑・青のスポットライトが少しずつこちらを向く。重なった所は色が混ざり、3色の白は乱光。台のない光精の側へ抜ける(台は壊せる)": "Red, green and blue spotlights slowly turn toward you. Where they overlap the colors mix, and white from all three inflicts Scatterlight. Escape toward the spirit, where there are no stands (the stands can be destroyed)",
   "光の衣": "Robe of Light",
   "衣がダメージを防ぐ。状態異常を付けるほど薄くなり、技を使う間は消える": "The robe blocks damage. Each status you inflict thins it, and it vanishes while she uses a skill",
   "ホーリー": "Holy",
