@@ -2547,7 +2547,6 @@ const I18N_EN = {
   "HP が回復しない(HP回復速度・肉・スキルの回復も)": "HP can't be restored (HP Regen, meat, and skill healing)",
   "天光の聖堂の敵から受ける。それ自体に効果はなく、凍傷・痺れ・砂塵・衰弱・出血・毒・炎上・暗闇・疲労のどれかがランダムに付く(乱光 +n なら n 回)": "Inflicted by enemies in the Celestial Cathedral. It has no effect of its own: it applies a random status from Frostbite, Numbness, Sandblind, Weakness, Bleed, Poison, Burn, Darkness, and Fatigue (n times for Scatterlight +n)",
   "熾天使の最後の技で受ける。攻撃できない(歩く・回避はできる)。麻痺と違って E / Q の CD は戻らない": "Inflicted by the Seraph's final move. You can't attack (you can still move and dodge). Unlike Paralysis, your E / Q cooldowns are not reset",
-  "熾天使の最後の技で受ける。HP回復速度・肉・スキルなど、すべての回復が効かない": "Inflicted by the Seraph's final move. All healing is blocked, including HP Regen, meat, and skills",
   "眩惑": "Dazzle",
   "与えるダメージ -100%(炎上などの継続ダメージは除く)": "Damage dealt -100% (except damage over time such as Burn)",
   "光の蝶が近くで光ると、{0}秒 与えるダメージが 0 になる。近づかれる前に倒す": "When a Light Moth flashes near you, the damage you deal drops to 0 for {0}s. Kill them before they get close",
@@ -2592,7 +2591,7 @@ const I18N_EN = {
   "壊れたクリスタル": "Broken Crystal",
   "壊れたクリスタルは残り、ホワイトアウトのときに影(安全な所)を作る": "Broken crystals remain and cast a shadow (a safe spot) during Whiteout",
   "ラストラディアンス": "Last Radiance",
-  "最後の光。攻撃も回復もできない。技をよけきり、ホワイトアウトはクリスタルの影でしのぐ": "Her final light. You can neither attack nor heal. Dodge everything, and survive the Whiteout in the crystal's shadow",
+  "最後の光。攻撃できない。技をよけきり、ホワイトアウトはクリスタルの影でしのぐ": "Her final light. You cannot attack. Dodge everything, and survive the Whiteout in the crystal's shadow",
 };
 
 // ガイドの用語に印を付ける英語の書き方(help.js)。キーは用語集の k。書いていない用語は見出し(t の英語)で印を付ける

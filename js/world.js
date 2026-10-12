@@ -464,7 +464,7 @@ function lockPlayer(t) {
   P.lockT = Math.max(P.lockT, t); P.lockMax = Math.max(P.lockMax || 0, P.lockT); S.hudDirty = true;
   hint('plock', _t('攻撃不能'), _t('しばらく攻撃できない(歩く・回避はできる)'));
 }
-// 回復不能(ラストラディアンス): t 秒、HP回復速度・肉・クラスの回復・回復のスキルが効かない(heal)
+// 回復不能: t 秒、HP回復速度・肉・クラスの回復・回復のスキルが効かない(heal)。今は付ける技がない(ラストラディアンスの回復不能は 2026-10-13 にユーザーが外した)
 function noHealPlayer(t) {
   if (P.dead) return;
   P.noHealT = Math.max(P.noHealT, t); P.noHealMax = Math.max(P.noHealMax || 0, P.noHealT); S.hudDirty = true;
@@ -4727,7 +4727,7 @@ function trichromaAI(e, ai, dt, a, dist, slow) {
 }
 // ★三原の灯: 赤・緑・青の光の円(半径 50)が光精から飛び出し、それぞれ違う速さ(赤 50・緑 38・青 28)でプレイヤーを追う(6秒。激昂 8秒)。
 //   灯はプレイヤーのまわり 3方向(120° おき・110 離れた所)へ飛んで円を灯し(0.6秒。この間は当たらない)、そこから追う。
-//   円の中にいると 0.5秒ごとに、その場所の色の効果(1色 ×0.3・2色 ×0.5・白 ×0.8 と、色の状態異常)。止まっていると 3つが重なって白になる
+//   円の中にいると 0.5秒ごとに、その場所の色の効果(1色 ×0.1・2色 ×0.3・白 ×0.6 と、色の状態異常)。止まっていると 3つが重なって白になる
 function triLamps(e, ai) {
   const sp = [50, 38, 28], a0 = rand(0, TAU);
   ai.lamp = { t: 0, dur: ai.enraged ? 8 : 6, tick: 0.6, cs: [0, 1, 2].map(i => ({ x: P.x + Math.cos(a0 + TAU / 3 * i) * 110, y: P.y + Math.sin(a0 + TAU / 3 * i) * 110, sp: sp[i], i })) };
@@ -4744,7 +4744,7 @@ function updTriLamps(e, ai, dt) {
   if (L.t >= 0.6 && L.t < L.dur && (L.tick -= dt) <= 0) {
     L.tick = 0.5;
     const mask = triLampMask(ai);
-    if (mask && hurtPlayer(e.dmg * [0, 0.3, 0.5, 0.8][TRI_N[mask]])) triStatus(mask | triBallMask(e, ai), e.dmg); // ミラーボールの光と重なった所は色が混ざる
+    if (mask && hurtPlayer(e.dmg * [0, 0.1, 0.3, 0.6][TRI_N[mask]])) triStatus(mask | triBallMask(e, ai), e.dmg); // ミラーボールの光と重なった所は色が混ざる
   }
   if (L.t >= L.dur + 0.5) ai.lamp = null; // 終わりの 0.5秒で光が消えて灯が戻る
 }
@@ -4826,12 +4826,12 @@ function triSplit(e, ai) {
 // ミラーボール(激昂): 光精の頭上 150 の高さにミラーボールが現れて浮かぶ(壊せない)。赤・緑・青の光が 120° おきに出て、回りながら(毎秒 20°)、
 //   傾きが sin のように上下する(5秒で 1往復。真下 → 楕円の遠い縁が 325 の所まで)。3つの光は同じ傾き: 真下では 3色が重なって白になり、上がると赤・緑・青に分かれて広がる。
 //   光は円錐(ヘヴンズリフトと同じ計算 coneSpot。真下の円は半径 66、上がると最大 277×191 の楕円)。光が重なった所は色が混ざる(黄・紫・水色・白)。玉はふだん画面の上の端の外にあり、光が上から差し込む。
-//   現れて 0.6秒で光が地面に届き、1秒は弱い光(真下の白。当たらない)。そのあと楕円に入っていると 0.5秒ごとに、重なっている数で ×0.1・×0.3・×0.5 と、その場所の色の効果(triStatus)。
+//   現れて 0.6秒で光が地面に届き、1秒は弱い光(真下の白。当たらない)。そのあと楕円に入っていると 0.5秒ごとに、重なっている数で ×0.2・×0.4・×0.5 と、その場所の色の効果(triStatus)。
 //   15秒で消える。その間も光精は動き、ほかの技(三原の灯も)を使う(玉と光は光精に付いてくる。三原の灯の円と重なった所も色が混ざる)。間隔は終わってから数える
 //   H: 玉の高さ / R: 真下の円の半径(開きの半分は atan(R / H) = 23.7°。R に攻撃範囲の倍率を掛ける)/ reach: 傾きの上の端(楕円の遠い縁がここまで)
 //   spin: 回る速さ(度/秒。光精から 110 の所で 110 × 0.35 = 38 < 歩き 55)/ per: 上下の 1往復(秒)/ show: 現れてから光が地面に届くまで / warm: 弱い光の間
 //   dur: 光が消え始める時 / fade: 消える長さ / tick: 当たる間 / dmg: 重なっている光の数ごとの倍率 / cd: 次までの間
-const TRI_BALL = { H: 150, R: 66, reach: 325, spin: 20, per: 5, show: 0.6, warm: 1.0, dur: 15, fade: 0.3, tick: 0.5, dmg: [0, 0.1, 0.3, 0.5], cd: 20 };
+const TRI_BALL = { H: 150, R: 66, reach: 325, spin: 20, per: 5, show: 0.6, warm: 1.0, dur: 15, fade: 0.3, tick: 0.5, dmg: [0, 0.2, 0.4, 0.7], cd: 20 };
 const triBallAl = () => Math.atan(TRI_BALL.R * CHAOS.area / TRI_BALL.H); // 開きの半分(rad)
 const triBallMax = () => Math.max(0, Math.atan(TRI_BALL.reach / TRI_BALL.H) - triBallAl()); // 傾きの上の端(rad。遠い縁が reach。41.5°)
 // 今の 3つの光: 光精の真下 (gx, gy) から、向き a(120° おきに回る)・傾き th(sin のように上下。3つ同じ)・地面の楕円 o・色 ci。弱い光の間は真下で止まっている
@@ -4872,7 +4872,7 @@ function updTriBall(e, ai, dt) {
 
 // ---------- 熾天使(天光の聖堂 2体目・ラスボス): 光輪と 6枚の翼。距離 120 を保って浮かぶ ----------
 //   全部の攻撃が被弾後の無敵を無視する(1.7 の無敵無視。回避・防御スキルの無敵とガードでは防げる)。そのかわり 1発は低め。当たると乱光 +1(激昂 +2)
-//   光の衣: いつも纏い、受けるダメージ −100%。熾天使に付いている状態異常 1種につき効果が 20% 減る(5種で 0%)。技を使っている間(atkT)は衣が消える
+//   光の衣: いつも纏い、受けるダメージ −80%。熾天使に付いている状態異常 1種につき効果が 20% 減る(5種で 0%)。技を使っている間(atkT)は衣が消える
 //   ホーリー / ルミナスロンド / クリスタルサテライト / ヘヴンズリフト / ホーリーヴォルテックス / プリズムシフト / セラフィムレイ / プリズムバラージ
 //   激昂: トリニティサンクチュアリ → 12秒後にホワイトアウト(壊したクリスタルの影だけが安全)。残り HP 1% でラストラディアンス
 //   技は ai.act と later で進める(windup は使わない: 構えの間も衣・続く技・ホワイトアウトを毎フレーム動かすため)
@@ -4908,7 +4908,7 @@ function seraphAI(e, ai, dt, a, dist, slow) {
   ai.atkT = Math.max(0, (ai.atkT || 0) - dt);
   ai.statN = serStatusN(e);
   const off = ai.atkT > 0 || (ai.lr && ai.lr.still);
-  e.robeK = off ? 1 : Math.min(1, 0.2 * ai.statN);
+  e.robeK = off ? 1 : 1 - 0.8 * Math.max(0, 1 - 0.2 * ai.statN); // 衣は −80%。状態異常 1種につき衣の効果が 20% 減る(5種で 0%)
   ai.robeA = lerp(ai.robeA ?? 1, off ? 0 : 1, Math.min(1, dt * 10)); // 衣の見た目の濃さ(消えるときはほどける)
   if (e.flash > 0 && e.robeK < 1 && !e.shadow) hint('ser_robe', _t('光の衣'), _t('衣がダメージを防ぐ。状態異常を付けるほど薄くなり、技を使う間は消える'));
   ai.spread = lerp(ai.spread || 0, ai.act || ai.atkT > 0 ? 1 : 0, Math.min(1, dt * 6)); // 翼を広げる(技の間)
@@ -4934,15 +4934,15 @@ function seraphAI(e, ai, dt, a, dist, slow) {
   if (enr) ai.cTrin -= dt * R;
   if (ai.busy > 0) return; // 技のあとは少しだけあける(攻撃が速い)
   const sats = enemies.filter(o => !o.dead && o.obj === 'scrystal' && o.owner === e).length;
-  if (enr && ai.cTrin <= 0 && !ai.wo) { ai.cTrin = 45; ai.busy = 1; serTrinity(e, ai); }
-  else if (ai.cRay <= 0) { ai.cRay = enr ? 5 : 7; ai.busy = 1.0; serRay(e, ai, a); }
-  else if (ai.cHoly <= 0) { ai.cHoly = enr ? 7 : 9; ai.busy = 1.1; serHoly(e, ai); }
-  else if (ai.cVort <= 0) { ai.cVort = enr ? 6 : 8; ai.busy = 0.8; serVortex(e, ai); }
-  else if (ai.cBar <= 0) { ai.cBar = enr ? 9 : 11; ai.busy = 0.9; serBarrage(e, ai); }
-  else if (ai.cRift <= 0 && !ai.rift) { ai.cRift = enr ? 10 : 12; ai.busy = 0.8; serRift(e, ai); }
-  else if (ai.cRonde <= 0 && !ai.ronde) { ai.cRonde = enr ? 12 : 14; ai.busy = 0.8; serRonde(e, ai); }
-  else if (ai.cSat <= 0 && sats < 3) { ai.cSat = enr ? 14 : 16; ai.busy = 0.6; serSatellite(e, ai, sats); }
-  else if (ai.cShift <= 0) { ai.cShift = enr ? 8 : 10; ai.busy = 0.8; serShift(e, ai); }
+  if (enr && ai.cTrin <= 0 && !ai.wo) { ai.cTrin = 63; ai.busy = 1; serTrinity(e, ai); }
+  else if (ai.cRay <= 0) { ai.cRay = enr ? 7 : 9.8; ai.busy = 1.0; serRay(e, ai, a); }
+  else if (ai.cHoly <= 0) { ai.cHoly = enr ? 9.8 : 12.6; ai.busy = 1.1; serHoly(e, ai); }
+  else if (ai.cVort <= 0) { ai.cVort = enr ? 8.4 : 11.2; ai.busy = 0.8; serVortex(e, ai); }
+  else if (ai.cBar <= 0) { ai.cBar = enr ? 12.6 : 15.4; ai.busy = 0.9; serBarrage(e, ai); }
+  else if (ai.cRift <= 0 && !ai.rift) { ai.cRift = enr ? 14 : 16.8; ai.busy = 0.8; serRift(e, ai); }
+  else if (ai.cRonde <= 0 && !ai.ronde) { ai.cRonde = enr ? 16.8 : 19.6; ai.busy = 0.8; serRonde(e, ai); }
+  else if (ai.cSat <= 0 && sats < 3) { ai.cSat = enr ? 19.6 : 22.4; ai.busy = 0.6; serSatellite(e, ai, sats); }
+  else if (ai.cShift <= 0) { ai.cShift = enr ? 11.2 : 14; ai.busy = 0.8; serShift(e, ai); }
 }
 // ホーリー: 0.8秒 プレイヤーの位置に大きい円(半径 90)と光の陣 → 天から光の柱が降りて爆発 ×0.8。
 //   そのあと 2(3)秒、0.5秒ごとにプレイヤーのまわり(150 以内)へ小さいホーリー(円 半径 24・予告 0.5秒 → 細い光の柱 ×0.4)
@@ -5006,7 +5006,7 @@ function serSatellite(e, ai, have) {
   AudioMan.chime(); AudioMan.summon();
   hint('ser_sat', _t('クリスタルサテライト'), _t('熾天使のまわりを回るクリスタルが光弾を撃つ。壊せる'));
 }
-// ヘヴンズリフト: 熾天使の頭上(開いた所に残る)に光の裂け目。6秒の間 1秒ごとに、裂け目から地面へ光を差す:
+// ヘヴンズリフト: 熾天使の頭上(開いた所に残る)に光の裂け目。3秒(激昂 5秒)の間 1秒ごとに、裂け目から地面へ光を差す:
 //   真下に円い光(予告 0.5秒。光の通り道を赤く)→ プレイヤーの方向(差した時に決まる)へ一定の速さで傾く。地面の光は円錐を床で切った楕円で、
 //   傾くほど遠くへ長く伸び、加速しながら進む(遠い縁が reach に届くと消える)。当たると ×0.6(1つにつき 1回)。最後の光が消えてから裂け目が閉じる
 //   h: 裂け目の高さ / tan: 光の開き(半分)の tan(真下を照らすと 円 半径 h·tan)/ w: 傾く速さ(rad/秒)/ aim: 予告 / fade: 光が消える長さ
@@ -5045,7 +5045,7 @@ function serRift(e, ai) {
   const cr = [];
   for (let i = 0; i <= 16; i++) { const th = i % 2; cr.push({ dy: (i % 4 < 2 ? 1 : -1) * rand(0.3, 1.2), up: th ? rand(1, 1.25) : rand(0.35, 0.6), dn: th ? rand(0.35, 0.6) : rand(1, 1.25) }); } // 裂け目の縁の歯(上と下は噛み合う形: 破れた紙のように)
   const tips = [0, 1].map(() => ({ m: [rand(-2, 2), rand(-3, 3), rand(-4, 4)], br: Math.random() < 0.5 ? -1 : 1, bl: rand(4, 7) })); // 両端から伸びるひび(枝 1本)
-  ai.rift = { t: 0, x: e.x, y: e.y, beams: [], next: 0.5, cr, tips, tilt: rand(-0.12, 0.12), split: false, close: 0 };
+  ai.rift = { t: 0, dur: ai.enraged ? 5 : 3, x: e.x, y: e.y, beams: [], next: 0.5, cr, tips, tilt: rand(-0.12, 0.12), split: false, close: 0 };
   ai.atkT = Math.max(ai.atkT, 0.5);
   AudioMan.charge(0.5); AudioMan.sparkle();
   hint('ser_rift', _t('ヘヴンズリフト'), _t('空の裂け目から差す光が、傾きながら加速して向かってくる。赤い通り道から横へ出る'));
@@ -5059,7 +5059,7 @@ function updSerRift(e, ai, dt) {
     addRing(R.x, R.y - H, 34, '#ffe8a0', { r0: 6, w: 2, life: 0.3 }); addFlash(R.x, R.y - H, 50, '#fff6dc', 0.25);
     AudioMan.zap();
   }
-  if (R.t < 6 && (R.next -= dt) <= 0) {
+  if (R.t < R.dur && (R.next -= dt) <= 0) {
     R.next = 1;
     const a = Math.atan2(P.y - R.y, P.x - R.x), env = riftEnv(A);
     R.beams.push({ a, t: 0, hit: false, lit: false });
@@ -5079,7 +5079,7 @@ function updSerRift(e, ai, dt) {
     }
   }
   R.beams = R.beams.filter(b => b.t < Q.aim + RIFT_SWEEP + Q.fade);
-  if (R.t >= 6 && !R.beams.length && (R.close += dt) >= 0.3) ai.rift = null; // 最後の光が消えてから裂け目が閉じる(0.3秒)
+  if (R.t >= R.dur && !R.beams.length && (R.close += dt) >= 0.3) ai.rift = null; // 最後の光が消えてから裂け目が閉じる(0.3秒)
 }
 // ホーリーヴォルテックス: プレイヤーの位置に小さな光が差す(0.3秒)。そこへ、まわり(110)から小さいホーリー(弾。半径 24)3(4)つが渦を巻きながら 1.5秒で集まる
 //   (ふれると ×0.5。1つにつき 1回。通る道すじは淡い点で見える)。集まった所で光が弾ける(円 半径 30・×0.5)
@@ -5149,10 +5149,10 @@ function serRay(e, ai, a) {
   });
   hint('ser_ray', _t('セラフィムレイ'), _t('光線のあと、光線の上から左右へ羽根の弾が加速しながら飛ぶ'));
 }
-// プリズムバラージ: プレイヤーから 130 離れた所に光のクリスタル 2個(2.4秒)。現れて 0.4秒後から 0.5秒ごとに 4回、撃つ前に細い帯(0.25秒)→
+// プリズムバラージ: プレイヤーから 130 離れた所に光のクリスタル 1個(激昂 2個。2.4秒)。現れて 0.4秒後から 0.5秒ごとに 4回、撃つ前に細い帯(0.25秒)→
 //   高速弾を 3方向(±0.25rad・速さ 200・×0.3)
 function serBarrage(e, ai) {
-  const n = 2, a0 = rand(0, TAU);
+  const n = ai.enraged ? 2 : 1, a0 = rand(0, TAU);
   ai.atkT = Math.max(ai.atkT, 0.6);
   for (let k = 0; k < n; k++) {
     const pa = a0 + TAU / n * k, [cx, cy] = serClamp(P.x + Math.cos(pa) * 130, P.y + Math.sin(pa) * 130), c = { aim: 0 };
@@ -5170,8 +5170,8 @@ function serBarrage(e, ai) {
   AudioMan.chime();
   hint('ser_barrage', _t('プリズムバラージ'), _t('まわりのクリスタルから速い弾が 3方向に飛ぶ。細い赤い線が撃つ合図'));
 }
-// トリニティサンクチュアリ(激昂): 巨大クリスタル 3個(壊せる物・HP 各 12%)がプレイヤーのまわり(110〜140)に天から降りる。
-//   10秒後、残っている 1個につき熾天使の HP を 10% 回復(光の筋が熾天使へ流れこむ)。壊したクリスタルは壊れた姿でその場に残る(ホワイトアウトの影)。12秒後にホワイトアウト
+// トリニティサンクチュアリ(激昂): 巨大クリスタル 3個(壊せる物・HP 各 10%)がプレイヤーのまわり(110〜140)に天から降りる。
+//   10秒後、残っている 1個につき熾天使の HP を 8% 回復(光の筋が熾天使へ流れこむ)。壊したクリスタルは壊れた姿でその場に残る(ホワイトアウトの影)。12秒後にホワイトアウト
 function serTrinity(e, ai) {
   const a0 = rand(0, TAU);
   ai.atkT = Math.max(ai.atkT, 1.0);
@@ -5180,7 +5180,7 @@ function serTrinity(e, ai) {
   for (let k = 0; k < 3; k++) {
     const pa = a0 + TAU / 3 * k, d = rand(110, 140), [x, y] = serClamp(P.x + Math.cos(pa) * d, P.y + Math.sin(pa) * d, 30);
     fxSigil(x, y, 20, '#bff4ff', { foe: true, style: 'rune', n: 6, step: 3, wu: 0.45, life: 0.8, sq: 0.45, spin: 1.4, glow: 0.35, hi: '#ffffff' }); // 床に光の印(降りてくる所)
-    const c = spawnObj(e, 'tcrystal', x, y, { pct: 0.12, r: 11, life: 10.4 }); c.dropT = 0.45;
+    const c = spawnObj(e, 'tcrystal', x, y, { pct: 0.1, r: 11, life: 10.4 }); c.dropT = 0.45;
     ai.trin.cs.push(c);
     fxBeam(x, y, { foe: true, w: 16, H: 260, col: '#bff4ff', mid: '#e8fbff', core: '#ffffff', life: 0.7, drop: 0.1 });
     later(ai, 0.45, () => { shockAt(x, y, 1.1, 0.8); shake(5); burst(x, y, 30, ['#bff4ff', '#ffffff', '#ffe8a0'], { sp: 120, up: 30, glow: true, life: 0.5 }); AudioMan.thud(); AudioMan.chime(); });
@@ -5195,7 +5195,7 @@ function updSerTrinity(e, ai, dt) {
     T.healed = true;
     const alive = T.cs.filter(c => !c.dead);
     for (const c of alive) {
-      const add = e.maxhp * 0.1; e.hp = Math.min(e.maxhp, e.hp + add); S.hudDirty = true;
+      const add = e.maxhp * 0.08; e.hp = Math.min(e.maxhp, e.hp + add); S.hudDirty = true;
       bfx.push({ kind: 'healray', x: c.x, y: c.y - 14, x1: e.x, y1: e.y - e.jz, t: 0, life: 0.6 });
       addFloat(e.x, e.y - e.jz - 30, '+' + Math.round(add), '#5dff8a', 1.2);
       c.dead = true; objDown(c, false);
@@ -5259,7 +5259,7 @@ function updSerWhiteout(e, ai, dt) {
   ai.wo = null; if (!ai.lr) { ai.act = null; e.spr = 'seraph'; }
   AudioMan.chime();
 }
-// ラストラディアンス: 残り HP 1% で(1% より下がらない)最後の技。プレイヤーに回復不能・攻撃不能を 20秒。熾天使は天高く昇り、今までの技を次々に出す。
+// ラストラディアンス: 残り HP 1% で(1% より下がらない)最後の技。プレイヤーに攻撃不能を 20秒。熾天使は天高く昇り、今までの技を次々に出す。
 //   はじめに壊れたクリスタルが 1個降ってくる(ホワイトアウトの影。プレイヤーの近く)。10秒で ホワイトアウトの溜め(5秒)、15秒で爆発(3秒)。
 //   爆発が終わると曲がフェードアウトし、熾天使は衣と光を失って、倒れるまでその場に立ち尽くす
 function startSerLR(e, ai) {
@@ -5269,7 +5269,7 @@ function startSerLR(e, ai) {
   ai.ronde = ai.rift = ai.vortex = ai.after = ai.trin = null; eprojs.length = 0; warns.length = 0;
   for (const o of enemies) if (!o.dead && o.owner === e && o.obj) { o.dead = true; objDown(o, false); }
   ai.husks = [];
-  lockPlayer(20); noHealPlayer(20);
+  lockPlayer(20);
   hitstop(0.25); slowmo(0.25, 1.4); screenFlash(0.7, '#ffffff'); shake(14);
   shockAt(e.x, e.y, 3.4, 0.45); later(ai, 0.3, () => shockAt(e.x, e.y, 2.6, 0.7));
   fxBeam(e.x, e.y, { foe: true, w: 46, H: 320, col: '#ffe8a0', mid: '#fff6dc', core: '#ffffff', life: 1.4, drop: 0.12 });
@@ -5284,7 +5284,7 @@ function startSerLR(e, ai) {
     fxBeam(hx, hy, { foe: true, w: 14, H: 260, col: '#bff4ff', core: '#ffffff', life: 0.6, drop: 0.1 });
     burst(hx, hy, 40, ['#bff4ff', '#ffffff', '#ffe8a0'], { sp: 140, up: 40, glow: true, life: 0.6 }); shockAt(hx, hy, 1.2, 0.8); shake(6); AudioMan.crush(); AudioMan.chime();
   });
-  hint('ser_lr', _t('ラストラディアンス'), _t('最後の光。攻撃も回復もできない。技をよけきり、ホワイトアウトはクリスタルの影でしのぐ'));
+  hint('ser_lr', _t('ラストラディアンス'), _t('最後の光。攻撃できない。技をよけきり、ホワイトアウトはクリスタルの影でしのぐ'));
 }
 function updSerLR(e, ai, dt) {
   const L = ai.lr; L.t += dt;
@@ -5299,7 +5299,7 @@ function updSerLR(e, ai, dt) {
   }
   const a = Math.atan2(P.y - e.y, P.x - e.x);
   if (L.t >= 1.4 && L.t < 10 && (L.next -= dt) <= 0) { // 今までの技を次々に(ホワイトアウトの溜めが始まるまで)
-    L.next = rand(0.9, 1.3);
+    L.next = rand(1.2, 1.6);
     const k = Math.floor(rand(0, 5));
     if (k === 0) serRay(e, ai, a); else if (k === 1) serHoly(e, ai); else if (k === 2) serVortex(e, ai); else if (k === 3) serBarrage(e, ai); else if (!ai.rift) serRift(e, ai); else serRay(e, ai, a);
     ai.act = 'lr'; // 技の later が戻しても、ラストラディアンスの間は動かない
