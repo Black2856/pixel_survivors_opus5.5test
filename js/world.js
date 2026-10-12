@@ -4710,6 +4710,7 @@ function trichromaAI(e, ai, dt, a, dist, slow) {
   ai.orb = (ai.orb || 0) + dt * (ai.act === 'white' ? 6 : 1.6); // 灯が回る(白光の溜めでは速く)
   if (ai.lamp) updTriLamps(e, ai, dt);
   if (ai.wl) updTriWhite(e, ai, dt);
+  if (ai.cv) updTriConv(e, ai, dt);
   if (ai.act) return; // 白光の間は動かない(終わりは技の later)
   if ((ai.flip = (ai.flip ?? 3) - dt) <= 0) { ai.flip = rand(3, 5); ai.side = -(ai.side || 1); } // ときどき回り込む向きを変える
   const dir = dist > 110 ? a : a + Math.PI, k = Math.abs(dist - 110) > 15 ? 1 : 0.25; // 距離 110 を保ち、横へ漂う
@@ -4720,7 +4721,7 @@ function trichromaAI(e, ai, dt, a, dist, slow) {
   if (ai.busy > 0) return; // 技のあとは少しあける
   if (ai.enraged && ai.white <= 0) { ai.white = 13; triWhite(e, ai); }
   else if (ai.lampCd <= 0 && !ai.lamp) { ai.lampCd = ai.enraged ? 11 : 14; ai.busy = 1.2; triLamps(e, ai); }
-  else if (ai.conv <= 0) { ai.conv = ai.enraged ? 8 : 10; ai.busy = 2; triConverge(e, ai); }
+  else if (ai.conv <= 0) { ai.conv = ai.enraged ? 8 : 10; ai.busy = TRI_CONV.end + 0.4; triConverge(e, ai); }
   else if (ai.pill <= 0) { ai.pill = ai.enraged ? 5.5 : 7; ai.busy = 1.6; triPillars(e, ai); }
   else if (ai.split <= 0) { ai.split = ai.enraged ? 4 : 5; ai.busy = 1.8; triSplit(e, ai); }
 }
@@ -4748,15 +4749,17 @@ function updTriLamps(e, ai, dt) {
   }
   if (L.t >= L.dur + 0.5) ai.lamp = null; // 終わりの 0.5秒で光が消えて灯が戻る
 }
-// 白の収束: 3つの灯がプレイヤーのまわり 3方向(120° おき・100 離れた所)に降り(0.4秒)、1.2秒かけてプレイヤーのいた所へ集まる(動く円の予告 半径 40)。
-//   集まった所で白の爆発(半径 50。最後の 0.6秒は真ん中の円も出る)×1.4・乱光 +2。灯の間を抜けて外へ
+// 白の収束: 3つの灯がプレイヤーのまわり 3方向(120° おき・100 離れた所)に降り(0.4秒)、1.6秒かけて真ん中へ集まる(動く円の予告 半径 40)。
+//   真ん中はプレイヤーを追う(速さ 30。真ん中の円が出たら止まる)。集まった所で白の爆発(半径 50。最後の 0.6秒は真ん中の円も出る)×1.4・乱光 +2。早めに離れる
+const TRI_CONV = { D: 100, land: 0.4, lock: 1.4, end: 2.0, sp: 30 }; // 灯の離れ具合・降りる時間・真ん中が止まる時・爆発の時・真ん中の追う速さ(白光の柱 45 より遅く)
 function triConverge(e, ai) {
-  const cx = P.x, cy = P.y, a0 = rand(0, TAU), D = 100, pts = [0, 1, 2].map(i => ({ x0: cx + Math.cos(a0 + TAU / 3 * i) * D, y0: cy + Math.sin(a0 + TAU / 3 * i) * D, i }));
-  const pos = (p, t) => { const u = clamp((t - 0.4) / 1.2, 0, 1), k = u * u; return [lerp(p.x0, cx, k), lerp(p.y0, cy, k)]; }; // ease-in(最後に一気に集まる)
-  ai.cv = { t0: S.time, cx, cy, pts, pos }; // t0: 始まった時刻(render.js が灯の位置を同じ式で描く)
-  for (const p of pts) pushWarn({ kind: 'circle', x: p.x0, y: p.y0, r: 40, t: 0, life: 1.6, owner: e, noSnap: true, track: w => { [w.x, w.y] = pos(p, w.t); } }); // 灯が集まる道すじ(当たるのは真ん中の円)
-  later(ai, 1.0, () => pushWarn({ kind: 'circle', x: cx, y: cy, r: 50, t: 0, life: 0.6, owner: e }));
-  later(ai, 1.6, () => {
+  const Q = TRI_CONV, a0 = rand(0, TAU), pts = [0, 1, 2].map(i => ({ dx: Math.cos(a0 + TAU / 3 * i) * Q.D, dy: Math.sin(a0 + TAU / 3 * i) * Q.D, i }));
+  const cv = ai.cv = { t0: S.time, cx: P.x, cy: P.y, pts, lock: false }; // t0: 始まった時刻(render.js が灯の位置を同じ式で描く)。cx, cy: 真ん中(updTriConv が動かす)
+  cv.pos = (p, t) => { const u = clamp((t - Q.land) / (Q.end - Q.land), 0, 1), k = 1 - u * u; return [cv.cx + p.dx * k, cv.cy + p.dy * k]; }; // ease-in(最後に一気に集まる)
+  for (const p of pts) pushWarn({ kind: 'circle', x: cv.cx + p.dx, y: cv.cy + p.dy, r: 40, t: 0, life: Q.end, owner: e, noSnap: true, track: w => { [w.x, w.y] = cv.pos(p, w.t); } }); // 灯が集まる道すじ(当たるのは真ん中の円)
+  later(ai, Q.lock, () => { cv.lock = true; pushWarn({ kind: 'circle', x: cv.cx, y: cv.cy, r: 50, t: 0, life: Q.end - Q.lock, owner: e }); });
+  later(ai, Q.end, () => {
+    const cx = cv.cx, cy = cv.cy;
     if (hitCircle(cx, cy, 50, e.dmg * 1.4)) randomLight(2, e.dmg);
     const R0 = 50 * CHAOS.area;
     bossBlast(cx, cy, R0, { col: '#8a8ab8', core: '#d8dcff', decal: false, n: 22, light: 0.6 });
@@ -4766,8 +4769,13 @@ function triConverge(e, ai) {
     shockAt(cx, cy, 1.2, 0.8); shake(6); AudioMan.boom(); AudioMan.chime();
     ai.cv = null;
   });
-  e.sq = 0.85; AudioMan.charge(1.6);
-  hint('tri_conv', _t('白の収束'), _t('3つの灯がまわりから集まり、集まった所で白い光が弾ける。灯の間を抜けて外へ'));
+  e.sq = 0.85; AudioMan.charge(Q.end);
+  hint('tri_conv', _t('白の収束'), _t('3つの灯が囲んで付いてきながら集まり、白い光が弾ける。真ん中の円が出たら止まるので、早めに離れる'));
+}
+function updTriConv(e, ai, dt) { // 白の収束の真ん中がプレイヤーを追う(真ん中の円が出たら止まる)
+  const cv = ai.cv; if (cv.lock) return;
+  const d = Math.hypot(P.x - cv.cx, P.y - cv.cy), k = Math.min(d, TRI_CONV.sp * dt);
+  if (d > 0.5) { cv.cx += (P.x - cv.cx) / d * k; cv.cy += (P.y - cv.cy) / d * k; }
 }
 // 三原の柱: 赤 → 緑 → 青の順に 0.4秒おき、そのときプレイヤーのいる所に光の柱(円 半径 30・予告 0.6秒)。各 ×0.6 とその色の状態異常。
 //   3本の円の中に居続けた(止まっていた)と、重なった白の光で乱光 +2(柱は 0.4秒おきで被弾後の無敵より短いので、当たったかではなく居場所で決める)
