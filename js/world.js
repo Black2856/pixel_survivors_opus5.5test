@@ -5076,7 +5076,7 @@ function updSerAfter(e, ai, dt) {
   if (A.t >= 0.3 && (A.tick -= dt) <= 0) { A.tick = 0.5; if (!P.dead && d2(A.x, A.y, P.x, P.y) < Math.pow(70 * CHAOS.area + 3, 2)) randomLight(serLight(e), e.dmg); }
   if (A.t >= 5) ai.after = null;
 }
-// セラフィムレイ: 0.6秒 帯(長さ 260・幅 14)→ プレイヤーの方向へ光線 ×0.8。撃ったあと、光線の上 8か所から左右へ光の羽根の弾(速さ 0 から 200 へ加速・×0.3)
+// セラフィムレイ: 0.6秒 帯(長さ 260・幅 14)→ プレイヤーの方向へ光線 ×0.8。撃ったあと、光線の上 8か所から左右へ光の羽根の弾(速さ 0 から 1秒で 200 へ easeInQuart で加速・×0.4)
 function serRay(e, ai, a) {
   const x = e.x, y = e.y, A = CHAOS.area;
   ai.act = 'ray'; ai.atkT = Math.max(ai.atkT, 1.0); e.spr = 'seraphCast';
@@ -5089,7 +5089,7 @@ function serRay(e, ai, a) {
     bfx.push({ kind: 'sray', x, y, a, len: 260 * A, w: 14 * A, t: 0, life: 0.5 });
     for (let k = 1; k <= 8; k++) {
       const d = 260 * A * k / 8.5, px = x + Math.cos(a) * d, py = y + Math.sin(a) * d;
-      for (const sd of [-1, 1]) Object.assign(serBall(e, px, py, a + sd * Math.PI / 2, 0, 0.3, 'sfeather'), { acc: 300, vmax: 200, life: 3, r: 3 * A, dir: a + sd * Math.PI / 2 }); // 止まった所から動き出す(向きは dir)
+      for (const sd of [-1, 1]) Object.assign(serBall(e, px, py, a + sd * Math.PI / 2, 0, 0.4, 'sfeather'), { easeT: 1, vmax: 200, life: 3, r: 3 * A, dir: a + sd * Math.PI / 2 }); // 止まった所から動き出す(向きは dir)。光線の上にしばらく残り、一気に飛ぶ
     }
     burst(x, y - e.jz, 30, SER_GOLD, { sp: 120, glow: true, life: 0.5 }); shockAt(x, y, 1.2, 0.9); shake(6); screenFlash(0.08, '#fff6dc'); AudioMan.boom(); AudioMan.sparkle();
     ai.act = null; e.spr = 'seraph';
@@ -6594,7 +6594,7 @@ function updEprojs(dt0) {
         p.x += Math.cos(ta) * p.v * dt; p.y += Math.sin(ta) * p.v * dt;
         if (p.owner.dead || d2(p.x, p.y, p.owner.x, p.owner.y) < 100) p.t = p.life + 1;
       }
-    } else { if (p.kind === 'ray') updRay(p, dt); if (p.kind === 'hshadow') homeShadow(p, dt); if (p.spin) spinOrb(p); else { if (p.acc) { const sp = Math.hypot(p.vx, p.vy), ns = Math.min(p.vmax || 1e9, sp + p.acc * dt); if (sp > 0) { p.vx *= ns / sp; p.vy *= ns / sp; } else if (p.dir !== undefined) { p.vx = Math.cos(p.dir) * ns; p.vy = Math.sin(p.dir) * ns; } } p.x += p.vx * dt; p.y += p.vy * dt; } } // acc: 加速(速さ vmax まで。速さ 0 から動き出す弾は向きを dir に持つ)
+    } else { if (p.kind === 'ray') updRay(p, dt); if (p.kind === 'hshadow') homeShadow(p, dt); if (p.spin) spinOrb(p); else { if (p.easeT) { const sp = Math.hypot(p.vx, p.vy), ns = p.vmax * easeInQuart(p.t / p.easeT); if (sp > 0) { p.vx *= ns / sp; p.vy *= ns / sp; } else if (p.dir !== undefined) { p.vx = Math.cos(p.dir) * ns; p.vy = Math.sin(p.dir) * ns; } } p.x += p.vx * dt; p.y += p.vy * dt; } } // easeT: 速さを easeInQuart で easeT 秒かけて vmax へ上げる(はじめはほとんど動かず、最後に一気に速くなる。速さ 0 から動き出す弾は向きを dir に持つ)
     if ((p.kind === 'cshade' || p.kind === 'shound') && Math.random() < dt * 50) part(p.x + rand(-6, 6), p.y + rand(-8, 4), -p.vx * 0.15 + rand(-10, 10), -p.vy * 0.15 - rand(5, 20), rand(0.3, 0.5), pick(SKC.slice(0, 4)), { glow: Math.random() < 0.3, drag: 2, sz: pick([1, 2]) }); // 影の突進の影・影の猟犬: 黒紫のもや
     if (p.kind === 'cshade' && (p.gT = (p.gT || 0) - dt) <= 0) { p.gT = 0.04; bfx.push({ kind: 'ghost', x: p.x, y: p.y, spr: 'cerberus', flip: p.vx < 0, col: '#7a3ab0', t: 0, life: 0.22 }); } // 影の残像
     if (p.kind === 'vslash' && Math.random() < dt * 40) part(p.x - p.vx * 0.05 + rand(-2, 2), p.y - p.vy * 0.05, rand(-6, 6), -rand(10, 30), 0.4, pick(SKC), { glow: Math.random() < 0.5, drag: 2 }); // 影刃: 地面を裂いて紫の火花

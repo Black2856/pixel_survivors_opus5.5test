@@ -184,6 +184,7 @@ function addFloat(x, y, txt, col, scale = 1, vy = -30, k = 1) {
 }
 // イージング
 const easeOutCubic = t => 1 - Math.pow(1 - clamp(t, 0, 1), 3);
+const easeInQuart = t => Math.pow(clamp(t, 0, 1), 4);
 const easeOutBack = t => { t = clamp(t, 0, 1); const c = 1.70158; return 1 + (c + 1) * Math.pow(t - 1, 3) + c * Math.pow(t - 1, 2); };
 function addRing(x, y, r, col, o = {}) { rings.push({ x, y, r0: o.r0 || 2, r, t: 0, life: o.life || 0.4, col, w: o.w || 1, mine: FX_MINE }); }
 function addFlash(x, y, r, col, life = 0.25) { flashes.push({ x, y, r, col, t: 0, life, mine: FX_MINE }); }
