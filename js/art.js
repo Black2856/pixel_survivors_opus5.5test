@@ -1120,6 +1120,20 @@ const ART = (() => {
   ];
   const glassB = glassA.map((r, i) => (i >= 5 && i <= 10 ? glassA[i + 1].slice(0, 5) + r.slice(5, 11) + glassA[i + 1].slice(11) : r));
   S.glassangel = [mk(glassPal, glassA, { emit: 'hY' }), mk(glassPal, glassB, { emit: 'hY' })];
+  // 三原の光精(天光の聖堂 1体目): 宙に浮かぶ白い水晶の八面体(左上の面は明るく、右下の面は青みの影。稜線は白く光る)。
+  //   中の光の核と、まわりを回る赤・緑・青の灯は render.js で描く(drawTriFx)
+  const triRows = [];
+  for (let r = 0; r < 21; r++) {
+    const hw = r <= 10 ? r : 20 - r; let row = '';
+    for (let c = 0; c < 21; c++) {
+      const dx = c - 10;
+      if (Math.abs(dx) > hw) { row += '.'; continue; }
+      row += r === 10 ? (dx <= 0 ? 'W' : 'w') : dx === 0 ? (r < 10 ? 'W' : 'B') : r < 10 ? (dx < 0 ? (dx === -hw ? 'W' : 'a') : 'b') : (dx < 0 ? 'b' : 'c');
+    }
+    triRows.push(row);
+  }
+  S.trichroma = mk({ W: '#ffffff', w: '#e8f0ff', a: '#dfe8f8', b: '#b8c4dc', c: '#8a96b4', B: '#a0acc8' }, triRows, { emit: 'W' });
+  // 三原の光精の分光の玉(白・赤・緑・青)は render.js で描く(tchroma)
   // 玻璃の天使が割れた破片(赤・緑・青・金のガラスの三角のかけら)
   S.gshard = ['#e84860', '#58d878', '#4878e8', '#ffd23f'].map(c => mk({ a: c, b: '#ffffff', o: '#1a1420' }, ['o..', 'aao', 'aba'], { emit: 'b' }));
 

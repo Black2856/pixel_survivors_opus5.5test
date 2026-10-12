@@ -442,7 +442,7 @@ function randomLight(n, src) {
     if (L.k === 'frost') frostPlayer(1); else if (L.k === 'numb') numbPlayer(1); else if (L.k === 'dust') dustPlayer(1); else if (L.k === 'weak') weakPlayer(1);
     else if (L.k === 'bleed') bleedPlayer(1); else if (L.k === 'poison') poisonPlayer(1); else if (L.k === 'burn') burnPlayer((src || 10) * 0.1);
     else if (L.k === 'dark') darkPlayer(DATA.debuffTomb.darkDur);
-    else { P.fatigueT = Math.max(P.fatigueT || 0, DATA.debuff.fatigueDur * CHAOS.debuff); S.hudDirty = true; }
+    else fatiguePlayer();
   }
   // 七色にきらめく光の粒が体のまわりで弾け、付いた状態異常の名前が浮かぶ
   burst(P.x, P.y - 6, Math.min(26, 8 + n * 3), PRISM, { sp: 70, glow: true, life: 0.45 }); addRing(P.x, P.y - 4, 12, '#fff6c8', { r0: 4, life: 0.25 });
@@ -450,6 +450,12 @@ function randomLight(n, src) {
   else addFloat(P.x, P.y - 24, _t`乱光 ×${n}`, '#fff6c8', 1, -26);
   AudioMan.sparkle();
   hint('plight', _t('乱光'), _t('状態異常がランダムに付く(凍傷・痺れ・砂塵・衰弱・出血・毒・炎上・暗闇・疲労)'));
+}
+// 疲労(スタミナを減らさずに): fatigueDur 秒、スタミナ回復 −50%(乱光・三原の光精の青い光)。青いしずくが散る
+function fatiguePlayer() {
+  if (P.invT > 0 || P.dead) return;
+  P.fatigueT = Math.max(P.fatigueT || 0, DATA.debuff.fatigueDur * CHAOS.debuff); S.hudDirty = true;
+  for (let i = 0; i < 6; i++) part(P.x + rand(-4, 4), P.y - 4 + rand(-3, 3), rand(-30, 30), rand(-40, -10), 0.5, pick(['#7ad7ff', '#bff4ff', '#2a8ac8']), { g: 160, drag: 1 });
 }
 // 攻撃不能(ラストラディアンスの封印): t 秒、武器の攻撃が止まり E・Q を使えず、攻撃が当たらない(atkLock。歩く・回避はできる)。麻痺と違って E・Q のクールダウンは戻さない
 function lockPlayer(t) {
@@ -2311,6 +2317,7 @@ const BFX = {
   sphinx: { col: '#8a6a2a', core: '#ffd27a', hot: '#ffd27a', dark: '#14100a' },
   raiju: { col: '#3a3aa0', core: '#7a8aff', hot: '#b8a0ff', dark: '#0a0a1e', light: 0.5 }, // 暗い雲の床で明るい光芒は白く飛ぶので、照らす光は弱く
   raijin: { col: '#7a2a20', core: '#e8805a', hot: '#b8a0ff', dark: '#140806', light: 0.5 },
+  trichroma: { col: '#5a5a8a', core: '#a8b0e8', hot: '#c8c0ff', dark: '#141420', light: 0.4 }, // 明るい床で光芒が白く飛ばないように、照らす光は弱く
 };
 // ノックバック: ang の向きへ dist を dur 秒かけて(一定の速さ)。回避の無敵中は押されない(押されている途中で回避すると止まる)。闘技場では壁で止まる
 function pushPlayer(ang, dist, dur) {
@@ -2534,8 +2541,9 @@ const BOSS_AI0 = {
   sphinx: { rid: 6, eyes: 3, fea: 2, paw: 0, haze: 9, side: 1 },
   raiju: { dash: 4, blink: 8, dis: 6, orb: 5, side: 1 },
   raijin: { ring: 4, cage: 9, net: 2, pair: 7, gale: 12, side: 1, busy: 0 },
+  trichroma: { lampCd: 3, conv: 9, pill: 6, split: 2, side: 1, busy: 0 },
 };
-const BOSS_ENRAGE = { king: { slam: 6 }, ifrit: { altar: true }, stag: { herd: 4 }, pqueen: { spiral: 3 }, levia: { breath: 4 }, fgiant: { drift: 5 }, squeen: { lance: 3 }, warden: { ringCd: 6 }, reaper: { sum: 7 }, fhour: { cross: 4, echo: 0 }, cerberus: { rain: 5 }, shadowking: { chainCd: 1 }, qbee: { ball: 4 }, elder: { cage: 5 }, escorp: { pinch: 4 }, sphinx: { storm: 4 }, raiju: { form: 3 }, raijin: { god: 5 } };
+const BOSS_ENRAGE = { king: { slam: 6 }, ifrit: { altar: true }, stag: { herd: 4 }, pqueen: { spiral: 3 }, levia: { breath: 4 }, fgiant: { drift: 5 }, squeen: { lance: 3 }, warden: { ringCd: 6 }, reaper: { sum: 7 }, fhour: { cross: 4, echo: 0 }, cerberus: { rain: 5 }, shadowking: { chainCd: 1 }, qbee: { ball: 4 }, elder: { cage: 5 }, escorp: { pinch: 4 }, sphinx: { storm: 4 }, raiju: { form: 3 }, raijin: { god: 5 }, trichroma: { white: 4 } };
 
 function bossAI(e, dt) {
   const ai = e.ai, a = Math.atan2(P.y - e.y, P.x - e.x), dist = Math.sqrt(d2(e.x, e.y, P.x, P.y));
@@ -2588,6 +2596,7 @@ function bossAI(e, dt) {
     case 'sphinx': sphinxAI(e, ai, dt, a, dist, slow); break;
     case 'raiju': raijuAI(e, ai, dt, a, dist, slow); break;
     case 'raijin': raijinAI(e, ai, dt, a, dist, slow); break;
+    case 'trichroma': trichromaAI(e, ai, dt, a, dist, slow); break;
   }
 }
 
@@ -4632,6 +4641,137 @@ function raijinGod(e, ai) {
   hint('raijin_god', _t('神鳴り'), _t('背中の太鼓が全部光った次の拍に、巨大な雷が落ちる。その拍で回避する'));
 }
 
+// ---------- 三原の光精(天光の聖堂 1体目): 白い水晶の核のまわりを赤・緑・青の灯が回る。距離 110 を保って漂う ----------
+//   光が重なった所は色が混ざり(光の層で足し合わせて描くので、本当に黄・紫・水色・白に見える)、効果も混ざった色のものになる
+//   ★三原の灯 / 白の収束 / 三原の柱 / 分光(弾)/ 激昂: 白光
+const TRI = { col: ['#ff3a4a', '#3aff6a', '#3a6aff'] }; // 灯の色(赤・緑・青。ビット 1・2・4)
+// 色(ビット: 赤 1・緑 2・青 4)の状態異常: 赤 = 出血 +1 / 緑 = 毒 +1 / 青 = 疲労 / 赤+緑(黄)= 痺れ +2 / 赤+青(紫)= 炎上 / 緑+青(水色)= 凍傷 +2 / 白(3色)= 乱光 +2。src: ボスのダメージ(炎上の量)
+function triStatus(mask, src) {
+  if (mask === 1) bleedPlayer(1); else if (mask === 2) poisonPlayer(1); else if (mask === 4) fatiguePlayer();
+  else if (mask === 3) numbPlayer(2); else if (mask === 5) burnPlayer(src * 0.1); else if (mask === 6) frostPlayer(2); else if (mask === 7) randomLight(2, src);
+}
+const TRI_N = [0, 1, 1, 2, 1, 2, 2, 3]; // ビットの数(色の数)
+function trichromaAI(e, ai, dt, a, dist, slow) {
+  const R = CHAOS.rate;
+  e.jz = 8 + Math.sin(e.t * 2.2) * 3; // 浮かぶ
+  ai.orb = (ai.orb || 0) + dt * (ai.act === 'white' ? 6 : 1.6); // 灯が回る(白光の溜めでは速く)
+  if (ai.lamp) updTriLamps(e, ai, dt);
+  if (ai.wl) updTriWhite(e, ai, dt);
+  if (ai.act) return; // 白光の間は動かない(終わりは技の later)
+  if ((ai.flip = (ai.flip ?? 3) - dt) <= 0) { ai.flip = rand(3, 5); ai.side = -(ai.side || 1); } // ときどき回り込む向きを変える
+  const dir = dist > 110 ? a : a + Math.PI, k = Math.abs(dist - 110) > 15 ? 1 : 0.25; // 距離 110 を保ち、横へ漂う
+  e.x += (Math.cos(dir) * k + Math.cos(a + Math.PI / 2) * 0.6 * (ai.side || 1)) * e.spd * slow * dt;
+  e.y += (Math.sin(dir) * k + Math.sin(a + Math.PI / 2) * 0.6 * (ai.side || 1)) * e.spd * slow * dt;
+  if (Math.random() < dt * 8) part(e.x + rand(-10, 10), e.y - e.jz + rand(-12, 12), rand(-6, 6), -rand(6, 16), 0.7, pick([...TRI.col, '#ffffff']), { glow: true, drag: 1 }); // 七色にきらめく光の粒
+  ai.lampCd -= dt * R; ai.conv -= dt * R; ai.pill -= dt * R; ai.split -= dt * R; ai.busy -= dt * R; if (ai.enraged) ai.white -= dt * R;
+  if (ai.busy > 0) return; // 技のあとは少しあける
+  if (ai.enraged && ai.white <= 0) { ai.white = 13; triWhite(e, ai); }
+  else if (ai.lampCd <= 0 && !ai.lamp) { ai.lampCd = ai.enraged ? 11 : 14; ai.busy = 1.2; triLamps(e, ai); }
+  else if (ai.conv <= 0) { ai.conv = ai.enraged ? 8 : 10; ai.busy = 2; triConverge(e, ai); }
+  else if (ai.pill <= 0) { ai.pill = ai.enraged ? 5.5 : 7; ai.busy = 1.6; triPillars(e, ai); }
+  else if (ai.split <= 0) { ai.split = ai.enraged ? 4 : 5; ai.busy = 1.8; triSplit(e, ai); }
+}
+// ★三原の灯: 赤・緑・青の光の円(半径 50)が光精から飛び出し、それぞれ違う速さ(赤 50・緑 38・青 28)でプレイヤーを追う(6秒。激昂 8秒)。
+//   灯はプレイヤーのまわり 3方向(120° おき・110 離れた所)へ飛んで円を灯し(0.6秒。この間は当たらない)、そこから追う。
+//   円の中にいると 0.5秒ごとに、その場所の色の効果(1色 ×0.3・2色 ×0.5・白 ×0.8 と、色の状態異常)。止まっていると 3つが重なって白になる
+function triLamps(e, ai) {
+  const sp = [50, 38, 28], a0 = rand(0, TAU);
+  ai.lamp = { t: 0, dur: ai.enraged ? 8 : 6, tick: 0.6, cs: [0, 1, 2].map(i => ({ x: P.x + Math.cos(a0 + TAU / 3 * i) * 110, y: P.y + Math.sin(a0 + TAU / 3 * i) * 110, sp: sp[i], i })) };
+  e.sq = 1.25; AudioMan.chime(); AudioMan.charge(0.6);
+  hint('tri_lamps', _t('三原の灯'), _t('赤・緑・青の光が追ってくる。重なった所は色が混ざって効果が変わり、3色が重なった白は乱光'));
+}
+function updTriLamps(e, ai, dt) {
+  const L = ai.lamp, R0 = 50 * CHAOS.area;
+  L.t += dt;
+  if (L.t >= 0.6) for (const c of L.cs) { // 灯ってから追う
+    const d = Math.hypot(P.x - c.x, P.y - c.y), k = Math.min(d, c.sp * dt);
+    if (d > 0.5) { c.x += (P.x - c.x) / d * k; c.y += (P.y - c.y) / d * k; }
+  }
+  if (L.t >= 0.6 && L.t < L.dur && (L.tick -= dt) <= 0) {
+    L.tick = 0.5;
+    let mask = 0;
+    for (const c of L.cs) if (d2(c.x, c.y, P.x, P.y) < (R0 + 3) * (R0 + 3)) mask |= 1 << c.i;
+    if (mask && hurtPlayer(e.dmg * [0, 0.3, 0.5, 0.8][TRI_N[mask]])) triStatus(mask, e.dmg);
+  }
+  if (L.t >= L.dur + 0.5) ai.lamp = null; // 終わりの 0.5秒で光が消えて灯が戻る
+}
+// 白の収束: 3つの灯がプレイヤーのまわり 3方向(120° おき・100 離れた所)に降り(0.4秒)、1.2秒かけてプレイヤーのいた所へ集まる(動く円の予告 半径 40)。
+//   集まった所で白の爆発(半径 50。最後の 0.6秒は真ん中の円も出る)×1.4・乱光 +2。灯の間を抜けて外へ
+function triConverge(e, ai) {
+  const cx = P.x, cy = P.y, a0 = rand(0, TAU), D = 100, pts = [0, 1, 2].map(i => ({ x0: cx + Math.cos(a0 + TAU / 3 * i) * D, y0: cy + Math.sin(a0 + TAU / 3 * i) * D, i }));
+  const pos = (p, t) => { const u = clamp((t - 0.4) / 1.2, 0, 1), k = u * u; return [lerp(p.x0, cx, k), lerp(p.y0, cy, k)]; }; // ease-in(最後に一気に集まる)
+  ai.cv = { t0: S.time, cx, cy, pts, pos }; // t0: 始まった時刻(render.js が灯の位置を同じ式で描く)
+  for (const p of pts) pushWarn({ kind: 'circle', x: p.x0, y: p.y0, r: 40, t: 0, life: 1.6, owner: e, noSnap: true, track: w => { [w.x, w.y] = pos(p, w.t); } }); // 灯が集まる道すじ(当たるのは真ん中の円)
+  later(ai, 1.0, () => pushWarn({ kind: 'circle', x: cx, y: cy, r: 50, t: 0, life: 0.6, owner: e }));
+  later(ai, 1.6, () => {
+    if (hitCircle(cx, cy, 50, e.dmg * 1.4)) randomLight(2, e.dmg);
+    const R0 = 50 * CHAOS.area;
+    bossBlast(cx, cy, R0, { col: '#8a8ab8', core: '#d8dcff', decal: false, n: 22, light: 0.6 });
+    fxRays(cx, cy, R0 * 1.4, '#c8d0ff', { foe: true, n: 18, core: '#ffffff', life: 0.45, light: 0.5 });
+    for (let k = 0; k < 3; k++) addRing(cx, cy, R0 * (0.7 + k * 0.25), TRI.col[k], { r0: 6, w: 2, life: 0.4 + k * 0.08 });
+    burst(cx, cy, 40, [...TRI.col, '#ffffff', '#ffffff'], { sp: 150, glow: true, life: 0.6 });
+    shockAt(cx, cy, 1.2, 0.8); shake(6); AudioMan.boom(); AudioMan.chime();
+    ai.cv = null;
+  });
+  e.sq = 0.85; AudioMan.charge(1.6);
+  hint('tri_conv', _t('白の収束'), _t('3つの灯がまわりから集まり、集まった所で白い光が弾ける。灯の間を抜けて外へ'));
+}
+// 三原の柱: 赤 → 緑 → 青の順に 0.4秒おき、そのときプレイヤーのいる所に光の柱(円 半径 30・予告 0.6秒)。各 ×0.6 とその色の状態異常。
+//   3本の円の中に居続けた(止まっていた)と、重なった白の光で乱光 +2(柱は 0.4秒おきで被弾後の無敵より短いので、当たったかではなく居場所で決める)
+function triPillars(e, ai) {
+  const pts = [];
+  for (let i = 0; i < 3; i++) later(ai, i * 0.4, () => {
+    const x = P.x, y = P.y; pts.push([x, y]);
+    pushWarn({ kind: 'circle', x, y, r: 30, t: 0, life: 0.6, owner: e });
+    later(ai, 0.6, () => {
+      if (hitCircle(x, y, 30, e.dmg * 0.6)) triStatus(1 << i, e.dmg);
+      const R0 = 30 * CHAOS.area + 3;
+      if (i === 2 && P.invT <= 0 && !P.dead && pts.every(([qx, qy]) => d2(qx, qy, P.x, P.y) < R0 * R0)) { randomLight(2, e.dmg); addFlash(x, y, 70, '#c8c8d8', 0.4); fxRays(x, y, 50, '#e8e8ff', { foe: true, n: 14, core: '#ffffff', life: 0.35, light: 0.4 }); } // 3色が重なった白
+      fxBeam(x, y, { foe: true, w: 9 * CHAOS.area, H: 180, col: TRI.col[i], mid: TRI.col[i], core: '#ffffff', life: 0.5, drop: 0.07 });
+      burst(x, y, 18, [TRI.col[i], '#ffffff'], { sp: 90, glow: true, life: 0.4 }); addRing(x, y, 30 * CHAOS.area, TRI.col[i], { r0: 4, w: 2, life: 0.3 });
+      shake(3); AudioMan.chime(); AudioMan.thud();
+    });
+  });
+  AudioMan.charge(1.2);
+}
+// 分光(弾): 白い光の玉 3発(扇 ±0.3rad・速さ 75)。0.6秒後に、それぞれ赤・緑・青の 3つに割れて扇に広がる(±0.3rad・速さ 90、×0.5・その色の状態異常)。
+//   割れる前の白い玉に当たると乱光 +2。3回(0.7秒おき)
+function triSplit(e, ai) {
+  for (let v = 0; v < 3; v++) later(ai, v * 0.7, () => {
+    if (e.dead) return;
+    const x = e.x, y = e.y - e.jz - 2, aa = Math.atan2(P.y - y, P.x - x), orbs = [];
+    for (const da of [-0.3, 0, 0.3]) { const p = eball(x, y, aa + da, 75, e.dmg * 0.5, 'tchroma'); Object.assign(p, { tri: 7, src: e.dmg, ci: 3, r: 3.5 * CHAOS.area }); orbs.push(p); }
+    burst(x, y, 12, TRI.col, { sp: 60, glow: true, life: 0.3 }); e.sq = 0.85; AudioMan.shoot(); AudioMan.sparkle();
+    later(ai, 0.6, () => {
+      for (const p of orbs) {
+        const j = eprojs.indexOf(p); if (j < 0) continue;
+        eprojs.splice(j, 1);
+        const pa = Math.atan2(p.vy, p.vx);
+        for (let k = 0; k < 3; k++) Object.assign(eball(p.x, p.y, pa + (k - 1) * 0.3, 90, e.dmg * 0.5, 'tchroma'), { tri: 1 << k, src: e.dmg, ci: k, r: 3 * CHAOS.area });
+        burst(p.x, p.y, 10, [...TRI.col, '#ffffff'], { sp: 70, glow: true, life: 0.3 }); addRing(p.x, p.y, 8, '#ffffff', { life: 0.2 });
+      }
+      AudioMan.chime();
+    });
+  });
+  hint('tri_split', _t('分光'), _t('白い光の玉は、少しすると赤・緑・青の 3つに割れて広がる'));
+}
+// 白光(激昂): 3つの灯が核に重なって白く輝き(0.6秒)、真っ白な光の柱(半径 40)がプレイヤーを 3秒 追う(速さ 45)。中にいると 0.5秒ごとに ×0.6・乱光 +1
+function triWhite(e, ai) {
+  ai.act = 'white'; e.sq = 1.2;
+  ai.wl = { t: 0, x: P.x, y: P.y, tick: 0.6 + 0.01 };
+  pushWarn({ kind: 'circle', x: P.x, y: P.y, r: 40, t: 0, life: 0.6, owner: e, track: w => { if (ai.wl) { w.x = ai.wl.x; w.y = ai.wl.y; } } });
+  later(ai, 3.8, () => { ai.wl = null; ai.act = null; ai.busy = 1; });
+  AudioMan.charge(0.6); AudioMan.chime(); screenFlash(0.12, '#e8e8ff');
+  hint('tri_white', _t('白光'), _t('白い光の柱が追ってくる。中にいると乱光'));
+}
+function updTriWhite(e, ai, dt) {
+  const W = ai.wl; W.t += dt;
+  const d = Math.hypot(P.x - W.x, P.y - W.y), k = Math.min(d, 45 * dt);
+  if (d > 0.5) { W.x += (P.x - W.x) / d * k; W.y += (P.y - W.y) / d * k; }
+  if (W.t >= 0.6 && (W.tick -= dt) <= 0) { W.tick = 0.5; if (hitCircle(W.x, W.y, 40, e.dmg * 0.6)) randomLight(1, e.dmg); }
+  if (W.t >= 0.6 && Math.random() < dt * 30) part(W.x + rand(-30, 30) * CHAOS.area, W.y + rand(-12, 12), rand(-10, 10), -rand(30, 80), 0.6, pick(['#ffffff', '#e8e8ff', ...TRI.col]), { glow: true, drag: 1 });
+}
+
 // ---------- 時計仕掛けの番人: プレイヤーへまっすぐ。ゼンマイ巻き(DPSチェック)/ 時針と分針 / 歯車弾 / 鐘の衝撃 / 大歯車 / 歯車の床 / 激昂: リングギア ----------
 const BRASS = ['#c8a050', '#ffd27a', '#8a6a30', '#fff0c8'];
 function wardenAI(e, ai, dt, a, dist, slow) {
@@ -6007,7 +6147,7 @@ function updEprojs(dt0) {
     if (near < Math.pow(p.r + 3, 2)) {
       if (P.invT > 0) continue;
       if (!p.keep && clsBlockProj()) { burst(p.x, p.y, 8, ['#fff27a', '#ffffff'], { sp: 60, glow: true, life: 0.25 }); eprojs.splice(i, 1); continue; } // 静電気
-      if (hurtPlayer(p.dmg, p.pierce ? PIERCE : undefined)) { if (p.light) randomLight(p.light, p.src); if (p.burn) burnPlayer(p.burn); if (p.sta) drainSta(p.sta); if (p.frost) frostPlayer(p.frost); if (p.dark) darkPlayer(p.dark); if (p.poison) poisonPlayer(p.poison); if (p.taint) shadowTaint(); if (p.numb) numbPlayer(p.numb); if (p.dust) dustPlayer(p.dust); if (p.weak) weakPlayer(p.weak); if (p.pushK) pushPlayer(Math.atan2(p.vy, p.vx), p.pushK, 0.2); } // 火の玉: 炎上 / 海淵の弾: スタミナ / 霊峰の弾: 凍傷 / 王墓の弾: 暗闇・毒 / 痺れ・砂塵・衰弱
+      if (hurtPlayer(p.dmg, p.pierce ? PIERCE : undefined)) { if (p.light) randomLight(p.light, p.src); if (p.tri) triStatus(p.tri, p.src); if (p.burn) burnPlayer(p.burn); if (p.sta) drainSta(p.sta); if (p.frost) frostPlayer(p.frost); if (p.dark) darkPlayer(p.dark); if (p.poison) poisonPlayer(p.poison); if (p.taint) shadowTaint(); if (p.numb) numbPlayer(p.numb); if (p.dust) dustPlayer(p.dust); if (p.weak) weakPlayer(p.weak); if (p.pushK) pushPlayer(Math.atan2(p.vy, p.vx), p.pushK, 0.2); } // 火の玉: 炎上 / 海淵の弾: スタミナ / 霊峰の弾: 凍傷 / 王墓の弾: 暗闇・毒 / 痺れ・砂塵・衰弱
       if (p.keep) continue;
       const icy = p.frost > 0;
       if (p.dark) { burst(p.x, p.y, 14, ['#c79bff', '#7a3ab0', '#2a1240', '#ffffff'], { sp: 60, glow: true, life: 0.4 }); eprojs.splice(i, 1); continue; } // 闇の玉: 黒紫のしぶき

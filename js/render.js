@@ -1619,6 +1619,7 @@ function render() {
   }
 
   drawSpotCones(t); // 灯の番人の光の扇(地面を照らす。見つけかけると赤く)
+  drawBossGround(t); // ボスの技の地面の光(三原の光精の色の円・白光の柱の足元)
   drawBossCharge(t); // ボスの構え: 足元に縮んでいく危険の輪
   // ---- 敵(Yソート) ----
   const vis = enemies.filter(e => !e.dead && onScreen(e.x, e.y, 30));
@@ -2086,6 +2087,12 @@ function render() {
       addLight(p.x, p.y, 50, '#d88aff', 0.7);
     }
     else if (p.kind === 'tnet') { drawSp(ART.S.nethead, p.x, p.y, ol); addLight(p.x, p.y, 24, '#9a7aff', 0.4); } // 雷の網の玉
+    else if (p.kind === 'tchroma') { // 三原の光精の分光の玉: 白(割れる前)・赤・緑・青の光の玉(白い芯)
+      const col = p.ci === 3 ? '#ffffff' : TRI.col[p.ci], R = Math.max(2, Math.round(p.r * 1.2)), x = p.x - cam.x, y = p.y - cam.y;
+      pCircle(sx, x, y, R + 1, oc); pDisc(sx, x, y, R, col); sx.fillStyle = '#ffffff'; sx.fillRect(Math.round(x) - 1, Math.round(y) - 1, 2, 2);
+      pDisc(gx, x, y, Math.max(1, R - 2), dimCol(p.ci === 3 ? '#c8c8d8' : col, 0.3));
+      addLight(p.x, p.y, 18, col, 0.3);
+    }
     else if (p.kind === 'gshard') drawSp(ART.S.gshard[p.ci || 0], p.x, p.y, Object.assign({ flip: Math.floor(p.t * 12 + p.rot) % 2 === 0 }, ol)); // 玻璃の天使のガラスの破片: 裏返りながら飛ぶ
     else if (p.kind === 'tspark') { drawSp(ART.S.tspark[Math.floor(t * 14 + p.x * 0.05) % 2], p.x, p.y, ol); if (Math.random() < 0.25) part(p.x, p.y, rand(-10, 10), rand(-10, 10), 0.15, pick(['#d8c8ff', '#fff6c0']), { glow: true, drag: 3 }); } // サンダーメイジの雷の弾: またたく火花
     else if (p.kind === 'scythe' || p.kind === 'rscythe') drawRot(p.kind, p.t * 14, p.x, p.y, ol);
@@ -2490,6 +2497,7 @@ function drawBossFx(e) {
   }
   if (e.hold) drawSp(ART.S.rock, e.x, e.y + yo - sp.h / 2 - 5);
   if (e.boss === 'cerberus') drawCerbFx(e, sx, gx, ex, ey, A);
+  if (e.boss === 'trichroma') drawTriFx(e, sx, gx, ex, ey, yo);
   if (e.boss === 'shadowking' && !e.shadow) drawSkFx(e, sx, gx, ex, ey);
   if (e.boss === 'sphinx') { // スフィンクス: 謎かけの頭上の印(逆さの問いは赤)/ 陽光の眼の溜めと光線
     if (ai.rq) { const s2 = ART.S['sym_' + ai.rq.ans + (ai.rq.inv ? '_r' : '')], bob = Math.round(Math.sin(GFX.fx.time * 4) * 1.5); drawSp(s2, e.x, e.y + yo - sp.h / 2 - 9 + bob, { scale: 1 }); addLight(e.x, e.y - sp.h / 2 - 9, 34, ai.rq.inv ? '#ff3b5c' : '#ffd27a', 0.7); }
@@ -2755,6 +2763,101 @@ function drawSpotCones(t) {
     sx.fillStyle = ec; for (let u = -h; u <= h; u += 0.015) sx.fillRect(Math.round(cx + Math.cos(a + u) * R), Math.round(cy + Math.sin(a + u) * R), 1, 1);
     sx.globalAlpha = 1;
     for (let d = 10; d < R; d += 16) addLight(e.x + Math.cos(a) * d, e.y - 3 + Math.sin(a) * d, 12 + d * 0.16, caught ? '#ff8a8a' : '#fff2b8', 0.22 * e.spotK); // 照らされた地面
+  }
+}
+// ボスの技の地面の光(敵より奥に描く)
+//   三原の光精の色の円: 赤・緑・青の円を場面に足し合わせて塗る(lighter)ので、重なった所は黄・紫・水色・白になる。縁は回る光の点。光の層は暗い色で
+//   白光の柱の足元: 白い楕円と、外へ流れる七色の縁
+function drawBossGround(t) {
+  const sx = GFX.sctx, gx = GFX.gctx;
+  for (const b of [...(S.bosses || []), ...(S.shadows || [])]) { // 影の王が呼んだ影も
+    if (b.dead || b.boss !== 'trichroma') continue;
+    const ai = b.ai;
+    if (ai.lamp) {
+      const L = ai.lamp, R = Math.round(50 * CHAOS.area), k = Math.min(1, L.t / 0.6) * clamp((L.dur + 0.5 - L.t) / 0.5, 0, 1), live = L.t >= 0.6 && L.t < L.dur;
+      drawTriZones(sx, L.cs, R, (live ? 0.34 : 0.16) * k, t);
+      for (const c of L.cs) { // 縁: 回る光の点(灯の色と白)
+        const cx = c.x - cam.x, cy = c.y - cam.y, dir = c.i % 2 ? -1 : 1;
+        for (let j = 0; j < 40; j++) {
+          const a = TAU / 40 * j + t * dir * 0.9, x = Math.round(cx + Math.cos(a) * R), y = Math.round(cy + Math.sin(a) * R), hi = j % 5 === 0;
+          sx.globalAlpha = (hi ? 1 : 0.55) * k; sx.fillStyle = hi ? '#ffffff' : TRI.col[c.i]; sx.fillRect(x, y, 1, 1);
+        }
+        sx.globalAlpha = 1; pCircle(gx, cx, cy, R, dimCol(TRI.col[c.i], 0.3 * k));
+        addLight(c.x, c.y, R * 1.6, TRI.col[c.i], 0.12 * k);
+      }
+      sx.globalAlpha = 1;
+    }
+    if (ai.wl && ai.wl.t >= 0.6) { // 白光の柱の足元
+      const W = ai.wl, R = 40 * CHAOS.area, cx = W.x - cam.x, cy = W.y - cam.y, fl = 0.85 + 0.15 * Math.sin(t * 30);
+      sx.globalAlpha = 0.14 * fl; pDisc(sx, cx, cy, Math.round(R), '#ffffff');
+      for (let j = 0; j < 48; j++) { const a = TAU / 48 * j - t * 1.5, x = Math.round(cx + Math.cos(a) * R), y = Math.round(cy + Math.sin(a) * R); sx.globalAlpha = 0.9; sx.fillStyle = TRI.col[j % 3]; sx.fillRect(x, y, 1, 1); }
+      sx.globalAlpha = 1; pCircle(gx, cx, cy, Math.round(R * 0.8), dimCol('#e8e8ff', 0.35));
+      addLight(W.x, W.y, R * 1.6, '#e8e8ff', 0.12);
+    }
+  }
+}
+// 三原の光精の色の円の塗り: 1点ごとに、どの円に入っているか(赤 1・緑 2・青 4 のビット)で色を決める(重なった所は 黄・紫・水色・白)。
+//   明るい床に足し合わせると白に寄って色が見えないので、混ざった色をそのまま淡く重ねる。白は少しまたたく
+const TRI_RGB = [null, [255, 58, 74], [58, 255, 106], [255, 225, 74], [58, 106, 255], [255, 74, 216], [74, 220, 255], [255, 255, 255]];
+let triCan = null, triCtx = null, triImg = null;
+function drawTriZones(sx, cs, R, al, t) {
+  const x0 = Math.floor(Math.min(...cs.map(c => c.x)) - R - 1), y0 = Math.floor(Math.min(...cs.map(c => c.y)) - R - 1);
+  const W = Math.ceil(Math.max(...cs.map(c => c.x)) + R + 2) - x0, H = Math.ceil(Math.max(...cs.map(c => c.y)) + R + 2) - y0;
+  if (W <= 0 || H <= 0 || W > 2000 || H > 2000) return;
+  if (!triCan || triCan.width < W || triCan.height < H) { triCan = ART.canvas(Math.max(W, triCan ? triCan.width : 0, 64), Math.max(H, triCan ? triCan.height : 0, 64)); triCtx = triCan.getContext('2d'); triImg = null; }
+  if (!triImg || triImg.width !== W || triImg.height !== H) triImg = triCtx.createImageData(W, H);
+  const d = triImg.data, RR = R * R, sh = Math.floor(t * 10) % 2;
+  d.fill(0);
+  for (let y = 0; y < H; y++) {
+    const wy = y0 + y + 0.5;
+    for (let x = 0; x < W; x++) {
+      const wx = x0 + x + 0.5; let m = 0;
+      for (const c of cs) { const dx = wx - c.x, dy = wy - c.y; if (dx * dx + dy * dy <= RR) m |= 1 << c.i; }
+      if (!m) continue;
+      const col = TRI_RGB[m], o = (y * W + x) * 4;
+      d[o] = col[0]; d[o + 1] = col[1]; d[o + 2] = col[2]; d[o + 3] = m === 7 ? (((x + y) & 1) === sh ? 255 : 200) : 255;
+    }
+  }
+  triCtx.clearRect(0, 0, triCan.width, triCan.height); triCtx.putImageData(triImg, 0, 0);
+  sx.globalAlpha = al; sx.drawImage(triCan, 0, 0, W, H, Math.round(x0 - cam.x), Math.round(y0 - cam.y), W, H); sx.globalAlpha = 1;
+}
+// 三原の光精: 水晶の中の光の核(拍動し、中で赤 → 緑 → 青と色が巡る)と、赤・緑・青の灯(ふだんは核のまわりを回る)
+//   三原の灯の間は、灯がそれぞれの円の上に浮かんで、円を照らす光の筋を落とす / 白の収束では予告の円と同じ式で集まる / 白光では核へ渦を巻いて吸い込まれ、白い光の柱が天から降りる
+function drawTriFx(e, sx, gx, ex, ey, yo) {
+  const ai = e.ai, t = GFX.fx.time, cx = Math.round(ex), cy = Math.round(ey + yo), pul = 0.5 + 0.5 * Math.sin(t * 6), ci = Math.floor(t * 3) % 3;
+  const wh = ai.act === 'white';
+  // 核
+  pDisc(sx, cx, cy, wh ? 4 : 2, '#ffffff'); sx.fillStyle = TRI.col[ci]; sx.fillRect(cx - 1, cy + 1, 3, 1); sx.fillRect(cx - 1, cy - 2, 3, 1);
+  pDisc(gx, cx, cy, Math.round(2 + pul * (wh ? 3 : 1)), dimCol(wh ? '#ffffff' : '#c8d0ff', wh ? 0.8 : 0.55));
+  addLight(e.x, e.y + yo, (wh ? 110 : 60) * (0.9 + 0.1 * pul), wh ? '#ffffff' : '#e0e4ff', wh ? 0.7 : 0.45);
+  // 灯の位置(場面の座標)
+  const lampAt = i => {
+    if (ai.lamp) { const c = ai.lamp.cs[i], k = easeOutCubic(Math.min(1, ai.lamp.t / 0.5)); return [lerp(e.x + Math.cos(ai.orb + TAU / 3 * i) * 18, c.x, k), lerp(e.y + yo + Math.sin(ai.orb + TAU / 3 * i) * 8, c.y - 26, k)]; } // 灯は円の上へ飛んでいく
+    if (ai.cv) { const p = ai.cv.pts[i], [x, y] = ai.cv.pos(p, S.time - ai.cv.t0); return [x, y - 18]; }
+    const a = ai.orb + TAU / 3 * i, R = wh && ai.wl ? 18 * Math.max(0, 1 - ai.wl.t / 0.6) : 18;
+    return [e.x + Math.cos(a) * R, e.y + yo + Math.sin(a) * R * 0.45];
+  };
+  for (let i = 0; i < 3; i++) {
+    const [lx, ly] = lampAt(i), x = Math.round(lx - cam.x), y = Math.round(ly - cam.y), col = TRI.col[i];
+    if (wh && ai.wl && ai.wl.t >= 0.6) continue; // 白光: 灯は核に重なっている
+    if (ai.lamp && ai.lamp.t < ai.lamp.dur) { // 円を照らす光の筋(灯から円の両端へ)
+      const c = ai.lamp.cs[i], R = 50 * CHAOS.area, k = Math.min(1, ai.lamp.t / 0.6);
+      sx.globalAlpha = 0.35 * k; pLine(sx, x, y, c.x - cam.x - R * 0.8, c.y - cam.y, col); pLine(sx, x, y, c.x - cam.x + R * 0.8, c.y - cam.y, col); sx.globalAlpha = 1;
+    }
+    pDisc(sx, x, y, 3, col); sx.fillStyle = '#ffffff'; sx.fillRect(x - 1, y - 1, 2, 2);
+    pDisc(gx, x, y, 2, dimCol(col, 0.6));
+    addLight(lx, ly, 34, col, 0.55);
+  }
+  if (ai.wl && ai.wl.t >= 0.6) { // 白光の柱: 天から降りる白い光(縁は赤・緑・青に分かれる。揺らぐ)
+    const W = ai.wl, R = 40 * CHAOS.area, bx = Math.round(W.x - cam.x), by = Math.round(W.y - cam.y), k = Math.min(1, (W.t - 0.6) / 0.15);
+    for (let y = -2; y < by; y++) {
+      const v = (y + 2) / Math.max(1, by + 2), ww = Math.round(R * (0.55 + 0.45 * v) * k + Math.sin(t * 20 + y * 0.3) * 1.2);
+      sx.globalAlpha = 0.1; sx.fillStyle = '#e8e8ff'; sx.fillRect(bx - ww, y, ww * 2 + 1, 1);
+      sx.globalAlpha = 0.32; sx.fillStyle = '#ffffff'; sx.fillRect(bx - Math.round(ww * 0.25), y, Math.round(ww * 0.5) + 1, 1);
+      sx.globalAlpha = 0.85; sx.fillStyle = TRI.col[0]; sx.fillRect(bx - ww - 1, y, 1, 1); sx.fillStyle = TRI.col[1]; sx.fillRect(bx - ww, y, 1, 1); sx.fillStyle = TRI.col[2]; sx.fillRect(bx + ww + 1, y, 1, 1);
+      if (y % 2 === 0) { gx.fillStyle = dimCol('#d8dcff', 0.18); gx.fillRect(bx - Math.round(ww * 0.2), y, Math.round(ww * 0.4) + 1, 1); } // 芯だけ淡く光らせる(柱の中の自分が見えるように)
+    }
+    sx.globalAlpha = 1;
   }
 }
 // 対の雷精の線: 予告は細い赤の線が点滅 → 張られている間は紫白のぎざぎざの雷の線(光の層は暗い紫)
@@ -3402,7 +3505,7 @@ function updFx(dt) {
     const o = arr[i], gone = arr === warns && o.owner && o.owner.dead; // 予兆は出した敵が倒れたら消す
     o.t += dt;
     if (o.t < o.life && !gone) continue;
-    if (arr === warns && !gone && !o.snap) warns.push({ kind: o.kind, x: o.x, y: o.y, a: o.a, r: o.r, r0: o.r0, h: o.h, len: o.len, w: o.w, ink: o.ink, sever: o.sever, safe: o.safe, snap: true, t: 0, life: 0.12 }); // 当たる瞬間: 同じ形が一瞬光る
+    if (arr === warns && !gone && !o.snap && !o.noSnap) warns.push({ kind: o.kind, x: o.x, y: o.y, a: o.a, r: o.r, r0: o.r0, h: o.h, len: o.len, w: o.w, ink: o.ink, sever: o.sever, safe: o.safe, snap: true, t: 0, life: 0.12 }); // 当たる瞬間: 同じ形が一瞬光る(noSnap: 動く道すじの予告など、当たる所ではないもの)
     arr.splice(i, 1);
   }
   // 斬撃のイベント(鬼神・村正の一閃など): 決まった時刻に一度だけ。処理中に slashes が増えてもいいように、集めてから実行する
