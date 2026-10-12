@@ -15,14 +15,16 @@ const ECOL = {
   scorpion: ['#e09048', '#3a1e0c'], vulture: ['#4a3020', '#e8e0d0'], sanddoll: ['#e8c88a', '#a8803a'], sandmound: ['#e8c88a', '#a8803a'], antlion: ['#b8946a', '#e8d8b0'],
   raichild: ['#8aa8ff', '#e8f0ff'], raincloud: ['#8a84b8', '#d8c8ff'], twinsprite: ['#b8a0ff', '#5ac8ff'], tarmor: ['#6a7aa8', '#d8b060'],
   firemage: ['#d8583a', '#ffd27a'], frostmage: ['#dceeff', '#5a8ac8'], thundermage: ['#f0c840', '#3c3c5c'],
+  lightmoth: ['#fff2c8', '#ffd23f'], lampkeeper: ['#5a5678', '#ffd23f'], glassangel: ['#e84860', '#4878e8'], holymage: ['#fffaf0', '#ffd23f'],
 };
 // メイジのバフ(DATA.enemies の buff.k)の色: 足元の輪の [手前, 光, 奥] と、バフの間に昇る粒 / メイジの構えで杖の珠へ集まる光
 const BUFF_COL = {
   atk: { ring: ['#ff8a3d', '#7a3010', '#a8481a'], parts: ['#ff8a3d', '#ffc34a'] },
   def: { ring: ['#7ad7ff', '#1a4a6a', '#3a7aa8'], parts: ['#9ff7ff', '#e8f8ff'] },
   spd: { ring: ['#ffe14a', '#6a5a14', '#a8902a'], parts: ['#ffe14a', '#fff6a0'] },
+  heal: { ring: ['#ffe8a0', '#6a5a24', '#c8a050'], parts: ['#fff6c8', '#ffe8a0'] }, // ホーリーメイジの回復(時間のバフではないので足元の輪は出ない。広がる輪と粒の色)
 };
-const MAGE_COL = { firemage: ['#ff6a2a', '#ffc34a', '#fff6c8'], frostmage: ['#9ff7ff', '#7ad7ff', '#ffffff'], thundermage: ['#ffe14a', '#d8c8ff', '#ffffff'] };
+const MAGE_COL = { firemage: ['#ff6a2a', '#ffc34a', '#fff6c8'], frostmage: ['#9ff7ff', '#7ad7ff', '#ffffff'], thundermage: ['#ffe14a', '#d8c8ff', '#ffffff'], holymage: ['#ffd23f', '#fff6c8', '#ffffff'] };
 // メイジのバフの量(かかっていなければ 0): atk = 攻撃力 +v / def = 受けるダメージ −v / spd = 移動速度 +v
 const buffOn = (e, k) => { const b = e.buffs && e.buffs[k]; return b && b.t > S.time ? b.v : 0; };
 const xpFor = l => Math.floor(4 + l * 2.6 + Math.pow(l, 1.72));
@@ -1479,6 +1481,7 @@ function killEnemy(e, o = {}) {
   if (ed.fireFloor) lavaPool(e, ed.fireFloor); // 溶岩スライム: 倒れた場所に燃える床
   if (ed.miasma) miasmaCloud(e, ed.miasma); // 腐毒のグール: 倒れた場所に瘴気の霧
   if (ed.revive && !e.elite && !e.revived) dollMound(e, ed.revive); // 砂人形: 倒れた場所に砂山(エリート・立ち上がった砂人形は砂山にならない)
+  if (ed.shatter) glassShatter(e, ed.shatter); // 玻璃の天使: 割れてガラスの破片が全周に飛ぶ
   if (e.phaseElite && S.phase && S.phase.kind === 'elite') { S.phase.lastX = e.x; S.phase.lastY = e.y; } // エリート群: 宝箱は最後の1体の位置に
   if (e.elite || e.type === 'goblin') {
     hitstop(0.06); shake(6); shockAt(e.x, e.y, 1.2, 0.8); addFlash(e.x, e.y, 100, '#ffd23f', 0.4);
@@ -1550,16 +1553,50 @@ function splitDarkOrb(p) {
   burst(p.x, p.y, 18, ['#c79bff', '#7a3ab0', '#2a1240', '#ffffff'], { sp: 80, glow: true, life: 0.35 });
   addRing(p.x, p.y, 12, '#a66bff', { r0: 3, life: 0.25 }); addFlash(p.x, p.y, 40, '#a66bff', 0.4); AudioMan.shade2();
 }
+// ホーリーメイジの光のビーム: 予告の帯の向きへ、白金の光線が一瞬で走る(当たると ×n・乱光 +light)
+function holyBeam(e, bm) {
+  const x = e.x, y = e.y - 4, a = e.ta, len = bm.len * e.areaK, w = bm.w * e.areaK;
+  if (hitLine(x, y, a, len, w, e.dmg * bm.n)) randomLight(bm.light, e.dmg);
+  bfx.push({ kind: 'hbeam', x, y, a, len: len * CHAOS.area, w: w * CHAOS.area, t: 0, life: 0.32 });
+  const tx = e.x + (e.face || 1) * 3.5, ty = e.y - 7;
+  burst(tx, ty, 12, MAGE_COL.holymage, { sp: 60, glow: true, life: 0.3 }); addRing(tx, ty, 9, '#fff6c8', { life: 0.25 });
+  for (let i = 0; i < 10; i++) { const u = rand(0.1, 1); part(x + Math.cos(a) * len * u * CHAOS.area, y + Math.sin(a) * len * u * CHAOS.area, rand(-20, 20), rand(-30, -5), rand(0.3, 0.6), pick(['#fff6c8', '#ffe8a0', '#ffffff']), { glow: true, drag: 2 }); } // 光線の跡に残る光の粒
+  AudioMan.sparkle(); AudioMan.shoot();
+}
+// 灯の番人が見つけた: 扇の光が一瞬強まり(白い光の扇)、扇の中にいると ×n・乱光 +light
+function lampFlash(e, so) {
+  const R0 = so.r * e.areaK;
+  if (hitFan(e.x, e.y - 3, e.spotA, R0, so.h, e.dmg * so.n)) randomLight(so.light, e.dmg);
+  bfx.push({ kind: 'spotflash', x: e.x, y: e.y - 3, a: e.spotA, r: R0 * CHAOS.area, h: so.h, t: 0, life: 0.35 });
+  burst(e.x + (e.face || 1) * 8, e.y - 1, 14, ['#ffffff', '#fff6c8', '#ffd23f'], { sp: 70, glow: true, life: 0.35 });
+  AudioMan.sparkle(); AudioMan.zap();
+  hint('lampkeeper', _t('灯の番人'), _t('ランタンの光の扇に入り続けると見つかって撃たれる。扇の外へ'));
+}
+// 玻璃の天使が倒れた: ステンドグラスの体が割れ、ガラスの破片 n枚が全周に飛ぶ(×k・乱光 +light。エリートは遠くまで)
+function glassShatter(e, sh) {
+  const a0 = rand(0, TAU), sk = e.areaK, life = sh.range * sk / sh.spd;
+  for (let i = 0; i < sh.n; i++) { const a = a0 + TAU / sh.n * i; eprojs.push({ kind: 'gshard', ci: i % 4, x: e.x, y: e.y - 4, vx: Math.cos(a) * sh.spd, vy: Math.sin(a) * sh.spd, dmg: e.dmg * sh.k, light: sh.light, src: e.dmg, life, t: 0, r: 2.5 * CHAOS.area * sk, sk, rot: rand(0, TAU) }); }
+  burst(e.x, e.y - 6, 26, ['#e84860', '#58d878', '#4878e8', '#ffd23f', '#ffffff'], { sp: 110, glow: true, life: 0.45 }); addRing(e.x, e.y - 4, 16, '#fff6c8', { r0: 4, life: 0.3 });
+  AudioMan.chime(); AudioMan.crush();
+  hint('glassangel', _t('玻璃の天使'), _t('倒すと割れて、ガラスの破片が全方向に飛ぶ。離れて倒すか、破片のすき間へ'));
+}
 // メイジのバフ: まわり(半径 r。広がる輪で見せる)の敵に dur 秒(自分にも。ボス・ボスが出した物・篝火は除く)。同じバフはかけ直すと時間が戻る
 const MAGE_HINT = {
   firemage: bf => [_t('ファイアーメイジ'), _t`まわりの敵の攻撃力 +${Math.round(bf.v * 100)}%(${bf.dur}秒。足元に橙の輪)`],
   frostmage: bf => [_t('フロストメイジ'), _t`まわりの敵の受けるダメージ −${Math.round(bf.v * 100)}%(${bf.dur}秒。足元に水色の輪)`],
   thundermage: bf => [_t('サンダーメイジ'), _t`まわりの敵の移動速度 +${Math.round(bf.v * 100)}%(${bf.dur}秒。足元に黄色の輪)`],
+  holymage: bf => [_t('ホーリーメイジ'), _t`まわりの敵の HP を回復する(ホーリーメイジの最大HP の ${Math.round(bf.v * 100)}% ぶん)`],
 };
 function mageBuff(e, bf) {
   const R = bf.r * e.areaK, C = BUFF_COL[bf.k], M = MAGE_COL[e.type], t1 = S.time + bf.dur;
   for (const o of enemies) {
     if (o.dead || o.boss || o.obj || o.prop || d2(o.x, o.y, e.x, e.y) > R * R) continue;
+    if (bf.k === 'heal') { // ホーリーメイジ: HP を最大HP × v だけ回復(金の十字の光が昇る)
+      const add = Math.min(o.maxhp - o.hp, e.maxhp * bf.v);
+      if (add > 0) { o.hp += add; for (let i = 0; i < 6; i++) part(o.x + rand(-5, 5), o.y + rand(-4, 4), 0, -rand(18, 30), 0.6, pick(C.parts), { glow: true, drag: 1 }); }
+      addRing(o.x, o.y + 3, 9, C.ring[0], { r0: 3, life: 0.35 });
+      continue;
+    }
     (o.buffs || (o.buffs = {}))[bf.k] = { t: t1, v: bf.v };
     if (o !== e) addRing(o.x, o.y + 3, 9, C.ring[0], { r0: 3, life: 0.35 });
   }
@@ -1812,7 +1849,7 @@ function updEnemies(dt) {
       const dc = S.decoy && d2(e.x, e.y, S.decoy.x, S.decoy.y) < 200 * 200 ? S.decoy : P; // 空蝉の分身
       const a = Math.atan2(dc.y - e.y, dc.x - e.x), d = DATA.enemies[e.type];
       let mx = Math.cos(a), my = Math.sin(a);
-      if (e.ai === 'flutter') { const w = Math.sin(e.t * 5 + e.seed * 10) * (d.wobble || 0.8); mx -= Math.sin(a) * w; my += Math.cos(a) * w; }
+      if (e.ai === 'flutter') { const w = Math.sin(e.t * 5 + e.seed * 10) * (d.wobble || 0.8); mx -= Math.sin(a) * w; my += Math.cos(a) * w; if (d.touchLight && Math.random() < dt * 6) part(e.x + rand(-3, 3), e.y + rand(-1, 2), rand(-4, 4), rand(4, 10), 0.5, pick(['#fff6c8', '#ffe08a']), { glow: true, drag: 1 }); } // 光の蝶: 羽から光の粉がこぼれる
       else if (e.ai === 'hop') { // 跳ねる(宝石スライムは速い間隔で大きく跳ぶ)
         const hp = d.hop, every = e.hopEvery = hp ? hp.every : 1.1, air = e.hopAir = hp ? every * 0.45 : 0.35, k = hp ? hp.k : 2.4;
         e.hopT -= dt; const hop = e.hopT < air;
@@ -2093,9 +2130,39 @@ function updEnemies(dt) {
           AudioMan.fuse();
         }
       }
+      if (d.beam) { // ホーリーメイジ: cd 秒ごとに wind 秒 杖を掲げ(帯の予告。帯はメイジについて動く)、プレイヤーへ光のビーム ×n・乱光 +light
+        const bm = d.beam;
+        if (e.wind > 0) {
+          mx = my = 0; e.wind -= dt * CHAOS.rate * tw;
+          if (Math.random() < dt * 40) { const pa = rand(0, TAU), pr = rand(8, 14), tx = e.x + (e.face || 1) * 3.5, ty = e.y - 7; part(tx + Math.cos(pa) * pr, ty + Math.sin(pa) * pr, -Math.cos(pa) * pr * 3, -Math.sin(pa) * pr * 3, 0.3, pick(MAGE_COL.holymage), { glow: Math.random() < 0.5, drag: 0 }); } // 光が杖の珠へ集まる
+          if (e.wind <= 0) holyBeam(e, bm);
+        } else {
+          e.beamT = (e.beamT ?? rand(1, bm.cd)) - dt * CHAOS.rate * tw * e.rateK;
+          if (e.beamT <= 0 && d2(e.x, e.y, P.x, P.y) < bm.range * bm.range) {
+            e.beamT = bm.cd; e.wind = bm.wind; e.ta = a;
+            pushWarn({ kind: 'line', x: e.x, y: e.y - 4, a, len: bm.len * e.areaK, w: bm.w * e.areaK, t: 0, life: bm.wind, owner: e, track: w => { w.x = e.x; w.y = e.y - 4; } });
+            AudioMan.charge(bm.wind);
+          }
+        }
+        e.aim = e.wind > 0;
+      }
+      if (d.spot) { // 灯の番人: ランタンの光の扇でプレイヤーを探す(毎秒 turn rad で向け直す)。扇の中に catch 秒いると見つかり(扇が赤く光る)、扇の光が強まって ×n・乱光 +light。撃ったあと rest 秒は灯を消す
+        const so = d.spot;
+        if (e.spotRest > 0) { e.spotRest -= dt * CHAOS.rate * tw * e.rateK; e.spotK = Math.max(0, (e.spotK || 0) - dt * 3); e.spotC = 0; }
+        else {
+          if (e.spotA === undefined) e.spotA = a + rand(-1, 1);
+          e.spotK = Math.min(1, (e.spotK || 0) + dt * 2); // 灯がともる
+          e.spotA += clamp(angDiff(a, e.spotA), -so.turn * dt * tw, so.turn * dt * tw);
+          const inside = !P.dead && P.invT <= 0 && e.spotK >= 1 && inFan(e.x, e.y - 3, e.spotA, so.r * e.areaK, so.h);
+          e.spotC = inside ? (e.spotC || 0) + dt * CHAOS.rate * tw : Math.max(0, (e.spotC || 0) - dt * 1.5);
+          if (e.spotC >= so.catch) { lampFlash(e, so); e.spotC = 0; e.spotRest = so.rest; }
+        }
+        e.aim = e.spotC > 0;
+      }
       if (d.buff) { // メイジ: プレイヤーが射程(shot.range)にいる間、cd 秒ごとに まわりの敵にバフ(最初は出て first 秒。遠くで時が来たら、射程に入ったときに)
         e.buffT = (e.buffT ?? d.buff.first) - dt * tw;
-        if (e.buffT <= 0 && d2(e.x, e.y, P.x, P.y) < d.shot.range * d.shot.range) { e.buffT = d.buff.cd; mageBuff(e, d.buff); }
+        const br = d.buff.range || d.shot.range; // ホーリーメイジは射撃がないので buff.range
+        if (e.buffT <= 0 && d2(e.x, e.y, P.x, P.y) < br * br) { e.buffT = d.buff.cd; mageBuff(e, d.buff); }
       }
       if (e.buffs && Math.random() < dt * 3) for (const k in e.buffs) if (e.buffs[k].t > S.time) part(e.x + rand(-4, 4), e.y + rand(0, 4), rand(-3, 3), -rand(12, 22), 0.5, pick(BUFF_COL[k].parts), { glow: true, drag: 1 }); // バフの間: 属性の色の粒が昇る
       e.x += mx * sp * dt; e.y += my * sp * dt;
@@ -2119,7 +2186,7 @@ function updEnemies(dt) {
     const td = !e.boss && DATA.enemies[e.type]; // 触れたとき: 鬼火は当たらない / ヘルハウンドは噛みつくと炎上 / クラゲはスタミナを吸う / 毒蜘蛛は毒 / 影法師の飛びかかりは ×n
     const tk = e.dash > 0 && td && td.lunge ? td.lunge.n : 1;
     S.taint = e.boss === 'shadowking' && !e.shadow && e.ai.enraged; // 蝕む影: 体当たりでも
-    if (e.dmg > 0 && !e.air && !(td && td.noTouch) && d2(e.x, e.y, P.x, P.y) < Math.pow(e.r + 4, 2) && hurtPlayer(e.dmg * tk) && td) { if (td.touchBurn) burnPlayer(e.dmg * td.touchBurn); if (td.touchSta) drainSta(td.touchSta); if (td.touchFrost) frostPlayer(td.touchFrost); if (td.touchPoison) poisonPlayer(td.touchPoison); if (td.touchNumb) numbPlayer(td.touchNumb); if (td.touchDust) dustPlayer(td.touchDust); if (td.rush && td.rush.weak && e.dash > 0) weakPlayer(td.rush.weak); } // 森蜂: 突っ込んだ針が当たると衰弱
+    if (e.dmg > 0 && !e.air && !(td && td.noTouch) && d2(e.x, e.y, P.x, P.y) < Math.pow(e.r + 4, 2) && hurtPlayer(e.dmg * tk) && td) { if (td.touchBurn) burnPlayer(e.dmg * td.touchBurn); if (td.touchSta) drainSta(td.touchSta); if (td.touchFrost) frostPlayer(td.touchFrost); if (td.touchPoison) poisonPlayer(td.touchPoison); if (td.touchNumb) numbPlayer(td.touchNumb); if (td.touchDust) dustPlayer(td.touchDust); if (td.touchLight) randomLight(td.touchLight, e.dmg); if (td.rush && td.rush.weak && e.dash > 0) weakPlayer(td.rush.weak); } // 森蜂: 突っ込んだ針が当たると衰弱
     S.taint = false;
   }
   S.eatk = 1; FX_MINE = false;

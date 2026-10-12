@@ -1334,6 +1334,7 @@ const I18N_EN = {
   "木漏れ日の森": "Dappled Forest",
   "陽炎の砂海": "Mirage Dunes",
   "雷鳴の雲海": "Thundercloud Sea",
+  "天光の聖堂": "Celestial Cathedral",
 
   // ===== data.js: カオス強化 =====
   "加速する夜": "Quickening Night",
@@ -2545,6 +2546,12 @@ const I18N_EN = {
   "天光の聖堂の敵から受ける。それ自体に効果はなく、凍傷・痺れ・砂塵・衰弱・出血・毒・炎上・暗闇・疲労のどれかがランダムに付く(乱光 +n なら n 回)": "Inflicted by enemies in the Celestial Cathedral. It has no effect of its own: it applies a random status from Frostbite, Numbness, Sandblind, Weakness, Bleed, Poison, Burn, Darkness, and Fatigue (n times for Scatterlight +n)",
   "熾天使の最後の技で受ける。攻撃できない(歩く・回避はできる)。麻痺と違って E / Q の CD は戻らない": "Inflicted by the Seraph's final move. You can't attack (you can still move and dodge). Unlike Paralysis, your E / Q cooldowns are not reset",
   "熾天使の最後の技で受ける。HP回復速度・肉・スキルなど、すべての回復が効かない": "Inflicted by the Seraph's final move. All healing is blocked, including HP Regen, meat, and skills",
+  "灯の番人": "Lantern Warden",
+  "ランタンの光の扇に入り続けると見つかって撃たれる。扇の外へ": "Stay in its lantern's cone of light and you'll be spotted and shot. Step out of the cone",
+  "玻璃の天使": "Glass Angel",
+  "倒すと割れて、ガラスの破片が全方向に飛ぶ。離れて倒すか、破片のすき間へ": "It shatters when defeated, flinging glass shards in every direction. Kill it from afar or slip between the shards",
+  "ホーリーメイジ": "Holy Mage",
+  "まわりの敵の HP を回復する(ホーリーメイジの最大HP の {0}% ぶん)": "Heals nearby enemies (by {0}% of the Holy Mage's max HP)",
 };
 
 // ガイドの用語に印を付ける英語の書き方(help.js)。キーは用語集の k。書いていない用語は見出し(t の英語)で印を付ける

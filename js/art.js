@@ -1065,6 +1065,63 @@ const ART = (() => {
     thunder: { a: '#3a2a10', b: '#3c3c5c', c: '#f0c840', d: '#100820', e: '#fff27a', f: '#4a3a2a', g: '#ffe14a', h: '#ffffff', i: '#9a7aff' },
   };
   for (const k in magePal) { S[k + 'mage'] = mk(magePal[k], mageIdle, { emit: 'egh' }); S[k + 'mageCast'] = mk(magePal[k], mageCast, { emit: 'egh' }); }
+  // ホーリーメイジ(天光の聖堂): ほかのメイジと同じ体に、白と金の衣と頭上の光輪
+  const holyPal = { a: '#5a4424', b: '#f4eedc', c: '#fffaf0', d: '#2a2010', e: '#ffe8a0', f: '#8a6a3a', g: '#ffd23f', h: '#ffffff', i: '#d8a840' };
+  S.holymage = mk(holyPal, ['....gggg....', '...g....g...', '....gggg....', ...mageIdle.slice(1).map(r => r.replace(/g(?=c)/, 'i'))], { emit: 'egh' });
+  S.holymageCast = mk(holyPal, ['....gggg.gh.', '...g....hggh', '....gggg.gf.', '.....a....f.', '....aba...f.', '....abba..f.', ...mageCast.slice(4).map(r => r.replace(/g(?=c)/, 'i'))], { emit: 'egh' });
+
+  // 光の蝶(天光の聖堂): 白金の上下 2対の羽と触角(羽ばたき 2コマ)。体が光る
+  const mothPal = { a: '#b8903a', b: '#fff2c8', c: '#ffffff', d: '#ffe08a' };
+  S.lightmoth = [
+    mk(mothPal, ['.a.......a.', '..a.....a..', 'aabba.abbaa', 'abdbbcbbdba', '.abbbcbbba.', '..aabcbaa..', '..abacaba..', '...a.c.a...'], { emit: 'cd' }),
+    mk(mothPal, ['.a.......a.', '..a.....a..', '...abcba...', '...adcda...', '...abcba...', '....aca....', '....aca....', '.....c.....'], { emit: 'cd' }),
+  ];
+  // 灯の番人(天光の聖堂): 暗い藍の頭巾の修道士が、手に金のランタンを提げる(頭巾の奥に金の眼、ランタンの中に赤い眼)。Lit = 見つけた(ランタンが白く強く光る)
+  const lampPal = { a: '#1e1a2a', b: '#3a3652', c: '#5a5678', d: '#0a0810', e: '#ffe8a0', f: '#8a7a5a', g: '#c8a050', k: '#ffd23f', h: '#fff6c8', E: '#ff3b5c' };
+  const lampRows = [
+    '....aaaa.......',
+    '...abbbba......',
+    '..abbbbbba.....',
+    '..abbbdddda....',
+    '..abbddddea....',
+    '..abbbddda.....',
+    '..abbbbbba.....',
+    '.abccccccca.f..',
+    '.bccccccccccf..',
+    '.bcccccccc.gggg',
+    '.bcccccccc.gkhg',
+    '.bcccccccc.gEkg',
+    '..bccccccb.gggg',
+    '..bbccccbb.....',
+    '..aa....aa.....',
+  ];
+  S.lampkeeper = mk(lampPal, lampRows, { emit: 'ekhE' });
+  S.lampkeeperLit = mk(Object.assign({}, lampPal, { k: '#fff6c8', h: '#ffffff' }), lampRows, { emit: 'ekhE' });
+  // 玻璃の天使(天光の聖堂): 頭上の光輪、ステンドグラスの翼と裾の広がった衣(赤・緑・青・金のガラスを黒い鉛の線で区切る)。2コマ目は翼が少し上がる
+  const glassPal = { o: '#1a1420', R: '#e84860', G: '#58d878', B: '#4878e8', Y: '#ffd23f', W: '#e8f4ff', w: '#9ab8e8', h: '#ffe8a0', s: '#f0dcc8', e: '#2a2040' };
+  const glassA = [
+    '......hhhh......',
+    '.....h....h.....',
+    '......hhhh......',
+    '.......ss.......',
+    '......sees......',
+    '......osso......',
+    'ww....oYYo....ww',
+    'wWww.oRYYRo.wwWw',
+    '.wWWooRYYRooWWw.',
+    '..wWWoGRRBoWWw..',
+    '...wwoGGBBoww...',
+    '....oYGGBBRo....',
+    '....oYYoBRRo....',
+    '...oBBYoGRRYo...',
+    '...oBBooGGoYo...',
+    '..oRRoBBoGGoBBo.',
+    '..ooooooooooooo.',
+  ];
+  const glassB = glassA.map((r, i) => (i >= 5 && i <= 10 ? glassA[i + 1].slice(0, 5) + r.slice(5, 11) + glassA[i + 1].slice(11) : r));
+  S.glassangel = [mk(glassPal, glassA, { emit: 'hY' }), mk(glassPal, glassB, { emit: 'hY' })];
+  // 玻璃の天使が割れた破片(赤・緑・青・金のガラスの三角のかけら)
+  S.gshard = ['#e84860', '#58d878', '#4878e8', '#ffd23f'].map(c => mk({ a: c, b: '#ffffff', o: '#1a1420' }, ['o..', 'aao', 'aba'], { emit: 'b' }));
 
   // 投槍兵: 青銅の兜と革鎧、長い槍を立てて持つ
   S.spear = mk({ a: '#3a2a1a', b: '#a0703a', c: '#e8e6da', d: '#c8b89a', e: '#ff5a3a', f: '#6b4a2a', g: '#dfe8f5', h: '#7a3a2a' }, [
