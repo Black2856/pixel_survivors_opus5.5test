@@ -2563,7 +2563,7 @@ const I18N_EN = {
   "白の収束": "White Convergence",
   "3つの灯が囲んで付いてきながら集まり、白い光が弾ける。真ん中の円が出たら止まるので、早めに離れる": "Three lights surround you and follow you as they close in, then burst into white. They stop once the center circle appears, so get away early",
   "三原の柱": "Trichrome Pillars",
-  "光の柱は歩いていく先に落ちる。赤い円が出たら向きを変える(引き返すのが確か)": "Pillars of light fall where you are walking to. When a red circle appears, change direction (turning back is safest)",
+  "光の柱は歩いていく先に落ちる。赤い円が出るたびに同じ向きへ曲がる(回るように歩く)": "Pillars of light fall where you are walking to. Each time a red circle appears, turn the same way (walk in a loop)",
   "分光": "Spectral Split",
   "白い光の玉は、少しすると赤・緑・青の 3つに割れて広がる": "The white orbs soon split into red, green, and blue and spread out",
   "スポットライト": "Spotlights",

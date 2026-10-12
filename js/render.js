@@ -2839,7 +2839,7 @@ function drawBossGround(t) {
     }
     if (ai.spot) { // スポットライトの地面の光(光が地面に届いてから)
       const k = triSpotLit(ai.spot) * clamp((ai.spot.t - TRI_SPOT.drop - 0.12) / 0.08, 0, 1);
-      if (k > 0) for (const s of ai.spot.ls) { if (s.dead) continue; const g = triSpotGeo(s); drawConeGround(sx, s.gx, s.gy, g.a, g.o, k); }
+      if (k > 0) drawConeGround(sx, ai.spot.ls.filter(s => !s.dead).map(s => { const g = triSpotGeo(s); return { x: s.gx, y: s.gy, a: g.a, o: g.o }; }), k * TRI_SPOT_LUM);
     }
   }
 }
@@ -2869,6 +2869,7 @@ function drawTriZones(sx, cs, R, al, t) {
   sx.globalAlpha = al; sx.drawImage(triCan, 0, 0, W, H, Math.round(x0 - cam.x), Math.round(y0 - cam.y), W, H); sx.globalAlpha = 1;
 }
 // スポットライトの光の強さ: 台が降りるまでは 0、降りて 1秒は弱い光(当たらない)、照らしている間は 1、終わりは消えていく
+const TRI_SPOT_LUM = 0.5; // スポットライトの地面の光の濃さ(ヘヴンズリフトを 1 として。楕円が広いので弱く)
 const triSpotLit = Sp => { const Q = TRI_SPOT; return Sp.t < Q.drop ? 0 : (Sp.t < Q.drop + Q.warm ? 0.4 : 1) * (1 - clamp((Sp.t - Q.dur) / Q.fade, 0, 1)); };
 // 三原の光精: 水晶の中の光の核(拍動し、中で赤 → 緑 → 青と色が巡る)と、赤・緑・青の灯(ふだんは核のまわりを回る)
 //   三原の灯の間は、灯がそれぞれの円の上に浮かんで、円を照らす光の筋を落とす / 白の収束では予告の円と同じ式で集まる
@@ -2901,7 +2902,7 @@ function drawTriFx(e, sx, gx, ex, ey, yo) {
     for (const s of Sp.ls) {
       if (s.dead) continue;
       const g = triSpotGeo(s);
-      drawConeShaft(sx, gx, t, { x: s.gx, y: s.gy, H: Q.H, a: g.a, ap: 1.5 }, g.o, k, f, lit, dr, Q.H * Q.tan * CHAOS.area);
+      drawConeShaft(sx, gx, t, { x: s.gx, y: s.gy, H: Q.H, a: g.a, ap: 1.5 }, g.o, k, f, lit, dr, Q.H * Math.tan(triSpotAl()));
       const hx = Math.round(s.gx - cam.x), hy = Math.round(s.gy - Q.H - (s.dropT > 0 ? s.dropT * 260 : 0) - cam.y); // ランプ(台の絵の金具の間。降りている間は台と一緒に)
       const px = s.gx + Math.cos(g.a) * g.o.c - cam.x - hx, py = s.gy + Math.sin(g.a) * g.o.c - cam.y - hy, pl = Math.hypot(px, py) || 1, lx = Math.round(hx + px / pl * 1.5), ly = Math.round(hy + py / pl * 1.5);
       pDisc(sx, hx, hy, 3, '#2a2440'); pCircle(sx, hx, hy, 3, '#b8903a'); // 黒い筒と金の縁
@@ -3201,13 +3202,20 @@ const riftFade = b => 1 - clamp((b.t - SER_RIFT.aim - RIFT_SWEEP) / SER_RIFT.fad
 // 光の強さ: 予告の間は弱い。傾いてからは強く、傾き終わると消えていく
 const riftLit = b => (b.t < SER_RIFT.aim ? 0.4 : 1) * riftFade(b);
 // 円錐の光の地面の楕円(敵より奥): 地面に当たっている光 = 当たる所(楕円そのもの)を濃い光で隅まで塗る。光源に近い側が少し明るい。
-//   (gx0, gy0): 光源の真下・a: 向き・o: 楕円(coneSpot)・k: 光の強さ。ヘヴンズリフトとスポットライトで使う
+//   ls: [{ x, y: 光源の真下・a: 向き・o: 楕円(coneSpot)}]・k: 光の強さ。ヘヴンズリフトとスポットライトで使う
+//   いくつもの光は合わせた形を 1回で塗る(重なった所が濃くならない。当たりも重なりで増えない。広い光が重なると白く飛ぶので)
 //   光の層(発光)と照らす光(addLight)は使わない: 明るい床ではどちらもブルームでにじみ、当たる所より大きく見える。白にしないのも同じ理由
-function drawConeGround(sx, gx0, gy0, a, o, k) {
-  const c = Math.cos(a), s = Math.sin(a), w = clamp(o.c / o.a, 0, 1);
-  const ell = (x, sh, ka, kb, col, al) => { const d = o.c - w * sh * o.a; x.globalAlpha = al; x.fillStyle = col; x.beginPath(); x.ellipse(gx0 + c * d - cam.x, gy0 + s * d - cam.y, o.a * ka, o.b * kb, a, 0, TAU); x.fill(); };
-  ell(sx, 0, 1, 1, '#ffe2a0', 0.72 * k); // 地面に当たっている光(当たる所)
-  ell(sx, 0.25, 0.75, 0.75, '#fff0c0', 0.45 * k); // 光源に近い側ほど明るい(縁は内側で接する)
+function drawConeGround(sx, ls, k) {
+  const ell = (sh, ka, col, al) => {
+    const p = new Path2D();
+    for (const { x, y, a, o } of ls) {
+      const c = Math.cos(a), s = Math.sin(a), d = o.c - clamp(o.c / o.a, 0, 1) * sh * o.a, q = new Path2D();
+      q.ellipse(x + c * d - cam.x, y + s * d - cam.y, o.a * ka, o.b * ka, a, 0, TAU); p.addPath(q); // 楕円ごとに別の部分(前の楕円と線でつながない)
+    }
+    sx.globalAlpha = al; sx.fillStyle = col; sx.fill(p);
+  };
+  ell(0, 1, '#ffe2a0', 0.72 * k); // 地面に当たっている光(当たる所)
+  ell(0.25, 0.75, '#fff0c0', 0.45 * k); // 光源に近い側ほど明るい(縁は内側で接する)
   sx.globalAlpha = 1;
 }
 // ヘヴンズリフトの地面の光: 光が地面に届いてから(0.12秒)
@@ -3215,7 +3223,7 @@ function drawRiftSpot(R, b, sx) {
   if (b.t < 0.12) return;
   const k = riftLit(b) * clamp((b.t - 0.12) / 0.08, 0, 1);
   if (k <= 0) return;
-  drawConeGround(sx, R.x, R.y, b.a, riftSpot(riftTh(b), CHAOS.area), k);
+  drawConeGround(sx, [{ x: R.x, y: R.y, a: b.a, o: riftSpot(riftTh(b), CHAOS.area) }], k);
 }
 // 空中の円錐(最前面): 光源の口と地面の楕円を包む形を薄い光で塗る(地面の楕円の所は抜く)。光の中を光の粒が降りる。地面の光の縁: lit なら赤い線(敵の攻撃の印。当たる所の縁そのもの)、でなければ淡い金の点線
 //   src: { x, y: 光源の真下・H: 高さ・a: 向き・ap: 口の幅の半分 }・o: 地面の楕円・k: 光の強さ・f: 赤い縁の強さ・dr < 1: 光の先が口から地面へ降りていく途中(r0: 真下の円の半径)
