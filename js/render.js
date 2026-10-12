@@ -1620,7 +1620,7 @@ function render() {
   }
 
   drawSpotCones(t); // 灯の番人の光の扇(地面を照らす。見つけかけると赤く)
-  drawBossGround(t); // ボスの技の地面の光(三原の光精の色の円・白光の柱の足元)
+  drawBossGround(t); // ボスの技の地面の光(三原の光精の色の円・スポットライトの地面の光)
   drawBossCharge(t); // ボスの構え: 足元に縮んでいく危険の輪
   // ---- 敵(Yソート) ----
   const vis = enemies.filter(e => !e.dead && onScreen(e.x, e.y, 30));
@@ -2815,7 +2815,7 @@ function drawSpotCones(t) {
 }
 // ボスの技の地面の光(敵より奥に描く)
 //   三原の光精の色の円: 赤・緑・青の円を場面に足し合わせて塗る(lighter)ので、重なった所は黄・紫・水色・白になる。縁は回る光の点。光の層は暗い色で
-//   白光の柱の足元: 白い楕円と、外へ流れる七色の縁
+//   スポットライトの地面の光: 円錐を床で切った楕円(当たる所)を濃い光で塗る(ヘヴンズリフトと同じ drawConeGround)
 function drawBossGround(t) {
   const sx = GFX.sctx, gx = GFX.gctx;
   for (const b of [...(S.bosses || []), ...(S.shadows || [])]) { // 影の王が呼んだ影も
@@ -2837,12 +2837,9 @@ function drawBossGround(t) {
       }
       sx.globalAlpha = 1;
     }
-    if (ai.wl && ai.wl.t >= 0.6) { // 白光の柱の足元
-      const W = ai.wl, R = 40 * CHAOS.area, cx = W.x - cam.x, cy = W.y - cam.y, fl = 0.85 + 0.15 * Math.sin(t * 30);
-      sx.globalAlpha = 0.14 * fl; pDisc(sx, cx, cy, Math.round(R), '#ffffff');
-      for (let j = 0; j < 48; j++) { const a = TAU / 48 * j - t * 1.5, x = Math.round(cx + Math.cos(a) * R), y = Math.round(cy + Math.sin(a) * R); sx.globalAlpha = 0.9; sx.fillStyle = TRI.col[j % 3]; sx.fillRect(x, y, 1, 1); }
-      sx.globalAlpha = 1; pCircle(gx, cx, cy, Math.round(R * 0.8), dimCol('#e8e8ff', 0.35));
-      addLight(W.x, W.y, R * 1.6, '#e8e8ff', 0.12);
+    if (ai.spot) { // スポットライトの地面の光(光が地面に届いてから)
+      const k = triSpotLit(ai.spot) * clamp((ai.spot.t - TRI_SPOT.drop - 0.12) / 0.08, 0, 1);
+      if (k > 0) for (const s of ai.spot.ls) { if (s.dead) continue; const g = triSpotGeo(s); drawConeGround(sx, s.gx, s.gy, g.a, g.o, k); }
     }
   }
 }
@@ -2871,25 +2868,26 @@ function drawTriZones(sx, cs, R, al, t) {
   triCtx.clearRect(0, 0, triCan.width, triCan.height); triCtx.putImageData(triImg, 0, 0);
   sx.globalAlpha = al; sx.drawImage(triCan, 0, 0, W, H, Math.round(x0 - cam.x), Math.round(y0 - cam.y), W, H); sx.globalAlpha = 1;
 }
+// スポットライトの光の強さ: 台が降りるまでは 0、降りて 1秒は弱い光(当たらない)、照らしている間は 1、終わりは消えていく
+const triSpotLit = Sp => { const Q = TRI_SPOT; return Sp.t < Q.drop ? 0 : (Sp.t < Q.drop + Q.warm ? 0.4 : 1) * (1 - clamp((Sp.t - Q.dur) / Q.fade, 0, 1)); };
 // 三原の光精: 水晶の中の光の核(拍動し、中で赤 → 緑 → 青と色が巡る)と、赤・緑・青の灯(ふだんは核のまわりを回る)
-//   三原の灯の間は、灯がそれぞれの円の上に浮かんで、円を照らす光の筋を落とす / 白の収束では予告の円と同じ式で集まる / 白光では核へ渦を巻いて吸い込まれ、白い光の柱が天から降りる
+//   三原の灯の間は、灯がそれぞれの円の上に浮かんで、円を照らす光の筋を落とす / 白の収束では予告の円と同じ式で集まる
+//   スポットライト: 台の上のランプ(レンズを光の向きへ)と空中の円錐(ヘヴンズリフトと同じ drawConeShaft。地面の光は drawBossGround)
 function drawTriFx(e, sx, gx, ex, ey, yo) {
   const ai = e.ai, t = GFX.fx.time, cx = Math.round(ex), cy = Math.round(ey + yo), pul = 0.5 + 0.5 * Math.sin(t * 6), ci = Math.floor(t * 3) % 3;
-  const wh = ai.act === 'white';
   // 核
-  pDisc(sx, cx, cy, wh ? 4 : 2, '#ffffff'); sx.fillStyle = TRI.col[ci]; sx.fillRect(cx - 1, cy + 1, 3, 1); sx.fillRect(cx - 1, cy - 2, 3, 1);
-  pDisc(gx, cx, cy, Math.round(2 + pul * (wh ? 3 : 1)), dimCol(wh ? '#ffffff' : '#c8d0ff', wh ? 0.8 : 0.55));
-  addLight(e.x, e.y + yo, (wh ? 110 : 60) * (0.9 + 0.1 * pul), wh ? '#ffffff' : '#e0e4ff', wh ? 0.7 : 0.45);
+  pDisc(sx, cx, cy, 2, '#ffffff'); sx.fillStyle = TRI.col[ci]; sx.fillRect(cx - 1, cy + 1, 3, 1); sx.fillRect(cx - 1, cy - 2, 3, 1);
+  pDisc(gx, cx, cy, Math.round(2 + pul), dimCol('#c8d0ff', 0.55));
+  addLight(e.x, e.y + yo, 60 * (0.9 + 0.1 * pul), '#e0e4ff', 0.45);
   // 灯の位置(場面の座標)
   const lampAt = i => {
     if (ai.lamp) { const c = ai.lamp.cs[i], k = easeOutCubic(Math.min(1, ai.lamp.t / 0.5)); return [lerp(e.x + Math.cos(ai.orb + TAU / 3 * i) * 18, c.x, k), lerp(e.y + yo + Math.sin(ai.orb + TAU / 3 * i) * 8, c.y - 26, k)]; } // 灯は円の上へ飛んでいく
     if (ai.cv) { const p = ai.cv.pts[i], [x, y] = ai.cv.pos(p, S.time - ai.cv.t0); return [x, y - 18]; }
-    const a = ai.orb + TAU / 3 * i, R = wh && ai.wl ? 18 * Math.max(0, 1 - ai.wl.t / 0.6) : 18;
-    return [e.x + Math.cos(a) * R, e.y + yo + Math.sin(a) * R * 0.45];
+    const a = ai.orb + TAU / 3 * i;
+    return [e.x + Math.cos(a) * 18, e.y + yo + Math.sin(a) * 18 * 0.45];
   };
   for (let i = 0; i < 3; i++) {
     const [lx, ly] = lampAt(i), x = Math.round(lx - cam.x), y = Math.round(ly - cam.y), col = TRI.col[i];
-    if (wh && ai.wl && ai.wl.t >= 0.6) continue; // 白光: 灯は核に重なっている
     if (ai.lamp && ai.lamp.t < ai.lamp.dur) { // 円を照らす光の筋(灯から円の両端へ)
       const c = ai.lamp.cs[i], R = 50 * CHAOS.area, k = Math.min(1, ai.lamp.t / 0.6);
       sx.globalAlpha = 0.35 * k; pLine(sx, x, y, c.x - cam.x - R * 0.8, c.y - cam.y, col); pLine(sx, x, y, c.x - cam.x + R * 0.8, c.y - cam.y, col); sx.globalAlpha = 1;
@@ -2898,14 +2896,17 @@ function drawTriFx(e, sx, gx, ex, ey, yo) {
     pDisc(gx, x, y, 2, dimCol(col, 0.6));
     addLight(lx, ly, 34, col, 0.55);
   }
-  if (ai.wl && ai.wl.t >= 0.6) { // 白光の柱: 天から降りる白い光(縁は赤・緑・青に分かれる。揺らぐ)
-    const W = ai.wl, R = 40 * CHAOS.area, bx = Math.round(W.x - cam.x), by = Math.round(W.y - cam.y), k = Math.min(1, (W.t - 0.6) / 0.15);
-    for (let y = -2; y < by; y++) {
-      const v = (y + 2) / Math.max(1, by + 2), ww = Math.round(R * (0.55 + 0.45 * v) * k + Math.sin(t * 20 + y * 0.3) * 1.2);
-      sx.globalAlpha = 0.1; sx.fillStyle = '#e8e8ff'; sx.fillRect(bx - ww, y, ww * 2 + 1, 1);
-      sx.globalAlpha = 0.32; sx.fillStyle = '#ffffff'; sx.fillRect(bx - Math.round(ww * 0.25), y, Math.round(ww * 0.5) + 1, 1);
-      sx.globalAlpha = 0.85; sx.fillStyle = TRI.col[0]; sx.fillRect(bx - ww - 1, y, 1, 1); sx.fillStyle = TRI.col[1]; sx.fillRect(bx - ww, y, 1, 1); sx.fillStyle = TRI.col[2]; sx.fillRect(bx + ww + 1, y, 1, 1);
-      if (y % 2 === 0) { gx.fillStyle = dimCol('#d8dcff', 0.18); gx.fillRect(bx - Math.round(ww * 0.2), y, Math.round(ww * 0.4) + 1, 1); } // 芯だけ淡く光らせる(柱の中の自分が見えるように)
+  if (ai.spot) { // スポットライト: 空中の円錐(台が降りると光の先がランプから地面へ降りる。弱い光の間は縁が淡い金の点線、照らしている間は赤い線)とランプ
+    const Sp = ai.spot, Q = TRI_SPOT, k = triSpotLit(Sp), lit = Sp.t >= Q.drop + Q.warm && Sp.t < Q.dur, f = 1 - clamp((Sp.t - Q.dur) / Q.fade, 0, 1), dr = clamp((Sp.t - Q.drop) / 0.12, 0, 1);
+    for (const s of Sp.ls) {
+      if (s.dead) continue;
+      const g = triSpotGeo(s);
+      drawConeShaft(sx, gx, t, { x: s.gx, y: s.gy, H: Q.H, a: g.a, ap: 1.5 }, g.o, k, f, lit, dr, Q.H * Q.tan * CHAOS.area);
+      const hx = Math.round(s.gx - cam.x), hy = Math.round(s.gy - Q.H - (s.dropT > 0 ? s.dropT * 260 : 0) - cam.y); // ランプ(台の絵の金具の間。降りている間は台と一緒に)
+      const px = s.gx + Math.cos(g.a) * g.o.c - cam.x - hx, py = s.gy + Math.sin(g.a) * g.o.c - cam.y - hy, pl = Math.hypot(px, py) || 1, lx = Math.round(hx + px / pl * 1.5), ly = Math.round(hy + py / pl * 1.5);
+      pDisc(sx, hx, hy, 3, '#2a2440'); pCircle(sx, hx, hy, 3, '#b8903a'); // 黒い筒と金の縁
+      pDisc(sx, lx, ly, 2, k > 0 ? '#fff6dc' : '#6a6488'); // レンズ(照らす向きへ寄せる)
+      if (k > 0) { sx.fillStyle = '#ffffff'; sx.fillRect(lx, ly, 1, 1); pDisc(gx, lx, ly, 1, dimCol('#fff2b0', 0.6 * k)); }
     }
     sx.globalAlpha = 1;
   }
@@ -3199,26 +3200,31 @@ function riftEllPts(R, b, o, n) { // 地面の楕円の点(画面の座標)
 const riftFade = b => 1 - clamp((b.t - SER_RIFT.aim - RIFT_SWEEP) / SER_RIFT.fade, 0, 1); // 傾き終わると消えていく
 // 光の強さ: 予告の間は弱い。傾いてからは強く、傾き終わると消えていく
 const riftLit = b => (b.t < SER_RIFT.aim ? 0.4 : 1) * riftFade(b);
-// 地面の光(敵より奥): 地面に当たっている光 = 当たる所(楕円そのもの)を濃い光で隅まで塗る。裂け目に近い側が少し明るい。光が地面に届いてから(0.12秒)
+// 円錐の光の地面の楕円(敵より奥): 地面に当たっている光 = 当たる所(楕円そのもの)を濃い光で隅まで塗る。光源に近い側が少し明るい。
+//   (gx0, gy0): 光源の真下・a: 向き・o: 楕円(coneSpot)・k: 光の強さ。ヘヴンズリフトとスポットライトで使う
 //   光の層(発光)と照らす光(addLight)は使わない: 明るい床ではどちらもブルームでにじみ、当たる所より大きく見える。白にしないのも同じ理由
-function drawRiftSpot(R, b, sx) {
-  if (b.t < 0.12) return;
-  const o = riftSpot(riftTh(b), CHAOS.area), k = riftLit(b) * clamp((b.t - 0.12) / 0.08, 0, 1), c = Math.cos(b.a), s = Math.sin(b.a), w = clamp(o.c / o.a, 0, 1);
-  if (k <= 0) return;
-  const ell = (x, sh, ka, kb, col, al) => { const d = o.c - w * sh * o.a; x.globalAlpha = al; x.fillStyle = col; x.beginPath(); x.ellipse(R.x + c * d - cam.x, R.y + s * d - cam.y, o.a * ka, o.b * kb, b.a, 0, TAU); x.fill(); };
+function drawConeGround(sx, gx0, gy0, a, o, k) {
+  const c = Math.cos(a), s = Math.sin(a), w = clamp(o.c / o.a, 0, 1);
+  const ell = (x, sh, ka, kb, col, al) => { const d = o.c - w * sh * o.a; x.globalAlpha = al; x.fillStyle = col; x.beginPath(); x.ellipse(gx0 + c * d - cam.x, gy0 + s * d - cam.y, o.a * ka, o.b * kb, a, 0, TAU); x.fill(); };
   ell(sx, 0, 1, 1, '#ffe2a0', 0.72 * k); // 地面に当たっている光(当たる所)
-  ell(sx, 0.25, 0.75, 0.75, '#fff0c0', 0.45 * k); // 裂け目に近い側ほど明るい(縁は内側で接する)
+  ell(sx, 0.25, 0.75, 0.75, '#fff0c0', 0.45 * k); // 光源に近い側ほど明るい(縁は内側で接する)
   sx.globalAlpha = 1;
 }
-// 空中の円錐(最前面): 裂け目の口と地面の楕円を包む形を薄い光で塗る(地面の楕円の所は抜く)。光の中を光の粒が降りる。
-//   差したばかり(0.12秒)は光の先が裂け目から地面へ降りる。地面の光の縁: 傾いている間は赤い線(敵の攻撃の印。当たる所の縁そのもの)、予告の間は淡い金の点線
-function drawRiftShaft(R, b, sx, gx, t) {
-  const A = CHAOS.area, Q = SER_RIFT, H = Q.h * A, ax = R.x - cam.x, ay = R.y - H - cam.y, o = riftSpot(riftTh(b), A), k = riftLit(b), f = riftFade(b), lit = b.t >= Q.aim;
+// ヘヴンズリフトの地面の光: 光が地面に届いてから(0.12秒)
+function drawRiftSpot(R, b, sx) {
+  if (b.t < 0.12) return;
+  const k = riftLit(b) * clamp((b.t - 0.12) / 0.08, 0, 1);
   if (k <= 0) return;
-  const c = Math.cos(b.a), s = Math.sin(b.a), dr = clamp(b.t / 0.12, 0, 1), down = dr * dr, aL = [ax - 2, ay], aR = [ax + 2, ay];
+  drawConeGround(sx, R.x, R.y, b.a, riftSpot(riftTh(b), CHAOS.area), k);
+}
+// 空中の円錐(最前面): 光源の口と地面の楕円を包む形を薄い光で塗る(地面の楕円の所は抜く)。光の中を光の粒が降りる。地面の光の縁: lit なら赤い線(敵の攻撃の印。当たる所の縁そのもの)、でなければ淡い金の点線
+//   src: { x, y: 光源の真下・H: 高さ・a: 向き・ap: 口の幅の半分 }・o: 地面の楕円・k: 光の強さ・f: 赤い縁の強さ・dr < 1: 光の先が口から地面へ降りていく途中(r0: 真下の円の半径)
+function drawConeShaft(sx, gx, t, src, o, k, f, lit, dr, r0) {
+  if (k <= 0) return;
+  const H = src.H, ax = src.x - cam.x, ay = src.y - H - cam.y, c = Math.cos(src.a), s = Math.sin(src.a), down = dr * dr, aL = [ax - src.ap, ay], aR = [ax + src.ap, ay];
   let ell, hx, hy;
-  if (dr < 1) { const rr = Math.max(1, H * Q.tan * down); hx = ax; hy = ay + H * down; ell = []; for (let i = 0; i < 24; i++) { const q = TAU * i / 24; ell.push([hx + Math.cos(q) * rr, hy + Math.sin(q) * rr]); } } // 降りていく光の先(空中の円)
-  else { ell = riftEllPts(R, b, o, 48); hx = R.x + c * o.x - cam.x; hy = R.y + s * o.x - cam.y; } // 芯は円錐の軸が地面に当たる所へ
+  if (dr < 1) { const rr = Math.max(1, r0 * down); hx = ax; hy = ay + H * down; ell = []; for (let i = 0; i < 24; i++) { const q = TAU * i / 24; ell.push([hx + Math.cos(q) * rr, hy + Math.sin(q) * rr]); } } // 降りていく光の先(空中の円)
+  else { ell = riftEllPts(src, src, o, 48); hx = src.x + c * o.x - cam.x; hy = src.y + s * o.x - cam.y; } // 芯は円錐の軸が地面に当たる所へ
   const hl = hull2([aL, aR, ...ell]), path = (x, q) => { x.moveTo(q[0][0], q[0][1]); for (let i = 1; i < q.length; i++) x.lineTo(q[i][0], q[i][1]); x.closePath(); };
   sx.globalAlpha = 0.2 * k; sx.fillStyle = '#fff6dc'; // 差しこむ光(薄く塗る)
   sx.beginPath(); path(sx, hl); if (dr >= 1) path(sx, ell); sx.fill('evenodd'); // 地面の楕円の所は同じ点で抜く(楕円しか見えない向きでは何も残らない)
@@ -3232,7 +3238,7 @@ function drawRiftShaft(R, b, sx, gx, t) {
     sx.globalAlpha = 0.45 * k * Math.sin(d * Math.PI); sx.fillRect(Math.round(ax + (hx - ax) * d + nx * w), Math.round(ay + (hy - ay) * d + ny * w), 1, 1);
   }
   if (dr >= 1) { // 地面の光の縁(楕円そのもの)
-    const n = Math.max(24, Math.round(TAU * Math.max(o.a, o.b) * 1.1)), pts = riftEllPts(R, b, o, n);
+    const n = Math.max(24, Math.round(TAU * Math.max(o.a, o.b) * 1.1)), pts = riftEllPts(src, src, o, n);
     sx.globalAlpha = lit ? 0.85 * f : 0.5 * k; sx.fillStyle = lit ? '#ff3b5c' : '#ffe8a0'; gx.fillStyle = dimCol('#ff3b5c', 0.35 * f);
     let lx = 1e9, ly = 1e9;
     for (let i = 0; i < n; i++) {
@@ -3244,6 +3250,11 @@ function drawRiftShaft(R, b, sx, gx, t) {
     }
   }
   sx.globalAlpha = 1;
+}
+// ヘヴンズリフトの空中の円錐: 差したばかり(0.12秒)は光の先が裂け目から地面へ降りる。傾いている間は縁が赤い線、予告の間は淡い金の点線
+function drawRiftShaft(R, b, sx, gx, t) {
+  const A = CHAOS.area, Q = SER_RIFT, H = Q.h * A;
+  drawConeShaft(sx, gx, t, { x: R.x, y: R.y, H, a: b.a, ap: 2 }, riftSpot(riftTh(b), A), riftLit(b), riftFade(b), b.t >= Q.aim, clamp(b.t / 0.12, 0, 1), H * Q.tan);
 }
 // 空の裂け目(最前面): 細いひびが中から両端へ走り(0.15秒)、割れて開く(縁は上下で別々のぎざぎざ。外は暗い紫・縁は金・中は白)。
 //   両端にひびが伸び、縁から光と欠片がこぼれる。最後の光が消えると閉じて(0.2秒)、ひびの名残が薄れて消える

@@ -2471,6 +2471,8 @@ function updObj(e, dt) {
     if (e.dropT > 0) e.dropT -= dt;
     else if (Math.random() < dt * 10) { const o = e.owner, pa = Math.atan2(o.y - o.jz - (e.y - 16), o.x - e.x); part(e.x + rand(-3, 3), e.y - 16, Math.cos(pa) * 110, Math.sin(pa) * 110, 0.9, pick(['#bff4ff', '#ffe8a0', '#ffffff']), { glow: true, drag: 0 }); }
     e.pulse = Math.max(0, (e.pulse || 0) - dt);
+  } else if (e.obj === 'spot') { // スポットライトの台(三原の光精): 天から降りて立つ。光は updTriSpot が動かす
+    if (e.dropT > 0) e.dropT -= dt;
   } else if (e.obj === 'altar') { // 炎の祭壇: 炎が燃えさかり、火の粉がイフリートへ流れる
     if (Math.random() < dt * 16) part(e.x + rand(-3, 3), e.y - 10 + rand(-2, 2), rand(-6, 6), -rand(20, 40), rand(0.3, 0.6), pick(['#ff6a2a', '#ffc34a', '#fff0b0']), { glow: true, drag: 1 });
     if (Math.random() < dt * 6) { const o = e.owner, pa = Math.atan2(o.y - e.y, o.x - e.x); part(e.x, e.y - 10, Math.cos(pa) * 90, Math.sin(pa) * 90, 0.8, '#ffc34a', { glow: true, drag: 0 }); }
@@ -2495,6 +2497,9 @@ function objDown(e, broken) {
       addFlash(e.x, e.y, 90, '#9fd8ff', 0.5); shockAt(e.x, e.y, 1.2, 0.8); shake(6); hitstop(0.05); AudioMan.crush(); AudioMan.chime();
       hint('ser_husk', _t('壊れたクリスタル'), _t('壊れたクリスタルは残り、ホワイトアウトのときに影(安全な所)を作る'));
     }
+  } else if (e.obj === 'spot') { // スポットライトの台: 壊すとランプのガラスが割れて光が消える
+    burst(e.x, e.y - 18, Math.round(30 * k), ['#fff6dc', '#ffffff', '#ffd23f', '#9890b8'], { sp: 120 * k, g: 200, glow: true, life: 0.5 });
+    if (broken) { addFlash(e.x, e.y - 18, 40, '#fff6dc', 0.3); shake(3); AudioMan.crush(); AudioMan.chime(); }
   } else if (e.obj === 'altar') {
     burst(e.x, e.y - 6, Math.round(36 * k), ['#3a2a2a', '#6a5050', '#ff6a2a', '#ffc34a'], { sp: 110 * k, g: 200, life: 0.7 });
     if (broken) { addFlash(e.x, e.y, 80, '#ff8a3d', 0.6); shake(5); AudioMan.boom(); UI.announce(_t('祭壇の火が消えた'), ''); }
@@ -2595,7 +2600,7 @@ const BOSS_AI0 = {
   trichroma: { lampCd: 3, conv: 9, pill: 6, split: 2, side: 1, busy: 0 },
   seraph: { cRay: 1.5, cHoly: 4, cVort: 3, cBar: 5, cRift: 10, cRonde: 8, cSat: 6, cShift: 8, cTrin: 99, side: 1, busy: 0 },
 };
-const BOSS_ENRAGE = { king: { slam: 6 }, ifrit: { altar: true }, stag: { herd: 4 }, pqueen: { spiral: 3 }, levia: { breath: 4 }, fgiant: { drift: 5 }, squeen: { lance: 3 }, warden: { ringCd: 6 }, reaper: { sum: 7 }, fhour: { cross: 4, echo: 0 }, cerberus: { rain: 5 }, shadowking: { chainCd: 1 }, qbee: { ball: 4 }, elder: { cage: 5 }, escorp: { pinch: 4 }, sphinx: { storm: 4 }, raiju: { form: 3 }, raijin: { god: 5 }, trichroma: { white: 4 }, seraph: { cTrin: 1 } };
+const BOSS_ENRAGE = { king: { slam: 6 }, ifrit: { altar: true }, stag: { herd: 4 }, pqueen: { spiral: 3 }, levia: { breath: 4 }, fgiant: { drift: 5 }, squeen: { lance: 3 }, warden: { ringCd: 6 }, reaper: { sum: 7 }, fhour: { cross: 4, echo: 0 }, cerberus: { rain: 5 }, shadowking: { chainCd: 1 }, qbee: { ball: 4 }, elder: { cage: 5 }, escorp: { pinch: 4 }, sphinx: { storm: 4 }, raiju: { form: 3 }, raijin: { god: 5 }, trichroma: { spotCd: 4 }, seraph: { cTrin: 1 } };
 
 function bossAI(e, dt) {
   const ai = e.ai, a = Math.atan2(P.y - e.y, P.x - e.x), dist = Math.sqrt(d2(e.x, e.y, P.x, P.y));
@@ -4696,7 +4701,7 @@ function raijinGod(e, ai) {
 
 // ---------- 三原の光精(天光の聖堂 1体目): 白い水晶の核のまわりを赤・緑・青の灯が回る。距離 110 を保って漂う ----------
 //   光が重なった所は色が混ざり(光の層で足し合わせて描くので、本当に黄・紫・水色・白に見える)、効果も混ざった色のものになる
-//   ★三原の灯 / 白の収束 / 三原の柱 / 分光(弾)/ 激昂: 白光
+//   ★三原の灯 / 白の収束 / 三原の柱 / 分光(弾)/ 激昂: スポットライト
 const TRI = { col: ['#ff3a4a', '#3aff6a', '#3a6aff'] }; // 灯の色(赤・緑・青。ビット 1・2・4)
 // 色(ビット: 赤 1・緑 2・青 4)の状態異常: 赤 = 出血 +1 / 緑 = 毒 +1 / 青 = 疲労 / 赤+緑(黄)= 痺れ +2 / 赤+青(紫)= 炎上 / 緑+青(水色)= 凍傷 +2 / 白(3色)= 乱光 +2。src: ボスのダメージ(炎上の量)
 function triStatus(mask, src) {
@@ -4707,19 +4712,19 @@ const TRI_N = [0, 1, 1, 2, 1, 2, 2, 3]; // ビットの数(色の数)
 function trichromaAI(e, ai, dt, a, dist, slow) {
   const R = CHAOS.rate;
   e.jz = 8 + Math.sin(e.t * 2.2) * 3; // 浮かぶ
-  ai.orb = (ai.orb || 0) + dt * (ai.act === 'white' ? 6 : 1.6); // 灯が回る(白光の溜めでは速く)
+  ai.orb = (ai.orb || 0) + dt * 1.6; // 灯が回る
   if (ai.lamp) updTriLamps(e, ai, dt);
-  if (ai.wl) updTriWhite(e, ai, dt);
+  if (ai.spot) updTriSpot(e, ai, dt);
   if (ai.cv) updTriConv(e, ai, dt);
-  if (ai.act) return; // 白光の間は動かない(終わりは技の later)
+  if (ai.act) return; // スポットライトの間は動かない(終わりは updTriSpot)
   if ((ai.flip = (ai.flip ?? 3) - dt) <= 0) { ai.flip = rand(3, 5); ai.side = -(ai.side || 1); } // ときどき回り込む向きを変える
   const dir = dist > 110 ? a : a + Math.PI, k = Math.abs(dist - 110) > 15 ? 1 : 0.25; // 距離 110 を保ち、横へ漂う
   e.x += (Math.cos(dir) * k + Math.cos(a + Math.PI / 2) * 0.6 * (ai.side || 1)) * e.spd * slow * dt;
   e.y += (Math.sin(dir) * k + Math.sin(a + Math.PI / 2) * 0.6 * (ai.side || 1)) * e.spd * slow * dt;
   if (Math.random() < dt * 8) part(e.x + rand(-10, 10), e.y - e.jz + rand(-12, 12), rand(-6, 6), -rand(6, 16), 0.7, pick([...TRI.col, '#ffffff']), { glow: true, drag: 1 }); // 七色にきらめく光の粒
-  ai.lampCd -= dt * R; ai.conv -= dt * R; ai.pill -= dt * R; ai.split -= dt * R; ai.busy -= dt * R; if (ai.enraged) ai.white -= dt * R;
+  ai.lampCd -= dt * R; ai.conv -= dt * R; ai.pill -= dt * R; ai.split -= dt * R; ai.busy -= dt * R; if (ai.enraged) ai.spotCd -= dt * R;
   if (ai.busy > 0) return; // 技のあとは少しあける
-  if (ai.enraged && ai.white <= 0) { ai.white = 13; triWhite(e, ai); }
+  if (ai.enraged && ai.spotCd <= 0) { ai.spotCd = 99; triSpot(e, ai); } // 次までの間は終わってから(updTriSpot)
   else if (ai.lampCd <= 0 && !ai.lamp) { ai.lampCd = ai.enraged ? 11 : 14; ai.busy = 1.2; triLamps(e, ai); }
   else if (ai.conv <= 0) { ai.conv = ai.enraged ? 8 : 10; ai.busy = TRI_CONV.end + 0.4; triConverge(e, ai); }
   else if (ai.pill <= 0) { ai.pill = ai.enraged ? 5.5 : 7; ai.busy = 1.6; triPillars(e, ai); }
@@ -4751,7 +4756,7 @@ function updTriLamps(e, ai, dt) {
 }
 // 白の収束: 3つの灯がプレイヤーのまわり 3方向(120° おき・100 離れた所)に降り(0.4秒)、1.6秒かけて真ん中へ集まる(動く円の予告 半径 40)。
 //   真ん中はプレイヤーを追う(速さ 30。真ん中の円が出たら止まる)。集まった所で白の爆発(半径 50。最後の 0.6秒は真ん中の円も出る)×1.4・乱光 +2。早めに離れる
-const TRI_CONV = { D: 100, land: 0.4, lock: 1.4, end: 2.0, sp: 30 }; // 灯の離れ具合・降りる時間・真ん中が止まる時・爆発の時・真ん中の追う速さ(白光の柱 45 より遅く)
+const TRI_CONV = { D: 100, land: 0.4, lock: 1.4, end: 2.0, sp: 30 }; // 灯の離れ具合・降りる時間・真ん中が止まる時・爆発の時・真ん中の追う速さ(プレイヤーの半分くらい)
 function triConverge(e, ai) {
   const Q = TRI_CONV, a0 = rand(0, TAU), pts = [0, 1, 2].map(i => ({ dx: Math.cos(a0 + TAU / 3 * i) * Q.D, dy: Math.sin(a0 + TAU / 3 * i) * Q.D, i }));
   const cv = ai.cv = { t0: S.time, cx: P.x, cy: P.y, pts, lock: false }; // t0: 始まった時刻(render.js が灯の位置を同じ式で描く)。cx, cy: 真ん中(updTriConv が動かす)
@@ -4817,21 +4822,61 @@ function triSplit(e, ai) {
   });
   hint('tri_split', _t('分光'), _t('白い光の玉は、少しすると赤・緑・青の 3つに割れて広がる'));
 }
-// 白光(激昂): 3つの灯が核に重なって白く輝き(0.6秒)、真っ白な光の柱(半径 40)がプレイヤーを 3秒 追う(速さ 45)。中にいると 0.5秒ごとに ×0.6・乱光 +1
-function triWhite(e, ai) {
-  ai.act = 'white'; e.sq = 1.2;
-  ai.wl = { t: 0, x: P.x, y: P.y, tick: 0.6 + 0.01 };
-  pushWarn({ kind: 'circle', x: P.x, y: P.y, r: 40, t: 0, life: 0.6, owner: e, track: w => { if (ai.wl) { w.x = ai.wl.x; w.y = ai.wl.y; } } });
-  later(ai, 3.8, () => { ai.wl = null; ai.act = null; ai.busy = 1; });
-  AudioMan.charge(0.6); AudioMan.chime(); screenFlash(0.12, '#e8e8ff');
-  hint('tri_white', _t('白光'), _t('白い光の柱が追ってくる。中にいると乱光'));
+// スポットライト(激昂): 光精のまわり(56。プレイヤーの方から ±60° と真後ろ)に、スポットライトの台 3個(壊せる物・HP 各 12%)が天から降りる。
+//   光は円錐(ヘヴンズリフトと同じ計算 coneSpot)で、地面に当たる楕円が光精とプレイヤーの間あたりを動き回る(狙う所の速さ 40 まで。台から 130 まで)。
+//   降りて 1秒は弱い光(当たらない)。そのあと楕円に入っていると 0.5秒ごとに ×0.6・乱光 +1。8秒で消える(台を壊すとその光は消え、全部壊すと早く終わる)。
+//   その間、光精は動かず、ほかの技を使わない。間隔は終わってから数える
+//   H: 光の高さ(台の絵のランプの高さ。art.js の obj_spot)/ tan: 開きの半分の tan(攻撃範囲の倍率を掛ける)/ reach: 台から狙う所までの最大(地面の楕円が長くなりすぎないように)
+//   sp: 狙う所の速さ / toP: 次の狙いをプレイヤーの所にする割合 / drop: 台が降りる / warm: 弱い光の間 / dur: 光が消え始める時 / fade: 消える長さ / cd: 次までの間
+const TRI_SPOT = { ring: 56, H: 39, tan: 0.09, reach: 130, sp: 40, toP: 0.4, drop: 0.45, warm: 1.0, dur: 8, fade: 0.3, tick: 0.5, cd: 14 };
+function triSpotGeo(s) { // スポットライトの光: 台の真下 (gx, gy) から狙う所 (tx, ty) への向き a と、地面の楕円 o
+  const Q = TRI_SPOT, dx = s.tx - s.gx, dy = s.ty - s.gy;
+  return { a: Math.atan2(dy, dx), o: coneSpot(Q.H, Math.atan(Q.tan * CHAOS.area), Math.atan(Math.hypot(dx, dy) / Q.H)) };
 }
-function updTriWhite(e, ai, dt) {
-  const W = ai.wl; W.t += dt;
-  const d = Math.hypot(P.x - W.x, P.y - W.y), k = Math.min(d, 45 * dt);
-  if (d > 0.5) { W.x += (P.x - W.x) / d * k; W.y += (P.y - W.y) / d * k; }
-  if (W.t >= 0.6 && (W.tick -= dt) <= 0) { W.tick = 0.5; if (hitCircle(W.x, W.y, 40, e.dmg * 0.6)) randomLight(1, e.dmg); }
-  if (W.t >= 0.6 && Math.random() < dt * 30) part(W.x + rand(-30, 30) * CHAOS.area, W.y + rand(-12, 12), rand(-10, 10), -rand(30, 80), 0.6, pick(['#ffffff', '#e8e8ff', ...TRI.col]), { glow: true, drag: 1 });
+function triSpot(e, ai) {
+  const Q = TRI_SPOT, a0 = Math.atan2(P.y - e.y, P.x - e.x), foot = ART.S.obj_spot.h / 2 - 1; // foot: 絵の中心から足もとまで(物の位置は絵の中心)
+  ai.act = 'spot'; e.sq = 1.2;
+  ai.spot = { t: 0, tick: 0, ls: [] };
+  for (let k = 0; k < 3; k++) {
+    const pa = a0 + Math.PI / 3 + TAU / 3 * k, [gx, gy] = serClamp(e.x + Math.cos(pa) * Q.ring, e.y + Math.sin(pa) * Q.ring, 30), ta = Math.atan2(P.y - gy, P.x - gx);
+    fxSigil(gx, gy, 12, '#fff6dc', { foe: true, style: 'rune', n: 6, step: 3, wu: 0.45, life: 0.8, sq: 0.45, spin: 1.4, glow: 0.35, hi: '#ffffff' }); // 床に光の印(降りてくる所)
+    const s = spawnObj(e, 'spot', gx, gy - foot, { pct: 0.12, r: 7, life: Q.dur + Q.fade });
+    Object.assign(s, { dropT: Q.drop, gx, gy, tx: gx + Math.cos(ta) * 24, ty: gy + Math.sin(ta) * 24, wt: 0 }); // 最初はプレイヤーの方へ少しだけ照らす
+    s.wx = s.tx; s.wy = s.ty;
+    ai.spot.ls.push(s);
+    fxBeam(gx, gy, { foe: true, w: 10, H: 260, col: '#fff6dc', mid: '#fffbe8', core: '#ffffff', life: 0.6, drop: 0.1 });
+    later(ai, Q.drop, () => { shockAt(gx, gy, 0.8, 0.6); shake(3); burst(gx, gy, 16, ['#fff6dc', '#ffffff', '#ffd23f'], { sp: 90, up: 20, glow: true, life: 0.4 }); AudioMan.thud(); });
+  }
+  AudioMan.summon(); AudioMan.chime();
+  hint('tri_spot', _t('スポットライト'), _t('スポットライトの光が、光精と自分の間を照らして動き回る。光の楕円に入ると乱光。台は壊せる'));
+}
+function triSpotWay(e, s) { // 次に照らす所: プレイヤーの所(toP の割合)か、光精とプレイヤーの間あたり。台から reach より遠い所は届く所まで
+  const Q = TRI_SPOT; let wx, wy;
+  if (Math.random() < Q.toP) { wx = P.x + rand(-12, 12); wy = P.y + rand(-12, 12); }
+  else { const dx = P.x - e.x, dy = P.y - e.y, L = Math.hypot(dx, dy) || 1, f = rand(0.3, 1.15), n = rand(-45, 45); wx = e.x + dx * f - dy / L * n; wy = e.y + dy * f + dx / L * n; }
+  const gx = wx - s.gx, gy = wy - s.gy, d = Math.hypot(gx, gy);
+  if (d > Q.reach) { wx = s.gx + gx / d * Q.reach; wy = s.gy + gy / d * Q.reach; }
+  s.wx = wx; s.wy = wy; s.wt = rand(1.4, 2.2);
+}
+function updTriSpot(e, ai, dt) {
+  const Q = TRI_SPOT, Sp = ai.spot, ls = Sp.ls.filter(s => !s.dead);
+  Sp.t += dt;
+  if (!ls.length) { ai.spot = null; ai.act = null; ai.busy = 1; ai.spotCd = Q.cd; return; } // 台が全部 壊れた・消えた
+  if (Sp.t < Q.drop + Q.warm) return; // 降りて弱い光の間は動かない(最初に照らす所を見せる)
+  for (const s of ls) { // 狙う所が次の所へ動く(近づくと遅く)
+    if ((s.wt -= dt) <= 0 || d2(s.tx, s.ty, s.wx, s.wy) < 9) triSpotWay(e, s);
+    const dx = s.wx - s.tx, dy = s.wy - s.ty, d = Math.hypot(dx, dy), k = Math.min(d, Math.min(Q.sp, d * 2.5) * dt);
+    if (d > 0.01) { s.tx += dx / d * k; s.ty += dy / d * k; }
+  }
+  if (Sp.t >= Q.dur) return; // 消えていく間は当たらない
+  if ((Sp.tick -= dt) <= 0) {
+    Sp.tick = Q.tick;
+    if (!P.dead && ls.some(s => { const g = triSpotGeo(s); return inConeSpot(s.gx, s.gy, g.a, g.o, P.x, P.y, 3); }) && hurtPlayer(e.dmg * 0.6)) randomLight(1, e.dmg);
+  }
+  if (Math.random() < dt * 12) { // 照らされた地面から光の粒が昇る
+    const s = pick(ls), g = triSpotGeo(s), c = Math.cos(g.a), sn = Math.sin(g.a), q = rand(0, TAU), r = Math.sqrt(Math.random()), lu = g.o.c + Math.cos(q) * g.o.a * r, lv = Math.sin(q) * g.o.b * r;
+    part(s.gx + c * lu - sn * lv, s.gy + sn * lu + c * lv, rand(-8, 8), -rand(15, 40), 0.5, pick(['#fff6dc', '#ffffff', '#ffe8a0']), { glow: true, drag: 1.5 });
+  }
 }
 
 // ---------- 熾天使(天光の聖堂 2体目・ラスボス): 光輪と 6枚の翼。距離 120 を保って浮かぶ ----------
@@ -4976,12 +5021,20 @@ function serSatellite(e, ai, have) {
 //   h: 裂け目の高さ / tan: 光の開き(半分)の tan(真下を照らすと 円 半径 h·tan)/ w: 傾く速さ(rad/秒)/ aim: 予告 / fade: 光が消える長さ
 const SER_RIFT = { h: 56, tan: 0.125, reach: 480, w: 1.1, aim: 0.5, fade: 0.2 }; // 真下で 円 半径 7。遠い縁が 480 に届くまで(約 1.2秒)
 const RIFT_AL = Math.atan(SER_RIFT.tan), RIFT_TH = Math.atan(SER_RIFT.reach / SER_RIFT.h) - RIFT_AL, RIFT_SWEEP = RIFT_TH / SER_RIFT.w; // 開き(半分)・光が消える傾き(+開き < 90°)・傾く秒数
-// 傾き th の地面の光(攻撃範囲の倍率 A は高さに掛ける): 真下から楕円の中心までの距離 c・向きの方の半径 a・横の半径 b・光の芯(円錐の軸)が地面に当たる所 x
-//   近い縁 c − a = h·tan(th − α)、遠い縁 c + a = h·tan(th + α)。th = 0 で円(半径 h·tanα)
-function riftSpot(th, A) {
-  const H = SER_RIFT.h * A, s = Math.sin(RIFT_AL), co = Math.cos(RIFT_AL), sn = Math.sin(th), k = co * co - sn * sn;
+// 高さ H の光源から開きの半分 al の円錐の光を、傾き th(真下が 0)で地面へ差したときの地面の光(円錐を床で切った楕円。th + al < 90°):
+//   光源の真下から楕円の中心までの距離 c・向きの方の半径 a・横の半径 b・光の芯(円錐の軸)が地面に当たる所 x
+//   近い縁 c − a = H·tan(th − al)、遠い縁 c + a = H·tan(th + al)。th = 0 で円(半径 H·tan al)。ヘヴンズリフトとスポットライトで使う
+function coneSpot(H, al, th) {
+  const s = Math.sin(al), co = Math.cos(al), sn = Math.sin(th), k = co * co - sn * sn;
   return { c: H * sn * Math.cos(th) / k, a: H * s * co / k, b: H * s / Math.sqrt(k), x: H * Math.tan(th) };
 }
+// 地面の光の中か: 光源の真下 (gx, gy)・向き a の楕円 o に、点 (px, py) の体(半径 m)が触れているか
+function inConeSpot(gx, gy, a, o, px, py, m) {
+  const c = Math.cos(a), s = Math.sin(a), dx = px - gx, dy = py - gy, u = dx * c + dy * s - o.c, v = dy * c - dx * s;
+  return Math.pow(u / (o.a + m), 2) + Math.pow(v / (o.b + m), 2) < 1;
+}
+// ヘヴンズリフトの傾き th の地面の光(攻撃範囲の倍率 A は高さに掛ける)
+function riftSpot(th, A) { return coneSpot(SER_RIFT.h * A, RIFT_AL, th); }
 const riftTh = b => clamp((b.t - SER_RIFT.aim) * SER_RIFT.w, 0, RIFT_TH); // 光の傾き
 // 光の通り道(傾き 0 から終わりまでの楕円を全部重ねた形): 向きの方の距離 us ごとの片側の幅 vs。予告の形(攻撃範囲の倍率ごとに 1回だけ作る)
 //   us は根元ほど細かく取る(根元の円は小さく、遠くの楕円は大きいので)
@@ -5027,8 +5080,8 @@ function updSerRift(e, ai, dt) {
     if (b.t < Q.aim) continue;
     if (!b.lit) { b.lit = true; burst(R.x, R.y, 12, SER_GOLD, { sp: 70, glow: true, life: 0.35 }); addRing(R.x, R.y, 22 * A, '#fff6dc', { r0: 6, life: 0.25 }); AudioMan.cast(); } // 光が強まって傾き始める
     if (b.t >= Q.aim + RIFT_SWEEP) continue; // 消えていく間は当たらない
-    const o = riftSpot(riftTh(b), A), c = Math.cos(b.a), s = Math.sin(b.a), dx = P.x - R.x, dy = P.y - R.y, u = dx * c + dy * s - o.c, v = dy * c - dx * s;
-    if (!b.hit && !P.dead && P.invT <= 0 && Math.pow(u / (o.a + 3), 2) + Math.pow(v / (o.b + 3), 2) < 1) { b.hit = true; serHurt(e, 0.6); }
+    const o = riftSpot(riftTh(b), A), c = Math.cos(b.a), s = Math.sin(b.a);
+    if (!b.hit && !P.dead && P.invT <= 0 && inConeSpot(R.x, R.y, b.a, o, P.x, P.y, 3)) { b.hit = true; serHurt(e, 0.6); }
     if (Math.random() < dt * 30) { // 照らされた地面から光の粒が昇る
       const q = rand(0, TAU), r = Math.sqrt(Math.random()), lu = o.c + Math.cos(q) * o.a * r, lv = Math.sin(q) * o.b * r;
       part(R.x + c * lu - s * lv, R.y + s * lu + c * lv, rand(-8, 8), -rand(15, 40), 0.5, pick(SER_GOLD), { glow: true, drag: 1.5 });
