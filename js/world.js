@@ -4935,14 +4935,14 @@ function seraphAI(e, ai, dt, a, dist, slow) {
   if (ai.busy > 0) return; // 技のあとは少しあける(2026-10-13 に全部 +0.5秒。技はほぼ詰まって出るので、全体の速さはこの間で決まる)
   const sats = enemies.filter(o => !o.dead && o.obj === 'scrystal' && o.owner === e).length;
   if (enr && ai.cTrin <= 0 && !ai.wo) { ai.cTrin = 45; ai.busy = 1.5; serTrinity(e, ai); }
-  else if (ai.cRay <= 0) { ai.cRay = enr ? 5 : 7; ai.busy = 1.5; serRay(e, ai, a); }
-  else if (ai.cHoly <= 0) { ai.cHoly = enr ? 7 : 9; ai.busy = 1.6; serHoly(e, ai); }
-  else if (ai.cVort <= 0) { ai.cVort = enr ? 6 : 8; ai.busy = 1.3; serVortex(e, ai); }
-  else if (ai.cBar <= 0) { ai.cBar = enr ? 9 : 11; ai.busy = 1.4; serBarrage(e, ai); }
-  else if (ai.cRift <= 0 && !ai.rift) { ai.cRift = enr ? 10 : 12; ai.busy = 1.3; serRift(e, ai); }
-  else if (ai.cRonde <= 0 && !ai.ronde) { ai.cRonde = enr ? 12 : 14; ai.busy = 1.3; serRonde(e, ai); }
-  else if (ai.cSat <= 0 && sats < 3) { ai.cSat = enr ? 14 : 16; ai.busy = 1.1; serSatellite(e, ai, sats); }
-  else if (ai.cShift <= 0) { ai.cShift = enr ? 8 : 10; ai.busy = 1.3; serShift(e, ai); }
+  else if (ai.cRay <= 0) { ai.cRay = enr ? 7 : 9; ai.busy = 1.5; serRay(e, ai, a); }
+  else if (ai.cHoly <= 0) { ai.cHoly = enr ? 9 : 12; ai.busy = 1.6; serHoly(e, ai); }
+  else if (ai.cVort <= 0) { ai.cVort = enr ? 8 : 10; ai.busy = 1.3; serVortex(e, ai); }
+  else if (ai.cBar <= 0) { ai.cBar = enr ? 12 : 14; ai.busy = 1.4; serBarrage(e, ai); }
+  else if (ai.cRift <= 0 && !ai.rift) { ai.cRift = enr ? 13 : 16; ai.busy = 1.3; serRift(e, ai); }
+  else if (ai.cRonde <= 0 && !ai.ronde) { ai.cRonde = enr ? 16 : 18; ai.busy = 1.3; serRonde(e, ai); }
+  else if (ai.cSat <= 0 && sats < 3) { ai.cSat = enr ? 18 : 21; ai.busy = 1.1; serSatellite(e, ai, sats); }
+  else if (ai.cShift <= 0) { ai.cShift = enr ? 10 : 13; ai.busy = 1.3; serShift(e, ai); }
 }
 // ホーリー: 0.8秒 プレイヤーの位置に大きい円(半径 90)と光の陣 → 天から光の柱が降りて爆発 ×0.8。
 //   そのあと 2(3)秒、0.5秒ごとにプレイヤーのまわり(150 以内)へ小さいホーリー(円 半径 24・予告 0.5秒 → 細い光の柱 ×0.4)
