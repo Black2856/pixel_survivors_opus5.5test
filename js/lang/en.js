@@ -2562,6 +2562,8 @@ const I18N_EN = {
   "赤・緑・青の光が追ってくる。重なった所は色が混ざって効果が変わり、3色が重なった白は乱光": "Red, green, and blue lights chase you. Where they overlap, the colors mix and so do their effects. White, where all three overlap, inflicts Scatterlight",
   "白の収束": "White Convergence",
   "3つの灯が囲んで付いてきながら集まり、白い光が弾ける。真ん中の円が出たら止まるので、早めに離れる": "Three lights surround you and follow you as they close in, then burst into white. They stop once the center circle appears, so get away early",
+  "三原の柱": "Trichrome Pillars",
+  "光の柱は歩いていく先に落ちる。赤い円が出たら向きを変える(引き返すのが確か)": "Pillars of light fall where you are walking to. When a red circle appears, change direction (turning back is safest)",
   "分光": "Spectral Split",
   "白い光の玉は、少しすると赤・緑・青の 3つに割れて広がる": "The white orbs soon split into red, green, and blue and spread out",
   "白光": "White Light",
