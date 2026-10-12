@@ -136,7 +136,7 @@ const chaosFixed = key => !META.stageClear[key];
 const chaosSetting = key => (chaosFixed(key) ? chaosBase(key) : META.chaos[key] || (META.chaos[key] = chaosBase(key)));
 
 // ---------- クラスの解放 ----------
-// DATA.classUnlock のモード・ステージを初めてクリアすると使える(書いていないクラスは最初から)
+// DATA.classUnlock のステージを初めてクリアすると使える(書いていないクラスは最初から)
 const clsUnlocked = k => !DATA.classUnlock[k] || !!META.stageClear[DATA.classUnlock[k]] || !!(META.clsGrant && META.clsGrant[k]); // clsGrant: 解放の条件を変える前に解放済みだったクラス
 const clsNameShown = k => (clsUnlocked(k) ? DATA.classes[k].name : _t('？？？')); // 未解放のクラスは名前も伏せる(解放の条件も見せない)
 

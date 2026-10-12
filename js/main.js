@@ -34,7 +34,7 @@ function endRun(win) {
     META.best.kills = Math.max(META.best.kills, S.kills);
     META.best.level = Math.max(META.best.level, P.level);
   }
-  const locked = Object.keys(DATA.classes).filter(k => !clsUnlocked(k));
+  const locked = DATA.classOrder.filter(k => !clsUnlocked(k));
   // 初クリアのゴールド: ステージ(通常モード)を初めてクリアしたとき、そのステージの tier の額(エスカレーション・闘技場には無い)
   const first = win && S.mode === 'stage' && !META.stageClear[runKey()] ? DATA.flow.firstClear[S.tier - 1] || 0 : 0;
   META.gold += first;

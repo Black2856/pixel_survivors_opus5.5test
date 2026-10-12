@@ -56,6 +56,12 @@ const META = (() => {
   }
   // バーサーカーの解放を 闘技場 → 常闇の王墓 に変えた: 闘技場をクリアして解放済みだったセーブは、そのまま使える(1回だけ記録)
   if (!m.clsGrant) { m.clsGrant = {}; if (m.stageClear.arena) m.clsGrant.berserker = true; }
+  // クラスの解放をステージの並びの順に変えた(2026-10-13。最初からはサムライだけ): 前の決まりで使えたクラスは、そのまま使える(1回だけ記録)。新しいセーブは記録しない
+  if (m.clsV !== 2) {
+    const OLD = { cleric: 'stage1', electro: 'stage2', pyro: 'stage3', necro: 'stage4', cryo: 'stage5', assassin: 'stage6', astro: 'stage7', weaponmaster: 'escalation', berserker: 'stage8' };
+    if (raw) for (const k in DATA.classes) if (!OLD[k] || m.stageClear[OLD[k]] || m.clsGrant[k]) m.clsGrant[k] = true;
+    m.clsV = 2;
+  }
   for (const k in DATA.classes) m.classes[k] = Object.assign({ lv: 1, xp: 0, weapon: DATA.classes[k].weapon || DATA.classes[k].startW }, m.classes[k]); // 専用武器がないクラスは startW から
   if (!DATA.classes[m.cls]) m.cls = 'samurai';
   if (DATA.classUnlock[m.cls] && !m.stageClear[DATA.classUnlock[m.cls]] && !m.clsGrant[m.cls]) m.cls = 'samurai'; // まだ解放されていないクラス(解放の条件を後から足した)

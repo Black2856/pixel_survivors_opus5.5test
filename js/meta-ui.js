@@ -88,7 +88,7 @@ const MetaUI = (() => {
   }
   function renderClass() {
     const st = $('cl-list').scrollTop; // 描き直してもスクロール位置を保つ
-    $('cl-list').innerHTML = Object.keys(DATA.classes).map(k => {
+    $('cl-list').innerHTML = DATA.classOrder.map(k => {
       const c = DATA.classes[k], m = META.classes[k];
       if (!clsUnlocked(k)) return `<button class="cl-card ${clSel === k ? 'sel' : ''} locked" data-k="${k}"><span class="en">???</span><img src="${portrait(k)}" alt=""><span class="nm">${_t('？？？')}</span><span class="lv">🔒</span></button>`; // 未解放: 名前・色を伏せたシルエット
       return `<button class="cl-card ${clSel === k ? 'sel' : ''} ${clsReady(k) ? '' : 'off'}" data-k="${k}" style="--cc:${c.col}">
@@ -99,7 +99,7 @@ const MetaUI = (() => {
     if (!clsUnlocked(clSel)) { // 未解放: 何も明かさない
       $('cl-detail').innerHTML = `<div class="cl-head"><span class="nm">${_t('？？？')}</span></div>
         <div class="cl-lock">🔒 ${_t('まだ解放されていないクラス')}</div>
-        <div class="dim cl-note">${_t('モード・ステージを初めてクリアすると、新しいクラスが解放されることがある')}</div>
+        <div class="dim cl-note">${_t('ステージを初めてクリアすると、新しいクラスが解放されることがある')}</div>
         <button class="btn cl-go" disabled>🔒 ${_t('未解放')}</button>`;
       $('cl-status').innerHTML = _t('<div class="dim sv-note">？？？</div>');
       return;
@@ -135,7 +135,7 @@ const MetaUI = (() => {
   const closeWp = () => wpModal.classList.add('hidden');
   function openWp() {
     const k = clSel, c = DATA.classes[k], m = META.classes[k], swap = canSwap(k), cw = m.weapon || c.weapon || c.startW;
-    const weps = [...new Set(Object.values(DATA.classes).map(x => x.weapon).filter(Boolean))];
+    const weps = [...new Set(DATA.classOrder.map(k => DATA.classes[k].weapon).filter(Boolean))]; // クラスの並びの順
     const owner = w => Object.values(DATA.classes).find(x => x.weapon === w), ownerName = w => clsNameShown(weaponOwner(w)); // 未解放のクラスの名前は伏せる
     wpModal.querySelector('.svm-body').innerHTML = `<div class="wp-h">${_t('メイン武器を選ぶ')} <span class="dim">— ${c.name}</span></div>
       ${swap ? '' : _t('<div class="dim wp-note">Lv15 で切り替えが解放されます(今はクラス専用の武器だけ)</div>')}

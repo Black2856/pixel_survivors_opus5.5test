@@ -1306,9 +1306,16 @@ const DATA = {
     },
   },
   // クラスLv: need[i] = Lv(i+1) → Lv(i+2) に必要な経験値。獲得量 = 討伐数 × killK + 撃破ボス数 × bossK
-  // クラスの解放: このモード・ステージを初めてクリアすると使える(書いていないクラスは最初から: サムライ・メイジ・アーチャー・ナイト)
-  //   キーは runKey(escalation / arena / stage1〜12。stage の番号は stageRuns の no)
-  classUnlock: { cleric: 'stage1', electro: 'stage2', pyro: 'stage3', necro: 'stage4', cryo: 'stage5', assassin: 'stage6', astro: 'stage7', weaponmaster: 'escalation', berserker: 'stage8' },
+  // クラスの解放: このステージを初めてクリアすると使える(書いていないクラスは最初から: サムライ)
+  //   キーは runKey(escalation / arena / stage1〜12。stage の番号は stageRuns の no)。2026-10-13 にステージの並びと同じ順に変えた(core.js の clsV で、前の決まりで解放済みのクラスはそのまま)
+  classUnlock: {
+    mage: 'stage1', archer: 'stage9', knight: 'stage2', // はじまりの草原・木漏れ日の森・黄昏の荒野
+    assassin: 'stage10', cleric: 'stage4', necro: 'stage6', // 陽炎の砂海・七彩の晶窟・沈黙の海淵
+    electro: 'stage11', cryo: 'stage5', pyro: 'stage3', // 雷鳴の雲海・霜天の霊峰・灼熱の奈落
+    berserker: 'stage7', astro: 'stage8', weaponmaster: 'stage12', // 終刻の時計塔・常闇の王墓・天光の聖堂
+  },
+  // クラスの並び(クラス画面・メイン武器の選択・ガイド。上から): 最初から使えるサムライ、そのあと解放するステージの順
+  classOrder: ['samurai', 'mage', 'archer', 'knight', 'assassin', 'cleric', 'necro', 'electro', 'cryo', 'pyro', 'berserker', 'astro', 'weaponmaster'],
   classLevel: {
     need: [100, 150, 200, 300, 400, 500, 650, 800, 1000, 1250, 1500, 1750, 2000, 2500, 3000, 4000, 5000, 7500, 10000],
     killK: 1, bossK: 100,
@@ -1508,17 +1515,18 @@ const DATA = {
 
   // ---------- 通常モード(ステージを1つ選ぶ) ----------
   // no = ステージのキーの番号(stage1〜12。クリア記録・カオス強化) / stage = DATA.stages の番号 / tier = 開始の敵Lv・報酬 / bosses = ボス1 → ボス2(倒すとクリア)
+  //   並びはステージ選択の順(tier の中の順。闘技場のラウンドの順にも使う)
   //   segs = 3分ごとの区間の出現の候補(1つ目は 0・60・120秒で1種ずつ足す / 2つ目 / 3つ目。null = その前の全部)
   stageRuns: [
     { no: 1, stage: 1, tier: 1, bosses: ['gslime', 'king'], segs: [['zombie', 'bat', 'slime'], ['bat', 'slime', 'brute'], null] },
-    { no: 2, stage: 2, tier: 1, bosses: ['golem', 'wyrm'], segs: [['skeleton', 'archer', 'sandmage'], ['archer', 'sandmage', 'spear'], null] },
     { no: 9, stage: 10, tier: 1, bosses: ['qbee', 'elder'], segs: [['sapling', 'bee', 'squirrel'], ['bee', 'squirrel', 'bear'], null] }, // 木漏れ日の森
-    { no: 3, stage: 3, tier: 3, bosses: ['cdragon', 'ifrit'], segs: [['imp', 'hound', 'mworm'], ['hound', 'mworm', 'lslime', 'firemage'], null] },
+    { no: 2, stage: 2, tier: 1, bosses: ['golem', 'wyrm'], segs: [['skeleton', 'archer', 'sandmage'], ['archer', 'sandmage', 'spear'], null] },
+    { no: 10, stage: 11, tier: 2, bosses: ['escorp', 'sphinx'], segs: [['scorpion', 'vulture', 'sanddoll'], ['vulture', 'sanddoll', 'antlion'], null] }, // 陽炎の砂海
     { no: 4, stage: 5, tier: 2, bosses: ['stag', 'pqueen'], segs: [['bat', 'jslime', 'beetle'], ['jslime', 'beetle', 'fairy'], null] }, // 七彩の晶窟
     { no: 6, stage: 6, tier: 2, bosses: ['kraken', 'levia'], segs: [['jelly', 'sahagin', 'puffer'], ['sahagin', 'puffer', 'angler'], null] }, // 沈黙の海淵
-    { no: 10, stage: 11, tier: 2, bosses: ['escorp', 'sphinx'], segs: [['scorpion', 'vulture', 'sanddoll'], ['vulture', 'sanddoll', 'antlion'], null] }, // 陽炎の砂海
-    { no: 5, stage: 7, tier: 3, bosses: ['fgiant', 'squeen'], segs: [['wolf', 'ghost', 'icesprite'], ['ghost', 'icesprite', 'yeti', 'frostmage'], null] }, // 霜天の霊峰
     { no: 11, stage: 12, tier: 3, bosses: ['raiju', 'raijin'], segs: [['raichild', 'raincloud', 'twinsprite'], ['raincloud', 'twinsprite', 'tarmor', 'thundermage'], null] }, // 雷鳴の雲海
+    { no: 5, stage: 7, tier: 3, bosses: ['fgiant', 'squeen'], segs: [['wolf', 'ghost', 'icesprite'], ['ghost', 'icesprite', 'yeti', 'frostmage'], null] }, // 霜天の霊峰
+    { no: 3, stage: 3, tier: 3, bosses: ['cdragon', 'ifrit'], segs: [['imp', 'hound', 'mworm'], ['hound', 'mworm', 'lslime', 'firemage'], null] },
     // 終刻の時計塔: 3つ目の候補は「今までの敵」のまとまり(1枠として選ばれ、その中から1種)
     { no: 7, stage: 8, tier: 4, bosses: ['warden', 'reaper'], segs: [['gear', 'clockman', ['skeleton', 'archer', 'lslime', 'wolf', 'sahagin', 'beetle']], ['clockman', 'hglass', ['skeleton', 'archer', 'lslime', 'wolf', 'sahagin', 'beetle']], null] },
     { no: 8, stage: 9, tier: 4, bosses: ['cerberus', 'shadowking'], segs: [['spider', 'shadoweye', 'ghoul'], ['shadoweye', 'ghoul', 'stalker'], null] }, // 常闇の王墓
