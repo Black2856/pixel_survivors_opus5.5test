@@ -2226,6 +2226,26 @@ function render() {
       pCircle(sx, wx, wy, R, edge); pCircle(gx, wx, wy, R, '#ff3b5c');
       if (R0 > 0) { pCircle(sx, wx, wy, R0, edge); pCircle(gx, wx, wy, R0, '#ff3b5c'); }
       if (k < 1) { const TR = Math.round(R * (1 + 0.25 * (1 - k))); sx.globalAlpha = 0.25 + 0.5 * k; pCircle(sx, wx, wy, TR, '#ff3b5c', 2); sx.globalAlpha = 1; }
+    } else if (w.kind === 'sweep') { // 光の通り道(ヘヴンズリフト): 楕円が通る所全体(us ごとの片側の幅 vs)。傾き始める(aim)までは根元から赤く満ちる。傾いている間は縁の破線だけ残す
+      const ca = Math.cos(w.a), sa = Math.sin(w.a), n = w.us.length;
+      const shape = m => { const q = []; for (let i = 0; i < m; i++) q.push([wx + ca * w.us[i] - sa * w.vs[i], wy + sa * w.us[i] + ca * w.vs[i]]); for (let i = m - 1; i >= 0; i--) q.push([wx + ca * w.us[i] + sa * w.vs[i], wy + sa * w.us[i] - ca * w.vs[i]]); return q; };
+      const poly = (q, al) => { sx.globalAlpha = al; sx.fillStyle = '#ff3b5c'; sx.beginPath(); q.forEach(([x, y], i) => i ? sx.lineTo(x, y) : sx.moveTo(x, y)); sx.closePath(); sx.fill(); };
+      const full = shape(n);
+      if (w.t < w.aim) {
+        const ka = w.t / w.aim;
+        poly(full, 0.18); poly(shape(Math.max(2, Math.ceil(n * ka))), 0.22); sx.globalAlpha = 1;
+        for (let i = 0; i < full.length; i++) { const p = full[i], q = full[(i + 1) % full.length]; pLine(sx, p[0], p[1], q[0], q[1], edge); pLine(gx, p[0], p[1], q[0], q[1], '#ff3b5c'); }
+        const off = (t * 60) % 14, u0 = w.us[0], du = (w.us[n - 1] - u0) / (n - 1); // 光が進む向きへ流れる山形(>)
+        sx.globalAlpha = 0.25 + 0.35 * ka;
+        for (let d = off + 5; d < w.us[n - 1] - 4; d += 14) {
+          const f = (d - u0) / du, i = Math.min(n - 2, Math.floor(f)), cw = Math.min(lerp(w.vs[i], w.vs[i + 1], f - i) * 0.4, 7), px = wx + ca * d, py = wy + sa * d;
+          for (const s of [-1, 1]) pLine(sx, px + ca * 3, py + sa * 3, px - ca * 2 - sa * cw * s, py - sa * 2 + ca * cw * s, '#ff3b5c');
+        }
+      } else { // 傾いている間: 縁の破線(だんだん薄く)
+        sx.globalAlpha = 0.6 * (1 - (w.t - w.aim) / (w.life - w.aim));
+        for (let i = 0; i < full.length; i += 2) { const p = full[i], q = full[(i + 1) % full.length]; pLine(sx, p[0], p[1], q[0], q[1], '#ff3b5c'); }
+      }
+      sx.globalAlpha = 1;
     } else drawWarnCircle(wx, wy, Math.round(w.r), k, edge, { noFill: w.noFill });
   }
   // エリート群: 画面の外にいるエリートの方向を、画面の縁に赤い二重の矢印で示す
@@ -2958,7 +2978,7 @@ function drawSerBack(e, sp, yo) {
   if (!shade && !still && open > 0.5) for (const sd of [-1, 1]) addLight(e.x + sd * 20, e.y + yo - 6, 24 + 16 * open, '#ffe8a0', 0.1 + 0.1 * open);
 }
 // 熾天使の手前側: 光の衣(体を包む白金の膜・回る光沢。状態異常 1種ごとにひび)・衣の強さの印(頭上の 5つの結晶)・プリズムシフトの構え・光輪
-//   続く技: ルミナスロンドの光線 / ヘヴンズリフトの裂け目と地面を走る光線 / ホーリーヴォルテックスの光の玉 / ホワイトアウトの溜め
+//   続く技: ルミナスロンドの光線 / ヘヴンズリフトの裂け目と差す光 / ホーリーヴォルテックスの光の玉 / ホワイトアウトの溜め
 function drawSerFx(e, sx, gx, ex, ey, yo) {
   const ai = e.ai, t = GFX.fx.time, A = CHAOS.area, L = ai.lr, still = !!(L && L.still), W = ai.wo, shade = !!e.shadow, p = serPow(e);
   const cx = Math.round(ex), cy = Math.round(ey + yo), top = cy - 19, g = Math.max(0, Math.min(1, p - 1));
@@ -3020,7 +3040,7 @@ function drawSerFx(e, sx, gx, ex, ey, yo) {
   if (ai.ronde) {
     const r = ai.ronde, k = clamp((r.t - 0.6) / 0.15, 0, 1) * clamp((10.6 - r.t) / 0.3, 0, 1);
     if (k > 0) {
-      const BL = 120 * A, BW = 8 * A, x0 = e.x - cam.x, y0 = e.y - cam.y, fl = Math.floor(t * 30) % 2;
+      const BL = 300 * A, BW = 8 * A, x0 = e.x - cam.x, y0 = e.y - cam.y, fl = Math.floor(t * 30) % 2;
       for (let j = 0; j < r.n; j++) {
         const a = rondeA(r, j), c = Math.cos(a), s = Math.sin(a), x1 = x0 + c * BL, y1 = y0 + s * BL;
         pLine(gx, x0, y0, x1, y1, dimCol('#c8a050', 0.5 * k), Math.round(BW + fl));
@@ -3035,41 +3055,10 @@ function drawSerFx(e, sx, gx, ex, ey, yo) {
       sx.globalAlpha = 1;
     }
   }
-  // ---- ヘヴンズリフト: 空の裂け目(横に長いレンズの形。縁は金、中は白く脈打つ)と、地面を走る光線 ----
+  // ---- ヘヴンズリフト: 裂け目から差す光(空中の円錐)と地面の光の縁。光は裂け目から出るので、裂け目は光の上に描く(地面の光は drawSerGround) ----
   if (ai.rift) {
-    const R = ai.rift, op = easeOutCubic(clamp(R.t / 0.4, 0, 1)) * clamp((6.2 - R.t) / 0.3, 0, 1), gx0 = Math.round(R.x - cam.x), gy0 = Math.round(R.y - cam.y), ry0 = gy0 - 56;
-    if (op > 0) {
-      sx.globalAlpha = 0.1 * op; sx.fillStyle = '#fff6dc'; sx.beginPath(); sx.moveTo(gx0 - 26 * op, ry0); sx.lineTo(gx0 + 26 * op, ry0); sx.lineTo(gx0 + 16, gy0); sx.lineTo(gx0 - 16, gy0); sx.closePath(); sx.fill(); // 裂け目から地面へ差す光
-      const RW = 30, RH = 5 * op;
-      for (let x = -RW; x <= RW; x++) {
-        const h = Math.round(RH * Math.sqrt(Math.max(0, 1 - (x / RW) * (x / RW))) * (0.85 + 0.15 * Math.sin(t * 20 + x)));
-        if (h < 1) continue;
-        sx.globalAlpha = op; sx.fillStyle = '#ffd23f'; sx.fillRect(gx0 + x, ry0 - h - 1, 1, 1); sx.fillRect(gx0 + x, ry0 + h, 1, 1);
-        sx.fillStyle = '#ffffff'; sx.fillRect(gx0 + x, ry0 - h, 1, h * 2);
-        gx.fillStyle = dimCol('#fff2b0', 0.6 * op); gx.fillRect(gx0 + x, ry0 - h, 1, h * 2);
-      }
-      for (const sd of [-1, 1]) { sx.globalAlpha = 0.8 * op; pLine(sx, gx0 + sd * RW, ry0, gx0 + sd * (RW + 6), ry0 - 2, '#ffe8a0'); pLine(sx, gx0 + sd * (RW + 6), ry0 - 2, gx0 + sd * (RW + 10), ry0 + 1, '#ffe8a0'); } // 裂け目の端のひび
-      sx.globalAlpha = 1;
-      ellBoth(sx, gx, gx0, gy0, 14, 5, '#ffe8a0', 0.7 * op, dimCol('#ffe8a0', 0.35 * op), 8, t * 2); // 地面の光だまり
-      sx.globalAlpha = 1;
-      addLight(R.x, R.y - 56, 60, '#fff2b0', 0.55 * op); addLight(R.x, R.y, 40, '#ffe8a0', 0.4 * op);
-      if (Math.random() < 0.4 * op) part(R.x + rand(-RW, RW) * 0.8, R.y - 56 + rand(-2, 2), rand(-4, 4), rand(20, 60), 0.6, pick(SER_GOLD), { glow: true, drag: 0.5 }); // 裂け目からこぼれる光
-    }
-    const BLn = 260 * A;
-    for (const b of R.beams) {
-      if (b.t < 0.5) continue;
-      const c = Math.cos(b.a), s = Math.sin(b.a), s1 = Math.min(BLn, b.s), s0 = Math.max(0, b.s - 40 * A), tail = Math.max(0, b.s - 120 * A);
-      if (s1 <= s0) continue;
-      const hx = gx0 + c * s1, hy2 = gy0 + s * s1;
-      sx.globalAlpha = 0.35; pLine(sx, gx0 + c * tail, gy0 + s * tail, gx0 + c * s0, gy0 + s * s0, '#ffe8a0', 3); // 尾
-      sx.globalAlpha = 1;
-      pLine(gx, gx0 + c * s0, gy0 + s * s0, hx, hy2, dimCol('#ffe8a0', 0.65), Math.round(9 * A));
-      pLine(sx, gx0 + c * s0, gy0 + s * s0, hx, hy2, '#ffd23f', Math.round(10 * A));
-      pLine(sx, gx0 + c * s0, gy0 + s * s0, hx, hy2, '#fff6c8', Math.round(6 * A));
-      pLine(sx, gx0 + c * s0, gy0 + s * s0, hx, hy2, '#ffffff', Math.max(1, Math.round(3 * A)));
-      pDisc(sx, hx, hy2, 4, '#ffffff'); pDisc(gx, hx, hy2, 5, dimCol('#fff6dc', 0.7)); // 先頭の光
-      addLight(R.x + c * s1, R.y + s * s1, 50, '#fff2b8', 0.7);
-    }
+    for (const b of ai.rift.beams) drawRiftShaft(ai.rift, b, sx, gx, t);
+    drawSerRift(ai.rift, sx, gx, t);
   }
   // ---- ホーリーヴォルテックス: 渦を巻いて集まる光の玉(赤い縁は敵の攻撃の印)。通る道すじは淡い点。集まる所は光が強まる ----
   if (ai.vortex && ai.vortex.t < 1.8) {
@@ -3166,6 +3155,7 @@ function drawSerGround(b, t) {
     ellBoth(sx, gx, bx, by, 10 * A, 4 * A, '#ffffff', 0.6 * k, null, 0, 0);
     sx.globalAlpha = 1;
   }
+  if (ai.rift) for (const bm of ai.rift.beams) drawRiftSpot(ai.rift, bm, sx, gx); // ヘヴンズリフトの地面の光
   if (ai.after) { // プリズムシフトの残像: 七色の縁が回る円(中は乱光。赤い破線は敵の攻撃の印)と、残った熾天使の幻
     const Af = ai.after, k = clamp(Af.t / 0.3, 0, 1) * clamp((5 - Af.t) / 0.5, 0, 1), R = 70 * A, ax = Af.x - cam.x, ay = Af.y - cam.y;
     sx.globalAlpha = 0.08 * k; sx.fillStyle = '#e8d8ff'; sx.beginPath(); sx.arc(ax, ay, R, 0, TAU); sx.fill();
@@ -3190,6 +3180,123 @@ function drawSerGround(b, t) {
     if (W && W.t < 5) { const pl = 0.5 + 0.5 * Math.sin(t * 6); sx.globalAlpha = 0.5 + 0.4 * pl; pCircle(sx, h.x - cam.x, h.y - cam.y + 7, Math.round(h.r + 2 * pl), '#bff4ff', 2); sx.globalAlpha = 1; pCircle(gx, h.x - cam.x, h.y - cam.y + 7, Math.round(h.r), dimCol('#7ad7ff', 0.3 + 0.3 * pl), 2); }
     addLight(h.x, h.y, 26, '#9fd8ff', 0.3);
   }
+}
+// ---- ヘヴンズリフト(熾天使): 空の裂け目と、裂け目から地面へ差す光 ----
+//   光は円錐(裂け目の高さ h・開きの半分 α)。地面の光は円錐を床で切った楕円(riftSpot)。画面では高さを上へずらして描くので、空中の円錐は
+//   裂け目の口と地面の楕円を包む形(凸包)になる。プレイヤーが裂け目の向こう(画面の上)にいると、円錐は地面の楕円に重なって見えない
+function hull2(pts) { // 凸包(点は [x, y]。渡した点の配列そのものを返すので、参照で見分けられる)
+  const p = pts.slice().sort((a, b) => a[0] - b[0] || a[1] - b[1]), cr = (o, a, b) => (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0]), lo = [], up = [];
+  for (const q of p) { while (lo.length > 1 && cr(lo[lo.length - 2], lo[lo.length - 1], q) <= 0) lo.pop(); lo.push(q); }
+  for (let i = p.length - 1; i >= 0; i--) { const q = p[i]; while (up.length > 1 && cr(up[up.length - 2], up[up.length - 1], q) <= 0) up.pop(); up.push(q); }
+  lo.pop(); up.pop(); return lo.concat(up);
+}
+function riftEllPts(R, b, o, n) { // 地面の楕円の点(画面の座標)
+  const c = Math.cos(b.a), s = Math.sin(b.a), cx = R.x + c * o.c - cam.x, cy = R.y + s * o.c - cam.y, pts = [];
+  for (let i = 0; i < n; i++) { const q = TAU * i / n, lu = Math.cos(q) * o.a, lv = Math.sin(q) * o.b; pts.push([cx + c * lu - s * lv, cy + s * lu + c * lv]); }
+  return pts;
+}
+const riftFade = b => 1 - clamp((b.t - SER_RIFT.aim - RIFT_SWEEP) / SER_RIFT.fade, 0, 1); // 傾き終わると消えていく
+// 光の明るさ: 予告の間は弱い。傾いてからは広がるほど暗い(同じ光が広い所に散る。面積どおりだと暗くなりすぎるので弱めて、下限 0.35)
+function riftLit(b, o) { const r0 = SER_RIFT.h * CHAOS.area * SER_RIFT.tan; return (b.t < SER_RIFT.aim ? 0.35 : clamp(Math.pow(r0 * r0 / (o.a * o.b), 0.4), 0.35, 1)) * riftFade(b); }
+// 地面の光(敵より奥): 裂け目に近い側ほど明るい(3重の楕円を近い側へ寄せる)。光が地面に届いてから(0.12秒)
+function drawRiftSpot(R, b, sx, gx) {
+  if (b.t < 0.12) return;
+  const o = riftSpot(riftTh(b), CHAOS.area), k = riftLit(b, o) * clamp((b.t - 0.12) / 0.08, 0, 1), c = Math.cos(b.a), s = Math.sin(b.a), w = clamp(o.c / o.a, 0, 1);
+  if (k <= 0) return;
+  const ell = (x, sh, ka, kb, col, al) => { const d = o.c - w * sh * o.a; x.globalAlpha = al; x.fillStyle = col; x.beginPath(); x.ellipse(R.x + c * d - cam.x, R.y + s * d - cam.y, o.a * ka, o.b * kb, b.a, 0, TAU); x.fill(); };
+  ell(sx, 0, 1, 1, '#fff2c8', 0.26 * k);
+  ell(sx, 0.3, 0.7, 0.75, '#fff6dc', 0.2 * k);
+  ell(sx, 0.55, 0.4, 0.45, '#ffffff', 0.3 * k);
+  ell(gx, 0.55, 0.4, 0.45, dimCol('#ffe8a0', 0.3 * k), 1); // 光の層は色で弱める
+  sx.globalAlpha = 1;
+  const d = o.c - w * 0.55 * o.a;
+  addLight(R.x + c * o.c, R.y + s * o.c, (o.a + o.b) * 1.1, '#fff2b0', 0.4 * k); addLight(R.x + c * d, R.y + s * d, o.b * 2.2, '#ffffff', 0.35 * k);
+}
+// 空中の円錐(最前面): 裂け目の口と地面の楕円を包む淡い光(地面の楕円の所は抜く)・縁の 2本の線・芯を流れ落ちる光の粒。
+//   差したばかり(0.12秒)は光の先が裂け目から地面へ降りる。地面の光の縁: 傾いている間は赤(敵の攻撃の印。流れる破線)、予告の間は淡い金の点線
+function drawRiftShaft(R, b, sx, gx, t) {
+  const A = CHAOS.area, Q = SER_RIFT, H = Q.h * A, ax = R.x - cam.x, ay = R.y - H - cam.y, o = riftSpot(riftTh(b), A), k = riftLit(b, o), f = riftFade(b), lit = b.t >= Q.aim;
+  if (k <= 0) return;
+  const c = Math.cos(b.a), s = Math.sin(b.a), dr = clamp(b.t / 0.12, 0, 1), down = dr * dr, aL = [ax - 2, ay], aR = [ax + 2, ay];
+  let ell, hx, hy;
+  if (dr < 1) { const rr = Math.max(1, H * Q.tan * down); hx = ax; hy = ay + H * down; ell = []; for (let i = 0; i < 24; i++) { const q = TAU * i / 24; ell.push([hx + Math.cos(q) * rr, hy + Math.sin(q) * rr]); } } // 降りていく光の先(空中の円)
+  else { ell = riftEllPts(R, b, o, 40); hx = R.x + c * o.x - cam.x; hy = R.y + s * o.x - cam.y; } // 芯は円錐の軸が地面に当たる所へ
+  const hl = hull2([aL, aR, ...ell]), path = q => { sx.moveTo(q[0][0], q[0][1]); for (let i = 1; i < q.length; i++) sx.lineTo(q[i][0], q[i][1]); sx.closePath(); };
+  sx.globalAlpha = (lit ? 0.24 : 0.1) * k; sx.fillStyle = '#fff6dc';
+  sx.beginPath(); path(hl); if (dr >= 1) path(ell); sx.fill('evenodd'); // 地面の楕円の所は同じ点で抜く(楕円しか見えない向きでは何も残らない)
+  for (let m = 0; m < 7; m++) { // 円錐の中の光の筋(口から地面の光の縁へ。ゆらめく)
+    const q = ell[Math.floor((m + 0.5) / 7 * ell.length)];
+    sx.globalAlpha = (0.08 + 0.07 * Math.sin(t * 5 + m * 1.7)) * k * (lit ? 1 : 0.6); pLine(sx, ax + (m - 3) * 0.5, ay, q[0], q[1], '#fff6dc');
+  }
+  sx.globalAlpha = (lit ? 0.8 : 0.45) * k; // 円錐の縁: 口から地面の光へ接する 2本の線
+  for (const ap of [aL, aR]) { const i = hl.indexOf(ap); if (i < 0) continue; for (const j of [i - 1, i + 1]) { const q = hl[(j + hl.length) % hl.length]; if (q !== aL && q !== aR) { pLine(sx, ap[0], ap[1], q[0], q[1], '#ffe8a0'); pLine(gx, ap[0], ap[1], q[0], q[1], dimCol('#ffe8a0', 0.3 * k)); } } }
+  pLine(gx, ax, ay, hx, hy, dimCol('#fff2b0', 0.35 * k)); // 光の芯
+  const L = Math.hypot(hx - ax, hy - ay) || 1, nx = -(hy - ay) / L, ny = (hx - ax) / L, wd = dr < 1 ? 2 : Math.min(o.b, 16);
+  sx.fillStyle = '#ffffff';
+  for (let j = -1; j <= 1; j++) for (let d = (t * 1.6 + (j + 1) * 0.29) % 0.25; d < 1; d += 0.25) { // 芯を流れ落ちる光の粒
+    const w = j * (1 + d * wd * 0.6);
+    sx.globalAlpha = 0.55 * k * Math.sin(d * Math.PI); sx.fillRect(Math.round(ax + (hx - ax) * d + nx * w), Math.round(ay + (hy - ay) * d + ny * w), 1, 1);
+  }
+  if (dr >= 1) { // 地面の光の縁
+    const n = Math.max(24, Math.round(TAU * Math.max(o.a, o.b) * 1.1)), pts = riftEllPts(R, b, o, n), blink = Math.floor(t * 8) % 2;
+    let lx = 1e9, ly = 1e9;
+    for (let i = 0; i < n; i++) {
+      const x = Math.round(pts[i][0]), y = Math.round(pts[i][1]);
+      if (x === lx && y === ly) continue;
+      lx = x; ly = y;
+      if (!lit) { if (i % 3) continue; sx.globalAlpha = 0.5 * k; sx.fillStyle = '#ffe8a0'; sx.fillRect(x, y, 1, 1); continue; }
+      const on = Math.floor(i / n * 48 - t * 8) % 3 !== 0; // 流れる破線
+      sx.globalAlpha = (on ? 0.9 : 0.5) * f; sx.fillStyle = on ? (blink ? '#ff3b5c' : '#ffd0d8') : '#ffe8a0'; sx.fillRect(x, y, 1, 1);
+      if (on) { gx.fillStyle = dimCol('#ff3b5c', 0.35 * f); gx.fillRect(x, y, 1, 1); }
+    }
+  }
+  sx.globalAlpha = 1;
+}
+// 空の裂け目(最前面): 細いひびが中から両端へ走り(0.15秒)、割れて開く(縁は上下で別々のぎざぎざ。外は暗い紫・縁は金・中は白)。
+//   両端にひびが伸び、縁から光と欠片がこぼれる。最後の光が消えると閉じて(0.2秒)、ひびの名残が薄れて消える
+function drawSerRift(R, sx, gx, t) {
+  const A = CHAOS.area, H = SER_RIFT.h * A, cx = Math.round(R.x - cam.x), cy = Math.round(R.y - H - cam.y), W = Math.round(34 * A), G = 6 * A, cr = R.cr, n = cr.length - 1, tn = Math.tan(R.tilt);
+  const run = clamp(R.t / 0.15, 0, 1), open = R.t < 0.15 ? 0 : easeOutBack(clamp((R.t - 0.15) / 0.3, 0, 1)), shut = 1 - clamp(R.close / 0.2, 0, 1), fade = 1 - clamp((R.close - 0.15) / 0.15, 0, 1), g = open * shut;
+  const vt = cr.map((p, i) => { const u = i / n * 2 - 1, pr = Math.pow(Math.max(0, 1 - Math.pow(Math.abs(u), 1.7)), 0.75); return { y: p.dy * (1 - Math.abs(u)), up: pr * p.up, dn: pr * p.dn }; }); // 縁の頂点(間は直線でつなぐ: ぎざぎざ)
+  const at = x => { const f = (x / W + 1) / 2 * n, i = clamp(Math.floor(f), 0, n - 1), u = f - i, p = vt[i], q = vt[i + 1]; return { y: lerp(p.y, q.y, u) + x * tn, up: G * g * lerp(p.up, q.up, u), dn: G * g * lerp(p.dn, q.dn, u) }; };
+  if (g < 0.2) { // ひび(1本の線): 中から両端へ走る / 閉じたあとの名残
+    const L = Math.round(W * run), al = R.close > 0 ? fade : 1;
+    sx.globalAlpha = al; sx.fillStyle = '#ffffff'; gx.fillStyle = dimCol('#ffe8a0', 0.5 * al);
+    for (let x = -L; x <= L; x++) { const y = Math.round(cy + at(x).y); sx.fillRect(cx + x, y, 1, 1); gx.fillRect(cx + x, y, 1, 1); }
+    if (run < 1) for (const sd of [-1, 1]) if (Math.random() < 0.7) part(R.x + sd * L, R.y - H + at(sd * L).y, sd * rand(20, 60), rand(-30, 10), 0.25, pick(['#ffffff', '#ffe8a0']), { glow: true, drag: 3 }); // 走るひびの先の火花
+  }
+  if (g > 0.02) {
+    const pulse = 0.85 + 0.15 * Math.sin(t * 9), cols = [];
+    for (let x = -W - 1; x <= W + 1; x++) { const p = at(clamp(x, -W, W)), y0 = Math.round(cy + p.y); cols.push({ y0, top: y0 - Math.round(p.up), bot: y0 + Math.round(p.dn) }); }
+    for (let pass = 0; pass < 2; pass++) for (let i = 1; i < cols.length - 1; i++) { // 1回目: 外の暗い縁(空が裂けた所。2px)/ 2回目: 金の縁と中の光
+      const c0 = cols[i], X = cx + i - 1 - W, top = Math.min(c0.top, cols[i - 1].top, cols[i + 1].top), bot = Math.max(c0.bot, cols[i - 1].bot, cols[i + 1].bot); // 急な所も縁がとぎれないように、となりの列まで縦につなぐ
+      const gap = c0.bot - c0.top, th = gap >= 3 ? 2 : 1;
+      if (pass === 0) { sx.globalAlpha = 0.9 * shut; sx.fillStyle = '#2a1e40'; sx.fillRect(X, top - th, 1, bot - top + 2 * th + 1); continue; }
+      sx.globalAlpha = 1; sx.fillStyle = gap < 1 ? '#ffe8a0' : '#ffd23f'; sx.fillRect(X, top, 1, c0.top - top + 1); sx.fillRect(X, c0.bot, 1, bot - c0.bot + 1);
+      if (gap > 1) {
+        sx.fillStyle = '#fff2c8'; sx.fillRect(X, c0.top + 1, 1, gap - 1); // 中の光
+        if (gap > 3) { sx.fillStyle = '#ffffff'; sx.fillRect(X, c0.top + 2, 1, gap - 3); } // 芯は白
+        if (gap > 4 && ((i + Math.floor(t * 24)) % 9 + 9) % 9 === 0) { sx.fillStyle = '#ffe8a0'; sx.fillRect(X, c0.y0, 2, 1); } // 中を流れる光
+        gx.fillStyle = dimCol('#fff2b0', 0.3 * g * pulse); gx.fillRect(X, c0.top + 1, 1, gap - 1); // 光の層は中だけ(縁まで光らせると、にじんで雲のように見える)
+      }
+    }
+    for (let k = 0; k < 2; k++) { // 両端から伸びるひび(枝 1本。下に暗い影)
+      const sd = k ? 1 : -1, T = R.tips[k], L = clamp(open, 0, 1) * shut, ex = cx + sd * W, ey = cy + at(sd * W).y;
+      if (L < 0.05) continue;
+      const pt = (px, py) => [ex + sd * px * L, ey + py * L], m = [pt(0, 0), pt(4, T.m[0]), pt(8, T.m[1]), pt(13, T.m[2])], br = [m[1], pt(7, T.m[0] + T.br * 3), pt(10, T.m[0] + T.br * T.bl)];
+      const al = 0.75 + 0.25 * Math.sin(t * 17 + k * 2);
+      for (const ln of [m, br]) for (let j = 0; j < ln.length - 1; j++) {
+        sx.globalAlpha = 0.6 * shut; pLine(sx, ln[j][0], ln[j][1] + 1, ln[j + 1][0], ln[j + 1][1] + 1, '#2a1e40');
+        sx.globalAlpha = al; pLine(sx, ln[j][0], ln[j][1], ln[j + 1][0], ln[j + 1][1], '#ffe8a0'); pLine(gx, ln[j][0], ln[j][1], ln[j + 1][0], ln[j + 1][1], dimCol('#ffd23f', 0.3 * al));
+      }
+    }
+    sx.globalAlpha = 1;
+    if (Math.random() < 0.35 * g) { const x = rand(-W, W) * 0.85, p = at(x); part(R.x + x, R.y - H + p.y + p.dn, rand(-4, 4), rand(20, 60), 0.6, pick(SER_GOLD), { glow: true, drag: 0.5 }); } // 裂け目からこぼれる光
+    if (Math.random() < 0.08 * g) { const x = rand(-W, W) * 0.9, p = at(x), hi = Math.random() < 0.5; part(R.x + x, R.y - H + p.y + (hi ? -p.up - 1 : p.dn + 1), rand(-15, 15), hi ? -rand(10, 30) : rand(5, 20), 0.5, pick(['#3a2a58', '#6a5a8a', '#ffd23f']), { drag: 1 }); } // 縁から剥がれる欠片
+  }
+  sx.globalAlpha = 1;
+  const lk = Math.max(g, run < 1 ? 0.4 * run : 0);
+  if (lk > 0) addLight(R.x, R.y - H, 50 + 20 * g, '#fff2b0', 0.5 * lk);
 }
 // ホワイトアウトの爆発(3秒): 前景(歪まない層)を白で覆う。影の扇だけは穴にして元の景色が見える(縁は少し光がにじむ・中は青黒く)。
 //   白の中は回る光芒と外へ広がる光の輪。光の中にいるプレイヤー・敵と壊れたクリスタルは黒い影絵、熾天使は金の影と光の星で示す

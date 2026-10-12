@@ -4929,13 +4929,13 @@ function serHoly(e, ai) {
   });
   hint('ser_holy', _t('ホーリー'), _t('大きな光の円のあと、まわりに小さな光の柱が続けて落ちる'));
 }
-// ルミナスロンド: 0.6秒 光線の向きに細い帯 → 熾天使の足もとを中心に、小さい光線(長さ 120・幅 8)3(4)本が 360°/n おきに 10秒 ゆっくり回る(毎秒 0.6rad。向きはランダム)。
+// ルミナスロンド: 0.6秒 光線の向きに細い帯 → 熾天使の足もとを中心に、光線(長さ 300・幅 8)3(4)本が 360°/n おきに 10秒 ゆっくり回る(毎秒 0.6rad。向きはランダム)。
 //   触れると 0.5秒ごとに ×0.3。ほかの技と同時に続く(衣は消えない)
 function serRonde(e, ai) {
   const n = ai.enraged ? 4 : 3, a0 = rand(0, TAU), dir = Math.random() < 0.5 ? 1 : -1;
   ai.ronde = { t: 0, n, a0, dir, tick: 0 };
   ai.atkT = Math.max(ai.atkT, 0.6);
-  for (let k = 0; k < n; k++) pushWarn({ kind: 'line', x: e.x, y: e.y, a: a0 + TAU / n * k, len: 120, w: 8, t: 0, life: 0.6, owner: e, noSnap: true, track: w => { w.x = e.x; w.y = e.y; } });
+  for (let k = 0; k < n; k++) pushWarn({ kind: 'line', x: e.x, y: e.y, a: a0 + TAU / n * k, len: 300, w: 8, t: 0, life: 0.6, owner: e, noSnap: true, track: w => { w.x = e.x; w.y = e.y; } });
   AudioMan.charge(0.6); AudioMan.sparkle();
   hint('ser_ronde', _t('ルミナスロンド'), _t('熾天使のまわりを光線がゆっくり回る。光線の間を抜ける'));
 }
@@ -4945,7 +4945,7 @@ function updSerRonde(e, ai, dt) {
   if (r.t < 0.6) return;
   if ((r.tick -= dt) <= 0) {
     r.tick = 0.5;
-    for (let k = 0; k < r.n; k++) if (!P.dead && P.invT <= 0 && inLine(e.x, e.y, rondeA(r, k), 120, 8)) { serHurt(e, 0.3); break; }
+    for (let k = 0; k < r.n; k++) if (!P.dead && P.invT <= 0 && inLine(e.x, e.y, rondeA(r, k), 300, 8)) { serHurt(e, 0.3); break; }
   }
   if (r.t >= 10.6) ai.ronde = null;
 }
@@ -4961,36 +4961,71 @@ function serSatellite(e, ai, have) {
   AudioMan.chime(); AudioMan.summon();
   hint('ser_sat', _t('クリスタルサテライト'), _t('熾天使のまわりを回るクリスタルが光弾を撃つ。壊せる'));
 }
-// ヘヴンズリフト: 熾天使の頭上に光の裂け目(6秒。開いた所に残る)。1秒ごとに、裂け目の下の地面からプレイヤーの方向へ、地面を走る光線:
-//   帯の予告(0.5秒・長さ 260・幅 14)→ 長さ 40 の光が速さ 100 から 400 へ加速しながら帯を進む(当たると ×0.6。1本につき 1回)
+// ヘヴンズリフト: 熾天使の頭上(開いた所に残る)に光の裂け目。6秒の間 1秒ごとに、裂け目から地面へ光を差す:
+//   真下に円い光(予告 0.5秒。光の通り道を赤く)→ プレイヤーの方向(差した時に決まる)へ一定の速さで傾く。地面の光は円錐を床で切った楕円で、
+//   傾くほど遠くへ長く伸び、加速しながら進む(遠い縁が reach に届くと消える)。当たると ×0.6(1つにつき 1回)。最後の光が消えてから裂け目が閉じる
+//   h: 裂け目の高さ / tan: 光の開き(半分)の tan(真下を照らすと 円 半径 h·tan)/ w: 傾く速さ(rad/秒)/ aim: 予告 / fade: 光が消える長さ
+const SER_RIFT = { h: 56, tan: 0.25, reach: 260, w: 1.1, aim: 0.5, fade: 0.2 };
+const RIFT_AL = Math.atan(SER_RIFT.tan), RIFT_TH = Math.atan(SER_RIFT.reach / SER_RIFT.h) - RIFT_AL, RIFT_SWEEP = RIFT_TH / SER_RIFT.w; // 開き(半分)・光が消える傾き(+開き < 90°)・傾く秒数
+// 傾き th の地面の光(攻撃範囲の倍率 A は高さに掛ける): 真下から楕円の中心までの距離 c・向きの方の半径 a・横の半径 b・光の芯(円錐の軸)が地面に当たる所 x
+//   近い縁 c − a = h·tan(th − α)、遠い縁 c + a = h·tan(th + α)。th = 0 で円(半径 h·tanα)
+function riftSpot(th, A) {
+  const H = SER_RIFT.h * A, s = Math.sin(RIFT_AL), co = Math.cos(RIFT_AL), sn = Math.sin(th), k = co * co - sn * sn;
+  return { c: H * sn * Math.cos(th) / k, a: H * s * co / k, b: H * s / Math.sqrt(k), x: H * Math.tan(th) };
+}
+const riftTh = b => clamp((b.t - SER_RIFT.aim) * SER_RIFT.w, 0, RIFT_TH); // 光の傾き
+// 光の通り道(傾き 0 から終わりまでの楕円を全部重ねた形): 向きの方の距離 us ごとの片側の幅 vs。予告の形(攻撃範囲の倍率ごとに 1回だけ作る)
+let riftEnvC = null;
+function riftEnv(A) {
+  if (riftEnvC && riftEnvC.A === A) return riftEnvC;
+  const r0 = SER_RIFT.h * A * SER_RIFT.tan, u1 = SER_RIFT.reach * A, sp = [], us = [], vs = [];
+  for (let j = 0; j <= 80; j++) sp.push(riftSpot(RIFT_TH * j / 80, A));
+  for (let i = 0; i <= 40; i++) {
+    const u = -r0 + (u1 + r0) * i / 40; let v = 0;
+    for (const o of sp) { const q = (u - o.c) / o.a; if (q * q < 1) v = Math.max(v, o.b * Math.sqrt(1 - q * q)); }
+    us.push(u); vs.push(v);
+  }
+  return (riftEnvC = { A, us, vs });
+}
 function serRift(e, ai) {
-  ai.rift = { t: 0, x: e.x, y: e.y, beams: [], next: 0.5 };
+  const cr = [];
+  for (let i = 0; i <= 16; i++) { const th = i % 2; cr.push({ dy: (i % 4 < 2 ? 1 : -1) * rand(0.3, 1.2), up: th ? rand(1, 1.25) : rand(0.35, 0.6), dn: th ? rand(0.35, 0.6) : rand(1, 1.25) }); } // 裂け目の縁の歯(上と下は噛み合う形: 破れた紙のように)
+  const tips = [0, 1].map(() => ({ m: [rand(-2, 2), rand(-3, 3), rand(-4, 4)], br: Math.random() < 0.5 ? -1 : 1, bl: rand(4, 7) })); // 両端から伸びるひび(枝 1本)
+  ai.rift = { t: 0, x: e.x, y: e.y, beams: [], next: 0.5, cr, tips, tilt: rand(-0.12, 0.12), split: false, close: 0 };
   ai.atkT = Math.max(ai.atkT, 0.5);
   AudioMan.charge(0.5); AudioMan.sparkle();
-  hint('ser_rift', _t('ヘヴンズリフト'), _t('空の裂け目の下から、地面を走る光線が加速しながら向かってくる。帯から出る'));
+  hint('ser_rift', _t('ヘヴンズリフト'), _t('空の裂け目から差す光が、傾きながら加速して向かってくる。赤い通り道から横へ出る'));
 }
 function updSerRift(e, ai, dt) {
-  const R = ai.rift, A = CHAOS.area, L = 260 * A;
+  const R = ai.rift, A = CHAOS.area, Q = SER_RIFT, H = Q.h * A;
   R.t += dt;
+  if (!R.split && R.t >= 0.15) { // 走ったひびが割れて開く
+    R.split = true;
+    burst(R.x, R.y - H, 22, [...SER_GOLD, '#ffffff'], { sp: 90, glow: true, life: 0.45 });
+    addRing(R.x, R.y - H, 34, '#ffe8a0', { r0: 6, w: 2, life: 0.3 }); addFlash(R.x, R.y - H, 50, '#fff6dc', 0.25);
+    AudioMan.zap();
+  }
   if (R.t < 6 && (R.next -= dt) <= 0) {
     R.next = 1;
-    const a = Math.atan2(P.y - R.y, P.x - R.x);
-    R.beams.push({ a, t: 0, s: 0, v: 100, hit: false });
-    pushWarn({ kind: 'line', x: R.x, y: R.y, a, len: 260, w: 14, t: 0, life: 0.5, owner: e, noSnap: true });
+    const a = Math.atan2(P.y - R.y, P.x - R.x), env = riftEnv(A);
+    R.beams.push({ a, t: 0, hit: false, lit: false });
+    pushWarn({ kind: 'sweep', x: R.x, y: R.y, a, us: env.us, vs: env.vs, t: 0, life: Q.aim + RIFT_SWEEP, aim: Q.aim, owner: e, noSnap: true }); // 光の通り道(傾き始めるまで赤く満ち、傾いている間は縁だけ残る)
     AudioMan.cue();
   }
   for (const b of R.beams) {
     b.t += dt;
-    if (b.t < 0.5) continue;
-    b.v = Math.min(400, b.v + 700 * dt); b.s += b.v * dt;
-    if (!b.hit && !P.dead && P.invT <= 0) {
-      const s0 = Math.max(0, b.s - 40 * A), s1 = Math.min(L, b.s), c = Math.cos(b.a), s = Math.sin(b.a);
-      if (s1 > s0 && segD2(P.x, P.y, R.x + c * s0, R.y + s * s0, R.x + c * s1, R.y + s * s1) < Math.pow(7 * A + 3, 2)) { b.hit = true; serHurt(e, 0.6); }
+    if (b.t < Q.aim) continue;
+    if (!b.lit) { b.lit = true; burst(R.x, R.y, 12, SER_GOLD, { sp: 70, glow: true, life: 0.35 }); addRing(R.x, R.y, 22 * A, '#fff6dc', { r0: 6, life: 0.25 }); AudioMan.cast(); } // 光が強まって傾き始める
+    if (b.t >= Q.aim + RIFT_SWEEP) continue; // 消えていく間は当たらない
+    const o = riftSpot(riftTh(b), A), c = Math.cos(b.a), s = Math.sin(b.a), dx = P.x - R.x, dy = P.y - R.y, u = dx * c + dy * s - o.c, v = dy * c - dx * s;
+    if (!b.hit && !P.dead && P.invT <= 0 && Math.pow(u / (o.a + 3), 2) + Math.pow(v / (o.b + 3), 2) < 1) { b.hit = true; serHurt(e, 0.6); }
+    if (Math.random() < dt * 30) { // 照らされた地面から光の粒が昇る
+      const q = rand(0, TAU), r = Math.sqrt(Math.random()), lu = o.c + Math.cos(q) * o.a * r, lv = Math.sin(q) * o.b * r;
+      part(R.x + c * lu - s * lv, R.y + s * lu + c * lv, rand(-8, 8), -rand(15, 40), 0.5, pick(SER_GOLD), { glow: true, drag: 1.5 });
     }
-    if (Math.random() < dt * 40 && b.s < L) part(R.x + Math.cos(b.a) * b.s, R.y + Math.sin(b.a) * b.s, rand(-20, 20), -rand(20, 50), 0.4, pick(SER_GOLD), { glow: true, drag: 2 });
   }
-  R.beams = R.beams.filter(b => b.t < 0.5 || b.s < L + 40 * A);
-  if (R.t >= 6.2 && !R.beams.length) ai.rift = null;
+  R.beams = R.beams.filter(b => b.t < Q.aim + RIFT_SWEEP + Q.fade);
+  if (R.t >= 6 && !R.beams.length && (R.close += dt) >= 0.3) ai.rift = null; // 最後の光が消えてから裂け目が閉じる(0.3秒)
 }
 // ホーリーヴォルテックス: プレイヤーの位置に小さな光が差す(0.3秒)。そこへ、まわり(110)から小さいホーリー(弾。半径 24)3(4)つが渦を巻きながら 1.5秒で集まる
 //   (ふれると ×0.5。1つにつき 1回。通る道すじは淡い点で見える)。集まった所で光が弾ける(円 半径 30・×0.5)
@@ -5040,7 +5075,7 @@ function updSerAfter(e, ai, dt) {
   if (A.t >= 0.3 && (A.tick -= dt) <= 0) { A.tick = 0.5; if (!P.dead && d2(A.x, A.y, P.x, P.y) < Math.pow(70 * CHAOS.area + 3, 2)) randomLight(serLight(e), e.dmg); }
   if (A.t >= 5) ai.after = null;
 }
-// セラフィムレイ: 0.6秒 帯(長さ 260・幅 14)→ プレイヤーの方向へ光線 ×0.8。撃ったあと、光線の上 8か所から左右へ光の羽根の弾(速さ 30 から 300 へ加速・×0.4)
+// セラフィムレイ: 0.6秒 帯(長さ 260・幅 14)→ プレイヤーの方向へ光線 ×0.8。撃ったあと、光線の上 8か所から左右へ光の羽根の弾(速さ 10 から 200 へ加速・×0.4)
 function serRay(e, ai, a) {
   const x = e.x, y = e.y, A = CHAOS.area;
   ai.act = 'ray'; ai.atkT = Math.max(ai.atkT, 1.0); e.spr = 'seraphCast';
@@ -5053,17 +5088,17 @@ function serRay(e, ai, a) {
     bfx.push({ kind: 'sray', x, y, a, len: 260 * A, w: 14 * A, t: 0, life: 0.5 });
     for (let k = 1; k <= 8; k++) {
       const d = 260 * A * k / 8.5, px = x + Math.cos(a) * d, py = y + Math.sin(a) * d;
-      for (const sd of [-1, 1]) Object.assign(serBall(e, px, py, a + sd * Math.PI / 2, 30, 0.4, 'sfeather'), { acc: 300, vmax: 300, life: 3, r: 3 * A });
+      for (const sd of [-1, 1]) Object.assign(serBall(e, px, py, a + sd * Math.PI / 2, 10, 0.4, 'sfeather'), { acc: 300, vmax: 200, life: 3, r: 3 * A });
     }
     burst(x, y - e.jz, 30, SER_GOLD, { sp: 120, glow: true, life: 0.5 }); shockAt(x, y, 1.2, 0.9); shake(6); screenFlash(0.08, '#fff6dc'); AudioMan.boom(); AudioMan.sparkle();
     ai.act = null; e.spr = 'seraph';
   });
   hint('ser_ray', _t('セラフィムレイ'), _t('光線のあと、光線の上から左右へ羽根の弾が加速しながら飛ぶ'));
 }
-// プリズムバラージ: プレイヤーから 130 離れた所に光のクリスタル 2(3)個(2.4秒)。現れて 0.4秒後から 0.5秒ごとに 4回、撃つ前に細い帯(0.25秒)→
-//   高速弾を 3方向(±0.25rad・速さ 260・×0.3)
+// プリズムバラージ: プレイヤーから 130 離れた所に光のクリスタル 2個(2.4秒)。現れて 0.4秒後から 0.5秒ごとに 4回、撃つ前に細い帯(0.25秒)→
+//   高速弾を 3方向(±0.25rad・速さ 200・×0.3)
 function serBarrage(e, ai) {
-  const n = ai.enraged ? 3 : 2, a0 = rand(0, TAU);
+  const n = 2, a0 = rand(0, TAU);
   ai.atkT = Math.max(ai.atkT, 0.6);
   for (let k = 0; k < n; k++) {
     const pa = a0 + TAU / n * k, [cx, cy] = serClamp(P.x + Math.cos(pa) * 130, P.y + Math.sin(pa) * 130), c = { aim: 0 };
@@ -5073,7 +5108,7 @@ function serBarrage(e, ai) {
       later(ai, 0.15 + v * 0.5, () => { c.aim = Math.atan2(P.y - cy, P.x - cx); pushWarn({ kind: 'line', x: cx, y: cy, a: c.aim, len: 140, w: 4, t: 0, life: 0.25, owner: e }); });
       later(ai, 0.4 + v * 0.5, () => {
         if (e.dead) return;
-        for (const da of [-0.25, 0, 0.25]) Object.assign(serBall(e, cx, cy - 4, c.aim + da, 260, 0.3, 'sprism'), { life: 1.2 });
+        for (const da of [-0.25, 0, 0.25]) Object.assign(serBall(e, cx, cy - 4, c.aim + da, 200, 0.3, 'sprism'), { life: 1.2 });
         burst(cx, cy - 4, 8, ['#bff4ff', '#ffffff', ...PRISM.slice(3, 6)], { sp: 70, glow: true, life: 0.25 }); AudioMan.shoot();
       });
     }

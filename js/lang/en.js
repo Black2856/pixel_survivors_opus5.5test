@@ -2575,7 +2575,7 @@ const I18N_EN = {
   "クリスタルサテライト": "Crystal Satellite",
   "熾天使のまわりを回るクリスタルが光弾を撃つ。壊せる": "Crystals orbiting the Seraph fire bolts of light. They can be destroyed",
   "ヘヴンズリフト": "Heaven's Rift",
-  "空の裂け目の下から、地面を走る光線が加速しながら向かってくる。帯から出る": "From beneath a rift in the sky, beams race along the ground toward you, speeding up. Step out of the strip",
+  "空の裂け目から差す光が、傾きながら加速して向かってくる。赤い通り道から横へ出る": "Light pours from a rift in the sky and tilts toward you, speeding up as it stretches. Step sideways out of the red path",
   "ホーリーヴォルテックス": "Holy Vortex",
   "小さな光が渦を巻いて集まってくる。光の玉と真ん中をよける": "Small lights spiral in toward one point. Avoid the orbs and the center",
   "プリズムシフト": "Prism Shift",
