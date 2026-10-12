@@ -4965,7 +4965,7 @@ function serSatellite(e, ai, have) {
 //   真下に円い光(予告 0.5秒。光の通り道を赤く)→ プレイヤーの方向(差した時に決まる)へ一定の速さで傾く。地面の光は円錐を床で切った楕円で、
 //   傾くほど遠くへ長く伸び、加速しながら進む(遠い縁が reach に届くと消える)。当たると ×0.6(1つにつき 1回)。最後の光が消えてから裂け目が閉じる
 //   h: 裂け目の高さ / tan: 光の開き(半分)の tan(真下を照らすと 円 半径 h·tan)/ w: 傾く速さ(rad/秒)/ aim: 予告 / fade: 光が消える長さ
-const SER_RIFT = { h: 56, tan: 0.25, reach: 260, w: 1.1, aim: 0.5, fade: 0.2 };
+const SER_RIFT = { h: 56, tan: 0.125, reach: 480, w: 1.1, aim: 0.5, fade: 0.2 }; // 真下で 円 半径 7。遠い縁が 480 に届くまで(約 1.2秒)
 const RIFT_AL = Math.atan(SER_RIFT.tan), RIFT_TH = Math.atan(SER_RIFT.reach / SER_RIFT.h) - RIFT_AL, RIFT_SWEEP = RIFT_TH / SER_RIFT.w; // 開き(半分)・光が消える傾き(+開き < 90°)・傾く秒数
 // 傾き th の地面の光(攻撃範囲の倍率 A は高さに掛ける): 真下から楕円の中心までの距離 c・向きの方の半径 a・横の半径 b・光の芯(円錐の軸)が地面に当たる所 x
 //   近い縁 c − a = h·tan(th − α)、遠い縁 c + a = h·tan(th + α)。th = 0 で円(半径 h·tanα)
@@ -4975,13 +4975,14 @@ function riftSpot(th, A) {
 }
 const riftTh = b => clamp((b.t - SER_RIFT.aim) * SER_RIFT.w, 0, RIFT_TH); // 光の傾き
 // 光の通り道(傾き 0 から終わりまでの楕円を全部重ねた形): 向きの方の距離 us ごとの片側の幅 vs。予告の形(攻撃範囲の倍率ごとに 1回だけ作る)
+//   us は根元ほど細かく取る(根元の円は小さく、遠くの楕円は大きいので)
 let riftEnvC = null;
 function riftEnv(A) {
   if (riftEnvC && riftEnvC.A === A) return riftEnvC;
   const r0 = SER_RIFT.h * A * SER_RIFT.tan, u1 = SER_RIFT.reach * A, sp = [], us = [], vs = [];
-  for (let j = 0; j <= 80; j++) sp.push(riftSpot(RIFT_TH * j / 80, A));
-  for (let i = 0; i <= 40; i++) {
-    const u = -r0 + (u1 + r0) * i / 40; let v = 0;
+  for (let j = 0; j <= 200; j++) sp.push(riftSpot(RIFT_TH * j / 200, A));
+  for (let i = 0; i <= 80; i++) {
+    const u = -r0 + (u1 + r0) * Math.pow(i / 80, 2); let v = 0;
     for (const o of sp) { const q = (u - o.c) / o.a; if (q * q < 1) v = Math.max(v, o.b * Math.sqrt(1 - q * q)); }
     us.push(u); vs.push(v);
   }
