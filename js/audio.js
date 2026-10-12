@@ -16,6 +16,7 @@ const AudioMan = (() => {
     f_forest: '木漏れ日の森-フィールド', b_forest: '木漏れ日の森-ボス',
     f_desert: '陽炎の砂海-フィールド', b_desert: '陽炎の砂海-ボス',
     f_thunder: '雷鳴の雲海-フィールド', b_thunder: '雷鳴の雲海-ボス',
+    f_holy: '天光の聖堂-フィールド', b_holy1: '天光の聖堂-ボス1', b_holy2: '天光の聖堂-ボス2', // 聖堂: 三原の光精はボス1・熾天使はボス2
   };
   const musicSrc = name => encodeURI('music/' + (MUSIC[name] || (name && name[0] === 'b' ? MUSIC.b_grass : MUSIC.f_grass)) + '.mp3');
   let ctx = null, bus = null, noiseBuf = null;

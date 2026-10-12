@@ -139,8 +139,8 @@ const DATA = {
     sphinx:  { name: 'スフィンクス SPHINX',          hp: 1500, spd: 14, dmg: 22, r: 14, music: 'b_desert', col: '#ffd27a' }, // 陽炎の砂海 2体目
     raiju:   { name: '雷獣 RAIJU',                  hp: 1500, spd: 26, dmg: 22, r: 13, music: 'b_thunder', col: '#6a7ae8' }, // 雷鳴の雲海 1体目
     raijin:  { name: '雷神 RAIJIN',                 hp: 1600, spd: 16, dmg: 24, r: 13, music: 'b_thunder', col: '#c8603a' }, // 雷鳴の雲海 2体目
-    trichroma: { name: '三原の光精 TRICHROMA',      hp: 1800, spd: 16, dmg: 22, r: 13, music: 'b_holy', col: '#e8f0ff' }, // 天光の聖堂 1体目(光の三原色。曲は用意されるまで草原の曲)
-    seraph:  { name: '熾天使 SERAPH',               hp: 1600, spd: 19, dmg: 19, r: 13, music: 'b_holy', col: '#c8b888', noTwin: true }, // 天光の聖堂 2体目(全部の攻撃が無敵無視なので 1発は低め。ラストラディアンスがあるので双王の相方にならない)
+    trichroma: { name: '三原の光精 TRICHROMA',      hp: 1800, spd: 16, dmg: 22, r: 13, music: 'b_holy1', col: '#e8f0ff' }, // 天光の聖堂 1体目(光の三原色)
+    seraph:  { name: '熾天使 SERAPH',               hp: 1600, spd: 19, dmg: 19, r: 13, music: 'b_holy2', col: '#c8b888', noTwin: true }, // 天光の聖堂 2体目(全部の攻撃が無敵無視なので 1発は低め。ラストラディアンスがあるので双王の相方にならない)
   },
   // 状態異常(プレイヤー): 粘液・スロウタイムの移動速度倍率 / スロウタイムのCD回復倍率 / 炎上
   debuff: { slow: 0.6, cdRate: 0.5, burnTick: 0.5, burnDur: 3, burnHeal: 0.5, fatigueDur: 3, fatigue: 0.5, slowRegen: 0.5, frostSlow: 0.05, pFrostSlow: 0.03, pFrostMax: 20, pFrzT: 2, shockR: 60, pDur: 5, pBleed: 0.01, pBleedMax: 5 }, // burnHeal: 炎上中の HP回復の倍率 / slowRegen: スロウタイム・時の歪みの中のスタミナ回復・HP回復速度の倍率 / fatigueDur・fatigue: 疲労(スタミナを減らされた)の秒とスタミナ回復の倍率 / frostSlow: 敵の凍傷1スタックあたりの減速 / pFrostSlow・pFrostMax・pFrzT: 自分の凍傷1スタックあたりの減速・上限(上限で凍結して 0 に戻る)・凍結の秒(行動不能・攻撃不能) / shockR: 感電の連鎖距離 / pDur: 自分の凍傷・出血・痺れ・砂塵・衰弱が消えるまでの秒 / pBleed: 自分の出血1スタックの毎秒ダメージ(最大HP の割合)
