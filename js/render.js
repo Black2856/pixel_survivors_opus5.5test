@@ -2848,14 +2848,14 @@ function drawBossGround(t) {
 //   zs: [{ i: 色(0 赤・1 緑・2 青), x0, y0, x1, y1: 囲む四角(場面の座標), hit(x, y): その点が光の中か }](三原の灯の円・スポットライトの楕円)
 const TRI_RGB = [null, [255, 58, 74], [58, 255, 106], [255, 225, 74], [58, 106, 255], [255, 74, 216], [74, 220, 255], [255, 255, 255]];
 const triCircleZones = (cs, R) => cs.map(c => ({ i: c.i, x0: c.x - R - 1, y0: c.y - R - 1, x1: c.x + R + 2, y1: c.y + R + 2, hit: (x, y) => { const dx = x - c.x, dy = y - c.y; return dx * dx + dy * dy <= R * R; } }));
-const triSpotZones = ls => ls.map(s => { // スポットライトの地面の楕円(当たる所。囲む四角は傾いた楕円の幅)
-  const g = triSpotGeo(s), o = g.o, c = Math.cos(g.a), sn = Math.sin(g.a), cx = s.gx + c * o.c, cy = s.gy + sn * o.c, hx = Math.hypot(o.a * c, o.b * sn), hy = Math.hypot(o.a * sn, o.b * c);
-  return { i: s.ci, x0: cx - hx - 1, y0: cy - hy - 1, x1: cx + hx + 2, y1: cy + hy + 2, hit: (x, y) => inConeSpot(s.gx, s.gy, g.a, o, x, y, 0) };
+const triSpotZones = ls => ls.map(s => { // スポットライトの地面の楕円(当たる所。囲む四角は傾いた楕円の幅)。中かどうかは inConeSpot と同じ式(1点ごとに呼ぶので cos・sin は先に)
+  const g = triSpotGeo(s), o = g.o, c = Math.cos(g.a), sn = Math.sin(g.a), cx = s.gx + c * o.c, cy = s.gy + sn * o.c, hx = Math.hypot(o.a * c, o.b * sn), hy = Math.hypot(o.a * sn, o.b * c), ia = 1 / (o.a * o.a), ib = 1 / (o.b * o.b);
+  return { i: s.ci, x0: cx - hx - 1, y0: cy - hy - 1, x1: cx + hx + 2, y1: cy + hy + 2, hit: (x, y) => { const dx = x - cx, dy = y - cy, u = dx * c + dy * sn, v = dy * c - dx * sn; return u * u * ia + v * v * ib < 1; } };
 });
 let triCan = null, triCtx = null, triImg = null;
 function drawTriZones(sx, zs, al, t) {
-  const x0 = Math.floor(Math.min(...zs.map(z => z.x0))), y0 = Math.floor(Math.min(...zs.map(z => z.y0)));
-  const W = Math.ceil(Math.max(...zs.map(z => z.x1))) - x0, H = Math.ceil(Math.max(...zs.map(z => z.y1))) - y0;
+  const x0 = Math.max(Math.floor(Math.min(...zs.map(z => z.x0))), Math.floor(cam.x) - 1), y0 = Math.max(Math.floor(Math.min(...zs.map(z => z.y0))), Math.floor(cam.y) - 1); // 画面の外は塗らない(広い楕円)
+  const W = Math.min(Math.ceil(Math.max(...zs.map(z => z.x1))), Math.ceil(cam.x + GFX.VW) + 1) - x0, H = Math.min(Math.ceil(Math.max(...zs.map(z => z.y1))), Math.ceil(cam.y + GFX.VH) + 1) - y0;
   if (W <= 0 || H <= 0 || W > 2000 || H > 2000) return;
   if (!triCan || triCan.width < W || triCan.height < H) { triCan = ART.canvas(Math.max(W, triCan ? triCan.width : 0, 64), Math.max(H, triCan ? triCan.height : 0, 64)); triCtx = triCan.getContext('2d'); triImg = null; }
   if (!triImg || triImg.width !== W || triImg.height !== H) triImg = triCtx.createImageData(W, H);

@@ -4824,17 +4824,18 @@ function triSplit(e, ai) {
   });
   hint('tri_split', _t('分光'), _t('白い光の玉は、少しすると赤・緑・青の 3つに割れて広がる'));
 }
-// スポットライト(激昂): プレイヤーのまわり 3方向(光精の方から ±100° と真後ろ・100 離れた所。光精の側は空ける)に、赤・緑・青のスポットライトの台 3個(壊せる物・HP 各 12%)が天から降りる。
-//   光は円錐(ヘヴンズリフトと同じ計算 coneSpot)。照らす向きはプレイヤーから 60° それた所から始まり、プレイヤーの方へ少しずつ回る(毎秒 12°)。
-//   傾きもプレイヤーの所まで少しずつ(毎秒 30。楕円の遠い縁が台から 130 まで)。光が重なった所は色が混ざる(黄・紫・水色・白)。
-//   降りて 1秒は弱い光(当たらない)。そのあと楕円に入っていると 0.5秒ごとに ×0.5 と、その場所の色の効果(triStatus。1色・2色はその色の状態異常、3色の白は乱光 +2)。
+// スポットライト(激昂): プレイヤーのまわり 3方向(光精の方から ±100° と真後ろ・150 離れた所)に、赤・緑・青のスポットライトの台 3個(壊せる物・HP 各 12%)が天から降りる。
+//   光は円錐(ヘヴンズリフトと同じ計算 coneSpot)。照らす向きはプレイヤーから 60° それた所から始まり、プレイヤーの方へ回る。光とプレイヤーが離れているほど速く(向きのずれ × 0.8 /秒。毎秒 60° まで)、
+//   合うにつれてゆっくりになる(走っていると 55 ÷ 0.8 ≒ 69 遅れて付いてくるので、楕円の幅の半分 45 より外にいられる)。傾きもプレイヤーの所まで少しずつ(毎秒 30。楕円の遠い縁が台から 325 まで)。
+//   光が重なった所は色が混ざる(黄・紫・水色・白)。
+//   降りて 1秒は弱い光(当たらない)。そのあと楕円に入っていると 0.5秒ごとに、重なっている数で ×0.1・×0.3・×0.5 と、その場所の色の効果(triStatus。1色・2色はその色の状態異常、3色の白は乱光 +2)。
 //   15秒で消える(台を壊すとその光は消え、全部壊すと早く終わる)。その間、光精は動かず、ほかの技を使わない。間隔は終わってから数える
-//   D: 台を置く所のプレイヤーからの距離(reach より近く)/ side: 横の台 2個の、光精の方からの角度(度。光精のそばが届かないように 90 より大きく)/ H: 光の高さ(台の絵のランプの高さ。art.js の obj_spot)/ al: 開きの半分(度。tan に攻撃範囲の倍率を掛ける)
-//   reach: 楕円の遠い縁の台からの最大(ヘヴンズリフトの reach と同じ。傾き + 開き < 90° にもなる)/ turn: 向きが回る速さ(度/秒。プレイヤーの所で 100 × 0.21 = 21 < 歩き 55)
-//   off: 始めの向きのずれ(度)/ sp: 傾きが変わる速さ(照らす所が台から離れる・近づく速さ)/ drop: 台が降りる / warm: 弱い光の間 / dur: 光が消え始める時 / fade: 消える長さ / cd: 次までの間
-const TRI_SPOT = { D: 100, side: 100, H: 39, al: 20, reach: 130, turn: 12, off: 60, sp: 30, drop: 0.45, warm: 1.0, dur: 15, fade: 0.3, tick: 0.5, cd: 20 };
+//   D: 台を置く所のプレイヤーからの距離(reach より近く)/ side: 横の台 2個の、光精の方からの角度(度)/ H: 光の高さ(台の絵のランプの高さ。art.js の obj_spot)/ al: 開きの半分(度。tan に攻撃範囲の倍率を掛ける)
+//   reach: 楕円の遠い縁の台からの最大(ヘヴンズリフトの reach と同じ。傾き + 開き < 90° にもなる)
+//   gain: 向きが回る速さ(向きのずれ 1 につき毎秒。走るプレイヤーに付く遅れは 55 ÷ gain)/ tmax: 回る速さの上限(度/秒)/ dmg: 重なっている光の数ごとの倍率 / off: 始めの向きのずれ(度)/ sp: 傾きが変わる速さ(照らす所が台から離れる・近づく速さ)/ drop: 台が降りる / warm: 弱い光の間 / dur: 光が消え始める時 / fade: 消える長さ / cd: 次までの間
+const TRI_SPOT = { D: 150, side: 100, H: 39, al: 20, reach: 325, gain: 0.8, tmax: 60, dmg: [0, 0.1, 0.3, 0.5], off: 60, sp: 30, drop: 0.45, warm: 1.0, dur: 15, fade: 0.3, tick: 0.5, cd: 20 };
 const triSpotAl = () => Math.atan(Math.tan(TRI_SPOT.al * Math.PI / 180) * CHAOS.area); // 開きの半分(rad)
-const triSpotMax = () => Math.max(0, TRI_SPOT.H * Math.tan(Math.atan(TRI_SPOT.reach / TRI_SPOT.H) - triSpotAl())); // 狙う所の台からの最大(開き 20° で 52)
+const triSpotMax = () => Math.max(0, TRI_SPOT.H * Math.tan(Math.atan(TRI_SPOT.reach / TRI_SPOT.H) - triSpotAl())); // 狙う所の台からの最大(開き 20° で 77)
 function triSpotGeo(s) { // スポットライトの光: 台の真下 (gx, gy) から狙う所 (tx, ty) への向き a と、地面の楕円 o
   const Q = TRI_SPOT, dx = s.tx - s.gx, dy = s.ty - s.gy;
   return { a: Math.atan2(dy, dx), o: coneSpot(Q.H, triSpotAl(), Math.atan(Math.hypot(dx, dy) / Q.H)) };
@@ -4856,17 +4857,17 @@ function triSpot(e, ai) {
     later(ai, Q.drop, () => { shockAt(gx, gy, 0.8, 0.6); shake(3); burst(gx, gy, 16, [col, '#ffffff'], { sp: 90, up: 20, glow: true, life: 0.4 }); AudioMan.thud(); });
   }
   AudioMan.summon(); AudioMan.chime();
-  hint('tri_spot', _t('スポットライト'), _t('赤・緑・青のスポットライトが少しずつこちらを向く。重なった所は色が混ざり、3色の白は乱光。台のない光精の側へ抜ける(台は壊せる)'));
+  hint('tri_spot', _t('スポットライト'), _t('赤・緑・青のスポットライトがこちらを向く。光は遅れて付いてくるので、止まらずに動く。重なった所は色が混ざり、3色の白は乱光。台は壊せる'));
 }
 function updTriSpot(e, ai, dt) {
   const Q = TRI_SPOT, Sp = ai.spot, ls = Sp.ls.filter(s => !s.dead);
   Sp.t += dt;
   if (!ls.length) { ai.spot = null; ai.act = null; ai.busy = 1; ai.spotCd = Q.cd; return; } // 台が全部 壊れた・消えた
   if (Sp.t < Q.drop + Q.warm) return; // 降りて弱い光の間は動かない(最初に照らす所を見せる)
-  const M = triSpotMax(), w = Q.turn * Math.PI / 180 * dt;
-  for (const s of ls) { // 向きがプレイヤーの方へ少しずつ回り、傾きもプレイヤーの所まで(届く所まで)少しずつ
+  const M = triSpotMax(), wm = Q.tmax * Math.PI / 180 * dt;
+  for (const s of ls) { // 向きがプレイヤーの方へ回り(ずれが大きいほど速く、合うにつれてゆっくり)、傾きもプレイヤーの所まで(届く所まで)少しずつ
     const dx = P.x - s.gx, dy = P.y - s.gy;
-    s.ang += clamp(angDiff(Math.atan2(dy, dx), s.ang), -w, w);
+    s.ang += clamp(angDiff(Math.atan2(dy, dx), s.ang) * Q.gain * dt, -wm, wm);
     s.dist += clamp(Math.min(Math.hypot(dx, dy), M) - s.dist, -Q.sp * dt, Q.sp * dt);
     triSpotAim(s);
   }
@@ -4875,7 +4876,7 @@ function updTriSpot(e, ai, dt) {
     Sp.tick = Q.tick;
     let m = 0; // 自分のいる所の色(赤 1・緑 2・青 4)
     for (const s of ls) { const g = triSpotGeo(s); if (inConeSpot(s.gx, s.gy, g.a, g.o, P.x, P.y, 3)) m |= 1 << s.ci; }
-    if (m && !P.dead && hurtPlayer(e.dmg * 0.5)) triStatus(m, e.dmg);
+    if (m && !P.dead && hurtPlayer(e.dmg * Q.dmg[TRI_N[m]])) triStatus(m, e.dmg);
   }
   if (Math.random() < dt * 12) { // 照らされた地面から光の粒が昇る(その光の色)
     const s = pick(ls), g = triSpotGeo(s), c = Math.cos(g.a), sn = Math.sin(g.a), q = rand(0, TAU), r = Math.sqrt(Math.random()), lu = g.o.c + Math.cos(q) * g.o.a * r, lv = Math.sin(q) * g.o.b * r;
