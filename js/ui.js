@@ -241,6 +241,7 @@ const UI = (() => {
     if (P.paraT > 0) out.push({ id: 'ppara', glyph: '麻', name: _t('麻痺'), fx: _t('攻撃できない(歩く・回避はできる)'), t: P.paraT, max: ds.paraT, kind: 'debuff' });
     if (P.lockT > 0) out.push({ id: 'plock', glyph: '封', name: _t('攻撃不能'), fx: _t('攻撃できない(歩く・回避はできる)'), t: P.lockT, max: P.lockMax || P.lockT, kind: 'debuff' });
     if (P.noHealT > 0) out.push({ id: 'pnoheal', glyph: '禁', name: _t('回復不能'), fx: _t('HP が回復しない(HP回復速度・肉・スキルの回復も)'), t: P.noHealT, max: P.noHealMax || P.noHealT, kind: 'debuff' });
+    if (P.dazT > 0) out.push({ id: 'pdaz', glyph: '眩', name: _t('眩惑'), fx: _t('与えるダメージ -100%(炎上などの継続ダメージは除く)'), t: P.dazT, max: P.dazMax || P.dazT, kind: 'debuff' });
     if (P.dust > 0) out.push({ id: 'pdust', glyph: '砂', name: _t('砂塵'), fx: _t`${P.dust}スタック ・ 命中率 -${Math.round(ds.dustHit * P.dust * 100)}%(受けないでいると ${d.pDur}秒で消える)`, t: P.dustT, max: d.pDur, kind: 'debuff' });
     if (P.weak > 0) out.push({ id: 'pweak', glyph: '衰', name: _t('衰弱'), fx: _t`${P.weak}スタック ・ 攻撃力 -${Math.round(ds.weakAtk * P.weak * 100)}%(受けないでいると ${d.pDur}秒で消える)`, t: P.weakT, max: d.pDur, kind: 'debuff' });
     if (P.bleed > 0) out.push({ id: 'pbleed', glyph: '血', name: _t('出血'), fx: _t`${P.bleed}スタック ・ 毎秒 最大HP の ${Math.round(P.bleed * d.pBleed * 100)}%`, t: P.bleedT, max: d.pDur, kind: 'debuff' });

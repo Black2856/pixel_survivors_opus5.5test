@@ -151,6 +151,7 @@ function initRun(mode = 'escalation', stageNo = 1) {
     poison: 0, poisonT: 0, darkT: 0, // 毒(スタック数・消えるまでの秒)/ 暗闇の残り秒(王墓)
     numb: 0, numbT: 0, paraT: 0, dust: 0, dustT: 0, weak: 0, weakT: 0, // 痺れ・砂塵・衰弱(スタック数・消えるまでの秒)/ 麻痺(痺れが上限に達した。攻撃不能の秒)
     lockT: 0, lockMax: 0, noHealT: 0, noHealMax: 0, // 攻撃不能・回復不能(熾天使のラストラディアンス)の残り秒と、付いたときの長さ
+    dazT: 0, dazMax: 0, dazImm: 0, // 眩惑(光の蝶)の残り秒・付いたときの長さ / 眩惑にならない残り秒(眩惑の間と、切れてからしばらく)
   };
   enemies = []; projs = []; eprojs = []; gems = []; drops = []; props = []; hazards = [];
   parts = []; floats = []; rings = []; zones = []; slashes = []; bolts = []; warns = []; flashes = []; bfx = []; sfx = [];
@@ -469,12 +470,26 @@ function noHealPlayer(t) {
   P.noHealT = Math.max(P.noHealT, t); P.noHealMax = Math.max(P.noHealMax || 0, P.noHealT); S.hudDirty = true;
   hint('pnoheal', _t('回復不能'), _t('しばらく HP が回復しない(肉・スキルの回復も)'));
 }
-// 自分の状態異常を全て消す(食べ物でデバフ解除): 炎上・凍傷・出血・減速・スロウタイム・凍結・疲労・毒・暗闇・痺れ・麻痺・砂塵・衰弱。消えたものがあれば白緑の光
+// 眩惑(光の蝶 e が近くで光った): dz.t 秒、与えるダメージ −100%(hitEnemy。継続ダメージ・アイテムは除く。当たったときの効果は出る)
+//   眩惑の間は掛け直さず、切れてから dz.imm 秒は眩惑にならない(蝶が続けて来ても、倒せる間を残す)。ほかの状態異常と同じく、回避の無敵中は付かない。付いたら true
+function dazzlePlayer(e, dz) {
+  if (P.invT > 0 || P.dead || P.dazImm > 0) return false;
+  P.dazT = P.dazMax = dz.t * CHAOS.debuff; P.dazImm = P.dazT + dz.imm; S.hudDirty = true;
+  // 蝶が弾けるように光る(画面は光らせない。明るい床で白く飛ぶため)
+  burst(e.x, e.y - 2, 16, ['#fff6c8', '#ffe08a', '#ffffff', '#ffd27a'], { sp: 80, glow: true, life: 0.35 });
+  addRing(e.x, e.y - 2, 16, '#fff6c8', { r0: 3, life: 0.25 }); addFlash(e.x, e.y - 2, 44, '#fff6c8', 0.5);
+  burst(P.x, P.y - 9, 10, ['#ffffff', '#fff6c8'], { sp: 45, glow: true, life: 0.3 }); // 目の前で光の粒が弾ける(目がくらむ)
+  addFloat(P.x, P.y - 22, _t('眩惑'), '#fff2b0', 1, -26);
+  AudioMan.sparkle();
+  hint('pdazzle', _t('眩惑'), _t`光の蝶が近くで光ると、${dz.t}秒 与えるダメージが 0 になる。近づかれる前に倒す`);
+  return true;
+}
+// 自分の状態異常を全て消す(食べ物でデバフ解除): 炎上・凍傷・出血・減速・スロウタイム・凍結・疲労・毒・暗闇・痺れ・麻痺・砂塵・衰弱・眩惑。消えたものがあれば白緑の光
 //   ボスの技の攻撃不能・回復不能(ラストラディアンス)は消さない
 function cleansePlayer() {
-  const had = P.burnT > 0 || P.frost > 0 || P.bleed > 0 || P.slowT > 0 || P.cdSlowT > 0 || P.frzT > 0 || P.fatigueT > 0 || P.poison > 0 || P.darkT > 0 || P.numb > 0 || P.paraT > 0 || P.dust > 0 || P.weak > 0, pz = P.poison > 0;
+  const had = P.burnT > 0 || P.frost > 0 || P.bleed > 0 || P.slowT > 0 || P.cdSlowT > 0 || P.frzT > 0 || P.fatigueT > 0 || P.poison > 0 || P.darkT > 0 || P.numb > 0 || P.paraT > 0 || P.dust > 0 || P.weak > 0 || P.dazT > 0, pz = P.poison > 0;
   P.burnT = 0; P.frost = 0; P.frostT = 0; P.bleed = 0; P.bleedT = 0; P.slowT = 0; P.cdSlowT = 0; P.frzT = 0; P.fatigueT = 0; P.poison = 0; P.poisonT = 0; P.darkT = 0;
-  P.numb = 0; P.numbT = 0; P.paraT = 0; P.dust = 0; P.dustT = 0; P.weak = 0; P.weakT = 0;
+  P.numb = 0; P.numbT = 0; P.paraT = 0; P.dust = 0; P.dustT = 0; P.weak = 0; P.weakT = 0; P.dazT = 0; P.dazMax = 0;
   if (pz) recalc(); // 毒で下がった最大HP を戻す
   if (!had) return;
   S.hudDirty = true;
@@ -500,6 +515,11 @@ function updFrostBleed(dt) {
     P.noHealT -= dt;
     if (Math.random() < dt * 6) part(P.x + rand(-5, 5), P.y - 2 + rand(-4, 4), rand(-4, 4), -rand(14, 26), 0.6, pick(['#8a8698', '#b8b4c8']), { drag: 1 });
     if (P.noHealT <= 0) { P.noHealT = 0; P.noHealMax = 0; S.hudDirty = true; }
+  }
+  if (P.dazImm > 0) P.dazImm = Math.max(0, P.dazImm - dt);
+  if (P.dazT > 0) { // 眩惑: 目の前で光がまたたく(render.js)
+    P.dazT -= dt;
+    if (P.dazT <= 0) { P.dazT = 0; P.dazMax = 0; S.hudDirty = true; }
   }
   if (P.paraT > 0) { // 麻痺: 体に稲妻がまとわりつく
     P.paraT -= dt;
@@ -1412,9 +1432,10 @@ function hitEnemy(e, base, o = {}) {
   }
   let dmg = (base + clsHitBonus(e, o)) * dmgMul() * clsDmgTaken(e, o) * wsDmgTaken(e) * (e.takeK || 1) * (1 - buffOn(e, 'def')) * (e.robeK ?? 1) * (o.dot ? 1 : weakMul()); // 祈りの一撃などの追加 / 印・凍結・侵蝕などで敵が受けるダメージが増える / takeK: ボスの状態(岩の鎧・ひるみ・分裂など)/ フロストメイジのバフ / 衰弱
   if (e.frost > 0 && P.weapons.blizzard && P.weapons.blizzard.evo) dmg *= 1 + 0.01 * e.frost;
-  const crit = o.forceCrit || (!o.noCrit && Math.random() < critRate() + clsCritBonus(e));
+  const daz = P.dazT > 0 && !o.dot && !o.item; // 眩惑(光の蝶): 与えるダメージ −100%(継続ダメージ・アイテムは除く)
+  const crit = !daz && (o.forceCrit || (!o.noCrit && Math.random() < critRate() + clsCritBonus(e)));
   if (crit) dmg *= P.critMul + clsCritDmgBonus(e); else if (P.uq.exec) dmg *= 0.8; // 処刑人の
-  dmg = e.robeK === 0 ? 0 : Math.max(1, Math.round(dmg * rand(0.9, 1.1))); // 熾天使の光の衣が全部防いだ: 0(当たったときの効果は起きる。状態異常で衣を破るため)
+  dmg = e.robeK === 0 || daz ? 0 : Math.max(1, Math.round(dmg * rand(0.9, 1.1))); // 熾天使の光の衣が全部防いだ・眩惑: 0(当たったときの効果は起きる。状態異常で衣を破るため)
   e.hp -= dmg; e.flash = 0.08;
   if (e.hpFloor && e.hp < e.hpFloor) e.hp = e.hpFloor; // 影の王: 影がいる間は次の基準(4回目の影の間は HP 1)より下がらない
   if (e.obj === 'cdog') cerbSpill(e, Math.min(dmg, e.hp + dmg)); // 冥犬の犬(分裂形態): 本体にも ×0.2(犬の残りHP まで。とどめの余りは入れない)
@@ -1433,7 +1454,7 @@ function hitEnemy(e, base, o = {}) {
     addFloat(e.x, e.y - e.r - 3, dmg + '!', '#ffe14a', 1, -38);
     if (!o.quiet) { burst(e.x, e.y, 6, ['#ffe14a', '#ffffff'], { sp: 90, glow: true, life: 0.3 }); AudioMan.crit(); }
   } else {
-    if (!o.noNum) addFloat(e.x, e.y - e.r - 3, String(dmg), dmg === 0 ? '#b8b0d8' : '#ffffff'); // 0(光の衣で防いだ)は薄紫
+    if (!o.noNum) addFloat(e.x, e.y - e.r - 3, String(dmg), dmg === 0 ? '#b8b0d8' : '#ffffff'); // 0(光の衣で防いだ・眩惑)は薄紫
     if (!o.quiet && Math.random() < 0.5) part(e.x + rand(-2, 2), e.y + rand(-2, 2), rand(-40, 40), rand(-40, 10), 0.25, o.col || '#ffffff', { glow: true });
     if (!o.quiet) AudioMan.hit();
   }
@@ -1576,7 +1597,7 @@ function lampFlash(e, so) {
   bfx.push({ kind: 'spotflash', x: e.x, y: e.y - 3, a: e.spotA, r: R0 * CHAOS.area, h: so.h, t: 0, life: 0.35 });
   burst(e.x + (e.face || 1) * 8, e.y - 1, 14, ['#ffffff', '#fff6c8', '#ffd23f'], { sp: 70, glow: true, life: 0.35 });
   AudioMan.sparkle(); AudioMan.zap();
-  hint('lampkeeper', _t('灯の番人'), _t('ランタンの光の扇に入り続けると見つかって撃たれる。扇の外へ'));
+  hint('lampkeeper', _t('灯の番人'), _t('ランタンの光の扇に入り続けると見つかって撃たれる。扇は赤くなると止まるので、横へ出る'));
 }
 // 玻璃の天使が倒れた: ステンドグラスの体が割れ、ガラスの破片 n枚が全周に飛ぶ(×k・乱光 +light。エリートは遠くまで)
 function glassShatter(e, sh) {
@@ -1855,7 +1876,11 @@ function updEnemies(dt) {
       const dc = S.decoy && d2(e.x, e.y, S.decoy.x, S.decoy.y) < 200 * 200 ? S.decoy : P; // 空蝉の分身
       const a = Math.atan2(dc.y - e.y, dc.x - e.x), d = DATA.enemies[e.type];
       let mx = Math.cos(a), my = Math.sin(a);
-      if (e.ai === 'flutter') { const w = Math.sin(e.t * 5 + e.seed * 10) * (d.wobble || 0.8); mx -= Math.sin(a) * w; my += Math.cos(a) * w; if (d.touchLight && Math.random() < dt * 6) part(e.x + rand(-3, 3), e.y + rand(-1, 2), rand(-4, 4), rand(4, 10), 0.5, pick(['#fff6c8', '#ffe08a']), { glow: true, drag: 1 }); } // 光の蝶: 羽から光の粉がこぼれる
+      if (e.ai === 'flutter') { const w = Math.sin(e.t * 5 + e.seed * 10) * (d.wobble || 0.8); mx -= Math.sin(a) * w; my += Math.cos(a) * w; if (d.dazzle && Math.random() < dt * 6) part(e.x + rand(-3, 3), e.y + rand(-1, 2), rand(-4, 4), rand(4, 10), 0.5, pick(['#fff6c8', '#ffe08a']), { glow: true, drag: 1 }); } // 光の蝶: 羽から光の粉がこぼれる
+      if (d.dazzle) { // 光の蝶: プレイヤーの近く(r 以内)に来ると光って眩惑(蝶ごとに cd 秒に 1回)
+        e.dazCd = (e.dazCd || 0) - dt * tw;
+        if (e.dazCd <= 0 && d2(e.x, e.y, P.x, P.y) < Math.pow(d.dazzle.r * e.areaK, 2) && dazzlePlayer(e, d.dazzle)) e.dazCd = d.dazzle.cd;
+      }
       else if (e.ai === 'hop') { // 跳ねる(宝石スライムは速い間隔で大きく跳ぶ)
         const hp = d.hop, every = e.hopEvery = hp ? hp.every : 1.1, air = e.hopAir = hp ? every * 0.45 : 0.35, k = hp ? hp.k : 2.4;
         e.hopT -= dt; const hop = e.hopT < air;
@@ -2158,7 +2183,7 @@ function updEnemies(dt) {
         else {
           if (e.spotA === undefined) e.spotA = a + rand(-1, 1);
           e.spotK = Math.min(1, (e.spotK || 0) + dt * 2); // 灯がともる
-          e.spotA += clamp(angDiff(a, e.spotA), -so.turn * dt * tw, so.turn * dt * tw);
+          if (!(e.spotC > 0)) e.spotA += clamp(angDiff(a, e.spotA), -so.turn * dt * tw, so.turn * dt * tw); // 見つけかけている間(扇が赤い間)は扇を止める: 横へ出れば逃げられる
           const inside = !P.dead && P.invT <= 0 && e.spotK >= 1 && inFan(e.x, e.y - 3, e.spotA, so.r * e.areaK, so.h);
           e.spotC = inside ? (e.spotC || 0) + dt * CHAOS.rate * tw : Math.max(0, (e.spotC || 0) - dt * 1.5);
           if (e.spotC >= so.catch) { lampFlash(e, so); e.spotC = 0; e.spotRest = so.rest; }

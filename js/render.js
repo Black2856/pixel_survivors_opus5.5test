@@ -1709,6 +1709,10 @@ function render() {
     else if (e.type === 'icesprite') addLight(e.x, e.y, 26, '#9ff7ff', 0.5);
     else if (e.type === 'lampkeeper') addLight(e.x + (flip ? -8 : 8) * sc, e.y + yo + 3, e.aim ? 46 : 26, e.aim ? '#fff6c8' : '#ffd27a', e.aim ? 0.8 : 0.45); // 灯の番人: ランタンの灯
     else if (e.type === 'holymage') addLight(e.x, e.y + yo - 10 * sc, 24, '#ffe8a0', 0.4); // ホーリーメイジ: 頭上の光輪
+    else if (e.type === 'lightmoth' && !(e.dazCd > 0) && !(P.dazImm > 0)) { // 光の蝶: 眩惑を出せるとき、プレイヤーに近づくほど体の光が強まる(光る前の合図)
+      const dz = DATA.enemies.lightmoth.dazzle, k = clamp(1 - (Math.sqrt(d2(e.x, e.y, P.x, P.y)) - dz.r * e.areaK) / 40, 0, 1);
+      if (k > 0) { addLight(e.x, e.y, 14 + 18 * k, '#fff6c8', 0.7 * k); gx.fillStyle = k > 0.6 ? '#6a5a24' : '#3a3214'; gx.fillRect(Math.round(e.x - cam.x), Math.round(e.y - cam.y) - 1, 1, 2); }
+    }
     else if (e.type === 'glassangel') addLight(e.x, e.y + yo - 4, 30, ['#e84860', '#58d878', '#4878e8', '#ffd23f'][Math.floor(t * 1.5 + e.seed * 4) % 4], 0.25); // 玻璃の天使: ステンドグラスを透ける色の光
     else if (e.type === 'ghost') addLight(e.x, e.y, 22, '#8ab8ff', 0.3); // 冷たい霊: 青白い光
     else if (e.type === 'ghoul') addLight(e.x, e.y - 4, 22, '#7dff6a', 0.32); // 腐毒のグール: 緑の毒の光
@@ -1812,6 +1816,16 @@ function render() {
           sx.globalAlpha = (sa > 0 ? 0.95 : 0.45) * a0; sx.fillStyle = lit ? '#ffffff' : '#f2c84b'; sx.fillRect(x, y, 1, 1);
           if (lit) { gx.fillStyle = '#5a4a14'; gx.fillRect(x, y, 1, 1); } // 光の層は暗い金(体を白く飛ばさない)
         }
+      }
+      sx.globalAlpha = 1;
+    }
+    if (P.dazT > 0) { // 眩惑(光の蝶): 目の前で光の十字が 3つ、大きさを変えながらまたたいて回る(光の層は暗い金。明るい床で白く飛ばさない)
+      const cx = P.x - cam.x, cy = py - cam.y - 9, a0 = Math.min(1, P.dazT * 4);
+      for (let i = 0; i < 3; i++) {
+        const ph = t * 2.4 + i * TAU / 3, x = Math.round(cx + Math.cos(ph) * 7), y = Math.round(cy + Math.sin(ph) * 3), s = Math.round(1 + 2 * Math.abs(Math.sin(t * 9 + i * 1.7)));
+        sx.globalAlpha = 0.95 * a0; sx.fillStyle = '#ffffff'; sx.fillRect(x - s, y, s * 2 + 1, 1); sx.fillRect(x, y - s, 1, s * 2 + 1);
+        sx.globalAlpha = 0.6 * a0; sx.fillStyle = '#ffe08a'; sx.fillRect(x - 1, y - 1, 1, 1); sx.fillRect(x + 1, y - 1, 1, 1); sx.fillRect(x - 1, y + 1, 1, 1); sx.fillRect(x + 1, y + 1, 1, 1);
+        gx.fillStyle = '#5a4a14'; gx.fillRect(x, y, 1, 1);
       }
       sx.globalAlpha = 1;
     }

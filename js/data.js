@@ -94,13 +94,15 @@ const DATA = {
     firemage:   { hp: 34, spd: 14, dmg: 9, xp: 2, r: 5, ai: 'keep', keep: [100, 130], noElite: true, spawnW: 0.1, noGroup: true, solo: true, maxAlive: 3, shot: { cd: 3.5, range: 200, spd: 70, n: 0.8, kind: 'efire', burn: 0.1, wind: 0.5, count: 3, spread: 0.3 }, buff: { k: 'atk', v: 0.2, cd: 12, first: 3, r: 120, dur: 10 } }, // ファイアーメイジ
     frostmage:  { hp: 34, spd: 14, dmg: 9, xp: 2, r: 5, ai: 'keep', keep: [100, 130], noElite: true, spawnW: 0.1, noGroup: true, solo: true, maxAlive: 3, shot: { cd: 3.5, range: 200, spd: 70, n: 0.8, kind: 'eice', frost: 1, wind: 0.5, count: 3, spread: 0.3 }, buff: { k: 'def', v: 0.2, cd: 12, first: 3, r: 120, dur: 10 } }, // フロストメイジ
     thundermage:{ hp: 34, spd: 14, dmg: 9, xp: 2, r: 5, ai: 'keep', keep: [100, 130], noElite: true, spawnW: 0.1, noGroup: true, solo: true, maxAlive: 3, shot: { cd: 3.5, range: 200, spd: 70, n: 0.8, kind: 'tspark', numb: 1, wind: 0.5, count: 3, spread: 0.3 }, buff: { k: 'spd', v: 0.2, cd: 12, first: 3, r: 120, dur: 10 } }, // サンダーメイジ
-    // 天光の聖堂(tier 4。乱光): 光の蝶(群れ・触れると乱光)/ 灯の番人(光の扇に入り続けると撃たれる)/ 玻璃の天使(倒すと割れて破片が飛ぶ)/ ホーリーメイジ(光のビーム・まわりの回復)
-    //   touchLight: 触れると乱光 +n / spot: 光の扇(半径 r・片側 h rad。毎秒 turn rad でプレイヤーへ向け直し、扇の中に catch 秒いると扇の光が強まって ×n・乱光 +light。撃ったあと rest 秒は灯を消す)
+    // 天光の聖堂(tier 4。乱光): 光の蝶(群れ・近くで光ると眩惑)/ 灯の番人(光の扇に入り続けると撃たれる)/ 玻璃の天使(倒すと割れて破片が飛ぶ)/ ホーリーメイジ(光のビーム・まわりの回復)
+    //   touchLight: 触れると乱光 +n(今は使う敵がいない)
+    //   dazzle: プレイヤーから r 以内に来ると光って眩惑 t 秒(与えるダメージ −100%)。蝶ごとに cd 秒に 1回。眩惑の間は掛け直さず、切れてから imm 秒は眩惑にならない
+    //   spot: 光の扇(半径 r・片側 h rad。毎秒 turn rad でプレイヤーへ向け直し(見つけかけている間 = 扇が赤い間は止まる)、扇の中に catch 秒いると扇の光が強まって ×n・乱光 +light。撃ったあと rest 秒は灯を消す)
     //   shatter: 倒すと n 枚のガラスの破片が全周に(速さ spd・距離 range、×k・乱光 +light)
     //   beam: cd 秒ごとに wind 秒 杖を掲げ(帯の予告 長さ len・幅 w。帯はメイジについて動く)、光のビーム ×n・乱光 +light(待ち cd + 構え wind = 4秒)
     //   buff.k 'heal': まわり(半径 r)の敵の HP を、ホーリーメイジの最大HP × v だけ回復(時間のバフではない)
-    lightmoth:  { hp: 14, spd: 34, dmg: 7,  xp: 1, r: 3, ai: 'flutter', wobble: 1.2, pack: [4, 4], touchLight: 1 }, // 光の蝶
-    lampkeeper: { hp: 36, spd: 12, dmg: 10, xp: 1, r: 6, ai: 'keep', keep: [110, 140], spot: { r: 170, h: 0.175, turn: 0.7, catch: 0.6, n: 1.2, light: 1, rest: 3 } }, // 灯の番人
+    lightmoth:  { hp: 14, spd: 34, dmg: 7,  xp: 1, r: 3, ai: 'flutter', wobble: 1.2, pack: [4, 4], dazzle: { r: 24, t: 1, cd: 3, imm: 1.5 } }, // 光の蝶
+    lampkeeper: { hp: 36, spd: 12, dmg: 10, xp: 1, r: 6, ai: 'keep', keep: [80, 105], noGroup: true, maxAlive: 4, spot: { r: 130, h: 0.175, turn: 0.3, catch: 0.6, n: 1.2, light: 1, rest: 3 } }, // 灯の番人(画面の中から照らす。扇はゆっくり向きを変え、歩き続ければ追いつかれない)
     glassangel: { hp: 60, spd: 12, dmg: 12, xp: 2, r: 7, ai: 'chase', kbRes: 0.6, shatter: { n: 8, spd: 90, range: 120, k: 0.6, light: 1 } }, // 玻璃の天使
     holymage:   { hp: 34, spd: 14, dmg: 9,  xp: 2, r: 5, ai: 'keep', keep: [100, 130], noElite: true, spawnW: 0.1, noGroup: true, solo: true, maxAlive: 3, beam: { cd: 3.4, range: 200, wind: 0.6, len: 200, w: 8, n: 1.2, light: 2 }, buff: { k: 'heal', v: 1, cd: 12, first: 3, r: 120, range: 200 } }, // ホーリーメイジ
     goblin:   { hp: 160, spd: 44, dmg: 0, xp: 12, r: 5, ai: 'flee', kbRes: 0.5, noElite: true },
