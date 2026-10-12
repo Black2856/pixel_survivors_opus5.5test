@@ -2161,17 +2161,18 @@ function updEnemies(dt) {
           AudioMan.fuse();
         }
       }
-      if (d.beam) { // ホーリーメイジ: cd 秒ごとに wind 秒 杖を掲げ(帯の予告。帯はメイジについて動く)、プレイヤーへ光のビーム ×n・乱光 +light
+      if (d.beam) { // ホーリーメイジ: cd 秒ごとに wind 秒 杖を掲げ(帯の予告。帯はメイジについて動き、はじめの aim 秒はプレイヤーの方を追う)、光のビーム ×n・乱光 +light
         const bm = d.beam;
         if (e.wind > 0) {
           mx = my = 0; e.wind -= dt * CHAOS.rate * tw;
+          if (bm.wind - e.wind < bm.aim) e.ta = Math.atan2(P.y - (e.y - 4), P.x - e.x); // 予告はプレイヤーの方を追い、残りの間は止まる(止まってから横へ出ればよけられる)
           if (Math.random() < dt * 40) { const pa = rand(0, TAU), pr = rand(8, 14), tx = e.x + (e.face || 1) * 3.5, ty = e.y - 7; part(tx + Math.cos(pa) * pr, ty + Math.sin(pa) * pr, -Math.cos(pa) * pr * 3, -Math.sin(pa) * pr * 3, 0.3, pick(MAGE_COL.holymage), { glow: Math.random() < 0.5, drag: 0 }); } // 光が杖の珠へ集まる
           if (e.wind <= 0) holyBeam(e, bm);
         } else {
           e.beamT = (e.beamT ?? rand(1, bm.cd)) - dt * CHAOS.rate * tw * e.rateK;
           if (e.beamT <= 0 && d2(e.x, e.y, P.x, P.y) < bm.range * bm.range) {
             e.beamT = bm.cd; e.wind = bm.wind; e.ta = a;
-            pushWarn({ kind: 'line', x: e.x, y: e.y - 4, a, len: bm.len * e.areaK, w: bm.w * e.areaK, t: 0, life: bm.wind, owner: e, track: w => { w.x = e.x; w.y = e.y - 4; } });
+            pushWarn({ kind: 'line', x: e.x, y: e.y - 4, a, len: bm.len * e.areaK, w: bm.w * e.areaK, t: 0, life: bm.wind, owner: e, track: w => { w.x = e.x; w.y = e.y - 4; w.a = e.ta; } });
             AudioMan.charge(bm.wind);
           }
         }
@@ -5881,7 +5882,7 @@ function dogHunt(d, o, dt) {
 //   ★影喚び: 残りHP 100%・75%・50%・25% で、tier 1〜4 のボスから1体の影(HP は元の 25%)。影がいる間は被ダメ ×0.3・技の間隔 ×2・HP は次の基準より下がらない
 //   技は1つずつ: 影歩(影の剣・影刃の前置き。技のあと 20% でフェイント)/ 影の剣 / 影の三重輪 / 影刃・五月雨 / 追い影 / 断界(即死)/ 激昂: 冥鎖・蝕む影
 const SKC = ['#0a0612', '#2a1240', '#7a3ab0', '#c79bff', '#e8c8ff'];
-const skPool = t => [...new Set(DATA.stageRuns.filter(r => r.tier === t).flatMap(r => r.bosses))].filter(k => k !== 'shadowking');
+const skPool = t => [...new Set(DATA.stageRuns.filter(r => r.tier === t).flatMap(r => r.bosses))].filter(k => k !== 'shadowking' && k !== 'seraph'); // 熾天使の影は呼ばない
 const skShade = ai => (ai.shade && !ai.shade.dead ? ai.shade : null);
 function shadowKingAI(e, ai, dt, a, dist, slow) {
   if (ai.sumIdx === undefined) { ai.sumIdx = 0; if (S.phase) S.phase.hold = true; } // 闇の霧の時計は、4回目の影を倒すまで止まる
