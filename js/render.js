@@ -1707,7 +1707,7 @@ function render() {
     } else if (e.type === 'jelly') addLight(e.x, e.y, 20, '#ff8ad8', 0.25);
     else if (e.type === 'mworm') addLight(e.x, e.y - 4, 26, '#ff6a2a', 0.5);
     else if (e.type === 'icesprite') addLight(e.x, e.y, 26, '#9ff7ff', 0.5);
-    else if (e.type === 'lampkeeper') addLight(e.x + (flip ? -8 : 8) * sc, e.y + yo + 3, e.aim ? 46 : 26, e.aim ? '#fff6c8' : '#ffd27a', e.aim ? 0.8 : 0.45); // 灯の番人: ランタンの灯
+    else if (e.type === 'lampkeeper') addLight(e.x + (flip ? -8 : 8) * sc, e.y + yo + 3, e.aim ? 46 : 26, e.aim ? '#fff6c8' : '#ffd27a', e.aim ? 0.8 : 0.45 / (e.lanS || 1)); // 灯の番人: ランタンの灯(ふだんの灯は重なった番人の数で分ける。drawSpotCones)
     else if (e.type === 'holymage') addLight(e.x, e.y + yo - 10 * sc, 24, '#ffe8a0', 0.4); // ホーリーメイジ: 頭上の光輪
     else if (e.type === 'lightmoth' && !(e.dazCd > 0) && !(P.dazImm > 0)) { // 光の蝶: 眩惑を出せるとき、プレイヤーに近づくほど体の光が強まる(光る前の合図)
       const dz = DATA.enemies.lightmoth.dazzle, k = clamp(1 - (Math.sqrt(d2(e.x, e.y, P.x, P.y)) - dz.r * e.areaK) / 40, 0, 1);
@@ -2796,21 +2796,37 @@ function jagBolt(ax, ay, bx, by, o) {
 }
 // 灯の番人の光の扇: ランタンから地面を照らす淡い金の扇(縁は少し明るい)。プレイヤーが中にいる間は赤く染まり、見つかるまでの時間ぶん根元から赤が満ちる
 //   扇そのものは光なので暗闇でも見えるが、赤(攻撃の予告)は暗闇では出さない
+//   ふだんの光は番人が重なっても明るさを足さない(聖堂の明るい床で 4体の扇が重なると白く飛んだ): 淡い金の塗りは扇を合わせた形で 1回だけ塗り、
+//   照らされた地面の光は、その点に重なっているほかの扇の数で分ける。ランタンの灯も近くの番人の数で分ける(e.lanS。敵の描画で使う)。
+//   見つけかけ(赤)・見つけた時の光(spotflash)は攻撃の合図なので、重なっても分けない
+function spotCover(c, x, y) { // 点 (x, y) が扇 c の中か(1 = 中。縁の外側 8px ほどでなめらかに 0 へ。c.k を掛ける)
+  const dx = x - c.x, dy = y - c.y, d = Math.hypot(dx, dy);
+  if (d >= c.R) return 0;
+  return Math.min(1, (c.R - d) / 8) * clamp((c.h - Math.abs(angDiff(Math.atan2(dy, dx), c.a))) * Math.max(d, 1) / 8 + 0.5, 0, 1) * c.k;
+}
 function drawSpotCones(t) {
   const sx = GFX.sctx, so = DATA.enemies.lampkeeper.spot, blink = Math.floor(t * 8) % 2;
-  for (const e of enemies) {
-    if (e.dead || e.type !== 'lampkeeper' || !(e.spotK > 0) || e.spotA === undefined) continue;
-    const R = so.r * e.areaK * CHAOS.area * easeOutCubic(e.spotK), h = so.h, a = e.spotA, cx = e.x - cam.x, cy = e.y - 3 - cam.y;
+  const ks = enemies.filter(e => !e.dead && e.type === 'lampkeeper');
+  for (const e of ks) { let s = 1; for (const o of ks) if (o !== e) s += clamp(1 - Math.hypot(o.x - e.x, o.y - e.y) / 24, 0, 1); e.lanS = s; }
+  const cs = ks.filter(e => e.spotK > 0 && e.spotA !== undefined).map(e => ({ e, x: e.x, y: e.y - 3, a: e.spotA, h: so.h, R: so.r * e.areaK * CHAOS.area * easeOutCubic(e.spotK), k: e.spotK }));
+  if (!cs.length) return;
+  const fan = new Path2D(); // 扇の塗り(淡い金。合わせた形で 1回)
+  for (const c of cs) { const cx = c.x - cam.x, cy = c.y - cam.y; fan.moveTo(cx, cy); fan.arc(cx, cy, c.R, c.a - c.h, c.a + c.h); fan.closePath(); }
+  sx.globalAlpha = (0.1 + 0.04 * Math.sin(t * 3 + cs[0].e.seed * 9)) * Math.max(...cs.map(c => c.k)); sx.fillStyle = '#fff2b8'; sx.fill(fan);
+  for (const c of cs) {
+    const e = c.e, R = c.R, h = c.h, a = c.a, cx = c.x - cam.x, cy = c.y - cam.y;
     const caught = e.spotC > 0 && !(P.darkT > 0), k = caught ? Math.min(1, e.spotC / so.catch) : 0;
-    sx.globalAlpha = (0.1 + 0.04 * Math.sin(t * 3 + e.seed * 9)) * e.spotK; sx.fillStyle = '#fff2b8'; // 扇の塗り(淡い金)
-    sx.beginPath(); sx.moveTo(cx, cy); sx.arc(cx, cy, R, a - h, a + h); sx.closePath(); sx.fill();
     if (caught) { sx.globalAlpha = 0.22 + 0.25 * k; sx.fillStyle = '#ff3b5c'; sx.beginPath(); sx.moveTo(cx, cy); sx.arc(cx, cy, Math.max(2, R * k), a - h, a + h); sx.closePath(); sx.fill(); }
     const ec = caught ? (blink ? '#ff3b5c' : '#ffd0d8') : '#ffe8a0'; // 縁: 両端の線と弧
     sx.globalAlpha = (caught ? 0.9 : 0.4) * e.spotK;
     pLine(sx, cx, cy, cx + Math.cos(a - h) * R, cy + Math.sin(a - h) * R, ec); pLine(sx, cx, cy, cx + Math.cos(a + h) * R, cy + Math.sin(a + h) * R, ec);
     sx.fillStyle = ec; for (let u = -h; u <= h; u += 0.015) sx.fillRect(Math.round(cx + Math.cos(a + u) * R), Math.round(cy + Math.sin(a + u) * R), 1, 1);
     sx.globalAlpha = 1;
-    for (let d = 10; d < R; d += 16) addLight(e.x + Math.cos(a) * d, e.y - 3 + Math.sin(a) * d, 12 + d * 0.16, caught ? '#ff8a8a' : '#fff2b8', 0.22 * e.spotK); // 照らされた地面
+    for (let d = 10; d < R; d += 16) { // 照らされた地面(ふだんの扇は、重なっているほかの扇の数で分ける。見つけかけの赤はそのまま)
+      const lx = c.x + Math.cos(a) * d, ly = c.y + Math.sin(a) * d; let s = 1;
+      if (!caught) for (const o of cs) if (o !== c) s += spotCover(o, lx, ly);
+      addLight(lx, ly, 12 + d * 0.16, caught ? '#ff8a8a' : '#fff2b8', 0.22 * e.spotK / s);
+    }
   }
 }
 // ボスの技の地面の光(敵より奥に描く)
