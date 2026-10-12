@@ -2901,7 +2901,7 @@ function drawTriBall(sx, gx, cx, cy, ka, t) {
 }
 // 三原の光精: 水晶の中の光の核(拍動し、中で赤 → 緑 → 青と色が巡る)と、赤・緑・青の灯(ふだんは核のまわりを回る)
 //   三原の灯の間は、灯がそれぞれの円の上に浮かんで、円を照らす光の筋を落とす / 白の収束では予告の円と同じ式で集まる
-//   ミラーボール: 頭上 250 の玉(drawTriBall。ふだんは画面の上の外)と、3つの光の空中の円錐(ヘヴンズリフトと同じ drawConeShaft。地面の光は drawBossGround)
+//   ミラーボール: 頭上 150 の玉(drawTriBall。ふだんは画面の上の端の外)と、3つの光の空中の円錐(ヘヴンズリフトと同じ drawConeShaft。地面の光は drawBossGround)
 function drawTriFx(e, sx, gx, ex, ey, yo) {
   const ai = e.ai, t = GFX.fx.time, cx = Math.round(ex), cy = Math.round(ey + yo), pul = 0.5 + 0.5 * Math.sin(t * 6), ci = Math.floor(t * 3) % 3;
   // 核

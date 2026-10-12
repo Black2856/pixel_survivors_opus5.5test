@@ -4818,17 +4818,17 @@ function triSplit(e, ai) {
   });
   hint('tri_split', _t('分光'), _t('白い光の玉は、少しすると赤・緑・青の 3つに割れて広がる'));
 }
-// ミラーボール(激昂): 光精の頭上 250 の高さにミラーボールが現れて浮かぶ(壊せない)。赤・緑・青の光が 120° おきに出て、回りながら(毎秒 20°)、
+// ミラーボール(激昂): 光精の頭上 150 の高さにミラーボールが現れて浮かぶ(壊せない)。赤・緑・青の光が 120° おきに出て、回りながら(毎秒 20°)、
 //   傾きが sin のように上下する(5秒で 1往復。真下 → 楕円の遠い縁が 325 の所まで)。3つの光は同じ傾き: 真下では 3色が重なって白になり、上がると赤・緑・青に分かれて広がる。
-//   光は円錐(ヘヴンズリフトと同じ計算 coneSpot)。光が重なった所は色が混ざる(黄・紫・水色・白)。玉はふだん画面の上の外にあり、光が上から差し込む。
+//   光は円錐(ヘヴンズリフトと同じ計算 coneSpot。真下の円は半径 78、上がると最大 298×216 の楕円)。光が重なった所は色が混ざる(黄・紫・水色・白)。玉はふだん画面の上の端の外にあり、光が上から差し込む。
 //   現れて 0.6秒で光が地面に届き、1秒は弱い光(真下の白。当たらない)。そのあと楕円に入っていると 0.5秒ごとに、重なっている数で ×0.1・×0.3・×0.5 と、その場所の色の効果(triStatus)。
 //   15秒で消える。その間、光精は動かず、ほかの技を使わない。間隔は終わってから数える
-//   H: 玉の高さ / al: 開きの半分(度。tan に攻撃範囲の倍率を掛ける。高い所から照らすので小さく)/ reach: 傾きの上の端(楕円の遠い縁がここまで)
+//   H: 玉の高さ / R: 真下の円の半径(開きの半分は atan(R / H) = 27.5°。R に攻撃範囲の倍率を掛ける)/ reach: 傾きの上の端(楕円の遠い縁がここまで)
 //   spin: 回る速さ(度/秒。光精から 110 の所で 110 × 0.35 = 38 < 歩き 55)/ per: 上下の 1往復(秒)/ show: 現れてから光が地面に届くまで / warm: 弱い光の間
 //   dur: 光が消え始める時 / fade: 消える長さ / tick: 当たる間 / dmg: 重なっている光の数ごとの倍率 / cd: 次までの間
-const TRI_BALL = { H: 250, al: 6, reach: 325, spin: 20, per: 5, show: 0.6, warm: 1.0, dur: 15, fade: 0.3, tick: 0.5, dmg: [0, 0.1, 0.3, 0.5], cd: 20 };
-const triBallAl = () => Math.atan(Math.tan(TRI_BALL.al * Math.PI / 180) * CHAOS.area); // 開きの半分(rad)
-const triBallMax = () => Math.max(0, Math.atan(TRI_BALL.reach / TRI_BALL.H) - triBallAl()); // 傾きの上の端(rad。遠い縁が reach。開き 6° で 46°)
+const TRI_BALL = { H: 150, R: 78, reach: 325, spin: 20, per: 5, show: 0.6, warm: 1.0, dur: 15, fade: 0.3, tick: 0.5, dmg: [0, 0.1, 0.3, 0.5], cd: 20 };
+const triBallAl = () => Math.atan(TRI_BALL.R * CHAOS.area / TRI_BALL.H); // 開きの半分(rad)
+const triBallMax = () => Math.max(0, Math.atan(TRI_BALL.reach / TRI_BALL.H) - triBallAl()); // 傾きの上の端(rad。遠い縁が reach。38°)
 // 今の 3つの光: 光精の真下 (gx, gy) から、向き a(120° おきに回る)・傾き th(sin のように上下。3つ同じ)・地面の楕円 o・色 ci。弱い光の間は真下で止まっている
 function triBallBeams(e, B) {
   const Q = TRI_BALL, u = Math.max(0, B.t - Q.show - Q.warm), th = triBallMax() * (1 - Math.cos(TAU * u / Q.per)) / 2, o = coneSpot(Q.H, triBallAl(), th), a0 = B.a0 + Q.spin * Math.PI / 180 * u;
