@@ -126,7 +126,7 @@ const DATA = {
     elder:   { name: '古樹の主 ELDER TREANT',       hp: 1900, spd: 10, dmg: 22, r: 16, music: 'b_forest', col: '#8fd06a' }, // 木漏れ日の森 2体目
     escorp:  { name: '大蠍 EMPEROR SCORPION',       hp: 1800, spd: 16, dmg: 22, r: 15, music: 'b_desert', col: '#ffb040' }, // 陽炎の砂海 1体目
     sphinx:  { name: 'スフィンクス SPHINX',          hp: 1500, spd: 14, dmg: 22, r: 14, music: 'b_desert', col: '#ffd27a' }, // 陽炎の砂海 2体目
-    raiju:   { name: '雷獣 RAIJU',                  hp: 1500, spd: 26, dmg: 22, r: 13, music: 'b_thunder', col: '#6a7ae8' }, // 雷鳴の雲海 1体目(曲は用意されるまで草原の曲)
+    raiju:   { name: '雷獣 RAIJU',                  hp: 1500, spd: 26, dmg: 22, r: 13, music: 'b_thunder', col: '#6a7ae8' }, // 雷鳴の雲海 1体目
     raijin:  { name: '雷神 RAIJIN',                 hp: 1600, spd: 16, dmg: 24, r: 13, music: 'b_thunder', col: '#c8603a' }, // 雷鳴の雲海 2体目
   },
   // 状態異常(プレイヤー): 粘液・スロウタイムの移動速度倍率 / スロウタイムのCD回復倍率 / 炎上
@@ -1436,7 +1436,7 @@ const DATA = {
     // 陽炎の砂海(tier 2): まぶしい砂丘と風紋、半分埋もれた古代の石柱と獣の骨、地面がゆらぐ陽炎、流れる砂
     { label: '陽炎の砂海', music: 'f_desert', ground: ['#c8a468', '#d2b074', '#b8945a', '#dcbc84'], deco: ['#a8844c', '#e8d0a0', '#8a7a68', '#efe6d0'],
       amb: [0.7, 0.66, 0.58], tint: [1.04, 1.0, 0.94], motes: { col: '#fff0c8', cols: ['#fff0c8', '#e8d0a0', '#ffe0a0'], rise: false }, desert: true, light: 0.3 }, // light: 明るい砂丘なので光源を弱める
-    // 雷鳴の雲海(tier 3): 雷雲の上に残る古い社の跡。黒紫の雲の床、雲の中を走る稲光、銅の柱と太鼓、降る雨。ときどき空が光って遠雷が鳴る(曲は用意されるまで草原の曲)
+    // 雷鳴の雲海(tier 3): 雷雲の上に残る古い社の跡。黒紫の雲の床、雲の中を走る稲光、銅の柱と太鼓、降る雨。ときどき空が光って遠雷が鳴る
     { label: '雷鳴の雲海', music: 'f_thunder', ground: ['#241c38', '#2a2242', '#1e1830', '#30284c'], deco: ['#3a3260', '#5a5288', '#8a6a3a', '#b8a0ff'],
       amb: [0.44, 0.42, 0.6], tint: [0.98, 0.96, 1.08], motes: { col: '#b8a0ff', rain: true }, thunder: true },
   ],
