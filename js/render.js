@@ -2815,17 +2815,22 @@ function drawSpotCones(t) {
 }
 // ボスの技の地面の光(敵より奥に描く)
 //   三原の光精の色の円: 赤・緑・青の円を場面に足し合わせて塗る(lighter)ので、重なった所は黄・紫・水色・白になる。縁は回る光の点。光の層は暗い色で
-//   ミラーボールの地面の光: 円錐を床で切った赤・緑・青の楕円(当たる所)を、色の円と同じ塗り方で(drawTriZones)
+//   ミラーボールの地面の光: 円錐を床で切った赤・緑・青の楕円(当たる所)を、色の円と同じ塗り方で(drawTriZones)。三原の灯と同時なら 1回で塗る(重なった所も色が混ざる)
 function drawBossGround(t) {
   const sx = GFX.sctx, gx = GFX.gctx;
   for (const b of [...(S.bosses || []), ...(S.shadows || [])]) { // 影の王が呼んだ影も
     if (b.dead) continue;
     if (b.boss === 'seraph') { drawSerGround(b, t); continue; } // 熾天使: 足もとの光の陣・残像・壊れたクリスタルと影
     if (b.boss !== 'trichroma') continue;
-    const ai = b.ai;
-    if (ai.lamp) {
-      const L = ai.lamp, R = Math.round(50 * CHAOS.area), k = Math.min(1, L.t / 0.6) * clamp((L.dur + 0.5 - L.t) / 0.5, 0, 1), live = L.t >= 0.6 && L.t < L.dur;
-      drawTriZones(sx, triCircleZones(L.cs, R), (live ? 0.34 : 0.16) * k, t);
+    const ai = b.ai, L = ai.lamp, B = ai.ball, zs = [], R = Math.round(50 * CHAOS.area), k = L ? Math.min(1, L.t / 0.6) * clamp((L.dur + 0.5 - L.t) / 0.5, 0, 1) : 0;
+    if (L) { const al = (L.t >= 0.6 && L.t < L.dur ? 0.34 : 0.16) * k; for (const z of triCircleZones(L.cs, R)) zs.push(Object.assign(z, { al })); }
+    if (B) { // ミラーボールの地面の光(光が地面に届いてから): 赤・緑・青の楕円を三原の灯の円と同じ塗り方で(重なった所は色が混ざる。真下では白)
+      const Q = TRI_BALL, kb = clamp((B.t - Q.show) / 0.08, 0, 1) * (1 - clamp((B.t - Q.dur) / Q.fade, 0, 1)), al = (B.t < Q.show + Q.warm ? 0.16 : 0.34) * kb;
+      if (kb > 0) for (const z of triBallZones(triBallBeams(b, B))) zs.push(Object.assign(z, { al }));
+    }
+    const al = zs.length ? Math.max(...zs.map(z => z.al)) : 0; // 三原の灯の円とミラーボールの楕円は 1回で塗る(重なった所も色が混ざる。弱い方は z.k で淡く)
+    if (al > 0) { for (const z of zs) z.k = z.al / al; drawTriZones(sx, zs, al, t); }
+    if (L) {
       for (const c of L.cs) { // 縁: 回る光の点(灯の色と白)
         const cx = c.x - cam.x, cy = c.y - cam.y, dir = c.i % 2 ? -1 : 1;
         for (let j = 0; j < 40; j++) {
@@ -2837,15 +2842,11 @@ function drawBossGround(t) {
       }
       sx.globalAlpha = 1;
     }
-    if (ai.ball) { // ミラーボールの地面の光(光が地面に届いてから): 赤・緑・青の楕円を三原の灯の円と同じ塗り方で(重なった所は色が混ざる。真下では白)
-      const B = ai.ball, Q = TRI_BALL, k = clamp((B.t - Q.show) / 0.08, 0, 1) * (1 - clamp((B.t - Q.dur) / Q.fade, 0, 1));
-      if (k > 0) drawTriZones(sx, triBallZones(triBallBeams(b, B)), (B.t < Q.show + Q.warm ? 0.16 : 0.34) * k, t);
-    }
   }
 }
 // 三原の光精の色の光の塗り: 1点ごとに、どの光に入っているか(赤 1・緑 2・青 4 のビット)で色を決める(重なった所は 黄・紫・水色・白)。
 //   明るい床に足し合わせると白に寄って色が見えないので、混ざった色をそのまま淡く重ねる。白は少しまたたく
-//   zs: [{ i: 色(0 赤・1 緑・2 青), x0, y0, x1, y1: 囲む四角(場面の座標), hit(x, y): その点が光の中か }](三原の灯の円・ミラーボールの楕円)
+//   zs: [{ i: 色(0 赤・1 緑・2 青), x0, y0, x1, y1: 囲む四角(場面の座標), hit(x, y): その点が光の中か, k: 濃さ(0〜1。なければ 1。重なった所は濃い方) }](三原の灯の円・ミラーボールの楕円)
 const TRI_RGB = [null, [255, 58, 74], [58, 255, 106], [255, 225, 74], [58, 106, 255], [255, 74, 216], [74, 220, 255], [255, 255, 255]];
 const triCircleZones = (cs, R) => cs.map(c => ({ i: c.i, x0: c.x - R - 1, y0: c.y - R - 1, x1: c.x + R + 2, y1: c.y + R + 2, hit: (x, y) => { const dx = x - c.x, dy = y - c.y; return dx * dx + dy * dy <= R * R; } }));
 const triBallZones = bs => bs.map(b => { // ミラーボールの地面の楕円(当たる所。囲む四角は傾いた楕円の幅)。中かどうかは inConeSpot と同じ式(1点ごとに呼ぶので cos・sin は先に)
@@ -2864,11 +2865,11 @@ function drawTriZones(sx, zs, al, t) {
   for (let y = 0; y < H; y++) {
     const wy = y0 + y + 0.5;
     for (let x = 0; x < W; x++) {
-      const wx = x0 + x + 0.5; let m = 0;
-      for (const z of zs) if (wx >= z.x0 && wx <= z.x1 && wy >= z.y0 && wy <= z.y1 && z.hit(wx, wy)) m |= 1 << z.i;
+      const wx = x0 + x + 0.5; let m = 0, kk = 0;
+      for (const z of zs) if (wx >= z.x0 && wx <= z.x1 && wy >= z.y0 && wy <= z.y1 && z.hit(wx, wy)) { m |= 1 << z.i; kk = Math.max(kk, z.k ?? 1); }
       if (!m) continue;
       const col = TRI_RGB[m], o = (y * W + x) * 4;
-      d[o] = col[0]; d[o + 1] = col[1]; d[o + 2] = col[2]; d[o + 3] = m === 7 ? (((x + y) & 1) === sh ? 255 : 200) : 255;
+      d[o] = col[0]; d[o + 1] = col[1]; d[o + 2] = col[2]; d[o + 3] = (m === 7 ? (((x + y) & 1) === sh ? 255 : 200) : 255) * kk;
     }
   }
   triCtx.clearRect(0, 0, triCan.width, triCan.height); triCtx.putImageData(triImg, 0, 0);
