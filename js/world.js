@@ -148,6 +148,7 @@ function initRun(mode = 'escalation', stageNo = 1) {
     fatigueT: 0, // 疲労(スタミナを減らす攻撃を受けた): スタミナ回復 -50% の残り秒
     poison: 0, poisonT: 0, darkT: 0, // 毒(スタック数・消えるまでの秒)/ 暗闇の残り秒(王墓)
     numb: 0, numbT: 0, paraT: 0, dust: 0, dustT: 0, weak: 0, weakT: 0, // 痺れ・砂塵・衰弱(スタック数・消えるまでの秒)/ 麻痺(痺れが上限に達した。攻撃不能の秒)
+    lockT: 0, lockMax: 0, noHealT: 0, noHealMax: 0, // 攻撃不能・回復不能(熾天使のラストラディアンス)の残り秒と、付いたときの長さ
   };
   enemies = []; projs = []; eprojs = []; gems = []; drops = []; props = []; hazards = [];
   parts = []; floats = []; rings = []; zones = []; slashes = []; bolts = []; warns = []; flashes = []; bfx = []; sfx = [];
@@ -221,6 +222,7 @@ function updEnemyLevel(dt) {
   if (S.elvT >= DATA.enemyLevel.interval) { S.elvT -= DATA.enemyLevel.interval; S.elv++; UI.enemyLvUp(); }
 }
 function heal(n, silent) {
+  if (P.noHealT > 0) return; // 回復不能(ラストラディアンス): 肉・スキル・吸血など、すべての回復が効かない
   if (P.uq.mercy) n *= 1.25;
   n *= clsHealMul(); // クラスの被回復量の補正(クレリック)
   if (P.burnT > 0) n *= DATA.debuff.burnHeal; // 炎上中は HP回復 -50%
@@ -275,7 +277,7 @@ function updPlayer(dt) {
   P.ifr -= dt; P.hurtT -= dt;
   updDebuffs(dt);
   const rg = P.regen + clsRegen(); // クラスの一時的な HP回復速度(バーサーカーの昂り・狂乱など)
-  if (rg > 0) { const n = rg * dt * clsHealMul() * (P.burnT > 0 ? DATA.debuff.burnHeal : 1) * (P.cdSlowT > 0 ? DATA.debuff.slowRegen : 1); S.healed = (S.healed || 0) + n; overheal(P.hp + n - P.maxhp); P.hp = Math.min(P.maxhp, P.hp + n); } // 満タンで余った分は超過回復
+  if (rg > 0 && !(P.noHealT > 0)) { const n = rg * dt * clsHealMul() * (P.burnT > 0 ? DATA.debuff.burnHeal : 1) * (P.cdSlowT > 0 ? DATA.debuff.slowRegen : 1); S.healed = (S.healed || 0) + n; overheal(P.hp + n - P.maxhp); P.hp = Math.min(P.maxhp, P.hp + n); } // 満タンで余った分は超過回復
   updOverShield(dt); // 聖盾のシールドは得た分ごとに時間で消える
   if (P.moving && Math.random() < dt * 10) part(P.x + rand(-2, 2), P.y + 6, rand(-6, 6), rand(-8, -2), 0.35, '#8a8098', { drag: 4 });
   GFX.fx.lowhp = lerp(GFX.fx.lowhp, P.hp / P.maxhp < 0.3 ? 1 : 0, dt * 3);
@@ -376,8 +378,8 @@ function weakPlayer(n) {
   AudioMan.drain(); S.hudDirty = true;
   hint('pweak', _t('衰弱'), _t('与えるダメージが下がる。受けないでいると消える'));
 }
-// 攻撃不能(凍結・麻痺): 武器の攻撃が止まり、E・Q を使えず、攻撃が当たらない(hitEnemy)
-const atkLock = () => P.frzT > 0 || P.paraT > 0;
+// 攻撃不能(凍結・麻痺・ラストラディアンスの封印): 武器の攻撃が止まり、E・Q を使えず、攻撃が当たらない(hitEnemy)
+const atkLock = () => P.frzT > 0 || P.paraT > 0 || P.lockT > 0;
 // クールダウンの回復の速さ(武器の攻撃間隔と E・Q): スロウタイム・時の歪みは ×cdRate、痺れは 1スタックにつき −numbCd(掛け算)
 const cdRateK = () => (P.cdSlowT > 0 ? DATA.debuff.cdRate : 1) * Math.max(0, 1 - DATA.debuffStage.numbCd * P.numb);
 // 命中率: 砂塵 1スタックにつき −dustHit、暗闇の間 −darkHit(足し算)。外れると当たったときの効果も出ない(hitEnemy)
@@ -422,7 +424,45 @@ function darkPlayer(t) {
   S.hudDirty = true;
   hint('pdark', _t('暗闇'), _t('周りが暗くなり、攻撃の予告が見えない。自分の攻撃も外れやすくなる'));
 }
+// 乱光(天光の聖堂): n 回、下の状態異常からランダムに 1つずつ付ける(同じものが続くこともある)。乱光そのものに効果はない(HUD には付いた状態異常が出る)
+//   1回分: 凍傷 +1・痺れ +1・砂塵 +1・衰弱 +1・出血 +1・毒 +1・炎上(src × 0.1 を 0.5秒ごと・3秒)・暗闇・疲労。src: 攻撃した敵のダメージ(炎上の量)
+//   ほかの状態異常と同じく、回避の無敵中は付かない。付いたものは頭上に名前が浮かぶ(多いときはまとめて「乱光 ×n」)
+const LIGHT_PICK = [
+  { k: 'frost', name: () => _t('凍傷'), col: '#9ff7ff' }, { k: 'numb', name: () => _t('痺れ'), col: '#fff27a' }, { k: 'dust', name: () => _t('砂塵'), col: '#e8c88a' },
+  { k: 'weak', name: () => _t('衰弱'), col: '#b8d08a' }, { k: 'bleed', name: () => _t('出血'), col: '#ff5d73' }, { k: 'poison', name: () => _t('毒'), col: '#7dff6a' },
+  { k: 'burn', name: () => _t('炎上'), col: '#ff9a3d' }, { k: 'dark', name: () => _t('暗闇'), col: '#c79bff' }, { k: 'fatigue', name: () => _t('疲労'), col: '#7ad7ff' },
+];
+function randomLight(n, src) {
+  if (!(n > 0) || P.invT > 0 || P.dead) return;
+  const got = [];
+  for (let i = 0; i < n; i++) {
+    const L = pick(LIGHT_PICK); got.push(L);
+    if (L.k === 'frost') frostPlayer(1); else if (L.k === 'numb') numbPlayer(1); else if (L.k === 'dust') dustPlayer(1); else if (L.k === 'weak') weakPlayer(1);
+    else if (L.k === 'bleed') bleedPlayer(1); else if (L.k === 'poison') poisonPlayer(1); else if (L.k === 'burn') burnPlayer((src || 10) * 0.1);
+    else if (L.k === 'dark') darkPlayer(DATA.debuffTomb.darkDur);
+    else { P.fatigueT = Math.max(P.fatigueT || 0, DATA.debuff.fatigueDur * CHAOS.debuff); S.hudDirty = true; }
+  }
+  // 七色にきらめく光の粒が体のまわりで弾け、付いた状態異常の名前が浮かぶ
+  burst(P.x, P.y - 6, Math.min(26, 8 + n * 3), PRISM, { sp: 70, glow: true, life: 0.45 }); addRing(P.x, P.y - 4, 12, '#fff6c8', { r0: 4, life: 0.25 });
+  if (n <= 3) got.forEach((L, i) => addFloat(P.x + (i - (got.length - 1) / 2) * 14, P.y - 22 - i * 3, L.name(), L.col, 1, -26));
+  else addFloat(P.x, P.y - 24, _t`乱光 ×${n}`, '#fff6c8', 1, -26);
+  AudioMan.sparkle();
+  hint('plight', _t('乱光'), _t('状態異常がランダムに付く(凍傷・痺れ・砂塵・衰弱・出血・毒・炎上・暗闇・疲労)'));
+}
+// 攻撃不能(ラストラディアンスの封印): t 秒、武器の攻撃が止まり E・Q を使えず、攻撃が当たらない(atkLock。歩く・回避はできる)。麻痺と違って E・Q のクールダウンは戻さない
+function lockPlayer(t) {
+  if (P.dead) return;
+  P.lockT = Math.max(P.lockT, t); P.lockMax = Math.max(P.lockMax || 0, P.lockT); S.hudDirty = true;
+  hint('plock', _t('攻撃不能'), _t('しばらく攻撃できない(歩く・回避はできる)'));
+}
+// 回復不能(ラストラディアンス): t 秒、HP回復速度・肉・クラスの回復・回復のスキルが効かない(heal)
+function noHealPlayer(t) {
+  if (P.dead) return;
+  P.noHealT = Math.max(P.noHealT, t); P.noHealMax = Math.max(P.noHealMax || 0, P.noHealT); S.hudDirty = true;
+  hint('pnoheal', _t('回復不能'), _t('しばらく HP が回復しない(肉・スキルの回復も)'));
+}
 // 自分の状態異常を全て消す(食べ物でデバフ解除): 炎上・凍傷・出血・減速・スロウタイム・凍結・疲労・毒・暗闇・痺れ・麻痺・砂塵・衰弱。消えたものがあれば白緑の光
+//   ボスの技の攻撃不能・回復不能(ラストラディアンス)は消さない
 function cleansePlayer() {
   const had = P.burnT > 0 || P.frost > 0 || P.bleed > 0 || P.slowT > 0 || P.cdSlowT > 0 || P.frzT > 0 || P.fatigueT > 0 || P.poison > 0 || P.darkT > 0 || P.numb > 0 || P.paraT > 0 || P.dust > 0 || P.weak > 0, pz = P.poison > 0;
   P.burnT = 0; P.frost = 0; P.frostT = 0; P.bleed = 0; P.bleedT = 0; P.slowT = 0; P.cdSlowT = 0; P.frzT = 0; P.fatigueT = 0; P.poison = 0; P.poisonT = 0; P.darkT = 0;
@@ -442,6 +482,16 @@ function updFrostBleed(dt) {
     P.darkT -= dt;
     if (Math.random() < dt * 16) { const a = rand(0, TAU), r = rand(6, 14); part(P.x + Math.cos(a) * r, P.y + Math.sin(a) * r * 0.7, -Math.sin(a) * 18, Math.cos(a) * 12 - 6, 0.6, pick(['#1a0a2a', '#2a1240', '#3a1a5a']), { drag: 1, sz: pick([1, 2]) }); }
     if (P.darkT <= 0) { P.darkT = 0; S.hudDirty = true; }
+  }
+  if (P.lockT > 0) { // 攻撃不能(ラストラディアンスの封印): 体のまわりを光の輪の枷が回る(render.js)、金の粒がこぼれる
+    P.lockT -= dt;
+    if (Math.random() < dt * 10) part(P.x + rand(-6, 6), P.y - 6 + rand(-4, 4), rand(-6, 6), rand(6, 14), 0.5, pick(['#ffe8a0', '#fff6c8', '#c8a050']), { glow: Math.random() < 0.5, drag: 1 });
+    if (P.lockT <= 0) { P.lockT = 0; P.lockMax = 0; S.hudDirty = true; burst(P.x, P.y - 4, 18, ['#fff6c8', '#ffe8a0', '#ffffff'], { sp: 80, glow: true, life: 0.4 }); addRing(P.x, P.y, 16, '#ffe8a0', { r0: 8, life: 0.3 }); AudioMan.chime(); } // 枷が砕ける
+  }
+  if (P.noHealT > 0) { // 回復不能: 体から灰色の光の粒が抜けていく
+    P.noHealT -= dt;
+    if (Math.random() < dt * 6) part(P.x + rand(-5, 5), P.y - 2 + rand(-4, 4), rand(-4, 4), -rand(14, 26), 0.6, pick(['#8a8698', '#b8b4c8']), { drag: 1 });
+    if (P.noHealT <= 0) { P.noHealT = 0; P.noHealMax = 0; S.hudDirty = true; }
   }
   if (P.paraT > 0) { // 麻痺: 体に稲妻がまとわりつく
     P.paraT -= dt;
@@ -502,6 +552,8 @@ function takeOverShield(a) {
   while (a > 0 && P.oChunks.length) { const c = P.oChunks[0], k = Math.min(c.v, a); c.v -= k; a -= k; if (c.v <= 1e-9) P.oChunks.shift(); }
 }
 // o.pierce: 被弾後の無敵(P.ifr)を無視する(連続技)。回避・防御スキルの無敵(P.invT)とガードでは防げる
+// 弾(eprojs): p.pierce = 無敵無視 / p.light = 当たると乱光 +n(p.src: 撃った敵のダメージ。乱光の炎上の量)
+const PIERCE = { pierce: true };
 // 返り値: 当たった(シールドで受けた場合も含む)なら true。無敵・ガードで防いだら false(炎上などの追加効果はこれを見る)
 function hurtPlayer(dmg, o) {
   if ((P.ifr > 0 && !(o && o.pierce)) || P.invT > 0 || P.dead || state !== 'play') return false;
@@ -2153,7 +2205,7 @@ function segD2(px, py, x0, y0, x1, y1) {
   const vx = x1 - x0, vy = y1 - y0, k = clamp(((px - x0) * vx + (py - y0) * vy) / (vx * vx + vy * vy || 1), 0, 1);
   return d2(px, py, x0 + vx * k, y0 + vy * k);
 }
-const hitCircle = (x, y, r, dmg) => { r *= CHAOS.area; return d2(x, y, P.x, P.y) < (r + 3) * (r + 3) && hurtPlayer(dmg); }; // 当たったら true
+const hitCircle = (x, y, r, dmg, o) => { r *= CHAOS.area; return d2(x, y, P.x, P.y) < (r + 3) * (r + 3) && hurtPlayer(dmg, o); }; // 当たったら true(o: hurtPlayer に渡す。pierce = 無敵無視)
 const inLine = (x, y, a, len, w) => { len *= CHAOS.area; w *= CHAOS.area; return segD2(P.x, P.y, x, y, x + Math.cos(a) * len, y + Math.sin(a) * len) < Math.pow(w / 2 + 3, 2); };
 const hitLine = (x, y, a, len, w, dmg, o) => inLine(x, y, a, len, w) && hurtPlayer(dmg, o); // 当たったら true
 const angDiff = (a, b) => Math.atan2(Math.sin(a - b), Math.cos(a - b));
@@ -5860,7 +5912,7 @@ function updEprojs(dt0) {
     else if ((p.kind === 'eice' || p.kind === 'ispear' || p.kind === 'flake') && Math.random() < dt * (p.kind === 'ispear' ? 60 : 25)) part(p.x + rand(-1, 1), p.y + rand(-1, 1), -p.vx * 0.1, -p.vy * 0.1, 0.3, pick(['#bff4ff', '#ffffff', '#7ad7ff']), { glow: true, drag: 2 }); // 氷の弾: 霜のきらめき
     else if (p.kind === 'bigsnow') { p.spin = (p.spin || 0) + dt * Math.hypot(p.vx, p.vy) / 14; if (Math.random() < dt * 30) part(p.x + rand(-10, 10), p.y + 10, -p.vx * 0.2 + rand(-15, 15), -rand(10, 30), 0.5, pick(['#ffffff', '#e8f4ff']), { g: 120, drag: 1 }); } // 大雪玉: 転がって雪煙
     if (p.kind === 'cog') p.spin = (p.spin || 0) + dt * 10;
-    if (p.nx && !P.dead && P.invT <= 0 && eprojs.includes(p.nx) && !p.nx.stopT && segD2(P.x, P.y, p.x, p.y, p.nx.x, p.nx.y) < Math.pow(2 * CHAOS.area + 3, 2) && hurtPlayer(p.dmg)) numbPlayer(p.numb); // 雷の網(雷神): となりの玉と結ぶ稲妻にも当たる(玉と同じ ×0.6・痺れ +2)
+    if (p.nx && !P.dead && P.invT <= 0 && eprojs.includes(p.nx) && !p.nx.stopT && segD2(P.x, P.y, p.x, p.y, p.nx.x, p.nx.y) < Math.pow(2 * CHAOS.area + 3, 2) && hurtPlayer(p.dmg, p.pierce ? PIERCE : undefined)) { numbPlayer(p.numb); if (p.light) randomLight(p.light, p.src); } // 雷の網(雷神): となりの玉と結ぶ稲妻にも当たる(玉と同じ ×0.6・痺れ +2)
     if (p.kind === 'tnet' && Math.random() < dt * 16) part(p.x + rand(-2, 2), p.y + rand(-2, 2), rand(-10, 10), rand(-10, 10), 0.25, pick(THUN), { glow: true, drag: 2 }); // 雷の網の玉: 火花
     if (p.turnT && p.t >= p.turnT) { // 歯車弾: 1回だけプレイヤーへ向きを変える
       p.turnT = 0; const ta = Math.atan2(P.y - p.y, P.x - p.x), sp = Math.hypot(p.vx, p.vy);
@@ -5888,7 +5940,7 @@ function updEprojs(dt0) {
     if (near < Math.pow(p.r + 3, 2)) {
       if (P.invT > 0) continue;
       if (!p.keep && clsBlockProj()) { burst(p.x, p.y, 8, ['#fff27a', '#ffffff'], { sp: 60, glow: true, life: 0.25 }); eprojs.splice(i, 1); continue; } // 静電気
-      if (hurtPlayer(p.dmg)) { if (p.burn) burnPlayer(p.burn); if (p.sta) drainSta(p.sta); if (p.frost) frostPlayer(p.frost); if (p.dark) darkPlayer(p.dark); if (p.poison) poisonPlayer(p.poison); if (p.taint) shadowTaint(); if (p.numb) numbPlayer(p.numb); if (p.dust) dustPlayer(p.dust); if (p.weak) weakPlayer(p.weak); if (p.pushK) pushPlayer(Math.atan2(p.vy, p.vx), p.pushK, 0.2); } // 火の玉: 炎上 / 海淵の弾: スタミナ / 霊峰の弾: 凍傷 / 王墓の弾: 暗闇・毒 / 痺れ・砂塵・衰弱
+      if (hurtPlayer(p.dmg, p.pierce ? PIERCE : undefined)) { if (p.light) randomLight(p.light, p.src); if (p.burn) burnPlayer(p.burn); if (p.sta) drainSta(p.sta); if (p.frost) frostPlayer(p.frost); if (p.dark) darkPlayer(p.dark); if (p.poison) poisonPlayer(p.poison); if (p.taint) shadowTaint(); if (p.numb) numbPlayer(p.numb); if (p.dust) dustPlayer(p.dust); if (p.weak) weakPlayer(p.weak); if (p.pushK) pushPlayer(Math.atan2(p.vy, p.vx), p.pushK, 0.2); } // 火の玉: 炎上 / 海淵の弾: スタミナ / 霊峰の弾: 凍傷 / 王墓の弾: 暗闇・毒 / 痺れ・砂塵・衰弱
       if (p.keep) continue;
       const icy = p.frost > 0;
       if (p.dark) { burst(p.x, p.y, 14, ['#c79bff', '#7a3ab0', '#2a1240', '#ffffff'], { sp: 60, glow: true, life: 0.4 }); eprojs.splice(i, 1); continue; } // 闇の玉: 黒紫のしぶき

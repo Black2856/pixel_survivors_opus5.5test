@@ -2533,6 +2533,18 @@ const I18N_EN = {
   "まわりの敵の受けるダメージ −{0}%({1}秒。足元に水色の輪)": "Nearby enemies take −{0}% damage ({1}s, light-blue ring at their feet)",
   "サンダーメイジ": "Thunder Mage",
   "まわりの敵の移動速度 +{0}%({1}秒。足元に黄色の輪)": "Nearby enemies move +{0}% faster ({1}s, yellow ring at their feet)",
+  // ===== 段階10: 天光の聖堂(乱光・攻撃不能・回復不能) =====
+  "乱光": "Scatterlight",
+  "乱光 ×{0}": "Scatterlight ×{0}",
+  "状態異常がランダムに付く(凍傷・痺れ・砂塵・衰弱・出血・毒・炎上・暗闇・疲労)": "Inflicts a random status (Frostbite, Numbness, Sandblind, Weakness, Bleed, Poison, Burn, Darkness, or Fatigue)",
+  "攻撃不能": "Disarmed",
+  "しばらく攻撃できない(歩く・回避はできる)": "You can't attack for a while (you can still move and dodge)",
+  "回復不能": "Heal Block",
+  "しばらく HP が回復しない(肉・スキルの回復も)": "Your HP can't be restored for a while (meat and skill healing too)",
+  "HP が回復しない(HP回復速度・肉・スキルの回復も)": "HP can't be restored (HP Regen, meat, and skill healing)",
+  "天光の聖堂の敵から受ける。それ自体に効果はなく、凍傷・痺れ・砂塵・衰弱・出血・毒・炎上・暗闇・疲労のどれかがランダムに付く(乱光 +n なら n 回)": "Inflicted by enemies in the Celestial Cathedral. It has no effect of its own: it applies a random status from Frostbite, Numbness, Sandblind, Weakness, Bleed, Poison, Burn, Darkness, and Fatigue (n times for Scatterlight +n)",
+  "熾天使の最後の技で受ける。攻撃できない(歩く・回避はできる)。麻痺と違って E / Q の CD は戻らない": "Inflicted by the Seraph's final move. You can't attack (you can still move and dodge). Unlike Paralysis, your E / Q cooldowns are not reset",
+  "熾天使の最後の技で受ける。HP回復速度・肉・スキルなど、すべての回復が効かない": "Inflicted by the Seraph's final move. All healing is blocked, including HP Regen, meat, and skills",
 };
 
 // ガイドの用語に印を付ける英語の書き方(help.js)。キーは用語集の k。書いていない用語は見出し(t の英語)で印を付ける
@@ -2574,6 +2586,8 @@ const I18N_EN_GLYPH = {
   Freeze: 'Fz',
   Rampage: 'Rp',
   Numbness: 'Nb',
+  Disarmed: 'Ds',
+  'Heal Block': 'HB',
   Paralysis: 'Pa',
   Sandblind: 'Sb',
   Weakness: 'Wk',

@@ -99,6 +99,9 @@ const Help = (() => {
     { k: 'numb', t: _t('痺れ'), c: '状態異常', d: () => { const s = DATA.debuffStage; return _t`1スタックにつき CD の回復 −${pct(s.numbCd)}(武器の攻撃間隔と E / Q)。${s.numbMax}スタックで麻痺して 0 に戻る(${DATA.debuff.pDur}秒 受けないと消える)`; } },
     { k: 'para', t: _t('麻痺'), c: '状態異常', d: () => { const s = DATA.debuffStage; return _t`痺れが ${s.numbMax}スタックになると ${s.paraT}秒、攻撃できない(歩く・回避はできる)。E / Q の CD は最初からになる。麻痺の間は痺れが付かない`; } },
     { k: 'dust', t: _t('砂塵'), c: '状態異常', d: () => { const s = DATA.debuffStage; return _t`1スタックにつき命中率 −${pct(s.dustHit)}(最大 ${s.dustMax}スタック。${DATA.debuff.pDur}秒 受けないと消える)`; } },
+    { k: 'rlight', t: _t('乱光'), c: '状態異常', d: _t('天光の聖堂の敵から受ける。それ自体に効果はなく、凍傷・痺れ・砂塵・衰弱・出血・毒・炎上・暗闇・疲労のどれかがランダムに付く(乱光 +n なら n 回)') },
+    { k: 'lock', t: _t('攻撃不能'), c: '状態異常', d: _t('熾天使の最後の技で受ける。攻撃できない(歩く・回避はできる)。麻痺と違って E / Q の CD は戻らない') },
+    { k: 'noheal', t: _t('回復不能'), c: '状態異常', d: _t('熾天使の最後の技で受ける。HP回復速度・肉・スキルなど、すべての回復が効かない') },
     { k: 'weak', t: _t('衰弱'), c: '状態異常', d: () => { const s = DATA.debuffStage; return _t`1スタックにつき攻撃力 −${pct(s.weakAtk)}(最大 ${s.weakMax}スタック。与えるダメージが下がる。${DATA.debuff.pDur}秒 受けないと消える)`; } },
 
     // ===== スキル・成長 =====

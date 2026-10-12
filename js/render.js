@@ -1732,6 +1732,19 @@ function render() {
       sx.globalAlpha = 0.7 * a0; sx.fillStyle = '#ffffff'; sx.fillRect(ix - 7, iy - 10, 15, 1); sx.fillRect(ix - 7, iy + 8, 15, 1); sx.fillRect(ix - 7, iy - 10, 1, 19); sx.fillRect(ix + 7, iy - 10, 1, 19); sx.fillRect(ix - 4, iy - 7, 1, 4); sx.fillRect(ix - 3, iy - 8, 2, 1);
       sx.globalAlpha = 1; gx.fillStyle = '#16303e'; gx.fillRect(ix - 6, iy - 9, 13, 17); // 光の層は暗い色で
     }
+    if (P.lockT > 0) { // 攻撃不能(ラストラディアンスの封印): 斜めに傾いた光の輪の枷が 2本、逆向きに回る。輪に刻まれた光の文字が流れる
+      const cx = P.x - cam.x, cy = py - cam.y - 2, a0 = Math.min(1, P.lockT * 3);
+      for (let k = 0; k < 2; k++) {
+        const R = 11 + k * 3, tilt = k ? 0.5 : -0.5, sp = (k ? -1 : 1) * 2.2;
+        for (let i = 0; i < 40; i++) {
+          const a = TAU / 40 * i, ca = Math.cos(a), sa = Math.sin(a), x = Math.round(cx + ca * R), y = Math.round(cy + sa * R * 0.35 + ca * R * tilt * 0.4);
+          const lit = Math.sin(a * 3 + t * sp * 3) > 0.7;
+          sx.globalAlpha = (sa > 0 ? 0.95 : 0.45) * a0; sx.fillStyle = lit ? '#ffffff' : '#f2c84b'; sx.fillRect(x, y, 1, 1);
+          if (lit) { gx.fillStyle = '#5a4a14'; gx.fillRect(x, y, 1, 1); } // 光の層は暗い金(体を白く飛ばさない)
+        }
+      }
+      sx.globalAlpha = 1;
+    }
     // ガード(見切り): 正面に光る弧。ジャスト受付中は白く明るい
     if (P.guard && P.cls === 'knight') { // 大盾: 全方向を守る金の輪(ゆっくり回る光)
       const cx = P.x - cam.x, cy = P.y - cam.y - 2, R = 13;
