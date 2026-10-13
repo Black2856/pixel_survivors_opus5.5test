@@ -298,14 +298,15 @@ const MetaUI = (() => {
   // 1列で、枠の中をスクロール: エスカレーション / 闘技場 / 通常モードのステージ(ステージを1つ選ぶ。3分 → エリート群 → 3分 → ボス → 3分 → ボス)を tier の順に。帯の色は tier
   // クリアしたものに ★。カオス強化はクリアするまで tier の値で固定(見るだけ)、クリアすると変えられる
   // 解放: 通常モードのステージは tier 1 が最初から、tier N は tier N−1 のステージを1つクリアすると。エスカレーション・闘技場は tier 4 のステージをクリアすると
-  // 未解放のカードは、名前を「？？？」にして説明(tier・敵Lv・ボス)を伏せる。解放の条件だけ出す(クラス画面の未解放と同じ考え)
+  // 未解放のカードは、名前を「？？？」にして説明(tier・敵Lv・報酬)を伏せる。解放の条件だけ出す(クラス画面の未解放と同じ考え)
   const TIER_COL = ['#9ff7ff', '#7dff9a', '#ff8a3d', '#c78bff'];
   const startLvOf = key => { const m = chaosMods(key).find(x => x.k === 'startLv'); return (key === 'arena' ? DATA.arena.elv[0] : 1) + chaosLv(chaosSetting(key), m) * m.per; }; // 開始の敵Lv(闘技場は1ラウンド目の敵Lv)+ 深い闇
   // 報酬の倍率(tier): 通常モードはステージの tier の値、エスカレーションは tier が進むたびに上がる(最大 escRew.max)、闘技場は 2ラウンドごとに上がる / first: 初クリアのゴールド
   const rewX = x => '×' + x.toFixed(1), TR = DATA.flow.tierRew;
-  // カードの絵: 背景はステージの床(ゲームと同じ手続きでチャンクを横に並べ、環境光の色をかけて発光の層を足す)。右にボス。作った絵は覚えておく
-  //   エスカレーションは tier 1〜4 の床を斜めに区切って並べ(カードの幅に収まるように細く)、右に tier の札。闘技場は石畳の床に、tier 4 の最後のボスの影。未解放のカードには絵を出さない(伏せる)
-  const artCache = new Map(), bossCache = new Map();
+  // カードの絵: 背景はステージの床(ゲームと同じ手続きでチャンクを横に並べ、環境光の色をかけて発光の層を足す)。作った絵は覚えておく
+  //   エスカレーションは tier 1〜4 の床を斜めに区切って並べる(カードの幅に収まるように細く)。闘技場は石畳の床。未解放のカードには絵を出さない(伏せる)
+  //   ボスは出さない(絵も名前も伏せる。ユーザーの指定)
+  const artCache = new Map();
   function stageArt(ids) {
     const key = ids.join(',');
     if (!artCache.has(key)) {
@@ -325,26 +326,15 @@ const MetaUI = (() => {
     }
     return artCache.get(key);
   }
-  // ボスの絵(体 + 発光)。高さ 44px・幅 64px に収める(小さいボスは 2倍まで)/ sil: 影(闘技場)
-  function bossArt(k, cls = '') {
-    if (!bossCache.has(k)) {
-      const s = ART.S[k], f = Array.isArray(s) ? s[0] : s, c = ART.canvas(f.w, f.h), x = c.getContext('2d');
-      x.drawImage(f.c, 0, 0);
-      if (f.e) { x.globalCompositeOperation = 'lighter'; x.drawImage(f.e, 0, 0); }
-      bossCache.set(k, { url: c.toDataURL(), h: Math.round(f.h * Math.min(2, 44 / f.h, 64 / f.w)) });
-    }
-    const b = bossCache.get(k);
-    return `<img class="${cls}" src="${b.url}" alt="" style="height:${b.h}px">`;
-  }
-  const tierPips = () => TIER_COL.map((c, i) => `<i style="--tc:${c}">${i + 1}</i>`).join('<em>▸</em>');
+  // 説明の行: 敵Lv ・ 報酬 ・(エスカレーション・闘技場は)モードの説明。欄の幅を決めて、どのカードでも縦にそろえる(tier は左の札にあるので書かない)
+  const subOf = (key, rew, note) => `<span>${_t`敵Lv ${startLvOf(key)} から`}</span><span>${rew}</span>${note ? `<span>${note}</span>` : ''}`;
   const STAGE_ITEMS = () => [
-    { key: 'escalation', mode: 'escalation', n: 1, name: _t('エスカレーション'), sub: _t`tier 1 → 4 を通す ・ 敵Lv ${startLvOf('escalation')} から ・ 報酬 ${rewX(TR[0])}〜${rewX(DATA.flow.escRew.max)}`, col: '#ffd23f',
-      art: [1, 5, 3, 9], badge: ['TIER', '1-4'], vis: tierPips }, // 絵: 草原(tier 1)→ 晶窟(2)→ 奈落(3)→ 王墓(4)。だんだん暗く危なく
-    { key: 'arena', mode: 'arena', n: 1, name: _t('闘技場'), sub: _t`ボス${DATA.arena.rounds}体の連戦 ・ 敵Lv ${startLvOf('arena')} から ・ 報酬 ${rewX(TR[0])}〜${rewX(TR[TR.length - 1])}`, col: '#ff3b5c',
-      art: [4], badge: ['BOSS', '×' + DATA.arena.rounds], vis: () => DATA.stageRuns.filter(R => R.tier === 4).map(R => bossArt(R.bosses[1], 'sil')).join('') },
+    { key: 'escalation', mode: 'escalation', n: 1, name: _t('エスカレーション'), sub: subOf('escalation', _t`報酬 ${rewX(TR[0])}〜${rewX(DATA.flow.escRew.max)}`, _t('tier 1 → 4 を通す')), col: '#ffd23f',
+      art: [1, 5, 3, 9], badge: ['TIER', '1-4'] }, // 絵: 草原(tier 1)→ 晶窟(2)→ 奈落(3)→ 王墓(4)。だんだん暗く危なく
+    { key: 'arena', mode: 'arena', n: 1, name: _t('闘技場'), sub: subOf('arena', _t`報酬 ${rewX(TR[0])}〜${rewX(TR[TR.length - 1])}`, _t`ボス${DATA.arena.rounds}体の連戦`), col: '#ff3b5c',
+      art: [4], badge: ['BOSS', '×' + DATA.arena.rounds] },
     ...DATA.stageRuns.map(R => ({ key: 'stage' + R.no, mode: 'stage', n: R.no, tier: R.tier, name: DATA.stages[R.stage - 1].label, first: DATA.flow.firstClear[R.tier - 1],
-      sub: _t`tier ${R.tier} ・ 報酬 ${rewX(TR[R.tier - 1])} ・ 敵Lv ${startLvOf('stage' + R.no)} から ・ ${R.bosses.map(b => I18N.bossShort(DATA.bosses[b].name)).join(' → ')}`, col: TIER_COL[R.tier - 1],
-      art: [R.stage], badge: ['TIER', R.tier], vis: () => R.bosses.map(b => bossArt(b)).join('<em>▸</em>') }))
+      sub: subOf('stage' + R.no, _t`報酬 ${rewX(TR[R.tier - 1])}`), col: TIER_COL[R.tier - 1], art: [R.stage], badge: ['TIER', R.tier] }))
       .sort((a, b) => a.tier - b.tier), // 通常モード: tier の順
   ];
   // again: カオス強化の設定を閉じて並べ直すとき(並ぶ動きを出さない)
@@ -365,8 +355,7 @@ const MetaUI = (() => {
       const badge = open ? s.badge : [s.badge[0], '?'];
       return `<button class="stg${open ? '' : ' locked'}" data-mode="${s.mode}" data-n="${s.n}" style="--sc:${s.col};--i:${i}${open ? `;--art:url(${stageArt(s.art)})` : ''}">
         <span class="tb${String(badge[1]).length > 2 ? ' long' : ''}"><small>${badge[0]}</small>${badge[1]}</span>
-        <span class="nm">${open ? s.name : _t('？？？')}${clear ? ' <b class="clr">★ CLEAR</b>' : open && s.first ? _t` <span class="fc">初クリア ● ${s.first.toLocaleString()}</span>` : ''}</span>${right}<span class="sub">${open ? s.sub : _t('？？？')}</span>
-        ${open ? `<span class="bs">${s.vis()}</span>` : ''}</button>`;
+        <span class="nm">${open ? s.name : _t('？？？')}${clear ? ' <b class="clr">★ CLEAR</b>' : open && s.first ? _t` <span class="fc">初クリア ● ${s.first.toLocaleString()}</span>` : ''}</span>${right}<span class="sub">${open ? s.sub : _t('？？？')}</span></button>`;
     }).join('');
     // 枠の高さはカード 10枚ぶん(それより下はスクロール)。カードの高さは言語・画面の幅で変わるので、並べてから測る。画面が低いときは枠がさらに縮む
     const L = $('stage-list'), its = L.children, LIST_N = 10;
