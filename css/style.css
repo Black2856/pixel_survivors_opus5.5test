@@ -418,11 +418,24 @@ input[type=range] { width: 220px; accent-color: var(--gold); }
 .stg .sub { grid-column: 2; grid-row: 2; align-self: start; display: grid; grid-template-columns: 7.5em 10.5em auto; font-size: 11px; color: var(--txt); text-shadow: 1px 1px 0 var(--ink); white-space: nowrap; }
 html[lang="en"] .stg .sub { grid-template-columns: 10em 11em auto; }
 .stg .sub span:nth-child(3) { color: var(--dim); }
-.stg .chaos, .stg .lock { grid-column: 3; grid-row: 1 / 3; text-align: right; font-size: 11px; padding: 4px 6px; background: rgba(12,9,19,.72); }
-.stg .chaos { color: var(--dim); }
-.stg .chaos.on { color: #c78bff; }
-.stg .chaos .cz-btn { display: block; width: fit-content; margin: 3px 0 0 auto; }
-.stg .lock { color: #ff8a9a; }
+/* 右のカオス強化の札: カードの右端に付けた、左が斜めの札(幅はどのカードも同じ)。上に「カオス強化」と pt、下に「クリアまで固定」とボタン
+   色(--cz): クリア済み = 紫、クリア前(固定)= くすんだ紫、未解放 = 赤。pt が 1 以上なら数字を赤く光らせる */
+.stg .chaos, .stg .lock { --cz: #c78bff; position: relative; grid-column: 3; grid-row: 1 / 3; align-self: stretch; width: 186px; margin: -3px -10px -3px 0; padding: 5px 10px 5px 24px;
+  clip-path: polygon(14px 0, 100% 0, 100% 100%, 0 100%); transition: background .15s;
+  background: linear-gradient(90deg, color-mix(in srgb, var(--cz) 20%, rgba(12,9,19,.9)), rgba(12,9,19,.92) 75%); }
+.stg .chaos::before, .stg .lock::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 14px; pointer-events: none; /* 斜めの縁の光る線 */
+  background: linear-gradient(to bottom right, transparent 50%, var(--cz) 50%, var(--cz) calc(50% + 2px), transparent calc(50% + 2px)); opacity: .75; }
+.stg:hover .chaos { background: linear-gradient(90deg, color-mix(in srgb, var(--cz) 32%, rgba(12,9,19,.88)), rgba(12,9,19,.9) 75%); }
+.stg .chaos { display: grid; grid-template-columns: 1fr auto; grid-template-rows: 1fr 1fr; align-items: center; column-gap: 6px; color: var(--dim); }
+.stg .chaos:not(.on) { --cz: #7d74a8; }
+.stg .cz-l { font-size: 10px; letter-spacing: 1px; white-space: nowrap; color: color-mix(in srgb, var(--cz) 55%, var(--txt)); }
+.stg .chaos .cz-v { justify-self: end; font: 13px 'Press Start 2P'; color: var(--dim); text-shadow: 2px 2px 0 var(--ink); }
+.stg .chaos .cz-v small { margin-left: 2px; font-size: 7px; }
+.stg .chaos.has .cz-v { color: #ff5d73; text-shadow: 2px 2px 0 var(--ink), 0 0 8px rgba(255,93,115,.6); }
+.stg .cz-tag { font-size: 9px; line-height: 1.15; color: var(--dim); }
+.stg .chaos .cz-btn { justify-self: end; margin: 0; padding: 1px 7px; font-size: 11px; white-space: nowrap; color: #fff; background: color-mix(in srgb, var(--cz) 30%, #1a1430); box-shadow: inset 0 0 0 1px var(--cz), 0 2px 0 0 rgba(0,0,0,.45); transition: background .1s; }
+.stg .chaos .cz-btn:hover { background: color-mix(in srgb, var(--cz) 55%, #1a1430); }
+.stg .lock { --cz: #ff5d73; display: flex; align-items: center; font-size: 10px; line-height: 1.3; color: #ff8a9a; }
 .stg.locked { filter: grayscale(.85) brightness(.6); cursor: not-allowed; background: repeating-linear-gradient(-45deg, rgba(255,255,255,.03) 0 6px, transparent 6px 12px), var(--panel); }
 .stg.locked:hover { transform: none; box-shadow: inset 4px 0 0 0 var(--sc), inset 0 0 0 2px #3a3060; }
 .stg.locked:hover::after { animation: none; }
@@ -682,7 +695,6 @@ html[lang="en"] .stg .sub { grid-template-columns: 10em 11em auto; }
 .sv-g small { font-size: 10px; margin-left: 6px; }
 
 /* ---------- カオス強化の設定 ---------- */
-.stg .chaos b { color: #ff5d73; font-weight: normal; }
 .cz-btn { margin-left: 10px; padding: 1px 8px; color: #fff; background: #5a1a3a; box-shadow: inset 0 0 0 1px #ff5d73; cursor: pointer; }
 .cz-btn:hover { background: #8a2a5a; }
 #chaos-panel { zoom: 1; position: fixed; inset: 0; z-index: 55; display: grid; place-items: center; background: rgba(5,3,10,.65); } /* .screen > * の拡大をかけない(中の .cz で1回だけ拡大する。二重にかかると UI サイズを上げたとき画面からはみ出す) */

@@ -323,9 +323,10 @@ const MetaUI = (() => {
     $('stage-list').innerHTML = items.map((s, i) => {
       const clear = META.stageClear[s.key], open = stageUnlocked(s);
       const pt = open ? chaosPoints(chaosSetting(s.key), s.key) : 0;
+      // 右のカオス強化の札: 上に「カオス強化」と pt、下に(クリアまでは「クリアまで固定」と)設定・見るのボタン。幅はどのカードも同じ
       const right = !open ? _t`<span class="lock">未解放: tier ${needTier(s)} のステージを1つクリア</span>`
-        : clear ? _t`<span class="chaos on">カオス強化 <b>${pt} pt</b> <span class="cz-btn" data-chaos="${s.key}">設定 ▶</span></span>`
-        : _t`<span class="chaos">カオス強化 ${pt ? `<b>${pt} pt</b>` : _t('なし')}(クリアまで固定)<span class="cz-btn" data-chaos="${s.key}">見る ▶</span></span>`;
+        : `<span class="chaos${clear ? ' on' : ''}${pt ? ' has' : ''}"><span class="cz-l">${_t('カオス強化')}</span><b class="cz-v">${pt}<small>pt</small></b>`
+          + `<span class="cz-tag">${clear ? '' : _t('クリアまで固定')}</span><span class="cz-btn" data-chaos="${s.key}">${clear ? _t('設定 ▶') : _t('見る ▶')}</span></span>`;
       const badge = open ? s.badge : [s.badge[0], '?'];
       return `<button class="stg${open ? '' : ' locked'}" data-mode="${s.mode}" data-n="${s.n}" style="--sc:${s.col};--i:${i}${open ? `;--art:url(${stageArt(s.art)})` : ''}">
         <span class="tb${String(badge[1]).length > 2 ? ' long' : ''}"><small>${badge[0]}</small>${badge[1]}</span>
