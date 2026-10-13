@@ -543,6 +543,7 @@ html[lang="en"] .stg .sub { grid-template-columns: 10em 11em auto; }
 .gc-pt { font-size: 14px; color: var(--txt); }
 .gc-cap { font-size: 11px; color: var(--dim); text-align: center; line-height: 1.6; }
 .gc-pull { min-width: 0; width: 100%; margin-top: 4px; }
+.gc-pull.ten { --line: var(--gc); color: var(--gc); margin-top: 0; } /* 10連 */
 #gc-rates { display: flex; flex-wrap: wrap; justify-content: center; gap: 4px 16px; max-width: min(760px, 94vw); padding: 8px 14px; font-size: 13px; background: rgba(12,9,19,.6); box-shadow: inset 0 0 0 2px #3a3060; }
 #gc-rates b { font-weight: normal; color: var(--txt); }
 #gc-rates .note { flex-basis: 100%; text-align: center; font-size: 11px; color: var(--dim); }
@@ -550,7 +551,7 @@ html[lang="en"] .stg .sub { grid-template-columns: 10em 11em auto; }
 /* 演出(画面いっぱい。canvas は画面の座標で描くので拡大しない。文字・カード・ボタンだけ UI サイズで拡大) */
 #gacha-screen > #gc-show { zoom: 1; }
 #gc-show { position: fixed; inset: 0; z-index: 50; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; cursor: pointer; background: radial-gradient(ellipse at center, rgba(40,20,60,.82), rgba(4,2,10,.95)); animation: fadeIn .3s ease-out; }
-#gc-show > #gc-label, #gc-show > #gc-slot, #gc-show > #gc-hint, #gc-show > #gc-btns { position: relative; z-index: 2; zoom: var(--ui); }
+#gc-show > #gc-label, #gc-show > #gc-slot, #gc-show > #gc-grid, #gc-show > #gc-hint, #gc-show > #gc-btns { position: relative; z-index: 2; zoom: var(--ui); }
 #gc-cv0, #gc-cv1 { position: absolute; inset: 0; pointer-events: none; }
 #gc-cv0 { z-index: 0; transition: filter .3s; }
 #gc-cv1 { z-index: 3; }
@@ -561,6 +562,30 @@ html[lang="en"] .stg .sub { grid-template-columns: 10em 11em auto; }
 #gc-show.quake-big { animation: quake .8s cubic-bezier(.36,.07,.19,.97); }
 #gc-slot { width: 240px; height: 330px; display: grid; place-items: center; perspective: 800px; } /* カードの場所(玉もここの真ん中に描く) */
 #gc-card:empty { display: none; }
+/* 10連: 5 × 2 の小さいカード。枠の大きさは決めておく(玉と光の中心がずれないように) */
+#gc-grid { display: none; grid-template-columns: repeat(5, 180px); grid-auto-rows: 200px; gap: 10px; width: 940px; height: 410px; perspective: 900px; }
+#gc-show.multi #gc-grid { display: grid; }
+#gc-show.multi #gc-slot { display: none; }
+.gc-mini { width: 180px; height: 200px; }
+.gc-mini.back { display: grid; place-items: center; background: repeating-linear-gradient(45deg, #241a44 0 6px, #1a1430 6px 12px); box-shadow: inset 0 0 0 3px var(--tc), 0 0 14px color-mix(in srgb, var(--tc) 45%, transparent); } /* 裏: 色でレアリティを匂わせる */
+.gc-mini.back::after { content: '?'; font: 30px 'Press Start 2P'; color: var(--tc); text-shadow: 0 0 12px var(--tc), 3px 3px 0 var(--ink); }
+.gc-mini.back.hot { animation: gcHot .5s ease-in-out infinite alternate; }
+@keyframes gcHot { to { box-shadow: inset 0 0 0 3px var(--tc), 0 0 30px var(--tc); filter: brightness(1.35); } }
+.gc-mini.deal { animation: gcDeal .5s cubic-bezier(.22,1,.36,1) backwards; animation-delay: calc(var(--i) * 35ms); } /* 玉の位置から飛び出す */
+.gc-mini.back.hot.deal { animation: gcDeal .5s cubic-bezier(.22,1,.36,1) backwards, gcHot .5s ease-in-out infinite alternate; animation-delay: calc(var(--i) * 35ms), 0s; }
+@keyframes gcDeal { from { transform: translate(var(--dx), var(--dy)) scale(.15) rotate(-30deg); opacity: 0; } }
+.gc-mini.card { width: 180px; min-height: 0; height: 200px; padding: 8px 6px 6px; gap: 3px; overflow: hidden; cursor: default; animation: none; }
+.gc-mini.card:hover { transform: none; }
+.gc-mini.flip { animation: gcFlip .35s ease-out; } /* めくる */
+@keyframes gcFlip { 0% { transform: rotateY(90deg) scale(1.15); filter: brightness(3); } 100% { transform: none; } }
+.gc-mini .card-head { font-size: 8px; }
+.gc-mini .card-icon { flex: none; width: 46px; height: 46px; }
+.gc-mini .card-icon .big { width: 34px; }
+.gc-mini .card-name { font-size: 13px; }
+.gc-mini .card-body { flex: none; line-height: 1.35; }
+.gc-mini .opt { font-size: 10px; line-height: 1.4; }
+.gc-mini .opt em { font-size: 9px; }
+.gc-mini .uq { margin-top: 2px; font-size: 9px; line-height: 1.3; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 #gc-card.card { width: 220px; min-height: 300px; cursor: default; animation: none; }
 #gc-card.card:hover { transform: none; }
 #gc-card.gc-in { animation: gcCardIn .6s cubic-bezier(.34,1.56,.64,1) backwards; } /* 裏返って出る */
@@ -587,12 +612,12 @@ html[lang="en"] .stg .sub { grid-template-columns: 10em 11em auto; }
 #gc-label.break { animation: gcBreak .45s ease-in forwards !important; }
 @keyframes gcBreak { 0% { opacity: 1; } 100% { opacity: 0; transform: scale(1.6); letter-spacing: 30px; filter: blur(6px) brightness(3); } }
 #gc-show.promo #gc-cv0 { filter: saturate(.15) brightness(.5); }
-#gc-card.throb { animation: gcThrob .42s ease-in-out infinite; }
+#gc-show .card.throb { animation: gcThrob .42s ease-in-out infinite; }
 @keyframes gcThrob { 0%, 100% { transform: scale(1); } 15% { transform: scale(1.06) translate(-2px, 1px); } 30% { transform: scale(1) translate(2px, -1px); } 45% { transform: scale(1.04); } }
-#gc-card.crack::after { content: ''; position: absolute; inset: 0; pointer-events: none; animation: gcCrack .25s ease-out;
+#gc-show .card.crack::after { content: ''; position: absolute; inset: 0; pointer-events: none; animation: gcCrack .25s ease-out;
   background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 210 300' preserveAspectRatio='none'%3E%3Cg fill='none' stroke-linejoin='bevel'%3E%3Cpath d='M112 0L100 46L124 80L94 128L118 170L90 214L108 256L96 300M100 46L70 60L52 96M124 80L160 92L184 130M94 128L60 150L30 140M118 170L150 196L170 240M90 214L58 236' stroke='%23ff3b5c' stroke-width='6' opacity='.55'/%3E%3Cpath d='M112 0L100 46L124 80L94 128L118 170L90 214L108 256L96 300M100 46L70 60L52 96M124 80L160 92L184 130M94 128L60 150L30 140M118 170L150 196L170 240M90 214L58 236' stroke='%23ffffff' stroke-width='1.8'/%3E%3C/g%3E%3C/svg%3E") center / 100% 100% no-repeat; }
 @keyframes gcCrack { from { opacity: 0; transform: scale(1.1); } }
-#gc-card.gc-promo { animation: gcPromo .8s cubic-bezier(.34,1.56,.64,1); }
+#gc-show .card.gc-promo { animation: gcPromo .8s cubic-bezier(.34,1.56,.64,1); }
 @keyframes gcPromo { 0% { transform: scale(1.5); filter: brightness(5) saturate(0); } 100% { transform: none; } }
 /* ミシックのカード(赤。光が走り、外に赤い光) */
 .card.mythic { --line: #ff3b5c; background: linear-gradient(180deg, #4a0a1e, var(--panel)); filter: drop-shadow(0 0 14px rgba(255,59,92,.7)); }

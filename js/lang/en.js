@@ -1905,7 +1905,7 @@ const I18N_EN = {
   "強化ツリー": "Skill Tree",
   "ゴールドで、ずっと残るステータスの強化を買う": "Buy permanent stat upgrades with Gold",
   "ガチャ": "Gacha",
-  "ゴールドで装備を1つ引く({0})。高いガチャほどロール値・最大Lv の上限が高い(カオス強化 {1} pt 相当)。レアリティの確率はどれも同じ": "Spend Gold to draw one piece of gear ({0}). Pricier gachas have higher caps for roll values and Max Lv (equivalent to {1} pt of Chaos). The rarity rates are the same for all of them",
+  "ゴールドで装備を引く(1回 {0}。{1}連は {2}倍)。高いガチャほどロール値・最大Lv の上限が高い(カオス強化 {3} pt 相当)。レアリティの確率はどれも同じ": "Spend Gold to draw gear (single draw: {0}; a {1}× draw costs {2} times as much). Pricier gachas have higher caps for roll values and Max Lv (equivalent to {3} pt of Chaos). The rarity rates are the same for all of them",
   "ミシック": "Mythic",
   "ガチャだけで出る一番上のレアリティ({0}%)。レジェンダリーと同じく固有効果が付き、全オプションがそのガチャの上限(最高ロール値・最高Lv)。強化の余地はない": "The highest rarity, only from the Gacha ({0}%). Like Legendary it has a unique effect, and every option is at that gacha's cap (best roll value and highest Max Lv). It cannot be enhanced further",
   "モード・ステージごとに敵を強くする設定。ポイントが高いほど装備とゴールドの報酬が増える。初めてクリアするまでは tier ごとに決まった値で固定": "Settings that make enemies stronger per mode/stage. The more points, the more gear and Gold rewards. Until your first clear it's fixed to a value set by tier",
@@ -2602,6 +2602,8 @@ const I18N_EN = {
   "どのガチャもレアリティの確率は同じ。高いガチャほどロール値・最大Lv の上限が高い。ミシックはレジェンダリーの全オプションがその上限(最高ロール値・最高Lv)": "Rarity rates are the same for every gacha. Pricier gachas have higher caps for roll values and Max Lv. A Mythic is a Legendary with every option at that cap (best roll value and highest Max Lv)",
   "クリック / SPACE で飛ばす": "Click / SPACE to skip",
   "もう1回 ● {0}": "Again ● {0}",
+  "{0}連 ● {1}": "{0}× Draw ● {1}",
+  "もう{0}連 ● {1}": "Again {0}× ● {1}",
 };
 
 // ガイドの用語に印を付ける英語の書き方(help.js)。キーは用語集の k。書いていない用語は見出し(t の英語)で印を付ける

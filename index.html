@@ -97,7 +97,7 @@
     <div class="menu row"><button id="tr-back" class="btn">戻る (ESC)</button></div>
   </div>
 
-  <!-- ガチャ(ラン外)。gc-show は引いたときの演出(画面いっぱいに重ねる。canvas は後ろ(光の筋・玉・輪)と前(粒・稲妻)の2枚) -->
+  <!-- ガチャ(ラン外)。gc-show は引いたときの演出(画面いっぱいに重ねる。canvas は後ろ(光の筋・玉・輪)と前(粒・稲妻)の2枚。gc-slot は 1回のカード、gc-grid は 10連のカード) -->
   <div id="gacha-screen" class="screen hidden">
     <h2 class="scr-title">GACHA</h2>
     <div id="gc-gold" class="gold-chip"></div>
@@ -108,6 +108,7 @@
       <canvas id="gc-cv0"></canvas>
       <div id="gc-label"></div>
       <div id="gc-slot"><div id="gc-card"></div></div>
+      <div id="gc-grid"></div>
       <div id="gc-hint" class="hint"></div>
       <div id="gc-btns"><button id="gc-again" class="btn"></button><button id="gc-ok" class="btn">OK</button></div>
       <canvas id="gc-cv1"></canvas>

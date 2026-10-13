@@ -169,16 +169,16 @@ function gachaRarity() {
   for (const k of ks) if ((r -= R[k]) <= 0) return k;
   return ks[0];
 }
-// 引けないとき: 'gold'(ゴールドが足りない)/ 'full'(インベントリが一杯)/ null(引ける)
-const gachaBlock = t => (META.inventory.length >= DATA.equip.invMax ? 'full' : META.gold < DATA.gacha.tiers[t].price ? 'gold' : null);
-// 引く: ゴールドを払い、装備を作ってインベントリへ入れて保存する(演出の前に。途中で閉じても失われない)。引けないときは null
-function gachaPull(t) {
-  if (gachaBlock(t)) return null;
-  META.gold -= DATA.gacha.tiers[t].price;
-  const it = genItem({ stats: gachaStats(t), rarity: gachaRarity() });
-  META.inventory.push(it);
+// n 回引けないとき: 'gold'(ゴールドが足りない)/ 'full'(インベントリに n 個入らない)/ null(引ける)。値段は 1回の n 倍(10連も割り引かない)
+const gachaBlock = (t, n = 1) => (META.inventory.length + n > DATA.equip.invMax ? 'full' : META.gold < DATA.gacha.tiers[t].price * n ? 'gold' : null);
+// n 回引く: ゴールドを払い、装備を作ってインベントリへ入れて保存する(演出の前に。途中で閉じても失われない)。引いた装備の配列。引けないときは null
+function gachaPull(t, n = 1) {
+  if (gachaBlock(t, n)) return null;
+  META.gold -= DATA.gacha.tiers[t].price * n;
+  const out = [];
+  for (let i = 0; i < n; i++) { const it = genItem({ stats: gachaStats(t), rarity: gachaRarity() }); META.inventory.push(it); out.push(it); }
   saveMeta();
-  return it;
+  return out;
 }
 
 // ---------- 表示用 ----------
