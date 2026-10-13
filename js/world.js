@@ -613,8 +613,9 @@ function hurtPlayer(dmg, o) {
   if (S.taint && !P.dead) shadowTaint();
   return true;
 }
-// 蝕む影(激昂した影の王): 攻撃(技・接触)が当たるたびに、毒 +1 か暗闇(50% ずつ)。影(呼んだボス)の攻撃では付かない
-function shadowTaint() { if (Math.random() < 0.5) poisonPlayer(1); else darkPlayer(DATA.debuffTomb.darkDur); }
+// 蝕む影(影の王。はじめから): 攻撃(技・接触)が当たるたびに、毒 +1(激昂 +2)と 50% で暗闇。影(呼んだボス)の攻撃では付かない
+//   n = 毒の数(S.taint は影の王の技・体当たりの間だけ。弾は p.taint に持つ。0 = 付かない)
+function shadowTaint(n = S.taint) { poisonPlayer(n); if (Math.random() < 0.5) darkPlayer(DATA.debuffTomb.darkDur); }
 // 自分の技で受けるダメージ(HP を払う: ワイルドトマホークの代償・仁王立ちなど)。防御力・ダメージ軽減・シールドでは減らず、無敵時間も付かない
 //   被弾として扱うクラスは clsSelfHurt で量を変える(バーサーカー: 怒り・昂り、不屈などの軽減)。自分の技では倒れない(HP は 1 未満にならない)
 //   返り値: 実際に減った HP
@@ -1868,7 +1869,7 @@ function updEnemies(dt) {
       }
     }
     if (e.stun > 0) { e.stun -= dt; continue; }
-    if (e.boss) { const r0 = CHAOS.rate; CHAOS.rate *= clsBossRate(e); S.taint = e.boss === 'shadowking' && !e.shadow && e.ai.enraged; try { bossAI(e, dt); } finally { CHAOS.rate = r0; S.taint = false; } } // 凍結中のボスは攻撃速度 -30% / 蝕む影
+    if (e.boss) { const r0 = CHAOS.rate; CHAOS.rate *= clsBossRate(e); S.taint = e.boss === 'shadowking' && !e.shadow ? (e.ai.enraged ? 2 : 1) : 0; try { bossAI(e, dt); } finally { CHAOS.rate = r0; S.taint = 0; } } // 凍結中のボスは攻撃速度 -30% / 蝕む影
     else {
       const tw = clsEnemySlow(e); // 時の歪み(アストロマンサーの重力圏): 移動・攻撃が遅くなる
       const slow = Math.max(0.2, 1 - DATA.debuff.frostSlow * (e.frost || 0)) * (e.slowT > 0 ? 0.6 : 1) * tw; // 凍傷(時の歪みと掛け算)
@@ -2217,9 +2218,9 @@ function updEnemies(dt) {
     }
     const td = !e.boss && DATA.enemies[e.type]; // 触れたとき: 鬼火は当たらない / ヘルハウンドは噛みつくと炎上 / クラゲはスタミナを吸う / 毒蜘蛛は毒 / 影法師の飛びかかりは ×n
     const tk = e.dash > 0 && td && td.lunge ? td.lunge.n : 1;
-    S.taint = e.boss === 'shadowking' && !e.shadow && e.ai.enraged; // 蝕む影: 体当たりでも
+    S.taint = e.boss === 'shadowking' && !e.shadow ? (e.ai.enraged ? 2 : 1) : 0; // 蝕む影: 体当たりでも
     if (e.dmg > 0 && !e.air && !(td && td.noTouch) && d2(e.x, e.y, P.x, P.y) < Math.pow(e.r + 4, 2) && hurtPlayer(e.dmg * tk) && td) { if (td.touchBurn) burnPlayer(e.dmg * td.touchBurn); if (td.touchSta) drainSta(td.touchSta); if (td.touchFrost) frostPlayer(td.touchFrost); if (td.touchPoison) poisonPlayer(td.touchPoison); if (td.touchNumb) numbPlayer(td.touchNumb); if (td.touchDust) dustPlayer(td.touchDust); if (td.touchLight) randomLight(td.touchLight, e.dmg); if (td.rush && td.rush.weak && e.dash > 0) weakPlayer(td.rush.weak); } // 森蜂: 突っ込んだ針が当たると衰弱
-    S.taint = false;
+    S.taint = 0;
   }
   S.eatk = 1; FX_MINE = false;
   if (enemies.length > 40) enemies = enemies.filter(e => !e.dead);
@@ -5880,7 +5881,7 @@ function dogHunt(d, o, dt) {
 
 // ---------- 影の王: 影の剣士。影歩で間合いを詰めて斬り、今までのボスの影を呼び出す ----------
 //   ★影喚び: 残りHP 100%・75%・50%・25% で、tier 1〜4 のボスから1体の影(HP は元の 25%)。影がいる間は被ダメ ×0.3・技の間隔 ×2・HP は次の基準より下がらない
-//   技は1つずつ: 影歩(影の剣・影刃の前置き。技のあと 20% でフェイント)/ 影の剣 / 影の三重輪 / 影刃・五月雨 / 追い影 / 断界(即死)/ 激昂: 冥鎖・蝕む影
+//   技は1つずつ: 影歩(影の剣・影刃の前置き。技のあと 20% でフェイント)/ 影の剣 / 影の三重輪 / 影刃・五月雨 / 追い影 / 断界(即死)/ 激昂: 冥鎖 / はじめから: 蝕む影(激昂で毒が 2倍)
 const SKC = ['#0a0612', '#2a1240', '#7a3ab0', '#c79bff', '#e8c8ff'];
 const skPool = t => [...new Set(DATA.stageRuns.filter(r => r.tier === t).flatMap(r => r.bosses))].filter(k => k !== 'shadowking' && k !== 'seraph'); // 熾天使の影は呼ばない
 const skShade = ai => (ai.shade && !ai.shade.dead ? ai.shade : null);
@@ -6025,7 +6026,7 @@ function skBlades(e, ai) {
 }
 function skVSlash(e, a) {
   if (e.dead) return;
-  eprojs.push({ kind: 'vslash', x: e.x, y: e.y, vx: Math.cos(a) * SKB_SPD, vy: Math.sin(a) * SKB_SPD, a, dmg: e.dmg * (S.eatk ?? 1), life: SKB_LEN / SKB_SPD * CHAOS.area, t: 0, r: 3 * CHAOS.area, len: 12 * CHAOS.area, taint: e.ai.enraged && !e.shadow });
+  eprojs.push({ kind: 'vslash', x: e.x, y: e.y, vx: Math.cos(a) * SKB_SPD, vy: Math.sin(a) * SKB_SPD, a, dmg: e.dmg * (S.eatk ?? 1), life: SKB_LEN / SKB_SPD * CHAOS.area, t: 0, r: 3 * CHAOS.area, len: 12 * CHAOS.area, taint: !e.shadow ? (e.ai.enraged ? 2 : 1) : 0 });
   burst(e.x + Math.cos(a) * 10, e.y + Math.sin(a) * 10, 10, SKC, { sp: 80, glow: true, life: 0.3 });
   AudioMan.slash();
 }
@@ -6041,7 +6042,7 @@ function skChase(e, ai) {
     if (e.dead) return;
     for (const s of spots) {
       const sa = Math.atan2(P.y - s.y, P.x - s.x);
-      eprojs.push({ kind: 'hshadow', x: s.x, y: s.y, vx: Math.cos(sa) * 20, vy: Math.sin(sa) * 20, sp: 20, dmg: e.dmg * 0.8 * (S.eatk ?? 1), life: 10, t: 0, r: 4 * CHAOS.area, taint: ai.enraged && !e.shadow });
+      eprojs.push({ kind: 'hshadow', x: s.x, y: s.y, vx: Math.cos(sa) * 20, vy: Math.sin(sa) * 20, sp: 20, dmg: e.dmg * 0.8 * (S.eatk ?? 1), life: 10, t: 0, r: 4 * CHAOS.area, taint: !e.shadow ? (ai.enraged ? 2 : 1) : 0 });
       burst(s.x, s.y, 16, SKC, { sp: 80, up: 30, glow: true, life: 0.45 }); addRing(s.x, s.y, 12, '#a66bff', { life: 0.3 }); // 影だまりから立ちのぼる
     }
     burst(e.x, e.y - 6, 22, SKC, { sp: 90, glow: true, life: 0.45 }); addRing(e.x, e.y - 6, 14, '#a66bff', { life: 0.3 }); AudioMan.shade2();
@@ -6689,7 +6690,7 @@ function updEprojs(dt0) {
     if (near < Math.pow(p.r + 3, 2)) {
       if (P.invT > 0) continue;
       if (!p.keep && clsBlockProj()) { burst(p.x, p.y, 8, ['#fff27a', '#ffffff'], { sp: 60, glow: true, life: 0.25 }); eprojs.splice(i, 1); continue; } // 静電気
-      if (hurtPlayer(p.dmg, p.pierce ? PIERCE : undefined)) { if (p.light) randomLight(p.light, p.src); if (p.tri) triStatus(p.tri, p.src); if (p.burn) burnPlayer(p.burn); if (p.sta) drainSta(p.sta); if (p.frost) frostPlayer(p.frost); if (p.dark) darkPlayer(p.dark); if (p.poison) poisonPlayer(p.poison); if (p.taint) shadowTaint(); if (p.numb) numbPlayer(p.numb); if (p.dust) dustPlayer(p.dust); if (p.weak) weakPlayer(p.weak); if (p.pushK) pushPlayer(Math.atan2(p.vy, p.vx), p.pushK, 0.2); } // 火の玉: 炎上 / 海淵の弾: スタミナ / 霊峰の弾: 凍傷 / 王墓の弾: 暗闇・毒 / 痺れ・砂塵・衰弱
+      if (hurtPlayer(p.dmg, p.pierce ? PIERCE : undefined)) { if (p.light) randomLight(p.light, p.src); if (p.tri) triStatus(p.tri, p.src); if (p.burn) burnPlayer(p.burn); if (p.sta) drainSta(p.sta); if (p.frost) frostPlayer(p.frost); if (p.dark) darkPlayer(p.dark); if (p.poison) poisonPlayer(p.poison); if (p.taint) shadowTaint(p.taint); if (p.numb) numbPlayer(p.numb); if (p.dust) dustPlayer(p.dust); if (p.weak) weakPlayer(p.weak); if (p.pushK) pushPlayer(Math.atan2(p.vy, p.vx), p.pushK, 0.2); } // 火の玉: 炎上 / 海淵の弾: スタミナ / 霊峰の弾: 凍傷 / 王墓の弾: 暗闇・毒 / 痺れ・砂塵・衰弱
       if (p.keep) continue;
       const icy = p.frost > 0;
       if (p.dark) { burst(p.x, p.y, 14, ['#c79bff', '#7a3ab0', '#2a1240', '#ffffff'], { sp: 60, glow: true, life: 0.4 }); eprojs.splice(i, 1); continue; } // 闇の玉: 黒紫のしぶき
