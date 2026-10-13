@@ -5263,12 +5263,18 @@ function updSerWhiteout(e, ai, dt) {
 // ラストラディアンス: 残り HP 1% で(1% より下がらない)最後の技。プレイヤーに攻撃不能を 20秒。熾天使は天高く昇り、今までの技を次々に出す。
 //   はじめに壊れたクリスタルが 1個降ってくる(ホワイトアウトの影。プレイヤーの近く)。10秒で ホワイトアウトの溜め(5秒)、15秒で爆発(3秒)。
 //   爆発が終わると曲がフェードアウトし、熾天使は衣と光を失って、倒れるまでその場に立ち尽くす
+//   始まりに、ほかの敵は光に呑まれて消え(倒した扱いにしない)、熾天使が倒れるまで敵は出ない(updSpawner の serLROn)
 function startSerLR(e, ai) {
   { const [x, y] = serSideSpot(e); serBlink(e, x, y); } // プレイヤーの横へ現れる(最後の技を画面の中で見せる)
   ai.lr = { t: 0, next: 0.6, still: false, wo: false }; // 技は 2秒から(始まりの光と封印を見せてから)
   ai.act = 'lr'; e.spr = 'seraphCast';
   ai.ronde = ai.rift = ai.vortex = ai.after = ai.trin = null; eprojs.length = 0; warns.length = 0;
   for (const o of enemies) if (!o.dead && o.owner === e && o.obj) { o.dead = true; objDown(o, false); }
+  // ほかの敵(雑魚・エリート・ゴブリン・砂山)は光に呑まれて消える: 経験値・撃破数・宝箱なし。ボス(双王の相方)と、生きているボスが出した物・篝火は残す
+  for (const o of enemies) if (!o.dead && !o.boss && !o.prop && !(o.owner && !o.owner.dead)) {
+    o.dead = true;
+    if (onScreen(o.x, o.y)) burst(o.x, o.y - 4, 6, ['#fff6dc', '#ffe8a0', '#ffffff'], { sp: 50, up: 30, glow: true, life: 0.5 });
+  }
   ai.husks = [];
   lockPlayer(20);
   hitstop(0.25); slowmo(0.25, 1.4); screenFlash(0.7, '#ffffff'); shake(14);
@@ -7068,8 +7074,11 @@ function spawnPack(t) {
   const a = rand(0, TAU), R = Math.hypot(GFX.VW, GFX.VH) / 2 + 16, n = pk[0] + Math.floor(Math.random() * (pk[1] - pk[0] + 1));
   for (let i = 0; i < n; i++) spawnEnemy(t, { x: P.x + Math.cos(a) * R + rand(-12, 12), y: P.y + Math.sin(a) * R + rand(-12, 12) });
 }
+// 熾天使がラストラディアンスを始めてから倒れるまで(立ち尽くす間も)
+const serLROn = () => (S.bosses || []).some(b => !b.dead && b.boss === 'seraph' && b.ai && b.ai.lr);
 function updSpawner(dt) {
   if (S.mode === 'arena') return updArena(dt);
+  if (serLROn()) return; // ラストラディアンス: 敵(雑魚・エリート・ゴブリン)も篝火も出ない。フェーズの時計も止まっているので、倒れてから続きが出る
   // 出現のスケジュールはフェーズの時計(ボス・エリート群の間は止まる。エスカレーションはステージごとに 0 から)
   const stage = S.mode === 'stage', sc = S.sched, el = S.ptime;
   while (S.schedIdx < sc.length && el >= sc[S.schedIdx].t) {
