@@ -389,24 +389,45 @@ input[type=range] { width: 220px; accent-color: var(--gold); }
 .st .gl { position: relative; font: calc(var(--px) * 7) 'DotGothic16'; color: var(--sc); text-shadow: 0 0 calc(var(--px) * 2) var(--sc); line-height: 1; }
 
 /* ---------- ステージ選択 ---------- */
-#stage-list { display: flex; flex-direction: column; gap: 8px; width: min(760px, 94vw); max-height: 60vh; min-height: 0; overflow-y: auto; padding: 2px 8px 2px 2px; } /* 1列で、枠の中をスクロール(エスカレーション・闘技場・ステージを tier の順に)。枠の高さはカード 10枚ぶん(meta-ui.js が並べてから測って決める。60vh は測る前の値) */
-#stage-list .stg { flex: 0 0 auto; grid-template-columns: 1fr auto; column-gap: 12px; row-gap: 0; padding: 5px 12px 6px; } /* 2行に詰める: 上に名前とカオス強化、下に説明 */
-#stage-list .stg .nm { font-size: 15px; }
-#stage-list .stg .chaos, #stage-list .stg .lock { grid-column: 2; grid-row: 1; align-self: center; text-align: right; font-size: 11px; }
-#stage-list .stg .sub { grid-column: 1 / -1; font-size: 11px; }
-#stage-list .stg .lock { color: #ff8a9a; }
-#stage-list .stg.locked { filter: grayscale(.85) brightness(.6); cursor: not-allowed; }
-#stage-list .stg.locked:hover { transform: none; box-shadow: inset 4px 0 0 0 var(--sc), inset 0 0 0 2px #3a3060; }
+#stage-screen { padding: 26px 0 14px; } /* 画面が低いと見出しが上で切れるので、上下をあけてリストの枠を縮ませる */
+#stage-list { display: flex; flex-direction: column; gap: 6px; width: min(900px, 94vw); max-height: 60vh; min-height: 0; overflow-y: auto; padding: 2px 8px 2px 2px; } /* 1列で、枠の中をスクロール(エスカレーション・闘技場・ステージを tier の順に)。枠の高さはカード 10枚ぶん(meta-ui.js が並べてから測って決める。60vh は測る前の値) */
+/* カード: 左に tier の札、名前と説明の2行、右にボスとカオス強化。背景はステージの床の絵(--art。2倍のドット)に、左を暗くする影を重ねて文字を読めるように */
+.stg { --art: none; position: relative; overflow: hidden; flex: 0 0 auto; display: grid; grid-template-columns: 44px 1fr auto auto; grid-template-rows: 1fr 1fr; column-gap: 12px; align-items: center; min-height: 58px; padding: 5px 12px 5px 8px; text-align: left; image-rendering: pixelated;
+  background: linear-gradient(90deg, rgba(12,9,19,.95) 0, rgba(12,9,19,.84) 36%, rgba(12,9,19,.3) 66%, rgba(12,9,19,.62)), var(--art) left center / auto 96px repeat-x, var(--panel);
+  box-shadow: inset 4px 0 0 0 var(--sc), inset 0 0 0 2px #3a3060;
+  transition: transform .12s cubic-bezier(.22,1,.36,1), box-shadow .12s;
+  animation: stgIn .38s cubic-bezier(.22,1,.36,1) backwards; animation-delay: calc(var(--i) * 30ms); } /* 開いたとき上から順に滑りこむ */
+#stage-list.calm .stg { animation: none; } /* カオス強化の設定を閉じて並べ直したときは動かさない */
+@keyframes stgIn { from { opacity: 0; transform: translateX(-28px); } }
+.stg:hover { transform: translateX(6px); box-shadow: inset 8px 0 0 0 var(--sc), inset 0 0 0 2px var(--sc), inset 0 0 18px color-mix(in srgb, var(--sc) 30%, transparent); }
+.stg::after { content: ''; position: absolute; top: 0; bottom: 0; left: -40%; width: 22%; background: linear-gradient(90deg, transparent, rgba(255,255,255,.13), transparent); transform: skewX(-24deg); opacity: 0; pointer-events: none; } /* 乗せたときに光が1回走る */
+.stg:hover::after { animation: stgShine .55s ease-out; }
+@keyframes stgShine { from { left: -40%; opacity: 1; } to { left: 120%; opacity: 1; } }
+.stg > * { position: relative; z-index: 1; }
+.stg .tb { grid-row: 1 / 3; align-self: stretch; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; font: 15px 'Press Start 2P'; color: var(--sc); text-shadow: 2px 2px 0 var(--ink), 0 0 8px color-mix(in srgb, var(--sc) 60%, transparent); background: rgba(12,9,19,.55); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--sc) 40%, transparent); }
+.stg .tb.long { font-size: 10px; }
+.stg .tb small { font-size: 6px; color: var(--dim); text-shadow: none; letter-spacing: 1px; }
+.stg .nm { grid-column: 2; grid-row: 1; align-self: end; font-size: 17px; line-height: 1.15; color: var(--sc); text-shadow: 2px 2px 0 var(--ink), 0 0 10px color-mix(in srgb, var(--sc) 45%, transparent); }
+.stg .clr { font: 9px 'Press Start 2P'; color: var(--gold); margin-left: 8px; text-shadow: 1px 1px 0 var(--ink), 0 0 6px rgba(255,210,63,.6); }
+.stg .fc { font-size: 11px; color: var(--gold); margin-left: 8px; opacity: .9; text-shadow: 1px 1px 0 var(--ink); } /* 初クリアのゴールド(まだクリアしていないステージ) */
+.stg .sub { grid-column: 2; grid-row: 2; align-self: start; font-size: 11px; color: var(--txt); text-shadow: 1px 1px 0 var(--ink); }
+/* ボス(1体目 ▸ 2体目)。黒い縁取りで床の絵から浮かせる。乗せると少し跳ねる */
+.stg .bs { grid-column: 3; grid-row: 1 / 3; display: flex; align-items: flex-end; gap: 4px; filter: drop-shadow(1px 0 0 var(--ink)) drop-shadow(-1px 0 0 var(--ink)) drop-shadow(0 1px 0 var(--ink)) drop-shadow(0 -1px 0 var(--ink)) drop-shadow(0 3px 2px rgba(0,0,0,.6)); transition: transform .15s cubic-bezier(.34,1.56,.64,1); }
+.stg:hover .bs { transform: translateY(-2px) scale(1.06); }
+.stg .bs img { display: block; }
+.stg .bs em { align-self: center; font-style: normal; font-size: 10px; color: var(--dim); }
+.stg .bs img.sil { margin-left: -6px; filter: brightness(0) drop-shadow(0 0 1px #ff3b5c) drop-shadow(0 0 4px rgba(255,59,92,.7)); } /* 闘技場: ボスの影 */
+.stg .bs i { display: grid; place-items: center; width: 18px; height: 18px; font: 8px 'Press Start 2P'; font-style: normal; color: var(--ink); background: var(--tc); box-shadow: 0 0 8px var(--tc); align-self: center; } /* エスカレーション: tier 1 → 4 */
+.stg .chaos, .stg .lock { grid-column: 4; grid-row: 1 / 3; text-align: right; font-size: 11px; padding: 4px 6px; background: rgba(12,9,19,.72); }
+.stg .chaos { color: var(--dim); }
+.stg .chaos.on { color: #c78bff; }
+.stg .chaos .cz-btn { display: block; width: fit-content; margin: 3px 0 0 auto; }
+.stg .lock { color: #ff8a9a; }
+.stg.locked { filter: grayscale(.85) brightness(.6); cursor: not-allowed; background: repeating-linear-gradient(-45deg, rgba(255,255,255,.03) 0 6px, transparent 6px 12px), var(--panel); }
+.stg.locked:hover { transform: none; box-shadow: inset 4px 0 0 0 var(--sc), inset 0 0 0 2px #3a3060; }
+.stg.locked:hover::after { animation: none; }
 #stage-list .stg.deny { animation: stDeny .25s; }
 @keyframes stDeny { 25% { transform: translateX(-4px); } 75% { transform: translateX(4px); } }
-.stg { display: grid; grid-template-columns: 1fr; gap: 3px; padding: 9px 14px; text-align: left; background: var(--panel); box-shadow: inset 4px 0 0 0 var(--sc), inset 0 0 0 2px #3a3060; transition: transform .08s; }
-.stg:hover { transform: translateX(6px); box-shadow: inset 4px 0 0 0 var(--sc), inset 0 0 0 2px var(--sc); }
-.stg .nm { font-size: 18px; color: var(--sc); }
-.stg .clr { font: 9px 'Press Start 2P'; color: var(--gold); margin-left: 8px; }
-.stg .fc { font-size: 11px; color: var(--gold); margin-left: 8px; opacity: .85; } /* 初クリアのゴールド(まだクリアしていないステージ) */
-.stg .sub { font-size: 12px; color: var(--txt); }
-.stg .chaos { font-size: 11px; color: var(--dim); }
-.stg .chaos.on { color: #c78bff; }
 
 /* ---------- クラス画面 ---------- */
 .cl-wrap { display: grid; grid-template-columns: 240px 1fr 380px; gap: 16px; width: min(1300px, 98vw); height: min(560px, 66vh); }

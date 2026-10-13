@@ -303,28 +303,70 @@ const MetaUI = (() => {
   const startLvOf = key => { const m = chaosMods(key).find(x => x.k === 'startLv'); return (key === 'arena' ? DATA.arena.elv[0] : 1) + chaosLv(chaosSetting(key), m) * m.per; }; // 開始の敵Lv(闘技場は1ラウンド目の敵Lv)+ 深い闇
   // 報酬の倍率(tier): 通常モードはステージの tier の値、エスカレーションは tier が進むたびに上がる(最大 escRew.max)、闘技場は 2ラウンドごとに上がる / first: 初クリアのゴールド
   const rewX = x => '×' + x.toFixed(1), TR = DATA.flow.tierRew;
+  // カードの絵: 背景はステージの床(ゲームと同じ手続きでチャンクを横に並べ、環境光の色をかけて発光の層を足す)。右にボス。作った絵は覚えておく
+  //   エスカレーションは tier 1〜4 の床を斜めに区切って並べ(カードの幅に収まるように細く)、右に tier の札。闘技場は石畳の床に、tier 4 の最後のボスの影。未解放のカードには絵を出さない(伏せる)
+  const artCache = new Map(), bossCache = new Map();
+  function stageArt(ids) {
+    const key = ids.join(',');
+    if (!artCache.has(key)) {
+      const n = ids.length, W = n > 1 ? 440 : 512, H = 48, sk = 10, c = ART.canvas(W, H), x = c.getContext('2d');
+      ids.forEach((id, i) => {
+        const st = DATA.stages[id - 1], x0 = W / n * i, x1 = W / n * (i + 1), chs = [];
+        x.save();
+        x.beginPath(); x.moveTo(i ? x0 + sk : 0, 0); x.lineTo(i < n - 1 ? x1 + sk : W, 0); x.lineTo(i < n - 1 ? x1 - sk : W, H); x.lineTo(i ? x0 - sk : 0, H); x.clip();
+        for (let k = 0; k * CH < W; k++) { const ch = buildChunk(k, 0, st); chs.push(ch); x.drawImage(ch.c, k * CH, (H - CH) / 2); }
+        x.globalCompositeOperation = 'multiply'; // 環境光(暗いステージは暗く)
+        x.fillStyle = `rgb(${st.amb.map(v => Math.min(255, Math.round(v * 1.3 * 255))).join(',')})`; x.fillRect(0, 0, W, H);
+        x.globalCompositeOperation = 'lighter'; // 発光の層(溶岩・結晶・光る苔)
+        chs.forEach((ch, k) => x.drawImage(ch.g, k * CH, (H - CH) / 2));
+        x.restore();
+      });
+      artCache.set(key, c.toDataURL());
+    }
+    return artCache.get(key);
+  }
+  // ボスの絵(体 + 発光)。高さ 44px・幅 64px に収める(小さいボスは 2倍まで)/ sil: 影(闘技場)
+  function bossArt(k, cls = '') {
+    if (!bossCache.has(k)) {
+      const s = ART.S[k], f = Array.isArray(s) ? s[0] : s, c = ART.canvas(f.w, f.h), x = c.getContext('2d');
+      x.drawImage(f.c, 0, 0);
+      if (f.e) { x.globalCompositeOperation = 'lighter'; x.drawImage(f.e, 0, 0); }
+      bossCache.set(k, { url: c.toDataURL(), h: Math.round(f.h * Math.min(2, 44 / f.h, 64 / f.w)) });
+    }
+    const b = bossCache.get(k);
+    return `<img class="${cls}" src="${b.url}" alt="" style="height:${b.h}px">`;
+  }
+  const tierPips = () => TIER_COL.map((c, i) => `<i style="--tc:${c}">${i + 1}</i>`).join('<em>▸</em>');
   const STAGE_ITEMS = () => [
-    { key: 'escalation', mode: 'escalation', n: 1, name: _t('エスカレーション'), sub: _t`tier 1 → 4 を通す ・ 敵Lv ${startLvOf('escalation')} から ・ 報酬 ${rewX(TR[0])}〜${rewX(DATA.flow.escRew.max)}`, col: '#ffd23f' },
-    { key: 'arena', mode: 'arena', n: 1, name: _t('闘技場'), sub: _t`ボス${DATA.arena.rounds}体の連戦 ・ 敵Lv ${startLvOf('arena')} から ・ 報酬 ${rewX(TR[0])}〜${rewX(TR[TR.length - 1])}`, col: '#ff3b5c' },
+    { key: 'escalation', mode: 'escalation', n: 1, name: _t('エスカレーション'), sub: _t`tier 1 → 4 を通す ・ 敵Lv ${startLvOf('escalation')} から ・ 報酬 ${rewX(TR[0])}〜${rewX(DATA.flow.escRew.max)}`, col: '#ffd23f',
+      art: [1, 5, 3, 9], badge: ['TIER', '1-4'], vis: tierPips }, // 絵: 草原(tier 1)→ 晶窟(2)→ 奈落(3)→ 王墓(4)。だんだん暗く危なく
+    { key: 'arena', mode: 'arena', n: 1, name: _t('闘技場'), sub: _t`ボス${DATA.arena.rounds}体の連戦 ・ 敵Lv ${startLvOf('arena')} から ・ 報酬 ${rewX(TR[0])}〜${rewX(TR[TR.length - 1])}`, col: '#ff3b5c',
+      art: [4], badge: ['BOSS', '×' + DATA.arena.rounds], vis: () => DATA.stageRuns.filter(R => R.tier === 4).map(R => bossArt(R.bosses[1], 'sil')).join('') },
     ...DATA.stageRuns.map(R => ({ key: 'stage' + R.no, mode: 'stage', n: R.no, tier: R.tier, name: DATA.stages[R.stage - 1].label, first: DATA.flow.firstClear[R.tier - 1],
-      sub: _t`tier ${R.tier} ・ 報酬 ${rewX(TR[R.tier - 1])} ・ 敵Lv ${startLvOf('stage' + R.no)} から ・ ${R.bosses.map(b => I18N.bossShort(DATA.bosses[b].name)).join(' → ')}`, col: TIER_COL[R.tier - 1] }))
+      sub: _t`tier ${R.tier} ・ 報酬 ${rewX(TR[R.tier - 1])} ・ 敵Lv ${startLvOf('stage' + R.no)} から ・ ${R.bosses.map(b => I18N.bossShort(DATA.bosses[b].name)).join(' → ')}`, col: TIER_COL[R.tier - 1],
+      art: [R.stage], badge: ['TIER', R.tier], vis: () => R.bosses.map(b => bossArt(b)).join('<em>▸</em>') }))
       .sort((a, b) => a.tier - b.tier), // 通常モード: tier の順
   ];
-  function stageSelect() {
+  // again: カオス強化の設定を閉じて並べ直すとき(並ぶ動きを出さない)
+  function stageSelect(again) {
     state = 'stage';
     UI.only('stage-screen');
     const c = DATA.classes[META.cls], m = META.classes[META.cls];
     $('st-class').style.setProperty('--cc', c.col);
     $('st-class').innerHTML = _t`<img src="${portrait(META.cls)}" alt=""><span><b>${c.name}</b> Lv${m.lv} ・ ${DATA.weapons[m.weapon].name}</span><small>クラス変更 ▶</small>`;
     const items = STAGE_ITEMS();
-    $('stage-list').innerHTML = items.map(s => {
+    $('stage-list').classList.toggle('calm', !!again);
+    $('stage-list').innerHTML = items.map((s, i) => {
       const clear = META.stageClear[s.key], open = stageUnlocked(s);
       const pt = open ? chaosPoints(chaosSetting(s.key), s.key) : 0;
       const right = !open ? _t`<span class="lock">未解放: tier ${needTier(s)} のステージを1つクリア</span>`
         : clear ? _t`<span class="chaos on">カオス強化 <b>${pt} pt</b> <span class="cz-btn" data-chaos="${s.key}">設定 ▶</span></span>`
         : _t`<span class="chaos">カオス強化 ${pt ? `<b>${pt} pt</b>` : _t('なし')}(クリアまで固定)<span class="cz-btn" data-chaos="${s.key}">見る ▶</span></span>`;
-      return `<button class="stg${open ? '' : ' locked'}" data-mode="${s.mode}" data-n="${s.n}" style="--sc:${s.col}">
-        <span class="nm">${open ? s.name : _t('？？？')}${clear ? ' <b class="clr">★ CLEAR</b>' : open && s.first ? _t` <span class="fc">初クリア ● ${s.first.toLocaleString()}</span>` : ''}</span>${right}<span class="sub">${open ? s.sub : _t('？？？')}</span></button>`;
+      const badge = open ? s.badge : [s.badge[0], '?'];
+      return `<button class="stg${open ? '' : ' locked'}" data-mode="${s.mode}" data-n="${s.n}" style="--sc:${s.col};--i:${i}${open ? `;--art:url(${stageArt(s.art)})` : ''}">
+        <span class="tb${String(badge[1]).length > 2 ? ' long' : ''}"><small>${badge[0]}</small>${badge[1]}</span>
+        <span class="nm">${open ? s.name : _t('？？？')}${clear ? ' <b class="clr">★ CLEAR</b>' : open && s.first ? _t` <span class="fc">初クリア ● ${s.first.toLocaleString()}</span>` : ''}</span>${right}<span class="sub">${open ? s.sub : _t('？？？')}</span>
+        ${open ? `<span class="bs">${s.vis()}</span>` : ''}</button>`;
     }).join('');
     // 枠の高さはカード 10枚ぶん(それより下はスクロール)。カードの高さは言語・画面の幅で変わるので、並べてから測る。画面が低いときは枠がさらに縮む
     const L = $('stage-list'), its = L.children, LIST_N = 10;
@@ -376,7 +418,7 @@ const MetaUI = (() => {
     lv[m.k] = clamp(chaosLv(lv, m) + (b.dataset.cz === '+' ? 1 : -1), 0, m.max);
     saveMeta(); AudioMan.click(); chaosPanel(czKey);
   };
-  function closeChaos() { UI.hide($('chaos-panel')); czKey = null; stageSelect(); }
+  function closeChaos() { UI.hide($('chaos-panel')); czKey = null; stageSelect(true); }
   $('st-class').onclick = () => { AudioMan.click(); classScreen('stage'); };
   $('st-back').onclick = () => { AudioMan.click(); state = 'title'; UI.title(); };
 
