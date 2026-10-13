@@ -759,12 +759,13 @@ const UI = (() => {
     $('set-ui').value = Math.round(SET.ui * 100); $('set-ui-n').textContent = Math.round(SET.ui * 100) + '%';
     for (const b of $('set-gfx').children) b.classList.toggle('on', b.dataset.v === SET.gfx);
     for (const k of ['autoE', 'autoQ', 'cutin', 'hints']) for (const b of $('set-' + k).children) b.classList.toggle('on', (b.dataset.v === '1') === SET[k]);
-    for (const b of $('set-lang').children) { b.classList.toggle('on', b.dataset.v === SET.lang); b.disabled = setBack === 'pause'; } // ラン中は変えられない
+    $('set-lang').value = SET.lang; $('set-lang').disabled = setBack === 'pause'; // ラン中は変えられない
   }
   for (const b of $('set-gfx').children) b.onclick = () => { SET.gfx = b.dataset.v; saveSet(); AudioMan.click(); syncSettings(); };
   for (const k of ['autoE', 'autoQ', 'cutin', 'hints']) for (const b of $('set-' + k).children) b.onclick = () => { SET[k] = b.dataset.v === '1'; saveSet(); AudioMan.click(); syncSettings(); last.skSig = null; };
-  // 言語: 保存してページを読み直す
-  for (const b of $('set-lang').children) b.onclick = () => { if (setBack === 'pause' || b.dataset.v === SET.lang) return; SET.lang = b.dataset.v; saveSet(); AudioMan.click(); location.reload(); };
+  // 言語: プルダウン(それぞれの言語の名前)。選んだら保存してページを読み直す
+  $('set-lang').innerHTML = Object.keys(LANGS).map(k => `<option value="${k}">${LANGS[k]}</option>`).join('');
+  $('set-lang').onchange = e => { if (setBack === 'pause' || e.target.value === SET.lang) return; SET.lang = e.target.value; saveSet(); AudioMan.click(); location.reload(); };
   $('set-fxa').oninput = e => { SET.fxA = e.target.value / 100; $('set-fxa-n').textContent = e.target.value + '%'; saveSet(); };
   $('set-ui').oninput = e => { SET.ui = e.target.value / 100; $('set-ui-n').textContent = e.target.value + '%'; applyUiScale(); saveSet(); };
   function settings(from = 'title') { setBack = from; state = 'settings'; only('settings-screen'); syncSettings(); }

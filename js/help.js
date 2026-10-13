@@ -172,15 +172,16 @@ const Help = (() => {
   const esc = s => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   // 単語の区切り: 英字の用語は英数字に、カタカナで始まる・終わる用語はカタカナに続いていないときだけ(「ビッグクランチ」「ランダム」の中の「ラン」に付けない)
   const KANA = /[ァ-ヺー]/;
+  const HANGUL = /[가-힣]/; // 韓国語: 用語の前だけ区切る(後ろには助詞が付く: 독을・독에)
   const bound = s => {
     if (ascii(s)) return `(?<![A-Za-z0-9])${esc(s)}(?![A-Za-z0-9])`;
-    return (KANA.test(s[0]) ? '(?<![ァ-ヺー])' : '') + esc(s) + (KANA.test(s[s.length - 1]) ? '(?![ァ-ヺー])' : '');
+    return (KANA.test(s[0]) ? '(?<![ァ-ヺー])' : HANGUL.test(s[0]) ? '(?<![가-힣])' : '') + esc(s) + (KANA.test(s[s.length - 1]) ? '(?![ァ-ヺー])' : '');
   };
   // 英語: 区切りは英数字。大文字で始まる単語は頭文字の大小を問わない(Max HP / max HP)。小文字で終わる用語は複数形の s が付いてもよい
   const lowerFirst = s => s.replace(/(^|\s)([A-Z])(?=[a-z])/g, (a, b, c) => b + c.toLowerCase());
   const boundEn = s => `(?<![A-Za-z0-9])${s.split(/(\s+)/).map(w => (/^[A-Za-z][a-z]/.test(w) ? `[${w[0].toUpperCase()}${w[0].toLowerCase()}]${esc(w.slice(1))}` : esc(w))).join('')}${/[a-z]$/.test(s) ? 's?' : ''}(?![A-Za-z0-9])`;
-  // 印を付ける書き方: 日本語は m(既定は見出し)。英語は I18N.terms[k](なければ見出し。m: [] のものは付けない)
-  const termsOf = e => (I18N.en ? I18N.terms[e.k] || (e.m && !e.m.length ? [] : [e.t]) : e.m || [e.t]);
+  // 印を付ける書き方: 日本語は m(既定は見出し)。ほかの言語は I18N.terms[k](なければ見出し。m: [] のものは付けない)
+  const termsOf = e => (I18N.tr ? I18N.terms[e.k] || (e.m && !e.m.length ? [] : [e.t]) : e.m || [e.t]);
   const baseTerms = [];
   for (const e of G) for (const s of termsOf(e)) baseTerms.push({ s, key: 'g:' + e.k });
   function matcher(extra) {

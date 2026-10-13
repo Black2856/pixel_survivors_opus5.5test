@@ -1,10 +1,11 @@
-// i18n-check.js — 英語の辞書(js/lang/en.js)の抜け・余り・差し込みの食い違いを調べる
+// i18n-check.js — 辞書(js/lang/en.js・zh.js・ko.js)の抜け・余り・差し込みの食い違いを調べる
 // 使い方: node scripts/i18n-check.js
 //   訳がない: 表示する日本語(_t('…') / _t`…` / data.js の文字列 / index.html の文字)のうち、辞書にないもの → 英語でも日本語のまま出る
 //   差し込みが合わない: キーと英語で {0} {1} … {v} の組が違うもの
 //   使っていない: 辞書にあるが、どこにも出てこないキー(日本語の文を書き換えたときの古いキー)
 //   包んでいない: コードの中の日本語の文字列で、_t を通していないもの(表示する文なら _t で包む。ID・比較・glyph はそのままでよい)
-// 訳がない・差し込みが合わないものがあると終了コード 1
+//   中国語・韓国語は、訳がない・差し込みが合わない・HTML のタグが合わない(キーと同じタグ・属性が同じ順に要る)・使っていない を辞書ごとに出す
+// 訳がない・差し込みが合わない(中国語・韓国語は HTML のタグも)ものがあると終了コード 1
 'use strict';
 const fs = require('fs'), path = require('path'), vm = require('vm');
 const root = path.join(__dirname, '..');
@@ -70,6 +71,12 @@ const ctx = {};
 vm.createContext(ctx);
 vm.runInContext(fs.readFileSync(path.join(root, 'js/lang/en.js'), 'utf8') + '\nthis.EN = I18N_EN;', ctx);
 const EN = ctx.EN;
+const OTHER = [['zh', '中国語', 'I18N_ZH'], ['ko', '韓国語', 'I18N_KO']].filter(([l]) => fs.existsSync(path.join(root, `js/lang/${l}.js`))).map(([l, name, v]) => {
+  const c = {};
+  vm.createContext(c);
+  vm.runInContext(fs.readFileSync(path.join(root, `js/lang/${l}.js`), 'utf8') + `;this.D = ${v};`, c);
+  return { l, name, D: c.D };
+});
 
 // ---------- 訳すもの ----------
 const need = new Map(); // キー → 出てくる場所
@@ -118,4 +125,16 @@ show('差し込みが合わない', mismatch.map(([k]) => `${JSON.stringify(k)} 
 show('使っていない', unused.map(k => JSON.stringify(k)));
 show('包んでいない(表示する文なら _t で包む)', unwrapped);
 console.log(`辞書 ${Object.keys(EN).length} 件 / 訳すもの ${need.size} 件`);
-process.exitCode = missing.length || mismatch.length ? 1 : 0;
+let bad = missing.length + mismatch.length;
+const tags = s => [...String(s).matchAll(/<[^>]*>/g)].map(m => m[0]).join('');
+for (const { name, D } of OTHER) {
+  console.log(`---------- ${name} ----------`);
+  const miss = [...need].filter(([k]) => !(k in D)), mis = [...need].filter(([k]) => k in D && ph(k) !== ph(D[k])), tg = [...need].filter(([k]) => k in D && tags(k) !== tags(D[k]));
+  show('訳がない', miss.map(([k, at]) => `${JSON.stringify(k)}  (${at[0]})`).slice(0, 30));
+  show('差し込みが合わない', mis.map(([k]) => `${JSON.stringify(k)} → ${JSON.stringify(D[k])}`));
+  show('HTML のタグが合わない', tg.map(([k]) => `${JSON.stringify(k)} → ${JSON.stringify(D[k])}`));
+  show('使っていない', Object.keys(D).filter(k => !need.has(k) && !literals.has(k)).map(k => JSON.stringify(k)));
+  console.log(`辞書 ${Object.keys(D).length} 件 / 訳がない ${miss.length} 件`);
+  bad += miss.length + mis.length + tg.length;
+}
+process.exitCode = bad ? 1 : 0;

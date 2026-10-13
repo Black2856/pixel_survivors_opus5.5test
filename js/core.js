@@ -91,7 +91,7 @@ const SET = (() => {
   d.fxA = clamp(+d.fxA || 1, 0.15, 1);
   d.autoE = !!d.autoE; d.autoQ = !!d.autoQ; d.cutin = d.cutin !== false; d.hints = d.hints !== false;
   d.ui = clamp(+d.ui || 1, 0.7, 1.5);
-  if (d.lang !== 'ja' && d.lang !== 'en') d.lang = LANG;
+  if (!LANGS[d.lang]) d.lang = LANG;
   return d;
 })();
 // UI の大きさ(HUD とメニュー画面の中身を拡大縮小する)
@@ -106,7 +106,7 @@ const gq = () => GFX_Q[SET.gfx];
 const keys = {};
 const touch = { active: false, id: null, ox: 0, oy: 0, dx: 0, dy: 0 };
 addEventListener('keydown', e => {
-  const typing = e.target && /^(INPUT|TEXTAREA)$/i.test(e.target.tagName); // 文字の入力中(ガイドの検索)はゲームの操作にしない(スペースも入力できるように)
+  const typing = e.target && /^(INPUT|TEXTAREA|SELECT)$/i.test(e.target.tagName); // 文字の入力中(ガイドの検索)・プルダウン(言語)はゲームの操作にしない(スペース・矢印も使えるように)
   if (!typing) {
     keys[e.code] = true;
     if ((e.code === 'ShiftLeft' || e.code === 'ShiftRight') && !e.repeat && state === 'play') toggleAim();
