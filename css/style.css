@@ -168,8 +168,6 @@ button { font: inherit; color: inherit; cursor: pointer; border: 0; background: 
 .best { font: 10px 'Press Start 2P'; color: var(--dim); text-shadow: 2px 2px 0 var(--ink); }
 .howto { font-size: 13px; color: var(--dim); text-shadow: 2px 2px 0 var(--ink); text-align: center; padding: 0 16px; }
 
-/* ---------- ショップ ---------- */
-
 /* ---------- カード ---------- */
 #cards, #chest-rewards { display: flex; gap: 22px; flex-wrap: wrap; justify-content: center; padding: 0 16px; }
 .card { position: relative; width: 210px; min-height: 280px; padding: 16px 14px 14px; display: flex; flex-direction: column; align-items: center; gap: 8px; text-align: center; animation: cardIn .45s cubic-bezier(.34,1.56,.64,1) backwards; transition: transform .08s cubic-bezier(.22,1,.36,1); }
@@ -531,13 +529,76 @@ html[lang="en"] .stg .sub { grid-template-columns: 10em 11em auto; }
 .tr-s b { color: var(--gold); font-weight: normal; }
 @media (max-width: 820px) { .tr-wrap { grid-template-columns: 1fr; } #tr-svg { width: 92vw; height: 92vw; } }
 
-/* ---------- ショップ ---------- */
-#sh-list { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; width: min(1080px, 96vw); max-height: 64vh; overflow-y: auto; }
-.sh-item { display: flex; flex-direction: column; gap: 8px; padding: 12px; background: var(--panel); box-shadow: inset 0 0 0 3px var(--rc); }
-.sh-item.sold { opacity: .45; }
-.sh-item .eq-opt { grid-template-columns: 1fr auto 40px; font-size: 12px; }
-.sh-buy { margin-top: auto; }
-@media (max-width: 820px) { #sh-list { grid-template-columns: 1fr; } }
+/* ---------- ガチャ ---------- */
+/* 3台(一般・高級・最高級): ガチャの色の枠、後ろで回る光、ドットの玉(乗せると揺れる) */
+#gc-list { display: grid; grid-template-columns: repeat(3, 230px); gap: 18px; }
+.gc-m { position: relative; overflow: hidden; display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 16px 14px 14px; background: linear-gradient(180deg, color-mix(in srgb, var(--gc) 18%, var(--panel)), var(--panel) 70%); box-shadow: inset 0 0 0 3px var(--gc), 0 0 24px color-mix(in srgb, var(--gc) 25%, transparent); }
+.gc-m::before { content: ''; position: absolute; left: 50%; top: 96px; width: 440px; height: 440px; margin: -220px 0 0 -220px; pointer-events: none; animation: spin 14s linear infinite;
+  background: repeating-conic-gradient(from 0deg, color-mix(in srgb, var(--gc) 24%, transparent) 0 9deg, transparent 9deg 20deg); -webkit-mask: radial-gradient(circle, #000 10%, transparent 55%); mask: radial-gradient(circle, #000 10%, transparent 55%); }
+.gc-m > * { position: relative; }
+.gc-nm { font-size: 24px; color: var(--gc); text-shadow: 2px 2px 0 var(--ink), 0 0 12px color-mix(in srgb, var(--gc) 60%, transparent); }
+.gc-orb { width: 96px; image-rendering: pixelated; filter: drop-shadow(0 0 14px var(--gc)); animation: bob 1.4s ease-in-out infinite; }
+.gc-m:hover .gc-orb { animation: gcWiggle .5s ease-in-out infinite; }
+@keyframes gcWiggle { 25% { transform: rotate(-8deg) translateY(-4px); } 75% { transform: rotate(8deg) translateY(-4px); } }
+.gc-pt { font-size: 14px; color: var(--txt); }
+.gc-cap { font-size: 11px; color: var(--dim); text-align: center; line-height: 1.6; }
+.gc-pull { min-width: 0; width: 100%; margin-top: 4px; }
+#gc-rates { display: flex; flex-wrap: wrap; justify-content: center; gap: 4px 16px; max-width: min(760px, 94vw); padding: 8px 14px; font-size: 13px; background: rgba(12,9,19,.6); box-shadow: inset 0 0 0 2px #3a3060; }
+#gc-rates b { font-weight: normal; color: var(--txt); }
+#gc-rates .note { flex-basis: 100%; text-align: center; font-size: 11px; color: var(--dim); }
+@media (max-width: 820px) { #gc-list { grid-template-columns: 1fr; } }
+/* 演出(画面いっぱい。canvas は画面の座標で描くので拡大しない。文字・カード・ボタンだけ UI サイズで拡大) */
+#gacha-screen > #gc-show { zoom: 1; }
+#gc-show { position: fixed; inset: 0; z-index: 50; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; cursor: pointer; background: radial-gradient(ellipse at center, rgba(40,20,60,.82), rgba(4,2,10,.95)); animation: fadeIn .3s ease-out; }
+#gc-show > #gc-label, #gc-show > #gc-slot, #gc-show > #gc-hint, #gc-show > #gc-btns { position: relative; z-index: 2; zoom: var(--ui); }
+#gc-cv0, #gc-cv1 { position: absolute; inset: 0; pointer-events: none; }
+#gc-cv0 { z-index: 0; transition: filter .3s; }
+#gc-cv1 { z-index: 3; }
+#gc-flash { position: absolute; inset: 0; z-index: 5; opacity: 0; pointer-events: none; }
+#gc-flash.go { animation: gcFlash .6s ease-out; }
+@keyframes gcFlash { 0% { opacity: var(--fa, .95); } 100% { opacity: 0; } }
+#gc-show.quake { animation: quake .5s cubic-bezier(.36,.07,.19,.97); }
+#gc-show.quake-big { animation: quake .8s cubic-bezier(.36,.07,.19,.97); }
+#gc-slot { width: 240px; height: 330px; display: grid; place-items: center; perspective: 800px; } /* カードの場所(玉もここの真ん中に描く) */
+#gc-card:empty { display: none; }
+#gc-card.card { width: 220px; min-height: 300px; cursor: default; animation: none; }
+#gc-card.card:hover { transform: none; }
+#gc-card.gc-in { animation: gcCardIn .6s cubic-bezier(.34,1.56,.64,1) backwards; } /* 裏返って出る */
+@keyframes gcCardIn { 0% { transform: rotateY(90deg) scale(.4); filter: brightness(4); } 60% { filter: brightness(1.6); } 100% { transform: none; } }
+#gc-btns { display: flex; gap: 14px; }
+#gc-btns.off { visibility: hidden; }
+#gc-hint { min-height: 1.2em; }
+/* レアリティの文字(上がるほど光る。レジェンダリーは虹、ミシックは赤く脈打つ) */
+#gc-label { min-height: 60px; font: clamp(26px, 4.6vw, 54px) 'Press Start 2P'; color: #fff; opacity: 0; white-space: nowrap; text-shadow: 4px 4px 0 var(--ink); }
+#gc-label.in { animation: tierIn .8s cubic-bezier(.34,1.56,.64,1) forwards; }
+#gc-label[data-r="common"] { color: #c8c8d0; }
+#gc-label[data-r="uncommon"] { color: #5dff8a; text-shadow: 4px 4px 0 var(--ink), 0 0 18px rgba(93,255,138,.6); }
+#gc-label[data-r="rare"] { color: #5ab8ff; text-shadow: 4px 4px 0 var(--ink), 0 0 22px rgba(90,184,255,.7); }
+#gc-label[data-r="epic"] { color: #c78bff; text-shadow: 4px 4px 0 var(--ink), 0 0 26px rgba(199,139,255,.8); }
+#gc-label[data-r="legendary"] { text-shadow: none; background: linear-gradient(90deg, #ffd23f, #ff6ec7, #6ee7ff, #5dff8a, #ffd23f) 0 0 / 300% 100%; -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; filter: drop-shadow(4px 4px 0 var(--ink)) drop-shadow(0 0 18px rgba(255,210,63,.6)); }
+#gc-label[data-r="legendary"].in { animation: tierIn .8s cubic-bezier(.34,1.56,.64,1) forwards, rainbow 1.5s linear infinite; }
+#gc-label[data-r="mythic"] { color: #ff3b5c; text-shadow: 4px 4px 0 var(--ink), 0 0 30px rgba(255,59,92,.9), 0 0 60px rgba(255,59,92,.6); }
+#gc-label[data-r="mythic"].in { animation: gcMythicIn .9s cubic-bezier(.34,1.56,.64,1) forwards, gcRedPulse .5s ease-in-out .9s infinite; }
+@keyframes gcMythicIn { 0% { opacity: 0; transform: scale(5) rotate(10deg); letter-spacing: 60px; filter: brightness(4); } 100% { opacity: 1; transform: none; } }
+@keyframes gcRedPulse { 0%, 100% { opacity: 1; } 50% { opacity: 1; transform: scale(1.06); filter: brightness(1.4); } }
+/* ミシックへの昇格: 文字が乱れて崩れる / 後ろが色あせる / カードが鼓動して震え、ひびが入る / 赤く光って出直す */
+#gc-label.glitch { opacity: 1; animation: gcGlitch .14s steps(2) infinite !important; }
+@keyframes gcGlitch { 0% { transform: translate(-3px, 1px) skewX(-6deg); filter: drop-shadow(4px 0 0 #ff3b5c) drop-shadow(-4px 0 0 #00e5ff); } 100% { transform: translate(3px, -1px) skewX(6deg); filter: drop-shadow(-4px 0 0 #ff3b5c) drop-shadow(4px 0 0 #00e5ff); } }
+#gc-label.break { animation: gcBreak .45s ease-in forwards !important; }
+@keyframes gcBreak { 0% { opacity: 1; } 100% { opacity: 0; transform: scale(1.6); letter-spacing: 30px; filter: blur(6px) brightness(3); } }
+#gc-show.promo #gc-cv0 { filter: saturate(.15) brightness(.5); }
+#gc-card.throb { animation: gcThrob .42s ease-in-out infinite; }
+@keyframes gcThrob { 0%, 100% { transform: scale(1); } 15% { transform: scale(1.06) translate(-2px, 1px); } 30% { transform: scale(1) translate(2px, -1px); } 45% { transform: scale(1.04); } }
+#gc-card.crack::after { content: ''; position: absolute; inset: 0; pointer-events: none; animation: gcCrack .25s ease-out;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 210 300' preserveAspectRatio='none'%3E%3Cg fill='none' stroke-linejoin='bevel'%3E%3Cpath d='M112 0L100 46L124 80L94 128L118 170L90 214L108 256L96 300M100 46L70 60L52 96M124 80L160 92L184 130M94 128L60 150L30 140M118 170L150 196L170 240M90 214L58 236' stroke='%23ff3b5c' stroke-width='6' opacity='.55'/%3E%3Cpath d='M112 0L100 46L124 80L94 128L118 170L90 214L108 256L96 300M100 46L70 60L52 96M124 80L160 92L184 130M94 128L60 150L30 140M118 170L150 196L170 240M90 214L58 236' stroke='%23ffffff' stroke-width='1.8'/%3E%3C/g%3E%3C/svg%3E") center / 100% 100% no-repeat; }
+@keyframes gcCrack { from { opacity: 0; transform: scale(1.1); } }
+#gc-card.gc-promo { animation: gcPromo .8s cubic-bezier(.34,1.56,.64,1); }
+@keyframes gcPromo { 0% { transform: scale(1.5); filter: brightness(5) saturate(0); } 100% { transform: none; } }
+/* ミシックのカード(赤。光が走り、外に赤い光) */
+.card.mythic { --line: #ff3b5c; background: linear-gradient(180deg, #4a0a1e, var(--panel)); filter: drop-shadow(0 0 14px rgba(255,59,92,.7)); }
+.card.mythic::before { content: ''; position: absolute; inset: 0; background: linear-gradient(115deg, transparent 30%, rgba(255,180,190,.3) 45%, transparent 60%) 0 0 / 300% 100%; animation: shine 1.4s ease-in-out infinite; pointer-events: none; }
+.card.mythic .card-head { color: #ff3b5c; animation: flick .4s ease-in-out infinite; }
+.card.mythic .uq { color: #ff8a9a; }
 
 /* ---------- ステータス画面(ラン中)/ パネル(ラン外) ---------- */
 .sv { display: flex; flex-direction: column; gap: 6px; padding: 10px 12px; background: var(--panel); box-shadow: inset 0 0 0 3px var(--line); min-height: 0; font-size: 12px; }

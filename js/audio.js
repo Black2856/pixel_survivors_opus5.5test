@@ -172,6 +172,41 @@ const AudioMan = (() => {
     land(r)   { if (!this._ok()) return; const b = [523, 659, 784, 1047][r] || 523; [1, 1.25, 1.5, 2].forEach((m, i) => this.tone(b * m, b * m, 0.18, { vol: 0.08, delay: i * 0.04, type: 'triangle' })); this.noise(0.25, { vol: 0.1, f0: 9000, f1: 3000, ftype: 'highpass' }); },
     burstOpen(){ if (!this._ok()) return; this.noise(0.9, { vol: 0.35, f0: 6000, f1: 80 }); this.tone(80, 30, 0.7, { vol: 0.2, type: 'sine' }); [784, 988, 1175, 1568, 1976, 2349].forEach((f, i) => this.tone(f, f, 0.5, { vol: 0.06, delay: 0.1 + i * 0.05, type: 'triangle' })); },
     coinRain(n) { if (!this._ok()) return; for (let i = 0; i < n; i++) this.tone(1800 + Math.random() * 900, 2400 + Math.random() * 900, 0.05, { vol: 0.03, delay: i * 0.05 + Math.random() * 0.03, type: 'square' }); },
+    // ガチャ演出用: 玉が落ちる / 玉の色が上がる(step 0〜2。上がるほど高く派手)/ 玉が割れる(rank 0〜5 = コモン〜ミシック)
+    //   当たりのファンファーレ(rank)/ ミシックへの昇格の溜め(鼓動 3回と上がっていくうなり)/ ミシックの大爆発と和音
+    gachaDrop() { if (!this._ok()) return; this.tone(190, 55, 0.24, { vol: 0.16, type: 'sine' }); this.noise(0.14, { vol: 0.12, f0: 1600, f1: 200 }); this.tone(1300, 1600, 0.07, { vol: 0.03, type: 'triangle', delay: 0.04 }); },
+    gachaUp(step) {
+      if (!this._ok()) return;
+      const b = [880, 1175, 1568][step] || 1568;
+      [1, 1.26, 1.5, 2].forEach((m, i) => this.tone(b * m, b * m * 1.01, 0.26, { vol: 0.07, delay: i * 0.04, type: i % 2 ? 'square' : 'triangle' }));
+      this.noise(0.35, { vol: 0.08 + step * 0.04, f0: 9000, f1: 3000, ftype: 'highpass' });
+      this.tone(220 * (step + 1), 660 * (step + 1), 0.3, { vol: 0.05, type: 'sawtooth' });
+    },
+    gachaBurst(rank) { if (!this._ok()) return; this.noise(0.6 + rank * 0.15, { vol: 0.22 + rank * 0.03, f0: 7000, f1: 70 }); this.tone(110, 30, 0.6 + rank * 0.1, { vol: 0.15 + rank * 0.02, type: 'sine' }); },
+    gachaFanfare(rank) {
+      if (!this._ok()) return;
+      const N = [[523, 659, 784], [523, 659, 784, 1047], [523, 659, 784, 1047, 1319], [392, 523, 659, 784, 1047, 1319, 1568], [392, 523, 659, 784, 1047, 1319, 1568, 2093]][Math.min(4, rank)];
+      N.forEach((f, i) => this.tone(f, f * 1.005, 0.3, { vol: 0.07, delay: i * 0.06, type: i % 2 ? 'square' : 'triangle' }));
+      if (rank < 3) return;
+      const t = N.length * 0.06; // エピック以上: 伸ばす和音・低い音・きらめき
+      [1047, 1319, 1568].forEach(f => this.tone(f, f, 1.3, { vol: 0.04, type: 'triangle', delay: t }));
+      this.tone(131, 131, 1.3, { vol: 0.08, type: 'sawtooth', delay: t });
+      this.noise(1.5, { vol: 0.12, f0: 9000, f1: 2500, ftype: 'highpass', delay: t });
+      if (rank >= 4) this.coinRain(28);
+    },
+    gachaPromote() {
+      if (!this._ok()) return;
+      for (let i = 0; i < 3; i++) { this.tone(64, 40, 0.2, { vol: 0.18, type: 'sine', delay: i * 0.42 }); this.tone(58, 36, 0.18, { vol: 0.14, type: 'sine', delay: i * 0.42 + 0.21 }); }
+      this.tone(70, 1200, 1.5, { vol: 0.06, type: 'sawtooth', delay: 0.25 });
+      this.noise(1.5, { vol: 0.1, f0: 300, f1: 7000, ftype: 'bandpass', delay: 0.25 });
+    },
+    gachaMythic() {
+      if (!this._ok()) return;
+      this.noise(1.6, { vol: 0.42, f0: 5000, f1: 50 }); this.tone(70, 25, 1.2, { vol: 0.24, type: 'sine' });
+      [[220, 'sawtooth'], [262, 'square'], [330, 'sawtooth'], [440, 'triangle'], [523, 'square'], [659, 'triangle']].forEach(([f, ty], i) => this.tone(f, f * 1.01, 1.8, { vol: 0.05, type: ty, delay: 0.12 + i * 0.03 }));
+      [880, 1047, 1319, 1760, 2093, 2637].forEach((f, i) => this.tone(f, f, 0.4, { vol: 0.05, delay: 0.5 + i * 0.07, type: 'triangle' }));
+      this.coinRain(36);
+    },
     death()   { if (!this._ok()) return; [440, 349, 262, 196, 131].forEach((f, i) => this.tone(f, f * 0.97, 0.3, { vol: 0.1, delay: i * 0.16, type: 'square' })); },
     // ステージの流れ: 自分が凍みる「パキッ」/ エリート群の襲来(低い角笛と太鼓)/ フェーズクリアのファンファーレ
     //   闇の霧が立ちこめる低いうねり / 霧の中の鼓動(k: 強さ)

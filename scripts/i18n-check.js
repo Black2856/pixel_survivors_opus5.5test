@@ -9,7 +9,7 @@
 const fs = require('fs'), path = require('path'), vm = require('vm');
 const root = path.join(__dirname, '..');
 const JP = /[぀-ヿ㐀-鿿！-｠　-〿]/;
-const CODE = ['world', 'ui', 'meta-ui', 'status-ui', 'stats', 'core', 'main', 'equip', 'help', 'classes'].map(f => `js/${f}.js`);
+const CODE = ['world', 'ui', 'meta-ui', 'gacha', 'status-ui', 'stats', 'core', 'main', 'equip', 'help', 'classes'].map(f => `js/${f}.js`);
 
 // ---------- 字句解析(文字列・テンプレートを、引用符を含む位置で取り出す)----------
 function lex(src) {

@@ -41,7 +41,6 @@ function endRun(win) {
   if (win) META.stageClear[runKey()] = true; // クリアしたモード・ステージ(カオス強化・クラスの解放条件)
   const loot = runEndLoot(win), cxp = gainClassXp(); // 装備の報酬(インベントリへ)とクラス経験値
   cxp.newCls = locked.filter(clsUnlocked); // このクリアで解放されたクラス
-  META.shop = null; // ショップの商品はランごとに入れ替える
   saveMeta();
   state = win ? 'victory' : 'over';
   if (!win) AudioMan.stopMusic(1.5);
@@ -77,6 +76,7 @@ function onKey(e) {
   else if (state === 'victory' && e.code === 'Enter' && S.mode === 'escalation') startEndless();
   UI.onKey(e);
   MetaUI.onKey(e);
+  Gacha.onKey(e);
   StatusUI.onKey(e);
 }
 

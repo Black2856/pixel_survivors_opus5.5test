@@ -1,11 +1,11 @@
-// ui.js — DOM UI(HUD / タイトル / 永続強化ショップ / 選択カード / 宝箱 / ポーズ / リザルト)
+// ui.js — DOM UI(HUD / タイトル / 選択カード / 宝箱 / ポーズ / リザルト)
 'use strict';
 
 const UI = (() => {
   const $ = id => document.getElementById(id);
   const el = (tag, cls, html) => { const e = document.createElement(tag); if (cls) e.className = cls; if (html !== undefined) e.innerHTML = html; return e; };
   const show = e => e.classList.remove('hidden'), hide = e => e.classList.add('hidden');
-  const screens = ['title-screen', 'stage-screen', 'class-screen', 'tree-screen', 'shop-screen', 'status-screen', 'equip-screen', 'choice-screen', 'chest-screen', 'pause-screen', 'settings-screen', 'result-screen', 'help-screen'];
+  const screens = ['title-screen', 'stage-screen', 'class-screen', 'tree-screen', 'gacha-screen', 'status-screen', 'equip-screen', 'choice-screen', 'chest-screen', 'pause-screen', 'settings-screen', 'result-screen', 'help-screen'];
   const only = id => screens.forEach(s => (s === id ? show : hide)($(s)));
 
   // ---------- アイコン(スプライト → dataURL) ----------
@@ -469,7 +469,7 @@ const UI = (() => {
       // 装備: 種類のアイコン / レアリティ / オプション一覧(ラン開始時は Lv0 → レベルアップで伸びる)/ 固有効果
       const it = c.item, R = DATA.equip.rarity[it.rarity];
       name = itemName(it); ic = icon('equip', it.type, 'big'); head = `<span style="color:${R.col}">${R.name}</span> ${DATA.equip.slots[itemSlot(it)]}`;
-      rar = { common: 'common', uncommon: 'new', rare: 'rare', epic: 'epic', legendary: 'legend' }[it.rarity];
+      rar = { common: 'common', uncommon: 'new', rare: 'rare', epic: 'epic', legendary: 'legend', mythic: 'mythic' }[it.rarity];
       body = it.opts.map(o => `<div class="opt">${optHTML(o)} <em>${_t`〜Lv${o.max}`}</em></div>`).join('') + (it.uq ? `<p class="uq">${DATA.uniques[it.uq].desc}</p>` : '');
       foot = `<div class="evohint">${c.sold ? _t`インベントリが満杯 → 売却 +${c.sold}G` : _t('インベントリに追加')}</div>`;
     } else if (c.type === 'eqopt') {

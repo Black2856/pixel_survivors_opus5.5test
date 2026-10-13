@@ -1,4 +1,4 @@
-// meta-ui.js — ラン外の画面(ステージ選択 / クラス / 強化ツリー / ショップ / 装備)
+// meta-ui.js — ラン外の画面(ステージ選択 / クラス / 強化ツリー / 装備)。ガチャは gacha.js
 'use strict';
 
 const MetaUI = (() => {
@@ -268,32 +268,6 @@ const MetaUI = (() => {
   $('tr-back').onclick = () => { AudioMan.click(); state = 'title'; UI.title(); };
   $('btn-tree').onclick = () => { AudioMan.click(); treeScreen(); };
 
-  // ---------- ショップ ----------
-  function shopScreen() {
-    state = 'shop';
-    UI.only('shop-screen');
-    renderShop();
-  }
-  function renderShop() {
-    $('sh-gold').textContent = '● ' + META.gold.toLocaleString() + ' G';
-    const sh = shopStock(), full = META.inventory.length >= DATA.equip.invMax;
-    $('sh-list').innerHTML = sh.items.map(it => {
-      const R = DATA.equip.rarity[it.rarity], sold = sh.sold.includes(it.id), p = shopPrice(it);
-      return `<div class="sh-item ${sold ? 'sold' : ''}" style="--rc:${R.col}">
-        <div class="eq-head">${icon(it, 'big')}<div><div class="rar">${R.name}${_t(' ・ ')}${DATA.equip.slots[itemSlot(it)]}</div><div class="nm">${itemName(it)}</div></div></div>
-        <div class="eq-opts">${it.opts.map(o => `<div class="eq-opt"><span>${optHTML(o)}</span><em>${_t`〜Lv${o.max}`}</em>${qualHTML(o.q)}</div>`).join('')}</div>
-        ${it.uq ? `<div class="eq-uq">★ ${DATA.uniques[it.uq].desc}</div>` : ''}
-        <button class="btn sh-buy" data-id="${it.id}" ${!sold && !full && META.gold >= p ? '' : 'disabled'}>${sold ? _t('売り切れ') : full ? _t('インベントリが一杯') : _t`購入 ● ${p.toLocaleString()}`}</button>
-      </div>`;
-    }).join('');
-  }
-  $('sh-list').onclick = e => {
-    const b = e.target.closest('.sh-buy'); if (!b || b.disabled) return;
-    if (shopBuy(+b.dataset.id)) { AudioMan.coin(); UI.announce(_t('購入しました'), _t('装備画面で装備できます')); renderShop(); }
-  };
-  $('sh-back').onclick = () => { AudioMan.click(); state = 'title'; UI.title(); };
-  $('btn-shop').onclick = () => { AudioMan.click(); shopScreen(); };
-
   // ---------- ステージ選択 ----------
   // 1列で、枠の中をスクロール: エスカレーション / 闘技場 / 通常モードのステージ(ステージを1つ選ぶ。3分 → エリート群 → 3分 → ボス → 3分 → ボス)を tier の順に。帯の色は tier
   // クリアしたものに ★。カオス強化はクリアするまで tier の値で固定(見るだけ)、クリアすると変えられる
@@ -438,8 +412,7 @@ const MetaUI = (() => {
     if (state === 'stage' && e.code === 'Escape') { if (czKey) closeChaos(); else { state = 'title'; UI.title(); } }
     if (state === 'class' && e.code === 'Escape') { if (wpOpen()) closeWp(); else closeClass(); }
     if (state === 'tree' && e.code === 'Escape') { state = 'title'; UI.title(); }
-    if (state === 'shop' && e.code === 'Escape') { state = 'title'; UI.title(); }
   }
 
-  return { open, stageSelect, classScreen, treeScreen, shopScreen, onKey };
+  return { open, stageSelect, classScreen, treeScreen, onKey };
 })();

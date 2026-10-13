@@ -3,7 +3,7 @@
 //   v = 1Lv あたりの値 / max = 最大Lv / q = ロール品質(0 = 範囲の最小、1 = 最大。強化で 1 を超える)
 'use strict';
 
-const RARITY_KEYS = Object.keys(DATA.equip.rarity); // コモン → レジェンダリーの順
+const RARITY_KEYS = Object.keys(DATA.equip.rarity); // コモン → レジェンダリー → ミシックの順
 
 // ---------- 生成 ----------
 // レアリティ: 装備品質 qual が高いほど、上位(番号が大きい)の重みが増える
@@ -27,11 +27,18 @@ function genItem(o = {}) {
   const type = o.type || pick(types), rarity = o.rarity || rollRarity(st.eqQual || 0);
   const keys = shuffle(Object.keys(DATA.equip.types[type].opts)).slice(0, DATA.equip.rarity[rarity].n);
   const it = { id: META.nextItemId++, type, rarity, opts: keys.map(k => rollOpt(type, k, st)), uq: null, enh: 0, spent: 0, lock: false, isNew: true }; // isNew: 装備画面で見るまで NEW
-  if (rarity === 'legendary') {
+  if (rarity === 'legendary' || rarity === 'mythic') {
     const slot = DATA.equip.types[type].slot;
     it.uq = pick(Object.keys(DATA.uniques).filter(u => DATA.uniques[u].slot === slot));
   }
+  if (rarity === 'mythic') it.opts.forEach(o => Object.assign(o, maxOpt(type, o.k, st))); // ミシック: 全オプションをその作り方の上限に
   return it;
+}
+// オプションの上限(ロール値 = 範囲の最大 × (1 + 装備ロール上限)、最大Lv = 範囲の最大 + 装備Lv上限)。ミシックとガチャの演出で使う
+function maxOpt(type, k, st) {
+  const [lo, hi] = DATA.equip.types[type].opts[k], unit = DATA.stats[k].kind === 'flat' ? 10 : 1000;
+  const v = Math.round(hi * (1 + (st.eqMaxVal || 0)) * unit) / unit;
+  return { k, v, max: DATA.equip.maxLv[1] + (st.eqMaxLv || 0), q: hi > lo ? (v - lo) / (hi - lo) : 1 };
 }
 const itemSlot = it => DATA.equip.types[it.type].slot;
 const itemName = it => (it.uq ? DATA.uniques[it.uq].epi + ' ' : '') + DATA.equip.types[it.type].name;
@@ -152,34 +159,26 @@ function gainClassXp() {
   return { xp, lv0, lv: c.lv };
 }
 
-// ---------- ショップ ----------
-// META.shop = { items: [装備...], sold: [id...] }。endRun で null に戻し、次に開いたときに作り直す
-function shopRarity(qual) {
-  const W = DATA.shop.w, ks = RARITY_KEYS.filter(k => W[k]), w = ks.map((k, i) => W[k] * (1 + qual * i));
-  let r = Math.random() * w.reduce((a, b) => a + b, 0);
-  for (let i = 0; i < ks.length; i++) if ((r -= w[i]) <= 0) return ks[i];
+// ---------- ガチャ ----------
+// 1回引くと、レアリティの確率(DATA.gacha.rates)で1つ作ってインベントリへ入れる。作り方はそのガチャのカオス強化 pt 相当の報酬の
+//   装備ロール上限・装備Lv上限(装備品質はレアリティの確率が決まっているので使わない)
+const gachaStats = t => { const r = chaosReward(DATA.gacha.tiers[t].pt) || {}; return { eqMaxVal: r.eqMaxVal || 0, eqMaxLv: r.eqMaxLv || 0 }; };
+function gachaRarity() {
+  const R = DATA.gacha.rates, ks = Object.keys(R);
+  let r = Math.random() * ks.reduce((a, k) => a + R[k], 0);
+  for (const k of ks) if ((r -= R[k]) <= 0) return k;
   return ks[0];
 }
-function shopStock() {
-  if (META.shop) return META.shop;
-  const st = lootStats(computeStats({})), items = [];
-  for (const slot in DATA.equip.slots) for (let i = 0; i < DATA.shop.perSlot; i++) {
-    const it = genItem({ stats: st, slot, rarity: shopRarity(st.eqQual || 0) });
-    it.isNew = false;
-    items.push(it);
-  }
-  META.shop = { items, sold: [] };
+// 引けないとき: 'gold'(ゴールドが足りない)/ 'full'(インベントリが一杯)/ null(引ける)
+const gachaBlock = t => (META.inventory.length >= DATA.equip.invMax ? 'full' : META.gold < DATA.gacha.tiers[t].price ? 'gold' : null);
+// 引く: ゴールドを払い、装備を作ってインベントリへ入れて保存する(演出の前に。途中で閉じても失われない)。引けないときは null
+function gachaPull(t) {
+  if (gachaBlock(t)) return null;
+  META.gold -= DATA.gacha.tiers[t].price;
+  const it = genItem({ stats: gachaStats(t), rarity: gachaRarity() });
+  META.inventory.push(it);
   saveMeta();
-  return META.shop;
-}
-const shopPrice = it => DATA.shop.price[it.rarity];
-function shopBuy(id) {
-  const sh = shopStock(), it = sh.items.find(x => x.id === id);
-  if (!it || sh.sold.includes(id) || META.gold < shopPrice(it) || META.inventory.length >= DATA.equip.invMax) return false;
-  META.gold -= shopPrice(it); sh.sold.push(id);
-  META.inventory.push(Object.assign({}, it, { opts: it.opts.map(o => Object.assign({}, o)), isNew: true }));
-  saveMeta();
-  return true;
+  return it;
 }
 
 // ---------- 表示用 ----------

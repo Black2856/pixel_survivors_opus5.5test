@@ -43,13 +43,13 @@
   <div id="title-screen" class="screen">
     <div class="title-wrap">
       <div class="logo"><span class="l1">PIXEL</span><span class="l2">SURVIVORS</span><span class="l3">— NOCTURNE —</span></div>
-      <!-- START は1行、ほかは2列(クラス・強化ツリー / 装備・ショップ / ガイド・設定)-->
+      <!-- START は1行、ほかは2列(クラス・強化ツリー / 装備・ガチャ / ガイド・設定)-->
       <div class="menu title-menu">
         <button id="btn-start" class="btn big">▶ START</button>
         <button id="btn-class" class="btn">クラス</button>
         <button id="btn-tree" class="btn">強化ツリー</button>
         <button id="btn-equip" class="btn">装備</button>
-        <button id="btn-shop" class="btn">ショップ</button>
+        <button id="btn-gacha" class="btn">ガチャ</button>
         <button id="btn-help" class="btn sub">ガイド</button>
         <button id="btn-settings" class="btn sub">設定</button>
       </div>
@@ -97,13 +97,22 @@
     <div class="menu row"><button id="tr-back" class="btn">戻る (ESC)</button></div>
   </div>
 
-  <!-- ショップ(ラン外) -->
-  <div id="shop-screen" class="screen hidden">
-    <h2 class="scr-title">SHOP</h2>
-    <div id="sh-gold" class="gold-chip"></div>
-    <div id="sh-list"></div>
-    <div class="hint">商品はランが終わるたびに入れ替わります</div>
-    <div class="menu row"><button id="sh-back" class="btn">戻る (ESC)</button></div>
+  <!-- ガチャ(ラン外)。gc-show は引いたときの演出(画面いっぱいに重ねる。canvas は後ろ(光の筋・玉・輪)と前(粒・稲妻)の2枚) -->
+  <div id="gacha-screen" class="screen hidden">
+    <h2 class="scr-title">GACHA</h2>
+    <div id="gc-gold" class="gold-chip"></div>
+    <div id="gc-list"></div>
+    <div id="gc-rates"></div>
+    <div class="menu row"><button id="gc-back" class="btn">戻る (ESC)</button></div>
+    <div id="gc-show" class="hidden">
+      <canvas id="gc-cv0"></canvas>
+      <div id="gc-label"></div>
+      <div id="gc-slot"><div id="gc-card"></div></div>
+      <div id="gc-hint" class="hint"></div>
+      <div id="gc-btns"><button id="gc-again" class="btn"></button><button id="gc-ok" class="btn">OK</button></div>
+      <canvas id="gc-cv1"></canvas>
+      <div id="gc-flash"></div>
+    </div>
   </div>
 
   <!-- 装備画面(ラン外) -->
@@ -225,6 +234,7 @@
 <script src="js/render.js"></script>
 <script src="js/ui.js"></script>
 <script src="js/meta-ui.js"></script>
+<script src="js/gacha.js"></script>
 <script src="js/status-ui.js"></script>
 <script src="js/help.js"></script>
 <script src="js/main.js"></script>
