@@ -1209,13 +1209,13 @@ const DATA = {
       //   憤怒の鎧: 上限のとき被ダメージ -armorCut / 焼灼: HP回復速度 + 怒り × burnK / 返り血: 敵を倒すたびに +bloodN
       // 昂り: 不屈の間に被弾すると 1段(fervorT 秒。段ごとに別々に数える。最大 fervorMax 段。上限のときは残りの短い段を新しくする)
       //   1段につき HP回復速度 +fervorRegen・攻撃力 +fervorAtk(熱狂で効果アップ)。極限: 通常の被弾でも(パスの値の段数)
-      //   血湧き肉躍る: 1段につきクールダウン -fervorCd / 死に物狂い: HP desperateAt 以下で常に最大
+      //   死に物狂い(熱狂): HP desperateAt 以下で昂りの効果 +desperateK(熱狂の値に足す)/ 血湧き肉躍る(極限): 1段につきクールダウン -fervorCd
       //   仁王立ち: E / Q を使うと 最大HP × selfHit のダメージを受ける(被弾として怒り・昂りが溜まる)。E / Q の威力 +selfPow
       // 不屈(Space): firmT 秒 被ダメージ -firmDr・減速(粘液・スロウタイム)を受けない。動ける(スタミナ firmCost。予備動作なし)
       //   受けたダメージ(減らす前)× firmRage の怒りを得る(被弾の怒りとは別)
       params: {
         rageMax: 100, rageHit: 10, dmgPer: 0.002, calmT: 3, decay: 10, armorCut: 0.25, burnK: 0.02, bloodN: 1,
-        fervorT: 5, fervorMax: 3, fervorRegen: 0.5, fervorAtk: 0.1, fervorCd: 0.08, selfHit: 0.05, selfPow: 0.15, desperateAt: 0.4,
+        fervorT: 5, fervorMax: 3, fervorRegen: 0.5, fervorAtk: 0.1, fervorCd: 0.08, selfHit: 0.05, selfPow: 0.15, desperateAt: 0.75, desperateK: 0.5,
         firmT: 1, firmDr: 0.75, firmRage: 0.2, firmCost: 75,
       },
       // 狂乱(Q): 構え windup 秒(動けない)→ 怒りを全て使い、雄叫びとともに周り(半径 r)を薙ぎ払う(基礎威力 pow + 使った怒り × perRage。武器に依存しない)
@@ -1232,9 +1232,9 @@ const DATA = {
           pain:   { name: '痛覚', desc: ['被弾で得る怒り +10 → +13', '被弾で得る怒り +16', '被弾で得る怒り +20'], v: [13, 16, 20], sp: { name: '返り血', desc: '敵を倒すたびに 怒り +1' } },
         } },
         passive: { name: '昂り', paths: {
-          zeal:  { name: '熱狂', desc: ['昂りの効果 +30%', '昂りの効果 +60%', '昂りの効果 +100%'], v: [0.3, 0.6, 1.0], sp: { name: '血湧き肉躍る', desc: '昂り 1段につき クールダウン -8%' } },
+          zeal:  { name: '熱狂', desc: ['昂りの効果 +30%', '昂りの効果 +60%', '昂りの効果 +100%'], v: [0.3, 0.6, 1.0], sp: { name: '死に物狂い', desc: 'HP 75% 以下のとき、昂りの効果 +50%' } },
           field: { name: '戦場', desc: ['昂りの時間 +1秒', '昂りの時間 +2秒', '昂りの時間 +3秒'], v: [1, 2, 3], sp: { name: '仁王立ち', desc: 'E / Q を使うと、最大HP の 5% のダメージを受ける(被弾として怒り・昂りが溜まる)。E / Q の威力 +15%' } },
-          edge:  { name: '極限', desc: ['通常の被弾でも 昂り +1段', '通常の被弾でも 昂り +2段', '通常の被弾でも 昂り +3段'], v: [1, 2, 3], sp: { name: '死に物狂い', desc: 'HP 40% 以下のとき、昂りが常に最大になる' } },
+          edge:  { name: '極限', desc: ['通常の被弾でも 昂り +1段', '通常の被弾でも 昂り +2段', '通常の被弾でも 昂り +3段'], v: [1, 2, 3], sp: { name: '血湧き肉躍る', desc: '昂り 1段につき クールダウン -8%' } },
         } },
         q: { name: '狂乱', need: 'q', paths: {
           pow: { name: '威力', desc: ['薙ぎ払いの威力 +30%', '薙ぎ払いの威力 +60%', '薙ぎ払いの威力 +100%'], v: [0.3, 0.6, 1.0], sp: { name: '旋風', desc: '狂乱中、1秒ごとに周り(半径 40)を斬る(基礎威力 50 + 使った怒り / 2)' } },

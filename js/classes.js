@@ -2659,7 +2659,7 @@ const CLASS_RT = {
       }
       // 狂乱の攻撃速度 / 血湧き肉躍る: 昂り 1段につきクールダウン -fervorCd(ステータスのクールダウンにさらに掛ける。使ったときの値で CD が決まる)
       P.atkSpd = 1 + (P.frenzy ? q.atkSpd : 0);
-      P.cdMul = (1 - P.stats.v.cd) * P.stats.mul.cd * (hasSp('passive', 'zeal') ? 1 - p.fervorCd * bkFervorN() : 1);
+      P.cdMul = (1 - P.stats.v.cd) * P.stats.mul.cd * (hasSp('passive', 'edge') ? 1 - p.fervorCd * bkFervorN() : 1);
       P.moveMul = 1;
       bkSteam(dt);
     },
@@ -2727,13 +2727,13 @@ const CLASS_RT = {
     statuses() {
       const out = [], p = BK(), q = DATA.classes.berserker.q, fk = bkFervorK(), pc = v => String(+(v * 100).toFixed(1));
       if (P.rage >= 1) out.push({ id: 'rage', glyph: '怒', name: _t`怒り ${Math.floor(P.rage)}`, fx: _t`与えるダメージ +${pc(P.rage * p.dmgPer)}%` + (hasSp('trait', 'fury') && bkFull() ? _t`・被ダメージ -${Math.round(p.armorCut * 100)}%(憤怒の鎧)` : '') + (hasSp('trait', 'grudge') ? _t`・HP回復速度 +${+(P.rage * p.burnK).toFixed(2)}/s(焼灼)` : ''), kind: 'buff' });
-      // 昂り: 段の数をまとめて 1つ(残り時間の表示は一番長く残る段。段ごとの残りは説明に)。死に物狂いの間は時間なしで最大
+      // 昂り: 段の数をまとめて 1つ(残り時間の表示は一番長く残る段。段ごとの残りは説明に)。死に物狂いの間は名前に出す
       const n = bkFervorN(), des = bkDesperate();
       if (n > 0) {
         const left = P.fervor.slice().sort((a, b) => b - a).map(v => v.toFixed(1));
-        out.push({ id: 'fervor', glyph: '昂', name: _t`昂り ${n}段` + (des ? _t('(死に物狂い)') : ''), kind: 'buff', max: bkFervorT(), t: des ? undefined : Math.max(...P.fervor),
-          fx: _t`攻撃力 +${pc(n * p.fervorAtk * fk)}%・HP回復速度 +${+(n * p.fervorRegen * fk).toFixed(2)}/s` + (hasSp('passive', 'zeal') ? _t`・クールダウン -${pc(n * p.fervorCd)}%` : '')
-            + (des ? _t`(HP ${Math.round(p.desperateAt * 100)}% 以下の間は常に最大)` : _t`(段ごとの残り ${left.join(' / ')}秒)`) });
+        out.push({ id: 'fervor', glyph: '昂', name: _t`昂り ${n}段` + (des ? _t('(死に物狂い)') : ''), kind: 'buff', max: bkFervorT(), t: Math.max(...P.fervor),
+          fx: _t`攻撃力 +${pc(n * p.fervorAtk * fk)}%・HP回復速度 +${+(n * p.fervorRegen * fk).toFixed(2)}/s` + (hasSp('passive', 'edge') ? _t`・クールダウン -${pc(n * p.fervorCd)}%` : '')
+            + _t`(段ごとの残り ${left.join(' / ')}秒)` });
       }
       if (P.firmT > 0) out.push({ id: 'firm', glyph: '屈', name: _t('不屈'), fx: _t`被ダメージ -${Math.round(p.firmDr * 100)}%・減速を受けない`, t: P.firmT, max: p.firmT, kind: 'buff' });
       if (P.frenzy) out.push({ id: 'frenzy', glyph: '狂', name: _t('狂乱'), fx: _t`怒りが上限のまま・与えるダメージ +${Math.round(q.dmg * 100)}%・攻撃速度 +${Math.round(q.atkSpd * 100)}%・HP回復速度 +${q.regen}/s・スタミナ 0`
@@ -4085,10 +4085,10 @@ const bkRageHit = () => cuV('trait', 'pain', BK().rageHit);                     
 const bkCalmT = () => BK().calmT + (P.lvFx.calmT || 0);                                    // 怒りが減り始めるまでの秒数(クラスLv3)
 const bkDecay = () => BK().decay * (1 - cuV('trait', 'grudge'));                           // 怒りが減る速さ(1秒あたり。執念で遅くなる)
 const bkFull = () => P.rage >= bkRageMax();                                                // 怒りが上限
-const bkFervorK = () => 1 + cuV('passive', 'zeal');                                        // 昂りの効果の倍率(熱狂)
+const bkDesperate = () => hasSp('passive', 'zeal') && P.hp <= P.maxhp * BK().desperateAt; // 死に物狂い: HP が少ないと昂りの効果アップ
+const bkFervorK = () => 1 + cuV('passive', 'zeal') + (bkDesperate() ? BK().desperateK : 0); // 昂りの効果の倍率(熱狂・死に物狂い)
 const bkFervorT = () => BK().fervorT + cuV('passive', 'field') + (P.lvFx.fervorT || 0);   // 昂りの時間(戦場・クラスLv8)
-const bkDesperate = () => hasSp('passive', 'edge') && P.hp <= P.maxhp * BK().desperateAt; // 死に物狂い: HP が少ないと昂りが常に最大
-const bkFervorN = () => (bkDesperate() ? BK().fervorMax : P.fervor.length);               // 効いている昂りの段数
+const bkFervorN = () => P.fervor.length;                                                  // 効いている昂りの段数
 const bkFirmCost = () => BK().firmCost - (P.lvFx.firmCut || 0);                            // 不屈のスタミナ(クラスLv6)
 const bkEyes = () => P.cls === 'berserker' && !!(P.frenzy || bkFull());                    // 目が赤く光る(怒りが上限・狂乱中)
 function bkRageAdd(n) {
