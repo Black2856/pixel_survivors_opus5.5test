@@ -382,32 +382,35 @@ WEAPON_SKILL.longsword = {
     return null;
   },
 };
-// 叩きつける: 使い手の位置から a.a の方向へ衝撃波(余震: 1.5秒後にもう一度)
+// 叩きつける: 使い手の位置から a.a の方向へ衝撃波(余震(威力の特殊強化): 1.5秒後にもう一度)
 function grandSlam(X, a) {
   const x0 = X.x, y0 = X.y;
   slamWaves(X, a, x0, y0, 1);
-  if (X.sp('cd')) setTimeout(() => { if (state === 'play') slamWaves(X, a, x0, y0, 0.6); }, 1500); // 余震
+  if (X.sp('pow')) setTimeout(() => { if (state === 'play') slamWaves(X, a, x0, y0, 0.6); }, 1500); // 余震
 }
-// 衝撃波を段ごとに時間差で前へ走らせる(1段 = 1回の E の攻撃)
+// 衝撃波を段ごとに時間差で前へ走らせる(1段 = 1回の E の攻撃)。吹き飛ばし(迅速)/ 堅牢(堅陣): 当たった敵 1体につきシールド(自分に入る)
 function slamWaves(X, a, x0, y0, k) {
-  const sk = DATA.weapons.longsword.skill, m = P.wm.longsword || {}, n = sk.steps + (m.eSteps || 0), fly = X.sp('guard'), crack = X.sp('pow');
+  const sk = DATA.weapons.longsword.skill, m = P.wm.longsword || {}, n = sk.steps + (m.eSteps || 0), fly = X.sp('cd'), firm = X.sp('guard');
   for (let i = 0; i < n; i++) setTimeout(() => {
     if (state !== 'play' || !P.weapons.longsword) return; // 遅れて走る間にランが変わったとき
     const d = sk.stepD * (i + 1) * X.area, x = x0 + Math.cos(a.a) * d, y = y0 + Math.sin(a.a) * d, R = sk.waveR * X.area, el = clsNextEl();
     const dmg = (wst('longsword').dmg * sk.pow * (1 + X.lv('pow')) * a.pow + shieldTotal()) * k; // シールドはそのまま足す
+    let hits = 0;
     asMine(() => {
       forEachNear(x, y, R, e => {
         if (e.prop) { killEnemy(e); return; }
         hitEnemy(e, dmg, { src: 'slam', ang: a.a, kb: fly ? 220 : 70, col: '#ffe9a0', el, eHit: true, cl: X.cl });
-        if (fly && !e.dead && missed !== e) e.stun = Math.max(e.stun || 0, 1.5); // 吹き飛ばし(外れた敵は止まらない)
+        if (missed === e) return; // 外れた敵は止まらず、数えない
+        hits++;
+        if (fly && !e.dead) e.stun = Math.max(e.stun || 0, 1.5); // 吹き飛ばし
       });
       addRing(x, y, R, '#ffe9a0', { w: 2, life: 0.3 }); addFlash(x, y, R * 2.4, '#fff1d0', 0.25);
       burst(x, y, 18, ['#8a7a60', '#5a4a3a', '#ffe9a0', '#ffffff'], { sp: 110, up: 50, g: 180, life: 0.6 }); // 岩の破片と土煙
       fxDecal(x, y + 2, R, 'crack', { n: 6, col: '#120a06', hot: '#ffd34a', heatT: 0.7, life: 2.5 }); // 叩き割られた地面(金色に光って冷える)
       if (i === n - 1) fxRays(x, y - 2, R * 1.7, '#d8a83a', { n: 14, life: 0.34, core: '#ffe9a0' }); // 最後の段: 光芒
       shockAt(x, y, 1, 1); shake(4 + i);
-      if (crack) zones.push({ kind: 'crack', x, y, r: R, t: 0, dur: 5, tick: 0.5, dmg: wst('longsword').dmg * 0.8, cl: X.cl }); // 地割れ
     });
+    if (firm && hits) timedShield(P.maxhp * sk.hitShield * hits, sk.shieldT); // 堅牢
     AudioMan.boom();
     if (i === n - 1 && k >= 1) AudioMan.impact();
   }, i * sk.gap * 1000);
@@ -1721,38 +1724,36 @@ const CLASS_RT = {
 
   knight: {
     skills: ['q'],
-    init() { P.guard = false; P.guardHeld = false; P.guardT = 0; P.breakT = 0; P.knGainT = -99; P.knAfterT = 0; P.knAfterF = 0; P.knRebuildT = 0; },
+    init() { P.guard = false; P.guardHeld = false; P.guardT = 0; P.breakT = 0; P.knGainT = -99; P.knRes = {}; },
     update(dt) {
       const p = KN();
       P.breakT -= dt;
-      // 大盾(Space 長押し)。構えた瞬間にスタミナ guardCost。押し直すまで再び構えない
-      const held = defHeld();
+      // 大盾(Space 長押し)。構えた瞬間にスタミナ guardCost(盤石で減る)。押し直すまで再び構えない
+      const held = defHeld(), cost = p.guardCost * knGuardK();
       if (held && !P.guard && !P.guardHeld && P.breakT <= 0) {
-        if (P.sta >= p.guardCost) { staUse(p.guardCost); P.guard = true; P.guardT = 0; AudioMan.click(); }
+        if (P.sta >= cost) { staUse(cost); P.guard = true; P.guardT = 0; AudioMan.click(); }
         else addFloat(P.x, P.y - 16, 'STAMINA', '#6a7a88');
       }
       P.guardHeld = held;
       if (!held && P.guard) P.guard = false;
       if (P.guard) P.guardT += dt;
       P.moveMul = P.guard ? p.guardSlow : 1;
-      // シールド: 1秒に今の量の decay ずつ減る(聖盾でシールドを得てから decayWait 秒は減らない)/ 上限を超えた分は削る
+      // シールド: 1秒に今の量の decay ずつ減る(聖盾でシールドを得てから decayWait 秒は減らない。減った分は還元の対象)/ 上限を超えた分は削る
       if (S.time - P.knGainT > p.decayWait && P.shield > 0) {
+        const s0 = P.shield;
         P.shield *= Math.exp(-knDecay() * dt);
         if (P.shield < 0.5) P.shield = 0;
+        knMend(s0 - P.shield);
       }
       const over = shieldTotal() - knCap();
       if (over > 0) P.shield = Math.max(0, P.shield - over);
-      if (P.knRebuildT && S.time >= P.knRebuildT) { // 再構築: 割れて rebuildT 秒後に上限の rebuild
-        P.knRebuildT = 0; knGain(knCap() * p.rebuild);
-        addRing(P.x, P.y, 18, '#f2c84b', { w: 2, life: 0.35 }); addFloat(P.x, P.y - 18, _t('再構築'), '#f2c84b', 1);
-      }
     },
-    // 被弾: 大盾を構えていれば全方向で受け止める(HP は減らない)。受けたダメージはシールドに変わる。構えていなければ鉄壁で減らす
+    // 被弾: 大盾を構えていれば全方向で受け止める(HP は減らない)。受けたダメージはシールドに変わる
     onHurt(dmg) {
       const p = KN();
-      if (P.breakT > 0 || !P.guard) return dmg * (1 - knWallDr());
+      if (P.breakT > 0 || !P.guard) return dmg;
       const blocked = Math.max(1, Math.round((dmg - P.armor) * (1 - P.dr)));
-      staUse(blocked * Math.max(0, p.pay - (P.lvFx.payCut || 0)), DATA.player.staLock);
+      staUse(blocked * Math.max(0, p.pay - (P.lvFx.payCut || 0)) * knGuardK(), DATA.player.staLock); // 盤石で減る
       holyGain(blocked * p.convert);
       if (hasSp('trait', 'convert')) { // 反射: 近くの敵に返す
         let best = null, bd = p.reflectR * p.reflectR;
@@ -1772,11 +1773,13 @@ const CLASS_RT = {
     },
     onMainHit() {},
     onSkill: slot => { if (slot === 'e') holyGain(P.maxhp * KN().skillGain); }, // E を使うとシールド(Q は構えの前に qStart で得る)
-    onShieldBreak() { if (hasSp('trait', 'keep') && !P.knRebuildT) P.knRebuildT = S.time + KN().rebuildT; }, // 再構築(待っている間は重ねない)
     shieldCap: () => knCap(),
     shieldGain: () => (hasSp('trait', 'cap') ? 1 + KN().sanctGain : 1), // 不滅の盾: 獲得量 +40%
     atkBonus: () => knHoldAtk(),
-    slowImmune: () => hasSp('passive', 'wall') && shieldTotal() >= 1, // 金剛: シールドがある間
+    // 被弾をシールドで受けるとき: 痛み分け(HP が shareAt より多いとき、シールドで受けるのは share だけ)・鉄壁(シールドの減る量)
+    shieldMod: () => ({ share: hasSp('passive', 'mend') && P.hp > P.maxhp * KN().shareAt ? KN().share : 1, k: 1 - cuV('passive', 'wall') }),
+    onShieldLoss: n => knMend(n), // 還元: 被弾で減ったシールド
+    resistDebuff: kind => knResist(kind), // 金剛
     qStart() {
       const q = DATA.classes.knight.q, a = aimDir(q.r * 1.5);
       if (Math.cos(a) !== 0) P.facing = Math.cos(a) < 0 ? -1 : 1;
@@ -1799,15 +1802,15 @@ const CLASS_RT = {
     res: () => ({ kind: 'shield', label: _t('シールド'), v: Math.floor(shieldTotal()), max: Math.max(1, Math.round(knCap())), dk: '#6a5a1a' }),
     staBroken: () => P.breakT > 0,
     statuses() {
-      const out = [], k = knHoldAtk(), w = knWallDr();
-      if (k > 0.005) out.push({ id: 'hold', glyph: '堅', name: _t('堅守'), fx: _t`攻撃力 +${Math.round(k * 100)}%(シールドの量に比例)` + (w > 0.005 ? _t` 被ダメージ -${Math.round(w * 100)}%` : ''), kind: 'buff' });
-      if (S.time < P.knAfterT) out.push({ id: 'after', glyph: '光', name: _t('残光'), fx: _t('堅守は審判の前のシールドの量で数える') + (hasSp('passive', 'after') ? _t('(凱歌 ×1.5)') : ''), t: P.knAfterT - S.time, max: cuV('passive', 'after'), kind: 'buff' });
+      const out = [], k = knHoldAtk();
+      if (k > 0.005) out.push({ id: 'hold', glyph: '堅', name: _t('堅守'), fx: _t`攻撃力 +${Math.round(k * 100)}%(シールドの量に比例)`, kind: 'buff' });
       if (P.breakT > 0) out.push({ id: 'break', glyph: '崩', name: _t('ガードブレイク'), fx: _t('ガード不可'), t: P.breakT, max: KN().breakT, kind: 'debuff' });
       return out;
     },
     qInfo: () => ({ name: DATA.classes.knight.q.name, glyph: '審' }),
     info(c) {
       const p = KN(), q = DATA.classes.knight.q, k = 1 + c.cuV('q', 'pow') + (c.lvFx.qPow || 0), capP = p.capPct + c.cuV('trait', 'cap') + (c.lvFx.capPct || 0);
+      const gk = c.hasSp('trait', 'keep') ? 1 - p.guardCut : 1, pay = Math.round((p.pay - (c.lvFx.payCut || 0)) * gk * 100); // 盤石
       return [
         { key: _t('特性'), name: _t('聖盾'), cat: 'trait', desc: [
           _t`大盾で受けたダメージの ${Math.round(p.convert * 100)}% がシールドになる`,
@@ -1822,8 +1825,8 @@ const CLASS_RT = {
           _t('  → 魔力障壁などほかのシールドも同じ扱い'),
         ], rows: [
           [_t('攻撃力(上限のとき)'), `<b>+${Math.round((c.cuV('passive', 'hold', p.holdAtk) + (c.lvFx.holdAtk || 0)) * 100)}%</b>`],
-          ...(c.cuV('passive', 'wall') ? [[_t('被ダメージ(上限のとき)'), `<b>-${Math.round(c.cuV('passive', 'wall') * 100)}%</b>`]] : []),
-          ...(c.cuV('passive', 'after') ? [[_t('残光'), _t`${c.cuV('passive', 'after')} 秒`]] : []),
+          ...(c.cuV('passive', 'wall') ? [[_t('シールドが受けるダメージ'), `<b>-${Math.round(c.cuV('passive', 'wall') * 100)}%</b>`]] : []),
+          ...(c.cuV('passive', 'mend') ? [[_t('還元'), _t`減ったシールドの <b>${Math.round(c.cuV('passive', 'mend') * 100)}%</b> を HP に`]] : []),
         ] },
         { key: 'Q', name: q.name, cat: 'q', desc: [
           _t`構え ${q.windup}秒 → シールドを全て消費し、前方の扇形に光の衝撃`,
@@ -1835,10 +1838,10 @@ const CLASS_RT = {
         ] },
         { key: 'Space', name: _t('大盾'), desc: [
           _t('長押しで大盾を構え、全方向の攻撃を受け止める(HP は減らない)'),
-          _t`構えた瞬間にスタミナ ${p.guardCost}。受けたダメージの ${Math.round((p.pay - (c.lvFx.payCut || 0)) * 100)}% をスタミナで払う`,
+          _t`構えた瞬間にスタミナ ${+(p.guardCost * gk).toFixed(2)}。受けたダメージの ${pay}% をスタミナで払う`,
           _t`構えている間は移動速度 ×${p.guardSlow}。スタミナ 0 でガードブレイク(${p.breakT}秒)`,
         ], rows: [
-          [_t('スタミナの払い'), `<b>${Math.round((p.pay - (c.lvFx.payCut || 0)) * 100)}%</b>`],
+          [_t('スタミナの払い'), `<b>${pay}%</b>`],
         ] },
       ];
     },
@@ -3247,6 +3250,19 @@ function archerVolley() {
 const KN = () => DATA.classes.knight.params;
 const knCap = () => P.maxhp * (KN().capPct + cuV('trait', 'cap') + (P.lvFx.capPct || 0));
 const knDecay = () => KN().decay * (1 - cuV('trait', 'keep')); // 1秒に減る割合(保持で下がる)
+const knGuardK = () => (hasSp('trait', 'keep') ? 1 - KN().guardCut : 1); // 盤石: 大盾のスタミナ(構え・払い)の倍率
+// 還元: 減ったシールド(被弾・時間で減った分。審判の消費は含まない)の一部を HP として回復する
+function knMend(n) { const k = cuV('passive', 'mend'); if (k && n > 0) heal(n * k, true); }
+// 金剛: シールドがある間、自分への状態異常を kongo の確率で無効にする。同じ種類は kongoT 秒、最初の判定を使う(毎フレーム付く減速などでも確率が効くように)
+function knResist(kind) {
+  if (!hasSp('passive', 'wall') || shieldTotal() < 1) return false;
+  const p = KN(), m = P.knRes, r = m[kind];
+  if (r && S.time < r.until) return r.ok;
+  const ok = Math.random() < p.kongo;
+  m[kind] = { until: S.time + p.kongoT, ok };
+  if (ok) { addRing(P.x, P.y, 14, '#f2c84b', { life: 0.25 }); addFloat(P.x, P.y - 18, _t('金剛'), '#f2c84b', 0.8); }
+  return ok;
+}
 // 自分のシールド(時間では消えない。上限まで)
 // 聖盾で得るシールド(大盾で受けた分・E / Q)。変換パスで増え、得てから decayWait 秒は減らない
 function holyGain(n) {
@@ -3260,23 +3276,17 @@ function knGain(n) {
   P.shield = Math.min(Math.max(0, knCap() - (P.oShield || 0)), (P.shield || 0) + n);
   S.hudDirty = true;
 }
-// 堅守(パッシブ): シールドの量(上限に対する割合)に比例して攻撃力アップ
-//   残光: 審判の後しばらくは、消費する前の割合と今の割合の大きい方で数える / 盾撃: 上限の ironAt 以上で ×ironMul / 凱歌: 残光の間 ×triumphMul
-const knShieldF = () => { const cap = knCap(), f = cap > 0 ? Math.min(1, shieldTotal() / cap) : 0; return S.time < P.knAfterT ? Math.max(f, P.knAfterF) : f; };
+// 堅守(パッシブ): シールドの量(上限に対する割合)に比例して攻撃力アップ。盾撃: 上限の ironAt 以上で ×ironMul
+const knShieldF = () => { const cap = knCap(); return cap > 0 ? Math.min(1, shieldTotal() / cap) : 0; };
 function knHoldAtk() {
   const p = KN(), f = knShieldF();
   let k = (cuV('passive', 'hold', p.holdAtk) + (P.lvFx.holdAtk || 0)) * f;
   if (hasSp('passive', 'hold') && f >= p.ironAt) k *= p.ironMul;
-  if (hasSp('passive', 'after') && S.time < P.knAfterT) k *= p.triumphMul;
   return k;
 }
-// 鉄壁: 被ダメージの軽減(シールドの量に比例。大盾で受けていないときだけ)
-const knWallDr = () => cuV('passive', 'wall') * knShieldF();
 // 聖盾の審判: シールドを全て消費して、前方の扇形(全周)に光の衝撃
 function knightVerdict(a) {
   const q = DATA.classes.knight.q, used = Math.floor(shieldTotal());
-  const after = cuV('passive', 'after'); // 残光: 消費する前の割合を after 秒 残す
-  if (after) { P.knAfterF = knShieldF(); P.knAfterT = S.time + after; }
   P.shield = 0; P.oShield = 0; P.oChunks = []; S.hudDirty = true; // 消費(割れた扱いにはしない)
   const full = hasSp('q', 'area'), holy = hasSp('q', 'pow');
   const pow = (q.pow + used * q.perShield * (full ? 1.5 : 1)) * (1 + cuV('q', 'pow') + (P.lvFx.qPow || 0)); // 全周: シールド分 +50%
@@ -4409,7 +4419,10 @@ function clsOnEHit(e, dealt) { if (clsRT() && clsRT().onEHit) clsRT().onEHit(e, 
 // 敵ごとの補正(アーチャーの印・弱点露出・集中など)
 const clsShieldGain = () => (clsRT() && clsRT().shieldGain ? clsRT().shieldGain() : 1); // シールドの獲得量の倍率
 const clsShieldCap = () => (clsRT() && clsRT().shieldCap ? clsRT().shieldCap() : P.maxhp);  // シールドの上限
-function clsOnShieldBreak() { if (clsRT() && clsRT().onShieldBreak) clsRT().onShieldBreak(); } // シールドが割れた
+const SHIELD_MOD0 = { share: 1, k: 1 };
+const clsShieldMod = () => (clsRT() && clsRT().shieldMod ? clsRT().shieldMod() : SHIELD_MOD0); // 被弾をシールドで受けるとき: share = シールドで受ける割合 / k = 受けた 1 につき減る量
+function clsOnShieldLoss(n) { if (clsRT() && clsRT().onShieldLoss) clsRT().onShieldLoss(n); } // 被弾でシールドが減った(ナイトの還元)
+const clsResistDebuff = kind => !!(clsRT() && clsRT().resistDebuff && clsRT().resistDebuff(kind)); // 自分への状態異常をクラスが無効にした(ナイトの金剛)
 const clsDmgTaken = (e, o) => (clsRT() && clsRT().dmgTaken ? clsRT().dmgTaken(e, o) : 1);
 // 武器スキルによる敵の被ダメージ(侵蝕・次元歪みなど。どれも敵に付いた印で決まるので、メイン武器に限らず全て掛ける)
 const WS_TAKEN = Object.values(WEAPON_SKILL).filter(w => w.dmgTaken), WS_TICK = Object.values(WEAPON_SKILL).filter(w => w.tick);

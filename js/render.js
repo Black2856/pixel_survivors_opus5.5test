@@ -1063,13 +1063,6 @@ function render() {
       sx.globalAlpha = 0.8 * fade; pCircle(sx, zx, zy, Math.round(z.r), '#ffffff', 2); sx.globalAlpha = 1;
       gx.globalAlpha = 0.25 * fade; pCircle(gx, zx, zy, Math.round(z.r), '#bff4ff'); gx.globalAlpha = 1;
       addLight(z.x, z.y, z.r * 2.2, '#7ad7ff', 0.6 * fade);
-    } else if (z.kind === 'crack') {
-      sx.globalAlpha = 0.35 * fade; pDisc(sx, zx, zy, Math.round(z.r * 0.8), '#1a1008'); sx.globalAlpha = 1;
-      for (let i = 0; i < 5; i++) { // 放射状の割れ目(光る)
-        const a = i * 1.26 + 0.4;
-        for (let d = 2; d < z.r * 0.8; d += 1) { const x = Math.round(zx + Math.cos(a + Math.sin(d * 0.5) * 0.2) * d), y = Math.round(zy + Math.sin(a + Math.sin(d * 0.5) * 0.2) * d * 0.6); gx.globalAlpha = 0.7 * fade; gx.fillStyle = '#ffb347'; gx.fillRect(x, y, 1, 1); }
-      }
-      gx.globalAlpha = 1;
     } else if (z.kind === 'rain') {
       drawArrowRain(z, zx, zy, t);
     } else if (z.kind === 'pillar') { // 光の柱: 天から一瞬で降りて太くなり、細くなって消える。外の金の光 → 淡い帯 → 白い芯。足元に光の輪が広がり、光の粒が昇る
