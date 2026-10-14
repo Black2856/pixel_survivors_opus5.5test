@@ -245,13 +245,13 @@ const DATA = {
       shock: 0.3, // 落雷が当たった敵に感電 30%(進化で 2回)
       // 武器スキル(E)グラビティスパーク: 構え windup 秒(動けない)→ 照準位置(range まで)の半径 pullR の敵を中心へ 1回大きく引き寄せ(ボス以外)
       //   → boomT 秒後に半径 boomR で爆発(武器の威力 × pow、感電 shock)/ 超電磁: スタン stun 秒(ボス bossStun)
-      //   残留磁場: fieldT 秒 弱い引き寄せ(fieldPull)/ 二重重力: againT 秒後にもう一度(威力 againK)
+      //   雷雨: 使った後 stormT 秒、サンダーの落雷の回数 ×2 / 二重重力: againT 秒後にもう一度(威力 againK)
       skill: {
         name: 'グラビティスパーク', cd: 18, windup: 0.3, range: 200, pullR: 90, boomR: 40, boomT: 0.22, pow: 4, shock: 0.3, radius: 90,
-        stun: 1.5, bossStun: 0.5, fieldT: 3, fieldPull: 40, againT: 0.6, againK: 0.6,
+        stun: 1.5, bossStun: 0.5, stormT: 5, againT: 0.6, againK: 0.6,
         tree: { name: 'グラビティスパーク', paths: {
-          pow:  { name: '威力', desc: ['グラビティスパークの威力 +30%', 'グラビティスパークの威力 +60%', 'グラビティスパークの威力 +100%'], v: [0.3, 0.6, 1.0], sp: { name: '超電磁', desc: '爆発した敵を 1.5秒スタンさせる' } },
-          cd:   { name: '迅速', desc: ['グラビティスパークのCD -10%', 'グラビティスパークのCD -20%', 'グラビティスパークのCD -30%'], v: [0.1, 0.2, 0.3], sp: { name: '残留磁場', desc: '爆発の後、3秒間 その場に弱い引き寄せが残る' } },
+          pow:  { name: '威力', desc: ['グラビティスパークの威力 +30%', 'グラビティスパークの威力 +60%', 'グラビティスパークの威力 +100%'], v: [0.3, 0.6, 1.0], sp: { name: '超電磁', desc: 'ヒットした敵を 1.5秒スタンさせる' } },
+          cd:   { name: '迅速', desc: ['グラビティスパークのCD -10%', 'グラビティスパークのCD -20%', 'グラビティスパークのCD -30%'], v: [0.1, 0.2, 0.3], sp: { name: '雷雨', desc: '使った後 5秒間、サンダーの落雷の回数 ×2' } },
           area: { name: '範囲', desc: ['引き寄せ・爆発の半径 +15%', '引き寄せ・爆発の半径 +30%', '引き寄せ・爆発の半径 +50%'], v: [0.15, 0.3, 0.5], sp: { name: '二重重力', desc: '0.6秒後にもう一度 引き寄せて爆発する(威力 60%)' } },
         } },
       },
@@ -964,33 +964,34 @@ const DATA = {
       },
       // 帯電: 感電が起きるたびに +1(上限 max)。perChain ごとに感電の連鎖 +1。decayWait 秒 感電がないと decay/s で減る
       //   放電: E / Q を使うと帯電の use を消費し、その発動の命中に感電 disShock(消費 1 につき +disPer)。放電の感電では帯電は増えない
-      //   過電流: 帯電が max 以上で クリティカルダメージ +overCrit / 収束: 連鎖数 ×focusN、感電ダメージ ×focusDmg / 再充電: 消費の recharge を rechargeT 秒で戻す
-      // 雷纏い: E / Q を使うと wearT 秒。全武器の命中に感電 wearShock / 雷光: 纏っている間 感電ダメージ +flash / 静電気: 敵の弾を static で消す / 雷鳴: クリティカルで帯電 +1
+      //   過電流: 放電の消費 1 につき +overPer(disPer の代わり)/ 収束: 連鎖数 ×focusN、感電ダメージ ×focusDmg / 再充電: 消費の recharge を rechargeT 秒で戻す
+      // 雷纏い: E / Q を使うと wearT 秒。全武器の命中に感電 wearShock / 雷光: 纏っている間 感電ダメージ +flash
+      //   雷原: 纏っている間に感電で敵を倒すと +extendT 秒(1回の纏いで extendMax まで)/ 充電: 纏っている間 攻撃速度アップ / 静電気: 纏っている間 敵の弾を static で消す
       // 雷走: 移動方向へ dashDist を dashTime 秒で駆け抜ける(無敵 dashIfr 秒、スタミナ dashCost)。通った敵に dashPow と感電 dashShock
       params: {
-        max: 100, perChain: 20, decayWait: 3, decay: 10, use: 0.25, disShock: 0.2, disPer: 0.05, overCrit: 0.5, focusN: 0.5, focusDmg: 2, recharge: 0.3, rechargeT: 3,
-        wearT: 4, wearShock: 0.1, flash: 0.4, static: 0.2,
+        max: 100, perChain: 20, decayWait: 3, decay: 10, use: 0.25, disShock: 0.2, disPer: 0.03, overPer: 0.05, focusN: 0.5, focusDmg: 2, recharge: 0.3, rechargeT: 3,
+        wearT: 4, wearShock: 0.1, flash: 0.4, extendT: 0.1, extendMax: 3, static: 0.5,
         dashDist: 90, dashTime: 0.12, dashIfr: 0.2, dashCost: 80, dashPow: 20, dashShock: 0.5, dashR: 14,
       },
       // 鉄塔(Q): 構え windup 秒 → 画面内のランダムな位置に n 本。落ちた瞬間に半径 landR へ landPow
-      //   dur 秒間、every 秒ごとに半径 r の敵 1体へ 基礎威力 pow と感電 shock / 過充電: 消えるときに boomPow(半径 boomR)
-      //   避雷針: 鉄塔の近く(r)で起きた感電は連鎖 +1 / 送電線: 近い鉄塔どうしの線に触れた敵へ wireEvery 秒ごとに wirePow
-      q: { name: '鉄塔', cd: 30, windup: 0.4, n: 3, landR: 30, landPow: 120, dur: 8, every: 1, r: 70, pow: 80, shock: 0.3, boomPow: 200, boomR: 40, wirePow: 40, wireEvery: 0.5, wireW: 6 },
+      //   dur 秒間、every 秒ごとに半径 r の敵 1体へ 基礎威力 pow と感電 shock / 大鉄塔: 自分の場所に 1本だけ(威力 × 本数 × bigK、半径 × bigR)
+      //   避雷針: 鉄塔の近く(r)で起きた感電は連鎖 +1・感電ダメージ +rodDmg / 送電線: 自分と鉄塔をつなぐ線に触れた敵へ wireEvery 秒ごとに wirePow
+      q: { name: '鉄塔', cd: 30, windup: 0.4, n: 3, landR: 30, landPow: 120, dur: 8, every: 1, r: 70, pow: 80, shock: 0.3, bigK: 0.7, bigR: 2, rodDmg: 0.3, wirePow: 40, wireEvery: 0.5, wireW: 6 },
       tree: {
         trait: { name: '帯電', paths: {
-          store:  { name: '蓄電', desc: ['放電で消費する帯電 25% → 30%', '放電で消費する帯電 35%', '放電で消費する帯電 40%'], v: [0.3, 0.35, 0.4], sp: { name: '過電流', desc: '帯電が上限(100)以上の間、クリティカルダメージ +50%' } },
+          store:  { name: '放電', desc: ['放電で消費する帯電 25% → 40%', '放電で消費する帯電 55%', '放電で消費する帯電 80%'], v: [0.4, 0.55, 0.8], sp: { name: '過電流', desc: '放電の感電ダメージが、消費した帯電 1 につき +3% → +5% になる' } },
           conduct: { name: '伝導', desc: ['感電の連鎖距離 +20%', '感電の連鎖距離 +40%', '感電の連鎖距離 +60%'], v: [0.2, 0.4, 0.6], sp: { name: '収束', desc: '感電の連鎖数 -50%、感電ダメージ +100%' } },
-          cap:    { name: '放電', desc: ['帯電の上限 +10', '帯電の上限 +20', '帯電の上限 +40'], v: [10, 20, 40], sp: { name: '再充電', desc: '放電で消費した帯電の 30% を 3秒かけて戻す' } },
+          cap:    { name: '蓄電', desc: ['帯電の上限 +10', '帯電の上限 +20', '帯電の上限 +40'], v: [10, 20, 40], sp: { name: '再充電', desc: '放電で消費した帯電の 30% を 3秒かけて戻す' } },
         } },
         passive: { name: '雷纏い', paths: {
           shock:  { name: '付与', desc: ['雷纏いの感電 10% → 12.5%', '雷纏いの感電 15%', '雷纏いの感電 20%'], v: [0.125, 0.15, 0.2], sp: { name: '雷光', desc: '纏っている間、感電ダメージ +40%' } },
-          wear:   { name: '持続', desc: ['纏う時間 4秒 → 5秒', '纏う時間 6秒', '纏う時間 7.5秒'], v: [5, 6, 7.5], sp: { name: '静電気', desc: '纏っている間、敵の弾が自分に当たる前に 20% で消える' } },
-          charge: { name: '充電', desc: ['纏っている間、帯電の獲得 +30%', '纏っている間、帯電の獲得 +60%', '纏っている間、帯電の獲得 +100%'], v: [0.3, 0.6, 1.0], sp: { name: '雷鳴', desc: 'クリティカルしたとき、帯電 +1' } },
+          wear:   { name: '持続', desc: ['纏う時間 4秒 → 5秒', '纏う時間 6秒', '纏う時間 7.5秒'], v: [5, 6, 7.5], sp: { name: '雷原', desc: '纏っている間に感電で敵を倒すと、纏う時間 +0.1秒(1回の纏いで最大 +3秒)' } },
+          charge: { name: '充電', desc: ['纏っている間、全武器の攻撃速度 +10%', '纏っている間、全武器の攻撃速度 +20%', '纏っている間、全武器の攻撃速度 +30%'], v: [0.1, 0.2, 0.3], sp: { name: '静電気', desc: '纏っている間、敵の弾が自分に当たる前に 50% で消える' } },
         } },
         q: { name: '鉄塔', need: 'q', paths: {
-          pow:  { name: '威力', desc: ['鉄塔の威力 +30%', '鉄塔の威力 +60%', '鉄塔の威力 +100%'], v: [0.3, 0.6, 1.0], sp: { name: '過充電', desc: '鉄塔が消えるときに爆発する(基礎威力 200、半径 40)' } },
-          cd:   { name: '迅速', desc: ['鉄塔のCD -10%', '鉄塔のCD -20%', '鉄塔のCD -30%'], v: [0.1, 0.2, 0.3], sp: { name: '避雷針', desc: '鉄塔の近くで起きた感電は連鎖 +1' } },
-          n:    { name: '本数', desc: ['鉄塔 +1本', '鉄塔 +2本', '鉄塔 +3本'], v: [1, 2, 3], sp: { name: '送電線', desc: '近い鉄塔どうしを雷の線がつなぎ、線に触れた敵に 0.5秒ごとに基礎威力 40' } },
+          pow:  { name: '威力', desc: ['鉄塔の威力 +30%', '鉄塔の威力 +60%', '鉄塔の威力 +100%'], v: [0.3, 0.6, 1.0], sp: { name: '大鉄塔', desc: '鉄塔を自分の場所に 1本だけ落とす。威力 × 本数 × 70%、半径 ×2' } },
+          cd:   { name: '迅速', desc: ['鉄塔のCD -10%', '鉄塔のCD -20%', '鉄塔のCD -30%'], v: [0.1, 0.2, 0.3], sp: { name: '避雷針', desc: '鉄塔の近くで起きた感電は連鎖 +1、感電ダメージ +30%' } },
+          n:    { name: '本数', desc: ['鉄塔 +1本', '鉄塔 +2本', '鉄塔 +3本'], v: [1, 2, 3], sp: { name: '送電線', desc: '自分と鉄塔を雷の線がつなぎ、線に触れた敵に 0.5秒ごとに基礎威力 40' } },
         } },
       },
     },

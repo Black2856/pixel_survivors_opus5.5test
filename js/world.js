@@ -798,7 +798,7 @@ function weaponFire(k, w, st, o) {
       return true;
     }
     case 'thunder': {
-      const ts = randomTargets((st.strikes || 1) + P.shots);
+      const ts = randomTargets(((st.strikes || 1) + P.shots) * (S.time < (P.stormT || 0) ? 2 : 1)); // 雷雨(グラビティスパークの後): 回数 ×2
       if (!ts.length) return false;
       ts.forEach((t, i) => setTimeout(() => state === 'play' && strike(t.x, t.y, st, w.evo), i * 70));
       return true;
@@ -1245,7 +1245,7 @@ function updZones(dt) {
       if (d2(P.x, P.y, z.x, z.y) < z.r * z.r) heal(DATA.weapons.aura.skill.rainHeal * dt, true);
       if (Math.random() < dt * 12) part(z.x + rand(-z.r, z.r) * 0.7, z.y + rand(-z.r, z.r) * 0.5, 0, -rand(10, 25), 0.6, pick(['#ffe38a', '#fff6d8']), { glow: true });
     } else if (z.kind === 'pillar') { // 光の柱(見た目だけ)
-    } else if (z.kind === 'gspark') { // グラビティスパーク: 最初に1回大きく引き寄せ → 爆発(残留磁場: その後も弱く引き寄せる)
+    } else if (z.kind === 'gspark') { // グラビティスパーク: 最初に1回大きく引き寄せ → 爆発
       if (!z.pulled) {
         z.pulled = true;
         forEachNear(z.x, z.y, z.r, e => { if (e.boss || e.prop) return; const k = 8 * (1 - (e.kbRes || 0) * 0.5); e.kx += (z.x - e.x) * k; e.ky += (z.y - e.y) * k; });
@@ -1271,54 +1271,33 @@ function updZones(dt) {
         });
         AudioMan.boom(); AudioMan.zap();
       }
-      if (z.field && z.boomed) forEachNear(z.x, z.y, z.r, e => { // 残留磁場
-        if (e.boss || e.prop || e.obj) return; // ボスが出した物は動かない
-        const a = Math.atan2(z.y - e.y, z.x - e.x), dd = Math.sqrt(d2(z.x, z.y, e.x, e.y)), k = Math.min(dd, DATA.weapons.thunder.skill.fieldPull * dt);
-        e.x += Math.cos(a) * k; e.y += Math.sin(a) * k;
-      });
-    } else if (z.kind === 'tower') { // 鉄塔: every 秒ごとに近くの敵 1体へ放電 / 送電線 / 過充電
+    } else if (z.kind === 'tower') { // 鉄塔: every 秒ごとに近くの敵 1体へ放電 / 送電線
+      const top = z.y - (z.big ? 31 : 21); // 先端の球
       if (z.tick <= 0) {
         z.tick = DATA.classes.electro.q.every;
         const tg = nearestEnemy(z.x, z.y, z.r);
         if (tg) asMine(() => {
           const dealt = hitEnemy(tg, z.pow, { src: 'tower', ang: Math.atan2(tg.y - z.y, tg.x - z.x), kb: 20, col: '#fff27a' });
           if (dealt) { addShock(tg, dealt, z.shock); if (z.dis) addShock(tg, dealt, z.dis, { noCharge: true }); }
-          bolts.push({ x0: z.x, y0: z.y - 21, x1: tg.x, y1: tg.y, t: 0, life: 0.18, w: 2 });
+          bolts.push({ x0: z.x, y0: top, x1: tg.x, y1: tg.y, t: 0, life: 0.18, w: z.big ? 3 : 2 });
           addFlash(tg.x, tg.y, 30, '#fff27a', 0.2);
         });
         if (tg) AudioMan.zap();
       }
-      if (z.wire) { // 送電線: 同じ Q の鉄塔のうち一番近いものと線でつなぐ(自分より後の鉄塔とだけ)
+      if (z.wire) { // 送電線: 自分と鉄塔を線でつなぐ
         z.wireT -= dt;
         if (z.wireT <= 0) {
           z.wireT = DATA.classes.electro.q.wireEvery;
-          const others = zones.filter(o => o !== z && o.kind === 'tower' && o.id === z.id);
-          let nb = null, nd = Infinity;
-          for (const o of others) { const d = d2(o.x, o.y, z.x, z.y); if (d < nd) { nd = d; nb = o; } }
-          z.link = nb;
-          if (nb && zones.indexOf(nb) > zones.indexOf(z)) {
-            const W = DATA.classes.electro.q.wireW, ax = z.x, ay = z.y - 18, bx = nb.x, by = nb.y - 18, L2 = (bx - ax) ** 2 + (by - ay) ** 2 || 1;
-            asMine(() => forEachNear((ax + bx) / 2, (ay + by) / 2, Math.sqrt(L2) / 2 + W, e => {
-              if (e.prop) return;
-              const u = clamp(((e.x - ax) * (bx - ax) + (e.y - ay) * (by - ay)) / L2, 0, 1), px = ax + (bx - ax) * u, py = ay + (by - ay) * u;
-              if (d2(e.x, e.y, px, py) < W * W) hitEnemy(e, z.wire, { src: 'tower', noNum: Math.random() < 0.6, col: '#fff27a' });
-            }));
-          }
+          const W = DATA.classes.electro.q.wireW, ax = z.x, ay = top + 3, bx = P.x, by = P.y - 8, L2 = (bx - ax) ** 2 + (by - ay) ** 2 || 1;
+          asMine(() => forEachNear((ax + bx) / 2, (ay + by) / 2, Math.sqrt(L2) / 2 + W, e => {
+            if (e.prop) return;
+            const u = clamp(((e.x - ax) * (bx - ax) + (e.y - ay) * (by - ay)) / L2, 0, 1), px = ax + (bx - ax) * u, py = ay + (by - ay) * u;
+            if (d2(e.x, e.y, px, py) < W * W) hitEnemy(e, z.wire, { src: 'tower', noNum: Math.random() < 0.6, col: '#fff27a' });
+          }));
         }
       }
-      if (Math.random() < dt * 6) bolts.push({ x0: z.x, y0: z.y - 21, x1: z.x + rand(-6, 6), y1: z.y - 21 + rand(-6, 2), t: 0, life: 0.06, w: 1 }); // 先端の火花
-      if (z.t + dt >= z.dur && !z.done) {
-        z.done = true;
-        if (z.boom) { // 過充電
-          const R = DATA.classes.electro.q.boomR * P.area;
-          asMine(() => {
-            forEachNear(z.x, z.y, R, e => { if (!e.prop) hitEnemy(e, z.boom, { src: 'tower', ang: Math.atan2(e.y - z.y, e.x - z.x), kb: 90, col: '#fff27a' }); });
-            addFlash(z.x, z.y, R * 3, '#fff27a', 0.4); addRing(z.x, z.y, R, '#ffffff', { w: 3, life: 0.4 });
-            burst(z.x, z.y, 30, ['#fff27a', '#ffffff', '#9fd8ff'], { sp: 150, glow: true, life: 0.45 }); shockAt(z.x, z.y, 1.3, 1); shake(5);
-          });
-          AudioMan.boom();
-        } else asMine(() => burst(z.x, z.y - 10, 12, ['#8a8098', '#fff27a'], { sp: 60, up: 20, life: 0.4 }));
-      }
+      if (Math.random() < dt * 6) bolts.push({ x0: z.x, y0: top, x1: z.x + rand(-6, 6), y1: top + rand(-6, 2), t: 0, life: 0.06, w: 1 }); // 先端の火花
+      if (z.t + dt >= z.dur && !z.done) { z.done = true; asMine(() => burst(z.x, z.y - 10, z.big ? 20 : 12, ['#8a8098', '#fff27a'], { sp: 60, up: 20, life: 0.4 })); } // 崩れる
     } else if (z.kind === 'icicle') { // アイシクルフォール: every 秒ごとに1本。範囲内の敵を狙う(いなければランダムな位置)
       for (const ic of z.ices) ic.t += dt;
       z.acc += dt;

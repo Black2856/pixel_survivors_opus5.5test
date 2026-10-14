@@ -891,11 +891,13 @@ WEAPON_SKILL.thunder = {
       return;
     }
     gravitySpark(ME, a.x, a.y, a.pow, 1, hasSp('e', 'area'));
+    if (hasSp('e', 'cd')) P.stormT = S.time + sk.stormT; // 雷雨
     P.act = null;
   },
   cast(X, a) {
-    const t = X.tgt(DATA.weapons.thunder.skill.range * X.range);
+    const sk = DATA.weapons.thunder.skill, t = X.tgt(sk.range * X.range);
     gravitySpark(X, t.x, t.y, a.pow, 1, X.sp('area'));
+    if (X.sp('cd')) P.stormT = S.time + sk.stormT; // 雷雨(自分のサンダーに効く)
     return null;
   },
 };
@@ -903,7 +905,7 @@ WEAPON_SKILL.thunder = {
 function gravitySpark(X, x, y, pow, k, again) {
   const sk = DATA.weapons.thunder.skill, m = P.wm.thunder || {}, ar = (1 + X.lv('area')) * X.area;
   zones.push({ kind: 'gspark', x, y, r: sk.pullR * ar * (1 + (m.eArea || 0)), boomR: sk.boomR * ar, t: 0, tick: 0, pulled: false, boomed: false,
-    dur: X.sp('cd') ? sk.boomT + sk.fieldT : sk.boomT + 0.15, dmg: wst('thunder').dmg * sk.pow * (1 + X.lv('pow')) * pow * k, field: X.sp('cd'), stun: X.sp('pow'), cl: X.cl });
+    dur: sk.boomT + 0.15, dmg: wst('thunder').dmg * sk.pow * (1 + X.lv('pow')) * pow * k, stun: X.sp('pow'), cl: X.cl });
   if (again) setTimeout(() => { if (state === 'play' && P.weapons.thunder) gravitySpark(X, x, y, pow, sk.againK, false); }, sk.againT * 1000); // 二重重力
   AudioMan.zap();
 }
@@ -2062,10 +2064,11 @@ const CLASS_RT = {
   },
   electro: {
     skills: ['q'],
-    init() { P.charge = 0; P.chargeT = -99; P.elT = 0; P.dash = null; P.dashHeld = false; P.recharge = null; P.elDis = {}; P.dashHit = null; },
+    init() { P.charge = 0; P.chargeT = -99; P.elT = 0; P.elExt = 0; P.dash = null; P.dashHeld = false; P.recharge = null; P.elDis = {}; P.dashHit = null; },
     update(dt) {
       const p = EL();
       P.elT = Math.max(0, P.elT - dt);
+      P.atkSpd = 1 + (P.elT > 0 ? cuV('passive', 'charge') : 0); // 充電: 纏っている間の攻撃速度
       // 帯電: 感電が decayWait 秒起きないと減る / 再充電で少しずつ戻る
       if (S.time - P.chargeT > p.decayWait && P.charge > 0) { P.charge = Math.max(0, P.charge - p.decay * dt); S.hudDirty = true; }
       if (P.recharge) { const g = Math.min(P.recharge.left, P.recharge.rate * dt); P.recharge.left -= g; P.charge = Math.min(elMax(), P.charge + g); if (P.recharge.left <= 0.01) P.recharge = null; }
@@ -2092,16 +2095,18 @@ const CLASS_RT = {
     // E / Q を使うと纏う + 放電(帯電を消費して、その発動の命中に強い感電)
     onSkill(slot) { elWear(); P.elDis[slot] = elDischarge(); },
     onEHit(e, dealt) { if (P.elDis.e && dealt) addShock(e, dealt, P.elDis.e, { noCharge: true }); }, // 放電(E)
-    // 雷纏い: 全武器の命中に感電 / 雷鳴: クリティカルで帯電 +1
-    onWeaponHit(e, dmg, crit) {
-      if (crit && hasSp('passive', 'charge')) elGain(1, true);
+    // 雷纏い: 全武器の命中に感電
+    onWeaponHit(e, dmg) {
       if (P.elT > 0 && !e.dead) addShock(e, dmg, cuV('passive', 'shock', EL().wearShock) + (P.lvFx.wearShock || 0));
     },
     shockMod: e => elShockMod(e),
     shockOrigin: true, // 帯電: 感電は起点の敵(攻撃が当たった敵)にも入る
     onShock(o) { P.chargeT = S.time; if (!o.noCharge) elGain(1); },
-    critDmgBonus: () => (hasSp('trait', 'store') && P.charge >= elMax() ? EL().overCrit : 0), // 過電流
-    blockProj: () => P.elT > 0 && hasSp('passive', 'wear') && Math.random() < EL().static, // 静電気
+    blockProj: () => P.elT > 0 && hasSp('passive', 'charge') && Math.random() < EL().static, // 静電気
+    onKill(e, o) { // 雷原: 纏っている間に感電で倒すと纏う時間が延びる
+      const p = EL();
+      if (o && o.src === 'shock' && P.elT > 0 && hasSp('passive', 'wear') && P.elExt < p.extendMax) { const add = Math.min(p.extendT, p.extendMax - P.elExt); P.elT += add; P.elExt += add; }
+    },
     atkBonus: () => 0,
     qStart() {
       const q = DATA.classes.electro.q;
@@ -2124,13 +2129,14 @@ const CLASS_RT = {
     staBroken: () => false,
     statuses() {
       const out = [], n = Math.floor(P.charge / EL().perChain);
-      if (n > 0) out.push({ id: 'charge', glyph: '電', name: _t`帯電 ${Math.floor(P.charge)}`, fx: _t`感電の連鎖 +${n}` + (hasSp('trait', 'store') && P.charge >= elMax() ? _t(' クリティカルダメージ +50%') : ''), kind: 'buff' });
-      if (P.elT > 0) out.push({ id: 'elwear', glyph: '雷', name: _t('雷纏い'), fx: _t`全武器に感電 ${Math.round((cuV('passive', 'shock', EL().wearShock) + (P.lvFx.wearShock || 0)) * 100)}%`, t: P.elT, max: Math.max(P.elT, elWearDur()), kind: 'buff' });
+      if (n > 0) out.push({ id: 'charge', glyph: '電', name: _t`帯電 ${Math.floor(P.charge)}`, fx: _t`感電の連鎖 +${n}`, kind: 'buff' });
+      if (P.elT > 0) out.push({ id: 'elwear', glyph: '雷', name: _t('雷纏い'), fx: _t`全武器に感電 ${Math.round((cuV('passive', 'shock', EL().wearShock) + (P.lvFx.wearShock || 0)) * 100)}%` + (cuV('passive', 'charge') ? _t` 攻撃速度 +${Math.round(cuV('passive', 'charge') * 100)}%` : ''), t: P.elT, max: Math.max(P.elT, elWearDur()), kind: 'buff' });
       return out;
     },
     qInfo: () => ({ name: DATA.classes.electro.q.name, glyph: '塔' }),
     info(c) {
       const p = EL(), q = DATA.classes.electro.q, k = 1 + c.cuV('q', 'pow') + (c.lvFx.qPow || 0);
+      const big = c.hasSp('q', 'pow'), nT = q.n + c.cuV('q', 'n'), kq = big ? k * nT * q.bigK : k; // 大鉄塔: 1本に本数分の威力
       return [
         { key: _t('特性'), name: _t('帯電'), cat: 'trait', desc: [
           _t`感電が起きるたびに帯電 +1。帯電 ${p.perChain} につき感電の連鎖 +1`,
@@ -2140,7 +2146,7 @@ const CLASS_RT = {
         ], rows: [
           [_t('帯電の上限'), `${p.max + c.cuV('trait', 'cap')}`],
           [_t('放電で消費する帯電'), `<b>${Math.round(c.cuV('trait', 'store', p.use) * 100)}%</b>`],
-          [_t('放電の感電'), `${Math.round(p.disShock * 100)}%`, _t`消費した帯電 1 につき感電ダメージ +${Math.round(p.disPer * 100)}%`],
+          [_t('放電の感電'), `${Math.round(p.disShock * 100)}%`, _t`消費した帯電 1 につき感電ダメージ +${Math.round((c.hasSp('trait', 'store') ? p.overPer : p.disPer) * 100)}%`],
         ] },
         { key: _t('パッシブ'), name: _t('雷纏い'), cat: 'passive', desc: [
           _t('E / Q を使うと、雷を纏う(使うたびに時間が戻る)'),
@@ -2155,8 +2161,8 @@ const CLASS_RT = {
           _t('放電は使ったときに1回。この Q の攻撃すべてに放電の感電が乗る'),
         ], rows: [
           ['CD', _t`<b>${(q.cd * (1 - c.cuV('q', 'cd')) * c.cdMul).toFixed(1)}</b> 秒`],
-          [_t('鉄塔'), _t`${q.n + c.cuV('q', 'n')} 本`],
-          [_t('落雷 / 放電の威力'), `${Math.round(q.landPow * k)} / ${Math.round(q.pow * k)} → <b>${Math.round(q.landPow * k * c.atkMul)} / ${Math.round(q.pow * k * c.atkMul)}</b>`],
+          [_t('鉄塔'), big ? _t('1 本(大鉄塔)') : _t`${nT} 本`],
+          [_t('落雷 / 放電の威力'), `${Math.round(q.landPow * kq)} / ${Math.round(q.pow * kq)} → <b>${Math.round(q.landPow * kq * c.atkMul)} / ${Math.round(q.pow * kq * c.atkMul)}</b>`],
         ] },
         { key: 'Space', name: _t('雷走'), desc: [
           _t`移動方向へ ${p.dashDist} 駆け抜ける(${p.dashIfr}秒 無敵)`,
@@ -3493,22 +3499,22 @@ const EL = () => DATA.classes.electro.params;
 const elMax = () => EL().max + cuV('trait', 'cap');
 const elWearDur = () => cuV('passive', 'wear', EL().wearT);
 const dashCost = () => EL().dashCost - (P.lvFx.dashCut || 0);
-// 帯電を得る(雷纏いの充電で増える。raw: そのまま)
-function elGain(n, raw) {
-  if (!raw && P.elT > 0) n *= 1 + cuV('passive', 'charge');
+// 帯電を得る
+function elGain(n) {
   P.charge = Math.min(elMax(), (P.charge || 0) + n); S.hudDirty = true;
 }
 // 感電への補正: 帯電 20 につき連鎖 +1・避雷針・伝導(距離)・収束・雷光
 function elShockMod(e) {
   const p = EL(), q = DATA.classes.electro.q;
   let n = Math.floor((P.charge || 0) / p.perChain);
-  if (hasSp('q', 'cd') && zones.some(z => z.kind === 'tower' && d2(z.x, z.y, e.x, e.y) < q.r * q.r)) n++; // 避雷針
+  const rod = hasSp('q', 'cd') && zones.some(z => z.kind === 'tower' && d2(z.x, z.y, e.x, e.y) < (z.big ? q.r * q.bigR : q.r) ** 2); // 避雷針: 連鎖 +1・感電ダメージアップ
+  if (rod) n++;
   const focus = hasSp('trait', 'conduct');
-  return { n, nMul: focus ? p.focusN : 1, r: 1 + cuV('trait', 'conduct'), dmg: (focus ? p.focusDmg : 1) * (P.elT > 0 && hasSp('passive', 'shock') ? 1 + p.flash : 1) };
+  return { n, nMul: focus ? p.focusN : 1, r: 1 + cuV('trait', 'conduct'), dmg: (focus ? p.focusDmg : 1) * (P.elT > 0 && hasSp('passive', 'shock') ? 1 + p.flash : 1) * (rod ? 1 + q.rodDmg : 1) };
 }
 // 雷纏い
 function elWear() {
-  P.elT = elWearDur(); S.hudDirty = true;
+  P.elT = elWearDur(); P.elExt = 0; S.hudDirty = true;
   asMine(() => { for (let i = 0; i < 6; i++) { const a = rand(0, TAU); bolts.push({ x0: P.x, y0: P.y - 4, x1: P.x + Math.cos(a) * 16, y1: P.y - 4 + Math.sin(a) * 16, t: 0, life: 0.15, w: 1 }); } });
 }
 // 放電: 帯電の一部を消費し、その発動の命中に起こす感電の割合を返す
@@ -3517,7 +3523,7 @@ function elDischarge() {
   P.charge -= used; S.hudDirty = true;
   if (used > 0 && hasSp('trait', 'cap')) P.recharge = { left: used * p.recharge, rate: used * p.recharge / p.rechargeT }; // 再充電
   if (used > 0) asMine(() => { addRing(P.x, P.y, 20 + used / 2, '#fff27a', { w: 2, life: 0.3 }); burst(P.x, P.y, 10 + used / 2, ['#fff27a', '#9fd8ff', '#ffffff'], { sp: 90, glow: true, life: 0.3 }); });
-  return p.disShock * (1 + used * p.disPer) * (1 + (P.lvFx.disDmg || 0));
+  return p.disShock * (1 + used * (hasSp('trait', 'store') ? p.overPer : p.disPer)) * (1 + (P.lvFx.disDmg || 0)); // 過電流: 消費 1 につき +overPer
 }
 // 雷走: 移動方向へ駆け抜ける
 function electroDash() {
@@ -3530,30 +3536,31 @@ function electroDash() {
   asMine(() => { burst(P.x, P.y, 12, ['#fff27a', '#9fd8ff', '#ffffff'], { sp: 70, glow: true, life: 0.3 }); });
   AudioMan.dash(); AudioMan.zap();
 }
-// 鉄塔: 画面内のランダムな位置に落とす(zones の 'tower'、world.js で放電)
+// 鉄塔: 画面内のランダムな位置に落とす(zones の 'tower'、world.js で放電)。大鉄塔: 自分の場所に 1本だけ(威力 × 本数 × bigK、半径 × bigR)
 function electroTowers() {
-  const q = DATA.classes.electro.q, k = 1 + cuV('q', 'pow') + (P.lvFx.qPow || 0), n = q.n + cuV('q', 'n'), id = (S.actId = (S.actId || 0) + 1);
+  const q = DATA.classes.electro.q, k0 = 1 + cuV('q', 'pow') + (P.lvFx.qPow || 0), nT = q.n + cuV('q', 'n'), id = (S.actId = (S.actId || 0) + 1);
+  const big = hasSp('q', 'pow'), n = big ? 1 : nT, k = big ? k0 * nT * q.bigK : k0, rk = (big ? q.bigR : 1) * P.area;
   setCd('q', q.cd * (1 - cuV('q', 'cd')) * P.cdMul); // ここで纏い + 放電(P.elDis.q)
   const dis = P.elDis.q || 0;
   asMine(() => fxRays(P.x, P.y - 16, 70, '#fff27a', { n: 12, life: 0.3 })); screenFlash(0.1 * SET.fxA, '#fff27a'); // 空が一瞬光る
   for (let i = 0; i < n; i++) {
-    const x = cam.x + rand(24, GFX.VW - 24), y = cam.y + rand(30, GFX.VH - 20);
+    const x = big ? P.x : cam.x + rand(24, GFX.VW - 24), y = big ? P.y : cam.y + rand(30, GFX.VH - 20);
     setTimeout(() => {
       if (state !== 'play') return;
-      zones.push({ kind: 'tower', id, x, y, r: q.r * P.area, t: 0, dur: q.dur, tick: q.every, dis, pow: q.pow * k, shock: q.shock, wireT: 0,
-        boom: hasSp('q', 'pow') ? q.boomPow * k : 0, wire: hasSp('q', 'n') ? q.wirePow * k : 0 });
+      zones.push({ kind: 'tower', id, x, y, r: q.r * rk, t: 0, dur: q.dur, tick: q.every, dis, pow: q.pow * k, shock: q.shock, wireT: 0, big,
+        wire: hasSp('q', 'n') ? q.wirePow * k0 : 0 });
       asMine(() => {
-        forEachNear(x, y, q.landR * P.area, e => {
+        forEachNear(x, y, q.landR * rk, e => {
           if (e.prop) { killEnemy(e); return; }
           const dealt = hitEnemy(e, q.landPow * k, { src: 'tower', ang: Math.atan2(e.y - y, e.x - x), kb: 60, col: '#fff27a' });
           if (dis && dealt) addShock(e, dealt, dis, { noCharge: true });
         });
         bolts.push({ x0: x + rand(-10, 10), y0: cam.y - 10, x1: x, y1: y - 20, t: 0, life: 0.25, w: 3 });
-        addFlash(x, y, 80, '#fff27a', 0.35); addRing(x, y, q.landR * P.area, '#ffffff', { w: 2, life: 0.3 });
+        addFlash(x, y, 80, '#fff27a', 0.35); addRing(x, y, q.landR * rk, '#ffffff', { w: 2, life: 0.3 });
         burst(x, y, 20, ['#8a8098', '#fff27a', '#ffffff'], { sp: 100, up: 30, g: 160, life: 0.5 }); shockAt(x, y, 1, 1); shake(5);
         fxBeam(x, y, { w: 2.5, H: 230, col: '#fff27a', mid: '#9fd8ff', core: '#ffffff', life: 0.28, drop: 0.04, zig: 3 }); // 天から落ちる雷の柱
         fxRays(x, y - 8, 52, '#fff27a', { n: 10, life: 0.26 });
-        fxDecal(x, y + 2, q.landR * P.area * 0.8, 'scorch', { col: '#0c0a14', hot: '#9fd8ff', heatT: 0.6, life: 3 });
+        fxDecal(x, y + 2, q.landR * rk * 0.8, 'scorch', { col: '#0c0a14', hot: '#9fd8ff', heatT: 0.6, life: 3 });
       });
       AudioMan.zap(); AudioMan.boom();
       if (i === 0) AudioMan.impact();
