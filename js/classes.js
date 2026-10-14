@@ -1615,9 +1615,9 @@ const CLASS_RT = {
       P.moveMul = P.dash ? 0 : 1;
     },
     onHurt(dmg) {
-      const k = hasSp('passive', 'calm') && focusN() >= focusMax() ? 0.8 : 1; // 不動
+      if (hasSp('passive', 'calm') && focusN() >= focusMax()) return dmg * 0.8; // 不動: 被ダメージ -20%、集中は下がらない
       P.focus = Math.max(0, (P.focus || 0) - AR().focusHurt);
-      return dmg * k;
+      return dmg;
     },
     onMainHit: e => addMark(e, 1),
     onEHit: e => addMark(e, 1),
@@ -1667,7 +1667,7 @@ const CLASS_RT = {
     staBroken: () => false,
     statuses() {
       const p = AR(), f = focusN(), out = [];
-      if (f > 0) out.push({ id: 'focus', glyph: '集', name: _t`集中 ${f}段`, fx: _t`攻撃速度 +${Math.round(f * p.focusAtkSpd * 100)}% クリティカル率 +${(f * (p.focusCrit + cuV('passive', 'eye')) * 100).toFixed(1)}%` + (hasSp('passive', 'calm') && f >= focusMax() ? _t(' 被ダメージ -20%') : '') + (hasSp('passive', 'eye') && f >= focusMax() ? _t(' 弾数 +1') : ''), kind: 'buff' });
+      if (f > 0) out.push({ id: 'focus', glyph: '集', name: _t`集中 ${f}段`, fx: _t`攻撃速度 +${Math.round(f * p.focusAtkSpd * 100)}% クリティカル率 +${(f * (p.focusCrit + cuV('passive', 'eye')) * 100).toFixed(1)}%` + (hasSp('passive', 'calm') && f >= focusMax() ? _t(' 被ダメージ -20% 被弾で下がらない') : '') + (hasSp('passive', 'eye') && f >= focusMax() ? _t(' 弾数 +1') : ''), kind: 'buff' });
       return out;
     },
     qInfo: () => ({ name: DATA.classes.archer.q.name, glyph: '射' }),
