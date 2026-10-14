@@ -211,10 +211,10 @@ const DATA = {
       //   連環: 展開中の撃破で +killExt 秒(killExtMax まで)/ 渦: 輪の外側(半径の pullK 倍まで)を pull で引き寄せる
       skill: {
         name: '刃輪展開', cd: 22, windup: 0.2, dur: 5, rMul: 2, size: 2, rot: 1.5, pow: 1.5, scatter: 3, scatterSpd: 220, scatterT: 0.5, spinMax: 260, radius: 50,
-        rainT: 1, rainPow: 1.5, killExt: 0.3, killExtMax: 3, pullK: 1.5, pull: 40,
+        rainT: 1, rainPow: 1.5, killExt: 0.1, killExtMax: 3, pullK: 1.5, pull: 40,
         tree: { name: '刃輪展開', paths: {
           pow:  { name: '威力', desc: ['刃輪展開の威力 +30%', '刃輪展開の威力 +60%', '刃輪展開の威力 +100%'], v: [0.3, 0.6, 1.0], sp: { name: '刃の雨', desc: '飛び散った刃が 1秒後に戻ってきて、もう一度当たる(戻りの威力 +50%)' } },
-          cd:   { name: '迅速', desc: ['刃輪展開のCD -10%', '刃輪展開のCD -20%', '刃輪展開のCD -30%'], v: [0.1, 0.2, 0.3], sp: { name: '連環', desc: '展開中に敵を倒すと、持続 +0.3秒(1回で +3秒まで)' } },
+          cd:   { name: '迅速', desc: ['刃輪展開のCD -10%', '刃輪展開のCD -20%', '刃輪展開のCD -30%'], v: [0.1, 0.2, 0.3], sp: { name: '連環', desc: '展開中に敵を倒すと、持続 +0.1秒(1回で +3秒まで)' } },
           area: { name: '範囲', desc: ['展開の半径 +15%', '展開の半径 +30%', '展開の半径 +50%'], v: [0.15, 0.3, 0.5], sp: { name: '渦', desc: '展開中、輪の外側(半径の 1.5倍まで)の敵を輪へ少しずつ引き寄せる(ボス以外)' } },
         } },
       },
@@ -1056,11 +1056,11 @@ const DATA = {
       //   鮮血: 出血に攻撃力・クリティカル / 血の連鎖: 出血中の敵を倒すと、スタックの半分を近く(chainR)の chainN 体へ / 致命傷: 出血1スタックにつきクリティカル率 +critPer
       // 血の渇き: メイン武器の命中ごとに leech の HP を回復 / 出血中の敵を倒すと、最大HP × その敵の出血 × killPer を回復
       //   どちらも合わせて 1秒に 最大HP × leechCap まで
-      //   血の盾: 最大HP を超えた回復 × shieldK を shieldT 秒のシールド / 生き血: HP lowAt 以下で回復量 ×2 / 饗宴: 血の契約の効果中、回復の上限 × pactCap
+      //   血の盾: 最大HP を超えた回復 × shieldK を shieldT 秒のシールド / 生き血: 上限を超えた分も × overK で回復する / 饗宴: 血の契約の効果中、回復の上限 × pactCap
       // 瞬影: 移動方向へ dashDist を dashTime 秒で駆け抜ける(無敵 dashIfr 秒、スタミナ dashCost)。通り抜けた敵(dashR)に dashPow と出血 +dashBleed
       params: {
         perCut: 5, critPer: 0.01, chainN: 2, chainR: 60,
-        leech: 0.1, leechCap: 0.02, killPer: 0.0002, shieldK: 0.5, shieldT: 3, lowAt: 0.5, pactCap: 1.5,
+        leech: 0.1, leechCap: 0.02, killPer: 0.0002, shieldK: 0.5, shieldT: 3, overK: 0.5, pactCap: 1.5,
         dashDist: 50, dashTime: 0.1, dashIfr: 0.2, dashCost: 60, dashPow: 20, dashR: 12, dashBleed: 1,
       },
       // 血の契約(Q): 構え windup 秒 → 今の HP の pay を支払い(HP は 1 未満にならない)、照準方向へ×字に交差する二筋の斬撃(pow + 支払ったHP × perHp、出血 +bleed)
@@ -1069,7 +1069,7 @@ const DATA = {
       //   血の嵐: stormEvery 秒ごとに半径 stormR へ stormPow と出血 +1 / 代償: 支払い pricePay / 捨て身: HP を 1 にして、支払った HP の allIn を allInT 秒のシールドに
       //   血の契り: 効果中に出血中の敵を倒すと +extend 秒(extendMax まで)
       q: { name: '血の契約', cd: 30, windup: 0.3, pay: 0.3, dur: 10, spd: 0.3, perStack: 0.01, crossD: 36, crossL: 58, crossW: 16, pow: 80, perHp: 10, bleed: 5,
-        stormEvery: 0.5, stormR: 45, stormPow: 20, pricePay: [0.4, 0.5, 0.6], allIn: 0.5, allInT: 8, extend: 0.5, extendMax: 5 },
+        stormEvery: 0.5, stormR: 60, stormPow: 50, pricePay: [0.4, 0.5, 0.6], allIn: 0.5, allInT: 15, extend: 0.1, extendMax: 5 },
       tree: {
         trait: { name: '血刃', paths: {
           deep: { name: '深傷', desc: ['出血ダメージ +30%', '出血ダメージ +60%', '出血ダメージ +100%'], v: [0.3, 0.6, 1.0], sp: { name: '鮮血', desc: '出血ダメージに攻撃力・クリティカルが乗る' } },
@@ -1078,13 +1078,13 @@ const DATA = {
         } },
         passive: { name: '血の渇き', paths: {
           thirst: { name: '渇き', desc: ['血の渇きの回復量 +10%', '血の渇きの回復量 +20%', '血の渇きの回復量 +30%'], v: [0.1, 0.2, 0.3], sp: { name: '血の盾', desc: '最大HP を超えた回復の 50% が、3秒間のシールドになる' } },
-          greed:  { name: '貪り', desc: ['撃破時の回復: 出血 1スタックにつき 最大HP の 0.02% → 0.03%', '撃破時の回復: 出血 1スタックにつき 最大HP の 0.04%', '撃破時の回復: 出血 1スタックにつき 最大HP の 0.05%'], v: [0.0003, 0.0004, 0.0005], sp: { name: '生き血', desc: 'HP 50% 以下の間、血の渇きの回復量 ×2' } },
+          greed:  { name: '貪り', desc: ['撃破時の回復: 出血 1スタックにつき 最大HP の 0.02% → 0.03%', '撃破時の回復: 出血 1スタックにつき 最大HP の 0.04%', '撃破時の回復: 出血 1スタックにつき 最大HP の 0.05%'], v: [0.0003, 0.0004, 0.0005], sp: { name: '生き血', desc: '血の渇きの回復が上限を超えても、50% の量で回復する' } },
           feast:  { name: '血宴', desc: ['回復の上限 最大HP の 2%/秒 → 3%/秒', '回復の上限 最大HP の 4%/秒', '回復の上限 最大HP の 5%/秒'], v: [0.03, 0.04, 0.05], sp: { name: '饗宴', desc: '血の契約の効果中、回復の上限 ×1.5' } },
         } },
         q: { name: '血の契約', need: 'q', paths: {
-          pow:   { name: '威力', desc: ['斬り裂きの威力 +30%', '斬り裂きの威力 +60%', '斬り裂きの威力 +100%'], v: [0.3, 0.6, 1.0], sp: { name: '血の嵐', desc: '効果中、0.5秒ごとに周り(半径 45)を斬る(基礎威力 20、出血 +1)' } },
-          price: { name: '代償', desc: ['支払う HP 40%、効果 ×1.15', '支払う HP 50%、効果 ×1.3', '支払う HP 60%、効果 ×1.5'], v: [1.15, 1.3, 1.5], sp: { name: '捨て身', desc: '発動時に HP を 1 にする。支払った HP の半分を 8秒間のシールドにする' } },
-          dur:   { name: '持続', desc: ['血の契約の持続 +2秒', '血の契約の持続 +4秒', '血の契約の持続 +6秒'], v: [2, 4, 6], sp: { name: '血の契り', desc: '効果中に出血中の敵を倒すと、持続 +0.5秒(1回で +5秒まで)' } },
+          pow:   { name: '威力', desc: ['斬り裂きの威力 +30%', '斬り裂きの威力 +60%', '斬り裂きの威力 +100%'], v: [0.3, 0.6, 1.0], sp: { name: '血の嵐', desc: '効果中、0.5秒ごとに周り(半径 60)を斬る(基礎威力 50、出血 +1)' } },
+          price: { name: '代償', desc: ['支払う HP 40%、効果 ×1.15', '支払う HP 50%、効果 ×1.3', '支払う HP 60%、効果 ×1.5'], v: [1.15, 1.3, 1.5], sp: { name: '捨て身', desc: '発動時に HP を 1 にする。支払った HP の半分を 15秒間のシールドにする' } },
+          dur:   { name: '持続', desc: ['血の契約の持続 +2秒', '血の契約の持続 +4秒', '血の契約の持続 +6秒'], v: [2, 4, 6], sp: { name: '血の契り', desc: '効果中に出血中の敵を倒すと、持続 +0.1秒(1回で +5秒まで)' } },
         } },
       },
     },

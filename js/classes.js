@@ -2372,7 +2372,6 @@ const CLASS_RT = {
     statuses() {
       const out = [], q = DATA.classes.assassin.q, k = asPactK();
       if (P.pact) out.push({ id: 'pact', glyph: '契', name: _t('血の契約'), fx: _t`移動速度 +${Math.round(q.spd * k * 100)}% 出血1につき与ダメ +${(q.perStack * k * 100).toFixed(1)}%` + (hasSp('passive', 'feast') ? _t` 血の渇きの上限 ×${AS().pactCap}` : ''), t: P.pact.t, max: P.pact.max, kind: 'buff' });
-      if (hasSp('passive', 'greed') && P.hp <= P.maxhp * AS().lowAt) out.push({ id: 'ikiti', glyph: '血', name: _t('生き血'), fx: _t('血の渇きの回復量 ×2'), kind: 'buff' });
       return out;
     },
     qInfo: () => ({ name: DATA.classes.assassin.q.name, glyph: '契' }),
@@ -3604,17 +3603,17 @@ function asBleedMax() {
   const cuts = Object.keys(DATA.weapons).filter(isCut).length;
   return Math.min(S.weaponSlots, cuts) * asPerCut();
 }
-// 血の渇きの回復量の倍率(渇き・クラスLv6。生き血: HP lowAt 以下で ×2)
-const asLeechK = () => (1 + cuV('passive', 'thirst') + (P.lvFx.leech || 0)) * (hasSp('passive', 'greed') && P.hp <= P.maxhp * AS().lowAt ? 2 : 1);
+// 血の渇きの回復量の倍率(渇き・クラスLv6)
+const asLeechK = () => 1 + cuV('passive', 'thirst') + (P.lvFx.leech || 0);
 // 命中ごとの回復の上限(1秒あたり。血宴で上がる。饗宴: 血の契約の効果中 × pactCap)
 const asLeechCap = () => P.maxhp * cuV('passive', 'feast', AS().leechCap) * (P.pact && hasSp('passive', 'feast') ? AS().pactCap : 1);
 const asPactK = () => cuV('q', 'price', 1); // 代償: 血の契約の効果の倍率
-// 血の渇きの回復(数字は出さない)。命中ごと・撃破時とも、1秒の上限の枠から取る
+// 血の渇きの回復(数字は出さない)。命中ごと・撃破時とも、1秒の上限の枠から取る。生き血: 枠を超えた分も × overK で回復する
 function asHeal(n) {
-  const take = Math.min(n, P.asBucket);
-  if (!(take > 0)) return;
+  if (!(n > 0)) return;
+  const take = Math.min(n, Math.max(0, P.asBucket)), over = hasSp('passive', 'greed') ? (n - take) * AS().overK : 0;
   P.asBucket -= take;
-  heal(take, true);
+  if (take + over > 0) heal(take + over, true);
 }
 // 血の連鎖: 倒した敵の出血の半分を、近くの敵 chainN 体へ移す
 function asChain(e) {
