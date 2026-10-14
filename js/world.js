@@ -1832,7 +1832,6 @@ function updEnemies(dt) {
         if (e.dead) continue;
       }
       e.burns = bs.filter(b => b.t > 0);
-      if (!e.burns.length && bs.length) clsOnBurnOut(e, bs.reduce((a, b) => a + b.v, 0), bs.every(b => b.src === 'ember')); // 全部切れた
       if (Math.random() < dt * (8 + 2 * Math.min(10, e.burns.length))) part(e.x + rand(-3, 3), e.y + rand(-3, 3), 0, -20, 0.4, pick(['#ff6a2a', '#ffc34a']), { glow: true }); // 積むほど火の粉が増える
     }
     if (e.freeze) { // 凍結(クライオマンサー): 凍傷が iv 秒ごとに 1 減り、0 で解除。ボス以外は行動不能

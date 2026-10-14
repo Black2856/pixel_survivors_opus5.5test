@@ -1865,8 +1865,6 @@ const CLASS_RT = {
     burnMul: e => 1 + Math.min((e.burns || []).length, pyStackMax()) * pyStackPct() + (P.pyT > 0 && hasSp('passive', 'kindle') ? PY().hellBurn : 0),
     burnDur: () => cuV('trait', 'dur'),
     critBonus: e => (pyWhite(e) ? PY().whiteCrit : 0), // 白炎(炎上ダメージにも乗る)
-    // 燻り: 炎上が切れた敵に残り火(残り火が切れても次は出ない)
-    onBurnOut(e, perSec, onlyEmber) { if (hasSp('trait', 'dur') && !onlyEmber) addBurn(e, perSec * PY().emberPct, 3, 'ember'); },
     onKill(e) {
       const left = burnLeft(e), p = PY();
       if (left > 0) pySpread(e, left);
@@ -1905,7 +1903,7 @@ const CLASS_RT = {
       const p = PY(), q = DATA.classes.pyro.q, k = 1 + (c.lvFx.qPow || 0), kin = c.cuV('passive', 'kindle');
       return [
         { key: _t('特性'), name: _t('業火'), cat: 'trait', desc: [
-          _t`火勢: 敵の炎上 1スタックにつき、その敵の炎上ダメージ +${Math.round((p.stackPct + (c.lvFx.stackPct || 0)) * 100)}%`,
+          _t`火勢: 敵の炎上 1スタックにつき、その敵の炎上ダメージ +${+((p.stackPct + (c.lvFx.stackPct || 0) + (c.hasSp('trait', 'dur') ? p.fierce : 0)) * 100).toFixed(1)}%`,
           _t`延焼: 炎上中の敵が倒れると、残っていた炎上ダメージを周りの ${p.spreadN}体へ燃え移らせる`,
           _t('どの炎上にも効く(武器・スキル・装備のどれで付けた炎上でも)'),
         ], rows: [
@@ -3294,7 +3292,7 @@ function knightVerdict(a) {
 // ---------- パイロマンサー: 業火・焔纏い・煉獄・炎壁 ----------
 const PY = () => DATA.classes.pyro.params;
 const pyStackMax = () => PY().stackMax + cuV('trait', 'stack');
-const pyStackPct = () => PY().stackPct + (P.lvFx.stackPct || 0);
+const pyStackPct = () => PY().stackPct + (P.lvFx.stackPct || 0) + (hasSp('trait', 'dur') ? PY().fierce : 0); // 猛火
 const pyWhite = e => hasSp('trait', 'stack') && (e.burns || []).length >= PY().whiteAt; // 白炎
 const pyIgnite = () => cuV('passive', 'ignite', PY().ignite) + (P.lvFx.ignite || 0);
 const wearDur = () => cuV('passive', 'wear', PY().wearT);
@@ -4452,10 +4450,9 @@ const clsBleedCap = () => (clsRT() && clsRT().bleedCap ? clsRT().bleedCap() : In
 const clsBleedDur = () => (clsRT() && clsRT().bleedDur ? clsRT().bleedDur() : 0);
 const clsBleedMul = () => (clsRT() && clsRT().bleedMul ? clsRT().bleedMul() : 1);
 const clsBleedFull = () => !!(clsRT() && clsRT().bleedFull && clsRT().bleedFull());
-// 炎上(共通の仕組み)へのクラスの補正: ダメージ倍率・持続の追加・切れたとき
+// 炎上(共通の仕組み)へのクラスの補正: ダメージ倍率・持続の追加
 const clsBurnMul = e => (clsRT() && clsRT().burnMul ? clsRT().burnMul(e) : 1);
 const clsBurnDur = () => (clsRT() && clsRT().burnDur ? clsRT().burnDur() : 0);
-function clsOnBurnOut(e, perSec, onlyEmber) { if (clsRT() && clsRT().onBurnOut) clsRT().onBurnOut(e, perSec, onlyEmber); }
 
 // ---------- 強化ツリーのカード ----------
 // 候補: クラスのツリー + メイン武器の E のツリー。Lv3 未満のパス + Lv3 に達したパスの特殊強化(カテゴリで未取得のとき)
