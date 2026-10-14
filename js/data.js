@@ -1118,7 +1118,7 @@ const DATA = {
       // 葬送(Q): 構え windup 秒(動けない)→ 死霊を全て解き放つ。1体につき霊弾 1発(最低 minShots 発)
       //   照準方向へ扇状に飛び出し(速さ speed)、近くの敵を追って触れると爆ぜる(基礎威力 pow、半径 r。life 秒で消えるときも爆ぜる)
       //   慟哭: 着弾地点に念が lingerT 秒残る(lingerEvery 秒ごとに 基礎威力 lingerPow)/ 輪廻: CD - 使った死霊 × rebirth 秒 / 集束: 1発にまとめる(威力 合計 × fuseK、半径 × fuseR)
-      q: { name: '葬送', cd: 30, windup: 0.4, pow: 50, r: 30, minShots: 3, speed: 150, life: 2.5, lingerT: 3, lingerEvery: 0.5, lingerPow: 20, rebirth: 1, fuseK: 1.25, fuseR: 2 },
+      q: { name: '葬送', cd: 30, windup: 0.4, pow: 50, r: 30, minShots: 3, speed: 150, life: 2.5, lingerT: 3, lingerEvery: 0.5, lingerPow: 20, rebirth: 0.5, fuseK: 1.25, fuseR: 2 },
       tree: {
         trait: { name: '死霊使役', paths: {
           herd:  { name: '群れ', desc: ['死霊の上限 +2', '死霊の上限 +4', '死霊の上限 +6'], v: [2, 4, 6], sp: { name: '百鬼夜行', desc: '上限を超えて得た死霊は、その場で爆ぜる(基礎威力 20、半径 30)' } },
@@ -1132,7 +1132,7 @@ const DATA = {
         } },
         q: { name: '葬送', need: 'q', paths: {
           pow:  { name: '威力', desc: ['葬送の威力 +30%', '葬送の威力 +60%', '葬送の威力 +100%'], v: [0.3, 0.6, 1.0], sp: { name: '慟哭', desc: '着弾地点に念が 3秒残り、0.5秒ごとに 基礎威力 20 を与える' } },
-          cd:   { name: '迅速', desc: ['葬送のCD -10%', '葬送のCD -20%', '葬送のCD -30%'], v: [0.1, 0.2, 0.3], sp: { name: '輪廻', desc: '葬送の CD が、使った死霊 1体につき 1秒短くなる' } },
+          cd:   { name: '迅速', desc: ['葬送のCD -10%', '葬送のCD -20%', '葬送のCD -30%'], v: [0.1, 0.2, 0.3], sp: { name: '輪廻', desc: '葬送の CD が、使った死霊 1体につき 0.5秒短くなる' } },
           area: { name: '範囲', desc: ['霊弾の爆発の半径 +15%', '霊弾の爆発の半径 +30%', '霊弾の爆発の半径 +50%'], v: [0.15, 0.3, 0.5], sp: { name: '集束', desc: '霊弾を 1発にまとめて放つ(威力 = 全弾の合計 × 125%、半径 ×2)' } },
         } },
       },
@@ -1162,7 +1162,7 @@ const DATA = {
       //   元の位置で爆ぜる(半径 ejectR、基礎威力 ejectPow + 使った質量 × ejectPowPer)
       params: {
         max: 100, pickN: 1, catchKill: 0.5, atkPer: 0.002, spdPer: 0.0015, spdCap: 0.3, critAt: 50, crit: 0.15, catchN: 0.1,
-        fieldR: 50, slowPer: 0.001, slowCap: 0.5, stopT: 1, tideEvery: 0.5, tidePow: 10, tidePer: 0.25, guardCap: 0.3, ifrAt: 80, ifrK: 1.5,
+        fieldR: 50, slowPer: 0.001, slowCap: 0.5, stopT: 1, tideEvery: 0.5, tidePow: 5, tidePer: 0.2, guardCap: 0.3, ifrAt: 80, ifrK: 1.5,
         ejectPart: 0.2, ejectDist: 40, ejectPer: 0.5, ejectTime: 0.15, ejectIfr: 0.25, ejectCost: 50, ejectR: 50, ejectPow: 15, ejectPowPer: 2,
       },
       // 重力崩壊(Q): 構え windup 秒(動けない)→ 質量を全て使い、照準位置(range まで)に特異点を生む
@@ -1180,7 +1180,7 @@ const DATA = {
         } },
         passive: { name: '重力圏', paths: {
           area:  { name: '範囲', desc: ['重力圏の半径 50 → 60', '重力圏の半径 70', '重力圏の半径 80'], v: [10, 20, 30], sp: { name: '時間停止', desc: '重力圏に入った敵の弾はその場で止まり、1秒後に消える(止まっている間は当たらない)' } },
-          power: { name: '強度', desc: ['重力圏で敵が遅くなる割合(質量 1 につき) 0.1% → 0.15%', '重力圏で敵が遅くなる割合(質量 1 につき) 0.2%', '重力圏で敵が遅くなる割合(質量 1 につき) 0.3%'], v: [0.0015, 0.002, 0.003], sp: { name: '潮汐力', desc: '重力圏の中の敵に、0.5秒ごとに 基礎威力 10 + 質量 × 0.25' } },
+          power: { name: '強度', desc: ['重力圏で敵が遅くなる割合(質量 1 につき) 0.1% → 0.15%', '重力圏で敵が遅くなる割合(質量 1 につき) 0.2%', '重力圏で敵が遅くなる割合(質量 1 につき) 0.3%'], v: [0.0015, 0.002, 0.003], sp: { name: '潮汐力', desc: '重力圏の中の敵に、0.5秒ごとに 基礎威力 5 + 質量 × 0.2' } },
           inert: { name: '慣性', desc: ['質量 1 につき被ダメージ -0.03%(最大 -30%)', '質量 1 につき被ダメージ -0.06%(最大 -30%)', '質量 1 につき被ダメージ -0.1%(最大 -30%)'], v: [0.0003, 0.0006, 0.001], sp: { name: '不動', desc: '質量 80 以上のとき、被弾後の無敵時間 +50%' } },
         } },
         q: { name: '重力崩壊', need: 'q', paths: {
