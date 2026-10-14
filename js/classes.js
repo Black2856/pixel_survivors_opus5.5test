@@ -1344,8 +1344,7 @@ const CLASS_RT = {
       if (P.breakT > 0) return dmg * (1 + c.breakDmg);
       if (!P.guard) {
         let k = 1;
-        if (hasSp('trait', 'juu') && kiHigh()) k *= 0.7;  // 明鏡止水
-        if (hasSp('passive', 'migaru') && P.zanshinT > 0) k *= 0.75; // 不動
+        if (hasSp('trait', 'juu') && kiHigh()) k *= 0.8;  // 明鏡止水
         return dmg * k;
       }
       P.zanshinT = c.zanshinT + cuV('passive', 'jizoku'); // 残心: 防御スキルで攻撃を受けた後、攻撃力アップ
@@ -1406,7 +1405,7 @@ const CLASS_RT = {
         // 抜刀: 剣気を全て消費して突進
         a.ph = 'dash'; a.t0 = a.t; a.ki = P.ki; P.ki = 0;
         P.invT = Math.max(P.invT, q.dash + 0.15);
-        if (hasSp('q', 'reach')) S.decoy = { x: P.x, y: P.y, t: 2 }; // 空蝉: 開始地点に分身
+        if (hasSp('q', 'reach')) S.decoy = { x: P.x, y: P.y, t: 5 }; // 空蝉: 開始地点に分身
         AudioMan.dash(); shake(2);
         return;
       }
@@ -1439,9 +1438,9 @@ const CLASS_RT = {
       const c = DATA.classes.samurai.params, out = [];
       if (P.zanshinT > 0) {
         const k = zanshinK(), mv = cuV('passive', 'migaru') * k;
-        out.push({ id: 'zanshin', glyph: '残', name: _t('残心') + (k > 1 ? _t('(背水)') : ''), fx: _t`攻撃力 +${Math.round(zanshinAtk() * k * 100)}%` + (mv ? _t` 移動 +${Math.round(mv * 100)}%` : '') + (hasSp('passive', 'migaru') ? _t(' 被ダメージ -25%') : ''), t: P.zanshinT, max: c.zanshinT + cuV('passive', 'jizoku'), kind: 'buff' });
+        out.push({ id: 'zanshin', glyph: '残', name: _t('残心') + (k > 1 ? _t('(背水)') : ''), fx: _t`攻撃力 +${Math.round(zanshinAtk() * k * 100)}%` + (mv ? _t` 移動 +${Math.round(mv * 100)}%` : ''), t: P.zanshinT, max: c.zanshinT + cuV('passive', 'jizoku'), kind: 'buff' });
       }
-      if (kiHigh()) out.push({ id: 'kiHigh', glyph: '気', name: hasSp('trait', 'juu') ? _t('明鏡止水') : _t('剣気解放'), fx: _t`攻撃力 +${Math.round(cuV('trait', 'juu', c.kiFullAtk) * 100)}%` + (hasSp('trait', 'juu') ? _t(' 攻撃速度 +25% 被ダメージ -30%') : ''), kind: 'buff' });
+      if (kiHigh()) out.push({ id: 'kiHigh', glyph: '気', name: hasSp('trait', 'juu') ? _t('明鏡止水') : _t('剣気解放'), fx: _t`攻撃力 +${Math.round(cuV('trait', 'juu', c.kiFullAtk) * 100)}%` + (hasSp('trait', 'juu') ? _t(' 攻撃速度 +25% 被ダメージ -20%') : ''), kind: 'buff' });
       if (P.breakT > 0) out.push({ id: 'break', glyph: '崩', name: _t('ガードブレイク'), fx: _t`ガード不可 被ダメージ +${Math.round(c.breakDmg * 100)}%`, t: P.breakT, max: c.breakT, kind: 'debuff' });
       return out;
     },
@@ -2960,7 +2959,12 @@ function samuraiParry() {
   P.ifr = c.parryIfr;
   asMine(() => {
     const R = c.parryR * P.area;
-    forEachNear(P.x, P.y, R, e => { if (!e.prop) hitEnemy(e, c.parryPow, { src: 'parry', ang: Math.atan2(e.y - P.y, e.x - P.x), kb: 80, col: '#ffffff' }); });
+    const stun = hasSp('passive', 'migaru'); // 崩し: 反撃が当たった敵をスタン
+    forEachNear(P.x, P.y, R, e => {
+      if (e.prop) return;
+      hitEnemy(e, c.parryPow, { src: 'parry', ang: Math.atan2(e.y - P.y, e.x - P.x), kb: 80, col: '#ffffff' });
+      if (stun && !e.dead && missed !== e) e.stun = Math.max(e.stun || 0, c.parryStun); // 外れた敵は止まらない
+    });
     slashes.push({ x: P.x, y: P.y, follow: true, a: rand(0, TAU), r: R, t: 0, life: 0.25, full: true, pal: SWING_PAL.parry }); // 全周を一回転で斬る(見た目 = 反撃の範囲)
     hitstop(0.06); shake(5); screenFlash(0.25 * SET.fxA, '#ffffff'); shockAt(P.x, P.y, 1, 1.2);
     addRing(P.x, P.y, R, '#ffffff', { w: 2, life: 0.3 });
