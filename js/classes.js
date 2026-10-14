@@ -1959,14 +1959,7 @@ const CLASS_RT = {
       P.mirrorHeld = held;
       P.moveMul = P.dash ? 0 : 1;
     },
-    onHurt(dmg) {
-      if (P.cryT > 0 && hasSp('passive', 'armor')) { // 冷気の反撃
-        const p = CR();
-        forEachNear(P.x, P.y, p.counterR, e => { if (!e.prop && rollHit(e)) addFrost(e, p.counterFrost, 10); }); // 効果だけの攻撃も外れる
-        addRing(P.x, P.y, p.counterR, '#bff4ff', { w: 2, life: 0.3 });
-      }
-      return dmg;
-    },
+    onHurt: dmg => dmg,
     onMainHit() {},
     onSkill: () => cryWear(), // E / Q を使うと纏う
     // 氷纏い: 全武器の命中で凍傷 +1(付与: 確率でさらに +1。冷たい刃: クリティカルで確率 2倍)
@@ -3409,6 +3402,7 @@ function cryFreeze(e) {
   if (S.time - (e.dustT || -9) < q.every + 0.1) iv *= 1 + q.freezeUp + (hasSp('q', 'cd') ? q.longFreeze : 0); // ダイヤモンドダストの範囲内
   e.freeze = { iv, acc: 0 };
   e.frost = cryCap(); e.frostT = 5;
+  if (P.cryT > 0 && hasSp('passive', 'armor')) timedShield(P.maxhp * p.robeShield, P.cryT); // 冷気の衣: 纏っている間のシールド
   asMine(() => {
     addRing(e.x, e.y, e.r + 8, '#ffffff', { w: 2, life: 0.3 });
     burst(e.x, e.y, 10, ['#ffffff', '#bff4ff', '#7ad7ff'], { sp: 60, glow: true, life: 0.35 });
@@ -3445,7 +3439,7 @@ function cryoMirror() {
 function cryoDust() {
   const q = DATA.classes.cryo.q, k = 1 + cuV('q', 'pow') + (P.lvFx.qPow || 0);
   zones.push({ kind: 'ddust', x: P.x, y: P.y, r: q.r * (1 + cuV('q', 'area')) * P.area, t: 0, dur: q.dur + (hasSp('q', 'cd') ? q.longDur : 0), tick: 0,
-    every: q.every, frost: q.frost, dmg: q.pow * k, glitter: hasSp('q', 'pow') ? q.glitter * k : 0, whiteout: hasSp('q', 'area') ? q.whiteout : 0 });
+    every: q.every, frost: q.frost, dmg: q.pow * k, glitter: hasSp('q', 'pow') ? q.glitter * k : 0 });
   asMine(() => {
     burst(P.x, P.y, 50, ['#ffffff', '#bff4ff', '#7ad7ff'], { sp: 180, glow: true, life: 0.6 });
     addRing(P.x, P.y, q.r * P.area, '#ffffff', { w: 3, life: 0.5 }); addFlash(P.x, P.y, q.r * 2.5, '#bff4ff', 0.4);
@@ -3456,6 +3450,11 @@ function cryoDust() {
     for (let i = 0; i < 10; i++) { const a = rand(0, TAU), d = Math.sqrt(Math.random()) * z.r; fxGlint(P.x + Math.cos(a) * d, P.y + Math.sin(a) * d, rand(4, 7), '#bff4ff', { t: -i * 0.06, life: 0.3 }); }
     shockAt(P.x, P.y, 1.4, 1); shake(6); screenFlash(0.25 * SET.fxA, '#bff4ff');
   });
+  if (hasSp('q', 'area')) { // ホワイトアウト: 敵の弾を全て消し、画面内の敵に凍傷
+    asMine(() => { for (const b of eprojs) if (onScreen(b.x, b.y)) burst(b.x, b.y, 3, ['#ffffff', '#bff4ff'], { sp: 30, glow: true, life: 0.3 }); screenFlash(0.35 * SET.fxA, '#ffffff'); });
+    eprojs.length = 0;
+    for (const e of enemies) if (!e.dead && !e.prop && onScreen(e.x, e.y) && rollHit(e)) addFrost(e, q.whiteFrost, 10); // 効果だけの攻撃も外れる
+  }
   setCd('q', q.cd * (1 - cuV('q', 'cd')) * P.cdMul);
   AudioMan.blizz(); AudioMan.crit(); AudioMan.sparkle();
 }

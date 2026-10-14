@@ -906,7 +906,7 @@ const DATA = {
       lv: {
         2: { d: '最大HP +10', st: { hp: 10 } },
         3: { d: '凍結: 凍結中の敵の受けるダメージ +5%', fx: { freezeDmg: 0.05 } },
-        6: { d: '氷の鏡: スタミナ消費 -5', fx: { mirrorCut: 5 } },
+        6: { d: '氷の鏡: スタミナ消費 90 → 85', fx: { mirrorCut: 5 } },
         8: { d: '氷纏い: 纏う時間 +1秒', fx: { wearT: 1 } },
         11: { d: 'ダイヤモンドダスト: 威力 +20%', fx: { qPow: 0.2 } },
         13: { d: '最大HP +10、スタミナ +20', st: { hp: 10, sta: 20 } },
@@ -918,17 +918,17 @@ const DATA = {
       //   凍結中は凍傷が decay 秒ごとに 1 減り、0 で解除(凍結中は凍傷が増えない)。ボスは行動不能の代わりに攻撃速度 ×bossRate
       //   氷晶の急所: 凍結中の敵へのクリティカル率 +critSp / 寒波: 凍結した瞬間に半径 waveR の敵に凍傷 / 砕氷: 凍結中に倒すと半径 shardR に shardPow と凍傷 +shardFrost
       // 氷纏い: E / Q を使うと wearT 秒。全武器の命中で凍傷 +1(付与: 確率でさらに +1。冷たい刃: クリティカルで確率 2倍)
-      //   氷原: 纏っている間に凍結中の敵を倒すと +extendT 秒(1回の纏いで extendMax まで)/ 氷鎧: 纏った瞬間にシールド / 冷気の反撃: 被弾で半径 counterR に凍傷 +counterFrost
+      //   氷原: 纏っている間に凍結中の敵を倒すと +extendT 秒(1回の纏いで extendMax まで)/ 氷鎧: 纏った瞬間にシールド / 冷気の衣: 纏っている間に凍結させると最大HP の robeShield のシールド(纏っている間)
       // 氷の鏡: 移動と逆へ mirrorDist を mirrorTime 秒で下がる(無敵 mirrorIfr 秒、スタミナ mirrorCost)。元の位置に分身 decoyT 秒(触れた敵に凍傷 +decoyFrost、1体1回)
       params: {
-        frostCap: 30, capSp: 50, freezeDmg: 0.25, frostHit: 0.25, decay: 0.1, bossRate: 0.7, critSp: 0.3, waveR: 30, shardR: 30, shardPow: 100, shardFrost: 5,
-        wearT: 4, extendT: 0.5, extendMax: 3, counterR: 50, counterFrost: 5,
-        mirrorDist: 60, mirrorTime: 0.15, mirrorIfr: 0.25, mirrorCost: 100, decoyT: 2, decoyR: 10, decoyFrost: 5,
+        frostCap: 30, capSp: 50, freezeDmg: 0.25, frostHit: 0.25, decay: 0.1, bossRate: 0.7, critSp: 0.3, waveR: 30, shardR: 50, shardPow: 100, shardFrost: 5,
+        wearT: 4, extendT: 0.1, extendMax: 3, robeShield: 0.05,
+        mirrorDist: 60, mirrorTime: 0.15, mirrorIfr: 0.25, mirrorCost: 90, decoyT: 2, decoyR: 10, decoyFrost: 5,
       },
       // ダイヤモンドダスト(Q): 構え windup 秒 → 自分を中心に dur 秒の細氷の領域(半径 r、ついてくる)。every 秒ごとに凍傷 +frost と 基礎威力 pow
       //   この範囲内で凍結した敵は凍結時間 +freezeUp(凍傷の減りが遅くなる)/ 煌めき: 凍結中の敵に every 秒ごとに glitter
-      //   永い冬: 凍結時間 +longFreeze、持続 +longDur / ホワイトアウト: 範囲内の敵の弾の速さ ×whiteout
-      q: { name: 'ダイヤモンドダスト', cd: 30, windup: 0.4, dur: 4, r: 100, every: 0.5, frost: 5, pow: 50, freezeUp: 0.3, glitter: 100, longFreeze: 0.2, longDur: 1, whiteout: 0.5 },
+      //   永い冬: 凍結時間 +longFreeze、持続 +longDur / ホワイトアウト: 使った瞬間に敵の弾を全て消し、画面内の敵に凍傷 +whiteFrost
+      q: { name: 'ダイヤモンドダスト', cd: 30, windup: 0.4, dur: 4, r: 100, every: 0.5, frost: 5, pow: 50, freezeUp: 0.3, glitter: 100, longFreeze: 0.2, longDur: 1, whiteFrost: 30 },
       tree: {
         trait: { name: '凍結', paths: {
           deep:    { name: '深凍', desc: ['凍結中の凍傷の減り 0.1秒 → 0.115秒', '凍結中の凍傷の減り 0.13秒', '凍結中の凍傷の減り 0.15秒'], v: [0.115, 0.13, 0.15], sp: { name: '氷晶の急所', desc: '凍結中の敵へのクリティカル率 +30%' } },
@@ -937,13 +937,13 @@ const DATA = {
         } },
         passive: { name: '氷纏い', paths: {
           chance: { name: '付与', desc: ['命中時、6% でさらに凍傷 +1', '命中時、12% でさらに凍傷 +1', '命中時、20% でさらに凍傷 +1'], v: [0.06, 0.12, 0.2], sp: { name: '冷たい刃', desc: 'クリティカルしたときは「付与」の確率が 2倍' } },
-          wear:   { name: '持続', desc: ['纏う時間 4秒 → 5秒', '纏う時間 6秒', '纏う時間 7.5秒'], v: [5, 6, 7.5], sp: { name: '氷原', desc: '纏っている間に凍結中の敵を倒すと、纏う時間 +0.5秒(1回の纏いで最大 +3秒)' } },
-          armor:  { name: '氷鎧', desc: ['纏った瞬間、最大HP の 5% のシールド(纏っている間)', '纏った瞬間、最大HP の 10% のシールド', '纏った瞬間、最大HP の 15% のシールド'], v: [0.05, 0.1, 0.15], sp: { name: '冷気の反撃', desc: '纏っている間に被弾すると、近くの敵に凍傷 +5' } },
+          wear:   { name: '持続', desc: ['纏う時間 4秒 → 5秒', '纏う時間 6秒', '纏う時間 7.5秒'], v: [5, 6, 7.5], sp: { name: '氷原', desc: '纏っている間に凍結中の敵を倒すと、纏う時間 +0.1秒(1回の纏いで最大 +3秒)' } },
+          armor:  { name: '氷鎧', desc: ['纏った瞬間、最大HP の 10% のシールド(纏っている間)', '纏った瞬間、最大HP の 20% のシールド', '纏った瞬間、最大HP の 30% のシールド'], v: [0.1, 0.2, 0.3], sp: { name: '冷気の衣', desc: '纏っている間に敵を凍結させるたびに、最大HP の 5% のシールドを得る(纏っている間)' } },
         } },
         q: { name: 'ダイヤモンドダスト', need: 'q', paths: {
           pow:  { name: '威力', desc: ['ダイヤモンドダストの威力 +30%', 'ダイヤモンドダストの威力 +60%', 'ダイヤモンドダストの威力 +100%'], v: [0.3, 0.6, 1.0], sp: { name: '煌めき', desc: '範囲内の凍結中の敵に、0.5秒ごとに基礎威力 100 の追加ダメージ' } },
           cd:   { name: '迅速', desc: ['ダイヤモンドダストのCD -10%', 'ダイヤモンドダストのCD -20%', 'ダイヤモンドダストのCD -30%'], v: [0.1, 0.2, 0.3], sp: { name: '永い冬', desc: '範囲内での凍結時間 +20%、領域の持続 +1秒' } },
-          area: { name: '範囲', desc: ['ダイヤモンドダストの半径 +15%', 'ダイヤモンドダストの半径 +30%', 'ダイヤモンドダストの半径 +50%'], v: [0.15, 0.3, 0.5], sp: { name: 'ホワイトアウト', desc: '範囲内では敵の弾の速さ -50%' } },
+          area: { name: '範囲', desc: ['ダイヤモンドダストの半径 +15%', 'ダイヤモンドダストの半径 +30%', 'ダイヤモンドダストの半径 +50%'], v: [0.15, 0.3, 0.5], sp: { name: 'ホワイトアウト', desc: '使った瞬間、敵の弾を全て消し、画面内の敵に凍傷 +30' } },
         } },
       },
     },

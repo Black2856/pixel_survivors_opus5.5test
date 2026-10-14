@@ -1365,7 +1365,6 @@ function updZones(dt) {
           if (z.glitter && frozen && !e.dead) { hitEnemy(e, z.glitter, { src: 'ddust', col: '#ffffff', noNum: Math.random() < 0.5 }); part(e.x, e.y - 4, 0, -20, 0.4, '#ffffff', { glow: true, sz: 2 }); } // 煌めき
         }));
       }
-      if (z.whiteout) for (const p of eprojs) if (!p.wo && d2(p.x, p.y, z.x, z.y) < z.r * z.r) { p.wo = true; p.vx *= z.whiteout; p.vy *= z.whiteout; p.life = (p.life || 4) / z.whiteout; } // ホワイトアウト
       for (let k = 0; k < 4; k++) { const a = rand(0, TAU), r = Math.sqrt(Math.random()) * z.r; part(z.x + Math.cos(a) * r, z.y + Math.sin(a) * r, rand(-8, 8), rand(-12, 4), rand(0.4, 0.8), pick(['#ffffff', '#bff4ff', '#e0f8ff']), { glow: true, drag: 1 }); }
     } else if (z.kind === 'grudge') { // 慟哭(葬送の特殊強化): 着弾地点に残る念。lingerEvery 秒ごとに範囲の敵へ
       if (z.tick <= 0) {
