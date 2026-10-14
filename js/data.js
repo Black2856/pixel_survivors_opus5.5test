@@ -714,13 +714,14 @@ const DATA = {
       //   炎: 与えたダメージの burnPct を burnDur 秒かけて / 氷: 凍傷 +1(上限 frostCap)/ 雷: 近く(chainR)の敵 chainN 体へ chainPct
       // 共鳴: 2属性を持つ敵に3属性目 → 爆発(基礎威力 resoPow・半径 resoR)して属性リセット。魔力結晶 +1(最大 crystalMax + 結晶容量)
       //   上限のときは 次のスキルの威力 +crysOvf(最大 crysOvfMax。E か Q の発動で全て消費。オーバーフローとは別枠)
-      //   魔力増幅: 魔力結晶 1つにつき攻撃力 +ampAtk
+      //   魔力増幅: 魔力結晶 1つにつき攻撃力 +ampAtk / 共鳴結晶: 共鳴 giantN 回ごとに、その場所へ巨大な魔力結晶(giantFall 秒で落ちる。基礎威力 giantPow・半径 giantR)
       // 魔力循環: 通常攻撃の命中ごとに E / Q の CD -flowCut 秒(1秒あたり flowCap 秒まで)
+      //   瞑想: 止まっている間 スタミナ回復 -calmCut。減らした量 × calmK 秒だけ CD を縮める(同じ 1秒あたりの上限の枠から)
       // ブリンク: 移動方向へ blinkDist 瞬間移動、無敵 blinkIfr 秒、スタミナ blinkCost。出発地点に氷の残滓(residueT 秒・半径 residueR。触れた敵に凍傷)
       params: {
         burnPct: 0.2, burnDur: 3, frostCap: 5, chainPct: 0.3, chainN: 1, chainR: 60,
-        resoPow: 25, resoR: 30, crystalMax: 10, crysOvf: 0.005, crysOvfMax: 0.5, ampAtk: 0.02,
-        flowCut: 0.05, flowCap: 0.5,
+        resoPow: 50, resoR: 30, crystalMax: 10, crysOvf: 0.005, crysOvfMax: 0.5, ampAtk: 0.02, giantN: 10, giantPow: 500, giantR: 100, giantFall: 0.5,
+        flowCut: 0.05, flowCap: 0.5, calmCut: 0.5, calmK: 0.05,
         blinkDist: 50, blinkIfr: 0.15, blinkCost: 80, residueT: 1.5, residueR: 14,
       },
       // メテオ(Q): 照準位置へ。詠唱 windup 秒(動けない)→ fall 秒後に着弾(基礎威力 pow・半径 r・与えたダメージの burnPct を炎上で)。武器に依存しない
@@ -732,12 +733,12 @@ const DATA = {
       tree: {
         trait: { name: '元素循環', paths: {
           el: { name: '属性強化', desc: ['炎上 +10%・凍傷上限 +2・連鎖 +1体', '炎上 +20%・凍傷上限 +4・連鎖 +2体', '炎上 +30%・凍傷上限 +5・連鎖 +3体'], v: [1, 2, 3], sp: { name: '三重詠唱', desc: '25% の確率で、1発が3属性すべてを持つ' } },
-          rpow: { name: '共鳴威力', desc: ['共鳴の威力 +30%', '共鳴の威力 +60%', '共鳴の威力 +100%'], v: [0.3, 0.6, 1.0], sp: { name: '連鎖共鳴', desc: '共鳴に巻き込まれた敵にも、ランダムな属性を1つ付与する' } },
+          rpow: { name: '共鳴威力', desc: ['共鳴の威力 +30%', '共鳴の威力 +60%', '共鳴の威力 +100%'], v: [0.3, 0.6, 1.0], sp: { name: '共鳴結晶', desc: '共鳴 10回ごとに、その場所へ巨大な魔力結晶を落とす(基礎威力 500、半径 100)' } },
           crys: { name: '結晶容量', desc: ['魔力結晶の容量 +3', '魔力結晶の容量 +6', '魔力結晶の容量 +10'], v: [3, 6, 10], sp: { name: '魔力増幅', desc: '魔力結晶 1つにつき攻撃力 +2%' } },
         } },
         passive: { name: '魔力循環', paths: {
           flow: { name: '循環', desc: ['魔力循環の1回の短縮 +0.01秒', '魔力循環の1回の短縮 +0.02秒', '魔力循環の1回の短縮 +0.03秒'], v: [0.01, 0.02, 0.03], sp: { name: 'オーバーフロー', desc: 'E / Q の CD が 0 のときにメイン武器の通常攻撃が当たると、次の E / Q の威力 +0.1%(最大 +50%)' } },
-          cap: { name: '容量', desc: ['魔力循環の1秒あたりの上限 +0.1秒', '魔力循環の1秒あたりの上限 +0.3秒', '魔力循環の1秒あたりの上限 +0.5秒'], v: [0.1, 0.3, 0.5], sp: { name: '瞑想', desc: '3秒間被弾しないと、HP 2/s で回復し続ける' } },
+          cap: { name: '容量', desc: ['魔力循環の1秒あたりの上限 +0.1秒', '魔力循環の1秒あたりの上限 +0.3秒', '魔力循環の1秒あたりの上限 +0.5秒'], v: [0.1, 0.3, 0.5], sp: { name: '瞑想', desc: '止まっている間、スタミナ回復 -50%。減った量 × 0.05 秒だけ E / Q の CD を縮める(魔力循環の 1秒あたりの上限に含む)' } },
           echo: { name: '余韻', desc: ['E / Q を使った後 5秒、全武器の攻撃速度 +10%', 'E / Q を使った後 5秒、全武器の攻撃速度 +20%', 'E / Q を使った後 5秒、全武器の攻撃速度 +30%'], v: [0.1, 0.2, 0.3], sp: { name: '詠唱加速', desc: 'E / Q を使った後 5秒、全武器の弾数 +1(近接武器は攻撃回数 +1)' } },
         } },
         q: { name: 'メテオ', need: 'q', paths: {

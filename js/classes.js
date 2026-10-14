@@ -11,7 +11,10 @@ function staUse(n, lock = 0) {
 }
 function updStamina(dt) {
   P.staLockT -= dt;
-  if (P.staLockT <= 0 && P.sta < P.maxSta) P.sta = Math.min(P.maxSta, P.sta + P.staRegen * dt * (P.fatigueT > 0 ? DATA.debuff.fatigue : 1) * (P.cdSlowT > 0 ? DATA.debuff.slowRegen : 1)); // 疲労中・スロウタイム(時の歪み)の中はスタミナ回復 -50%(重なると掛け算)
+  if (P.staLockT > 0 || P.sta >= P.maxSta) return;
+  let n = P.staRegen * dt * (P.fatigueT > 0 ? DATA.debuff.fatigue : 1) * (P.cdSlowT > 0 ? DATA.debuff.slowRegen : 1); // 疲労中・スロウタイム(時の歪み)の中はスタミナ回復 -50%(重なると掛け算)
+  if (clsRT() && clsRT().staRegen) n = clsRT().staRegen(n); // クラスの補正(メイジの瞑想)
+  P.sta = Math.min(P.maxSta, P.sta + n);
 }
 
 // ---------- ラン中の強化(強化ツリー) ----------
@@ -1496,15 +1499,14 @@ const CLASS_RT = {
     skills: ['q'],
     init() {
       P.crystal = 0;
-      P.elI = 0; P.flowWin = 0; P.flowT = 0; P.echoT = 0; P.ovf = 0; P.covf = 0; P.calmT = 0; P.blinkHeld = false; P.meteors = [];
+      P.elI = 0; P.flowWin = 0; P.flowT = 0; P.echoT = 0; P.ovf = 0; P.covf = 0; P.resoN = 0; P.blinkHeld = false; P.meteors = [];
     },
     update(dt) {
       const p = MG();
       P.flowT -= dt; if (P.flowT <= 0) { P.flowT = 1; P.flowWin = 0; } // 魔力循環の1秒ごとの上限
-      P.echoT -= dt; P.calmT += dt;
+      P.echoT -= dt;
       P.atkSpd = 1 + (P.echoT > 0 ? cuV('passive', 'echo') : 0);                                   // 余韻
       P.shots = Math.round(P.stats.v.shots || 0) + (hasSp('passive', 'echo') && P.echoT > 0 ? 1 : 0); // 詠唱加速
-      if (hasSp('passive', 'cap') && P.calmT >= 3) heal(2 * dt, true); // 瞑想(満タンで余った分は超過回復)
       // ブリンク(Space を押した瞬間)
       const held = defHeld();
       if (held && !P.blinkHeld) { if (P.sta >= blinkCost()) mageBlink(); else addFloat(P.x, P.y - 16, 'STAMINA', '#6a7a88'); }
@@ -1515,15 +1517,18 @@ const CLASS_RT = {
     qStart: meteorStart,
     qUpdate: meteorUpdate,
     qInfo: () => ({ name: DATA.classes.mage.q.name, glyph: '隕' }),
-    onHurt(dmg) { P.calmT = 0; return dmg; },
+    onHurt: dmg => dmg,
     // 通常攻撃の命中: E / Q の CD を短縮(1秒あたりの上限あり)。オーバーフロー: CD 0 で命中するとスキル威力を貯める
     onMainHit() {
-      const p = MG(), cut = p.flowCut + cuV('passive', 'flow') + (P.lvFx.flowCut || 0), cap = p.flowCap + cuV('passive', 'cap');
       if (hasSp('passive', 'flow') && (P.sk.e.cd <= 0 || P.sk.q.cd <= 0)) P.ovf = Math.min(0.5, P.ovf + 0.001);
-      const c = Math.min(cut, cap - P.flowWin);
-      if (c <= 0) return;
-      P.flowWin += c;
-      for (const k in P.sk) P.sk[k].cd = Math.max(0, P.sk[k].cd - c);
+      mageFlow(MG().flowCut + cuV('passive', 'flow') + (P.lvFx.flowCut || 0));
+    },
+    // 瞑想: 止まっている間はスタミナ回復 -calmCut。減らした量 × calmK 秒だけ E / Q の CD を縮める(魔力循環の上限の枠から)
+    staRegen(n) {
+      if (!hasSp('passive', 'cap') || P.moving) return n;
+      const p = MG(), cut = n * p.calmCut;
+      mageFlow(cut * p.calmK);
+      return n - cut;
     },
     // 次の攻撃の属性(三重詠唱: 15% で全属性)
     nextEl() {
@@ -1542,7 +1547,8 @@ const CLASS_RT = {
       if (P.echoT > 0 && (e || sp)) out.push({ id: 'echo', glyph: '韻', name: sp ? _t('詠唱加速') : _t('余韻'), fx: (e ? _t`攻撃速度 +${Math.round(e * 100)}%` : '') + (sp ? _t(' 弾数 +1') : ''), t: P.echoT, max: 5, kind: 'buff' });
       if (P.ovf > 0) out.push({ id: 'ovf', glyph: '溢', name: _t('オーバーフロー'), fx: _t`次のスキルの威力 +${+(P.ovf * 100).toFixed(1)}%`, kind: 'buff' });
       if (P.covf > 0) out.push({ id: 'covf', glyph: '余', name: _t('余剰魔力'), fx: _t`次のスキルの威力 +${+(P.covf * 100).toFixed(1)}%`, kind: 'buff' });
-      if (hasSp('passive', 'cap') && P.calmT >= 3) out.push({ id: 'calm', glyph: '瞑', name: _t('瞑想'), fx: _t('HP 2/s で回復'), kind: 'buff' });
+      if (hasSp('passive', 'cap') && !P.moving && P.sta < P.maxSta) out.push({ id: 'calm', glyph: '瞑', name: _t('瞑想'), fx: _t`スタミナ回復 -${Math.round(MG().calmCut * 100)}%。減った分で E / Q の CD を縮める`, kind: 'buff' });
+      if (hasSp('trait', 'rpow')) out.push({ id: 'gcrys', glyph: '結', name: _t('共鳴結晶'), fx: _t`あと ${MG().giantN - P.resoN}回の共鳴で、巨大な魔力結晶が落ちる`, kind: 'buff' });
       return out;
     },
     info(c) {
@@ -2985,30 +2991,30 @@ function elEffect(e, el, dealt) {
     addShock(e, dealt, p.chainPct, { n: p.chainN + L, r: p.chainR, src: 'chain' }); // 感電(共通の仕組み)
   }
 }
-// 属性を付与して、3属性そろったら共鳴。depth: 連鎖共鳴の深さ(無限に続かないように)
-function mageAddEl(e, el, dealt, depth = 0) {
+// 属性を付与して、3属性そろったら共鳴
+function mageAddEl(e, el, dealt) {
   if (e.prop || missed === e) return; // 外れた攻撃(砂塵・暗闇)では属性が付かない
   const list = el === 'all' ? ELS : [el];
   for (const x of list) elEffect(e, x, dealt);
   const bits = e.els || 0;
-  if (el === 'all' || (bitCount(bits) === 2 && !(bits & EL_BIT[el]))) mageResonate(e, depth);
+  if (el === 'all' || (bitCount(bits) === 2 && !(bits & EL_BIT[el]))) mageResonate(e);
   else e.els = bits | EL_BIT[el];
 }
-function mageResonate(e, depth) {
+function mageResonate(e) {
   const p = MG(), R = p.resoR * P.area, dmg = p.resoPow * (1 + cuV('trait', 'rpow') + (P.lvFx.resoPow || 0));
   e.els = 0;
-  const x = e.x, y = e.y, spread = hasSp('trait', 'rpow') && depth < 1;
+  const x = e.x, y = e.y;
   asMine(() => {
-    forEachNear(x, y, R, o => {
-      if (o.prop) return;
-      hitEnemy(o, dmg, { src: 'reso', ang: Math.atan2(o.y - y, o.x - x), kb: 40, col: '#c78bff', noNum: o !== e });
-      if (spread && o !== e && !o.dead) mageAddEl(o, pick(ELS), 0, depth + 1); // 連鎖共鳴
-    });
+    forEachNear(x, y, R, o => { if (!o.prop) hitEnemy(o, dmg, { src: 'reso', ang: Math.atan2(o.y - y, o.x - x), kb: 40, col: '#c78bff', noNum: o !== e }); });
     addRing(x, y, R, '#c78bff', { w: 2, life: 0.3 }); addRing(x, y, R * 0.55, '#ffffff', { life: 0.2 });
     addFlash(x, y, R * 2.4, '#c78bff', 0.3);
     burst(x, y, 16, ['#ff8a3d', '#9ff7ff', '#ffe14a', '#ffffff'], { sp: 110, glow: true, life: 0.4 });
     shake(1.5);
   });
+  if (hasSp('trait', 'rpow') && ++P.resoN >= p.giantN) { // 共鳴結晶: 共鳴 giantN 回ごとに、その場所へ巨大な魔力結晶が落ちる(着弾まで giantFall 秒)
+    P.resoN = 0;
+    P.meteors.push({ x, y, t: 0, fall: p.giantFall, R: p.giantR * P.area, dmg: p.giantPow, big: 2, crys: true });
+  }
   const cmax = crystalMax();
   if (P.crystal < cmax) {
     P.crystal++;
@@ -3019,6 +3025,13 @@ function mageResonate(e, depth) {
     part(x, y, (P.x - x) * 2, (P.y - y) * 2, 0.5, '#c78bff', { glow: true, sz: 2, drag: 0 });
   }
   AudioMan.boom();
+}
+// 魔力循環: E / Q の CD を c 秒縮める(1秒あたり flowCap + 容量 まで。命中ごとの短縮と瞑想で同じ枠)
+function mageFlow(c) {
+  c = Math.min(c, MG().flowCap + cuV('passive', 'cap') - P.flowWin);
+  if (!(c > 0)) return;
+  P.flowWin += c;
+  for (const k in P.sk) P.sk[k].cd = Math.max(0, P.sk[k].cd - c);
 }
 const blinkCost = () => MG().blinkCost - (P.lvFx.blinkCut || 0);
 const crystalMax = () => MG().crystalMax + (P.lvFx.crystalMax || 0) + cuV('trait', 'crys'); // 魔力結晶の上限(クラスLv13・結晶容量)
@@ -3063,13 +3076,29 @@ function updMeteors(dt) {
     m.t += dt;
     const u = Math.min(1, m.t / m.fall), mx = m.x - 70 * (1 - u), my = m.y - 190 * (1 - u);
     asMine(() => {
-      for (let k = 0; k < (m.main ? 6 : 2); k++) part(mx + rand(-3, 3) * m.big, my + rand(-3, 3) * m.big, rand(-20, 20), rand(-40, -10), 0.45, pick(['#ffc34a', '#ff6a2a', '#fff6c8', '#6a4040']), { glow: true, sz: m.main ? 3 : 2 });
-      if (m.main && Math.random() < dt * 30) addRing(m.x, m.y, m.R, '#ff3b1a', { r0: m.R - 1, life: 0.06 });
+      for (let k = 0; k < (m.main || m.crys ? 6 : 2); k++) part(mx + rand(-3, 3) * m.big, my + rand(-3, 3) * m.big, rand(-20, 20), rand(-40, -10), 0.45, pick(m.crys ? ['#9ff7ff', '#c78bff', '#ffffff', '#4a6aa0'] : ['#ffc34a', '#ff6a2a', '#fff6c8', '#6a4040']), { glow: true, sz: m.main || m.crys ? 3 : 2 });
+      if ((m.main || m.crys) && Math.random() < dt * 30) addRing(m.x, m.y, m.R, m.crys ? '#c78bff' : '#ff3b1a', { r0: m.R - 1, life: 0.06 }); // 落ちる場所の予告
     });
     if (u < 1) continue;
     P.meteors.splice(i, 1);
-    meteorImpact(m);
+    if (m.crys) giantCrystalImpact(m); else meteorImpact(m);
   }
+}
+// 共鳴結晶: 巨大な魔力結晶が砕けて、周りの敵に 基礎威力 giantPow(共鳴として数える)
+function giantCrystalImpact(m) {
+  asMine(() => {
+    forEachNear(m.x, m.y, m.R, e => {
+      if (e.prop) { killEnemy(e); return; }
+      hitEnemy(e, m.dmg, { src: 'reso', ang: Math.atan2(e.y - m.y, e.x - m.x), kb: 120, col: '#c78bff' });
+    });
+    addFlash(m.x, m.y, m.R * 2.5, '#c78bff', 0.45);
+    addRing(m.x, m.y, m.R, '#c78bff', { w: 3, life: 0.4 }); addRing(m.x, m.y, m.R * 0.6, '#9ff7ff', { w: 2, life: 0.3 });
+    burst(m.x, m.y, 60, ['#9ff7ff', '#c78bff', '#ffffff', '#4a6aa0'], { sp: 200, glow: true, life: 0.7, drag: 2 });
+    burst(m.x, m.y, 24, ['#4a6aa0', '#7a5ac0', '#bff4ff'], { sp: 140, up: 60, g: 200, life: 0.8 }); // 結晶の破片
+    fxRays(m.x, m.y - 4, m.R * 1.3, '#7a5ac0', { n: 16, life: 0.4, core: '#9ff7ff' });
+    shockAt(m.x, m.y, 1.8, 1); shake(8); hitstop(0.05);
+  });
+  AudioMan.boom(); AudioMan.sparkle();
 }
 function meteorImpact(m) {
   const q = DATA.classes.mage.q;
