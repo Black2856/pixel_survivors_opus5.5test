@@ -3541,7 +3541,7 @@ const CL = () => DATA.classes.cleric.params;
 const prayCap = () => P.maxhp;
 const strikeCd = () => CL().strikeCd * (1 - cuV('trait', 'vessel')) * (1 - (P.lvFx.strikeCd || 0)); // 祈りの一撃の間隔(祈祷・クラスLv3)
 const prayCost = () => CL().prayCost - (P.lvFx.prayCut || 0);
-// 被回復量: HP が低いほど増える(満ちる光: HP が高いほど)。天啓: ×0.5
+// 被回復量: HP が低いほど増える(満ちる光: HP が高いほど)。天啓: ×revelHeal
 function clHealMul() {
   const f = P.maxhp > 0 ? Math.max(0, Math.min(1, P.hp / P.maxhp)) : 1;
   let k = 1 + cuV('passive', 'mercy', CL().mercy) * (hasSp('passive', 'after') ? f : 1 - f);

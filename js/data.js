@@ -283,11 +283,11 @@ const DATA = {
       //   1回: 半径 r に 基礎威力 pow + 最大HP × hpPow。1回ごとに最大HP の heal を回復
       //   聖痕: 当たった敵は stigmaT 秒、自分の回復量の stigma 倍のダメージを受ける / 連祷: +more 本 / 光の雨: 跡が rainT 秒(中で HP rainHeal/s)
       skill: {
-        name: 'ホーリーストライク', cd: 20, n: 3, gap: 0.25, r: 30, pow: 30, hpPow: 0.2, heal: 0.06, radius: 120, stigmaT: 10, stigma: 1, more: 2, rainT: 6, rainHeal: 3,
+        name: 'ホーリーストライク', cd: 20, n: 3, gap: 0.25, r: 30, pow: 30, hpPow: 0.2, heal: 0.06, radius: 120, stigmaT: 10, stigma: 1, more: 2, rainT: 6, rainHeal: 5,
         tree: { name: 'ホーリーストライク', paths: {
           pow:  { name: '威力', desc: ['ホーリーストライクの威力 +30%', 'ホーリーストライクの威力 +60%', 'ホーリーストライクの威力 +100%'], v: [0.3, 0.6, 1.0], sp: { name: '聖痕', desc: '当たった敵は 10秒間、自分が回復した量の 100% をダメージとして受ける' } },
           cd:   { name: '迅速', desc: ['ホーリーストライクのCD -10%', 'ホーリーストライクのCD -20%', 'ホーリーストライクのCD -30%'], v: [0.1, 0.2, 0.3], sp: { name: '連祷', desc: '光の柱 +2本' } },
-          heal: { name: '癒し', desc: ['1回の回復 6% → 7%', '1回の回復 8%', '1回の回復 10%'], v: [0.07, 0.08, 0.1], sp: { name: '光の雨', desc: '光の柱の跡が 6秒残り、中にいると HP 3/s 回復' } },
+          heal: { name: '癒し', desc: ['1回の回復 6% → 7%', '1回の回復 8%', '1回の回復 10%'], v: [0.07, 0.08, 0.1], sp: { name: '光の雨', desc: '光の柱の跡が 6秒残り、中にいると HP 5/s 回復' } },
         } },
       },
       // 熟練(クレリックの Lv で解放。ホーリーオーラを使うどのクラスにも効く)。クールダウンはオーラの間隔に効く
@@ -1013,7 +1013,7 @@ const DATA = {
       //   恩寵: 癒しの光が ×grace で graceT 秒かけて / 余光: E / Q の後 afterT 秒 HP回復速度アップ / 不屈の祈り: HP lowAt 以下で祈りを全て HP に(lastCd 秒に1回)
       // 聖域の祈り: 無敵 prayIfr 秒、最大HP の prayHeal を回復、スタミナ prayCost
       params: {
-        strike: 0.5, strikeCd: 1, grail: 1.5, revel: 3, revelHeal: 0.5, devote: 0.3,
+        strike: 0.5, strikeCd: 1, grail: 1.5, revel: 3, revelHeal: 0.7, devote: 0.3,
         light: 0.08, mercy: 0.3, grace: 2, graceT: 10, afterT: 3, lowAt: 0.3, lastCd: 60,
         prayIfr: 0.4, prayHeal: 0.03, prayCost: 80,
       },
@@ -1023,8 +1023,8 @@ const DATA = {
       tree: {
         trait: { name: '祈り', paths: {
           faith:  { name: '信心', desc: ['祈りの一撃の追加ダメージ 祈りの 50% → 65%', '祈りの一撃の追加ダメージ 祈りの 80%', '祈りの一撃の追加ダメージ 祈りの 100%'], v: [0.65, 0.8, 1.0], sp: { name: '聖杯', desc: '祈りが上限のとき、祈りの一撃のダメージ +50%' } },
-          vessel: { name: '祈祷', desc: ['祈りの一撃のCD -15%', '祈りの一撃のCD -30%', '祈りの一撃のCD -45%'], v: [0.15, 0.3, 0.45], sp: { name: '天啓', desc: '祈りの獲得量 ×3、被回復量 ×0.5' } },
-          ward:   { name: '加護', desc: ['祈りがあるとき、被ダメージ -4%', '祈りがあるとき、被ダメージ -8%', '祈りがあるとき、被ダメージ -12%'], v: [0.04, 0.08, 0.12], sp: { name: '献身', desc: '被弾したとき、受けるダメージの 30% を祈りで相殺する' } },
+          vessel: { name: '祈祷', desc: ['祈りの一撃のCD -15%', '祈りの一撃のCD -30%', '祈りの一撃のCD -45%'], v: [0.15, 0.3, 0.45], sp: { name: '天啓', desc: '祈りの獲得量 ×3、被回復量 ×0.7' } },
+          ward:   { name: '加護', desc: ['祈りがあるとき、被ダメージ -6%', '祈りがあるとき、被ダメージ -12%', '祈りがあるとき、被ダメージ -20%'], v: [0.06, 0.12, 0.2], sp: { name: '献身', desc: '被弾したとき、受けるダメージの 30% を祈りで相殺する' } },
         } },
         passive: { name: '癒しの光', paths: {
           light: { name: '光量', desc: ['E / Q の回復 8% → 10%', 'E / Q の回復 12%', 'E / Q の回復 15%'], v: [0.1, 0.12, 0.15], sp: { name: '恩寵', desc: '癒しの光の回復量 ×2。ただし 10秒かけて回復する' } },
