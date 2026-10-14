@@ -1724,7 +1724,7 @@ const CLASS_RT = {
 
   knight: {
     skills: ['q'],
-    init() { P.guard = false; P.guardHeld = false; P.guardT = 0; P.breakT = 0; P.knGainT = -99; P.knRes = {}; },
+    init() { P.guard = false; P.guardHeld = false; P.guardT = 0; P.breakT = 0; P.knGainT = -99; P.knRes = {}; P.knLoss = 0; },
     update(dt) {
       const p = KN();
       P.breakT -= dt;
@@ -1745,6 +1745,7 @@ const CLASS_RT = {
         if (P.shield < 0.5) P.shield = 0;
         knMend(s0 - P.shield);
       }
+      if (P.knLoss > 0) { knMend(P.knLoss); P.knLoss = 0; } // 被弾で減った分は、HP が減った後に回復する
       const over = shieldTotal() - knCap();
       if (over > 0) P.shield = Math.max(0, P.shield - over);
     },
@@ -1778,7 +1779,7 @@ const CLASS_RT = {
     atkBonus: () => knHoldAtk(),
     // 被弾をシールドで受けるとき: 痛み分け(HP が shareAt より多いとき、シールドで受けるのは share だけ)・鉄壁(シールドの減る量)
     shieldMod: () => ({ share: hasSp('passive', 'mend') && P.hp > P.maxhp * KN().shareAt ? KN().share : 1, k: 1 - cuV('passive', 'wall') }),
-    onShieldLoss: n => knMend(n), // 還元: 被弾で減ったシールド
+    onShieldLoss: n => { P.knLoss += n; }, // 還元: 被弾で減ったシールド(次の update で回復)
     resistDebuff: kind => knResist(kind), // 金剛
     qStart() {
       const q = DATA.classes.knight.q, a = aimDir(q.r * 1.5);
@@ -3100,11 +3101,11 @@ function giantCrystalImpact(m) {
       if (e.prop) { killEnemy(e); return; }
       hitEnemy(e, m.dmg, { src: 'reso', ang: Math.atan2(e.y - m.y, e.x - m.x), kb: 120, col: '#c78bff' });
     });
-    addFlash(m.x, m.y, m.R * 2.5, '#c78bff', 0.45);
+    addFlash(m.x, m.y, m.R * 2.5, '#5a3a9a', 0.35); // 光の層は色で明るさが決まるので暗い紫(白く飛ばさない)
     addRing(m.x, m.y, m.R, '#c78bff', { w: 3, life: 0.4 }); addRing(m.x, m.y, m.R * 0.6, '#9ff7ff', { w: 2, life: 0.3 });
-    burst(m.x, m.y, 60, ['#9ff7ff', '#c78bff', '#ffffff', '#4a6aa0'], { sp: 200, glow: true, life: 0.7, drag: 2 });
+    burst(m.x, m.y, 50, ['#7ad7ff', '#a070e0', '#5a3a9a', '#4a6aa0'], { sp: 200, glow: true, life: 0.7, drag: 2 });
     burst(m.x, m.y, 24, ['#4a6aa0', '#7a5ac0', '#bff4ff'], { sp: 140, up: 60, g: 200, life: 0.8 }); // 結晶の破片
-    fxRays(m.x, m.y - 4, m.R * 1.3, '#7a5ac0', { n: 16, life: 0.4, core: '#9ff7ff' });
+    fxRays(m.x, m.y - 4, m.R * 1.3, '#5a3a9a', { n: 16, life: 0.4, core: '#7a5ac0' });
     shockAt(m.x, m.y, 1.8, 1); shake(8); hitstop(0.05);
   });
   AudioMan.boom(); AudioMan.sparkle();
