@@ -2792,7 +2792,7 @@ const CLASS_RT = {
   // 武神降臨(Q): 分身(P.wmClone)が、持っている武器の武器スキルをランダムに使う。残像(Space): 跳んだ直後にメイン武器がもう一度攻撃する
   weaponmaster: {
     skills: ['q'],
-    init() { P.dash = null; P.dashHeld = false; P.wmShadeT = 0; P.shades = []; P.wmClone = null; P.wmCut = 0; P.wmKey = ''; },
+    init() { P.dash = null; P.dashHeld = false; P.wmShadeT = 0; P.shades = []; P.wmClone = null; P.wmCut = 0; P.wmKey = ''; P.wmHasteT = 0; },
     update(dt) {
       if (P.dash) { // 残像: 跳んでいる間(無敵)。最後のフレームは残りの時間だけ進める(跳ぶ距離をぴったりにする)
         const k = Math.min(dt, P.dash.t);
@@ -2809,6 +2809,7 @@ const CLASS_RT = {
       if (key !== P.wmKey) { P.wmKey = key; recalc(); }
       // 器用: スタック 1つにつきクールダウン -(パスの値)(ステータスのクールダウンにさらに掛ける)
       P.cdMul = (1 - P.stats.v.cd) * P.stats.mul.cd * (1 - Math.min(0.5, wmStack() * cuV('trait', 'deft')));
+      P.wmHasteT -= dt; P.atkSpd = 1 + (P.wmHasteT > 0 ? WM().hasteSpd : 0); // 早業
       wmShadeTick(dt);
       wmCloneTick(dt);
     },
@@ -2817,7 +2818,7 @@ const CLASS_RT = {
     onKill(e, o) { if (o && o.cl) wmQuick(); }, // 間髪: 分身の武器スキルで倒した
     atkBonus: () => wmStack() * cuV('trait', 'train', WM().stackAtk),
     hpAdd: () => Math.round(wmStack() * cuV('trait', 'tough')), // 頑健
-    onSkill(slot) { if (slot === 'e' && hasSp('trait', 'deft')) wmHaste(); }, // 早業: E を使うと全ての武器がすぐに攻撃する
+    onSkill() { if (hasSp('trait', 'deft')) P.wmHasteT = WM().hasteT; }, // 早業: E / Q を使った後、全武器の攻撃速度アップ
     qStart() { // スキル名は分身が出たときに、使う武器スキルと一緒に出す(wmSummon)
       P.act = { slot: 'q', ph: 'wind', t: 0 };
       playAnim('wmSeal', MOTIONS.wmSeal.dur);
@@ -2844,6 +2845,7 @@ const CLASS_RT = {
       const atk = n * cuV('trait', 'train', p.stackAtk), deft = Math.min(0.5, n * cuV('trait', 'deft')), hp = Math.round(n * cuV('trait', 'tough')), steady = hasSp('trait', 'tough') && wmFull();
       out.push({ id: 'wmArts', glyph: '武', name: _t`武芸百般 ${+n.toFixed(1)}`, kind: 'buff',
         fx: _t`攻撃力 +${pc(atk)}%` + (deft ? _t`・クールダウン -${pc(deft)}%` : '') + (hp ? _t`・最大HP +${hp}` : '') + (steady ? _t`・被ダメージ -${Math.round(p.steadyDr * 100)}%(不動)` : '') });
+      if (P.wmHasteT > 0) out.push({ id: 'wmHaste', glyph: '速', name: _t('早業'), fx: _t`攻撃速度 +${Math.round(p.hasteSpd * 100)}%`, t: P.wmHasteT, max: p.hasteT, kind: 'buff' });
       const every = wmShadeEvery(), left = Math.max(0, every - P.wmShadeT);
       out.push({ id: 'wmShade', glyph: '影', name: _t('影の追撃'), fx: _t`${+every.toFixed(1)}秒ごとに、持っている武器(メイン武器も)のどれかがもう一度攻撃する(次まで ${left.toFixed(1)}秒)`, t: left, max: every, kind: 'buff' });
       const c = P.wmClone;
@@ -4249,14 +4251,6 @@ function wmAgain() {
   const k = P.mainW;
   if (P.weapons[k]) weaponFire(k, P.weapons[k], wst(k), P_ORG);
   asMine(() => addRing(P.x, P.y, 12, WM_COL, { life: 0.2 }));
-}
-// 早業: 全ての武器の攻撃間隔を 0 に戻す(オーラは判定の間隔。回り続ける刃は帯の敵へ 1回)
-function wmHaste() {
-  for (const k in P.weapons) {
-    const w = P.weapons[k];
-    if (k === 'blade') weaponFire(k, w, wst(k), P_ORG); else if (k === 'aura') w.tick = 0; else w.cd = 0;
-  }
-  asMine(() => { addRing(P.x, P.y, 16, WM_COL, { w: 2, life: 0.25 }); burst(P.x, P.y - 6, 10, WM_FX, { sp: 70, glow: true, life: 0.3 }); });
 }
 // 間髪: 分身の武器スキルで敵を倒すたびに 武神降臨の CD -killCd(1回の武神降臨で killMax まで)
 function wmQuick() {
