@@ -37,7 +37,7 @@
   //   (setTimeout を丸ごと置き換えると Playwright の evaluate が返らなくなる。Playwright 側の呼び出しは本物に渡す)
   const realST = window.setTimeout, realCT = window.clearTimeout;
   let simT = 0, tq = [], tqN = 1e9;
-  const fromGame = () => /\/js\/[\w\-/]+\.js/.test(String(new Error().stack).split('\n')[3] || '');
+  const fromGame = () => /\/js\/[\w.\-/]+\.js/.test(String(new Error().stack).split('\n')[3] || '');
   const fakeST = function (fn, ms = 0, ...args) {
     if (!fromGame()) return realST.apply(window, arguments);
     const id = ++tqN;
