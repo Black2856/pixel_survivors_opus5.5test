@@ -511,7 +511,7 @@ const DATA = {
       ],
       // 武器スキル(E)乱れ桜: 構え windup 秒 → dur 秒間 周囲(半径 radius)を hits 回斬る(1回 武器の威力 × pow)。使っている間も移動できる
       skill: {
-        name: '乱れ桜', cd: 25, windup: 0.2, dur: 1.5, hits: 10, radius: 50, pow: 1.5, burst: 8, burstR: 70,
+        name: '乱れ桜', cd: 25, windup: 0.2, dur: 1.5, hits: 10, radius: 75, pow: 1.5, burst: 8, burstR: 100,
         tree: { name: '乱れ桜', paths: {
           pow: { name: '威力', desc: '乱れ桜の威力 +{p}%', v: [0.3, 0.6, 1.0], sp: { name: '桜吹雪', desc: '終了時に花びらが爆散する(武器の威力 × 800%)' } },
           cd:  { name: '迅速', desc: '乱れ桜のCD -{p}%', v: [0.1, 0.2, 0.3], sp: { name: '剣の舞', desc: '使っている間、敵を1体倒すごとにCD -1秒' } },
