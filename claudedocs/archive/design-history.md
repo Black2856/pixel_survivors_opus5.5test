@@ -133,3 +133,23 @@
 | 固有効果の二つ名 | 5.6 の案で仮決め。変えたければ差し替えるだけでよい |
 
 ---
+
+## 控え: メイジのドット絵の下書き(クラス共通の 3.7 から移した。今の絵は js/art.js の部位)
+
+**メイジ**(下書き。部位に分けて作り直す)
+
+```
+.......ab...   a 輪郭      #151022
+......abb...   b 帽子      #3b2a7a
+.....abbb...   c 帽子の帯  #d6ae5c
+....abbbba..   d 目・宝珠  #9ff7ff(光る)
+..accccccca.   e 顔の影    #151022
+.abbbbbbbbba   f ローブ    #2b3f8f
+...aededa...   g ローブ(明) #4d6fd0
+..ffgggff...   h 金の縁取り #d6ae5c
+.ffhgggghffd   i 手        #f0c9a0
+.fffhgghfffi
+..ffhgghfff.
+.fffhhhhfff.
+..aa....aa..
+```
