@@ -121,6 +121,11 @@ main { grid-column: 2; grid-row: 2; display: flex; flex-direction: column; min-w
 #tool.on { display: flex; }
 #tool button { border: 0; padding: 0 6px; font-size: 13px; }
 #tool button:hover { background: var(--acc-bg); }
+/* 表に行・列を追加するメニュー(マスの右クリック / ⊞)。足す基準のマスを枠で示す */
+#tmenu { position: fixed; z-index: 20; display: flex; flex-direction: column; gap: 1px; background: var(--panel); border: 1px solid var(--line); border-radius: 7px; padding: 3px; box-shadow: 0 4px 14px rgba(0, 0, 0, 0.18); }
+#tmenu button { border: 0; text-align: left; padding: 3px 12px 3px 8px; }
+#tmenu button:hover:not(:disabled) { background: var(--acc-bg); }
+#pv .tm-cell { outline: 2px solid var(--acc); outline-offset: -2px; }
 
 /* コメントのスレッド */
 .thread { border: 1px solid var(--line); border-left: 3px solid var(--warn); border-radius: 8px; margin: 0.6em 0; background: var(--panel); font-size: 13px; }

@@ -11,7 +11,7 @@
   仕様書エディタ — フォルダの md をブラウザで読み書きする(Chrome / Edge。File System Access API)
     開き方: このファイルをダブルクリック(file://)か、python -m http.server で開く
     - 左: ファイル(サブフォルダも)/ 全文検索 / コメントの一覧   真ん中: 編集とプレビュー   右: 変更(基準から)/ 履歴
-    - プレビューで直せる: 表のマスはクリック、ほかはダブルクリック(か ✎)。見出しをクリックで節をたたむ
+    - プレビューで直せる: 表のマスはクリック、ほかはダブルクリック(か ✎)。表の行・列はマスの右クリック(か ⊞)で足す。見出しをクリックで節をたたむ
     - コメント: ブロックにマウスを乗せて 💬。md の中に HTML のコメントで残す(書き方は md.js の先頭)。AI も同じ形で返事を書く
     - 保存は Ctrl+S。改行コード(CRLF / LF)と BOM は元のファイルのまま。外(LLM など)で書き換わると気づく
   ファイル: md.js(Markdown の解釈・差分)/ app.js(画面と操作)/ style.css
@@ -62,7 +62,7 @@
   <div id="panes">
     <textarea id="ed" spellcheck="false"></textarea>
     <div id="pvWrap">
-      <div id="pvBar"><button id="foldAll" title="節をたたむ(見出しのクリックでも)">たたむ</button><button id="openAll">ひらく</button><label title="解決にしたコメントのやり取りを隠す"><input type="checkbox" id="hideRes"> 解決済みを隠す</label><span class="sp"></span><span class="dim" title="表のマスはクリック、ほかはダブルクリック(か ✎)で直せる。見出しのクリックで節をたたむ">直し方 ⓘ</span></div>
+      <div id="pvBar"><button id="foldAll" title="節をたたむ(見出しのクリックでも)">たたむ</button><button id="openAll">ひらく</button><label title="解決にしたコメントのやり取りを隠す"><input type="checkbox" id="hideRes"> 解決済みを隠す</label><span class="sp"></span><span class="dim" title="表のマスはクリック、ほかはダブルクリック(か ✎)で直せる。表の行・列はマスの右クリック(か ⊞)で足す。見出しのクリックで節をたたむ">直し方 ⓘ</span></div>
       <div id="pv"></div>
     </div>
   </div>
@@ -73,7 +73,7 @@
 </div>
 <div id="start"><div class="box">
   左上の「フォルダを開く」で、md ファイルのあるフォルダを選んでください。<br>
-  ・プレビューで直せます(表のマスはクリック、ほかはダブルクリック)。見出しのクリックで節をたたみます<br>
+  ・プレビューで直せます(表のマスはクリック、ほかはダブルクリック)。表の行・列はマスの右クリックで足せます。見出しのクリックで節をたたみます<br>
   ・ブロックにマウスを乗せて 💬 でコメント。AI とのやり取りは md の中に残ります<br>
   ・「変更」で基準からの変更を、LLM に渡す形でコピーできます。保存は Ctrl+S<br>
   ・開いているファイルがほかのソフト(LLM など)で書き換わると、自動で知らせます

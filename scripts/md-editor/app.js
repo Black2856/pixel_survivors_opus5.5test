@@ -214,9 +214,10 @@ function renderPreview(now, resetScroll) {
     if (!S.cur) return;
     if (S.editing || editingInPv()) { S.pvPending = true; return; } // 書きかけ(マス・返信)を消さない。終わったら描き直す
     S.pvPending = false;
+    closeMenu();
     const pv = $('pv'), top = pv.scrollTop;
     pv.innerHTML = MD.render(MD.parse(ed().value), new Set(ls.get(foldKey(), []))) +
-      '<div id="tool"><button data-a="cm" title="ここにコメントを書く">💬</button><button data-a="cp" title="この場所と中身をコピー(LLM に渡す)">📋</button><button data-a="ed" title="ここを元の書き方で直す">✎</button></div>';
+      '<div id="tool"><button data-a="cm" title="ここにコメントを書く">💬</button><button data-a="cp" title="この場所と中身をコピー(LLM に渡す)">📋</button><button data-a="ed" title="ここを元の書き方で直す">✎</button><button data-a="tb" title="表に行・列を追加(マスの右クリックでも)">⊞</button></div>';
     pv.scrollTop = resetScroll ? 0 : top;
     S.toolEl = null;
     markCursor(false);
@@ -318,10 +319,72 @@ function setCell(line, ci, val) {
   const L = ed().value.split('\n'), v = val.replace(/\n/g, ' ').replace(/\\\|/g, '|').replace(/\|/g, '\\|'); // マスの中の | は \|
   let row = L[line];
   const sp = MD.cellSpans(row);
-  if (ci < sp.length) row = row.slice(0, sp[ci].s) + v + row.slice(sp[ci].e);
+  if (ci < sp.length) {
+    const c = sp[ci];
+    if (c.s === c.e) { // 空のマス: | と | の間を「 中身 」にする(空のマスの位置は右の | の直前なので、そのまま入れると |  中身| になる)
+      const p = pipesOf(row), l = p.filter(x => x < c.s).pop(), r = p.find(x => x >= c.e) ?? row.length;
+      row = row.slice(0, l + 1) + ' ' + v + ' ' + row.slice(r);
+    } else row = row.slice(0, c.s) + v + row.slice(c.e);
+  }
   else { const cs = sp.map(c => row.slice(c.s, c.e)); while (cs.length < ci) cs.push(''); cs[ci] = v; row = '| ' + cs.join(' | ') + ' |'; }
   L[line] = row;
   setSource(L.join('\n'));
+}
+// 表に行・列を足す: マスの右クリック(か、表の行の ⊞)のメニューから。足したマスをそのまま直せる(Ctrl+Z / ↶ で戻せる)
+//   ほかの行の書き方は変えない(| の位置に差し込むだけ。区切りの行は |---| / | --- | の書き方をまねる)
+const pipesOf = row => { const out = []; for (let i = 0; i < row.length; i++) if (row[i] === '|' && row[i - 1] !== '\\') out.push(i); return out; };
+function tableAt(line) { // { L, l0: 見出しの行, l1: 最後の行, n: 列の数 }
+  const L = ed().value.split('\n'), l0 = MD.tableHeadLine(L, line);
+  if (l0 < 0) return null;
+  let l1 = l0 + 1;
+  while (l1 + 1 < L.length && /^\s*\|/.test(L[l1 + 1])) l1++;
+  return { L, l0, l1, n: MD.cellSpans(L[l0]).length };
+}
+function editAt(line, ci) { const c = $('pv').querySelector(`tr[data-line="${line}"] [data-ci="${ci}"]`); if (c) { c.scrollIntoView({ block: 'nearest' }); editCell(c); } }
+function addRow(line, below) {
+  const t = tableAt(line);
+  if (!t) return;
+  const at = line === t.l0 ? t.l0 + 2 : below ? line + 1 : line; // 見出しの下 = 区切りの行の次
+  t.L.splice(at, 0, '| ' + Array(t.n).fill('').join(' | ') + ' |');
+  setSource(t.L.join('\n'));
+  editAt(at, 0);
+  msg('行を追加しました(Ctrl+Z で戻せる)', 'ok');
+}
+function addCol(line, ci, right) {
+  const t = tableAt(line);
+  if (!t) return;
+  const k = ci + (right ? 1 : 0); // 新しい列の番号 = k 番目の | の後に差し込む
+  for (let i = t.l0; i <= t.l1; i++) {
+    const row = t.L[i], p = pipesOf(row);
+    if (k >= p.length) continue; // マスが足りない行・最後の | がない行はそのまま(空のマスとして見える)
+    const sep = i === t.l0 + 1, tight = !/\|\s/.test(row);
+    t.L[i] = row.slice(0, p[k] + 1) + (sep ? (tight ? '---|' : ' --- |') : '  |') + row.slice(p[k] + 1);
+  }
+  setSource(t.L.join('\n'));
+  editAt(t.l0, k); // 見出しから書く
+  msg('列を追加しました(Ctrl+Z で戻せる)', 'ok');
+}
+function closeMenu() { const m = $('tmenu'); if (m) m.remove(); document.querySelector('#pv .tm-cell')?.classList.remove('tm-cell'); }
+function tableMenu(cell, x, y) {
+  const tr = cell.closest('tr[data-line]'), line = +tr.dataset.line, ci = +cell.dataset.ci, head = !!cell.closest('thead');
+  const th = cell.closest('table').querySelector(`thead [data-ci="${ci}"]`), col = th ? excerpt(th.textContent).slice(0, 10) : '';
+  const cn = col ? `「${esc(col)}」の` : '';
+  hideTool(); closeMenu();
+  cell.classList.add('tm-cell');
+  const m = document.createElement('div');
+  m.id = 'tmenu';
+  m.innerHTML = [['up', '↑ 上に行を追加', head], ['down', '↓ 下に行を追加'], ['left', `← ${cn}左に列を追加`], ['right', `→ ${cn}右に列を追加`]]
+    .map(([a, t, off]) => `<button data-a="${a}"${off ? ' disabled title="見出しの上には足せない"' : ''}>${t}</button>`).join('');
+  document.body.appendChild(m);
+  m.style.left = Math.max(4, Math.min(innerWidth - m.offsetWidth - 4, x)) + 'px';
+  m.style.top = Math.max(4, Math.min(innerHeight - m.offsetHeight - 4, y)) + 'px';
+  m.onclick = e => {
+    const b = e.target.closest('button[data-a]');
+    if (!b || b.disabled) return;
+    closeMenu();
+    const a = b.dataset.a;
+    if (a === 'up' || a === 'down') addRow(line, a === 'down'); else addCol(line, ci, a === 'right');
+  };
 }
 // ほかのブロック(段落・箇条書きの項目・見出し・引用・コード): ダブルクリックか ✎ で、その行を元の書き方で直す
 function editBlock(el) {
@@ -355,10 +418,13 @@ $('pv').addEventListener('mousemove', e => {
   if (!t || S.editing || t.contains(e.target)) return;
   const el = e.target.closest('tr[data-line], [data-blk]');
   if (!el || el.dataset.blk === 'thread' || el.closest('.thread, .composer') || el.dataset.blk === 'table') { if (!el || el.dataset.blk !== 'table') hideTool(); return; }
+  const cell = e.target.closest('td[data-ci], th[data-ci]');
+  if (cell) S.toolCell = cell; // ⊞ で足す列の基準(最後にマウスを乗せたマス)
   if (S.toolEl === el) return;
   S.toolEl = el;
   const pv = $('pv'), pr = pv.getBoundingClientRect(), r = el.getBoundingClientRect();
   t.querySelector('[data-a="ed"]').hidden = el.tagName === 'TR';
+  t.querySelector('[data-a="tb"]').hidden = el.tagName !== 'TR';
   t.classList.add('on');
   t.style.top = Math.max(0, r.top - pr.top + pv.scrollTop - t.offsetHeight + 4) + 'px';
   t.style.left = Math.max(0, Math.min(pv.scrollLeft + pv.clientWidth - t.offsetWidth - 6, r.right - pr.left + pv.scrollLeft - t.offsetWidth)) + 'px';
@@ -657,7 +723,13 @@ ed().addEventListener('click', () => markCursor(true));
 ed().addEventListener('keydown', e => { if (e.key === 'Tab' && !e.ctrlKey && !e.altKey) { e.preventDefault(); document.execCommand('insertText', false, '  '); } }); // 字下げは空白 2つ(元に戻せる)
 $('pv').addEventListener('click', e => {
   const tb = e.target.closest('#tool button');
-  if (tb) { const el = S.toolEl; if (!el) return; if (tb.dataset.a === 'cm') newThread(el); else if (tb.dataset.a === 'cp') copyBlock(el); else editBlock(el); return; }
+  if (tb) {
+    const el = S.toolEl;
+    if (!el) return;
+    if (tb.dataset.a === 'tb') { const c = S.toolCell && S.toolCell.closest('tr') === el ? S.toolCell : el.querySelector('[data-ci]'), r = tb.getBoundingClientRect(); if (c) tableMenu(c, r.left, r.bottom + 2); }
+    else if (tb.dataset.a === 'cm') newThread(el); else if (tb.dataset.a === 'cp') copyBlock(el); else editBlock(el);
+    return;
+  }
   const th = e.target.closest('.thread');
   if (th) {
     if (e.target.closest('.th-send')) replyThread(th);
@@ -679,9 +751,20 @@ $('pv').addEventListener('dblclick', e => {
   const blk = e.target.closest('[data-blk]');
   if (blk) editBlock(blk);
 });
+// 表のマスの右クリック: 行・列を足すメニュー(マスを直している間はふつうの右クリック)
+$('pv').addEventListener('contextmenu', e => {
+  const cell = e.target.closest('td[data-ci], th[data-ci]');
+  if (!cell || S.editing) return;
+  e.preventDefault();
+  tableMenu(cell, e.clientX, e.clientY);
+});
+window.addEventListener('mousedown', e => { if ($('tmenu') && !e.target.closest('#tmenu')) closeMenu(); }, true);
+$('pv').addEventListener('scroll', closeMenu);
+window.addEventListener('resize', closeMenu);
 $('pv').addEventListener('keydown', e => { const ta = e.target.closest('.th-reply textarea'); if (ta && e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); replyThread(ta.closest('.thread')); } });
 window.addEventListener('keydown', e => {
   const k = e.key.toLowerCase(), inText = /^(INPUT|TEXTAREA)$/.test(document.activeElement && document.activeElement.tagName);
+  if (e.key === 'Escape' && $('tmenu')) { e.preventDefault(); closeMenu(); return; }
   if ((e.ctrlKey || e.metaKey) && k === 's') { e.preventDefault(); save(); }
   else if ((e.ctrlKey || e.metaKey) && e.shiftKey && k === 'f') { e.preventDefault(); $('tabs').querySelector('[data-tab="search"]').click(); }
   else if ((e.ctrlKey || e.metaKey) && !e.shiftKey && k === 'z' && !inText && S.undo.length) { e.preventDefault(); undoPv(); }
