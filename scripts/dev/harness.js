@@ -225,7 +225,7 @@
   };
   // ステージのボス: 予定をボスまで飛ばして本物の出方で出す → sec 秒戦う(半分で激昂の HP に)→ 倒して 4秒(変身・撃破の演出)
   //   どのステージにも出ないボス(第二形態を除く)は、エスカレーションの草原で spawnBoss で出す。o: stages / extra(false で出さない)/ sec / seed / pix / trace
-  //   per: 1回ごとのハッシュ(どのボスでずれたか)
+  //   per: 1回ごとのハッシュ(どのボスでずれたか)/ pixEvery: 画素を見る間隔のフレーム数(既定 180。描画のリファクタリングは 30 などで細かく)
   T.bossSmoke = (o = {}) => {
     const sec = o.sec || 20, seed = o.seed || 7;
     T.errs.length = 0; seen.clear();
@@ -262,7 +262,8 @@
           P.hp = P.maxhp;
           frame(i % 3 === 0);
           if (o.trace) trace.push(tag + ' ' + i + ' ' + T.snap());
-          if (i % 60 === 0) { hashState(); if (i % 180 === 0 && o.pix !== false) hashPixels(); }
+          if (i % 60 === 0) hashState();
+          if (i % (o.pixEvery || 180) === 0 && o.pix !== false) hashPixels();
           frames++;
         }
         for (const x of (S.bosses || [b]).slice()) tryf('kill ' + key, () => { x.hpFloor = 0; hitEnemy(x, 1e9, { item: true }); });
