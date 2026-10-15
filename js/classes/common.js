@@ -25,6 +25,13 @@ const treeCat = cat => (cat === 'e' ? weaponSkill() && weaponSkill().tree : DATA
 const cuLv = (cat, path) => P.cu[cat + '.' + path] || 0;
 const cuV = (cat, path, def = 0) => { const l = cuLv(cat, path); return l ? treeCat(cat).paths[path].v[l - 1] : def; };
 const hasSp = (cat, path) => P.cs[cat] === path;
+// パスの Lv(1〜3)の説明。desc が文字列なら v[lv - 1] を差し込む: {p} = ×100(0.3 → 30)/ {v} = そのまま / {v1} = 小数 1桁(1 → 1.0)
+//   v を変えるだけで説明も変わる(辞書は型のまま)。Lv ごとに文が違うもの(Lv1 が「基本 → Lv1」など)は今までどおり配列
+const pathDesc = (d, lv) => {
+  if (Array.isArray(d.desc)) return d.desc[lv - 1];
+  const x = d.v[lv - 1];
+  return d.desc.replace('{p}', String(+(x * 100).toFixed(2))).replace('{v1}', x.toFixed(1)).replace('{v}', String(+x.toFixed(3)));
+};
 
 // ---------- 共通: E / Q ----------
 // P.sk[slot] = { cd: 残り秒, max: 直近の CD 秒 } / P.act = 実行中のスキル(動けない時間などを管理)

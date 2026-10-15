@@ -461,7 +461,7 @@ const UI = (() => {
       else {
         head = tag + `Lv ${lv} → ${lv + 1}`; name = `<small>${C.name}</small><span class="no-gl">${d.name}</span>`; // パス名(威力・迅速など)は用語ではないので印を付けない rar = lv + 1 === 3 ? 'epic' : 'rare';
         // Lv1 以上は「今 → 次」の2行(Lv1 の説明の「基本の値 → Lv1 の値」は、今の行では Lv1 の値だけ)
-        body = lv ? _t`<div class="cd-lv now"><em>今</em><div>${d.desc[lv - 1].replace(/\S+ → (\S+)/, '$1')}</div></div><div class="cd-lv"><em>次</em><div>${d.desc[lv]}</div></div>` : `<p>${d.desc[0]}</p>`;
+        body = lv ? _t`<div class="cd-lv now"><em>今</em><div>${pathDesc(d, lv).replace(/\S+ → (\S+)/, '$1')}</div></div><div class="cd-lv"><em>次</em><div>${pathDesc(d, lv + 1)}</div></div>` : `<p>${pathDesc(d, 1)}</p>`;
         if (lv + 1 === 3 && !P.cs[c.cat]) body += _t`<div class="cd-sp">Lv3 で特殊強化「${d.sp.name}」が候補に出る</div>`; // このカテゴリの特殊強化をまだ取っていないとき
         foot = `<div class="evohint">${'◆'.repeat(lv + 1)}${'◇'.repeat(2 - lv)}</div>`;
       }

@@ -1,7 +1,7 @@
 // i18n-check.js — 辞書(js/lang/en.js・zh.js・ko.js)の抜け・余り・差し込みの食い違いを調べる
 // 使い方: node scripts/i18n-check.js
 //   訳がない: 表示する日本語(_t('…') / _t`…` / data.js の文字列 / index.html の文字)のうち、辞書にないもの → 英語でも日本語のまま出る
-//   差し込みが合わない: キーと英語で {0} {1} … {v} の組が違うもの
+//   差し込みが合わない: キーと英語で {0} {1} … {v} {p} {v1} の組が違うもの
 //   使っていない: 辞書にあるが、どこにも出てこないキー(日本語の文を書き換えたときの古いキー)
 //   包んでいない: コードの中の日本語の文字列で、_t を通していないもの(表示する文なら _t で包む。ID・比較・glyph はそのままでよい)
 //   中国語・韓国語は、訳がない・差し込みが合わない・HTML のタグが合わない(キーと同じタグ・属性が同じ順に要る)・使っていない を辞書ごとに出す
@@ -117,7 +117,7 @@ fs.readFileSync(path.join(root, 'index.html'), 'utf8').replace(/<!--[\s\S]*?-->/
 });
 
 // ---------- 結果 ----------
-const ph = s => [...new Set([...s.matchAll(/\{(\d+|v)(?:\|[^}]*)?\}/g)].map(m => m[1]))].sort().join(',');
+const ph = s => [...new Set([...s.matchAll(/\{(\d+|v1?|p)(?:\|[^}]*)?\}/g)].map(m => m[1]))].sort().join(','); // {p} {v} {v1}: 強化の説明の値(pathDesc)
 const missing = [...need].filter(([k]) => !(k in EN));
 const mismatch = [...need].filter(([k]) => k in EN && ph(k) !== ph(EN[k]));
 const unused = Object.keys(EN).filter(k => !need.has(k) && !literals.has(k));

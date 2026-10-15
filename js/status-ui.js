@@ -95,7 +95,7 @@ const StatusUI = (() => {
     h += _t('<div class="sv-g">強化') + (c.run ? '' : _t('(ラン中に3の倍数のLv で選ぶ)')) + '</div>';
     h += Object.keys(T.paths).map(p => {
       const d = T.paths[p], lv = c.run ? cuLv(b.cat, p) : 0;
-      return `<div class="sv-row ${lv ? '' : 'z'}"><span class="no-gl">${d.name} ${lv ? 'Lv' + lv : ''}</span><i>${lv ? d.desc[lv - 1] : d.desc[0] + ' …'}</i></div>`;
+      return `<div class="sv-row ${lv ? '' : 'z'}"><span class="no-gl">${d.name} ${lv ? 'Lv' + lv : ''}</span><i>${lv ? pathDesc(d, lv) : pathDesc(d, 1) + ' …'}</i></div>`;
     }).join('');
     // 特殊強化: 各パスを Lv3 にすると候補に出る(1カテゴリにつき1つ)。取ったものは明るく
     const sp = c.run && P.cs[b.cat];
