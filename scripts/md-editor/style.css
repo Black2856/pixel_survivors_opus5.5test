@@ -42,6 +42,11 @@ aside { grid-row: 2; background: var(--side); border-right: 1px solid var(--line
 .tab > input { padding: 4px 8px; }
 .tab .row { display: flex; gap: 6px; align-items: center; font-size: 13px; }
 select { font: inherit; font-size: 12px; color: var(--text); background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 1px 2px; }
+.tab .row > span { white-space: nowrap; }
+/* まとめて消す: 1段目に範囲、2段目に消すボタン 2つ(幅を分け合う)。サイドバーは狭いので 1行には入らない */
+.tab .row.del { margin-bottom: 4px; }
+.tab .row.del + .row.del { margin-bottom: 8px; }
+.tab .row.del button { flex: 1; }
 #delResolved, #delAll { color: var(--warn); }
 .list { overflow: auto; flex: 1; padding: 0 4px 12px; }
 .list .dir { color: var(--dim); font-size: 12px; padding: 8px 8px 2px; }

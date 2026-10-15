@@ -41,7 +41,8 @@
   </div>
   <div class="tab" id="tab-cmt" hidden>
     <div class="row"><label><input type="checkbox" id="openOnly" checked> 未解決だけ</label><span class="sp"></span><button id="cmtCopy" title="一覧のコメントを、場所つきで LLM に渡す形にしてコピー">コピー</button></div>
-    <div class="row"><span class="dim">まとめて消す:</span><select id="delScope" title="消す範囲"><option value="all">全ファイル</option><option value="cur">開いているファイル</option></select><button id="delResolved" title="解決にしたやり取りを消す">解決済み</button><button id="delAll" title="範囲の中のやり取りを全部消す(未解決も)">全部</button></div>
+    <div class="row del"><span class="dim">まとめて消す</span><span class="sp"></span><select id="delScope" title="消す範囲"><option value="all">全ファイル</option><option value="cur">開いているファイル</option></select></div>
+    <div class="row del"><button id="delResolved" title="解決にしたやり取りを消す">解決済みを消す</button><button id="delAll" title="範囲の中のやり取りを全部消す(未解決も)">全部消す</button></div>
     <div class="list" id="cmtList"></div>
   </div>
 </aside>
