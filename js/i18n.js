@@ -5,7 +5,7 @@
 //   英語の {0|a|b}  : {0} の値が 1 なら a、それ以外なら b(数そのものは出さない。複数形用)
 //   辞書にない文: 中国語・韓国語は英語の辞書で探し、それも無ければ日本語のまま。英語は日本語のまま(node scripts/i18n-check.js で抜けを調べる)
 // DATA(data.js)の文字列は、読み込んだ直後にまとめて置き換える(data.js は日本語のまま)。index.html の文字も同じ
-// 言語は設定(ps55_set の lang)。未設定なら、英語版より前からのセーブがある人は日本語のまま、初めての人はブラウザの言語(日本語・中国語・韓国語ならその言語、ほかは英語)
+// 言語は設定(ps55_set の lang)。未設定ならブラウザの言語(日本語・中国語・韓国語ならその言語、ほかの言語と取れないときは英語)。前からのセーブがある人も同じ
 // 決めた言語はすぐ設定に保存する(2回目からセーブがあっても変わらないように)。切り替えはページを読み直す
 // フォント: 中国語・韓国語は、漢字・ハングル・全角の範囲だけ Fusion Pixel 12px(SIL OFL。jsDelivr の fontsource)を DotGothic16 / Press Start 2P と同じ名前で足す
 //   あとに書いた @font-face が先に使われるので、その範囲の文字だけ Fusion Pixel になり、英字・数字・かなは今のフォントのまま(日本語・英語では足さない)
@@ -13,11 +13,11 @@
 
 const LANGS = { ja: '日本語', en: 'English', zh: '简体中文', ko: '한국어' }; // 設定のプルダウンの並びと名前(それぞれの言語で書く)
 const LANG = (() => {
-  let s = {}, lang = null;
+  let s = {};
   try { s = JSON.parse(localStorage.getItem('ps55_set') || '{}') || {}; } catch (e) { s = {}; }
   if (LANGS[s.lang]) return s.lang;
-  try { if (localStorage.getItem('ps55_meta')) lang = 'ja'; } catch (e) { /* 既定へ */ } // 前から遊んでいる人の表示は変えない
-  if (!lang) { const l = (navigator.languages && navigator.languages[0]) || navigator.language || 'ja'; lang = /^ja\b/i.test(l) ? 'ja' : /^zh\b/i.test(l) ? 'zh' : /^ko\b/i.test(l) ? 'ko' : 'en'; } // 中国語は繁体字の人も簡体字
+  const l = (navigator.languages && navigator.languages[0]) || navigator.language || '';
+  const lang = /^ja\b/i.test(l) ? 'ja' : /^zh\b/i.test(l) ? 'zh' : /^ko\b/i.test(l) ? 'ko' : 'en'; // 中国語は繁体字の人も簡体字。ほかの言語・取れないときは英語
   try { s.lang = lang; localStorage.setItem('ps55_set', JSON.stringify(s)); } catch (e) { /* 保存不可でも続行 */ }
   return lang;
 })();
