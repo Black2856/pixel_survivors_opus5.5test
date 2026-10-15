@@ -83,7 +83,7 @@ const StatusUI = (() => {
   }
   function skillTab(c) {
     const blocks = skBlocks = blocksOf(c);
-    return _t('<div class="sv-note">スキルをクリックすると詳細を表示します</div>') + blocks.map((b, i) => `<div class="sv-sk" data-sk="${i}"><div class="sv-g no-gl">${b.key} ${b.name} <small>ⓘ</small></div>` + b.rows.map(r => `<div class="sv-row"><span>${r[0]}</span><i>${r[1]}</i></div>${r[2] ? `<div class="sv-note">${r[2]}</div>` : ''}`).join('') + '</div>').join('');
+    return (TOUCH_UI ? _t('<div class="sv-note">スキルをタップすると詳細を表示します</div>') : _t('<div class="sv-note">スキルをクリックすると詳細を表示します</div>')) + blocks.map((b, i) => `<div class="sv-sk" data-sk="${i}"><div class="sv-g no-gl">${b.key} ${b.name} <small>ⓘ</small></div>` + b.rows.map(r => `<div class="sv-row"><span>${r[0]}</span><i>${r[1]}</i></div>${r[2] ? `<div class="sv-note">${r[2]}</div>` : ''}`).join('') + '</div>').join('');
   }
   // スキルの詳細: 説明 + ラン中に取った強化(パスの Lv と特殊強化)
   let skBlocks = [];
@@ -153,14 +153,14 @@ const StatusUI = (() => {
     const body = tab === 'stat' ? statTab(c) : tab === 'skill' ? skillTab(c) : tab === 'equip' ? equipTab(c) : buildTab();
     el.innerHTML = head(c) + `<div class="seg sv-tabs">${tabs.map(t => `<button data-t="${t}" class="${t === tab ? 'on' : ''}">${TABS[t]}</button>`).join('')}</div>`
       + `<div class="sv-body">${body}</div>`
-      + (tab === 'stat' ? _t('<div class="sv-break"><div class="dim">行にマウスを乗せると内訳を表示します</div></div>') : '');
+      + (tab === 'stat' ? (TOUCH_UI ? _t('<div class="sv-break"><div class="dim">行をタップすると内訳を表示します</div></div>') : _t('<div class="sv-break"><div class="dim">行にマウスを乗せると内訳を表示します</div></div>')) : '');
     Help.glossify(el.querySelector('.sv-body'), { cls: c.cls, run, per: '.sv-sk, .sv-row, .sv-note, .sv-uq' }); // 用語にマウスを乗せると説明
     el.onclick = e => {
       const b = e.target.closest('[data-t]'), s = e.target.closest('.sv-sk');
       if (b) { tab = b.dataset.t; AudioMan.click(); render(el, run, cls); }
       else if (s) { AudioMan.click(); openModal(skillDetail(c, skBlocks[+s.dataset.sk]), c); } // スキルの詳細はモーダルで
     };
-    el.onmouseover = e => {
+    el.onpointerover = e => { // pointer にすると、スマホで行に触れたときにも来る
       const r = e.target.closest('.sv-row[data-k]');
       if (r) el.querySelector('.sv-break').innerHTML = breakdown(c, r.dataset.k);
     };

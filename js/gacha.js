@@ -278,7 +278,7 @@ const Gacha = (() => {
     $('gc-label').className = ''; $('gc-label').textContent = '';
     $('gc-card').className = ''; $('gc-card').innerHTML = ''; $('gc-grid').innerHTML = '';
     showBtns(false);
-    $('gc-hint').textContent = _t('クリック / SPACE で飛ばす');
+    $('gc-hint').textContent = TOUCH_UI ? _t('タップで飛ばす') : _t('クリック / SPACE で飛ばす');
     AudioMan.setDuck(0.3);
     last = performance.now(); if (!raf) raf = requestAnimationFrame(loop);
     const B = 1500 + F.up * 500; // 割れる時刻(ms)。色が上がる段の数だけ溜めが長い
@@ -347,7 +347,7 @@ const Gacha = (() => {
     g.innerHTML = S.its.map((it, i) => `<div class="gc-mini back${RANK[it.rarity] >= 2 ? ' hot' : ''}" style="--tc:${ORB_COLS[FX[asShown(it.rarity)].up]};--i:${i}"></div>`).join('');
     S.dealt = true;
     if (!anim) return;
-    const C = center(), z = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--ui')) || 1;
+    const C = center(), z = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--uc')) || 1; // 引いた画面の拡大率(core.js の applyUiScale)
     for (const el of g.children) { const c = centerOf(el); el.style.setProperty('--dx', (C.x - c.x) / z + 'px'); el.style.setProperty('--dy', (C.y - c.y) / z + 'px'); el.classList.add('deal'); }
   }
   function flip(i) {

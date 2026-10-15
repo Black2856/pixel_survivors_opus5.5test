@@ -100,16 +100,25 @@ const SET = (() => {
 //     (どれも測った値: メニュー画面は 1280×720 から約 1070×600 まで収まるので 100% は少し余裕がある。設定の倍率は 120% まで収まり、それより大きいとメニュー画面はスクロールになる。
 //      狭い組み方では幅 900 で全ての画面が収まり、820 では強化ツリー・ガチャがスクロールになる)
 //   zoom は中の vw / vh も拡大するので、css は画面に対する大きさを --ui で割って書く。狭い画面の組み方は、拡大した後の幅(innerWidth / uiZ)で html に付ける vn1140 / vn820 / vn760 で切り替える(1140: 装備画面の 4列が入らなくなる幅)
-//   --ui は数のまま入れる(gacha.js が parseFloat で読む)
-const UI_REF = { w: 1280, h: 720, nw: 900 }; // nw: 狭い組み方で全ての画面が収まる最小の幅
+//   --ui は数のまま入れる(gacha.js が parseFloat で読む)。HUD は --uh(PC では --ui と同じ)
+//   スマホ(TOUCH_UI)では下限を上げる: メニュー画面などは 0.85(文字が 11px 以上)、HUD は 0.7(ゲームの画面を隠しすぎない)。入りきらないメニュー画面はスクロール
+//   宝箱・ガチャを引いた画面(--uc)はスクロールできないので、窓の高さ ÷ 680 を上限にする(中身は 1倍で約 610)
+const UI_REF = { w: 1280, h: 720, nw: 900, touch: { ui: 0.85, hud: 0.7 }, reveal: 680 }; // nw: 狭い組み方で全ての画面が収まる最小の幅
+// スマホ: 主な入力が指で、マウスを乗せられない端末。窓の大きさでは決めない(PC の小さい窓は今までどおり)。html に touch を付ける
+const TOUCH_UI = matchMedia('(hover: none) and (pointer: coarse)').matches;
+document.documentElement.classList.toggle('touch', TOUCH_UI);
 let uiZ = 1;
 function applyUiScale() {
   const fitW = Math.max(innerWidth / UI_REF.w, Math.min(1, innerWidth / UI_REF.nw));
-  const fit = Math.max(0.5, Math.min(fitW, innerHeight / UI_REF.h)), r = document.documentElement;
-  uiZ = fit * SET.uiMul;
+  const fit = Math.max(0.5, Math.min(fitW, innerHeight / UI_REF.h)), r = document.documentElement, t = TOUCH_UI && UI_REF.touch;
+  uiZ = (t ? Math.max(fit, t.ui) : fit) * SET.uiMul;
   r.style.setProperty('--ui', String(uiZ));
+  r.style.setProperty('--uh', String((t ? Math.max(fit, t.hud) : fit) * SET.uiMul));
+  r.style.setProperty('--uc', String(Math.min(uiZ, innerHeight / UI_REF.reveal)));
+  r.style.setProperty('--um', String(SET.uiMul)); // タッチのボタン(窓の大きさに関係なく指の大きさ)に掛ける倍率
   const vw = innerWidth / uiZ;
   for (const n of [1140, 820, 760]) r.classList.toggle('vn' + n, vw <= n);
+  if (TOUCH_UI && innerHeight > innerWidth && state === 'play') pauseGame(); // 縦向きは「横向きにしてください」を出すので止める
 }
 applyUiScale();
 addEventListener('resize', applyUiScale);
@@ -138,12 +147,13 @@ addEventListener('keyup', e => { keys[e.code] = false; });
 addEventListener('blur', () => { for (const k in keys) keys[k] = false; if (state === 'play') pauseGame(); });
 addEventListener('pointerdown', () => AudioMan.unlock());
 
-// タッチ: 画面左半分で仮想スティック / 右側を押している間は防御スキル
+// タッチ: 画面左 6割で仮想スティック / 右側を押している間は防御スキル
+//   スマホ(TOUCH_UI)はボタン以外のどこでもスティック。防御スキル・E・Q・ポーズは #touch-ctl のボタン(下)
 const cvsEl = document.getElementById('game');
 cvsEl.addEventListener('touchstart', e => {
   for (const t of e.changedTouches) {
-    if (t.clientX < innerWidth * 0.6 && !touch.active) { Object.assign(touch, { active: true, id: t.identifier, ox: t.clientX, oy: t.clientY, dx: 0, dy: 0 }); }
-    else keys.TouchDef = true;
+    if ((TOUCH_UI || t.clientX < innerWidth * 0.6) && !touch.active) { Object.assign(touch, { active: true, id: t.identifier, ox: t.clientX, oy: t.clientY, dx: 0, dy: 0 }); }
+    else if (!TOUCH_UI) keys.TouchDef = true;
   }
   e.preventDefault();
 }, { passive: false });
@@ -153,7 +163,29 @@ cvsEl.addEventListener('touchmove', e => {
   }
   e.preventDefault();
 }, { passive: false });
-cvsEl.addEventListener('touchend', e => { for (const t of e.changedTouches) { if (t.identifier === touch.id) { touch.active = false; touch.dx = touch.dy = 0; } else keys.TouchDef = false; } });
+const touchEnd = e => { for (const t of e.changedTouches) { if (t.identifier === touch.id) { touch.active = false; touch.dx = touch.dy = 0; } else if (!TOUCH_UI) keys.TouchDef = false; } };
+cvsEl.addEventListener('touchend', touchEnd);
+cvsEl.addEventListener('touchcancel', touchEnd); // 通知などで指が外れたとき(スティックが倒れたまま残らないように)
+// スマホのボタン(index.html の #touch-ctl。E / Q の字と CD の円は ui.js の skillIcons)。押した瞬間に効かせる(click は指を離すまで来ない)
+if (TOUCH_UI) {
+  const hold = (id, on) => {
+    const b = document.getElementById(id);
+    b.addEventListener('pointerdown', e => { e.preventDefault(); b.setPointerCapture(e.pointerId); on(true); });
+    for (const ev of ['pointerup', 'pointercancel']) b.addEventListener(ev, () => on(false));
+  };
+  hold('tc-def', v => { keys.TouchDef = v; });
+  hold('tc-e', v => { if (v && state === 'play') keys._e = true; });
+  hold('tc-q', v => { if (v && state === 'play') keys._q = true; });
+  hold('tc-pause', v => { if (v) pauseGame(); });
+  document.getElementById('touch-ctl').addEventListener('contextmenu', e => e.preventDefault()); // 長押しのメニューを出さない
+  document.addEventListener('gesturestart', e => e.preventDefault()); // iPhone の 2本指の拡大(user-scalable=no が効かない)
+}
+// スマホ: START を押したときに全画面にして横向きに固定する(できる端末だけ。iPhone は requestFullscreen がない)
+function touchFullscreen() {
+  const d = document.documentElement;
+  if (!TOUCH_UI || document.fullscreenElement || !d.requestFullscreen) return;
+  d.requestFullscreen({ navigationUI: 'hide' }).then(() => screen.orientation && screen.orientation.lock && screen.orientation.lock('landscape')).catch(() => { /* できない端末はそのまま */ });
+}
 
 // マウス位置(内部解像度の画面座標)。Shift でマウス照準モードを切り替える
 const mouse = { x: 0, y: 0, aim: false };

@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
 <title>PIXEL SURVIVORS: NOCTURNE</title>
 <link rel="icon" href="data:,">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -33,6 +33,14 @@
       <div class="track"><div id="bossfill-lag"></div><div id="bossfill"></div></div>
     </div>
   </div>
+  <!-- スマホのボタン(html.touch で HUD が出ている間。押したときの動きは core.js、E / Q の字と CD は ui.js) -->
+  <div id="touch-ctl">
+    <button id="tc-pause" class="tc">II</button>
+    <button id="tc-q" class="tc sk" data-slot="q"></button>
+    <button id="tc-e" class="tc sk" data-slot="e"></button>
+    <button id="tc-def" class="tc def">SPACE</button>
+  </div>
+  <div id="rotate-msg"><div class="rot-ico"></div><div>横向きにしてください</div></div>
 
   <div id="announce" class="cutband"></div>
   <div id="skillcut" class="cutband"></div>

@@ -6,7 +6,7 @@ const UI = (() => {
   const el = (tag, cls, html) => { const e = document.createElement(tag); if (cls) e.className = cls; if (html !== undefined) e.innerHTML = html; return e; };
   const show = e => e.classList.remove('hidden'), hide = e => e.classList.add('hidden');
   const screens = ['title-screen', 'stage-screen', 'class-screen', 'tree-screen', 'gacha-screen', 'status-screen', 'equip-screen', 'choice-screen', 'chest-screen', 'pause-screen', 'settings-screen', 'result-screen', 'help-screen'];
-  const only = id => screens.forEach(s => (s === id ? show : hide)($(s)));
+  const only = id => { screens.forEach(s => (s === id ? show : hide)($(s))); hideTip(); }; // 画面を替えたら説明の吹き出しを消す(スマホでは指を離しても残るため)
 
   // ---------- アイコン(スプライト → dataURL) ----------
   const iconCache = {};
@@ -273,14 +273,17 @@ const UI = (() => {
     // 表示中のツールチップは毎フレーム更新(残り時間が進むため)
     if (tipKey && tipKey.startsWith('s:')) showTip(tipEl, tipKey);
   }
-  // E / Q のアイコン。構成が変わったときだけ作り直し、毎フレーム CD のスイープを更新する
+  // E / Q のアイコン。構成が変わったときだけ作り直し、毎フレーム CD のスイープを更新する(スマホのボタン #tc-e / #tc-q も同じ中身)
   function skillIcons() {
     const list = clsSkillIcons(), box = $('ps-skills'), sig = list.map(s => s.slot + s.glyph).join() + SET.autoE + SET.autoQ;
+    const inner = s => `${I18N.glyph(s.glyph, s.name)}<div class="cd"></div><span class="key">${s.key}</span>${SET[s.slot === 'e' ? 'autoE' : 'autoQ'] ? '<span class="auto">AUTO</span>' : ''}`;
     if (last.skSig !== sig) {
       last.skSig = sig;
-      box.innerHTML = list.map(s => `<div class="ps-sk" data-slot="${s.slot}" title="${s.name}">${I18N.glyph(s.glyph, s.name)}<div class="cd"></div><span class="key">${s.key}</span>${SET[s.slot === 'e' ? 'autoE' : 'autoQ'] ? '<span class="auto">AUTO</span>' : ''}</div>`).join('');
+      box.innerHTML = list.map(s => `<div class="ps-sk" data-slot="${s.slot}" title="${s.name}">${inner(s)}</div>`).join('');
+      if (TOUCH_UI) for (const k of ['e', 'q']) { const s = list.find(x => x.slot === k), b = $('tc-' + k); b.classList.toggle('hidden', !s); b.innerHTML = s ? inner(s) : ''; }
     }
-    for (const el of box.children) {
+    for (const el of TOUCH_UI ? [...box.children, $('tc-e'), $('tc-q')] : box.children) {
+      if (!el.firstChild) continue; // このクラスにないスキルのボタン
       const sk = P.sk[el.dataset.slot], p = sk.cd > 0 ? sk.cd / sk.max * 100 : 0;
       el.querySelector('.cd').style.setProperty('--p', p.toFixed(1));
       const ready = sk.cd <= 0;
@@ -292,7 +295,7 @@ const UI = (() => {
   function pstat(dt) {
     const c = DATA.classes[P.cls], box = $('pstat');
     pt += dt;
-    if (last.cls !== P.cls) { last.cls = P.cls; box.style.setProperty('--cc', c.col); hpLag = 1; lastHp = P.hp; }
+    if (last.cls !== P.cls) { last.cls = P.cls; box.style.setProperty('--cc', c.col); $('touch-ctl').style.setProperty('--cc', c.col); hpLag = 1; lastHp = P.hp; }
     if (last.px !== GFX.PX) { last.px = GFX.PX; box.style.setProperty('--px', GFX.PX + 'px'); box.style.setProperty('--pxn', GFX.PX); pcv.style.width = PW * GFX.PX + 'px'; pcv.style.height = PH * GFX.PX + 'px'; }
     set('ps-name', `<b>${c.en}</b> Lv${META.classes[P.cls].lv}`, 'innerHTML');
     const base = P.maxhpBase || P.maxhp, k = clamp(P.hp / base, 0, 1), low = P.hp / P.maxhp < 0.3, pz = clamp(P.maxhp / base, 0, 1); // pz: 毒で下がった最大HP の割合(右端の紫)
@@ -391,6 +394,7 @@ const UI = (() => {
 
   // ツールチップ
   let tipKey = null, tipEl = null;
+  function hideTip() { hide($('tooltip')); tipKey = tipEl = null; }
   // 設定画面の各行の説明(行にマウスを乗せると出る)
   const SET_TIPS = {
     gfx: [_t('画質'), _t('低いほどブルーム・画面の歪み・パーティクルを減らし軽くなります')],
@@ -407,6 +411,10 @@ const UI = (() => {
     if (!t) { hide($('tooltip')); tipKey = tipEl = null; return; }
     showTip(t, t.dataset.tip);
   });
+  // スマホ: 指で触れると pointerover が来て説明が出る(ほかの所に触れると消える)。カード・ボタンの中の用語に触れたときは、説明を出すだけで押したことにしない
+  if (TOUCH_UI) document.addEventListener('click', ev => {
+    if (ev.target.closest && ev.target.closest('[data-tip^="g:"], [data-tip^="c:"]')) { ev.stopPropagation(); ev.preventDefault(); }
+  }, true);
   function showTip(t, key) {
     const tip = $('tooltip'), [kind, k] = key.split(':');
     tipKey = key; tipEl = t;
@@ -504,7 +512,7 @@ const UI = (() => {
       const d = el('button', 'card ' + rar, html + `<div class="card-key">${i + 1}</div>`);
       d.style.animationDelay = (i * 0.07) + 's';
       d.onclick = () => choose(i);
-      d.onmouseenter = () => AudioMan.click();
+      if (!TOUCH_UI) d.onmouseenter = () => AudioMan.click(); // スマホはタップで乗せたことになり、選んだ音と重なる
       box.appendChild(d);
       Help.glossify(d, { cls: P.cls, run: true });
     });
@@ -632,7 +640,7 @@ const UI = (() => {
     cs.className = 'screen tier-' + tierKey;
     $('chest-img').src = ART.S.chest.c.toDataURL();
     $('chest-rewards').innerHTML = ''; $('chest-gold').textContent = ''; $('chest-tier').textContent = '';
-    $('chest-hint').textContent = _t('クリック / SPACE で開ける');
+    $('chest-hint').textContent = TOUCH_UI ? _t('タップで開ける') : _t('クリック / SPACE で開ける');
     hide($('chest-ok'));
     only('chest-screen');
     AudioMan.setDuck(0.3);
@@ -805,7 +813,14 @@ const UI = (() => {
   }
 
   // ボタン
-  $('btn-start').onclick = () => MetaUI.stageSelect();
+  $('btn-start').onclick = () => { touchFullscreen(); MetaUI.stageSelect(); };
+  // スマホ: ボタンのキーの表示を消し、操作の説明をタッチの言い方にする
+  if (TOUCH_UI) {
+    for (const b of document.querySelectorAll('.btn')) { const s = b.textContent, n = s.replace(/\s*[(（](ESC|TAB|R|SPACE|Enter)[)）]\s*$/i, ''); if (n !== s) b.textContent = n; }
+    document.querySelector('#title-screen .howto').textContent = _t('ボタン以外の所に指を置いて移動 ・ 攻撃は自動 ・ 右下のボタンで防御スキル・E・Q ・ 右上の II でポーズ');
+    document.querySelector('#choice-screen .hint').textContent = _t('タップで選択 ・ 下線の用語をタップすると説明');
+    document.querySelector('.tr-zhint').textContent = _t('+ / - で拡大 ・ ドラッグで移動');
+  }
   $('btn-resume').onclick = () => resumeGame();
   $('btn-quit').onclick = () => endRun(false);
   $('btn-retry').onclick = () => startRun(S.mode, S.stageNo);

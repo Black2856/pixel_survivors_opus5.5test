@@ -258,6 +258,15 @@ const Help = (() => {
     ['M', _t('音のミュート')],
     [_t('1〜3 / R'), _t('レベルアップのカードを選ぶ / リロール')],
   ];
+  const TOUCH_KEYS = [ // スマホ(core.js の TOUCH_UI)の操作。ボタンの字(SPACE・E・Q・II)をそのまま見出しに
+    [_t('指'), _t('移動(ボタン以外の所に指を置いて動かす。置いた所が中心)')],
+    [_t('(自動)'), _t('通常攻撃。武器ごとの間隔で、一番近い敵を狙う')],
+    ['E', _t('武器スキル(メイン武器の技)')],
+    ['Q', _t('クラススキル')],
+    ['SPACE', _t('防御スキル(長押しで構えるクラスもある)')],
+    ['II', _t('ポーズ(ステータス・ガイド・設定もここから)')],
+    [_t('タップ'), _t('レベルアップのカードを選ぶ・下線の用語の説明を出す')],
+  ];
   const FLOW = [
     [_t('出撃'), _t('START からステージを選ぶ。クラスはクラス画面で選ぶ(クラスごとにメイン武器・スキルが違う。はじめは4クラスで、ステージ・モードをクリアすると増える)')],
     [_t('戦う'), _t('移動して敵の攻撃を避ける。攻撃は自動。赤い予告の円・帯が出たら、そこから離れる')],
@@ -284,8 +293,8 @@ const Help = (() => {
       const ql = q.toLowerCase(), has = s => String(s).toLowerCase().includes(ql);
       const hit = G.filter(e => has(e.t) || termsOf(e).some(has) || has(descOf(e)));
       h = hit.length ? hit.map(ent).join('') : _t('<div class="dim">見つかりませんでした</div>');
-    } else if (cat === '操作') h = KEYS.map(([k, d]) => `<div class="hp-key"><kbd>${k}</kbd><span>${d}</span></div>`).join('') + _t('<div class="dim hp-note">設定(タイトル・ポーズ画面)で、E / Q の自動発動・スキルのカットイン・攻撃の濃さ・UI サイズを変えられます</div>');
-    else if (cat === '遊び方') h = FLOW.map(([k, d], i) => `<div class="hp-ent"><b>${i + 1}. ${k}</b><div>${d}</div></div>`).join('') + _t('<div class="dim hp-note">用語にマウスを乗せると説明が出ます</div>');
+    } else if (cat === '操作') h = (TOUCH_UI ? TOUCH_KEYS : KEYS).map(([k, d]) => `<div class="hp-key"><kbd>${k}</kbd><span>${d}</span></div>`).join('') + _t('<div class="dim hp-note">設定(タイトル・ポーズ画面)で、E / Q の自動発動・スキルのカットイン・攻撃の濃さ・UI サイズを変えられます</div>');
+    else if (cat === '遊び方') h = FLOW.map(([k, d], i) => `<div class="hp-ent"><b>${i + 1}. ${k}</b><div>${d}</div></div>`).join('') + (TOUCH_UI ? _t('<div class="dim hp-note">用語をタップすると説明が出ます</div>') : _t('<div class="dim hp-note">用語にマウスを乗せると説明が出ます</div>'));
     else h = G.filter(e => e.c === cat).map(ent).join('');
     $('hp-body').innerHTML = h;
     $('hp-body').scrollTop = 0;
