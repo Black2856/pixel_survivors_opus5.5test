@@ -450,3 +450,79 @@ function dogHunt(d, o, dt) {
   }
   if (h.left <= 0) { d.hunt = null; d.st = d.hk === 'fang' ? 'rest' : 'run'; d.stT = d.hk === 'fang' ? 1 : 2.5; }
 }
+
+// ---------- 描画(render.js の render / drawBossFx / drawBossGround から呼ぶ)----------
+// ケルベロスの首(合体形態): 体の胸から3本の首が伸び、その先に頭(黒紫の毛、上側に照り)。壊れた首は短い付け根から黒い血がしたたる
+//   分裂の構え(ai.dissolve)では、体と首が黒い影に染まっていく
+function drawCerbHeads(e, sp, yo, o) {
+  const ai = e.ai, f = e.face || 1, dz = ai.dissolve || 0;
+  if (!ai.hs) return;
+  if (dz > 0) drawShade(sp, e.x, e.y + yo, Object.assign({}, o, { alpha: dz })); // 体が黒く染まる
+  drawCerbNecks(e, yo, dz);
+  for (let i = 0; i < 3; i++) {
+    const h = ai.hs[i], H = CHEAD[i];
+    if (h.dead) continue;
+    const hs = ART.S['obj_chead_' + h.hk], x = e.x + H.dx * f, y = e.y + H.dy + yo - H.hz - (h.raise ? 4 : 0) + Math.sin(e.t * 3 + i * 2) * 0.8;
+    const ho = { flip: f < 0, sy: Math.max(0.3, h.rise) * (1 + h.pulse * 0.25), sxk: 1 + h.pulse * 0.2 }; // 遠吠えで天を仰ぐ・ふくらみは控えめに。首は白く光らせない(構えの点滅が体と首 3本で白い塊に見えるため)
+    if (e.shadow) drawShade(hs, x, y, ho); else drawSp(hs, x, y, ho);
+    if (dz > 0) drawShade(hs, x, y, Object.assign({}, ho, { alpha: dz }));
+    addLight(x + 3 * f, y - 1, 26 + h.pulse * 30, e.shadow ? '#7a3ab0' : CERB[h.hk][0], 0.4 + h.pulse * 0.4); // 目と首の色の光
+  }
+}
+function drawCerbNecks(e, yo, dz) {
+  const sx = GFX.sctx, f = e.face || 1, ai = e.ai, ax = e.x + 7 * f - cam.x, ay = e.y + yo - 5 - cam.y, dark = e.shadow || dz > 0.5;
+  for (let i = 0; i < 3; i++) {
+    const h = ai.hs[i], H = CHEAD[i], live = !h.dead;
+    const hx = e.x + H.dx * f - 3 * f - cam.x, hy = e.y + H.dy - H.hz - (live && h.raise ? 4 : 0) + 2 + yo - cam.y;
+    const k = live ? Math.max(0.3, h.rise) : 0.4, x1 = ax + (hx - ax) * k, y1 = ay + (hy - ay) * k;
+    pLine(sx, ax, ay, x1, y1, '#0e0a14', 6); pLine(sx, ax, ay, x1, y1, dark ? '#0c0614' : '#281c36', 4); pLine(sx, ax, ay - 1, x1, y1 - 1, dark ? '#3a1a5a' : '#4a3462', 2);
+    if (!live) { pDisc(sx, x1, y1, 2, '#5a1020'); sx.fillStyle = '#1a0a14'; sx.fillRect(Math.round(x1), Math.round(y1) + 1, 1, 2 + Math.floor((GFX.fx.time * 3 + i) % 3)); } // 付け根の黒い血
+  }
+}
+// 闇の犬の影潜り: 地面の黒い影だまり(紫の縁)と、光る目 2つが滑るように迫る。飛び出す前(円の予告の間)は広がって紫に光る
+function drawDogPool(e) {
+  const sx = GFX.sctx, gx = GFX.gctx, t = GFX.fx.time, x = e.x - cam.x, y = e.y + 4 - cam.y, mk = e.st === 'mark' ? 1 - Math.max(0, e.stT) / 0.5 : 0, blink = Math.floor(t * 8) % 2;
+  const R = 9 + 7 * mk + Math.sin(t * 8 + e.seed * 9) * 0.6;
+  sx.globalAlpha = 0.85; sx.fillStyle = '#06030c'; sx.beginPath(); sx.ellipse(x, y, R, R * 0.45, 0, 0, TAU); sx.fill(); sx.globalAlpha = 1;
+  ellBoth(sx, gx, x, y, R, R * 0.45, mk > 0 && blink ? '#e8c8ff' : '#a66bff', 0.8, dimCol('#a66bff', 0.4 + 0.4 * mk));
+  if (Math.floor(t * 6 + e.seed * 7) % 9) for (const s of [-1, 1]) { // 光る目(ときどき瞬く)
+    const ex = Math.round(x + (e.face || 1) * 2 + s * 2), ey = Math.round(y - 1);
+    sx.fillStyle = '#e8c8ff'; sx.fillRect(ex, ey, 1, 1); gx.fillStyle = '#7a3ab0'; gx.fillRect(ex, ey, 1, 1);
+  }
+  addLight(e.x, e.y + 4, 30 + 30 * mk, '#7a3ab0', 0.4 + 0.4 * mk);
+}
+// ケルベロスの技の見た目: 三獄の息吹(首の数に分けた扇を 毒・炎・氷 の色で)/ その構え(口から属性の煙)/ 闇の遠吠えの構え(足元から黒い霧)/ 合体の跳び込み先(闇の渦)
+function drawCerbFx(e, sx, gx, ex, ey, A) {
+  const ai = e.ai, t = GFX.fx.time;
+  if (ai.br) {
+    const b = ai.br, R = b.r * A, fl = 0.75 + 0.25 * Math.sin(t * 30), n = b.els.length;
+    for (let k = 0; k < n; k++) { // 首の数だけ扇を分けて、それぞれの属性の色で塗る(境目は揺らぐ)
+      const C = BREATH_COL[b.els[k]], a0 = b.a - b.h + 2 * b.h * k / n + (k ? Math.sin(t * 6 + k) * 0.06 : 0), a1 = b.a - b.h + 2 * b.h * (k + 1) / n + (k < n - 1 ? Math.sin(t * 6 + k + 1) * 0.06 : 0);
+      for (const [rr, al, col] of [[R, 0.14, C[2]], [R * 0.7, 0.17, C[0]], [R * 0.36, 0.2, C[3]]]) { sx.globalAlpha = al * fl; sx.fillStyle = col; sx.beginPath(); sx.moveTo(ex, ey); sx.arc(ex, ey, rr, a0, a1); sx.closePath(); sx.fill(); }
+      for (let r = 16; r < R; r += 22) addLight(e.x + Math.cos((a0 + a1) / 2) * r, e.y + Math.sin((a0 + a1) / 2) * r, r * 0.8, C[0], 0.45);
+    }
+    sx.globalAlpha = 1;
+    const m = Math.ceil(R * b.h * 2);
+    for (let i = 0; i <= m; i += 2) { // 縁(危険の赤が混じって明滅)
+      const aa = b.a - b.h + 2 * b.h * i / m, px = Math.round(ex + Math.cos(aa) * R), py = Math.round(ey + Math.sin(aa) * R), C = BREATH_COL[b.els[Math.min(n - 1, Math.floor(i / (m + 1) * n))]];
+      sx.fillStyle = (i + Math.floor(t * 20)) % 4 ? C[0] : '#ff3b5c'; sx.fillRect(px, py, 1, 1); gx.fillStyle = dimCol(C[0], 0.3); gx.fillRect(px, py, 1, 1);
+    }
+  }
+  if (ai.brCharge && ai.wind > 0) for (const hk of ai.brCharge) { // 息吹の構え: 口から属性の煙がこぼれる
+    const mo = cerbMouth(e, hk);
+    if (Math.random() < 0.5) part(mo.x + rand(-2, 2), mo.y + rand(-1, 2), rand(-8, 8), rand(-6, 10), rand(0.3, 0.6), pick(BREATH_COL[hk]), { glow: Math.random() < 0.5, drag: 1.5 });
+    addLight(mo.x, mo.y, 22, BREATH_COL[hk][0], 0.5);
+  }
+  if (ai.mist && ai.wind > 0) { // 闇の遠吠えの構え: 足元から黒い霧が渦を巻いて立ちのぼり、闇の首が光る
+    const u = 1 - ai.wind / ai.windT;
+    for (let k = 0; k < 3; k++) { const pa = rand(0, TAU), pr = rand(10, 30 + 40 * u); part(e.x + Math.cos(pa) * pr, e.y + 8 + Math.sin(pa) * pr * 0.4, -Math.sin(pa) * 20, -rand(10, 40), rand(0.5, 0.9), pick(['#0a0612', '#1a0a2a', '#3a1a5a', '#7a3ab0']), { drag: 1, sz: pick([1, 2, 3]) }); }
+    gx.globalAlpha = 1; pCircle(gx, ex, ey + 8, Math.round(14 + 50 * u), dimCol('#7a3ab0', 0.25 + 0.4 * u), 2);
+    addLight(e.x, e.y, 60 + 80 * u, '#7a3ab0', 0.4 + 0.4 * u);
+  }
+  if (ai.form === 'tomerge') { // 合体: 跳び込む先で闇が渦を巻き、縮んでいく
+    const u = clamp(1 - ai.pt, 0, 1), mx = ai.mx - cam.x, my = ai.my - cam.y, R = 50 * A * (1 - 0.6 * u);
+    ellBoth(sx, gx, mx, my, R, R * 0.45, '#a66bff', 0.6 + 0.3 * u, dimCol('#a66bff', 0.3 + 0.4 * u), 12, t * 4);
+    ellBoth(sx, gx, mx, my, R * 0.6, R * 0.27, '#e8c8ff', 0.5 * u, dimCol('#7a3ab0', 0.4 * u), 8, -t * 6);
+    addLight(ai.mx, ai.my, 60 + 60 * u, '#7a3ab0', 0.4 + 0.5 * u);
+  }
+}

@@ -255,3 +255,85 @@ function updChain(dt) {
   }
   if ((ch.tick -= dt) <= 0) { ch.tick = 3; poisonPlayer(1); }
 }
+
+// ---------- 描画(render.js の render / drawBossFx / drawBossGround から呼ぶ)----------
+// 影(影の王が呼んだボス): 黒い体に紫の縁取り。光る所(目など)は紫に光る
+function drawShade(sp, x, y, o) {
+  const sx = GFX.sctx, gx = GFX.gctx, img = o.flip ? ART.variant(sp, 'flip') : sp.c, sc = o.scale || 1;
+  const w = Math.round(sp.w * sc * (o.sxk || 1)), h = Math.round(sp.h * sc * (o.sy || 1));
+  const dx = Math.round(x - cam.x - w / 2), dy = Math.round(y - cam.y + sp.h * sc / 2 - h);
+  const rim = ART.tint(img, o.white ? '#ffffff' : o.rim || '#a66bff');
+  sx.globalAlpha = o.alpha ?? 1;
+  for (const [ox, oy] of [[-1, 0], [1, 0], [0, -1], [0, 1]]) sx.drawImage(rim, dx + ox, dy + oy, w, h);
+  sx.drawImage(ART.tint(img, '#0c0614'), dx, dy, w, h);
+  if (sp.e) { const em = o.flip ? ART.variant(sp, 'flipE') : sp.e; sx.drawImage(ART.tint(em, o.emit || '#e8c8ff'), dx, dy, w, h); gx.drawImage(ART.tint(em, o.emitG || '#7a3ab0'), dx, dy, w, h); }
+  sx.globalAlpha = 1;
+}
+// 影の王: 影を呼んでいる間の守り(回る紫の殻と、影へつながる糸)/ 追い影の構え(手に闇)/ 断界の構え(掲げた剣が紫に光る)/ 冥鎖の鎖
+function drawSkFx(e, sx, gx, ex, ey) {
+  const ai = e.ai, t = GFX.fx.time, sh = ai.shade && !ai.shade.dead ? ai.shade : null;
+  if (e.hideA !== undefined && e.hideA < 0.5) { if (P.chain) drawChain(); return; } // 影歩で沈んでいる
+  if (sh || ai.act === 'summon') { // 守りの殻: 回る紫の破線の輪(2重)
+    ellBoth(sx, gx, ex, ey + 2, 18, 16, '#a66bff', 0.55 + 0.2 * Math.sin(t * 6), dimCol('#a66bff', 0.35), 14, t * 2);
+    ellBoth(sx, gx, ex, ey + 2, 23, 20, '#7a3ab0', 0.35, dimCol('#7a3ab0', 0.25), 10, -t * 1.4);
+    addLight(e.x, e.y, 60, '#7a3ab0', 0.5);
+  }
+  if (sh) { // 影へつながる紫の糸(脈が影へ流れる)
+    const x1 = sh.x - cam.x, y1 = sh.y - cam.y, L = Math.hypot(x1 - ex, y1 - ey) || 1, n = Math.max(2, Math.round(L / 3)), nx = -(y1 - ey) / L, ny = (x1 - ex) / L;
+    for (let i = 0; i <= n; i++) {
+      const u = i / n, wv = Math.sin(u * Math.PI) * Math.sin(t * 7 + u * 9) * 4, px = Math.round(ex + (x1 - ex) * u + nx * wv), py = Math.round(ey + (y1 - ey) * u + ny * wv), on = (i + Math.floor(t * 30)) % 8 < 2;
+      sx.fillStyle = on ? '#e8c8ff' : '#5a2a8a'; sx.fillRect(px, py, 1, 1);
+      if (on) { gx.fillStyle = '#4a1a7a'; gx.fillRect(px, py, 1, 1); }
+    }
+  }
+  if (ai.act === 'summon') { // 影喚び: 掲げた剣の先に闇が集まる
+    const hx = ex + (e.face || 1) * 9, hy = ey - 20, k = 0.5 + 0.5 * Math.sin(t * 20);
+    pDisc(sx, hx, hy, 3, '#1a0a2a'); pCircle(sx, hx, hy, 4 + Math.round(k), '#c79bff'); pCircle(gx, hx, hy, 5, dimCol('#a66bff', 0.7));
+    addLight(e.x + (e.face || 1) * 9, e.y - 20, 50, '#a66bff', 0.9);
+  }
+  if (ai.handGlow > 0) { // 追い影の構え: 手に闇の玉が膨らむ
+    const k = 1 - ai.handGlow / 0.5, hx = ex + (e.face || 1) * 8, hy = ey - 4;
+    pDisc(sx, hx, hy, Math.round(2 + 4 * k), '#1a0a2a'); pCircle(sx, hx, hy, Math.round(3 + 4 * k), '#a66bff'); pCircle(gx, hx, hy, Math.round(3 + 4 * k), dimCol('#a66bff', 0.6));
+    addLight(e.x + (e.face || 1) * 8, e.y - 4, 30 + 40 * k, '#a66bff', 0.8);
+  }
+  if (warns.some(w => w.sever && !w.snap)) { // 断界の構え: 剣が紫に光り、刃から闇がこぼれる
+    const fl = Math.floor(t * 16) % 2, bx = ex + (e.face || 1) * 7;
+    pLine(sx, bx, ey - 26, bx, ey + 10, fl ? '#e8c8ff' : '#a66bff', 2); pLine(gx, bx, ey - 26, bx, ey + 10, dimCol('#a66bff', 0.7), 2);
+    addLight(e.x + (e.face || 1) * 7, e.y - 8, 70, '#a66bff', 0.9);
+  }
+  if (P.chain) drawChain();
+}
+// 冥鎖の鎖: 杭の輪からプレイヤーへ。張るほどまっすぐになり、紫の光が走る。足元に鎖の輪
+function drawChain() {
+  const st = P.chain && P.chain.stake;
+  if (!st || st.dead) return;
+  const sx = GFX.sctx, gx = GFX.gctx, x0 = st.x - cam.x, y0 = st.y - 14 - cam.y, x1 = P.x - cam.x, y1 = P.y - 2 - cam.y, d = Math.hypot(x1 - x0, y1 - y0), taut = clamp((d - 50) / 30, 0, 1), t = GFX.fx.time;
+  const n = Math.max(2, Math.round(d / 3));
+  for (let i = 0; i <= n; i++) {
+    const u = i / n, sag = (1 - taut) * Math.sin(u * Math.PI) * Math.min(12, d * 0.25), px = Math.round(x0 + (x1 - x0) * u), py = Math.round(y0 + (y1 - y0) * u + sag);
+    sx.fillStyle = '#0c0913'; sx.fillRect(px - 1, py - 1, 3, 3);
+    sx.fillStyle = i % 2 ? '#5a5a6a' : '#9a9aaa'; sx.fillRect(px, py, i % 2 ? 1 : 2, 1);
+    if (taut > 0.3 && (i + Math.floor(t * 24)) % 6 === 0) { sx.fillStyle = '#e8c8ff'; sx.fillRect(px, py, 1, 1); gx.fillStyle = '#4a1a7a'; gx.fillRect(px, py, 1, 1); }
+  }
+  ellBoth(sx, gx, x1, y1 + 8, 6, 3, '#9a9aaa', 0.9, dimCol('#7a3ab0', 0.3 + 0.4 * taut));
+  addLight(P.x, P.y, 30 + 30 * taut, '#7a3ab0', 0.3 + 0.4 * taut);
+}
+// 冥鎖の止まった時: 画面が暗く沈み、空から黒い杭が落ちて刺さり、鎖がプレイヤーへ巻きつく
+function drawCine() {
+  const c = S.cine;
+  if (!c || c.kind !== 'chain') return;
+  const sx = GFX.sctx, gx = GFX.gctx, t = c.t, x = c.x - cam.x, y = c.y - cam.y;
+  sx.globalAlpha = Math.min(0.55, t * 2); sx.fillStyle = '#06030c'; sx.fillRect(0, 0, GFX.VW, GFX.VH); sx.globalAlpha = 1;
+  const k = Math.min(1, t / 0.55), sp = ART.S.obj_stake;
+  if (t < 0.55) { const u = 1 - k * k; pLine(sx, x, y - 240, x, y - u * 200 - 10, '#2a1240', 1); } // 落ちてくる跡
+  drawSp(sp, c.x, c.y - (1 - k * k) * 200 - 10, { scale: 1.5 });
+  addLight(c.x, c.y - (1 - k * k) * 200 - 10, 50, '#a66bff', 0.9);
+  if (t >= 0.55) {
+    const u = Math.min(1, (t - 0.55) / 0.35);
+    pCircle(sx, x, y, Math.round(8 + 40 * u), u < 1 ? '#e8c8ff' : '#a66bff'); pCircle(gx, x, y, Math.round(8 + 40 * u), dimCol('#a66bff', 0.7 * (1 - u)), 2);
+    for (let i = 0; i < 6; i++) { const a = TAU / 6 * i + 0.3, L = 10 + 26 * u; pLine(sx, x, y, x + Math.cos(a) * L, y + Math.sin(a) * L * 0.5, '#7a3ab0'); } // 床に走るひび
+    const ch = clamp((t - 0.7) / 0.6, 0, 1); // 鎖がプレイヤーへ巻きつく(輪が下から順に締まる)
+    for (let r = 0; r < 3; r++) { const v = clamp(ch * 3 - r, 0, 1); if (v <= 0) continue; const ry = y + 4 - r * 6; ellBoth(sx, gx, x, ry, 9 - v * 3, (9 - v * 3) * 0.4, r % 2 ? '#5a5a6a' : '#9a9aaa', 0.95, dimCol('#a66bff', 0.5 * v)); }
+    addLight(c.x, c.y, 90, '#a66bff', 0.8 * (1 - u * 0.5));
+  }
+}

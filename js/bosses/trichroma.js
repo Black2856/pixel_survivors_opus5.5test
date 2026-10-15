@@ -175,3 +175,125 @@ function updTriBall(e, ai, dt) {
     part(b.gx + c * lu - sn * lv, b.gy + sn * lu + c * lv, rand(-8, 8), -rand(15, 40), 0.5, pick([TRI.col[b.ci], '#ffffff']), { glow: true, drag: 1.5 });
   }
 }
+
+// ---------- 描画(render.js の render / drawBossFx / drawBossGround から呼ぶ)----------
+// 灯の番人の光の扇: ランタンから地面を照らす淡い金の扇(縁は少し明るい)。プレイヤーが中にいる間は赤く染まり、見つかるまでの時間ぶん根元から赤が満ちる
+//   扇そのものは光なので暗闇でも見えるが、赤(攻撃の予告)は暗闇では出さない
+//   ふだんの光は番人が重なっても明るさを足さない(聖堂の明るい床で 4体の扇が重なると白く飛んだ): 淡い金の塗りは扇を合わせた形で 1回だけ塗り、
+//   照らされた地面の光は、その点に重なっているほかの扇の数で分ける。ランタンの灯も近くの番人の数で分ける(e.lanS。敵の描画で使う)。
+//   見つけかけ(赤)・見つけた時の光(spotflash)は攻撃の合図なので、重なっても分けない
+function spotCover(c, x, y) { // 点 (x, y) が扇 c の中か(1 = 中。縁の外側 8px ほどでなめらかに 0 へ。c.k を掛ける)
+  const dx = x - c.x, dy = y - c.y, d = Math.hypot(dx, dy);
+  if (d >= c.R) return 0;
+  return Math.min(1, (c.R - d) / 8) * clamp((c.h - Math.abs(angDiff(Math.atan2(dy, dx), c.a))) * Math.max(d, 1) / 8 + 0.5, 0, 1) * c.k;
+}
+function drawSpotCones(t) {
+  const sx = GFX.sctx, so = DATA.enemies.lampkeeper.spot, blink = Math.floor(t * 8) % 2;
+  const ks = enemies.filter(e => !e.dead && e.type === 'lampkeeper');
+  for (const e of ks) { let s = 1; for (const o of ks) if (o !== e) s += clamp(1 - Math.hypot(o.x - e.x, o.y - e.y) / 24, 0, 1); e.lanS = s; }
+  const cs = ks.filter(e => e.spotK > 0 && e.spotA !== undefined).map(e => ({ e, x: e.x, y: e.y - 3, a: e.spotA, h: so.h, R: so.r * e.areaK * CHAOS.area * easeOutCubic(e.spotK), k: e.spotK }));
+  if (!cs.length) return;
+  const fan = new Path2D(); // 扇の塗り(淡い金。合わせた形で 1回)
+  for (const c of cs) { const cx = c.x - cam.x, cy = c.y - cam.y; fan.moveTo(cx, cy); fan.arc(cx, cy, c.R, c.a - c.h, c.a + c.h); fan.closePath(); }
+  sx.globalAlpha = (0.1 + 0.04 * Math.sin(t * 3 + cs[0].e.seed * 9)) * Math.max(...cs.map(c => c.k)); sx.fillStyle = '#fff2b8'; sx.fill(fan);
+  for (const c of cs) {
+    const e = c.e, R = c.R, h = c.h, a = c.a, cx = c.x - cam.x, cy = c.y - cam.y;
+    const caught = e.spotC > 0 && !(P.darkT > 0), k = caught ? Math.min(1, e.spotC / so.catch) : 0;
+    if (caught) { sx.globalAlpha = 0.22 + 0.25 * k; sx.fillStyle = '#ff3b5c'; sx.beginPath(); sx.moveTo(cx, cy); sx.arc(cx, cy, Math.max(2, R * k), a - h, a + h); sx.closePath(); sx.fill(); }
+    const ec = caught ? (blink ? '#ff3b5c' : '#ffd0d8') : '#ffe8a0'; // 縁: 両端の線と弧
+    sx.globalAlpha = (caught ? 0.9 : 0.4) * e.spotK;
+    pLine(sx, cx, cy, cx + Math.cos(a - h) * R, cy + Math.sin(a - h) * R, ec); pLine(sx, cx, cy, cx + Math.cos(a + h) * R, cy + Math.sin(a + h) * R, ec);
+    sx.fillStyle = ec; for (let u = -h; u <= h; u += 0.015) sx.fillRect(Math.round(cx + Math.cos(a + u) * R), Math.round(cy + Math.sin(a + u) * R), 1, 1);
+    sx.globalAlpha = 1;
+    for (let d = 10; d < R; d += 16) { // 照らされた地面(ふだんの扇は、重なっているほかの扇の数で分ける。見つけかけの赤はそのまま)
+      const lx = c.x + Math.cos(a) * d, ly = c.y + Math.sin(a) * d; let s = 1;
+      if (!caught) for (const o of cs) if (o !== c) s += spotCover(o, lx, ly);
+      addLight(lx, ly, 12 + d * 0.16, caught ? '#ff8a8a' : '#fff2b8', 0.22 * e.spotK / s);
+    }
+  }
+}
+// 三原の光精の色の光の塗り: 1点ごとに、どの光に入っているか(赤 1・緑 2・青 4 のビット)で色を決める(重なった所は 黄・紫・水色・白)。
+//   明るい床に足し合わせると白に寄って色が見えないので、混ざった色をそのまま淡く重ねる。白は少しまたたく
+//   zs: [{ i: 色(0 赤・1 緑・2 青), x0, y0, x1, y1: 囲む四角(場面の座標), hit(x, y): その点が光の中か, k: 濃さ(0〜1。なければ 1。重なった所は濃い方) }](三原の灯の円・ミラーボールの楕円)
+const TRI_RGB = [null, [255, 58, 74], [58, 255, 106], [255, 225, 74], [58, 106, 255], [255, 74, 216], [74, 220, 255], [255, 255, 255]];
+let triCan = null, triCtx = null, triImg = null;
+function drawTriZones(sx, zs, al, t) {
+  const x0 = Math.max(Math.floor(Math.min(...zs.map(z => z.x0))), Math.floor(cam.x) - 1), y0 = Math.max(Math.floor(Math.min(...zs.map(z => z.y0))), Math.floor(cam.y) - 1); // 画面の外は塗らない(広い楕円)
+  const W = Math.min(Math.ceil(Math.max(...zs.map(z => z.x1))), Math.ceil(cam.x + GFX.VW) + 1) - x0, H = Math.min(Math.ceil(Math.max(...zs.map(z => z.y1))), Math.ceil(cam.y + GFX.VH) + 1) - y0;
+  if (W <= 0 || H <= 0 || W > 2000 || H > 2000) return;
+  if (!triCan || triCan.width < W || triCan.height < H) { triCan = ART.canvas(Math.max(W, triCan ? triCan.width : 0, 64), Math.max(H, triCan ? triCan.height : 0, 64)); triCtx = triCan.getContext('2d'); triImg = null; }
+  if (!triImg || triImg.width !== W || triImg.height !== H) triImg = triCtx.createImageData(W, H);
+  const d = triImg.data, sh = Math.floor(t * 10) % 2;
+  d.fill(0);
+  for (let y = 0; y < H; y++) {
+    const wy = y0 + y + 0.5;
+    for (let x = 0; x < W; x++) {
+      const wx = x0 + x + 0.5; let m = 0, kk = 0;
+      for (const z of zs) if (wx >= z.x0 && wx <= z.x1 && wy >= z.y0 && wy <= z.y1 && z.hit(wx, wy)) { m |= 1 << z.i; kk = Math.max(kk, z.k ?? 1); }
+      if (!m) continue;
+      const col = TRI_RGB[m], o = (y * W + x) * 4;
+      d[o] = col[0]; d[o + 1] = col[1]; d[o + 2] = col[2]; d[o + 3] = (m === 7 ? (((x + y) & 1) === sh ? 255 : 200) : 255) * kk;
+    }
+  }
+  triCtx.clearRect(0, 0, triCan.width, triCan.height); triCtx.putImageData(triImg, 0, 0);
+  sx.globalAlpha = al; sx.drawImage(triCan, 0, 0, W, H, Math.round(x0 - cam.x), Math.round(y0 - cam.y), W, H); sx.globalAlpha = 1;
+}
+// ミラーボールの光の強さ: 玉が現れてすぐは 0、光の先が地面へ降りて 1秒は弱い光(当たらない)、照らしている間は 1、終わりは消えていく
+const triBallLit = B => { const Q = TRI_BALL; return B.t < 0.15 ? 0 : (B.t < Q.show + Q.warm ? 0.4 : 1) * (1 - clamp((B.t - Q.dur) / Q.fade, 0, 1)); };
+// ミラーボール: 鏡のかけらを貼った玉(回るにつれてかけらが横へ流れ、ときどき赤・緑・青・白にきらめく)と、まわりを回る金の輪と赤・緑・青の灯(三原の光精の灯と同じ)
+//   cx, cy: 玉の中心(画面)/ ka: 現れる・消える(0〜1。大きさ)/ t: 時間。画面の外なら描かない
+function drawTriBall(sx, gx, cx, cy, ka, t) {
+  const R = Math.max(1, Math.round(8 * ka));
+  if (ka <= 0 || cy + R + 6 < 0 || cy - R - 6 > GFX.VH || cx + R + 8 < 0 || cx - R - 8 > GFX.VW) return;
+  const rx = R + 5, ry = Math.max(1, Math.round(R * 0.3)), at = q => [cx + Math.round(Math.cos(q) * rx), cy + Math.round(Math.sin(q) * ry)];
+  const ring = front => { // 金の輪と 3つの灯(奥の半分 → 玉 → 手前の半分の順に描く)
+    for (let j = 0; j < 48; j++) { const q = TAU * j / 48; if ((Math.sin(q) > 0) !== front) continue; const [x, y] = at(q); sx.fillStyle = j % 6 === 0 ? '#ffe08a' : '#b8903a'; sx.fillRect(x, y, 1, 1); }
+    for (let i = 0; i < 3; i++) { const q = t * 1.6 + TAU / 3 * i; if ((Math.sin(q) > 0) !== front) continue; const [x, y] = at(q); pDisc(sx, x, y, 1, TRI.col[i]); sx.fillStyle = '#ffffff'; sx.fillRect(x, y, 1, 1); pDisc(gx, x, y, 1, dimCol(TRI.col[i], 0.6)); }
+  };
+  ring(false);
+  const sp = t * 1.4, tick = Math.floor(t * 6), PAL = ['#20223a', '#383c5c', '#5c6286', '#8a90b0', '#b8bcd4', '#dcdff0']; // 鏡のかけら(暗い → 明るい。聖堂の明るい床で白く飛ばないように一番明るい所もくすませる)
+  for (let y = -R; y <= R; y++) for (let x = -R; x <= R; x++) {
+    const nx = x / R, ny = y / R, q = 1 - nx * nx - ny * ny; if (q < -0.05) continue;
+    const nz = Math.sqrt(Math.max(0, q)), u = (Math.atan2(nx, nz) + sp) / (Math.PI / 6), v = Math.asin(clamp(ny, -1, 1)) / (Math.PI / 8) + 4, fi = Math.floor(u), fj = Math.floor(v), edge = u - fi < 0.22 || v - fj < 0.22; // 経度・緯度でかけらに分ける(目地は暗く)
+    const h = ((fi * 7 + fj * 13) % 4 + 4) % 4, sh = -0.45 * nx - 0.6 * ny + 0.66 * nz; // かけらごとの向きのばらつき・左上からの光
+    sx.fillStyle = !edge && nz > 0.3 && ((fi * 5 + fj * 3 + tick) % 11 + 11) % 11 === 0 ? (((fi + fj) % 4 + 4) % 4 === 3 ? '#ffffff' : TRI.col[((fi + fj) % 3 + 3) % 3]) : PAL[clamp(Math.round(sh * 3.2 + h * 0.5 + 0.6) - (edge ? 2 : 0), 0, 5)]; // ときどき光の色にきらめく
+    sx.fillRect(cx + x, cy + y, 1, 1);
+  }
+  sx.fillStyle = '#ffffff'; sx.fillRect(cx - Math.round(R * 0.45), cy - Math.round(R * 0.5), 2, 1); // 照り
+  ring(true);
+  pDisc(gx, cx, cy, R + 1, dimCol('#c8d0ff', 0.1 * ka)); // 玉のまわりの淡い光
+}
+// 三原の光精: 水晶の中の光の核(拍動し、中で赤 → 緑 → 青と色が巡る)と、赤・緑・青の灯(ふだんは核のまわりを回る)
+//   三原の灯の間は、灯がそれぞれの円の上に浮かんで、円を照らす光の筋を落とす / 白の収束では予告の円と同じ式で集まる
+//   ミラーボール: 頭上 150 の玉(drawTriBall。ふだんは画面の上の端の外)と、3つの光の空中の円錐(ヘヴンズリフトと同じ drawConeShaft。地面の光は drawBossGround)
+function drawTriFx(e, sx, gx, ex, ey, yo) {
+  const ai = e.ai, t = GFX.fx.time, cx = Math.round(ex), cy = Math.round(ey + yo), pul = 0.5 + 0.5 * Math.sin(t * 6), ci = Math.floor(t * 3) % 3;
+  // 核
+  pDisc(sx, cx, cy, 2, '#ffffff'); sx.fillStyle = TRI.col[ci]; sx.fillRect(cx - 1, cy + 1, 3, 1); sx.fillRect(cx - 1, cy - 2, 3, 1);
+  pDisc(gx, cx, cy, Math.round(2 + pul), dimCol('#c8d0ff', 0.55));
+  addLight(e.x, e.y + yo, 60 * (0.9 + 0.1 * pul), '#e0e4ff', 0.45);
+  // 灯の位置(場面の座標)
+  const lampAt = i => {
+    if (ai.lamp) { const c = ai.lamp.cs[i], k = easeOutCubic(Math.min(1, ai.lamp.t / 0.5)); return [lerp(e.x + Math.cos(ai.orb + TAU / 3 * i) * 18, c.x, k), lerp(e.y + yo + Math.sin(ai.orb + TAU / 3 * i) * 8, c.y - 26, k)]; } // 灯は円の上へ飛んでいく
+    if (ai.cv) { const p = ai.cv.pts[i], [x, y] = ai.cv.pos(p, S.time - ai.cv.t0); return [x, y - 18]; }
+    const a = ai.orb + TAU / 3 * i;
+    return [e.x + Math.cos(a) * 18, e.y + yo + Math.sin(a) * 18 * 0.45];
+  };
+  for (let i = 0; i < 3; i++) {
+    const [lx, ly] = lampAt(i), x = Math.round(lx - cam.x), y = Math.round(ly - cam.y), col = TRI.col[i];
+    if (ai.lamp && ai.lamp.t < ai.lamp.dur) { // 円を照らす光の筋(灯から円の両端へ)
+      const c = ai.lamp.cs[i], R = 50 * CHAOS.area, k = Math.min(1, ai.lamp.t / 0.6);
+      sx.globalAlpha = 0.35 * k; pLine(sx, x, y, c.x - cam.x - R * 0.8, c.y - cam.y, col); pLine(sx, x, y, c.x - cam.x + R * 0.8, c.y - cam.y, col); sx.globalAlpha = 1;
+    }
+    pDisc(sx, x, y, 3, col); sx.fillStyle = '#ffffff'; sx.fillRect(x - 1, y - 1, 2, 2);
+    pDisc(gx, x, y, 2, dimCol(col, 0.6));
+    addLight(lx, ly, 34, col, 0.55);
+  }
+  if (ai.ball) { // ミラーボール: 3つの光の空中の円錐(現れてすぐ光の先が玉から地面へ降りる。縁はその光の色で、弱い光の間は 3色が交互の点線、照らしている間は線)と玉
+    const B = ai.ball, Q = TRI_BALL, k = triBallLit(B), lit = B.t >= Q.show + Q.warm && B.t < Q.dur, f = 1 - clamp((B.t - Q.dur) / Q.fade, 0, 1), dr = clamp((B.t - 0.15) / (Q.show - 0.15), 0, 1);
+    for (const b of triBallBeams(e, B)) { const col = TRI.col[b.ci]; drawConeShaft(sx, gx, t, { x: b.gx, y: b.gy, H: Q.H, a: b.a, ap: 2, col, glow: col, rim: col, dot: col, dph: b.ci }, b.o, k, f, lit, dr, Q.H * Math.tan(triBallAl())); }
+    const ka = clamp(B.t / 0.3, 0, 1) * clamp((Q.dur + Q.fade - B.t) / 0.3, 0, 1); // 現れる・消える
+    drawTriBall(sx, gx, Math.round(e.x - cam.x), Math.round(e.y - Q.H - cam.y + Math.sin(t * 2) * 2), ka, t); // 浮かんで少し上下する
+    sx.globalAlpha = 1;
+  }
+}
