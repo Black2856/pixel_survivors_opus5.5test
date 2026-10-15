@@ -486,7 +486,7 @@ function necPhase() {
   const p = NC();
   staUse(necPhaseCost());
   P.phase = { t: p.phaseT };
-  P.invT = Math.max(P.invT, p.phaseT); P.ifr = Math.max(P.ifr, p.phaseT);
+  P.invT = Math.max(P.invT, dodgeIfr(p.phaseT)); P.ifr = Math.max(P.ifr, dodgeIfr(p.phaseT));
   playAnim('nPhase', MOTIONS.nPhase.dur); P.anim.keep = true;
   asMine(() => burst(P.x, P.y, 14, NEC_FX, { sp: 50, glow: true, life: 0.35 }));
   AudioMan.dash();

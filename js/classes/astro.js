@@ -276,7 +276,7 @@ function astEject() {
   staUse(astEjectCost());
   P.mass -= rel; S.hudDirty = true;
   P.dash = { vx: d[0] / len * dist / p.ejectTime, vy: d[1] / len * dist / p.ejectTime, t: p.ejectTime };
-  P.invT = Math.max(P.invT, p.ejectIfr); P.ifr = Math.max(P.ifr, p.ejectIfr);
+  P.invT = Math.max(P.invT, dodgeIfr(p.ejectIfr)); P.ifr = Math.max(P.ifr, dodgeIfr(p.ejectIfr));
   playAnim('gEject', MOTIONS.gEject.dur); P.anim.keep = true;
   asMine(() => {
     forEachNear(x, y, R, e => {

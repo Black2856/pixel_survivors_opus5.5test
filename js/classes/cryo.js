@@ -212,7 +212,7 @@ function cryoMirror() {
   staUse(mirrorCost());
   S.decoy = { x: P.x, y: P.y, t: p.decoyT, cryo: true, hit: new Set() };
   P.dash = { vx: d[0] / len * p.mirrorDist / p.mirrorTime, vy: d[1] / len * p.mirrorDist / p.mirrorTime, t: p.mirrorTime };
-  P.invT = Math.max(P.invT, p.mirrorIfr); P.ifr = Math.max(P.ifr, p.mirrorIfr);
+  P.invT = Math.max(P.invT, dodgeIfr(p.mirrorIfr)); P.ifr = Math.max(P.ifr, dodgeIfr(p.mirrorIfr));
   playAnim('cMirror', MOTIONS.cMirror.dur); P.anim.keep = true;
   asMine(() => { burst(P.x, P.y, 14, ['#ffffff', '#bff4ff'], { sp: 60, glow: true, life: 0.35 }); addRing(P.x, P.y, 14, '#bff4ff', { life: 0.25 }); fxGlint(P.x, P.y - 4, 7, '#bff4ff', { life: 0.22 }); fxDecal(P.x, P.y + 5, 10, 'frost', { life: 1.6, n: 6 }); });
   AudioMan.dash();

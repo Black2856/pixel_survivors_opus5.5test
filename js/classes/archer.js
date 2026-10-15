@@ -207,7 +207,7 @@ function archerBackstep() {
   const p = AR(), d = P.moving && P.dir ? [-P.dir[0], -P.dir[1]] : [-P.facing, 0], len = Math.hypot(d[0], d[1]) || 1;
   staUse(backCost());
   P.dash = { vx: d[0] / len * p.backDist / p.backTime, vy: d[1] / len * p.backDist / p.backTime, t: p.backTime };
-  P.invT = Math.max(P.invT, p.backIfr);
+  P.invT = Math.max(P.invT, dodgeIfr(p.backIfr));
   if (hasSp('passive', 'hold')) P.focus = Math.min(focusMax(), (P.focus || 0) + 2); // 狩りの構え
   playAnim('aStep', MOTIONS.aStep.dur); P.anim.keep = true;
   burst(P.x, P.y + 6, 10, ['#8a8098', '#b8ff9a'], { sp: 50, up: 10, life: 0.35 });

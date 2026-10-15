@@ -12,6 +12,15 @@ function rollHit(e) {
   if (atkLock() || Math.random() >= hitRate()) { missed = e; return false; }
   return true;
 }
+// 固有効果で与えるダメージの倍率
+//   奥義の: 通常攻撃(武器の自動攻撃。E は除く)×0.9、それ以外の自分の攻撃(E・Q・防御スキル・クラスの攻撃)×1.2。継続ダメージ・アイテムは変えない
+//   破城の: ボスが出した壊せる物 ×1.25(金色の HP バーの物。冥犬の分かれた犬は本体なので除く)
+function uqHitK(e, o) {
+  let k = 1;
+  if (P.uq.ougi && !o.dot && !o.item) k *= o.src && DATA.weapons[o.src] && !o.eHit ? 0.9 : 1.2;
+  if (P.uq.siege && e.obj && !e.tiny && e.obj !== 'cdog') k *= 1.25;
+  return k;
+}
 // o.dot: 継続ダメージ(外れない・衰弱を掛けない)/ o.item: アイテムの効果(爆弾。外れず、攻撃不能の間も当たる)
 function hitEnemy(e, base, o = {}) {
   missed = null;
@@ -24,11 +33,11 @@ function hitEnemy(e, base, o = {}) {
     if (!o.noNum && !o.quiet) addFloat(e.x, e.y - e.r - 3, 'MISS', '#a8a8b8');
     return 0;
   }
-  let dmg = (base + clsHitBonus(e, o)) * dmgMul() * clsDmgTaken(e, o) * wsDmgTaken(e) * (e.takeK || 1) * (1 - buffOn(e, 'def')) * (e.robeK ?? 1) * (o.dot ? 1 : weakMul()); // 祈りの一撃などの追加 / 印・凍結・侵蝕などで敵が受けるダメージが増える / takeK: ボスの状態(岩の鎧・ひるみ・分裂など)/ フロストメイジのバフ / 衰弱
+  let dmg = (base + clsHitBonus(e, o)) * dmgMul() * clsDmgTaken(e, o) * wsDmgTaken(e) * (e.takeK || 1) * (1 - buffOn(e, 'def')) * (e.robeK ?? 1) * (o.dot ? 1 : weakMul()) * uqHitK(e, o); // 祈りの一撃などの追加 / 印・凍結・侵蝕などで敵が受けるダメージが増える / takeK: ボスの状態(岩の鎧・ひるみ・分裂など)/ フロストメイジのバフ / 衰弱 / 固有効果
   if (e.frost > 0 && P.weapons.blizzard && P.weapons.blizzard.evo) dmg *= 1 + 0.01 * e.frost;
   const daz = P.dazT > 0 && !o.dot && !o.item; // 眩惑(光の蝶): 与えるダメージ −100%(継続ダメージ・アイテムは除く)
   const crit = !daz && (o.forceCrit || (!o.noCrit && Math.random() < critRate() + clsCritBonus(e)));
-  if (crit) dmg *= P.critMul + clsCritDmgBonus(e); else if (P.uq.exec) dmg *= 0.8; // 処刑人の
+  if (crit) dmg *= P.critMul + clsCritDmgBonus(e); else if (P.uq.exec) dmg *= 0.9; // 処刑人の
   dmg = e.robeK === 0 || daz ? 0 : Math.max(1, Math.round(dmg * rand(0.9, 1.1))); // 熾天使の光の衣が全部防いだ・眩惑: 0(当たったときの効果は起きる。状態異常で衣を破るため)
   e.hp -= dmg; e.flash = 0.08;
   if (e.hpFloor && e.hp < e.hpFloor) e.hp = e.hpFloor; // 影の王: 影がいる間は次の基準(4回目の影の間は HP 1)より下がらない

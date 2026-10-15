@@ -391,7 +391,7 @@ function mageBlink() {
   const x0 = P.x, y0 = P.y, dx = d[0] / len, dy = d[1] / len;
   staUse(blinkCost());
   P.x += dx * p.blinkDist; P.y += dy * p.blinkDist;
-  P.invT = Math.max(P.invT, p.blinkIfr); P.ifr = Math.max(P.ifr, p.blinkIfr);
+  P.invT = Math.max(P.invT, dodgeIfr(p.blinkIfr)); P.ifr = Math.max(P.ifr, dodgeIfr(p.blinkIfr));
   zones.push({ kind: 'residue', x: x0, y: y0, r: p.residueR * P.area, t: 0, dur: p.residueT, tick: 0 });
   playAnim('mBlink', MOTIONS.mBlink.dur); P.anim.keep = true;
   for (let i = 1; i <= 4; i++) P.after = (P.after || []).concat([{ x: x0 + dx * p.blinkDist * i / 5, y: y0 + dy * p.blinkDist * i / 5, t: 0, f: P.facing }]).slice(-6);

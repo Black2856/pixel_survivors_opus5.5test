@@ -199,7 +199,7 @@ function electroDash() {
   staUse(dashCost());
   P.dash = { vx: d[0] / len * p.dashDist / p.dashTime, vy: d[1] / len * p.dashDist / p.dashTime, t: p.dashTime };
   P.dashHit = new Set();
-  P.invT = Math.max(P.invT, p.dashIfr); P.ifr = Math.max(P.ifr, p.dashIfr);
+  P.invT = Math.max(P.invT, dodgeIfr(p.dashIfr)); P.ifr = Math.max(P.ifr, dodgeIfr(p.dashIfr));
   playAnim('eDash', MOTIONS.eDash.dur); P.anim.keep = true;
   asMine(() => { burst(P.x, P.y, 12, ['#fff27a', '#9fd8ff', '#ffffff'], { sp: 70, glow: true, life: 0.3 }); });
   AudioMan.dash(); AudioMan.zap();

@@ -9,6 +9,8 @@ function staUse(n, lock = 0) {
   if (lock) P.staLockT = Math.max(P.staLockT, lock);
   S.hudDirty = true;
 }
+// 回避(防御スキルのダッシュ・ブリンクなど)の無敵の秒数。固有効果「不壊の」で +20%(ガード系には無敵がないので効かない)
+const dodgeIfr = t => t * (P.uq.unbreak ? 1.2 : 1);
 function updStamina(dt) {
   P.staLockT -= dt;
   if (P.staLockT > 0) return;

@@ -233,7 +233,7 @@ function applyStats() {
   P.regen = v.regen;
   P.armor = v.def;
   P.dr = v.dr;
-  P.maxSta = v.sta; P.staRegen = v.staRegen;
+  P.maxSta = v.sta * m.sta; P.staRegen = v.staRegen; // 巨人の: 最大スタミナ ×0.8
   P.iframe = DATA.player.iframe * (1 + v.iframe);
   P.foodMul = Math.max(0, 1 + v.food);
   P.speed = DATA.player.speed * Math.max(0.1, 1 + v.spd) * m.spd;
@@ -244,7 +244,7 @@ function applyStats() {
   P.cdMul = (1 - v.cd) * m.cd;
   P.shots = Math.round(v.shots || 0);
   P.crit = v.crit;
-  P.critMul = 1 + v.critDmg + (P.uq.eye ? Math.max(0, v.crit - 1) : 0); // 天眼の: 100% を超えた会心率を会心ダメージへ
+  P.critMul = (1 + v.critDmg + (P.uq.eye ? Math.max(0, v.crit - 1) : 0)) * m.critDmg; // 天眼の: 100% を超えた会心率を会心ダメージへ / 処刑人の: ×1.2
   P.xpMul = (1 + v.xp) * m.xp;
   P.goldMul = (1 + v.gold) * m.gold;
   P.magnet = DATA.player.magnet * Math.max(0.1, 1 + v.magnet);

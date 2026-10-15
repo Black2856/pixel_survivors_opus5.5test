@@ -43,6 +43,7 @@ function updPlayer(dt) {
   const rg = P.regen + clsRegen(); // クラスの一時的な HP回復速度(バーサーカーの昂り・狂乱など)
   if (rg > 0 && !(P.noHealT > 0)) { const n = rg * dt * clsHealMul() * (P.burnT > 0 ? DATA.debuff.burnHeal : 1) * (P.cdSlowT > 0 ? DATA.debuff.slowRegen : 1); S.healed = (S.healed || 0) + n; overheal(P.hp + n - P.maxhp); P.hp = Math.min(P.maxhp, P.hp + n); } // 満タンで余った分は超過回復
   updOverShield(dt); // 聖盾のシールドは得た分ごとに時間で消える
+  if (P.uq.ward && (P.wardT = (P.wardT || 0) - dt) <= 0) { P.wardT = 30; timedShield(P.maxhp * 0.1, 30); } // 守護の: ラン開始時と 30秒ごとに、次まで持つシールド
   if (P.moving && Math.random() < dt * 10) part(P.x + rand(-2, 2), P.y + 6, rand(-6, 6), rand(-8, -2), 0.35, '#8a8098', { drag: 4 });
   GFX.fx.lowhp = lerp(GFX.fx.lowhp, P.hp / P.maxhp < 0.3 ? 1 : 0, dt * 3);
 }
@@ -66,8 +67,20 @@ function updDebuffs(dt) {
   addFloat(P.x, P.y - 10, String(dmg), '#ff8a3d');
   if (P.hp <= 0) playerDown();
 }
+// 自分への状態異常を防いだか: クラス(ナイトの金剛)か、固有効果「清浄の」(25%)
+//   清浄の: 同じ種類は 1秒間、最初の判定を使い回す(毎フレーム付く減速などでも 25% になるように。金剛と同じ)
+const resistDebuff = kind => clsResistDebuff(kind) || uqResist(kind);
+function uqResist(kind) {
+  if (!P.uq.purity) return false;
+  const m = P.uqRes || (P.uqRes = {}), r = m[kind];
+  if (r && S.time < r.until) return r.ok;
+  const ok = Math.random() < 0.25;
+  m[kind] = { until: S.time + 1, ok };
+  if (ok) { addRing(P.x, P.y, 14, '#bff4ff', { life: 0.25 }); addFloat(P.x, P.y - 18, _t('耐性'), '#bff4ff', 0.8); }
+  return ok;
+}
 function burnPlayer(dmg) {
-  if (P.invT > 0 || P.dead || clsResistDebuff('burn')) return;
+  if (P.invT > 0 || P.dead || resistDebuff('burn')) return;
   dmg *= S.eatk ?? 1; // 攻撃してきた敵の攻撃力の倍率(ビッグクランチ)
   if (P.burnT <= 0) { P.burnTick = DATA.debuff.burnTick; P.burnDmg = 0; }
   P.burnT = DATA.debuff.burnDur * CHAOS.debuff; P.burnDmg = Math.max(P.burnDmg, dmg); // カオス: デバフの時間
@@ -81,7 +94,7 @@ function breakCombo() {
 //   出血: 1スタックにつき 1秒ごとに 最大HP × pBleed(最大 pBleedMax スタック)。防御力・シールドでは減らない
 const playerFrostMul = () => Math.max(0.2, 1 - DATA.debuff.pFrostSlow * P.frost);
 function frostPlayer(n) {
-  if (!(n > 0) || P.invT > 0 || P.dead || P.frzT > 0 || clsSlowImmune() || clsResistDebuff('frost')) return;
+  if (!(n > 0) || P.invT > 0 || P.dead || P.frzT > 0 || clsSlowImmune() || resistDebuff('frost')) return;
   const D = DATA.debuff, was = P.frost;
   P.frost = Math.min(D.pFrostMax, P.frost + n); P.frostT = D.pDur * CHAOS.debuff;
   burst(P.x, P.y - 4, 6 + n * 3, ['#bff4ff', '#ffffff', '#7ad7ff'], { sp: 50, glow: true, life: 0.4 }); // 霜が弾ける
@@ -91,7 +104,7 @@ function frostPlayer(n) {
 }
 // 減速(粘液・スロウタイム・時の歪み): k = 移動速度の倍率(重なったら強い方)。cd: クールダウンの回復も遅くする。減速を受けない状態(不屈)では付かない
 function slowPlayer(k, t, cd) {
-  if (P.dead || clsSlowImmune() || clsResistDebuff('slow')) return;
+  if (P.dead || clsSlowImmune() || resistDebuff('slow')) return;
   P.slowK = P.slowT > 0 ? Math.min(P.slowK || 1, k) : k;
   P.slowT = Math.max(P.slowT, t);
   if (cd) P.cdSlowT = Math.max(P.cdSlowT, t);
@@ -106,7 +119,7 @@ function freezePlayer(t) {
 }
 // 痺れ(雷鳴の雲海): 1スタックにつきクールダウンの回復 −numbCd(武器の攻撃間隔と E・Q)。numbMax に達すると麻痺して 0 に戻る。麻痺の間は付かない
 function numbPlayer(n) {
-  if (!(n > 0) || P.invT > 0 || P.dead || P.paraT > 0 || clsResistDebuff('numb')) return;
+  if (!(n > 0) || P.invT > 0 || P.dead || P.paraT > 0 || resistDebuff('numb')) return;
   const D = DATA.debuffStage;
   P.numb = Math.min(D.numbMax, P.numb + n); P.numbT = DATA.debuff.pDur * CHAOS.debuff;
   for (let i = 0; i < 2 + Math.min(4, n); i++) { const a = rand(0, TAU), r = rand(6, 12); bolts.push({ x0: P.x, y0: P.y - 4, x1: P.x + Math.cos(a) * r, y1: P.y - 4 + Math.sin(a) * r, t: 0, life: 0.12, w: 1, jit: 2, gcol: '#6a5a14' }); } // 体を走る火花(光は暗い黄色: 体を白く飛ばさない)
@@ -126,7 +139,7 @@ function paralyzePlayer(t) {
 }
 // 砂塵(陽炎の砂海): 1スタックにつき命中率 −dustHit(dustMax まで)
 function dustPlayer(n) {
-  if (!(n > 0) || P.invT > 0 || P.dead || clsResistDebuff('dust')) return;
+  if (!(n > 0) || P.invT > 0 || P.dead || resistDebuff('dust')) return;
   const D = DATA.debuffStage;
   P.dust = Math.min(D.dustMax, P.dust + n); P.dustT = DATA.debuff.pDur * CHAOS.debuff;
   burst(P.x, P.y - 4, 8 + n * 3, ['#e8c88a', '#c8a060', '#fff0c8'], { sp: 55, life: 0.45, drag: 2 }); // 砂が顔にかかる
@@ -135,7 +148,7 @@ function dustPlayer(n) {
 }
 // 衰弱(木漏れ日の森): 1スタックにつき攻撃力 −weakAtk(weakMax まで。与えるダメージに掛ける)
 function weakPlayer(n) {
-  if (!(n > 0) || P.invT > 0 || P.dead || clsResistDebuff('weak')) return;
+  if (!(n > 0) || P.invT > 0 || P.dead || resistDebuff('weak')) return;
   const D = DATA.debuffStage;
   P.weak = Math.min(D.weakMax, P.weak + n); P.weakT = DATA.debuff.pDur * CHAOS.debuff;
   for (let i = 0; i < 6 + n * 2; i++) part(P.x + rand(-5, 5), P.y - 8 + rand(-3, 3), rand(-12, 12), rand(10, 30), rand(0.4, 0.6), pick(['#8aa070', '#5a6a48', '#c8d8a0']), { drag: 1.5 }); // 力が抜けて落ちる胞子
@@ -151,7 +164,7 @@ const hitRate = () => Math.max(0, 1 - DATA.debuffStage.dustHit * P.dust - (P.dar
 // 衰弱: 与えるダメージの倍率(hitEnemy。継続ダメージには掛けない)
 const weakMul = () => Math.max(0, 1 - DATA.debuffStage.weakAtk * P.weak);
 function bleedPlayer(n) {
-  if (!(n > 0) || P.invT > 0 || P.dead || clsResistDebuff('bleed')) return;
+  if (!(n > 0) || P.invT > 0 || P.dead || resistDebuff('bleed')) return;
   if (P.bleed <= 0) P.bleedTick = 1;
   P.bleed = Math.min(DATA.debuff.pBleedMax, P.bleed + n); P.bleedT = DATA.debuff.pDur * CHAOS.debuff;
   for (let i = 0; i < 6 + n * 3; i++) part(P.x + rand(-3, 3), P.y - 4 + rand(-3, 3), rand(-50, 50), rand(-70, -20), rand(0.35, 0.6), pick(['#a0122a', '#ff3b5c', '#5a0a14']), { g: 240, drag: 1.5, sz: pick([1, 2]) }); // 血しぶき
@@ -160,7 +173,7 @@ function bleedPlayer(n) {
 // 毒(王墓): 1スタックにつき最大HP −poison(poisonMax まで)。今の HP も同じだけ減る(毒では倒れない: HP 1 で止まる)
 //   最後に受けてから poisonDur 秒で全部消え、最大HP は戻る(減った HP は戻らない)。防御力・シールドでは減らない
 function poisonPlayer(n) {
-  if (!(n > 0) || P.invT > 0 || P.dead || clsResistDebuff('poison')) return;
+  if (!(n > 0) || P.invT > 0 || P.dead || resistDebuff('poison')) return;
   const D = DATA.debuffTomb, add = Math.min(n, D.poisonMax - P.poison);
   P.poisonT = D.poisonDur * CHAOS.debuff;
   if (add > 0) {
@@ -178,7 +191,7 @@ function poisonPlayer(n) {
 }
 // 暗闇(王墓): t 秒、周りが暗くなり(墨だまりと同じ。画面の端も少し暗くなる)、敵の攻撃の予告が見えない。命中率 −darkHit(hitRate)。また受けると t 秒に戻る
 function darkPlayer(t) {
-  if (!(t > 0) || P.invT > 0 || P.dead || clsResistDebuff('dark')) return;
+  if (!(t > 0) || P.invT > 0 || P.dead || resistDebuff('dark')) return;
   const was = P.darkT > 0;
   P.darkT = Math.max(P.darkT, t * CHAOS.debuff);
   if (!was) { // 闇が体を包む: 黒紫の霧が渦を巻いて吸い込まれる
@@ -215,7 +228,7 @@ function randomLight(n, src) {
 }
 // 疲労(スタミナを減らさずに): fatigueDur 秒、スタミナ回復 −50%(乱光・三原の光精の青い光)。青いしずくが散る
 function fatiguePlayer() {
-  if (P.invT > 0 || P.dead || clsResistDebuff('fatigue')) return;
+  if (P.invT > 0 || P.dead || resistDebuff('fatigue')) return;
   P.fatigueT = Math.max(P.fatigueT || 0, DATA.debuff.fatigueDur * CHAOS.debuff); S.hudDirty = true;
   for (let i = 0; i < 6; i++) part(P.x + rand(-4, 4), P.y - 4 + rand(-3, 3), rand(-30, 30), rand(-40, -10), 0.5, pick(['#7ad7ff', '#bff4ff', '#2a8ac8']), { g: 160, drag: 1 });
 }
@@ -234,7 +247,7 @@ function noHealPlayer(t) {
 // 眩惑(光の蝶 e が近くで光った): dz.t 秒、与えるダメージ −100%(hitEnemy。継続ダメージ・アイテムは除く。当たったときの効果は出る)
 //   眩惑の間は掛け直さず、切れてから dz.imm 秒は眩惑にならない(蝶が続けて来ても、倒せる間を残す)。ほかの状態異常と同じく、回避の無敵中は付かない。付いたら true
 function dazzlePlayer(e, dz) {
-  if (P.invT > 0 || P.dead || P.dazImm > 0 || clsResistDebuff('daze')) return false;
+  if (P.invT > 0 || P.dead || P.dazImm > 0 || resistDebuff('daze')) return false;
   P.dazT = P.dazMax = dz.t * CHAOS.debuff; P.dazImm = P.dazT + dz.imm; S.hudDirty = true;
   // 蝶が弾けるように光る(画面は光らせない。明るい床で白く飛ぶため)
   burst(e.x, e.y - 2, 16, ['#fff6c8', '#ffe08a', '#ffffff', '#ffd27a'], { sp: 80, glow: true, life: 0.35 });
@@ -343,13 +356,15 @@ function takeOverShield(a) {
 // o.pierce: 被弾後の無敵(P.ifr)を無視する(連続技)。回避・防御スキルの無敵(P.invT)とガードでは防げる
 // 弾(eprojs): p.pierce = 無敵無視 / p.light = 当たると乱光 +n(p.src: 撃った敵のダメージ。乱光の炎上の量)
 const PIERCE = { pierce: true };
+// o.touch: 敵の体に触れた(接触ダメージ)/ o.shot: 敵の弾。固有効果「白兵の」が見る(近距離 ×0.8・遠距離 ×1.2。どちらでもない技・床などは ×1)
+const TOUCH = { touch: true }, SHOT = { shot: true }, SHOT_PIERCE = { shot: true, pierce: true };
 // 返り値: 当たった(シールドで受けた場合も含む)なら true。無敵・ガードで防いだら false(炎上などの追加効果はこれを見る)
 function hurtPlayer(dmg, o) {
   if ((P.ifr > 0 && !(o && o.pierce)) || P.invT > 0 || P.dead || state !== 'play') return false;
   dmg *= S.eatk ?? 1; // 攻撃してきた敵の攻撃力の倍率(ビッグクランチ)
   const r = clsOnHurt(dmg); // ガードなどでクラスが受けきった場合は null
   if (r === null) { S.hudDirty = true; return false; }
-  dmg = Math.max(1, Math.round((r - P.armor) * (1 - P.dr)));
+  dmg = Math.max(1, Math.round((r - P.armor) * (1 - P.dr) * (P.uq.brawl && o ? (o.touch ? 0.8 : o.shot ? 1.2 : 1) : 1))); // 白兵の
   // シールドが先に受ける。クラスの補正: シールドで受ける割合 sh.share(ナイトの痛み分け)・受けた 1 につき減る量 sh.k(鉄壁)
   const sh = clsShieldMod(), a = Math.min(Math.floor(shieldTotal() / sh.k), Math.round(dmg * sh.share)); // 整数で受ける。先に消える聖盾から
   if (a > 0) {

@@ -204,7 +204,7 @@ function clHealMul() {
 function clericPray() {
   const p = CL();
   staUse(prayCost());
-  P.invT = Math.max(P.invT, p.prayIfr); P.ifr = Math.max(P.ifr, p.prayIfr);
+  P.invT = Math.max(P.invT, dodgeIfr(p.prayIfr)); P.ifr = Math.max(P.ifr, dodgeIfr(p.prayIfr));
   heal(P.maxhp * p.prayHeal);
   playAnim('hPray', MOTIONS.hPray.dur); P.anim.keep = true;
   asMine(() => { addRing(P.x, P.y, 18, '#ffe38a', { w: 2, life: 0.4 }); burst(P.x, P.y, 14, ['#ffe38a', '#fff6d8', '#ffffff'], { sp: 50, up: 30, glow: true, life: 0.45 }); });

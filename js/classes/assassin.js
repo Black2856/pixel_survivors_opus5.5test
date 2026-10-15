@@ -270,7 +270,7 @@ function assassinDash() {
   staUse(p.dashCost);
   P.dash = { vx: d[0] / len * p.dashDist / p.dashTime, vy: d[1] / len * p.dashDist / p.dashTime, t: p.dashTime };
   P.dashHit = new Set();
-  P.invT = Math.max(P.invT, p.dashIfr); P.ifr = Math.max(P.ifr, p.dashIfr);
+  P.invT = Math.max(P.invT, dodgeIfr(p.dashIfr)); P.ifr = Math.max(P.ifr, dodgeIfr(p.dashIfr));
   playAnim('bStep', MOTIONS.bStep.dur); P.anim.keep = true;
   asMine(() => burst(P.x, P.y, 10, ['#8e0016', '#1a1420', '#3a0008'], { sp: 60, life: 0.3 }));
   AudioMan.dash();

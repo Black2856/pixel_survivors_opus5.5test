@@ -189,7 +189,7 @@ function recalc() {
 // 攻撃力倍率 = ステータス + クラスの一時的な強化(剣気満タン・残心など)
 // 与えるダメージ(バーサーカーの怒り・狂乱)は攻撃力とは別の倍率として掛ける。継続ダメージの割り戻し(/ dmgMul())でも一緒に戻る
 function dmgMul() {
-  return (1 + P.atk + clsAtkBonus() + (P.uq.berserk ? 1 - P.hp / P.maxhp : 0)) * P.atkMul * clsDmgDealt();
+  return (1 + P.atk + clsAtkBonus() + (P.uq.berserk ? 1 - P.hp / P.maxhp : 0) + (P.uq.combo ? Math.min(0.3, S.combo * 0.001) : 0)) * P.atkMul * clsDmgDealt(); // 連撃の: コンボ 1 につき +0.1%(300 で上限)
 }
 const critRate = () => P.crit;
 // 武器の現在のステータス。熟練(クラスLv の共通強化)の威力・範囲・クールダウンを掛けたもの(Lv / 進化が変わるまでキャッシュ)

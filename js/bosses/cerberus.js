@@ -349,7 +349,7 @@ function updCerbDog(d, dt) {
   else if (d.hk === 'poison') dogPoison(d, o, dt, a, dist, spd);
   else if (d.hk === 'fang') dogFang(d, o, dt, a, dist, spd);
   else dogDark(d, o, dt, a, dist, spd);
-  if (!d.sunk && !d.air && d2(d.x, d.y, P.x, P.y) < Math.pow(d.r + 4, 2)) hurtPlayer(d.dmg); // 触れると ×0.6
+  if (!d.sunk && !d.air && d2(d.x, d.y, P.x, P.y) < Math.pow(d.r + 4, 2)) hurtPlayer(d.dmg, TOUCH); // 触れると ×0.6
   for (const q of ai.dogs) { // 犬どうしは重ならない
     if (q === d || q.dead || q.sunk || q.jump) continue;
     const dx = d.x - q.x, dy = d.y - q.y, dd = Math.hypot(dx, dy) || 0.1, ov = d.r + q.r - dd;

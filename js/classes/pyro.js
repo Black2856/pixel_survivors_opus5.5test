@@ -283,7 +283,7 @@ function pySpread(e, left) {
 function pyroWall() {
   const p = PY(), R = p.wallR * P.area;
   staUse(wallCost());
-  P.invT = Math.max(P.invT, p.wallIfr); P.ifr = Math.max(P.ifr, p.wallIfr);
+  P.invT = Math.max(P.invT, dodgeIfr(p.wallIfr)); P.ifr = Math.max(P.ifr, dodgeIfr(p.wallIfr));
   asMine(() => {
     forEachNear(P.x, P.y, R, e => {
       if (e.prop || e.dead) return;

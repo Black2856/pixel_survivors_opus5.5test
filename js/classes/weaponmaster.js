@@ -167,7 +167,7 @@ function wmDash() {
   const p = WM(), d = P.moving && P.dir ? P.dir : [P.facing, 0], len = Math.hypot(d[0], d[1]) || 1;
   staUse(wmDashCost());
   P.dash = { vx: d[0] / len * p.dashDist / p.dashTime, vy: d[1] / len * p.dashDist / p.dashTime, t: p.dashTime };
-  P.invT = Math.max(P.invT, p.dashIfr); P.ifr = Math.max(P.ifr, p.dashIfr);
+  P.invT = Math.max(P.invT, dodgeIfr(p.dashIfr)); P.ifr = Math.max(P.ifr, dodgeIfr(p.dashIfr));
   P.after = (P.after || []).concat([{ x: P.x, y: P.y, t: 0, f: P.facing, col: '#7a4a22' }]); // 元の位置の残像(銅)
   playAnim('wmDash', MOTIONS.wmDash.dur); P.anim.keep = true;
   asMine(() => burst(P.x, P.y + 5, 8, WM_SMOKE, { sp: 40, up: 8, life: 0.3, drag: 3 }));
