@@ -325,7 +325,7 @@ CLASS_RT.berserker = {
       ] },
       { key: 'Space', name: _t('不屈'), desc: [
         _t`${p.firmT}秒間、被ダメージ -${Math.round(p.firmDr * 100)}%、減速(粘液・スロウタイム)を受けない。動ける`,
-        _t`受けたダメージ(減らす前)10 につき 怒り +${+(p.firmRage * 10).toFixed(1)}(被弾の怒りとは別)`,
+        _t`被ダメージ(減らす前)10 につき 怒り +${+(p.firmRage * 10).toFixed(1)}(被弾の怒りとは別)`,
         _t('不屈の間の被弾で 昂り +1段'),
       ], rows: [
         [_t('スタミナ消費'), `<b>${p.firmCost - (c.lvFx.firmCut || 0)}</b>`],

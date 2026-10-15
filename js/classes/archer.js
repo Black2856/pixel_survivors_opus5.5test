@@ -148,7 +148,7 @@ CLASS_RT.archer = {
     return [
       { key: _t('特性'), name: _t('狩人の印'), cat: 'trait', desc: [
         _t('メイン武器の通常攻撃・E が命中すると、その敵に印 +1'),
-        _t`印1つにつき、その敵が受けるダメージ +${Math.round((p.markPct + (c.lvFx.markPct || 0)) * 100)}%`,
+        _t`印1つにつき、その敵の被ダメージ +${Math.round((p.markPct + (c.lvFx.markPct || 0)) * 100)}%`,
         _t`印が ${p.markMax} 以上で弱点露出: ${p.weakT}秒間 その敵へのクリティカル率 +${Math.round(p.weakCrit * 100)}%`,
         _t`印は ${p.markT}秒 刻まれないと消える。一斉射撃で消費する`,
       ], rows: [

@@ -166,7 +166,7 @@ CLASS_RT.knight = {
     const gk = c.hasSp('trait', 'keep') ? 1 - p.guardCut : 1, pay = Math.round((p.pay - (c.lvFx.payCut || 0)) * gk * 100); // 盤石
     return [
       { key: _t('特性'), name: _t('聖盾'), cat: 'trait', desc: [
-        _t`大盾で受けたダメージの ${Math.round(p.convert * 100)}% がシールドになる`,
+        _t`大盾での被ダメージの ${Math.round(p.convert * 100)}% がシールドになる`,
         _t`E / Q を使うと、発動前に最大HP の ${Math.round(p.skillGain * 100)}% のシールドを得る(Q はそのまま消費に含まれる)`,
         _t`1秒に今のシールドの ${+(p.decay * (1 - c.cuV('trait', 'keep')) * 100).toFixed(2)}% ずつ減る(聖盾でシールドを得てから ${p.decayWait}秒は減らない)`,
         _t('  → 魔力障壁などほかのシールドも同じ扱い'),
@@ -178,7 +178,7 @@ CLASS_RT.knight = {
         _t('  → 魔力障壁などほかのシールドも同じ扱い'),
       ], rows: [
         [_t('攻撃力(上限のとき)'), `<b>+${Math.round((c.cuV('passive', 'hold', p.holdAtk) + (c.lvFx.holdAtk || 0)) * 100)}%</b>`],
-        ...(c.cuV('passive', 'wall') ? [[_t('シールドが受けるダメージ'), `<b>-${Math.round(c.cuV('passive', 'wall') * 100)}%</b>`]] : []),
+        ...(c.cuV('passive', 'wall') ? [[_t('シールドの被ダメージ'), `<b>-${Math.round(c.cuV('passive', 'wall') * 100)}%</b>`]] : []),
         ...(c.cuV('passive', 'mend') ? [[_t('還元'), _t`減ったシールドの <b>${Math.round(c.cuV('passive', 'mend') * 100)}%</b> を HP に`]] : []),
       ] },
       { key: 'Q', name: q.name, cat: 'q', desc: [
@@ -191,7 +191,7 @@ CLASS_RT.knight = {
       ] },
       { key: 'Space', name: _t('大盾'), desc: [
         _t('長押しで大盾を構え、全方向の攻撃を受け止める(HP は減らない)'),
-        _t`構えた瞬間にスタミナ ${+(p.guardCost * gk).toFixed(2)}。受けたダメージの ${pay}% をスタミナで払う`,
+        _t`構えた瞬間にスタミナ ${+(p.guardCost * gk).toFixed(2)}。被ダメージの ${pay}% をスタミナで払う`,
         _t`構えている間は移動速度 ×${p.guardSlow}。スタミナ 0 でガードブレイク(${p.breakT}秒)`,
       ], rows: [
         [_t('スタミナの払い'), `<b>${pay}%</b>`],

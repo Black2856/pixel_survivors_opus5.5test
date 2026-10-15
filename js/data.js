@@ -371,7 +371,7 @@ const DATA = {
         possT: 4, every: 0.5, pow: 0.25, burstPow: 1, burstR: 24, hopR: 60, erode: 0.2, splitMax: 30,
         bigT: 5, bigEvery: 0.5, bigPow: 1.5, bigR: 12, bigSpd: 55,
         tree: { name: 'スピリットストーム', paths: {
-          pow: { name: '威力', desc: 'スピリットストームの威力 +{p}%', v: [0.3, 0.6, 1.0], sp: { name: '侵蝕', desc: '取り憑かれた敵は、どの攻撃からも受けるダメージ +20%' } },
+          pow: { name: '威力', desc: 'スピリットストームの威力 +{p}%', v: [0.3, 0.6, 1.0], sp: { name: '侵蝕', desc: '取り憑かれた敵は、被ダメージ +20%(どの攻撃でも)' } },
           cd:  { name: '迅速', desc: 'スピリットストームのCD -{p}%', v: [0.1, 0.2, 0.3], sp: { name: '分霊', desc: '精霊が乗り移るとき、2体に分かれる(取り憑いた精霊は同時 30体まで)' } },
           n:   { name: '数', desc: '精霊 +{v}体', v: [4, 8, 12], sp: { name: '大精霊', desc: '最後に大きな精霊が 1体現れ、5秒間 敵を追い続ける(触れた敵に 0.5秒ごとに 武器の威力 × 150%。貫通無限)' } },
         } },
@@ -435,7 +435,7 @@ const DATA = {
         { cd: 3.4, dmg: 12, radius: 35, dur: 3.2 },
         { cd: 3.0, dmg: 16, radius: 40, dur: 3.5 },
       ],
-      evo: { name: 'アブソリュートゼロ', desc: '凍傷 1スタックにつき、その敵の受けるダメージ +1%。吹雪が毎秒 10% ずつ広がる', st: { cd: 2.6, dmg: 20, radius: 48, dur: 4.0 } },
+      evo: { name: 'アブソリュートゼロ', desc: '凍傷 1スタックにつき、その敵の被ダメージ +1%。吹雪が毎秒 10% ずつ広がる', st: { cd: 2.6, dmg: 20, radius: 48, dur: 4.0 } },
       // 武器スキル(E)アイシクルフォール: 構え windup 秒(動けない)→ 照準位置(半径 radius、range まで)に dur 秒で n 本のつららが降る(範囲内の敵を狙う。いなければランダムな位置)
       //   氷雨: 攻撃頻度 ×rainK
       //   1本: 半径 iceR に 武器の威力 × pow と凍傷 +frost / 大氷柱: 最後に 武器の威力 × bigPow(半径 bigR)/ 凍てつく大地: 跡が patchT 秒(凍傷 +1 / 0.5秒)
@@ -482,7 +482,7 @@ const DATA = {
         faultPow: 15, warp: 0.05, exile: 0.5, exileBoss: 0.2,
         tree: { name: 'ディメンション・リフト', paths: {
           pow: { name: '威力', desc: 'ディメンション・リフトの威力 +{p}%', v: [0.3, 0.6, 1.0], sp: { name: '次元断層', desc: '最後に画面全体が一度に裂け、画面内の全ての敵に 武器の威力 × 1500%' } },
-          cd:  { name: '迅速', desc: 'ディメンション・リフトのCD -{p}%', v: [0.1, 0.2, 0.3], sp: { name: '次元歪み', desc: 'ディメンション・リフトのダメージを受けるたびに、その敵が受けるダメージ +5% ずつ(終わるまで。どの攻撃でも)' } },
+          cd:  { name: '迅速', desc: 'ディメンション・リフトのCD -{p}%', v: [0.1, 0.2, 0.3], sp: { name: '次元歪み', desc: 'ディメンション・リフトのダメージを受けるたびに、その敵の被ダメージ +5% ずつ(終わるまで。どの攻撃でも)' } },
           dur: { name: '持続', desc: 'ディメンション・リフトの持続 +{v}秒', v: [1, 2, 3], sp: { name: '異次元送り', desc: '効果中に HP が 50% 以下になった敵(ボスは 20% 以下)は、そのまま異次元へ消える(倒した扱い)' } },
         } },
       },
@@ -766,7 +766,7 @@ const DATA = {
       base: { hp: 90, sta: 100, staRegen: 25, spd: 0.1, area: -0.1, range: 0.2, crit: 0.1, critDmg: 1.0, wslot: 4, reroll: 2 },
       lv: {
         2: { d: '最大HP +10', st: { hp: 10 } },
-        3: { d: '狩人の印: 印1つで敵の受けるダメージ +1%', fx: { markPct: 0.01 } },
+        3: { d: '狩人の印: 印1つで敵の被ダメージ +1%', fx: { markPct: 0.01 } },
         6: { d: 'バックステップ: スタミナ消費 -10', fx: { backCut: 10 } },
         8: { d: '集中: 最大段 +1', fx: { focusMax: 1 } },
         11: { d: '一斉射撃: 威力 +20%', fx: { qPow: 0.2 } },
@@ -823,13 +823,13 @@ const DATA = {
         16: { d: '攻撃力 +10%', st: { atk: 0.1 } },
         18: { d: 'クールダウン -5%', st: { cd: 0.05 } },
       },
-      // 聖盾: シールドの上限 capPct(最大HP 比)。ガードで受けたダメージの convert がシールドに、E / Q を使うと最大HP の skillGain(変換パスで増える)
+      // 聖盾: シールドの上限 capPct(最大HP 比)。ガードでの被ダメージの convert がシールドに、E / Q を使うと最大HP の skillGain(変換パスで増える)
       //   1秒に今のシールドの decay ずつ減る(聖盾でシールドを得てから decayWait 秒は減らない。保持パスで減る量が下がる)
       //   不滅の盾: 獲得量 +sanctGain / 盤石: 大盾のスタミナ(構え・払い)-guardCut
       // 堅守(パッシブ): シールド量 / 上限 × holdAtk だけ攻撃力アップ。盾撃: シールドが上限の ironAt 以上で ×ironMul
-      //   鉄壁: シールドが受けるダメージ -(パスの値)/ 金剛: シールドがある間、自分への状態異常を kongo で無効(同じ種類は kongoT 秒 同じ判定)
+      //   鉄壁: シールドの被ダメージ -(パスの値)/ 金剛: シールドがある間、自分への状態異常を kongo で無効(同じ種類は kongoT 秒 同じ判定)
       //   還元: 減ったシールド(被弾・時間)の(パスの値)を HP に / 痛み分け: HP が最大HP の shareAt より多いとき、被ダメージの share をシールド・残りを HP で受ける
-      // 大盾: 構えた瞬間にスタミナ guardCost。受けたダメージの pay をスタミナで払う。移動 ×guardSlow。スタミナ 0 で breakT 秒 ガード不可
+      // 大盾: 構えた瞬間にスタミナ guardCost。被ダメージの pay をスタミナで払う。移動 ×guardSlow。スタミナ 0 で breakT 秒 ガード不可
       params: {
         capPct: 0.2, convert: 0.2, skillGain: 0.1, decayWait: 1, decay: 0.05, sanctGain: 0.4, guardCut: 0.25, reflect: 5, reflectR: 70,
         holdAtk: 0.25, ironAt: 0.3, ironMul: 1.5, kongo: 0.5, kongoT: 1, share: 0.5, shareAt: 0.25,
@@ -840,14 +840,14 @@ const DATA = {
       q: { name: '聖盾の審判', cd: 30, windup: 0.4, pow: 150, perShield: 10, r: 90, arc: 2.1, stun: 2, stunPer: 0.01, echo: 0.3 },
       tree: {
         trait: { name: '聖盾', paths: {
-          convert: { name: '変換', desc: '聖盾で得るシールド量 +{p}%', v: [0.3, 0.6, 1.0], sp: { name: '反射', desc: 'ガードで受けたダメージの 500% を、近くの敵に返す' } },
+          convert: { name: '変換', desc: '聖盾で得るシールド量 +{p}%', v: [0.3, 0.6, 1.0], sp: { name: '反射', desc: 'ガードでの被ダメージの 500% を、近くの敵に返す' } },
           cap:     { name: '容量', desc: 'シールドの上限 +{p}%(最大HP 比)', v: [0.08, 0.16, 0.25], sp: { name: '不滅の盾', desc: 'シールドの獲得量 +40%' } },
-          keep:    { name: '保持', desc: 'シールドの減る量 -{p}%', v: [0.15, 0.3, 0.5], sp: { name: '盤石', desc: '大盾のスタミナ消費(構えた瞬間・受けたダメージの払い)-25%' } },
+          keep:    { name: '保持', desc: 'シールドの減る量 -{p}%', v: [0.15, 0.3, 0.5], sp: { name: '盤石', desc: '大盾のスタミナ消費(構えた瞬間・被ダメージの払い)-25%' } },
         } },
         // 堅守(パッシブ)
         passive: { name: '堅守', paths: {
           hold:  { name: '闘志', desc: ['堅守の攻撃力アップ +25% → +32.5%', '堅守の攻撃力アップ +40%', '堅守の攻撃力アップ +50%'], v: [0.325, 0.4, 0.5], sp: { name: '盾撃', desc: 'シールドが上限の 30% 以上の間、堅守の攻撃力アップが 1.5倍' } },
-          wall:  { name: '鉄壁', desc: 'シールドが受けるダメージ -{p}%', v: [0.1, 0.2, 0.3], sp: { name: '金剛', desc: 'シールドがある間、状態異常を 50% で無効にする' } },
+          wall:  { name: '鉄壁', desc: 'シールドの被ダメージ -{p}%', v: [0.1, 0.2, 0.3], sp: { name: '金剛', desc: 'シールドがある間、状態異常を 50% で無効にする' } },
           mend:  { name: '還元', desc: '減ったシールドの {p}% を HP として回復する', v: [0.1, 0.2, 0.3], sp: { name: '痛み分け', desc: '被ダメージをシールドと HP で半分ずつ受ける(HP 25% 以下のときはシールドが先に受ける)' } },
         } },
         q: { name: '聖盾の審判', need: 'q', paths: {
@@ -910,7 +910,7 @@ const DATA = {
       base: { hp: 90, def: 1, sta: 100, staRegen: 15, area: 0.1, range: -0.1, cd: 0.05, crit: 0.05, critDmg: 1.0, wslot: 4, reroll: 2 },
       lv: {
         2: { d: '最大HP +10', st: { hp: 10 } },
-        3: { d: '凍結: 凍結中の敵の受けるダメージ +5%', fx: { freezeDmg: 0.05 } },
+        3: { d: '凍結: 凍結中の敵の被ダメージ +5%', fx: { freezeDmg: 0.05 } },
         6: { d: '氷の鏡: スタミナ消費 90 → 85', fx: { mirrorCut: 5 } },
         8: { d: '氷纏い: 纏う時間 +1秒', fx: { wearT: 1 } },
         11: { d: 'ダイヤモンドダスト: 威力 +20%', fx: { qPow: 0.2 } },
@@ -937,7 +937,7 @@ const DATA = {
       tree: {
         trait: { name: '凍結', paths: {
           deep:    { name: '深凍', desc: ['凍結中の凍傷の減り 0.1秒 → 0.115秒', '凍結中の凍傷の減り 0.13秒', '凍結中の凍傷の減り 0.15秒'], v: [0.115, 0.13, 0.15], sp: { name: '氷晶の急所', desc: '凍結中の敵へのクリティカル率 +30%' } },
-          brittle: { name: '脆化', desc: ['凍結中の敵の受けるダメージ +25% → +30%', '凍結中の敵の受けるダメージ +35%', '凍結中の敵の受けるダメージ +45%'], v: [0.3, 0.35, 0.45], sp: { name: '永久凍土', desc: '凍傷の上限(凍結に必要な凍傷)が 50 になる。凍結で増える受けるダメージが 2倍' } },
+          brittle: { name: '脆化', desc: ['凍結中の敵の被ダメージ +25% → +30%', '凍結中の敵の被ダメージ +35%', '凍結中の敵の被ダメージ +45%'], v: [0.3, 0.35, 0.45], sp: { name: '永久凍土', desc: '凍傷の上限(凍結に必要な凍傷)が 50 になる。凍結で増える被ダメージが 2倍' } },
           wave:    { name: '寒波', desc: '凍結した瞬間、周りの敵に凍傷 +{v}', v: [2, 4, 6], sp: { name: '砕氷', desc: '凍結中の敵を倒すと砕け、周りに破片(基礎威力 100、凍傷 +5)' } },
         } },
         passive: { name: '氷纏い', paths: {
@@ -1030,7 +1030,7 @@ const DATA = {
         trait: { name: '祈り', paths: {
           faith:  { name: '信心', desc: ['祈りの一撃の追加ダメージ 祈りの 50% → 65%', '祈りの一撃の追加ダメージ 祈りの 80%', '祈りの一撃の追加ダメージ 祈りの 100%'], v: [0.65, 0.8, 1.0], sp: { name: '聖杯', desc: '祈りが上限のとき、祈りの一撃のダメージ +50%' } },
           vessel: { name: '祈祷', desc: '祈りの一撃のCD -{p}%', v: [0.15, 0.3, 0.45], sp: { name: '天啓', desc: '祈りの獲得量 ×3、被回復量 ×0.7' } },
-          ward:   { name: '加護', desc: '祈りがあるとき、被ダメージ -{p}%', v: [0.06, 0.12, 0.2], sp: { name: '献身', desc: '被弾したとき、受けるダメージの 30% を祈りで相殺する' } },
+          ward:   { name: '加護', desc: '祈りがあるとき、被ダメージ -{p}%', v: [0.06, 0.12, 0.2], sp: { name: '献身', desc: '被弾したとき、被ダメージの 30% を祈りで相殺する' } },
         } },
         passive: { name: '癒しの光', paths: {
           light: { name: '光量', desc: ['E / Q の回復 8% → 10%', 'E / Q の回復 12%', 'E / Q の回復 15%'], v: [0.1, 0.12, 0.15], sp: { name: '恩寵', desc: '癒しの光の回復量 ×2。ただし 10秒かけて回復する' } },
@@ -1128,7 +1128,7 @@ const DATA = {
       tree: {
         trait: { name: '死霊使役', paths: {
           herd:  { name: '群れ', desc: '死霊の上限 +{v}', v: [2, 4, 6], sp: { name: '百鬼夜行', desc: '上限を超えて得た死霊は、その場で爆ぜる(基礎威力 20、半径 30)' } },
-          fang:  { name: '牙', desc: '死霊の威力 +{p}%', v: [0.3, 0.6, 1.0], sp: { name: '呪い牙', desc: '死霊に噛まれた敵は 4秒間 呪われる(受けるダメージ +15%。どの攻撃でも)' } },
+          fang:  { name: '牙', desc: '死霊の威力 +{p}%', v: [0.3, 0.6, 1.0], sp: { name: '呪い牙', desc: '死霊に噛まれた敵は 4秒間 呪われる(被ダメージ +15%。どの攻撃でも)' } },
           haste: { name: '疾走', desc: '霊力の減少速度 -{p}%', v: [0.15, 0.3, 0.5], sp: { name: '渡り', desc: '噛みついた後、近く(半径 40)の別の敵へもう一度飛びかかってから戻る' } },
         } },
         passive: { name: '死者の盾', paths: {
@@ -1218,7 +1218,7 @@ const DATA = {
       //   死に物狂い(熱狂): HP desperateAt 以下で昂りの効果 +desperateK(熱狂の値に足す)/ 血湧き肉躍る(極限): 1段につきクールダウン -fervorCd
       //   仁王立ち: E / Q を使うと 最大HP × selfHit のダメージを受ける(被弾として怒り・昂りが溜まる)。E / Q の威力 +selfPow
       // 不屈(Space): firmT 秒 被ダメージ -firmDr・減速(粘液・スロウタイム)を受けない。動ける(スタミナ firmCost。予備動作なし)
-      //   受けたダメージ(減らす前)× firmRage の怒りを得る(被弾の怒りとは別)
+      //   被ダメージ(減らす前)× firmRage の怒りを得る(被弾の怒りとは別)
       params: {
         rageMax: 100, rageHit: 10, dmgPer: 0.002, calmT: 3, decay: 10, armorCut: 0.25, burnK: 0.02, bloodN: 1,
         fervorT: 5, fervorMax: 3, fervorRegen: 0.5, fervorAtk: 0.1, fervorCd: 0.08, selfHit: 0.05, selfPow: 0.15, desperateAt: 0.75, desperateK: 0.5,
@@ -1422,19 +1422,19 @@ const DATA = {
     berserk:   { slot: 'weapon', epi: '狂戦士の', desc: '失ったHP 1% につき攻撃力 +1%' },
     vamp:      { slot: 'weapon', epi: '吸血鬼の', desc: '敵撃破時 25% で HP を最大HP の 1% 回復' },
     giant:     { slot: 'weapon', epi: '巨人の',   desc: '範囲 ×1.1、射程 ×1.1、最大スタミナ ×0.8', mul: { area: 1.1, range: 1.1, sta: 0.8 } },
-    senju:     { slot: 'weapon', epi: '千手の',   desc: '全武器の弾数 +1(近接武器は攻撃回数 +1)、攻撃力 ×0.8', stat: { shots: 1 }, mul: { atk: 0.8 } },
-    ougi:      { slot: 'weapon', epi: '奥義の',   desc: 'スキルのダメージ ×1.2、通常攻撃のダメージ ×0.9(継続ダメージは変わらない)' },
+    senju:     { slot: 'weapon', epi: '千手の',   desc: '全武器の弾数 +1、攻撃力 ×0.8', stat: { shots: 1 }, mul: { atk: 0.8 } },
+    ougi:      { slot: 'weapon', epi: '奥義の',   desc: 'スキルのダメージ ×1.2、通常攻撃のダメージ ×0.9' },
     siege:     { slot: 'weapon', epi: '破城の',   desc: 'ボスが出した壊せる物へのダメージ ×1.25' },
     combo:     { slot: 'weapon', epi: '連撃の',   desc: 'コンボ 1 につき攻撃力 +0.1%(最大 +30%)' },
     unbreak:   { slot: 'armor',  epi: '不壊の',   desc: '回避の無敵時間 +20%' },
     fortress:  { slot: 'armor',  epi: '城塞の',   desc: '最大HP ×1.3、移動速度 ×0.8', mul: { hp: 1.3, spd: 0.8 } },
     mercy:     { slot: 'armor',  epi: '慈愛の',   desc: '被回復量 +25%' },
     phoenix:   { slot: 'armor',  epi: '不死鳥の', desc: '一度だけ、倒れたときに最大HP の 25% で蘇生する' },
-    adversity: { slot: 'armor',  epi: '逆境の',   desc: '受けたダメージ分のスタミナを回復する' },
+    adversity: { slot: 'armor',  epi: '逆境の',   desc: '被ダメージ分のスタミナを回復する' },
     aegis:     { slot: 'armor',  epi: '聖盾の',   desc: '最大HP を超えた回復量の 20% をシールドにする(10秒持続)' },
-    purity:    { slot: 'armor',  epi: '清浄の',   desc: '状態異常耐性 +25%(受けた状態異常を 25% で防ぐ)' },
-    ward:      { slot: 'armor',  epi: '守護の',   desc: '30秒ごとに最大HP の 10% のシールドを得る(次まで持続)' },
-    brawl:     { slot: 'armor',  epi: '白兵の',   desc: '近距離攻撃(敵の体に触れる)の被ダメージ ×0.8、遠距離攻撃(敵の弾)の被ダメージ ×1.2' },
+    purity:    { slot: 'armor',  epi: '清浄の',   desc: '状態異常耐性 +25%' },
+    ward:      { slot: 'armor',  epi: '守護の',   desc: '30秒ごとに最大HP の 10% のシールドを得る' },
+    brawl:     { slot: 'armor',  epi: '白兵の',   desc: '近距離攻撃の被ダメージ ×0.8、遠距離攻撃の被ダメージ ×1.2' },
     clock:     { slot: 'ring',   epi: '狂時の',   desc: 'クールダウン -15%。敵の出現数と速度 +15%', stat: { cd: 0.15 } },
     pact:      { slot: 'ring',   epi: '背徳の',   desc: '獲得経験値 +25%。敵の基礎ステータス +10%', stat: { xp: 0.25 } },
     golden:    { slot: 'ring',   epi: '黄金の',   desc: '獲得ゴールド ×1.25', mul: { gold: 1.25 } },

@@ -92,7 +92,7 @@ function glassShatter(e, sh) {
 // メイジのバフ: まわり(半径 r。広がる輪で見せる)の敵に dur 秒(自分にも。ボス・ボスが出した物・篝火は除く)。同じバフはかけ直すと時間が戻る
 const MAGE_HINT = {
   firemage: bf => [_t('ファイアーメイジ'), _t`まわりの敵の攻撃力 +${Math.round(bf.v * 100)}%(${bf.dur}秒。足元に橙の輪)`],
-  frostmage: bf => [_t('フロストメイジ'), _t`まわりの敵の受けるダメージ −${Math.round(bf.v * 100)}%(${bf.dur}秒。足元に水色の輪)`],
+  frostmage: bf => [_t('フロストメイジ'), _t`まわりの敵の被ダメージ −${Math.round(bf.v * 100)}%(${bf.dur}秒。足元に水色の輪)`],
   thundermage: bf => [_t('サンダーメイジ'), _t`まわりの敵の移動速度 +${Math.round(bf.v * 100)}%(${bf.dur}秒。足元に黄色の輪)`],
   holymage: bf => [_t('ホーリーメイジ'), _t`まわりの敵の HP を回復する(ホーリーメイジの最大HP の ${Math.round(bf.v * 100)}% ぶん)`],
 };
