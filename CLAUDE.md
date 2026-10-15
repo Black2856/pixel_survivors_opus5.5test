@@ -1,0 +1,24 @@
+# PIXEL SURVIVORS: NOCTURNE — 作業の地図
+
+素の HTML / CSS / JS のブラウザゲーム。開発中は index.html の `<script>` を順に読む(全部 グローバル。モジュールなし)。
+
+## どこに何があるか
+- 数値・文: `js/data.js` の `DATA`(classes / weapons / bosses / enemies / stages / stageRuns / flow …)。値は `node scripts/dev/data.js classes.knight.params` で引ける(長い行を読まない)
+- クラス: `js/classes.js` の `CLASS_RT[クラス]`(特性・パッシブ・Q)と `WEAPON_SKILL[武器]`(E スキル)。world.js からは `cls*` の入口(`clsShieldMod` `clsResistDebuff` など 17個)だけで呼ぶ。クラス名で分ける所を world.js に作らない
+- 自分・武器・ダメージ・敵・ボス・ドロップ・出現: `js/world.js`(区切りは `// ====` の見出し。ボスは `// ---------- ボス名:` の見出しごと)
+- 描画: `js/render.js` の `render()`(地面 → 自分の攻撃(地面側)→ ボスの設置物 → ジェム → 敵 → 自分 → 自分の攻撃(手前)→ 敵の攻撃・予兆 → 数値)、ボスの技は `drawBossFx` / `drawBfx`、熾天使は `drawSer*`
+- 絵: `js/art.js`(ASCII のドット絵)/ 光の層: `js/gfx.js`(scene・light・glow・over + WebGL の仕上げ)
+- 画面: `js/ui.js`(ラン中)/ `js/meta-ui.js`(ラン外)/ `js/status-ui.js` / `js/gacha.js` / `js/help.js`(用語集)
+- 仕様書(ユーザーが直接直す): `claudedocs/enemies.md`・`claudedocs/classes/*.md`
+
+## 決まり
+- 改行は CRLF(js / md / css / html。`core.autocrlf=true`)。書いたら `node scripts/dev/eol.js`(`--fix` でそろえる)。sed -i は使わない
+- 表示する日本語は `_t` を通し、訳を `js/lang/en.js`・`zh.js`・`ko.js` に足す(キー = 日本語の文)。`node scripts/i18n-check.js` で抜けを見る。DATA の文は読み込み時にまるごと訳す
+- `claudedocs/db.xlsx` はユーザーの物。ステージもコミットもしない
+- 作業は feature ブランチ。`release` は公開元(GitHub Pages)で、マージだけ。マージはユーザーに言われた時だけ
+
+## 試験
+- 道具: `scripts/dev/harness.js`(使い方は先頭のコメント)。`python -m http.server 8765 --bind 127.0.0.1` を立て、Playwright の `browser_run_code_unsafe` に `filename: scripts/dev/open.pw.js` で開く → `T.setup` / `T.step` / `T.boss` で手で進める
+- 通し: `T.classSmoke()`(全クラス × 特殊強化 3通り、約 8秒)・`T.bossSmoke()`(全ステージのボス、約 20秒)→ 例外の数とハッシュ
+- 動かすだけのリファクタリングは、前後でハッシュが同じか比べる。ページを開き直して `classSmoke()` → `bossSmoke()` の順に呼ぶ(初回だけ作るキャッシュがあるので順番をそろえる)
+- 試験はセーブに書かない(T.init が saveMeta を止める)。終わったらサーバーを止め、`.playwright-mcp/` を消す
