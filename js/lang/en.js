@@ -1379,7 +1379,7 @@ const I18N_EN = {
   "攻撃の濃さ": "Attack FX",
   "自分の攻撃エフェクトの不透明度": "Opacity of your own attack effects (enemy attacks are always shown clearly)",
   "UIサイズ": "UI Size",
-  "HUD とメニュー画面の大きさ": "Size of the HUD and menu screens",
+  "HUD とメニュー画面の大きさ。100% で画面に合わせた大きさ": "Size of the HUD and menu screens. 100% fits your screen",
   "E 自動発動": "Auto E",
   "武器スキル(E)を自動で使います。周りに敵が集まっているときだけ使います": "Uses your Weapon Skill (E) automatically, only when enemies are crowding around you (so you don't stop unexpectedly while moving)",
   "Q 自動発動": "Auto Q",

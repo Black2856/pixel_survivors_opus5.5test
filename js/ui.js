@@ -293,7 +293,7 @@ const UI = (() => {
     const c = DATA.classes[P.cls], box = $('pstat');
     pt += dt;
     if (last.cls !== P.cls) { last.cls = P.cls; box.style.setProperty('--cc', c.col); hpLag = 1; lastHp = P.hp; }
-    if (last.px !== GFX.PX) { last.px = GFX.PX; box.style.setProperty('--px', GFX.PX + 'px'); pcv.style.width = PW * GFX.PX + 'px'; pcv.style.height = PH * GFX.PX + 'px'; }
+    if (last.px !== GFX.PX) { last.px = GFX.PX; box.style.setProperty('--px', GFX.PX + 'px'); box.style.setProperty('--pxn', GFX.PX); pcv.style.width = PW * GFX.PX + 'px'; pcv.style.height = PH * GFX.PX + 'px'; }
     set('ps-name', `<b>${c.en}</b> Lv${META.classes[P.cls].lv}`, 'innerHTML');
     const base = P.maxhpBase || P.maxhp, k = clamp(P.hp / base, 0, 1), low = P.hp / P.maxhp < 0.3, pz = clamp(P.maxhp / base, 0, 1); // pz: 毒で下がった最大HP の割合(右端の紫)
     hpLag = Math.max(k, hpLag - dt * 0.5);
@@ -395,7 +395,7 @@ const UI = (() => {
   const SET_TIPS = {
     gfx: [_t('画質'), _t('低いほどブルーム・画面の歪み・パーティクルを減らし軽くなります')],
     fxA: [_t('攻撃の濃さ'), _t('自分の攻撃エフェクトの不透明度')],
-    ui: [_t('UIサイズ'), _t('HUD とメニュー画面の大きさ')],
+    ui: [_t('UIサイズ'), _t('HUD とメニュー画面の大きさ。100% で画面に合わせた大きさ')],
     autoE: [_t('E 自動発動'), _t('武器スキル(E)を自動で使います。周りに敵が集まっているときだけ使います')],
     autoQ: [_t('Q 自動発動'), _t('クラススキル(Q)を自動で使います。周りに敵が集まっているときだけ使います')],
     cutin: [_t('カットイン'), _t('E / Q を使ったときに、スキル名の帯を画面の上の方に出します')],
@@ -423,7 +423,7 @@ const UI = (() => {
     tip.innerHTML = html;
     const r = t.getBoundingClientRect();
     // ツールチップ自体も UI サイズで拡大されるので、位置は拡大率で割る
-    const z = SET.ui;
+    const z = uiZ;
     tip.style.left = Math.max(0, Math.min(innerWidth - 330 * z, r.left)) / z + 'px'; // 幅(最大 300 + 余白)が画面の右に収まるように
     // 画面の下半分では上に出す(左下の状態アイコンなど)
     if (r.top > innerHeight / 2) { tip.style.top = ''; tip.style.bottom = (innerHeight - r.top + 8) / z + 'px'; } else { tip.style.bottom = ''; tip.style.top = (r.bottom + 8) / z + 'px'; }
@@ -757,7 +757,7 @@ const UI = (() => {
   function syncSettings() {
     $('vol-music').value = AudioMan.vol.music * 100; $('vol-sfx').value = AudioMan.vol.sfx * 100;
     $('set-fxa').value = Math.round(SET.fxA * 100); $('set-fxa-n').textContent = Math.round(SET.fxA * 100) + '%';
-    $('set-ui').value = Math.round(SET.ui * 100); $('set-ui-n').textContent = Math.round(SET.ui * 100) + '%';
+    $('set-ui').value = Math.round(SET.uiMul * 100); $('set-ui-n').textContent = Math.round(SET.uiMul * 100) + '%';
     for (const b of $('set-gfx').children) b.classList.toggle('on', b.dataset.v === SET.gfx);
     for (const k of ['autoE', 'autoQ', 'cutin', 'hints']) for (const b of $('set-' + k).children) b.classList.toggle('on', (b.dataset.v === '1') === SET[k]);
     $('set-lang').value = SET.lang; $('set-lang').disabled = setBack === 'pause'; // ラン中は変えられない
@@ -768,7 +768,7 @@ const UI = (() => {
   $('set-lang').innerHTML = Object.keys(LANGS).map(k => `<option value="${k}">${LANGS[k]}</option>`).join('');
   $('set-lang').onchange = e => { if (setBack === 'pause' || e.target.value === SET.lang) return; SET.lang = e.target.value; saveSet(); AudioMan.click(); location.reload(); };
   $('set-fxa').oninput = e => { SET.fxA = e.target.value / 100; $('set-fxa-n').textContent = e.target.value + '%'; saveSet(); };
-  $('set-ui').oninput = e => { SET.ui = e.target.value / 100; $('set-ui-n').textContent = e.target.value + '%'; applyUiScale(); saveSet(); };
+  $('set-ui').oninput = e => { SET.uiMul = e.target.value / 100; $('set-ui-n').textContent = e.target.value + '%'; applyUiScale(); saveSet(); };
   function settings(from = 'title') { setBack = from; state = 'settings'; only('settings-screen'); syncSettings(); }
   function closeSettings() { if (setBack === 'pause') { state = 'pause'; pause(true); } else { state = 'title'; title(); } }
   $('btn-settings').onclick = () => { AudioMan.click(); settings('title'); };

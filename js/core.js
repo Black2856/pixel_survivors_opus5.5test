@@ -85,18 +85,31 @@ if (metaMigratedGold || metaTreeRefund || !localStorage.getItem(META_KEY)) saveM
 // gfx: high=全演出 / mid=ブルーム弱・歪みや粒状ノイズなし・パーティクル60% / low=ブルームなし・パーティクル35%
 const GFX_Q = { high: { bloom: 1, post: 1, parts: 1 }, mid: { bloom: 0.55, post: 0, parts: 0.6 }, low: { bloom: 0, post: 0, parts: 0.35 } };
 const SET = (() => {
-  const d = { gfx: 'high', fxA: 1, autoE: false, autoQ: false, ui: 1, cutin: true, hints: true, lang: LANG }; // autoE / autoQ: スキルの自動発動 / ui: UI の大きさ / cutin: スキルのカットイン / hints: 初見の説明(敵の技・状態異常を初めて見たときの帯)/ lang: 言語(i18n.js)
+  const d = { gfx: 'high', fxA: 1, autoE: false, autoQ: false, uiMul: 1, cutin: true, hints: true, lang: LANG }; // autoE / autoQ: スキルの自動発動 / uiMul: UI の大きさの倍率(窓に合わせた大きさに掛ける)/ cutin: スキルのカットイン / hints: 初見の説明(敵の技・状態異常を初めて見たときの帯)/ lang: 言語(i18n.js)
   try { Object.assign(d, JSON.parse(localStorage.getItem('ps55_set') || '{}')); } catch (e) { /* 既定値で続行 */ }
   if (!GFX_Q[d.gfx]) d.gfx = 'high';
   d.fxA = clamp(+d.fxA || 1, 0.15, 1);
   d.autoE = !!d.autoE; d.autoQ = !!d.autoQ; d.cutin = d.cutin !== false; d.hints = d.hints !== false;
-  d.ui = clamp(+d.ui || 1, 0.7, 1.5);
+  delete d.ui; // 前の設定(UI の大きさをそのまま拡大率にしていた)。窓に合わせる形に変えたので使わない(倍率は 100% から)
+  d.uiMul = clamp(+d.uiMul || 1, 0.5, 1.5);
   if (!LANGS[d.lang]) d.lang = LANG;
   return d;
 })();
-// UI の大きさ(HUD とメニュー画面の中身を拡大縮小する)
-function applyUiScale() { document.documentElement.style.setProperty('--ui', SET.ui); }
+// UI の大きさ(HUD とメニュー画面の中身を css の zoom で拡大縮小する): uiZ = 窓に合わせた拡大率 × 設定の倍率(SET.uiMul)
+//   窓に合わせた拡大率は 1280×720 を 1 とし、幅・高さの小さい方に合わせる(メニュー画面は約 1070×600 まで収まるので、100% は少し余裕がある。設定の倍率は 120% まで収まり、それより大きいとメニュー画面はスクロールになる)。小さすぎる窓でも 0.5 まで
+//   zoom は中の vw / vh も拡大するので、css は画面に対する大きさを --ui で割って書く。狭い画面の組み方は、拡大した後の幅(innerWidth / uiZ)で html に付ける vn1140 / vn820 / vn760 で切り替える(1140: 装備画面の 4列が入らなくなる幅)
+//   --ui は数のまま入れる(gacha.js が parseFloat で読む)
+const UI_REF = { w: 1280, h: 720 };
+let uiZ = 1;
+function applyUiScale() {
+  const fit = Math.max(0.5, Math.min(innerWidth / UI_REF.w, innerHeight / UI_REF.h)), r = document.documentElement;
+  uiZ = fit * SET.uiMul;
+  r.style.setProperty('--ui', String(uiZ));
+  const vw = innerWidth / uiZ;
+  for (const n of [1140, 820, 760]) r.classList.toggle('vn' + n, vw <= n);
+}
 applyUiScale();
+addEventListener('resize', applyUiScale);
 function saveSet() { try { localStorage.setItem('ps55_set', JSON.stringify(SET)); } catch (e) { /* 保存不可でも続行 */ } }
 const gq = () => GFX_Q[SET.gfx];
 
