@@ -1,9 +1,13 @@
 # PIXEL SURVIVORS: NOCTURNE
 
-`pixel_survivors_fable5test` のフルリメイク。純粋な HTML / CSS / JS 製(ビルド・依存なし)。
+`pixel_survivors_fable5test` のフルリメイク。純粋な HTML / CSS / JS 製。開発中はビルドなしでそのまま動く(公開用だけ 1ファイルにまとめる)。
 
 ## 実行
 mp3 読み込みのため静的サーバー経由で開く: `python -m http.server` → `http://localhost:8000/`
+
+## 公開用ビルド
+`npm ci` → `npm run build` で `dist/` に出す。index.html の `<script>` を順につないで 1つの関数で包み(名前がコンソールから見えない)、esbuild で小さくする。js・css のファイル名には中身のハッシュを入れる(更新したときに古いキャッシュを使わない)。
+`release` に push すると GitHub Actions(`.github/workflows/pages.yml`)が同じビルドをして GitHub Pages に出す。
 
 ## 操作
 WASD / 矢印: 移動 ・ SPACE: ダッシュ(無敵) ・ 攻撃は自動(SHIFT でマウス照準の ON/OFF 切替) ・ ESC: ポーズ ・ M: ミュート ・ レベルアップ時 1〜3 / R

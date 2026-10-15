@@ -1,0 +1,11 @@
+{
+  "name": "pixel-survivors-nocturne",
+  "private": true,
+  "description": "公開用のビルド(npm run build → dist/)。開発中は index.html をそのまま開く",
+  "scripts": {
+    "build": "node scripts/build.js"
+  },
+  "devDependencies": {
+    "esbuild": "0.28.2"
+  }
+}
