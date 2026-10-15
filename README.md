@@ -23,8 +23,10 @@ WASD / 矢印: 移動 ・ SPACE: ダッシュ(無敵) ・ 攻撃は自動(SHIFT 
 | `js/audio.js` | BGM クロスフェード + WebAudio シンセ効果音 |
 | `js/gfx.js` | 低解像度 3 レイヤー(scene/light/glow) + WebGL2 ポストプロセス(ライティング・ブルーム・衝撃波・色収差・走査線) |
 | `js/core.js` | 状態・永続データ・入力・演出ヘルパー・空間グリッド・ピクセル描画プリミティブ |
-| `js/world.js` | プレイヤー・武器・敵/ボス AI・ドロップ・スポナー・報酬ロジック |
-| `js/render.js` | 地面チャンク生成・描画・ライトマップ |
+| `js/classes/` | クラス(1クラス 1ファイル: E スキル・特性・パッシブ・Q)/ `common.js` 共通 / `hooks.js` ゲームの側からの入口 |
+| `js/world.js` ほか | ラン初期化・ステータス(`world.js`)/ `player.js` / `weapons.js` / `damage.js` / `enemies.js` / `phase.js` / `hazards.js` / `drops.js` / `spawner.js` / `rewards.js` |
+| `js/bosses/` | ボス(1体 1ファイル: AI・技・描画)/ `common.js` 共通 |
+| `js/render.js` | 地面チャンク生成・描画・ライトマップ(ボスの描画は各ボスのファイル) |
 | `js/ui.js` / `js/main.js` | DOM UI / 画面遷移・メインループ |
 
 ## 主な新要素
