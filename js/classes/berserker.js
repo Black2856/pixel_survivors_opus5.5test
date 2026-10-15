@@ -296,7 +296,7 @@ CLASS_RT.berserker = {
     return [
       { key: _t('特性'), name: _t('怒り'), cat: 'trait', desc: [
         _t`被弾すると 怒り +${p.rageHit}(上限 ${p.rageMax})`,
-        _t`怒り 1 につき 与えるダメージ +${pc(p.dmgPer)}%(攻撃力とは別の倍率で、掛け算で効く)`,
+        _t`怒り 1 につき 与えるダメージ +${pc(p.dmgPer)}%`,
         _t`${p.calmT}秒間 被弾しないと、1秒に ${p.decay} ずつ減る`,
       ], rows: [
         [_t('怒り'), c.run ? `<b>${Math.floor(rage)}</b> / ${max}` : _t`上限 <b>${max}</b>`],
@@ -307,7 +307,6 @@ CLASS_RT.berserker = {
       ] },
       { key: _t('パッシブ'), name: _t('昂り'), cat: 'passive', desc: [
         _t`不屈の間に被弾すると ${p.fervorT}秒間、HP回復速度 +${p.fervorRegen}/s・攻撃力 +${Math.round(p.fervorAtk * 100)}%(最大 ${p.fervorMax}段。段ごとに別々に数える)`,
-        _t('攻撃力は与えるダメージ(怒り)とは別の倍率なので、掛け算で伸びる'),
       ], rows: [
         [_t('昂り'), c.run ? _t`<b>${bkFervorN()}</b> / ${p.fervorMax} 段` : _t`最大 <b>${p.fervorMax}</b> 段`],
         [_t('1段の効果'), _t`攻撃力 +${pc(p.fervorAtk * fk)}%・HP回復速度 +${+(p.fervorRegen * fk).toFixed(2)}/s`],

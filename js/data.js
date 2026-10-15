@@ -1443,7 +1443,7 @@ const DATA = {
     fate:      { slot: 'ring',   epi: '運命の',   desc: 'リロール回数 +2', stat: { reroll: 2 } },
     gourmet:   { slot: 'ring',   epi: '美食の',   desc: '食べ物の効果 +50%', stat: { food: 0.5 } },
     sage:      { slot: 'ring',   epi: '賢者の',   desc: 'クラス強化選択枠 +1', stat: { classPick: 1 } },
-    armory:    { slot: 'ring',   epi: '武庫の',   desc: '武具強化選択枠 +1(武器カード・装備カードの枚数)', stat: { gearPick: 1 } },
+    armory:    { slot: 'ring',   epi: '武庫の',   desc: '武具強化選択枠 +1', stat: { gearPick: 1 } },
   },
 
   // ---------- ステージ ----------

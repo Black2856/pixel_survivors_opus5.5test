@@ -235,7 +235,7 @@ const UI = (() => {
     if (P.burnT > 0) out.push({ id: 'burn', glyph: '炎', name: _t('炎上'), fx: _t`毎${d.burnTick}秒 ${Math.round(P.burnDmg)} ダメージ ・ HP回復 -${Math.round((1 - d.burnHeal) * 100)}%`, t: P.burnT, max: d.burnDur, kind: 'debuff' });
     if (P.fatigueT > 0) out.push({ id: 'fatigue', glyph: '疲', name: _t('疲労'), fx: _t`スタミナ回復 -${Math.round((1 - d.fatigue) * 100)}%`, t: P.fatigueT, max: d.fatigueDur, kind: 'debuff' });
     if (P.frost > 0) out.push({ id: 'pfrost', glyph: '凍', name: _t('凍傷'), fx: _t`${P.frost}スタック ・ 移動速度 -${Math.round((1 - playerFrostMul()) * 100)}%(${d.pFrostMax}スタックで凍結。受けないでいると ${d.pDur}秒で消える)`, t: P.frostT, max: d.pDur, kind: 'debuff' });
-    if (P.frzT > 0) out.push({ id: 'pfrz', glyph: '氷', name: _t('凍結'), fx: _t('動けず、攻撃もできない(回避・スキルも使えない)'), t: P.frzT, max: d.pFrzT, kind: 'debuff' });
+    if (P.frzT > 0) out.push({ id: 'pfrz', glyph: '氷', name: _t('凍結'), fx: _t('動けず、攻撃、回避、スキルができない'), t: P.frzT, max: d.pFrzT, kind: 'debuff' });
     const ds = DATA.debuffStage;
     if (P.numb > 0) out.push({ id: 'pnumb', glyph: '痺', name: _t('痺れ'), fx: _t`${P.numb}スタック ・ CD回復 -${Math.round(ds.numbCd * P.numb * 100)}%(${ds.numbMax}スタックで麻痺。受けないでいると ${d.pDur}秒で消える)`, t: P.numbT, max: d.pDur, kind: 'debuff' });
     if (P.paraT > 0) out.push({ id: 'ppara', glyph: '麻', name: _t('麻痺'), fx: _t('攻撃できない(歩く・回避はできる)'), t: P.paraT, max: ds.paraT, kind: 'debuff' });
@@ -394,7 +394,7 @@ const UI = (() => {
   // 設定画面の各行の説明(行にマウスを乗せると出る)
   const SET_TIPS = {
     gfx: [_t('画質'), _t('低いほどブルーム・画面の歪み・パーティクルを減らし軽くなります')],
-    fxA: [_t('攻撃の濃さ'), _t('自分の攻撃エフェクトの不透明度(敵の攻撃は常にくっきり表示)')],
+    fxA: [_t('攻撃の濃さ'), _t('自分の攻撃エフェクトの不透明度')],
     ui: [_t('UIサイズ'), _t('HUD とメニュー画面の大きさ')],
     autoE: [_t('E 自動発動'), _t('武器スキル(E)を自動で使います。周りに敵が集まっているときだけ使います(移動中に勝手に足が止まらないように)')],
     autoQ: [_t('Q 自動発動'), _t('クラススキル(Q)を自動で使います。周りに敵が集まっているときだけ使います(移動中に勝手に足が止まらないように)')],

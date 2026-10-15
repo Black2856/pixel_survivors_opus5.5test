@@ -110,7 +110,7 @@ const MetaUI = (() => {
       <b>Lv${r.lv}</b><span class="tag ${r.kind === '共通' ? 'wp' : ''}">${_t(r.kind)}</span><span>${r.d}</span><em>${m.lv >= r.lv ? '✔' : need[r.lv - 2].toLocaleString()}</em></div>`).join('');
     const swap = canSwap(k), cw = m.weapon || c.weapon || c.startW;
     const note = c.weapon ? _t`<span class="tag">専用</span>このクラスだけ <span class="tag wp">共通</span>${DATA.weapons[c.weapon].name}を使うどのクラスにも効く`
-      : _t('<span class="tag">専用</span>このクラスだけ(専用の武器がないので全て専用。武器の熟練は、その武器を専用にしているクラスの Lv で決まる)');
+      : _t('<span class="tag">専用</span>このクラスだけ');
     $('cl-detail').innerHTML = `
       <div class="cl-head" style="--cc:${c.col}"><span class="nm">${c.name}</span><span class="lv">Lv ${m.lv}${m.lv >= max ? ' MAX' : ''}</span></div>
       <div class="cl-xp"><i style="width:${xpP.toFixed(1)}%"></i><span>${m.lv >= max ? 'MAX' : `${m.xp.toLocaleString()} / ${need[m.lv - 1].toLocaleString()} EXP`}</span></div>
@@ -138,7 +138,7 @@ const MetaUI = (() => {
     const weps = [...new Set(DATA.classOrder.map(k => DATA.classes[k].weapon).filter(Boolean))]; // クラスの並びの順
     const owner = w => Object.values(DATA.classes).find(x => x.weapon === w), ownerName = w => clsNameShown(weaponOwner(w)); // 未解放のクラスの名前は伏せる
     wpModal.querySelector('.svm-body').innerHTML = `<div class="wp-h">${_t('メイン武器を選ぶ')} <span class="dim">— ${c.name}</span></div>
-      ${swap ? '' : _t('<div class="dim wp-note">Lv15 で切り替えが解放されます(今はクラス専用の武器だけ)</div>')}
+      ${swap ? '' : _t('<div class="dim wp-note">Lv15 で切り替えが解放されます</div>')}
       <div class="wp-list">${weps.map(w => {
         const d = DATA.weapons[w], o = owner(w), ok = swap || w === c.weapon;
         return `<button class="wp-card ${cw === w ? 'on' : ''}" data-w="${w}" ${ok ? '' : 'disabled'} style="--cc:${o ? o.col : '#fff'}">

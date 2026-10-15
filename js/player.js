@@ -135,7 +135,7 @@ function paralyzePlayer(t) {
   for (let i = 0; i < 5; i++) { const a = TAU / 5 * i + rand(-0.3, 0.3), r = rand(10, 15); bolts.push({ x0: P.x + Math.cos(a) * 5, y0: P.y - 4 + Math.sin(a) * 5, x1: P.x + Math.cos(a) * r, y1: P.y - 4 + Math.sin(a) * r, t: 0, life: 0.15, w: 1, jit: 2, gcol: '#6a5a14' }); } // 体から外へ散る稲妻(体は隠さない)
   addRing(P.x, P.y, 20, '#8a7a24', { w: 1, life: 0.35 }); addFlash(P.x, P.y, 30, '#6a5a14', 0.2); AudioMan.zap(); AudioMan.thud(); // 光の層は色で明るさが決まるので暗い黄色(体を白く飛ばさない)
   S.hudDirty = true;
-  hint('ppara', _t('麻痺'), _t('しばらく攻撃できない(歩く・回避はできる)。E・Q のクールダウンも最初からになる'));
+  hint('ppara', _t('麻痺'), _t('しばらく攻撃できない。E・Q のクールダウンも最初からになる'));
 }
 // 砂塵(陽炎の砂海): 1スタックにつき命中率 −dustHit(dustMax まで)
 function dustPlayer(n) {
@@ -144,7 +144,7 @@ function dustPlayer(n) {
   P.dust = Math.min(D.dustMax, P.dust + n); P.dustT = DATA.debuff.pDur * CHAOS.debuff;
   burst(P.x, P.y - 4, 8 + n * 3, ['#e8c88a', '#c8a060', '#fff0c8'], { sp: 55, life: 0.45, drag: 2 }); // 砂が顔にかかる
   AudioMan.sand(); S.hudDirty = true;
-  hint('pdust', _t('砂塵'), _t('攻撃が外れやすくなる(外れると、当たったときの効果も出ない)'));
+  hint('pdust', _t('砂塵'), _t('攻撃が外れやすくなる'));
 }
 // 衰弱(木漏れ日の森): 1スタックにつき攻撃力 −weakAtk(weakMax まで。与えるダメージに掛ける)
 function weakPlayer(n) {

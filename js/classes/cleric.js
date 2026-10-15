@@ -156,16 +156,16 @@ CLASS_RT.cleric = {
     const p = CL(), q = DATA.classes.cleric.q, k = (1 + c.cuV('q', 'pow')) * (1 + (c.lvFx.qPow || 0)), hp = c.st.v.hp * c.st.mul.hp;
     return [
       { key: _t('特性'), name: _t('祈り'), cat: 'trait', desc: [
-        _t('超過回復(HP が満タンを超えた分)が祈りになる(回復の出どころは問わない)'),
-        _t`祈りの一撃: メイン武器の通常攻撃・E のすべての命中に、祈りの ${Math.round(c.cuV('trait', 'faith', p.strike) * 100)}% の追加ダメージ(攻撃力を掛ける)`,
-        _t('追加ダメージで祈りは減らない(祈りを使うのは Q だけ)'),
+        _t('超過回復が祈りになる'),
+        _t`祈りの一撃: メイン武器の通常攻撃・E のすべての命中に、祈りの ${Math.round(c.cuV('trait', 'faith', p.strike) * 100)}% の追加ダメージ`,
+        _t('追加ダメージで祈りは減らない'),
       ], rows: [
         [_t('祈りの上限'), _t`最大HP と同じ(${Math.round(hp)})`],
         [_t('祈りの一撃の間隔'), _t`<b>${(p.strikeCd * (1 - c.cuV('trait', 'vessel')) * (1 - (c.lvFx.strikeCd || 0))).toFixed(2)}</b> 秒に1回`],
       ] },
       { key: _t('パッシブ'), name: _t('癒しの光'), cat: 'passive', desc: [
         _t('E / Q を使ったとき、HP を回復する'),
-        _t('回復を受けるとき、今の HP が低いほど回復量が増える(自分が受けるすべての回復に効く)'),
+        _t('回復を受けるとき、今の HP が低いほど回復量が増える'),
       ], rows: [
         [_t('E / Q の回復'), _t`<b>最大HP の ${Math.round((c.cuV('passive', 'light', p.light) + (c.lvFx.lightHeal || 0)) * 100)}%</b>`],
         [_t('低HP の回復量アップ'), _t`最大 +${Math.round(c.cuV('passive', 'mercy', p.mercy) * 100)}%`],
