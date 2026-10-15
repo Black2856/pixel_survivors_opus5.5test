@@ -6,6 +6,7 @@
 <title>仕様書エディタ</title>
 <link rel="icon" href="data:,">
 <link rel="stylesheet" href="style.css">
+<script>/* ナイトモードを描く前に決める(白く光らないように)。切り替えは app.js */ try { const t = JSON.parse(localStorage.getItem('mde-theme')); document.documentElement.dataset.theme = (t ? t === 'dark' : matchMedia('(prefers-color-scheme: dark)').matches) ? 'dark' : 'light'; } catch (e) { /* 既定 */ }</script>
 <!--
   仕様書エディタ — フォルダの md をブラウザで読み書きする(Chrome / Edge。File System Access API)
     開き方: このファイルをダブルクリック(file://)か、python -m http.server で開く
@@ -24,6 +25,7 @@
   <button id="rescanBtn" disabled title="ファイルが増えた・消えたときに一覧を作り直す">一覧を更新</button>
   <span class="sp"></span>
   <span id="msg"></span>
+  <button id="themeBtn" title="ナイトモード(暗い色)の切り替え"></button>
 </header>
 <aside>
   <div id="rootName">フォルダ未選択</div>
@@ -39,6 +41,7 @@
   </div>
   <div class="tab" id="tab-cmt" hidden>
     <div class="row"><label><input type="checkbox" id="openOnly" checked> 未解決だけ</label><span class="sp"></span><button id="cmtCopy" title="一覧のコメントを、場所つきで LLM に渡す形にしてコピー">コピー</button></div>
+    <div class="row"><span class="dim">まとめて消す:</span><select id="delScope" title="消す範囲"><option value="all">全ファイル</option><option value="cur">開いているファイル</option></select><button id="delResolved" title="解決にしたやり取りを消す">解決済み</button><button id="delAll" title="範囲の中のやり取りを全部消す(未解決も)">全部</button></div>
     <div class="list" id="cmtList"></div>
   </div>
 </aside>

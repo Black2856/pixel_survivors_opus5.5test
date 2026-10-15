@@ -1,4 +1,4 @@
-/* style.css — 仕様書エディタの見た目(明るい / 暗いはシステムの設定に合わせる) */
+/* style.css — 仕様書エディタの見た目。暗い色(ナイトモード)は html の data-theme="dark"(app.js がシステムの設定か 🌙 の切り替えで付ける) */
 :root {
   --bg: #f6f6f3; --panel: #ffffff; --side: #efefe9; --line: #dcdcd4; --text: #23242a; --dim: #6c6f7a;
   --acc: #2f6fde; --acc-bg: #dde8fb; --warn: #b8620a; --warn-bg: #fff1dc; --ok: #24854a; --ok-bg: #e2f4e8; --code: #f0efe9;
@@ -7,13 +7,12 @@
   --mono: "BIZ UDGothic", "Cascadia Mono", Consolas, "Yu Gothic UI", monospace;
   --sans: "BIZ UDPGothic", "Yu Gothic UI", "Meiryo", system-ui, sans-serif;
 }
-@media (prefers-color-scheme: dark) {
-  :root {
-    --bg: #17181d; --panel: #1d1f26; --side: #15161b; --line: #2e313b; --text: #e4e5ea; --dim: #959aa6;
-    --acc: #7aa2ff; --acc-bg: #263355; --warn: #ffb454; --warn-bg: #3a2c16; --ok: #7bd88f; --ok-bg: #1d3325; --code: #262832;
-    --del: #3d1f22; --del-t: #ff9b9b; --add: #1c3524; --add-t: #8fe3a5; --mark: #6b5a12; --cur: #2c2a1c;
-    --user: #222b40; --ai: #1f2e24;
-  }
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #17181d; --panel: #1d1f26; --side: #15161b; --line: #2e313b; --text: #e4e5ea; --dim: #959aa6;
+  --acc: #7aa2ff; --acc-bg: #263355; --warn: #ffb454; --warn-bg: #3a2c16; --ok: #7bd88f; --ok-bg: #1d3325; --code: #262832;
+  --del: #3d1f22; --del-t: #ff9b9b; --add: #1c3524; --add-t: #8fe3a5; --mark: #6b5a12; --cur: #2c2a1c;
+  --user: #222b40; --ai: #1f2e24;
 }
 * { box-sizing: border-box; }
 [hidden] { display: none !important; }
@@ -42,6 +41,8 @@ aside { grid-row: 2; background: var(--side); border-right: 1px solid var(--line
 .tab > input, .tab .row { margin: 2px 10px 8px; }
 .tab > input { padding: 4px 8px; }
 .tab .row { display: flex; gap: 6px; align-items: center; font-size: 13px; }
+select { font: inherit; font-size: 12px; color: var(--text); background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 1px 2px; }
+#delResolved, #delAll { color: var(--warn); }
 .list { overflow: auto; flex: 1; padding: 0 4px 12px; }
 .list .dir { color: var(--dim); font-size: 12px; padding: 8px 8px 2px; }
 .list .f { display: flex; align-items: center; gap: 6px; padding: 3px 8px 3px 14px; border-radius: 5px; cursor: pointer; white-space: nowrap; overflow: hidden; }
@@ -71,8 +72,9 @@ main { grid-column: 2; grid-row: 2; display: flex; flex-direction: column; min-w
 #banner { display: none; align-items: center; gap: 10px; padding: 6px 12px; background: var(--warn-bg); color: var(--warn); border-bottom: 1px solid var(--line); font-size: 13px; }
 #banner.on { display: flex; }
 #panes { flex: 1; display: grid; grid-template-columns: 1fr 1fr; min-height: 0; }
-#panes.edit { grid-template-columns: 1fr 0; } #panes.view { grid-template-columns: 0 1fr; }
+#panes.edit, #panes.view { grid-template-columns: 1fr; } /* 隠した方は列を取らないので 1列にする(0 の列を残すと、見せる方がそこに入って消える) */
 #panes.edit #pvWrap, #panes.view #ed { display: none; }
+#panes.view #ed { border-right: 0; }
 #ed { width: 100%; height: 100%; resize: none; border: 0; border-radius: 0; border-right: 1px solid var(--line); outline: none; padding: 14px 16px; background: var(--panel); font: 14px/1.7 var(--mono); tab-size: 2; white-space: pre-wrap; overflow-wrap: anywhere; overflow: auto; }
 #mirror { position: absolute; left: -10000px; top: 0; visibility: hidden; padding: 14px 16px; font: 14px/1.7 var(--mono); white-space: pre-wrap; overflow-wrap: anywhere; }
 #pvWrap { display: flex; flex-direction: column; min-width: 0; min-height: 0; }

@@ -437,6 +437,41 @@ async function deleteThread(th) {
   setSource(L.join('\n'));
   if (await save(true)) msg('やり取りを消して保存しました', 'ok');
 }
+// まとめて消す: mode 'resolved'(解決済みだけ)/ 'all'(全部)。範囲は左の「全ファイル / 開いているファイル」
+//   開いているファイルは編集欄で消して保存(Ctrl+Z でも戻せる)。ほかのファイルは消す前の版を履歴に残してから書く
+function stripThreads(text, mode) {
+  const L = text.split('\n'), del = MD.parse(text).filter(b => b.t === 'thread' && (mode === 'all' || b.resolved));
+  for (const b of del.slice().reverse()) L.splice(b.l0, b.l1 - b.l0 + 1);
+  return { text: L.join('\n'), n: del.length };
+}
+async function deleteThreads(mode) {
+  if (!S.root) return;
+  const scope = $('delScope').value;
+  if (scope === 'cur' && !S.cur) { msg('ファイルを開いていません', 'warn'); return; }
+  const targets = (await allTexts()).filter(x => scope === 'all' || x.path === S.cur.path).map(x => Object.assign({ path: x.path }, stripThreads(x.text, mode))).filter(x => x.n);
+  const total = targets.reduce((a, x) => a + x.n, 0), what = mode === 'all' ? 'コメント' : '解決済みのコメント';
+  if (!total) { msg(what + 'はありません'); return; }
+  const inCur = S.cur && targets.some(x => x.path === S.cur.path);
+  if (!confirm(`${what}を ${total} 件消して保存します。\n` + targets.map(x => `・${x.path}(${x.n} 件)`).join('\n') +
+    (inCur && isDirty() ? '\n\n開いているファイルの未保存の変更も一緒に保存されます。' : '') + '\n\n戻すときは「履歴」から(消す前の版が残る)。')) return;
+  let done = 0;
+  for (const x of targets) {
+    if (S.cur && x.path === S.cur.path) { setSource(stripThreads(ed().value, mode).text); if (await save(true)) done += x.n; continue; }
+    const f = S.files.find(y => y.path === x.path);
+    try {
+      const r = await readHandle(f.handle), s = stripThreads(r.text, mode);
+      await addHist(x.path, r.text, '消す前');
+      const w = await f.handle.createWritable();
+      await w.write((r.bom ? '﻿' : '') + s.text.replace(/\n/g, r.eol));
+      await w.close();
+      S.cache.set(x.path, { mod: (await f.handle.getFile()).lastModified, text: s.text });
+      await addHist(x.path, s.text, 'コメントを消した');
+      done += s.n;
+    } catch (e) { msg(x.path + ' に書けませんでした: ' + e.message, 'warn'); }
+  }
+  await refreshThreads();
+  msg(`${what}を ${done} 件消しました`, 'ok');
+}
 async function refreshThreads() {
   if (!S.root) return;
   const all = await allTexts(), list = [];
@@ -584,6 +619,8 @@ $('q').oninput = () => { clearTimeout(srT); srT = setTimeout(search, 250); };
 $('srList').onclick = e => { const r = e.target.closest('.sr'); if (r) openFile(r.dataset.path, +r.dataset.line); };
 $('cmtList').onclick = e => { const r = e.target.closest('.ci'); if (r) openFile(r.dataset.path, +r.dataset.line); };
 $('openOnly').onchange = renderThreads;
+$('delResolved').onclick = () => deleteThreads('resolved');
+$('delAll').onclick = () => deleteThreads('all');
 $('cmtCopy').onclick = () => { const items = S.threads.filter(x => !$('openOnly').checked || !x.b.resolved); items.length ? copy(threadsText(items), 'コメントをコピーしました') : msg('コメントはありません'); };
 $('tabs').onclick = e => {
   const b = e.target.closest('button');
@@ -660,5 +697,15 @@ function setView(v) {
 }
 $('viewSeg').onclick = e => { const b = e.target.closest('button'); if (b) setView(b.dataset.v); };
 setView(ls.get('mde-view', 'split'));
+// ナイトモード: 🌙 / ☀ で切り替えて覚える(まだ選んでいなければシステムの設定に合わせる)
+const sysDark = window.matchMedia('(prefers-color-scheme: dark)');
+function applyTheme() {
+  const t = ls.get('mde-theme', null), dark = t ? t === 'dark' : sysDark.matches;
+  document.documentElement.dataset.theme = dark ? 'dark' : 'light';
+  $('themeBtn').textContent = dark ? '☀ ライト' : '🌙 ナイト';
+}
+$('themeBtn').onclick = () => { ls.set('mde-theme', document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark'); applyTheme(); };
+sysDark.addEventListener('change', applyTheme);
+applyTheme();
 initLast();
 window.MDE = { useDir, openFile, save, refreshThreads, search, state: S }; // 試験用
