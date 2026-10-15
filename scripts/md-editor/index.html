@@ -5,84 +5,16 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>仕様書エディタ</title>
 <link rel="icon" href="data:,">
+<link rel="stylesheet" href="style.css">
 <!--
   仕様書エディタ — フォルダの md をブラウザで読み書きする(Chrome / Edge。File System Access API)
     開き方: このファイルをダブルクリック(file://)か、python -m http.server で開く
-    - 左: フォルダの中の .md(サブフォルダも。.git・node_modules・dist は見ない)/ 右: 編集とプレビュー
-    - 保存は Ctrl+S。改行コード(CRLF / LF)と BOM は元のファイルのまま
-    - 開いているファイルが外(LLM・別のエディタ)で書き換わったら気づく: 未保存の変更がなければ読み直し、あれば知らせる
-    - 前回のフォルダを覚える(ブラウザの IndexedDB。次に開くときに許可を 1回聞かれる)
+    - 左: ファイル(サブフォルダも)/ 全文検索 / コメントの一覧   真ん中: 編集とプレビュー   右: 変更(基準から)/ 履歴
+    - プレビューで直せる: 表のマスはクリック、ほかはダブルクリック(か ✎)。見出しをクリックで節をたたむ
+    - コメント: ブロックにマウスを乗せて 💬。md の中に HTML のコメントで残す(書き方は md.js の先頭)。AI も同じ形で返事を書く
+    - 保存は Ctrl+S。改行コード(CRLF / LF)と BOM は元のファイルのまま。外(LLM など)で書き換わると気づく
+  ファイル: md.js(Markdown の解釈・差分)/ app.js(画面と操作)/ style.css
 -->
-<style>
-:root {
-  --bg: #f6f6f3; --panel: #ffffff; --side: #efefe9; --line: #dcdcd4; --text: #23242a; --dim: #6c6f7a;
-  --acc: #2f6fde; --acc-bg: #dde8fb; --warn: #b8620a; --warn-bg: #fff1dc; --ok: #24854a; --code: #f0efe9;
-  --mono: "BIZ UDGothic", "Cascadia Mono", Consolas, "Yu Gothic UI", monospace;
-  --sans: "BIZ UDPGothic", "Yu Gothic UI", "Meiryo", system-ui, sans-serif;
-}
-@media (prefers-color-scheme: dark) {
-  :root {
-    --bg: #17181d; --panel: #1d1f26; --side: #15161b; --line: #2e313b; --text: #e4e5ea; --dim: #959aa6;
-    --acc: #7aa2ff; --acc-bg: #263355; --warn: #ffb454; --warn-bg: #3a2c16; --ok: #7bd88f; --code: #262832;
-  }
-}
-* { box-sizing: border-box; }
-[hidden] { display: none !important; }
-html, body { height: 100%; margin: 0; }
-body { background: var(--bg); color: var(--text); font: 14px/1.6 var(--sans); display: grid; grid-template-columns: 260px 1fr; grid-template-rows: 44px 1fr; overflow: hidden; }
-button { font: inherit; color: inherit; background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 3px 10px; cursor: pointer; }
-button:hover { border-color: var(--acc); }
-button.primary { background: var(--acc); border-color: var(--acc); color: #fff; }
-button:disabled { opacity: 0.45; cursor: default; }
-header { grid-column: 1 / 3; display: flex; align-items: center; gap: 8px; padding: 0 12px; border-bottom: 1px solid var(--line); background: var(--panel); }
-header h1 { font-size: 15px; margin: 0 8px 0 0; }
-header .sp { flex: 1; }
-#msg { color: var(--dim); font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-#msg.ok { color: var(--ok); } #msg.warn { color: var(--warn); }
-aside { background: var(--side); border-right: 1px solid var(--line); display: flex; flex-direction: column; min-height: 0; }
-#rootName { padding: 8px 12px 4px; font-weight: bold; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-#filter { margin: 4px 10px 8px; padding: 4px 8px; border: 1px solid var(--line); border-radius: 6px; background: var(--panel); color: var(--text); font: inherit; }
-#tree { overflow: auto; flex: 1; padding: 0 4px 12px; }
-#tree .dir { color: var(--dim); font-size: 12px; padding: 8px 8px 2px; }
-#tree .f { display: flex; align-items: center; gap: 6px; padding: 3px 8px 3px 14px; border-radius: 5px; cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-#tree .f:hover { background: var(--panel); }
-#tree .f.on { background: var(--acc-bg); color: var(--acc); font-weight: bold; }
-#tree .f .dot { width: 7px; height: 7px; border-radius: 50%; flex: none; }
-#tree .f.dirty .dot { background: var(--warn); }
-#tree .empty { color: var(--dim); padding: 12px; font-size: 13px; }
-main { grid-column: 2; grid-row: 2; display: flex; flex-direction: column; min-width: 0; min-height: 0; }
-#bar { display: flex; align-items: center; gap: 8px; padding: 6px 12px; border-bottom: 1px solid var(--line); background: var(--panel); }
-#path { font-family: var(--mono); font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-#dirty { color: var(--warn); font-size: 12px; white-space: nowrap; }
-#bar .sp { flex: 1; }
-.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
-.seg button { border: 0; border-radius: 0; padding: 3px 9px; }
-.seg button.on { background: var(--acc-bg); color: var(--acc); }
-#banner { display: none; align-items: center; gap: 10px; padding: 6px 12px; background: var(--warn-bg); color: var(--warn); border-bottom: 1px solid var(--line); font-size: 13px; }
-#banner.on { display: flex; }
-#panes { flex: 1; display: grid; grid-template-columns: 1fr 1fr; min-height: 0; }
-#panes.edit { grid-template-columns: 1fr 0; } #panes.view { grid-template-columns: 0 1fr; }
-#panes.edit #pv, #panes.view #ed { display: none; }
-#ed { width: 100%; height: 100%; resize: none; border: 0; border-right: 1px solid var(--line); outline: none; padding: 14px 16px; background: var(--panel); color: var(--text); font: 14px/1.7 var(--mono); tab-size: 2; white-space: pre-wrap; overflow-wrap: anywhere; overflow: auto; }
-#pv { overflow: auto; padding: 8px 28px 60px; min-width: 0; }
-#start { grid-column: 2; grid-row: 2; display: flex; align-items: center; justify-content: center; color: var(--dim); }
-#start .box { max-width: 460px; line-height: 1.9; }
-/* プレビュー */
-#pv h1, #pv h2, #pv h3, #pv h4 { line-height: 1.35; margin: 1.3em 0 0.5em; }
-#pv h1 { font-size: 1.6em; } #pv h2 { font-size: 1.3em; border-bottom: 1px solid var(--line); padding-bottom: 4px; } #pv h3 { font-size: 1.12em; } #pv h4 { font-size: 1em; }
-#pv p { margin: 0.5em 0; }
-#pv ul, #pv ol { margin: 0.3em 0; padding-left: 1.5em; }
-#pv li { margin: 0.1em 0; }
-#pv code { font-family: var(--mono); background: var(--code); padding: 0 4px; border-radius: 4px; font-size: 0.92em; }
-#pv pre { background: var(--code); padding: 10px 12px; border-radius: 6px; overflow: auto; }
-#pv pre code { padding: 0; background: none; }
-#pv blockquote { margin: 0.5em 0; padding: 2px 12px; border-left: 3px solid var(--line); color: var(--dim); }
-#pv hr { border: 0; border-top: 1px solid var(--line); margin: 1.4em 0; }
-#pv table { border-collapse: collapse; margin: 0.6em 0; font-size: 13px; }
-#pv th, #pv td { border: 1px solid var(--line); padding: 4px 9px; vertical-align: top; }
-#pv th { background: var(--code); text-align: left; }
-#pv a { color: var(--acc); }
-</style>
 </head>
 <body>
 <header>
@@ -95,273 +27,55 @@ main { grid-column: 2; grid-row: 2; display: flex; flex-direction: column; min-w
 </header>
 <aside>
   <div id="rootName">フォルダ未選択</div>
-  <input id="filter" placeholder="ファイル名で絞り込む" autocomplete="off">
-  <div id="tree"><div class="empty">「フォルダを開く」で、md のあるフォルダ(例: claudedocs)を選ぶ</div></div>
+  <div id="tabs"><button data-tab="files" class="on">ファイル</button><button data-tab="search" title="Ctrl+Shift+F">検索</button><button data-tab="cmt">コメント</button></div>
+  <div class="tab" id="tab-files">
+    <input id="filter" placeholder="ファイル名で絞り込む" autocomplete="off">
+    <div class="list" id="tree"><div class="empty">「フォルダを開く」で、md のあるフォルダ(例: claudedocs)を選ぶ</div></div>
+  </div>
+  <div class="tab" id="tab-search" hidden>
+    <input id="q" placeholder="全部の md から探す" autocomplete="off">
+    <div class="row dim" id="srCount"></div>
+    <div class="list" id="srList"></div>
+  </div>
+  <div class="tab" id="tab-cmt" hidden>
+    <div class="row"><label><input type="checkbox" id="openOnly" checked> 未解決だけ</label><span class="sp"></span><button id="cmtCopy" title="一覧のコメントを、場所つきで LLM に渡す形にしてコピー">コピー</button></div>
+    <div class="list" id="cmtList"></div>
+  </div>
 </aside>
 <main id="main" hidden>
   <div id="bar">
     <span id="path"></span><span id="dirty"></span>
     <span class="sp"></span>
+    <button id="undoBtn" hidden title="プレビューでの書き換えを 1つ戻す(Ctrl+Z)">↶ 戻す</button>
     <span class="seg" id="viewSeg"><button data-v="edit">編集</button><button data-v="split">両方</button><button data-v="view">プレビュー</button></span>
+    <button id="locBtn" title="編集欄のカーソルの場所(と選んだ文)を、LLM に渡す形でコピー">📋 場所</button>
+    <button id="diffBtn" title="基準からの変更(LLM に渡す形でコピーできる)">変更</button>
+    <button id="histBtn" title="開いた時・保存・外での変更ごとの版">履歴</button>
     <button id="reloadBtn" title="ディスクの内容で読み直す">読み直す</button>
     <button class="primary" id="saveBtn" title="Ctrl+S">保存</button>
   </div>
-  <div id="banner"><span id="bannerText"></span><span class="sp" style="flex:1"></span><button id="bnReload">ディスクの内容で読み直す(自分の変更は捨てる)</button><button id="bnKeep">このまま編集を続ける</button></div>
-  <div id="panes"><textarea id="ed" spellcheck="false"></textarea><div id="pv"></div></div>
+  <div id="banner"><span id="bannerText"></span><span class="sp"></span><button id="bnReload">ディスクの内容で読み直す(自分の変更は捨てる)</button><button id="bnKeep">このまま編集を続ける</button></div>
+  <div id="panes">
+    <textarea id="ed" spellcheck="false"></textarea>
+    <div id="pvWrap">
+      <div id="pvBar"><button id="foldAll" title="節をたたむ(見出しのクリックでも)">たたむ</button><button id="openAll">ひらく</button><label title="解決にしたコメントのやり取りを隠す"><input type="checkbox" id="hideRes"> 解決済みを隠す</label><span class="sp"></span><span class="dim" title="表のマスはクリック、ほかはダブルクリック(か ✎)で直せる。見出しのクリックで節をたたむ">直し方 ⓘ</span></div>
+      <div id="pv"></div>
+    </div>
+  </div>
 </main>
+<div id="drawer" hidden>
+  <div class="dh"><b id="dTitle"></b><span class="dim" id="dSub"></span><span class="sp"></span><button id="dClose" title="閉じる">✕</button><div id="dActs" style="width: 100%; display: flex; gap: 6px; flex-wrap: wrap;"></div></div>
+  <div id="dBody"></div>
+</div>
 <div id="start"><div class="box">
   左上の「フォルダを開く」で、md ファイルのあるフォルダを選んでください。<br>
-  サブフォルダの md も一覧に出ます。保存は Ctrl+S です。<br>
-  開いているファイルがほかのソフト(LLM など)で書き換わると、自動で知らせます。
+  ・プレビューで直せます(表のマスはクリック、ほかはダブルクリック)。見出しのクリックで節をたたみます<br>
+  ・ブロックにマウスを乗せて 💬 でコメント。AI とのやり取りは md の中に残ります<br>
+  ・「変更」で基準からの変更を、LLM に渡す形でコピーできます。保存は Ctrl+S<br>
+  ・開いているファイルがほかのソフト(LLM など)で書き換わると、自動で知らせます
 </div></div>
-
-<script>
-'use strict';
-const $ = id => document.getElementById(id);
-const SKIP = new Set(['.git', 'node_modules', 'dist', '.playwright-mcp']);
-const S = { root: null, files: [], cur: null, view: 'split' };
-// cur: { path, handle, eol: '\r\n' | '\n', bom, saved(\n に直した保存済みの中身), mod(ディスクの lastModified), outside(外の変更を知らせ中) }
-
-// ---------- 小物 ----------
-const esc = s => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-let msgT = 0;
-function msg(text, kind = '') { const m = $('msg'); m.textContent = text; m.className = kind; clearTimeout(msgT); if (text) msgT = setTimeout(() => { m.textContent = ''; }, 5000); }
-const isDirty = () => !!S.cur && $('ed').value !== S.cur.saved;
-function setDirtyUI() {
-  const d = isDirty();
-  $('dirty').textContent = d ? '● 未保存' : '';
-  document.title = (d ? '● ' : '') + (S.cur ? S.cur.path.split('/').pop() + ' — ' : '') + '仕様書エディタ';
-  for (const el of document.querySelectorAll('#tree .f')) el.classList.toggle('dirty', d && S.cur && el.dataset.path === S.cur.path);
-}
-
-// ---------- Markdown → HTML(仕様書で使う範囲: 見出し・段落・箇条書き(入れ子)・表・引用・区切り線・コード・太字・斜体・リンク)----------
-function inline(s) {
-  return s.split(/(`[^`]+`)/).map(p => {
-    if (p.length > 1 && p.startsWith('`') && p.endsWith('`')) return '<code>' + esc(p.slice(1, -1)) + '</code>';
-    return esc(p)
-      .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-      .replace(/(^|[^*])\*(?!\s)([^*]+?)\*(?!\*)/g, '$1<em>$2</em>')
-      .replace(/\[([^\]]+)\]\(([^)\s]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>')
-      .replace(/&lt;br\s*\/?&gt;/g, '<br>');
-  }).join('');
-}
-const cells = l => { let t = l.trim(); if (t.startsWith('|')) t = t.slice(1); if (t.endsWith('|') && !t.endsWith('\\|')) t = t.slice(0, -1); return t.split(/(?<!\\)\|/).map(c => c.trim().replace(/\\\|/g, '|')); };
-const LIST = /^(\s*)([-*+]|\d+[.)])\s+(.*)$/;
-function md(src) {
-  const L = src.split('\n'), out = [];
-  let i = 0;
-  const blockStart = l => /^```/.test(l) || /^#{1,6}\s/.test(l) || /^\s*>/.test(l) || LIST.test(l) || /^\s*([-*_])(\s*\1){2,}\s*$/.test(l) || /^\s*\|/.test(l);
-  while (i < L.length) {
-    const l = L[i];
-    if (/^\s*$/.test(l)) { i++; continue; }
-    if (/^```/.test(l)) { const b = []; i++; while (i < L.length && !/^```/.test(L[i])) b.push(L[i++]); i++; out.push('<pre><code>' + esc(b.join('\n')) + '</code></pre>'); continue; }
-    let m = l.match(/^(#{1,6})\s+(.*?)\s*#*\s*$/);
-    if (m) { const n = m[1].length; out.push(`<h${n} data-line="${i}">${inline(m[2])}</h${n}>`); i++; continue; }
-    if (/^\s*([-*_])(\s*\1){2,}\s*$/.test(l)) { out.push('<hr>'); i++; continue; }
-    if (/^\s*\|/.test(l) && i + 1 < L.length && /^\s*\|?\s*:?-{2,}:?\s*(\|\s*:?-{2,}:?\s*)*\|?\s*$/.test(L[i + 1])) {
-      const head = cells(l), al = cells(L[i + 1]).map(c => (c.startsWith(':') && c.endsWith(':') ? 'center' : c.endsWith(':') ? 'right' : ''));
-      const td = (tag, c, k) => `<${tag}${al[k] ? ` style="text-align:${al[k]}"` : ''}>${inline(c)}</${tag}>`;
-      let h = `<table data-line="${i}"><thead><tr>${head.map((c, k) => td('th', c, k)).join('')}</tr></thead><tbody>`;
-      i += 2;
-      while (i < L.length && /^\s*\|/.test(L[i])) { const r = cells(L[i]); h += '<tr>' + head.map((_, k) => td('td', r[k] ?? '', k)).join('') + '</tr>'; i++; }
-      out.push(h + '</tbody></table>'); continue;
-    }
-    if (/^\s*>/.test(l)) { const b = []; while (i < L.length && /^\s*>/.test(L[i])) b.push(L[i++].replace(/^\s*>\s?/, '')); out.push('<blockquote>' + md(b.join('\n')) + '</blockquote>'); continue; }
-    if (LIST.test(l)) {
-      // 箇条書き: 字下げで入れ子にする。続きの行(字下げした普通の行)は前の項目につなぐ
-      const items = [];
-      while (i < L.length) {
-        const x = L[i], lm = x.match(LIST);
-        if (lm) { items.push({ ind: lm[1].replace(/\t/g, '  ').length, ord: /\d/.test(lm[2]), text: lm[3] }); i++; continue; }
-        if (/^\s+\S/.test(x) && items.length && !blockStart(x)) { items[items.length - 1].text += '<br>' + x.trim(); i++; continue; }
-        break;
-      }
-      let h = '', stack = [];
-      for (const it of items) {
-        while (stack.length && it.ind < stack[stack.length - 1].ind) { h += `</li></${stack.pop().tag}>`; }
-        const top = stack[stack.length - 1];
-        if (!top || it.ind > top.ind) { const tag = it.ord ? 'ol' : 'ul'; stack.push({ ind: it.ind, tag }); h += `<${tag}><li>`; }
-        else h += '</li><li>';
-        h += inline(it.text).replace(/&lt;br&gt;/g, '<br>');
-      }
-      while (stack.length) h += `</li></${stack.pop().tag}>`;
-      out.push(h); continue;
-    }
-    const b = [];
-    while (i < L.length && !/^\s*$/.test(L[i]) && !blockStart(L[i])) b.push(L[i++]);
-    out.push('<p>' + b.map(inline).join('<br>') + '</p>');
-  }
-  return out.join('\n');
-}
-let pvT = 0;
-function preview(now) { clearTimeout(pvT); const f = () => { $('pv').innerHTML = md($('ed').value); syncScroll(); }; if (now) f(); else pvT = setTimeout(f, 150); }
-function syncScroll() { const ed = $('ed'), pv = $('pv'), k = ed.scrollTop / Math.max(1, ed.scrollHeight - ed.clientHeight); pv.scrollTop = k * (pv.scrollHeight - pv.clientHeight); }
-
-// ---------- フォルダ・一覧 ----------
-async function scan(dir, prefix, out) {
-  const ents = [];
-  for await (const [name, h] of dir.entries()) ents.push([name, h]);
-  ents.sort((a, b) => (a[1].kind === b[1].kind ? a[0].localeCompare(b[0], 'ja') : a[1].kind === 'directory' ? 1 : -1));
-  for (const [name, h] of ents) {
-    if (h.kind === 'directory') { if (!SKIP.has(name) && !name.startsWith('.')) await scan(h, prefix + name + '/', out); }
-    else if (/\.md$/i.test(name)) out.push({ path: prefix + name, handle: h });
-  }
-  return out;
-}
-function renderTree() {
-  const q = $('filter').value.trim().toLowerCase(), t = $('tree');
-  const fs = S.files.filter(f => !q || f.path.toLowerCase().includes(q));
-  if (!S.root) return;
-  if (!fs.length) { t.innerHTML = `<div class="empty">${S.files.length ? '当てはまるファイルがない' : 'このフォルダには md がない'}</div>`; return; }
-  let h = '', lastDir = null;
-  for (const f of fs) {
-    const k = f.path.lastIndexOf('/'), dir = k < 0 ? '' : f.path.slice(0, k), name = f.path.slice(k + 1);
-    if (dir !== lastDir) { if (dir) h += `<div class="dir">${esc(dir)}/</div>`; lastDir = dir; }
-    h += `<div class="f${S.cur && S.cur.path === f.path ? ' on' : ''}" data-path="${esc(f.path)}" title="${esc(f.path)}"><span class="dot"></span>${esc(name)}</div>`;
-  }
-  t.innerHTML = h;
-  setDirtyUI();
-}
-async function useDir(root) {
-  S.root = root; S.files = []; S.cur = null;
-  $('rootName').textContent = '📁 ' + root.name;
-  $('main').hidden = true; $('start').hidden = false;
-  $('tree').innerHTML = '<div class="empty">読み込み中…</div>';
-  S.files = await scan(root, '', []);
-  $('rescanBtn').disabled = false;
-  renderTree();
-  msg(S.files.length + ' 個の md');
-}
-async function rescan() {
-  if (!S.root) return;
-  const keep = S.cur && S.cur.path;
-  S.files = await scan(S.root, '', []);
-  if (keep && !S.files.some(f => f.path === keep)) msg('開いているファイルがフォルダから消えています(保存すると作り直します)', 'warn');
-  renderTree();
-}
-
-// ---------- 開く・保存 ----------
-async function readFile(handle) {
-  const file = await handle.getFile();
-  let text = await file.text();
-  const bom = text.charCodeAt(0) === 0xfeff;
-  if (bom) text = text.slice(1);
-  return { text: text.replace(/\r\n?/g, '\n'), eol: /\r\n/.test(text) ? '\r\n' : '\n', bom, mod: file.lastModified };
-}
-async function openFile(path) {
-  if (S.cur && S.cur.path === path) return;
-  if (isDirty() && !confirm(S.cur.path + ' は保存していません。変更を捨てて開きますか?')) return;
-  const f = S.files.find(x => x.path === path);
-  if (!f) return;
-  const r = await readFile(f.handle);
-  S.cur = { path, handle: f.handle, eol: r.eol, bom: r.bom, saved: r.text, mod: r.mod, outside: false };
-  const ed = $('ed');
-  ed.value = r.text; ed.scrollTop = 0; ed.setSelectionRange(0, 0);
-  $('path').textContent = path; $('path').title = (r.eol === '\r\n' ? 'CRLF' : 'LF') + (r.bom ? ' / BOM あり' : '');
-  $('main').hidden = false; $('start').hidden = true;
-  hideBanner();
-  renderTree(); preview(true);
-}
-async function save() {
-  if (!S.cur) return;
-  const c = S.cur;
-  if (c.outside && !confirm('このファイルはほかのソフトでも書き換えられています。上書きしますか?')) return;
-  const body = (c.bom ? '﻿' : '') + $('ed').value.replace(/\n/g, c.eol);
-  try {
-    const w = await c.handle.createWritable();
-    await w.write(body); await w.close();
-  } catch (e) { msg('保存できませんでした: ' + e.message, 'warn'); return; }
-  c.saved = $('ed').value; c.outside = false;
-  c.mod = (await c.handle.getFile()).lastModified;
-  hideBanner(); setDirtyUI();
-  msg('保存しました ' + new Date().toLocaleTimeString(), 'ok');
-}
-async function reload() {
-  if (!S.cur) return;
-  if (isDirty() && !confirm('未保存の変更を捨てて、ディスクの内容で読み直しますか?')) return;
-  await reloadNow();
-}
-async function reloadNow() {
-  const c = S.cur, r = await readFile(c.handle), ed = $('ed'), top = ed.scrollTop, pos = ed.selectionStart;
-  Object.assign(c, { eol: r.eol, bom: r.bom, saved: r.text, mod: r.mod, outside: false });
-  ed.value = r.text; ed.scrollTop = top; ed.setSelectionRange(Math.min(pos, r.text.length), Math.min(pos, r.text.length));
-  hideBanner(); setDirtyUI(); preview(true);
-}
-
-// ---------- 外での書き換えに気づく(2秒ごとに lastModified を見る)----------
-function showBanner(t) { $('bannerText').textContent = t; $('banner').classList.add('on'); }
-function hideBanner() { $('banner').classList.remove('on'); }
-async function watch() {
-  const c = S.cur;
-  if (!c || document.hidden) return;
-  let f;
-  try { f = await c.handle.getFile(); } catch (e) { return; }
-  if (S.cur !== c || f.lastModified === c.mod) return;
-  const text = (await f.text()).replace(/^﻿/, '').replace(/\r\n?/g, '\n');
-  c.mod = f.lastModified;
-  if (text === c.saved) return; // 中身は同じ(保存し直しただけ)
-  if (!isDirty()) { await reloadNow(); msg('ほかのソフトで書き換わったので読み直しました ' + new Date().toLocaleTimeString(), 'warn'); return; }
-  c.outside = true;
-  showBanner('このファイルはほかのソフト(LLM など)でも書き換えられました。あなたの未保存の変更と食い違っています。');
-}
-setInterval(watch, 2000);
-window.addEventListener('focus', watch);
-
-// ---------- 前回のフォルダ(IndexedDB にフォルダの handle を置く)----------
-const idb = (mode, f) => new Promise((res, rej) => {
-  const o = indexedDB.open('md-editor', 1);
-  o.onupgradeneeded = () => o.result.createObjectStore('kv');
-  o.onsuccess = () => { const tx = o.result.transaction('kv', mode), r = f(tx.objectStore('kv')); tx.oncomplete = () => res(r && r.result); tx.onerror = () => rej(tx.error); };
-  o.onerror = () => rej(o.error);
-});
-const remember = h => idb('readwrite', s => s.put(h, 'root')).catch(() => {});
-async function initLast() {
-  let h = null;
-  try { h = await idb('readonly', s => s.get('root')); } catch (e) { /* 覚えていない */ }
-  if (!h) return;
-  const b = $('lastBtn');
-  b.hidden = false; b.textContent = '前回: ' + h.name;
-  b.onclick = async () => {
-    try {
-      if ((await h.queryPermission({ mode: 'readwrite' })) !== 'granted' && (await h.requestPermission({ mode: 'readwrite' })) !== 'granted') { msg('フォルダの許可がありません', 'warn'); return; }
-      await useDir(h);
-    } catch (e) { msg('前回のフォルダを開けませんでした: ' + e.message, 'warn'); }
-  };
-}
-
-// ---------- 操作 ----------
-$('openBtn').onclick = async () => {
-  if (!window.showDirectoryPicker) { alert('このブラウザはフォルダの読み書きに対応していません。Chrome か Edge で開いてください。'); return; }
-  if (isDirty() && !confirm('未保存の変更があります。捨てて別のフォルダを開きますか?')) return;
-  try { const h = await window.showDirectoryPicker({ mode: 'readwrite', id: 'md-editor' }); await remember(h); await useDir(h); initLast(); }
-  catch (e) { if (e.name !== 'AbortError') msg('開けませんでした: ' + e.message, 'warn'); }
-};
-$('rescanBtn').onclick = rescan;
-$('tree').onclick = e => { const f = e.target.closest('.f'); if (f) openFile(f.dataset.path); };
-$('filter').oninput = renderTree;
-$('saveBtn').onclick = save;
-$('reloadBtn').onclick = reload;
-$('bnReload').onclick = () => reloadNow();
-$('bnKeep').onclick = hideBanner;
-$('ed').addEventListener('input', () => { setDirtyUI(); preview(); });
-$('ed').addEventListener('scroll', () => { if (S.view === 'split') syncScroll(); });
-$('ed').addEventListener('keydown', e => {
-  if (e.key === 'Tab' && !e.ctrlKey && !e.altKey) { e.preventDefault(); document.execCommand('insertText', false, '  '); } // 字下げは空白 2つ(元に戻せる)
-});
-window.addEventListener('keydown', e => { if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') { e.preventDefault(); save(); } });
-window.addEventListener('beforeunload', e => { if (isDirty()) { e.preventDefault(); e.returnValue = ''; } });
-function setView(v) {
-  S.view = v; $('panes').className = v === 'split' ? '' : v;
-  for (const b of document.querySelectorAll('#viewSeg button')) b.classList.toggle('on', b.dataset.v === v);
-  try { localStorage.setItem('md-editor-view', v); } catch (e) { /* 覚えなくても動く */ }
-  if (v !== 'edit') preview(true);
-}
-$('viewSeg').onclick = e => { const b = e.target.closest('button'); if (b) setView(b.dataset.v); };
-let v0 = 'split';
-try { v0 = localStorage.getItem('md-editor-view') || 'split'; } catch (e) { /* 既定 */ }
-setView(v0);
-initLast();
-window.MDE = { useDir, openFile, save, md, state: S }; // 試験用
-</script>
+<div id="mirror"></div>
+<script src="md.js"></script>
+<script src="app.js"></script>
 </body>
 </html>
