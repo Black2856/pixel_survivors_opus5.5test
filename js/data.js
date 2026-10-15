@@ -1383,14 +1383,14 @@ const DATA = {
       emerald:  { slot: 'ring',   name: 'エメラルド', opts: { hp: [3, 6], sta: [4, 8], area: [0.02, 0.04], cd: [0.02, 0.04], xp: [0.05, 0.10], gold: [0.05, 0.10], magnet: [0.05, 0.10] } },
     },
     // n: オプション数 / w: ドロップの重み / enh: 強化の上限回数 / cost: 強化1回目の費用(以降 ×1.5)
-    //   ミシック: ガチャだけで出る(w: 0 で宝箱には出ない)。レジェンダリーの全オプションが最高ロール値・最高レベル。強化の余地はない。売却額はレジェンダリーと同じ
+    //   ミシック: ガチャ(DATA.gacha.rates)と宝箱(この w)で出る。レジェンダリーの全オプションが最高ロール値・最高レベル(宝箱はそのランの装備ロール上限・装備Lv上限まで)。強化の余地はない。売却額はレジェンダリーと同じ
     rarity: {
       common:    { name: 'コモン',         n: 1, w: 50, enh: 1, cost: 100,  col: '#c8c8d0' },
       uncommon:  { name: 'アンコモン',     n: 2, w: 30, enh: 2, cost: 200,  col: '#5dff8a' },
       rare:      { name: 'レア',           n: 3, w: 14, enh: 3, cost: 400,  col: '#5ab8ff' },
       epic:      { name: 'エピック',       n: 4, w: 5,  enh: 4, cost: 800,  col: '#c78bff' },
-      legendary: { name: 'レジェンダリー', n: 4, w: 1,  enh: 5, cost: 1600, col: '#ffb347' },
-      mythic:    { name: 'ミシック',       n: 4, w: 0,  enh: 5, cost: 1600, col: '#ff3b5c' },
+      legendary: { name: 'レジェンダリー', n: 4, w: 0.9,  enh: 5, cost: 1600, col: '#ffb347' },
+      mythic:    { name: 'ミシック',       n: 4, w: 0.1,  enh: 5, cost: 1600, col: '#ff3b5c' },
     },
     maxLv: [3, 5], // オプションの最大Lv のロール範囲
     invMax: 1000,  // インベントリの上限(超えた分は自動で売却)

@@ -557,6 +557,7 @@ const UI = (() => {
     jackpot: { label: 'JACKPOT!!!',     cols: ['#ff3b5c', '#ffd23f', '#5dff8a', '#6ee7ff', '#b06ef0'], coins: 220, conf: 260 },
     evo:     { label: 'EVOLUTION!!!!',  cols: ['#ff6ec7', '#b06ef0', '#6ee7ff', '#ffd23f', '#ffffff'], coins: 180, conf: 300 },
     legend:  { label: 'LEGENDARY!!!!',  cols: ['#ffb347', '#ffd23f', '#ff6a2a', '#ffffff', '#ff6ec7'], coins: 240, conf: 320 },
+    mythic:  { label: 'MYTHIC!!!!!',    cols: ['#ff3b5c', '#ff6a2a', '#ffd23f', '#ffffff', '#c0204a'], coins: 280, conf: 360 }, // 宝箱のミシック(まれ)
   };
   let chest = null;
   const fxc = $('chest-fx'), fx = fxc.getContext('2d');
@@ -625,7 +626,7 @@ const UI = (() => {
     state = 'chest';
     // 段階は中身の一番良いレアリティで決める
     const best = Math.max(...rewards.map(r => r.type === 'item' ? RARITY_KEYS.indexOf(r.item.rarity) : 0));
-    const tierKey = best >= 4 ? 'legend' : best === 3 ? 'jackpot' : best === 2 ? 'rare' : 'normal';
+    const tierKey = best >= 5 ? 'mythic' : best === 4 ? 'legend' : best === 3 ? 'jackpot' : best === 2 ? 'rare' : 'normal';
     chest = { rewards, phase: 'idle', tierKey, tier: TIERS[tierKey], skip: false, done: false };
     const cs = $('chest-screen');
     cs.className = 'screen tier-' + tierKey;
@@ -694,7 +695,7 @@ const UI = (() => {
     const iconBox = card.querySelector('.card-icon');
     const finalIcon = iconBox.innerHTML;
     const pool = Object.keys(DATA.equip.types).map(k => icon('equip', k, 'big'));
-    const big = r.type === 'item' && r.item.rarity === 'legendary', spins = big ? 12 : 7;
+    const big = r.type === 'item' && (r.item.rarity === 'legendary' || r.item.rarity === 'mythic'), spins = big ? 12 : 7; // ミシックは宝箱でもまれに出る
     let n = 0;
     const step = () => {
       if (!chest) return;
@@ -703,11 +704,11 @@ const UI = (() => {
         applyChoice(r);
         card.classList.remove('rolling'); card.classList.add('landed');
         const rc = card.getBoundingClientRect(), cx = rc.left + rc.width / 2, cy = rc.top + rc.height / 2;
-        const cols = big ? TIERS.legend.cols : rar === 'epic' ? ['#ffd23f', '#ffffff'] : rar === 'new' ? ['#6ee7ff', '#ffffff'] : ['#b8a8ff', '#ffffff'];
+        const cols = big ? TIERS[rar === 'mythic' ? 'mythic' : 'legend'].cols : rar === 'epic' ? ['#ffd23f', '#ffffff'] : rar === 'new' ? ['#6ee7ff', '#ffffff'] : ['#b8a8ff', '#ffffff'];
         fxBurst(cx, cy, big ? 160 : 60, 'spark', cols, { sp: big ? 900 : 550, g: 200, drag: 2, life: 1 });
         fxBurst(cx, cy, 30, 'conf', cols, { sp: 700, g: 600, drag: 1.5 });
         if (big) {
-          AudioMan.evolve(); shakeScreen($('chest-screen'), 'quake-big'); screenFlash(1, '#ffb347'); shockAt(P.x, P.y, 3, 0.5);
+          AudioMan.evolve(); shakeScreen($('chest-screen'), 'quake-big'); screenFlash(1, rar === 'mythic' ? '#ff3b5c' : '#ffb347'); shockAt(P.x, P.y, 3, 0.5);
           const fl = $('chest-flash'); fl.classList.remove('go'); void fl.offsetWidth; fl.classList.add('go');
         } else AudioMan.land(rar === 'epic' ? 2 : rar === 'new' ? 1 : 0);
         setTimeout(() => revealNext(i + 1), chest.skip ? 60 : 150);

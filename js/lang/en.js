@@ -1689,7 +1689,7 @@ const I18N_EN = {
   "ガチャ": "Gacha",
   "ゴールドで装備を引く(1回 {0}。{1}連は {2}倍)。高いガチャほどロール値・最大Lv の上限が高い(カオス強化 {3} pt 相当)。レアリティの確率はどれも同じ": "Spend Gold to draw gear (single draw: {0}; a {1}× draw costs {2} times as much). Pricier gachas have higher caps for roll values and Max Lv (equivalent to {3} pt of Chaos). The rarity rates are the same for all of them",
   "ミシック": "Mythic",
-  "ガチャだけで出る一番上のレアリティ({0}%)。レジェンダリーと同じく固有効果が付き、全オプションがそのガチャの上限(最高ロール値・最高Lv)。強化の余地はない": "The highest rarity, only from the Gacha ({0}%). Like Legendary it has a unique effect, and every option is at that gacha's cap (best roll value and highest Max Lv). It cannot be enhanced further",
+  "一番上のレアリティ。ガチャ({0}%)と宝箱({1}%)で出る。レジェンダリーと同じく固有効果が付き、全オプションが上限(最高ロール値・最高Lv。ガチャはそのガチャの、宝箱はそのランの上限)。強化の余地はない": "The highest rarity, from the Gacha ({0}%) and chests ({1}%). Like Legendary it has a unique effect, and every option is at the cap (best roll value and highest Max Lv: the gacha's cap for the Gacha, the run's cap for chests). It cannot be enhanced further",
   "モード・ステージごとに敵を強くする設定。ポイントが高いほど装備とゴールドの報酬が増える。初めてクリアするまでは tier ごとに決まった値で固定": "Settings that make enemies stronger per mode/stage. The more points, the more gear and Gold rewards. Until your first clear it's fixed to a value set by tier",
   "経験値の宝石が自分へ飛んでくる距離": "The distance at which XP Gems fly to you",
   "ステータスの「経験値」は、宝石から得る経験値の倍率": "The \"XP\" stat is a multiplier on XP gained from gems",

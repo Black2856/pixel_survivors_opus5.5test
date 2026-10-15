@@ -242,6 +242,7 @@ button { font: inherit; color: inherit; cursor: pointer; border: 0; background: 
 #chest-screen.tier-rare { --beam: rgba(110,231,255,.3); }
 #chest-screen.tier-jackpot .beams, #chest-screen.tier-evo .beams { filter: hue-rotate(0deg); animation: spin 5s linear infinite, hue 2s linear infinite !important; }
 #chest-screen.tier-evo { --beam: rgba(255,110,199,.35); }
+#chest-screen.tier-mythic { --beam: rgba(255,59,92,.35); }
 @keyframes spin { to { transform: rotate(360deg); } }
 @keyframes hue { to { filter: hue-rotate(360deg); } }
 #chest-screen.quake { animation: quake .5s cubic-bezier(.36,.07,.19,.97); }
