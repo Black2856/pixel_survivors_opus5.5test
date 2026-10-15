@@ -104,3 +104,51 @@ function dragonAI(e, ai, dt, a, dist, slow) {
     endAct();
   }
 }
+
+// 空襲: 0.8秒で飛び上がる(この間に画面を横切る帯 = 影の通り道が出る)→ 空の上(攻撃が当たらない)を影が速さ 280 で走り、通った跡に燃える床(帯と同じ幅 60。通ってから 8秒)
+//   影(帯と同じ幅 60)に触れると ×1.0・炎上 → 影が抜けたら、プレイヤーのそばへ舞い降りる(0.4秒)。激昂は降りてすぐもう1回
+function startRaid(e, ai) {
+  const th = rand(0, TAU), L = Math.min(440, Math.hypot(GFX.VW, GFX.VH) + 40), W = 60 * CHAOS.area; // 影が横切るのは約1.6秒(速さ 280)
+  const rd = ai.rd = { ph: 'up', t: 0, th, L, sx: P.x - Math.cos(th) * L / 2, sy: P.y - Math.sin(th) * L / 2, fire: 0 };
+  ai.act = 'raid';
+  pushWarn({ kind: 'line', x: rd.sx, y: rd.sy, a: th, len: L, w: W, t: 0, life: 0.8 + L / 280, fixed: true }); // 影の通り道(帯の幅は攻撃範囲の倍率で広がる)
+  AudioMan.roar(); shake(5); e.sq = 0.7;
+  hint('raid', _t('空襲'), _t('空を横切る影に触れると炎上。影の跡は燃える床になる'));
+}
+function updRaid(e, ai, dt) {
+  const rd = ai.rd;
+  rd.t += dt;
+  if (rd.ph === 'up') { // 羽ばたいて飛び上がる(足元に土煙)
+    const k = Math.min(1, rd.t / 0.8);
+    e.jz = 140 * k * k; e.air = true;
+    if (Math.random() < dt * 50) { const pa = rand(0, TAU); part(e.x + Math.cos(pa) * 14, e.y + 8 + Math.sin(pa) * 6, Math.cos(pa) * 90, Math.sin(pa) * 30, 0.5, pick(['#8a6a5a', '#c8a090', '#5a3a30']), { drag: 2 }); }
+    if (rd.t >= 0.8 && !rd.flap) { rd.flap = true; AudioMan.dash(); }
+    if (k < 1) return;
+    rd.ph = 'sky'; rd.t = 0; e.flying = true; e.hidden = true; e.jz = 0; // 空の上: 攻撃が当たらない・狙われない
+    return;
+  }
+  if (rd.ph === 'sky') { // 影が帯を走る。跡に燃える床
+    const run = Math.min(rd.L, rd.t * 280), c = Math.cos(rd.th), s = Math.sin(rd.th);
+    e.x = rd.sx + c * run; e.y = rd.sy + s * run; // 竜は影の真上を飛ぶ
+    if (!rd.band) { rd.band = true; addHazard('fband', rd.sx, rd.sy, { a: rd.th, L: rd.L, spd: 280, stay: 8, w: 60 * CHAOS.area, dur: 8 + rd.L / 280, dmg: e.dmg }); } // 燃える床: 影と同じ速さで伸び、通ってから 8秒で消える
+    const R0 = 30 * CHAOS.area; // 影の当たり判定 = 帯の幅の半分
+    if (d2(e.x, e.y, P.x, P.y) < (R0 + 3) * (R0 + 3) && hurtPlayer(e.dmg)) burnPlayer(e.dmg * 0.03);
+    if (Math.random() < dt * 30) part(e.x + rand(-12, 12), e.y + rand(-6, 6), c * 60 + rand(-20, 20), s * 60 - rand(10, 30), 0.5, pick(['#ff6a2a', '#ffc34a', '#ff4a8a']), { glow: true, drag: 1 }); // 炎の粉が降る
+    rd.wind = (rd.wind || 0) - dt;
+    if (rd.wind <= 0) { rd.wind = 0.3; AudioMan.fire(); }
+    if (run < rd.L) return;
+    // 舞い降りる位置: プレイヤーから影が抜けた側へ 100
+    rd.ph = 'down'; rd.t = 0; rd.lx = P.x + c * 100; rd.ly = P.y + s * 100;
+    e.x = rd.lx; e.y = rd.ly;
+    return;
+  }
+  const k = Math.min(1, rd.t / 0.4); // 舞い降りる
+  e.x = rd.lx; e.y = rd.ly; e.jz = 140 * (1 - k) * (1 - k);
+  if (k > 0.3) { e.flying = false; e.hidden = false; }
+  if (k < 1) return;
+  e.jz = 0; e.air = false; e.sq = 0.6; ai.act = null; ai.cd = ai.enraged ? 1.6 : 2.4;
+  shockAt(e.x, e.y, 1.6, 0.8); shake(9); AudioMan.boom();
+  burst(e.x, e.y, 36, ['#8a6a5a', '#c8a090', '#ff6a2a', '#ffc34a'], { sp: 130, g: 200 });
+  addRing(e.x, e.y, 40, '#ff4a8a', { w: 2, life: 0.4 });
+  if (ai.enraged && !rd.again) { startRaid(e, ai); ai.rd.again = true; } // 激昂: 降りてすぐもう1回(2回まで)
+}

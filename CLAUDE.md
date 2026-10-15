@@ -4,8 +4,9 @@
 
 ## どこに何があるか
 - 数値・文: `js/data.js` の `DATA`(classes / weapons / bosses / enemies / stages / stageRuns / flow …)。値は `node scripts/dev/data.js classes.knight.params` で引ける(長い行を読まない)
-- クラス: `js/classes.js` の `CLASS_RT[クラス]`(特性・パッシブ・Q)と `WEAPON_SKILL[武器]`(E スキル)。world.js からは `cls*` の入口(`clsShieldMod` `clsResistDebuff` など 17個)だけで呼ぶ。クラス名で分ける所を world.js に作らない
-- 自分・武器・ダメージ・敵・ボス・ドロップ・出現: `js/world.js`(区切りは `// ====` の見出し。ボスは `// ---------- ボス名:` の見出しごと)
+- クラス: `js/classes.js` の `CLASS_RT[クラス]`(特性・パッシブ・Q)と `WEAPON_SKILL[武器]`(E スキル)。ゲームの側からは `cls*` の入口(`clsShieldMod` `clsResistDebuff` など 17個)だけで呼ぶ。クラス名で分ける所をゲームの側に作らない
+- ラン: `js/world.js`(ラン初期化・ステータス・カオス強化・敵Lv)/ `player.js` / `weapons.js`(自動攻撃・弾・ゾーン)/ `damage.js`(hitEnemy・撃破)/ `enemies.js`(出現・通常敵)/ `phase.js`(ボスの撃破・フェーズ)/ `hazards.js`(敵弾・ボスの床などの動きと当たり)/ `drops.js` / `spawner.js`(出現・闘技場)/ `rewards.js`(レベルアップの選択肢)
+- ボス: `js/bosses/common.js`(makeBoss・spawnBoss・eball・later・壊せる物・`bossAI` の分岐)と `js/bosses/<キー>.js`(1体 1ファイル。キーは DATA.bosses。死神と終刻の死神は reaper.js、分裂した犬は cerberus.js)
 - 描画: `js/render.js` の `render()`(地面 → 自分の攻撃(地面側)→ ボスの設置物 → ジェム → 敵 → 自分 → 自分の攻撃(手前)→ 敵の攻撃・予兆 → 数値)、ボスの技は `drawBossFx` / `drawBfx`、熾天使は `drawSer*`
 - 絵: `js/art.js`(ASCII のドット絵)/ 光の層: `js/gfx.js`(scene・light・glow・over + WebGL の仕上げ)
 - 画面: `js/ui.js`(ラン中)/ `js/meta-ui.js`(ラン外)/ `js/status-ui.js` / `js/gacha.js` / `js/help.js`(用語集)
