@@ -13,7 +13,7 @@
   - ボスの描画は各ボスのファイルの末尾の「描画」: 設置物 `HAZ_DRAW.<種類>`・見た目だけの演出 `BFX_DRAW.<種類>`(どちらも共有する種類だけ render.js)、体まわりは `drawBossFx` から呼ぶ `draw<ボス>Fx`、熾天使・三原の光精・ケルベロス・影の王の専用の描画も。敵弾の描画は render.js
 - 絵: `js/art.js`(ASCII のドット絵)/ 光の層: `js/gfx.js`(scene・light・glow・over + WebGL の仕上げ)
 - 画面: `js/ui.js`(ラン中)/ `js/meta-ui.js`(ラン外)/ `js/status-ui.js` / `js/gacha.js` / `js/help.js`(用語集)
-- 仕様書(ユーザーが直接直す): `claudedocs/enemies.md`・`claudedocs/classes/*.md`
+- 仕様書(ユーザーが直接直す): `claudedocs/`(索引は `claudedocs/README.md`。モード・戦いの決まり・ステージ・通常敵・ボス `bosses/<キー>.md`・クラス `classes/<名前>.md`・ラン外の成長・装備・画面。`archive/` は控えで仕様ではない)
 
 ## 決まり
 - 改行は CRLF(js / md / css / html。`core.autocrlf=true`)。書いたら `node scripts/dev/eol.js`(`--fix` でそろえる)。sed -i は使わない
