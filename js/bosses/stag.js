@@ -130,3 +130,22 @@ function stagHerd(e, ai) {
 function drawStagFx(e, sx, gx, ex, ey, sp, yo, t) {
   for (let i = 0; i < 3; i++) { const a = t * 6 + TAU / 3 * i, x = Math.round(ex + Math.cos(a) * 9), y = Math.round(ey + yo - sp.h / 2 - 3 + Math.sin(a) * 3); sx.fillStyle = gx.fillStyle = PRISM[(i * 2) % 7]; sx.fillRect(x - 1, y, 3, 1); sx.fillRect(x, y - 1, 1, 3); gx.fillRect(x, y, 1, 1); }
 }
+// 残像の突進の経路: 光の線が残り、残像が走り抜けると消えていく
+BFX_DRAW.trail = (f, fx, fy, u, bd) => {
+  const { t, sx, gx } = bd;
+  const fade = Math.min(1, (f.life - f.t) * 3);
+  f.segs.forEach((g, i) => {
+    const x0 = g.x0 - cam.x, y0 = g.y0 - cam.y, x1 = g.x1 - cam.x, y1 = g.y1 - cam.y, c = PRISM[(i * 2 + Math.floor(t * 10)) % 7];
+    sx.globalAlpha = 0.7 * fade; pLine(sx, x0, y0, x1, y1, c, 1); sx.globalAlpha = 1;
+    pLine(gx, x0, y0, x1, y1, fade > 0.5 ? '#5a3a8a' : '#2a1a4a', 1);
+  });
+};
+// 晶棘: 地面から結晶の棘が突き出て、砕けて沈む
+BFX_DRAW.spike = (f, fx, fy, u, bd) => {
+  const { sx, gx } = bd;
+  const k = u < 0.12 ? u / 0.12 : u > 0.6 ? Math.max(0, 1 - (u - 0.6) / 0.4) : 1, H = Math.round(14 * k), c = PRISM[f.ci], x0 = Math.round(fx), y0 = Math.round(fy);
+  for (let j = 0; j < H; j++) { const w = Math.max(1, Math.round((H - j) / H * 3)); sx.fillStyle = j > H - 3 ? '#ffffff' : c; sx.fillRect(x0 - w, y0 - j, w * 2 + 1, 1); if (j > H / 2) { gx.fillStyle = c; gx.fillRect(x0, y0 - j, 1, 1); } }
+  for (let i = 0; i < 2; i++) { const sxp = x0 + (i ? 4 : -5), H2 = Math.round(H * 0.6); for (let j = 0; j < H2; j++) { sx.fillStyle = j > H2 - 2 ? '#ffffff' : c; sx.fillRect(sxp, y0 - j, 1, 1); } } // 脇の小さな棘
+  sx.fillStyle = '#0c0913'; sx.fillRect(x0 - 5, y0 + 1, 11, 1);
+  addLight(f.x, f.y - 6, 40, c, 0.8 * k);
+};

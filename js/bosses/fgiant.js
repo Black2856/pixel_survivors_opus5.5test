@@ -126,3 +126,15 @@ HAZ_DRAW.aval = (h, hx, hy, fade, hd) => {
   pCircle(sx, mx, my, R, '#8aa0c8');
   addLight(h.x + c * h.d, h.y + s * h.d, 50, '#e8f4ff', 0.4);
 };
+// 吹雪の風の予告: 画面いっぱいに風の線(点滅しながら風向きへ流れる)
+BFX_DRAW.windwarn = (f, fx, fy, u, bd) => {
+  const { t, sx, gx } = bd;
+  const c = Math.cos(f.th), s = Math.sin(f.th), VW = GFX.VW, VH = GFX.VH, W = VW + 60, H = VH + 60, on = Math.floor(t * 8) % 2;
+  for (let i = 0; i < 26; i++) {
+    const h1 = hash2(i, 71), h2 = hash2(i, 83), sp = 160 * (1 + h2);
+    const x = ((h1 * W + c * f.t * sp) % W + W) % W - 30, y = ((h2 * H + s * f.t * sp) % H + H) % H - 30, L = 10 + h1 * 14;
+    sx.globalAlpha = on ? 0.8 : 0.45; pLine(sx, x, y, x - c * L, y - s * L, '#ffffff'); pLine(gx, x, y, x - c * L * 0.5, y - s * L * 0.5, '#3a4a5a');
+    if (i % 5 === 0) for (const k of [-1, 1]) pLine(sx, x + c * 3, y + s * 3, x - c * 2 + s * 4 * k, y - s * 2 - c * 4 * k, '#ff3b5c'); // 風向きの矢印(赤)
+  }
+  sx.globalAlpha = 1;
+};

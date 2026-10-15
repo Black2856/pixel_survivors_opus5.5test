@@ -173,3 +173,17 @@ function queenBlink(e, ai) {
 function drawPqueenFx(e, ai, sx, gx, ex, ey, sp, yo, t) {
   if (ai.clones && t % 0.5 < 0.12) { const gxp = Math.round(ex), gyp = Math.round(ey + yo - sp.h / 2 - 3); sx.fillStyle = gx.fillStyle = '#fff6c8'; sx.fillRect(gxp - 1, gyp, 3, 1); sx.fillRect(gxp, gyp - 1, 1, 3); gx.fillRect(gxp, gyp, 1, 1); } // 本物のしるし
 }
+// 反射光線: 鏡で折れる七色の光線(白い芯)。折れる所が白く光る
+BFX_DRAW.rbeam = (f, fx, fy, u, bd) => {
+  const { t, gx, sx } = bd;
+  const fl = Math.floor(t * 30) % 2, k = 1 - u;
+  for (let i = 0; i + 1 < f.pts.length; i++) {
+    const A = f.pts[i], B = f.pts[i + 1], x0 = A.x - cam.x, y0 = A.y - cam.y, x1 = B.x - cam.x, y1 = B.y - cam.y, c = PRISM[(i * 2 + Math.floor(t * 10)) % 7];
+    pLine(gx, x0, y0, x1, y1, c, Math.max(1, Math.round((2 + fl) * k + 1))); // 光は細く(太いと白く飛んで色が見えない)
+    pLine(sx, x0, y0, x1, y1, c, Math.max(1, Math.round(f.w * 0.7 * k + 1)));
+    pLine(sx, x0, y0, x1, y1, '#ffffff', 1);
+    const L = Math.hypot(B.x - A.x, B.y - A.y);
+    for (let r = 20; r < L; r += 50) addLight(A.x + (B.x - A.x) * r / L, A.y + (B.y - A.y) * r / L, 40, c, 0.5 * k);
+  }
+  for (const p of f.pts.slice(1, -1)) addLight(p.x, p.y, 60, '#ffffff', 0.8 * k);
+};

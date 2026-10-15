@@ -347,3 +347,54 @@ HAZ_DRAW.rift = (h, hx, hy, fade, hd) => {
   pLine(gx, hx, hy, x1, y1, dimCol('#a66bff', 0.45 * fade), 2);
   for (let d = 0; d < h.len; d += 70) { const lx = h.x + c * d, ly = h.y + s * d; if (onScreen(lx, ly, 40)) addLight(lx, ly, 60, '#7a3ab0', 0.4 * fade); }
 };
+// 影喚び: 床に影の門が開く(黒い楕円が広がり、紫のルーンが回る)→ 影が出ると閉じる
+BFX_DRAW.portal = (f, fx, fy, u, bd) => {
+  const { sx, gx, t } = bd;
+  const k = Math.min(1, f.t / 0.5), close = f.t > 1.25 ? Math.max(0, 1 - (f.t - 1.25) / 0.45) : 1, R = f.r * easeOutCubic(k) * close;
+  if (R >= 1) {
+    sx.globalAlpha = 0.85; sx.fillStyle = '#06030c'; sx.beginPath(); sx.ellipse(fx, fy, R, R * 0.45, 0, 0, TAU); sx.fill(); sx.globalAlpha = 1;
+    ellBoth(sx, gx, fx, fy, R, R * 0.45, '#a66bff', 0.9, dimCol('#a66bff', 0.6));
+    ellBoth(sx, gx, fx, fy, R * 0.7, R * 0.32, '#7a3ab0', 0.8, dimCol('#7a3ab0', 0.4), 12, t * 2);
+    for (let i = 0; i < 8; i++) { const a = t * 1.5 + TAU / 8 * i, px = Math.round(fx + Math.cos(a) * R * 0.85), py = Math.round(fy + Math.sin(a) * R * 0.38); sx.fillStyle = '#e8c8ff'; sx.fillRect(px, py - 1, 1, 3); sx.fillRect(px - 1, py, 3, 1); gx.fillStyle = '#4a1a7a'; gx.fillRect(px, py, 1, 1); } // ルーン
+    for (let k2 = 0; k2 < 3; k2++) part(f.x + rand(-R, R) * 0.8, f.y + rand(-R, R) * 0.3, rand(-6, 6), -rand(20, 60), rand(0.4, 0.8), pick(['#0a0612', '#2a1240', '#7a3ab0']), { drag: 1, sz: pick([1, 2]) }); // 門から闇が立ちのぼる
+    addLight(f.x, f.y, R * 3, '#7a3ab0', 0.7 * close);
+  }
+  return;
+};
+// 影歩: 影だまり(沈む = 縮んで消える / 出る = 広がって脈打つ)
+BFX_DRAW.spool = (f, fx, fy, u, bd) => {
+  const { sx, gx } = bd;
+  const k = f.sink ? 1 - u : Math.min(1, u * 2), R = 4 + 9 * k;
+  sx.globalAlpha = 0.85 * (f.sink ? 1 : Math.min(1, (1 - u) * 3)); sx.fillStyle = '#06030c'; sx.beginPath(); sx.ellipse(fx, fy + 4, R, R * 0.45, 0, 0, TAU); sx.fill(); sx.globalAlpha = 1;
+  ellBoth(sx, gx, fx, fy + 4, R, R * 0.45, '#a66bff', 0.8, dimCol('#a66bff', 0.5));
+  return;
+};
+// 影の三重輪の構え: 足元から闇が渦を巻いて広がる
+BFX_DRAW.skaura = (f, fx, fy, u, bd) => {
+  const { sx, gx, t } = bd;
+  const R = f.r * Math.min(1, u * 1.6);
+  for (let i = 0; i < 3; i++) ellBoth(sx, gx, fx, fy + 2, R * (0.4 + 0.3 * i), R * (0.4 + 0.3 * i) * 0.9, i % 2 ? '#7a3ab0' : '#a66bff', 0.5, dimCol('#7a3ab0', 0.3), 10 + i * 4, t * (2 + i) * (i % 2 ? -1 : 1));
+  if (Math.random() < 0.6) { const a = rand(0, TAU), r = rand(0.3, 1) * R; part(f.x + Math.cos(a) * r, f.y + Math.sin(a) * r, -Math.sin(a) * 40, Math.cos(a) * 40 - 10, 0.5, pick(SKC.slice(0, 4)), { glow: Math.random() < 0.3, drag: 1 }); }
+  addLight(f.x, f.y, R * 1.6, '#7a3ab0', 0.5);
+  return;
+};
+// 影の三重輪の炸裂: 輪の形に闇が噴き上がり、縁が光る
+BFX_DRAW.skring = (f, fx, fy, u, bd) => {
+  const { sx, gx } = bd;
+  const fade = 1 - u, R0 = f.r0, R1 = f.r1;
+  sx.globalAlpha = 0.5 * fade; sx.fillStyle = '#2a1240'; sx.beginPath(); sx.arc(fx, fy, R1, 0, TAU); if (R0 > 0) sx.arc(fx, fy, R0, 0, TAU, true); sx.fill('evenodd'); sx.globalAlpha = 1;
+  sx.globalAlpha = fade; pCircle(sx, fx, fy, Math.round(R1), '#e8c8ff'); if (R0 > 0) pCircle(sx, fx, fy, Math.round(R0), '#a66bff'); sx.globalAlpha = 1;
+  pCircle(gx, fx, fy, Math.round(R1), dimCol('#a66bff', 0.7 * fade), 2);
+  if (R0 > 0) { const Rm = (R0 + R1) / 2; for (let k = 0; k < 8; k++) addLight(f.x + Math.cos(TAU / 8 * k) * Rm, f.y + Math.sin(TAU / 8 * k) * Rm, (R1 - R0) * 0.9, '#a66bff', 0.55 * fade); } // 外の輪: 輪のところだけ照らす(中の安全な所は暗いまま)
+  else addLight(f.x, f.y, R1 * 1.3, '#a66bff', 0.7 * fade);
+  return;
+};
+// 断界: 一瞬で伸びる終わりのない斬撃(白い芯・紫の光・黒い縁)
+BFX_DRAW.sever = (f, fx, fy, u, bd) => {
+  const { sx, gx } = bd;
+  const c = Math.cos(f.a), s = Math.sin(f.a), x1 = fx + c * f.len, y1 = fy + s * f.len, fade = 1 - u, w = Math.max(1, Math.round(6 * fade));
+  pLine(sx, fx, fy, x1, y1, '#06030c', w + 4); pLine(sx, fx, fy, x1, y1, '#a66bff', w + 2); pLine(sx, fx, fy, x1, y1, '#ffffff', w);
+  pLine(gx, fx, fy, x1, y1, dimCol('#a66bff', 0.8 * fade), w + 2);
+  for (let d = 0; d < Math.min(f.len, 600); d += 50) addLight(f.x + c * d, f.y + s * d, 80, '#a66bff', 0.9 * fade);
+  return;
+};

@@ -150,3 +150,20 @@ function drawGolemFx(e, ai, sx, gx, ex, ey, sp, yo, t) {
   }
   if (ai.overT > 0) addLight(e.x, e.y, 80, '#ff3b1a', 0.8);
 }
+// 地割れ: 地面の裂け目が前へ走り(赤熱)、噴き出したあと冷えて消える
+BFX_DRAW.crack = (f, fx, fy, u, bd) => {
+  const { t, sx, gx } = bd;
+  const grow = Math.min(1, f.t / f.T), L = f.len * grow, c = Math.cos(f.a), s = Math.sin(f.a), nx = -s, ny = c;
+  const erupt = f.t >= f.T + 0.2, fade = erupt ? Math.max(0, 1 - (f.t - f.T - 0.2) / 0.7) : 1;
+  const gcol = !erupt ? (Math.floor(t * 12) % 2 ? '#7a3008' : '#4a1e06') : fade > 0.66 ? '#ffb347' : fade > 0.33 ? '#8a5a1a' : '#3a2008'; // 光の層は色で明るさが決まる
+  let px = fx, py = fy;
+  for (let d = 3; d <= L; d += 3) {
+    const j = (hash2(Math.floor(d / 3), f.seed) - 0.5) * 4, qx = fx + c * d + nx * j, qy = fy + s * d + ny * j;
+    sx.globalAlpha = fade; pLine(sx, px, py, qx, qy, '#1a1008', 2); sx.globalAlpha = 1;
+    pLine(gx, px, py, qx, qy, gcol, 1);
+    if (hash2(Math.floor(d / 3) + 77, f.seed) < 0.25) { const bj = (hash2(Math.floor(d / 3) + 5, f.seed) - 0.5) * 2; sx.globalAlpha = fade; pLine(sx, qx, qy, qx + nx * bj * 5 + c * 2, qy + ny * bj * 5 + s * 2, '#1a1008', 1); sx.globalAlpha = 1; } // 枝分かれ
+    px = qx; py = qy;
+  }
+  if (!erupt) { sx.fillStyle = '#ffb347'; sx.fillRect(Math.round(px), Math.round(py), 2, 2); addLight(f.x + c * L, f.y + s * L, 40, '#ff8a3d', 0.8); } // 走る先端
+  else if (fade > 0) addLight(f.x + c * f.len / 2, f.y + s * f.len / 2, f.len * 0.8, '#ffb347', fade);
+};

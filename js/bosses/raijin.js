@@ -164,3 +164,13 @@ HAZ_DRAW.tcage = (h, hx, hy, fade, hd) => {
   }
   if (h.t >= 0.4 && h.t < 3) addLight(h.x, h.y, 80, '#9a7aff', 0.4);
 };
+// 風神の幻(雷神の激昂): 風上に半透明の風神が浮かび、風の筋が画面を流れる
+BFX_DRAW.fujin = (f, fx, fy, u, bd) => {
+  const { t, sx } = bd;
+  const ca = Math.cos(f.a), sa = Math.sin(f.a), k = Math.max(0, Math.min(1, f.t / 0.4, (f.life - f.t) / 0.4));
+  drawSp(ART.S.fujin, P.x - ca * 120, P.y - sa * 80 - 20 + Math.sin(t * 2) * 3, { alpha: 0.6 * k, emit: false });
+  sx.globalAlpha = 0.5 * k;
+  for (let i = 0; i < 30; i++) { const u = ((hash2(i, 3) * 2 - 1) * 300 + t * 200) % 300, v = (hash2(i, 7) * 2 - 1) * 170, x = P.x - cam.x + ca * u - sa * v, y = P.y - cam.y + sa * u + ca * v; pLine(sx, x, y, x - ca * 14, y - sa * 14, '#c8f0d8'); } // 風の筋
+  sx.globalAlpha = 1;
+  return;
+};

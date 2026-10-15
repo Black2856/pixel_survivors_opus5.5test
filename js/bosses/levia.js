@@ -170,3 +170,31 @@ HAZ_DRAW.wpillar = (h, hx, hy, fade, hd) => {
   for (let i = 0; i < 5; i++) { sx.fillStyle = '#ffffff'; sx.fillRect(Math.round(hx + Math.sin(t * 7 + i * 1.3) * R * 0.5), Math.round(hy - H - (i % 2)), 1, 1); } // 柱の先の白いしぶき
   addLight(h.x, h.y - H / 2, 50, '#7ad7ff', 0.5 * fade);
 };
+// 海流: 始まる前は画面いっぱいに点滅する矢印、流れている間は流れの筋
+BFX_DRAW.flow = (f, fx, fy, u, bd) => {
+  const { t, sx, gx } = bd;
+  const c = Math.cos(f.th), s = Math.sin(f.th), VW = GFX.VW, VH = GFX.VH, on = f.t >= 1, fade = Math.min(1, (f.life - f.t) * 2), W = VW + 40, H = VH + 40;
+  for (let i = 0; i < 22; i++) {
+    const h1 = hash2(i, 41), h2 = hash2(i, 59), sp = (on ? 70 : 25) * (1 + h2);
+    const x = ((h1 * W + c * f.t * sp) % W + W) % W - 20, y = ((h2 * H + s * f.t * sp) % H + H) % H - 20;
+    if (!on || i % 4 === 0) { // 矢印
+      if (!on && Math.floor(t * 6) % 2) continue;
+      for (const k of [-1, 1]) { const bx = x - c * 4 + s * 4 * k, by = y - s * 4 - c * 4 * k; sx.globalAlpha = on ? 0.6 * fade : 0.9; pLine(sx, bx, by, x + c * 2, y + s * 2, '#bff4ff'); pLine(gx, bx, by, x + c * 2, y + s * 2, '#2a6a7a'); }
+    } else { sx.globalAlpha = 0.45 * fade; pLine(sx, x, y, x - c * 14, y - s * 14, '#bff4ff'); pLine(gx, x, y, x - c * 6, y - s * 6, '#1a4a5a'); }
+  }
+  sx.globalAlpha = 1;
+};
+// 大津波の予告: 波の来る側の端に赤い帯、画面を横切って流れる矢印の列
+BFX_DRAW.wavewarn = (f, fx, fy, u, bd) => {
+  const { t, sx, gx } = bd;
+  const blink = Math.floor(t * 8) % 2;
+  sx.save(); gx.save(); sx.translate(fx, fy); gx.translate(fx, fy); sx.rotate(f.th); gx.rotate(f.th);
+  sx.globalAlpha = 0.22 + 0.12 * blink; sx.fillStyle = '#ff3b5c'; sx.fillRect(0, -f.span, 46, f.span * 2); // 端(画面の外 20)から画面の内側 26 まで
+  sx.globalAlpha = 1; sx.fillStyle = blink ? '#ff3b5c' : '#ffd0d8'; sx.fillRect(46, -f.span, 1, f.span * 2);
+  gx.fillStyle = '#7a1020'; gx.fillRect(46, -f.span, 1, f.span * 2);
+  for (let row = -f.span + 40; row < f.span; row += 70) for (let k = 0; k < 4; k++) {
+    const al = (t * 170 + k * f.len / 4 + row * 0.7) % f.len;
+    for (let j = 0; j < 6; j++) { sx.fillStyle = '#ff3b5c'; sx.fillRect(al - j, row - j, 2, 1); sx.fillRect(al - j, row + j, 2, 1); gx.fillStyle = '#5a1020'; gx.fillRect(al - j, row - j, 1, 1); gx.fillRect(al - j, row + j, 1, 1); }
+  }
+  sx.restore(); gx.restore(); sx.globalAlpha = 1;
+};

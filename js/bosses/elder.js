@@ -136,3 +136,14 @@ HAZ_DRAW.rootring = (h, hx, hy, fade, hd) => {
   for (const sd of [-1, 1]) { const a = h.gap + sd * h.gapH, x = Math.round(hx + Math.cos(a) * R), y = Math.round(hy + Math.sin(a) * R), H = Math.round(14 * rise); gx.fillStyle = '#4a8a2a'; gx.fillRect(x - 1, y - H, 2, H); } // 抜け道の両端の根は光る(出口の目印)
   return;
 };
+// 根の波: 地中を進む根(盛り上がった土の線が、古樹から予告の円へ伸びる)
+BFX_DRAW.rootline = (f, fx, fy, u, bd) => {
+  const { sx } = bd;
+  const L = Math.hypot(f.x1 - f.x, f.y1 - f.y), k = Math.min(1, u * 1.1), n = Math.max(1, Math.floor(L * k / 3));
+  for (let i = 0; i <= n; i++) {
+    const v = i * 3 / L, x = Math.round(lerp(f.x, f.x1, v) - cam.x + Math.sin(i * 1.7 + f.x) * 1.2), y = Math.round(lerp(f.y, f.y1, v) - cam.y);
+    sx.fillStyle = '#3a2410'; sx.fillRect(x - 1, y, 3, 1); sx.fillStyle = i === n ? '#c8a060' : '#6a4424'; sx.fillRect(x, y - 1, 1, 1);
+  }
+  if (k < 1 && Math.random() < 0.5) part(lerp(f.x, f.x1, k), lerp(f.y, f.y1, k), rand(-10, 10), -rand(10, 30), 0.35, pick(['#3a2410', '#6a4424', '#5a3a1a']), { g: 120 }); // 先端で土が跳ねる
+  return;
+};

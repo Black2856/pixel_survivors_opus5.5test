@@ -96,3 +96,32 @@ function deadHands(e, ai) {
     shockAt(w.x, w.y, 0.8, 0.9); shake(4); AudioMan.thud();
   });
 }
+
+// ---------- 描画(render.js の render / drawBossFx / drawBossGround から呼ぶ)----------
+// 死者の手の印: 印の中で土がうごめき、小さな墓標が立つ
+BFX_DRAW.grave = (f, fx, fy, u, bd) => {
+  const { t, sx, gx } = bd;
+  for (let i = 0; i < 9; i++) {
+    const a = hash2(i, 3) * TAU + Math.sin(t * 6 + i) * 0.4, r = (0.2 + 0.55 * hash2(i, 5)) * 16;
+    sx.fillStyle = i % 2 ? '#3a2a1a' : '#6a5038'; sx.fillRect(Math.round(fx + Math.cos(a) * r), Math.round(fy + Math.sin(a) * r * 0.7), 2, 1);
+  }
+  const bx = Math.round(fx), by = Math.round(fy) + Math.round(Math.sin(t * 9) * 0.6);
+  sx.fillStyle = '#3a2a1a'; sx.fillRect(bx - 1, by - 5, 3, 7); sx.fillRect(bx - 2, by - 4, 5, 3);
+  sx.fillStyle = '#b8b098'; sx.fillRect(bx, by - 4, 1, 5); sx.fillRect(bx - 1, by - 3, 3, 1);
+  gx.fillStyle = '#2a3a14'; gx.fillRect(bx, by - 4, 1, 5); // うっすら緑に光る(光の層は暗い色で)
+};
+// 死者の手: 骨の手が地面から突き出て、沈んでいく
+BFX_DRAW.hands = (f, fx, fy, u, bd) => {
+  const { sx } = bd;
+  for (let i = 0; i < 6; i++) {
+    const a = hash2(i, f.seed) * TAU, r = Math.sqrt(hash2(i + 9, f.seed)) * f.r * 0.85;
+    const hx = Math.round(fx + Math.cos(a) * r), hy = Math.round(fy + Math.sin(a) * r * 0.75);
+    const k = u < 0.15 ? u / 0.15 : u > 0.6 ? Math.max(0, 1 - (u - 0.6) / 0.4) : 1, h = Math.round(9 * k * (0.75 + 0.5 * hash2(i + 3, f.seed)));
+    sx.fillStyle = '#5a4030'; sx.fillRect(hx - 2, hy, 5, 1); sx.fillRect(hx - 1, hy - 1, 3, 1); // 盛り上がった土
+    if (h <= 0) continue;
+    sx.fillStyle = '#1e1414'; sx.fillRect(hx - 1, hy - h - 2, 3, h + 2);
+    sx.fillStyle = '#e8e0c0'; sx.fillRect(hx, hy - h, 1, h);
+    if (h > 3) { sx.fillRect(hx - 1, hy - h - 1, 1, 1); sx.fillRect(hx + 1, hy - h - 1, 1, 1); sx.fillRect(hx, hy - h - 2, 1, 1); } // 指
+  }
+  addLight(f.x, f.y, f.r * 2.2, '#b8d86a', 0.5 * (1 - u));
+};

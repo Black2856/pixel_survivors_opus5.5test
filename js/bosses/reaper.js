@@ -342,3 +342,56 @@ function drawFhourFx2(e, ai, sx, sp, t) {
     addLight(g.x, g.y, 46, '#9a9aaa', 0.5 * a);
   }
 }
+// 死の宣告: 足元を追う紫の印(回る時計の目盛りと髑髏)。止まると赤く
+BFX_DRAW.deathmark = (f, fx, fy, u, bd) => {
+  const { sx, gx, t } = bd;
+  const R = 44 * CHAOS.area, stopd = f.t >= 3.5, col = stopd ? '#ff3b5c' : '#c29bff', fade = Math.min(1, f.t * 3, (f.life - f.t) * 4);
+  sx.globalAlpha = 0.18 * fade; pDisc(sx, fx, fy, Math.round(R), stopd ? '#ff3b5c' : '#6a3aa0'); sx.globalAlpha = fade;
+  pCircle(sx, fx, fy, Math.round(R), col); pCircle(gx, fx, fy, Math.round(R), stopd ? '#5a1020' : '#2a1a4a');
+  for (let i = 0; i < 12; i++) { const a = -t * (stopd ? 0 : 1.2) + TAU / 12 * i, r0 = R - 4, r1 = R - (i % 3 ? 7 : 11); pLine(sx, fx + Math.cos(a) * r0, fy + Math.sin(a) * r0, fx + Math.cos(a) * r1, fy + Math.sin(a) * r1, col); } // 目盛り
+  const hx = Math.round(fx), hy = Math.round(fy) - 2; // 髑髏
+  sx.fillStyle = col; sx.fillRect(hx - 3, hy - 3, 7, 5); sx.fillRect(hx - 2, hy + 2, 5, 2); sx.fillStyle = '#0c0913'; sx.fillRect(hx - 2, hy - 1, 2, 2); sx.fillRect(hx + 1, hy - 1, 2, 2); sx.fillRect(hx - 1, hy + 2, 1, 1); sx.fillRect(hx + 1, hy + 2, 1, 1);
+  gx.fillStyle = stopd ? '#5a1020' : '#2a1a4a'; gx.fillRect(hx - 2, hy - 2, 5, 4);
+  sx.globalAlpha = 1;
+  addLight(f.x, f.y, R * 1.8, col, 0.4 * fade);
+};
+// 十二の刻印の炸裂: 帯に沿って立つ赤い光の柱
+BFX_DRAW.pillar = (f, fx, fy, u, bd) => {
+  const { t, sx, gx } = bd;
+  const k = 1 - u, c = Math.cos(f.a), s = Math.sin(f.a), n = Math.floor(f.len / 6);
+  for (let i = 1; i <= n; i++) { const d = i * 6, x = Math.round(fx + c * d), y = Math.round(fy + s * d), H = Math.round((10 + 8 * Math.sin(i + t * 20)) * k); sx.globalAlpha = k; sx.fillStyle = i % 2 ? '#ff3b5c' : '#ffd0d8'; sx.fillRect(x - 1, y - H, 2, H); gx.fillStyle = '#5a1020'; gx.fillRect(x, y - H, 1, H); }
+  sx.globalAlpha = 0.5 * k; pLine(sx, fx, fy, fx + c * f.len, fy + s * f.len, '#ff3b5c', Math.round(f.w)); sx.globalAlpha = 1;
+  addLight(f.x + c * f.len / 2, f.y + s * f.len / 2, f.len, '#ff3b5c', 0.6 * k);
+};
+// 狂い時計の予告: 画面の縁が紫に揺れる
+BFX_DRAW.madwarn = (f, fx, fy, u, bd) => {
+  const { t, sx } = bd;
+  const VW = GFX.VW, VH = GFX.VH;
+  for (let i = 0; i < 4; i++) { const w = Math.round(4 + 4 * Math.abs(Math.sin(t * 30 + i))); sx.globalAlpha = 0.35; sx.fillStyle = '#8a4ae0'; if (i === 0) sx.fillRect(0, 0, VW, w); else if (i === 1) sx.fillRect(0, VH - w, VW, w); else if (i === 2) sx.fillRect(0, 0, w, VH); else sx.fillRect(VW - w, 0, w, VH); }
+  sx.globalAlpha = 1;
+};
+// 消える残像: 縦に伸びて細くなりながら溶ける
+BFX_DRAW.afterimg = (f, fx, fy, u, bd) => {
+  const { sx } = bd;
+  sx.globalAlpha = Math.max(0, 1 - u); drawSp(ART.S[f.spr], f.x, f.y, { flip: f.flip, sy: 1 + u * 0.5, sxk: Math.max(0.1, 1 - u * 0.8), white: u < 0.15 }); sx.globalAlpha = 1;
+};
+// 十二の刻印の回転斬り: 大鎌が一回転する三日月の斬撃(白い刃先・赤い軌跡・黒い縁)
+BFX_DRAW.spincut = (f, fx, fy, u, bd) => {
+  const { sx, gx } = bd;
+  const k = 1 - Math.pow(1 - Math.min(1, u / 0.55), 3), head = f.a0 + f.dir * TAU * k;
+  const tail = 2.6 * Math.min(1, k * 3) * (1 - Math.max(0, (u - 0.55) / 0.45)); // 軌跡の長さ(rad): 振り始めに伸び、振り切ったあと縮んで消える
+  const n = Math.ceil(tail * f.r);
+  for (let i = 0; i <= n; i++) {
+    const s = i / Math.max(1, n), a = head - f.dir * tail * s, w = Math.max(1, Math.round((1 - s) * 7)); // 刃先ほど太い
+    for (let j = 0; j < w; j++) {
+      const rr = f.r - j + 1, x = Math.round(fx + Math.cos(a) * rr), y = Math.round(fy + Math.sin(a) * rr);
+      sx.fillStyle = j === 0 && s < 0.5 ? '#000000' : s < 0.1 ? '#ffffff' : s < 0.45 ? '#ff3b5c' : '#8e0016';
+      sx.globalAlpha = 1 - s * 0.6; sx.fillRect(x, y, 1, 1);
+      if (j > 0 && s < 0.45) { gx.fillStyle = s < 0.1 ? '#ffffff' : '#5a000c'; gx.fillRect(x, y, 1, 1); }
+    }
+  }
+  sx.globalAlpha = 1;
+  const hx2 = f.x + Math.cos(head) * f.r, hy2 = f.y + Math.sin(head) * f.r;
+  if (u < 0.55) drawRot('rscythe', head + f.dir * Math.PI / 2, hx2, hy2, { scale: 1.6 }); // 刃先の大鎌
+  addLight(hx2, hy2, 50, '#ff3b5c', 0.9 * (1 - u)); addLight(f.x, f.y, f.r * 2.5, '#ff3b5c', 0.4 * (1 - u));
+};

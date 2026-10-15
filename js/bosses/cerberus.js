@@ -535,3 +535,39 @@ HAZ_DRAW.darkwave = (h, hx, hy, fade, hd) => {
   pCircle(gx, hx, hy, R, dimCol('#a66bff', 0.7 * f2), 2);
   addLight(h.x, h.y, R * 1.6, '#7a3ab0', 0.55 * f2);
 };
+// 影の猟犬の目: 画面の端の闇に赤い目が 2つ光る(予告ではないので暗闇の間も見える)
+BFX_DRAW.heyes = (f, fx, fy, u, bd) => {
+  const { t, sx, gx } = bd;
+  const k = Math.min(1, u * 4), fade = u > 0.85 ? (1 - u) / 0.15 : 1, on = Math.floor(t * 18 + f.x) % 6 ? 1 : 0.4;
+  for (const sd of [-1, 1]) {
+    const ex = Math.round(fx + sd * 2), ey = Math.round(fy);
+    sx.globalAlpha = k * fade * on; sx.fillStyle = '#ff3b5c'; sx.fillRect(ex - 1, ey, 2, 1); sx.fillStyle = '#ffd0d8'; sx.fillRect(ex, ey, 1, 1);
+    gx.globalAlpha = 1; gx.fillStyle = dimCol('#ff3b5c', 0.8 * k * fade * on); gx.fillRect(ex - 1, ey - 1, 3, 3);
+  }
+  sx.globalAlpha = 1;
+  addLight(f.x, f.y, 26, '#ff3b5c', 0.5 * k * fade);
+  return;
+};
+// 分裂: 首の色の光の筋が、体から犬の着地点へ走る
+BFX_DRAW.cstreak = (f, fx, fy, u, bd) => {
+  const { sx, gx } = bd;
+  const k = Math.min(1, u * 3), fade = 1 - u, x1 = fx + (f.tx - f.x) * k, y1 = fy + (f.ty - f.y) * k;
+  pLine(sx, fx, fy, x1, y1, f.col, Math.max(1, Math.round(3 * fade))); pLine(gx, fx, fy, x1, y1, dimCol(f.col, 0.6 * fade), 2);
+  addLight((f.x + f.tx) / 2, (f.y + f.ty) / 2, 40, f.col, 0.5 * fade);
+  return;
+};
+// 噛みつき(ケルベロス): 上下のあごが閉じる(黒いあごに白い牙)。閉じた瞬間に首の色の閃光
+BFX_DRAW.cbite = (f, fx, fy, u, bd) => {
+  const { sx, gx } = bd;
+  const k = Math.min(1, u / 0.35), gap = (1 - easeOutCubic(k)) * 9 + 1, c = Math.cos(f.a), s = Math.sin(f.a), fade = u < 0.5 ? 1 : 1 - (u - 0.5) / 0.5;
+  for (const sd of [-1, 1]) for (let i = -7; i <= 7; i++) {
+    const bend = (1 - (i * i) / 49) * gap * sd, px = fx + c * i - s * bend, py = fy + s * i + c * bend;
+    sx.globalAlpha = fade; sx.fillStyle = '#1e1428'; sx.fillRect(Math.round(px) - 1, Math.round(py) - 1, 3, 3);
+    if (i % 2 === 0) { sx.fillStyle = '#ffffff'; sx.fillRect(Math.round(px + s * sd * 2), Math.round(py - c * sd * 2), 1, 1); } // 牙はあごの内側
+  }
+  sx.globalAlpha = 1;
+  if (k >= 1 && u < 0.5) pDisc(gx, fx, fy, 5, dimCol(f.col, 0.7));
+  if (k >= 1 && !f.u0) { f.u0 = 1; fxGlint(f.x, f.y, 10, f.col, { foe: true, life: 0.18 }); } // 閉じた瞬間に1回だけ
+  addLight(f.x, f.y, 40, f.col, 0.6 * fade);
+  return;
+};

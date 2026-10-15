@@ -157,3 +157,22 @@ HAZ_DRAW.tide = (h, hx, hy, fade, hd) => {
   }
   addLight(h.x, h.y, R * 1.6, '#2a8ac8', 0.35 * fade);
 };
+// 海底が泡立つ(何かが出てくる場所): 広がる波紋と、湧き上がる泡
+BFX_DRAW.ripple = (f, fx, fy, u, bd) => {
+  const { gx, t, sx } = bd;
+  for (let j = 0; j < 3; j++) { const k = (u * 2 + j / 3) % 1; pCircle(gx, fx, fy, Math.round(4 + k * 18), k < 0.5 ? '#2a6a7a' : '#163a44'); }
+  for (let i = 0; i < 7; i++) { const a = hash2(i, 5) * TAU + t * 2, r = 12 * hash2(i, 9), y = Math.round(fy + Math.sin(a) * r * 0.6 - ((t * 20 + i * 3) % 6)); sx.fillStyle = '#bff4ff'; sx.fillRect(Math.round(fx + Math.cos(a) * r), y, 1, 1); }
+};
+// 絡め取り: クラーケンからプレイヤーへ伸びて巻きつく触手
+BFX_DRAW.grab = (f, fx, fy, u, bd) => {
+  const { t, sx } = bd;
+  const px = P.x - cam.x, py = P.y - cam.y, L = Math.hypot(px - fx, py - fy) || 1, nx = -(py - fy) / L, ny = (px - fx) / L, n = Math.max(4, Math.floor(L / 6));
+  let lx = fx, ly = fy;
+  for (let i = 1; i <= n; i++) {
+    const k = i / n, wv = Math.sin(k * 9 - t * 8) * 3 * Math.sin(k * Math.PI), x = fx + (px - fx) * k + nx * wv, y = fy + (py - fy) * k + ny * wv, w = Math.max(2, Math.round(5 - k * 3));
+    pLine(sx, lx, ly, x, y, '#3a0e24', w + 2); pLine(sx, lx, ly, x, y, '#8a2a4a', w);
+    if (i % 2) { sx.fillStyle = '#e89aaa'; sx.fillRect(Math.round(x), Math.round(y), 1, 1); }
+    lx = x; ly = y;
+  }
+  for (let i = 0; i < 3; i++) { const yy = Math.round(py - 3 + i * 3), sh = Math.round(Math.sin(t * 6 + i) * 1); sx.fillStyle = '#3a0e24'; sx.fillRect(Math.round(px - 6) + sh, yy - 1, 13, 4); sx.fillStyle = '#8a2a4a'; sx.fillRect(Math.round(px - 5) + sh, yy, 11, 2); sx.fillStyle = '#e89aaa'; sx.fillRect(Math.round(px - 3 + i * 2) + sh, yy, 1, 1); } // 巻きつき
+};

@@ -850,3 +850,53 @@ function drawSerWhiteout(t) {
     GFX.overOn = true;
   }
 }
+// セラフィムレイ: 太い光線(縁は七色、金の外側・白い芯)。撃った瞬間は予告より太く、細くなって消える。根元に光の十字
+BFX_DRAW.sray = (f, fx, fy, u, bd) => {
+  const { gx, sx, t } = bd;
+  const k = 1 - u, c = Math.cos(f.a), s = Math.sin(f.a), x1 = fx + c * f.len, y1 = fy + s * f.len, Wd = Math.max(1, Math.round(f.w * (0.5 + k))), nx = -s, ny = c;
+  pLine(gx, fx, fy, x1, y1, dimCol('#c8a050', 0.8 * k), Wd + 2);
+  for (const sd of [-1, 1]) for (let i = 0; i < 3; i++) { const off = (Wd / 2 + 1.5 + i) * sd; sx.globalAlpha = 0.75 * k; pLine(sx, fx + nx * off, fy + ny * off, x1 + nx * off, y1 + ny * off, PRISM[(i * 2 + (sd > 0 ? 0 : 1) + Math.floor(t * 20)) % 7]); }
+  sx.globalAlpha = 0.6 * k; pLine(sx, fx, fy, x1, y1, '#ffd23f', Wd + 2);
+  sx.globalAlpha = k; pLine(sx, fx, fy, x1, y1, '#fff6c8', Wd); pLine(sx, fx, fy, x1, y1, '#ffffff', Math.max(1, Wd - 4));
+  const st = Math.round(8 + 16 * k); sx.globalAlpha = k; pLine(sx, fx - st, fy, fx + st, fy, '#ffffff'); pLine(sx, fx, fy - st, fx, fy + st, '#ffffff'); pDisc(sx, x1, y1, Math.round(2 + 3 * k), '#ffffff');
+  sx.globalAlpha = 1; pDisc(gx, fx, fy, Math.round(3 + 4 * k), dimCol('#fff6dc', 0.7 * k));
+  for (let d = 0; d < f.len; d += 30) addLight(f.x + c * d, f.y + s * d, 36, '#fff2b8', 0.6 * k);
+  return;
+};
+// プリズムシフト: 消えた所から現れた所へ、七色の光の帯が走って消える
+BFX_DRAW.prismtrail = (f, fx, fy, u, bd) => {
+  const { sx, gx } = bd;
+  const k = 1 - u, x1 = f.x1 - cam.x, y1 = f.y1 - cam.y, L = Math.hypot(x1 - fx, y1 - fy) || 1, nx = -(y1 - fy) / L, ny = (x1 - fx) / L, hw = 3 * k + 1;
+  for (let i = 0; i < 7; i++) { const off = (i - 3) * hw / 3; sx.globalAlpha = 0.85 * k; pLine(sx, fx + nx * off, fy + ny * off, x1 + nx * off, y1 + ny * off, PRISM[i]); }
+  sx.globalAlpha = k; pLine(sx, fx, fy, x1, y1, '#ffffff');
+  sx.globalAlpha = 1; pLine(gx, fx, fy, x1, y1, dimCol('#c8b8ff', 0.6 * k), 3);
+  addLight((f.x + f.x1) / 2, (f.y + f.y1) / 2, Math.min(120, L * 0.6), '#d8c8ff', 0.5 * k);
+  return;
+};
+// プリズムバラージのクリスタル: 宙に浮かんで回る光の結晶。撃つ瞬間に白く光る。消えるときは砕ける
+BFX_DRAW.bcrystal = (f, fx, fy, u, bd) => {
+  const { t, sx, gx } = bd;
+  const app = easeOutBack(Math.min(1, f.t / 0.25)), out = clamp((f.life - f.t) / 0.15, 0, 1), bob = Math.sin(t * 4 + f.x * 0.1) * 1.5, ph = (f.t - 0.4) % 0.5, fire = f.t >= 0.4 && f.t < 2.4 && ph < 0.08;
+  ellBoth(sx, gx, fx, fy + 4, 10, 4, '#bff4ff', 0.5 * out, dimCol('#7ad7ff', 0.3 * out), 6, t * 2);
+  sx.globalAlpha = 1;
+  drawSp(ART.S.obj_scrystal, f.x, f.y - 8 + bob, { scale: Math.max(0.1, app * 1.4), alpha: out, white: fire });
+  for (let k = 0; k < 3; k++) { const a = t * 3 + TAU / 3 * k + f.x, x = Math.round(fx + Math.cos(a) * 10), y = Math.round(fy - 8 + bob + Math.sin(a) * 4); sx.globalAlpha = out; sx.fillStyle = PRISM[(k * 2 + Math.floor(t * 6)) % 7]; sx.fillRect(x, y, 1, 1); }
+  sx.globalAlpha = 1;
+  if (fire) { pLine(sx, fx - 9, fy - 8 + bob, fx + 9, fy - 8 + bob, '#ffffff'); pLine(sx, fx, fy - 17 + bob, fx, fy + 1 + bob, '#ffffff'); }
+  if (out < 1 && Math.random() < 0.6) part(f.x + rand(-4, 4), f.y - 8 + rand(-6, 6), rand(-60, 60), rand(-60, 20), 0.4, pick(['#bff4ff', '#ffffff', ...PRISM]), { glow: true, g: 120 }); // 砕ける
+  addLight(f.x, f.y - 8, fire ? 50 : 30, fire ? '#ffffff' : '#9fd8ff', fire ? 0.8 : 0.45);
+  return;
+};
+// トリニティサンクチュアリの回復: 残った巨大クリスタルから熾天使へ、緑と金の光が波打って流れこむ
+BFX_DRAW.healray = (f, fx, fy, u, bd) => {
+  const { t, sx, gx } = bd;
+  const k = 1 - u, x1 = f.x1 - cam.x, y1 = f.y1 - cam.y, L = Math.hypot(x1 - fx, y1 - fy) || 1, nx = -(y1 - fy) / L, ny = (x1 - fx) / L;
+  for (let j = 0; j < 3; j++) {
+    let px0 = fx, py0 = fy;
+    for (let i = 1; i <= 16; i++) { const v = i / 16, w = Math.sin(v * Math.PI) * Math.sin(v * 9 - t * 20 + j * 2.1) * 6, x = lerp(fx, x1, v) + nx * w, y = lerp(fy, y1, v) + ny * w; sx.globalAlpha = 0.85 * k; pLine(sx, px0, py0, x, y, j === 1 ? '#ffe8a0' : '#5dff8a'); pLine(gx, px0, py0, x, y, dimCol('#5dff8a', 0.5 * k), 2); px0 = x; py0 = y; }
+  }
+  for (let i = 0; i < 4; i++) { const v = (f.t * 2.5 + i / 4) % 1; sx.globalAlpha = k; pDisc(sx, lerp(fx, x1, v), lerp(fy, y1, v), 2, '#ffffff'); } // 流れこむ光の粒
+  sx.globalAlpha = 1;
+  addLight((f.x + f.x1) / 2, (f.y + f.y1) / 2, Math.min(120, L * 0.5), '#5dff8a', 0.5 * k);
+  return;
+};

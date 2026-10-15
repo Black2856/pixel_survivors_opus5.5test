@@ -116,3 +116,33 @@ HAZ_DRAW.quicksand = (h, hx, hy, fade, hd) => {
   if (on) { pCircle(sx, hx, hy, R, warnBlink ? '#ff3b1a' : '#ff8a3d'); pCircle(sx, hx, hy, RC, '#ff3b5c', 2); }
   sx.globalAlpha = 1;
 };
+// 砂潜り(大蠍): 盛り上がった砂が、出る所へ砂の中を進む
+BFX_DRAW.emound = (f, fx, fy, u, bd) => {
+  const k = easeOutCubic(Math.min(1, u)), x = lerp(f.x0, f.x1, k), y = lerp(f.y0, f.y1, k);
+  drawSp(ART.S.emound, x, y, {});
+  if (Math.random() < 0.6) part(x + rand(-10, 10), y + rand(-2, 2), rand(-15, 15), -rand(10, 30), 0.4, pick(['#e8c88a', '#c8a060', '#fff0c8']), { g: 120 });
+  return;
+};
+// 尾の針(大蠍): 砂から黒い尾が突き出し、琥珀色の針で突いて沈む
+BFX_DRAW.estab = (f, fx, fy, u, bd) => {
+  const { sx, gx } = bd;
+  const k = u < 0.3 ? u / 0.3 : Math.max(0, (1 - u) / 0.7), H = Math.round(18 * k), bx = Math.round(fx), by = Math.round(fy);
+  sx.fillStyle = '#16100c'; sx.fillRect(bx - 3, by, 7, 2);
+  for (let j = 0; j < H; j++) { const w = j < H - 4 ? 3 : 2; sx.fillStyle = j % 3 === 0 ? '#ffd27a' : j % 2 ? '#2e2622' : '#5e4c3c'; sx.fillRect(bx - (w >> 1), by - j, w, 1); }
+  if (H > 3) { sx.fillStyle = gx.fillStyle = '#ffb040'; sx.fillRect(bx - 1, by - H, 3, 2); gx.fillRect(bx - 1, by - H, 3, 2); sx.fillStyle = '#fff0c0'; sx.fillRect(bx, by - H - 2, 1, 2); }
+  return;
+};
+// はさみの挟撃(大蠍): 伸ばした腕の先のはさみが、プレイヤーを挟む
+BFX_DRAW.egrab = (f, fx, fy, u, bd) => {
+  const { sx } = bd;
+  const o = f.owner, ox = o.x - cam.x, oy = o.y - cam.y, px2 = P.x - cam.x, py2 = P.y - cam.y;
+  pLine(sx, ox, oy, px2, py2, '#16100c', 4); pLine(sx, ox, oy, px2, py2, '#2e2622', 2);
+  drawSp(ART.S.eclaw, P.x - (px2 < ox ? -6 : 6), P.y - 4, { flip: px2 < ox });
+  return;
+};
+// 大地の挟撃(大蠍): 左右の砂から大きなはさみが出て、中央へ閉じる。閉じたあと沈む
+BFX_DRAW.epinch = (f, fx, fy, u, bd) => {
+  const k = Math.min(1, f.t), rise = Math.min(1, f.t / 0.2, Math.max(0, (f.life - f.t) / 0.25)), off = f.D * (1 - k * k * k) + 8, ca = Math.cos(f.a), sa = Math.sin(f.a);
+  for (const s of [-1, 1]) { const x = f.x + ca * off * s, y = f.y + sa * off * s, toward = (f.x - x) > 0; if (rise > 0.05) drawSp(ART.S.eclaw, x, y + 4 - ART.S.eclaw.h / 2, { flip: !toward, sy: rise }); }
+  return;
+};

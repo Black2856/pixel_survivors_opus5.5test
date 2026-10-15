@@ -128,3 +128,26 @@ HAZ_DRAW.veil = (h, hx, hy, fade, hd) => {
   sx.globalAlpha = f2; pCircle(sx, hx, hy, R, warnBlink ? '#ff3b5c' : '#ffd0d8'); sx.globalAlpha = 1;
   pCircle(gx, hx, hy, R, '#5a1020');
 };
+// 雪華の輪舞: 円が回る軌道(点線の輪)と、中心の雪の結晶
+BFX_DRAW.dance = (f, fx, fy, u, bd) => {
+  const { t, sx } = bd;
+  const R = DANCE_R, fade = Math.min(1, (f.life - f.t) * 3, f.t * 4), n = 40;
+  for (let i = 0; i < n; i++) { if ((i + Math.floor(t * 8)) % 2) continue; const a = TAU / n * i; sx.globalAlpha = 0.6 * fade; sx.fillStyle = '#d8f0ff'; sx.fillRect(Math.round(fx + Math.cos(a) * R), Math.round(fy + Math.sin(a) * R), 1, 1); }
+  sx.globalAlpha = fade; drawSp(ART.S.flake, f.x, f.y, { alpha: fade }); sx.globalAlpha = 1;
+};
+// 氷柱の墓標の氷柱: 女王の頭上から空へ飛ぶ(up)/ 空から落ちてくる(down)
+BFX_DRAW.skyspear = (f, fx, fy, u, bd) => {
+  const H = 200, y = f.up ? f.y - 10 - H * u * u : f.y - 18 - H * (1 - u) * (1 - u);
+  drawSp(f.up ? ART.S.icespireUp : ART.S.obj_tomb, f.x, y, { alpha: f.up ? Math.max(0, 1 - u * 0.6) : 1 });
+  addLight(f.x, y, 50, '#bff4ff', 0.8);
+  if (Math.random() < 0.6) part(f.x + rand(-3, 3), y + (f.up ? 12 : -12), 0, f.up ? 30 : -30, 0.3, pick(['#ffffff', '#bff4ff']), { glow: true, drag: 2 }); // 尾を引く冷気
+};
+// 吹雪の帳の予告: 画面の縁が白く凍りはじめる
+BFX_DRAW.veilwarn = (f, fx, fy, u, bd) => {
+  const { t, sx } = bd;
+  const VW = GFX.VW, VH = GFX.VH, bw = Math.round(6 + 10 * u), on = Math.floor(t * 8) % 2;
+  sx.globalAlpha = (on ? 0.55 : 0.35); sx.fillStyle = '#e8f4ff';
+  sx.fillRect(0, 0, VW, bw); sx.fillRect(0, VH - bw, VW, bw); sx.fillRect(0, bw, bw, VH - bw * 2); sx.fillRect(VW - bw, bw, bw, VH - bw * 2);
+  sx.globalAlpha = 1; sx.fillStyle = on ? '#ff3b5c' : '#ffd0d8';
+  sx.fillRect(bw, bw, VW - bw * 2, 1); sx.fillRect(bw, VH - bw - 1, VW - bw * 2, 1); sx.fillRect(bw, bw, 1, VH - bw * 2); sx.fillRect(VW - bw - 1, bw, 1, VH - bw * 2);
+};

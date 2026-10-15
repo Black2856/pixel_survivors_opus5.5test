@@ -2239,64 +2239,18 @@ function drawTwinLinks() {
 }
 function drawBfx() {
   const sx = GFX.sctx, gx = GFX.gctx, t = GFX.fx.time;
+  const bd = { t, sx, gx }; // BFX_DRAW に渡す drawBfx のローカル
   for (const f of bfx) {
     const fx = f.x - cam.x, fy = f.y - cam.y, u = f.t / f.life;
+    // ボスの演出の描き方は、そのボスのファイルの BFX_DRAW.<種類>(bosses/common.js)。ここは共有する種類(敵も出す物・複数のボス)
+    const bf = BFX_DRAW[f.kind];
+    if (bf) { bf(f, fx, fy, u, bd); continue; }
     if (f.kind === 'rootspike') { // 突き上げる根(樹人・古樹の主): 地面から尖った根が伸び、少しして沈む
       const k = u < 0.18 ? u / 0.18 : u > 0.7 ? Math.max(0, (1 - u) / 0.3) : 1, H = Math.round(f.h * k), bx = Math.round(fx), by = Math.round(fy);
       if (H >= 1) {
         sx.fillStyle = '#1a1008'; sx.fillRect(bx - 2, by + 1, 5, 1);
         for (let j = 0; j < H; j++) { const w = j < H * 0.4 ? 3 : j < H * 0.75 ? 2 : 1; sx.fillStyle = j === H - 1 ? '#c8a060' : j % 3 === 0 ? '#3a2410' : '#6a4424'; sx.fillRect(bx - (w >> 1), by - j, w, 1); }
       }
-      continue;
-    }
-    if (f.kind === 'fujin') { // 風神の幻(雷神の激昂): 風上に半透明の風神が浮かび、風の筋が画面を流れる
-      const ca = Math.cos(f.a), sa = Math.sin(f.a), k = Math.max(0, Math.min(1, f.t / 0.4, (f.life - f.t) / 0.4));
-      drawSp(ART.S.fujin, P.x - ca * 120, P.y - sa * 80 - 20 + Math.sin(t * 2) * 3, { alpha: 0.6 * k, emit: false });
-      sx.globalAlpha = 0.5 * k;
-      for (let i = 0; i < 30; i++) { const u = ((hash2(i, 3) * 2 - 1) * 300 + t * 200) % 300, v = (hash2(i, 7) * 2 - 1) * 170, x = P.x - cam.x + ca * u - sa * v, y = P.y - cam.y + sa * u + ca * v; pLine(sx, x, y, x - ca * 14, y - sa * 14, '#c8f0d8'); } // 風の筋
-      sx.globalAlpha = 1;
-      continue;
-    }
-    if (f.kind === 'sray') { // セラフィムレイ: 太い光線(縁は七色、金の外側・白い芯)。撃った瞬間は予告より太く、細くなって消える。根元に光の十字
-      const k = 1 - u, c = Math.cos(f.a), s = Math.sin(f.a), x1 = fx + c * f.len, y1 = fy + s * f.len, Wd = Math.max(1, Math.round(f.w * (0.5 + k))), nx = -s, ny = c;
-      pLine(gx, fx, fy, x1, y1, dimCol('#c8a050', 0.8 * k), Wd + 2);
-      for (const sd of [-1, 1]) for (let i = 0; i < 3; i++) { const off = (Wd / 2 + 1.5 + i) * sd; sx.globalAlpha = 0.75 * k; pLine(sx, fx + nx * off, fy + ny * off, x1 + nx * off, y1 + ny * off, PRISM[(i * 2 + (sd > 0 ? 0 : 1) + Math.floor(t * 20)) % 7]); }
-      sx.globalAlpha = 0.6 * k; pLine(sx, fx, fy, x1, y1, '#ffd23f', Wd + 2);
-      sx.globalAlpha = k; pLine(sx, fx, fy, x1, y1, '#fff6c8', Wd); pLine(sx, fx, fy, x1, y1, '#ffffff', Math.max(1, Wd - 4));
-      const st = Math.round(8 + 16 * k); sx.globalAlpha = k; pLine(sx, fx - st, fy, fx + st, fy, '#ffffff'); pLine(sx, fx, fy - st, fx, fy + st, '#ffffff'); pDisc(sx, x1, y1, Math.round(2 + 3 * k), '#ffffff');
-      sx.globalAlpha = 1; pDisc(gx, fx, fy, Math.round(3 + 4 * k), dimCol('#fff6dc', 0.7 * k));
-      for (let d = 0; d < f.len; d += 30) addLight(f.x + c * d, f.y + s * d, 36, '#fff2b8', 0.6 * k);
-      continue;
-    }
-    if (f.kind === 'prismtrail') { // プリズムシフト: 消えた所から現れた所へ、七色の光の帯が走って消える
-      const k = 1 - u, x1 = f.x1 - cam.x, y1 = f.y1 - cam.y, L = Math.hypot(x1 - fx, y1 - fy) || 1, nx = -(y1 - fy) / L, ny = (x1 - fx) / L, hw = 3 * k + 1;
-      for (let i = 0; i < 7; i++) { const off = (i - 3) * hw / 3; sx.globalAlpha = 0.85 * k; pLine(sx, fx + nx * off, fy + ny * off, x1 + nx * off, y1 + ny * off, PRISM[i]); }
-      sx.globalAlpha = k; pLine(sx, fx, fy, x1, y1, '#ffffff');
-      sx.globalAlpha = 1; pLine(gx, fx, fy, x1, y1, dimCol('#c8b8ff', 0.6 * k), 3);
-      addLight((f.x + f.x1) / 2, (f.y + f.y1) / 2, Math.min(120, L * 0.6), '#d8c8ff', 0.5 * k);
-      continue;
-    }
-    if (f.kind === 'bcrystal') { // プリズムバラージのクリスタル: 宙に浮かんで回る光の結晶。撃つ瞬間に白く光る。消えるときは砕ける
-      const app = easeOutBack(Math.min(1, f.t / 0.25)), out = clamp((f.life - f.t) / 0.15, 0, 1), bob = Math.sin(t * 4 + f.x * 0.1) * 1.5, ph = (f.t - 0.4) % 0.5, fire = f.t >= 0.4 && f.t < 2.4 && ph < 0.08;
-      ellBoth(sx, gx, fx, fy + 4, 10, 4, '#bff4ff', 0.5 * out, dimCol('#7ad7ff', 0.3 * out), 6, t * 2);
-      sx.globalAlpha = 1;
-      drawSp(ART.S.obj_scrystal, f.x, f.y - 8 + bob, { scale: Math.max(0.1, app * 1.4), alpha: out, white: fire });
-      for (let k = 0; k < 3; k++) { const a = t * 3 + TAU / 3 * k + f.x, x = Math.round(fx + Math.cos(a) * 10), y = Math.round(fy - 8 + bob + Math.sin(a) * 4); sx.globalAlpha = out; sx.fillStyle = PRISM[(k * 2 + Math.floor(t * 6)) % 7]; sx.fillRect(x, y, 1, 1); }
-      sx.globalAlpha = 1;
-      if (fire) { pLine(sx, fx - 9, fy - 8 + bob, fx + 9, fy - 8 + bob, '#ffffff'); pLine(sx, fx, fy - 17 + bob, fx, fy + 1 + bob, '#ffffff'); }
-      if (out < 1 && Math.random() < 0.6) part(f.x + rand(-4, 4), f.y - 8 + rand(-6, 6), rand(-60, 60), rand(-60, 20), 0.4, pick(['#bff4ff', '#ffffff', ...PRISM]), { glow: true, g: 120 }); // 砕ける
-      addLight(f.x, f.y - 8, fire ? 50 : 30, fire ? '#ffffff' : '#9fd8ff', fire ? 0.8 : 0.45);
-      continue;
-    }
-    if (f.kind === 'healray') { // トリニティサンクチュアリの回復: 残った巨大クリスタルから熾天使へ、緑と金の光が波打って流れこむ
-      const k = 1 - u, x1 = f.x1 - cam.x, y1 = f.y1 - cam.y, L = Math.hypot(x1 - fx, y1 - fy) || 1, nx = -(y1 - fy) / L, ny = (x1 - fx) / L;
-      for (let j = 0; j < 3; j++) {
-        let px0 = fx, py0 = fy;
-        for (let i = 1; i <= 16; i++) { const v = i / 16, w = Math.sin(v * Math.PI) * Math.sin(v * 9 - t * 20 + j * 2.1) * 6, x = lerp(fx, x1, v) + nx * w, y = lerp(fy, y1, v) + ny * w; sx.globalAlpha = 0.85 * k; pLine(sx, px0, py0, x, y, j === 1 ? '#ffe8a0' : '#5dff8a'); pLine(gx, px0, py0, x, y, dimCol('#5dff8a', 0.5 * k), 2); px0 = x; py0 = y; }
-      }
-      for (let i = 0; i < 4; i++) { const v = (f.t * 2.5 + i / 4) % 1; sx.globalAlpha = k; pDisc(sx, lerp(fx, x1, v), lerp(fy, y1, v), 2, '#ffffff'); } // 流れこむ光の粒
-      sx.globalAlpha = 1;
-      addLight((f.x + f.x1) / 2, (f.y + f.y1) / 2, Math.min(120, L * 0.5), '#5dff8a', 0.5 * k);
       continue;
     }
     if (f.kind === 'hbeam') { // ホーリーメイジの光のビーム: 太い白金の光線が一瞬で走り、細くなって消える(芯は白、縁は金。光の層は暗い金)
@@ -2325,188 +2279,13 @@ function drawBfx() {
       addLight(f.x1, f.y1, 40, '#9a7aff', 0.6 * k);
       continue;
     }
-    if (f.kind === 'emound') { // 砂潜り(大蠍): 盛り上がった砂が、出る所へ砂の中を進む
-      const k = easeOutCubic(Math.min(1, u)), x = lerp(f.x0, f.x1, k), y = lerp(f.y0, f.y1, k);
-      drawSp(ART.S.emound, x, y, {});
-      if (Math.random() < 0.6) part(x + rand(-10, 10), y + rand(-2, 2), rand(-15, 15), -rand(10, 30), 0.4, pick(['#e8c88a', '#c8a060', '#fff0c8']), { g: 120 });
-      continue;
-    }
-    if (f.kind === 'estab') { // 尾の針(大蠍): 砂から黒い尾が突き出し、琥珀色の針で突いて沈む
-      const k = u < 0.3 ? u / 0.3 : Math.max(0, (1 - u) / 0.7), H = Math.round(18 * k), bx = Math.round(fx), by = Math.round(fy);
-      sx.fillStyle = '#16100c'; sx.fillRect(bx - 3, by, 7, 2);
-      for (let j = 0; j < H; j++) { const w = j < H - 4 ? 3 : 2; sx.fillStyle = j % 3 === 0 ? '#ffd27a' : j % 2 ? '#2e2622' : '#5e4c3c'; sx.fillRect(bx - (w >> 1), by - j, w, 1); }
-      if (H > 3) { sx.fillStyle = gx.fillStyle = '#ffb040'; sx.fillRect(bx - 1, by - H, 3, 2); gx.fillRect(bx - 1, by - H, 3, 2); sx.fillStyle = '#fff0c0'; sx.fillRect(bx, by - H - 2, 1, 2); }
-      continue;
-    }
-    if (f.kind === 'egrab') { // はさみの挟撃(大蠍): 伸ばした腕の先のはさみが、プレイヤーを挟む
-      const o = f.owner, ox = o.x - cam.x, oy = o.y - cam.y, px2 = P.x - cam.x, py2 = P.y - cam.y;
-      pLine(sx, ox, oy, px2, py2, '#16100c', 4); pLine(sx, ox, oy, px2, py2, '#2e2622', 2);
-      drawSp(ART.S.eclaw, P.x - (px2 < ox ? -6 : 6), P.y - 4, { flip: px2 < ox });
-      continue;
-    }
-    if (f.kind === 'epinch') { // 大地の挟撃(大蠍): 左右の砂から大きなはさみが出て、中央へ閉じる。閉じたあと沈む
-      const k = Math.min(1, f.t), rise = Math.min(1, f.t / 0.2, Math.max(0, (f.life - f.t) / 0.25)), off = f.D * (1 - k * k * k) + 8, ca = Math.cos(f.a), sa = Math.sin(f.a);
-      for (const s of [-1, 1]) { const x = f.x + ca * off * s, y = f.y + sa * off * s, toward = (f.x - x) > 0; if (rise > 0.05) drawSp(ART.S.eclaw, x, y + 4 - ART.S.eclaw.h / 2, { flip: !toward, sy: rise }); }
-      continue;
-    }
-    if (f.kind === 'rootline') { // 根の波: 地中を進む根(盛り上がった土の線が、古樹から予告の円へ伸びる)
-      const L = Math.hypot(f.x1 - f.x, f.y1 - f.y), k = Math.min(1, u * 1.1), n = Math.max(1, Math.floor(L * k / 3));
-      for (let i = 0; i <= n; i++) {
-        const v = i * 3 / L, x = Math.round(lerp(f.x, f.x1, v) - cam.x + Math.sin(i * 1.7 + f.x) * 1.2), y = Math.round(lerp(f.y, f.y1, v) - cam.y);
-        sx.fillStyle = '#3a2410'; sx.fillRect(x - 1, y, 3, 1); sx.fillStyle = i === n ? '#c8a060' : '#6a4424'; sx.fillRect(x, y - 1, 1, 1);
-      }
-      if (k < 1 && Math.random() < 0.5) part(lerp(f.x, f.x1, k), lerp(f.y, f.y1, k), rand(-10, 10), -rand(10, 30), 0.35, pick(['#3a2410', '#6a4424', '#5a3a1a']), { g: 120 }); // 先端で土が跳ねる
-      continue;
-    }
-    if (f.kind === 'portal') { // 影喚び: 床に影の門が開く(黒い楕円が広がり、紫のルーンが回る)→ 影が出ると閉じる
-      const k = Math.min(1, f.t / 0.5), close = f.t > 1.25 ? Math.max(0, 1 - (f.t - 1.25) / 0.45) : 1, R = f.r * easeOutCubic(k) * close;
-      if (R >= 1) {
-        sx.globalAlpha = 0.85; sx.fillStyle = '#06030c'; sx.beginPath(); sx.ellipse(fx, fy, R, R * 0.45, 0, 0, TAU); sx.fill(); sx.globalAlpha = 1;
-        ellBoth(sx, gx, fx, fy, R, R * 0.45, '#a66bff', 0.9, dimCol('#a66bff', 0.6));
-        ellBoth(sx, gx, fx, fy, R * 0.7, R * 0.32, '#7a3ab0', 0.8, dimCol('#7a3ab0', 0.4), 12, t * 2);
-        for (let i = 0; i < 8; i++) { const a = t * 1.5 + TAU / 8 * i, px = Math.round(fx + Math.cos(a) * R * 0.85), py = Math.round(fy + Math.sin(a) * R * 0.38); sx.fillStyle = '#e8c8ff'; sx.fillRect(px, py - 1, 1, 3); sx.fillRect(px - 1, py, 3, 1); gx.fillStyle = '#4a1a7a'; gx.fillRect(px, py, 1, 1); } // ルーン
-        for (let k2 = 0; k2 < 3; k2++) part(f.x + rand(-R, R) * 0.8, f.y + rand(-R, R) * 0.3, rand(-6, 6), -rand(20, 60), rand(0.4, 0.8), pick(['#0a0612', '#2a1240', '#7a3ab0']), { drag: 1, sz: pick([1, 2]) }); // 門から闇が立ちのぼる
-        addLight(f.x, f.y, R * 3, '#7a3ab0', 0.7 * close);
-      }
-      continue;
-    }
-    if (f.kind === 'spool') { // 影歩: 影だまり(沈む = 縮んで消える / 出る = 広がって脈打つ)
-      const k = f.sink ? 1 - u : Math.min(1, u * 2), R = 4 + 9 * k;
-      sx.globalAlpha = 0.85 * (f.sink ? 1 : Math.min(1, (1 - u) * 3)); sx.fillStyle = '#06030c'; sx.beginPath(); sx.ellipse(fx, fy + 4, R, R * 0.45, 0, 0, TAU); sx.fill(); sx.globalAlpha = 1;
-      ellBoth(sx, gx, fx, fy + 4, R, R * 0.45, '#a66bff', 0.8, dimCol('#a66bff', 0.5));
-      continue;
-    }
-    if (f.kind === 'skaura') { // 影の三重輪の構え: 足元から闇が渦を巻いて広がる
-      const R = f.r * Math.min(1, u * 1.6);
-      for (let i = 0; i < 3; i++) ellBoth(sx, gx, fx, fy + 2, R * (0.4 + 0.3 * i), R * (0.4 + 0.3 * i) * 0.9, i % 2 ? '#7a3ab0' : '#a66bff', 0.5, dimCol('#7a3ab0', 0.3), 10 + i * 4, t * (2 + i) * (i % 2 ? -1 : 1));
-      if (Math.random() < 0.6) { const a = rand(0, TAU), r = rand(0.3, 1) * R; part(f.x + Math.cos(a) * r, f.y + Math.sin(a) * r, -Math.sin(a) * 40, Math.cos(a) * 40 - 10, 0.5, pick(SKC.slice(0, 4)), { glow: Math.random() < 0.3, drag: 1 }); }
-      addLight(f.x, f.y, R * 1.6, '#7a3ab0', 0.5);
-      continue;
-    }
-    if (f.kind === 'skring') { // 影の三重輪の炸裂: 輪の形に闇が噴き上がり、縁が光る
-      const fade = 1 - u, R0 = f.r0, R1 = f.r1;
-      sx.globalAlpha = 0.5 * fade; sx.fillStyle = '#2a1240'; sx.beginPath(); sx.arc(fx, fy, R1, 0, TAU); if (R0 > 0) sx.arc(fx, fy, R0, 0, TAU, true); sx.fill('evenodd'); sx.globalAlpha = 1;
-      sx.globalAlpha = fade; pCircle(sx, fx, fy, Math.round(R1), '#e8c8ff'); if (R0 > 0) pCircle(sx, fx, fy, Math.round(R0), '#a66bff'); sx.globalAlpha = 1;
-      pCircle(gx, fx, fy, Math.round(R1), dimCol('#a66bff', 0.7 * fade), 2);
-      if (R0 > 0) { const Rm = (R0 + R1) / 2; for (let k = 0; k < 8; k++) addLight(f.x + Math.cos(TAU / 8 * k) * Rm, f.y + Math.sin(TAU / 8 * k) * Rm, (R1 - R0) * 0.9, '#a66bff', 0.55 * fade); } // 外の輪: 輪のところだけ照らす(中の安全な所は暗いまま)
-      else addLight(f.x, f.y, R1 * 1.3, '#a66bff', 0.7 * fade);
-      continue;
-    }
-    if (f.kind === 'sever') { // 断界: 一瞬で伸びる終わりのない斬撃(白い芯・紫の光・黒い縁)
-      const c = Math.cos(f.a), s = Math.sin(f.a), x1 = fx + c * f.len, y1 = fy + s * f.len, fade = 1 - u, w = Math.max(1, Math.round(6 * fade));
-      pLine(sx, fx, fy, x1, y1, '#06030c', w + 4); pLine(sx, fx, fy, x1, y1, '#a66bff', w + 2); pLine(sx, fx, fy, x1, y1, '#ffffff', w);
-      pLine(gx, fx, fy, x1, y1, dimCol('#a66bff', 0.8 * fade), w + 2);
-      for (let d = 0; d < Math.min(f.len, 600); d += 50) addLight(f.x + c * d, f.y + s * d, 80, '#a66bff', 0.9 * fade);
-      continue;
-    }
-    if (f.kind === 'heyes') { // 影の猟犬の目: 画面の端の闇に赤い目が 2つ光る(予告ではないので暗闇の間も見える)
-      const k = Math.min(1, u * 4), fade = u > 0.85 ? (1 - u) / 0.15 : 1, on = Math.floor(t * 18 + f.x) % 6 ? 1 : 0.4;
-      for (const sd of [-1, 1]) {
-        const ex = Math.round(fx + sd * 2), ey = Math.round(fy);
-        sx.globalAlpha = k * fade * on; sx.fillStyle = '#ff3b5c'; sx.fillRect(ex - 1, ey, 2, 1); sx.fillStyle = '#ffd0d8'; sx.fillRect(ex, ey, 1, 1);
-        gx.globalAlpha = 1; gx.fillStyle = dimCol('#ff3b5c', 0.8 * k * fade * on); gx.fillRect(ex - 1, ey - 1, 3, 3);
-      }
-      sx.globalAlpha = 1;
-      addLight(f.x, f.y, 26, '#ff3b5c', 0.5 * k * fade);
-      continue;
-    }
-    if (f.kind === 'cstreak') { // 分裂: 首の色の光の筋が、体から犬の着地点へ走る
-      const k = Math.min(1, u * 3), fade = 1 - u, x1 = fx + (f.tx - f.x) * k, y1 = fy + (f.ty - f.y) * k;
-      pLine(sx, fx, fy, x1, y1, f.col, Math.max(1, Math.round(3 * fade))); pLine(gx, fx, fy, x1, y1, dimCol(f.col, 0.6 * fade), 2);
-      addLight((f.x + f.tx) / 2, (f.y + f.ty) / 2, 40, f.col, 0.5 * fade);
-      continue;
-    }
     if (f.kind === 'ghost') { // 残像(ケルベロスの突進・影の王の影歩): 体の形を単色で、すぐ消える
       const s0 = ART.S[f.spr], sp = Array.isArray(s0) ? s0[0] : s0, img = ART.tint(f.flip ? ART.variant(sp, 'flip') : sp.c, f.col);
       sx.globalAlpha = 0.5 * (1 - u); sx.drawImage(img, Math.round(fx - sp.w / 2), Math.round(fy - sp.h / 2)); sx.globalAlpha = 1;
       gx.globalAlpha = 1; gx.drawImage(ART.tint(f.flip ? ART.variant(sp, 'flip') : sp.c, dimCol(f.col, 0.25 * (1 - u))), Math.round(fx - sp.w / 2), Math.round(fy - sp.h / 2));
       continue;
     }
-    if (f.kind === 'cbite') { // 噛みつき(ケルベロス): 上下のあごが閉じる(黒いあごに白い牙)。閉じた瞬間に首の色の閃光
-      const k = Math.min(1, u / 0.35), gap = (1 - easeOutCubic(k)) * 9 + 1, c = Math.cos(f.a), s = Math.sin(f.a), fade = u < 0.5 ? 1 : 1 - (u - 0.5) / 0.5;
-      for (const sd of [-1, 1]) for (let i = -7; i <= 7; i++) {
-        const bend = (1 - (i * i) / 49) * gap * sd, px = fx + c * i - s * bend, py = fy + s * i + c * bend;
-        sx.globalAlpha = fade; sx.fillStyle = '#1e1428'; sx.fillRect(Math.round(px) - 1, Math.round(py) - 1, 3, 3);
-        if (i % 2 === 0) { sx.fillStyle = '#ffffff'; sx.fillRect(Math.round(px + s * sd * 2), Math.round(py - c * sd * 2), 1, 1); } // 牙はあごの内側
-      }
-      sx.globalAlpha = 1;
-      if (k >= 1 && u < 0.5) pDisc(gx, fx, fy, 5, dimCol(f.col, 0.7));
-      if (k >= 1 && !f.u0) { f.u0 = 1; fxGlint(f.x, f.y, 10, f.col, { foe: true, life: 0.18 }); } // 閉じた瞬間に1回だけ
-      addLight(f.x, f.y, 40, f.col, 0.6 * fade);
-      continue;
-    }
-    if (f.kind === 'grave') { // 死者の手の印: 印の中で土がうごめき、小さな墓標が立つ
-      for (let i = 0; i < 9; i++) {
-        const a = hash2(i, 3) * TAU + Math.sin(t * 6 + i) * 0.4, r = (0.2 + 0.55 * hash2(i, 5)) * 16;
-        sx.fillStyle = i % 2 ? '#3a2a1a' : '#6a5038'; sx.fillRect(Math.round(fx + Math.cos(a) * r), Math.round(fy + Math.sin(a) * r * 0.7), 2, 1);
-      }
-      const bx = Math.round(fx), by = Math.round(fy) + Math.round(Math.sin(t * 9) * 0.6);
-      sx.fillStyle = '#3a2a1a'; sx.fillRect(bx - 1, by - 5, 3, 7); sx.fillRect(bx - 2, by - 4, 5, 3);
-      sx.fillStyle = '#b8b098'; sx.fillRect(bx, by - 4, 1, 5); sx.fillRect(bx - 1, by - 3, 3, 1);
-      gx.fillStyle = '#2a3a14'; gx.fillRect(bx, by - 4, 1, 5); // うっすら緑に光る(光の層は暗い色で)
-    } else if (f.kind === 'hands') { // 死者の手: 骨の手が地面から突き出て、沈んでいく
-      for (let i = 0; i < 6; i++) {
-        const a = hash2(i, f.seed) * TAU, r = Math.sqrt(hash2(i + 9, f.seed)) * f.r * 0.85;
-        const hx = Math.round(fx + Math.cos(a) * r), hy = Math.round(fy + Math.sin(a) * r * 0.75);
-        const k = u < 0.15 ? u / 0.15 : u > 0.6 ? Math.max(0, 1 - (u - 0.6) / 0.4) : 1, h = Math.round(9 * k * (0.75 + 0.5 * hash2(i + 3, f.seed)));
-        sx.fillStyle = '#5a4030'; sx.fillRect(hx - 2, hy, 5, 1); sx.fillRect(hx - 1, hy - 1, 3, 1); // 盛り上がった土
-        if (h <= 0) continue;
-        sx.fillStyle = '#1e1414'; sx.fillRect(hx - 1, hy - h - 2, 3, h + 2);
-        sx.fillStyle = '#e8e0c0'; sx.fillRect(hx, hy - h, 1, h);
-        if (h > 3) { sx.fillRect(hx - 1, hy - h - 1, 1, 1); sx.fillRect(hx + 1, hy - h - 1, 1, 1); sx.fillRect(hx, hy - h - 2, 1, 1); } // 指
-      }
-      addLight(f.x, f.y, f.r * 2.2, '#b8d86a', 0.5 * (1 - u));
-    } else if (f.kind === 'crack') { // 地割れ: 地面の裂け目が前へ走り(赤熱)、噴き出したあと冷えて消える
-      const grow = Math.min(1, f.t / f.T), L = f.len * grow, c = Math.cos(f.a), s = Math.sin(f.a), nx = -s, ny = c;
-      const erupt = f.t >= f.T + 0.2, fade = erupt ? Math.max(0, 1 - (f.t - f.T - 0.2) / 0.7) : 1;
-      const gcol = !erupt ? (Math.floor(t * 12) % 2 ? '#7a3008' : '#4a1e06') : fade > 0.66 ? '#ffb347' : fade > 0.33 ? '#8a5a1a' : '#3a2008'; // 光の層は色で明るさが決まる
-      let px = fx, py = fy;
-      for (let d = 3; d <= L; d += 3) {
-        const j = (hash2(Math.floor(d / 3), f.seed) - 0.5) * 4, qx = fx + c * d + nx * j, qy = fy + s * d + ny * j;
-        sx.globalAlpha = fade; pLine(sx, px, py, qx, qy, '#1a1008', 2); sx.globalAlpha = 1;
-        pLine(gx, px, py, qx, qy, gcol, 1);
-        if (hash2(Math.floor(d / 3) + 77, f.seed) < 0.25) { const bj = (hash2(Math.floor(d / 3) + 5, f.seed) - 0.5) * 2; sx.globalAlpha = fade; pLine(sx, qx, qy, qx + nx * bj * 5 + c * 2, qy + ny * bj * 5 + s * 2, '#1a1008', 1); sx.globalAlpha = 1; } // 枝分かれ
-        px = qx; py = qy;
-      }
-      if (!erupt) { sx.fillStyle = '#ffb347'; sx.fillRect(Math.round(px), Math.round(py), 2, 2); addLight(f.x + c * L, f.y + s * L, 40, '#ff8a3d', 0.8); } // 走る先端
-      else if (fade > 0) addLight(f.x + c * f.len / 2, f.y + s * f.len / 2, f.len * 0.8, '#ffb347', fade);
-    } else if (f.kind === 'trail') { // 残像の突進の経路: 光の線が残り、残像が走り抜けると消えていく
-      const fade = Math.min(1, (f.life - f.t) * 3);
-      f.segs.forEach((g, i) => {
-        const x0 = g.x0 - cam.x, y0 = g.y0 - cam.y, x1 = g.x1 - cam.x, y1 = g.y1 - cam.y, c = PRISM[(i * 2 + Math.floor(t * 10)) % 7];
-        sx.globalAlpha = 0.7 * fade; pLine(sx, x0, y0, x1, y1, c, 1); sx.globalAlpha = 1;
-        pLine(gx, x0, y0, x1, y1, fade > 0.5 ? '#5a3a8a' : '#2a1a4a', 1);
-      });
-    } else if (f.kind === 'spike') { // 晶棘: 地面から結晶の棘が突き出て、砕けて沈む
-      const k = u < 0.12 ? u / 0.12 : u > 0.6 ? Math.max(0, 1 - (u - 0.6) / 0.4) : 1, H = Math.round(14 * k), c = PRISM[f.ci], x0 = Math.round(fx), y0 = Math.round(fy);
-      for (let j = 0; j < H; j++) { const w = Math.max(1, Math.round((H - j) / H * 3)); sx.fillStyle = j > H - 3 ? '#ffffff' : c; sx.fillRect(x0 - w, y0 - j, w * 2 + 1, 1); if (j > H / 2) { gx.fillStyle = c; gx.fillRect(x0, y0 - j, 1, 1); } }
-      for (let i = 0; i < 2; i++) { const sxp = x0 + (i ? 4 : -5), H2 = Math.round(H * 0.6); for (let j = 0; j < H2; j++) { sx.fillStyle = j > H2 - 2 ? '#ffffff' : c; sx.fillRect(sxp, y0 - j, 1, 1); } } // 脇の小さな棘
-      sx.fillStyle = '#0c0913'; sx.fillRect(x0 - 5, y0 + 1, 11, 1);
-      addLight(f.x, f.y - 6, 40, c, 0.8 * k);
-    } else if (f.kind === 'rbeam') { // 反射光線: 鏡で折れる七色の光線(白い芯)。折れる所が白く光る
-      const fl = Math.floor(t * 30) % 2, k = 1 - u;
-      for (let i = 0; i + 1 < f.pts.length; i++) {
-        const A = f.pts[i], B = f.pts[i + 1], x0 = A.x - cam.x, y0 = A.y - cam.y, x1 = B.x - cam.x, y1 = B.y - cam.y, c = PRISM[(i * 2 + Math.floor(t * 10)) % 7];
-        pLine(gx, x0, y0, x1, y1, c, Math.max(1, Math.round((2 + fl) * k + 1))); // 光は細く(太いと白く飛んで色が見えない)
-        pLine(sx, x0, y0, x1, y1, c, Math.max(1, Math.round(f.w * 0.7 * k + 1)));
-        pLine(sx, x0, y0, x1, y1, '#ffffff', 1);
-        const L = Math.hypot(B.x - A.x, B.y - A.y);
-        for (let r = 20; r < L; r += 50) addLight(A.x + (B.x - A.x) * r / L, A.y + (B.y - A.y) * r / L, 40, c, 0.5 * k);
-      }
-      for (const p of f.pts.slice(1, -1)) addLight(p.x, p.y, 60, '#ffffff', 0.8 * k);
-    } else if (f.kind === 'chain') { // 灼熱の鎖: 飛んでいく鎖 / つながった鎖(イフリートとプレイヤーの間。輪が流れる)
-      const tx = f.hold ? P.x - cam.x : fx + Math.cos(f.a) * f.len * Math.min(1, u * 1.6), ty = f.hold ? P.y - cam.y : fy + Math.sin(f.a) * f.len * Math.min(1, u * 1.6);
-      const L = Math.hypot(tx - fx, ty - fy), n = Math.floor(L / 4);
-      for (let i = 0; i <= n; i++) {
-        const k = i / Math.max(1, n), x = Math.round(fx + (tx - fx) * k), y = Math.round(fy + (ty - fy) * k), lit = (i + Math.floor(t * 20)) % 3 === 0;
-        sx.fillStyle = lit ? '#ffc34a' : '#a8381a'; sx.fillRect(x - 1, y, 3, 1); sx.fillRect(x, y - 1, 1, 3);
-        gx.fillStyle = lit ? '#ff8a3d' : '#3a0e04'; gx.fillRect(x, y, 1, 1);
-      }
-      addLight((f.x + tx + cam.x) / 2, (f.y + ty + cam.y) / 2, L * 0.6 + 20, '#ff6a2a', 0.6);
-    } else if (f.kind === 'ripple') { // 海底が泡立つ(何かが出てくる場所): 広がる波紋と、湧き上がる泡
-      for (let j = 0; j < 3; j++) { const k = (u * 2 + j / 3) % 1; pCircle(gx, fx, fy, Math.round(4 + k * 18), k < 0.5 ? '#2a6a7a' : '#163a44'); }
-      for (let i = 0; i < 7; i++) { const a = hash2(i, 5) * TAU + t * 2, r = 12 * hash2(i, 9), y = Math.round(fy + Math.sin(a) * r * 0.6 - ((t * 20 + i * 3) % 6)); sx.fillStyle = '#bff4ff'; sx.fillRect(Math.round(fx + Math.cos(a) * r), y, 1, 1); }
-    } else if (f.kind === 'tslap') { // 触手の叩きつけ・薙ぎ: 吸盤の並ぶ太い触手が帯の上に現れて沈む
+    if (f.kind === 'tslap') { // 触手の叩きつけ・薙ぎ: 吸盤の並ぶ太い触手が帯の上に現れて沈む
       const k = u < 0.2 ? u / 0.2 : Math.max(0, 1 - (u - 0.2) / 0.8), c = Math.cos(f.a), s = Math.sin(f.a), nx = -s, ny = c, L = f.len, n = 9;
       sx.globalAlpha = k;
       for (let i = 0; i < n; i++) {
@@ -2519,104 +2298,10 @@ function drawBfx() {
         sx.fillStyle = '#e89aaa'; sx.fillRect(Math.round((x0 + x1) / 2 - nx * w0 * 0.25), Math.round((y0 + y1) / 2 - ny * w0 * 0.25), 1, 1); // 吸盤
       }
       sx.globalAlpha = 1;
-    } else if (f.kind === 'grab') { // 絡め取り: クラーケンからプレイヤーへ伸びて巻きつく触手
-      const px = P.x - cam.x, py = P.y - cam.y, L = Math.hypot(px - fx, py - fy) || 1, nx = -(py - fy) / L, ny = (px - fx) / L, n = Math.max(4, Math.floor(L / 6));
-      let lx = fx, ly = fy;
-      for (let i = 1; i <= n; i++) {
-        const k = i / n, wv = Math.sin(k * 9 - t * 8) * 3 * Math.sin(k * Math.PI), x = fx + (px - fx) * k + nx * wv, y = fy + (py - fy) * k + ny * wv, w = Math.max(2, Math.round(5 - k * 3));
-        pLine(sx, lx, ly, x, y, '#3a0e24', w + 2); pLine(sx, lx, ly, x, y, '#8a2a4a', w);
-        if (i % 2) { sx.fillStyle = '#e89aaa'; sx.fillRect(Math.round(x), Math.round(y), 1, 1); }
-        lx = x; ly = y;
-      }
-      for (let i = 0; i < 3; i++) { const yy = Math.round(py - 3 + i * 3), sh = Math.round(Math.sin(t * 6 + i) * 1); sx.fillStyle = '#3a0e24'; sx.fillRect(Math.round(px - 6) + sh, yy - 1, 13, 4); sx.fillStyle = '#8a2a4a'; sx.fillRect(Math.round(px - 5) + sh, yy, 11, 2); sx.fillStyle = '#e89aaa'; sx.fillRect(Math.round(px - 3 + i * 2) + sh, yy, 1, 1); } // 巻きつき
-    } else if (f.kind === 'flow') { // 海流: 始まる前は画面いっぱいに点滅する矢印、流れている間は流れの筋
-      const c = Math.cos(f.th), s = Math.sin(f.th), VW = GFX.VW, VH = GFX.VH, on = f.t >= 1, fade = Math.min(1, (f.life - f.t) * 2), W = VW + 40, H = VH + 40;
-      for (let i = 0; i < 22; i++) {
-        const h1 = hash2(i, 41), h2 = hash2(i, 59), sp = (on ? 70 : 25) * (1 + h2);
-        const x = ((h1 * W + c * f.t * sp) % W + W) % W - 20, y = ((h2 * H + s * f.t * sp) % H + H) % H - 20;
-        if (!on || i % 4 === 0) { // 矢印
-          if (!on && Math.floor(t * 6) % 2) continue;
-          for (const k of [-1, 1]) { const bx = x - c * 4 + s * 4 * k, by = y - s * 4 - c * 4 * k; sx.globalAlpha = on ? 0.6 * fade : 0.9; pLine(sx, bx, by, x + c * 2, y + s * 2, '#bff4ff'); pLine(gx, bx, by, x + c * 2, y + s * 2, '#2a6a7a'); }
-        } else { sx.globalAlpha = 0.45 * fade; pLine(sx, x, y, x - c * 14, y - s * 14, '#bff4ff'); pLine(gx, x, y, x - c * 6, y - s * 6, '#1a4a5a'); }
-      }
-      sx.globalAlpha = 1;
-    } else if (f.kind === 'deathmark') { // 死の宣告: 足元を追う紫の印(回る時計の目盛りと髑髏)。止まると赤く
-      const R = 44 * CHAOS.area, stopd = f.t >= 3.5, col = stopd ? '#ff3b5c' : '#c29bff', fade = Math.min(1, f.t * 3, (f.life - f.t) * 4);
-      sx.globalAlpha = 0.18 * fade; pDisc(sx, fx, fy, Math.round(R), stopd ? '#ff3b5c' : '#6a3aa0'); sx.globalAlpha = fade;
-      pCircle(sx, fx, fy, Math.round(R), col); pCircle(gx, fx, fy, Math.round(R), stopd ? '#5a1020' : '#2a1a4a');
-      for (let i = 0; i < 12; i++) { const a = -t * (stopd ? 0 : 1.2) + TAU / 12 * i, r0 = R - 4, r1 = R - (i % 3 ? 7 : 11); pLine(sx, fx + Math.cos(a) * r0, fy + Math.sin(a) * r0, fx + Math.cos(a) * r1, fy + Math.sin(a) * r1, col); } // 目盛り
-      const hx = Math.round(fx), hy = Math.round(fy) - 2; // 髑髏
-      sx.fillStyle = col; sx.fillRect(hx - 3, hy - 3, 7, 5); sx.fillRect(hx - 2, hy + 2, 5, 2); sx.fillStyle = '#0c0913'; sx.fillRect(hx - 2, hy - 1, 2, 2); sx.fillRect(hx + 1, hy - 1, 2, 2); sx.fillRect(hx - 1, hy + 2, 1, 1); sx.fillRect(hx + 1, hy + 2, 1, 1);
-      gx.fillStyle = stopd ? '#5a1020' : '#2a1a4a'; gx.fillRect(hx - 2, hy - 2, 5, 4);
-      sx.globalAlpha = 1;
-      addLight(f.x, f.y, R * 1.8, col, 0.4 * fade);
-    } else if (f.kind === 'pillar') { // 十二の刻印の炸裂: 帯に沿って立つ赤い光の柱
-      const k = 1 - u, c = Math.cos(f.a), s = Math.sin(f.a), n = Math.floor(f.len / 6);
-      for (let i = 1; i <= n; i++) { const d = i * 6, x = Math.round(fx + c * d), y = Math.round(fy + s * d), H = Math.round((10 + 8 * Math.sin(i + t * 20)) * k); sx.globalAlpha = k; sx.fillStyle = i % 2 ? '#ff3b5c' : '#ffd0d8'; sx.fillRect(x - 1, y - H, 2, H); gx.fillStyle = '#5a1020'; gx.fillRect(x, y - H, 1, H); }
-      sx.globalAlpha = 0.5 * k; pLine(sx, fx, fy, fx + c * f.len, fy + s * f.len, '#ff3b5c', Math.round(f.w)); sx.globalAlpha = 1;
-      addLight(f.x + c * f.len / 2, f.y + s * f.len / 2, f.len, '#ff3b5c', 0.6 * k);
-    } else if (f.kind === 'madwarn') { // 狂い時計の予告: 画面の縁が紫に揺れる
-      const VW = GFX.VW, VH = GFX.VH;
-      for (let i = 0; i < 4; i++) { const w = Math.round(4 + 4 * Math.abs(Math.sin(t * 30 + i))); sx.globalAlpha = 0.35; sx.fillStyle = '#8a4ae0'; if (i === 0) sx.fillRect(0, 0, VW, w); else if (i === 1) sx.fillRect(0, VH - w, VW, w); else if (i === 2) sx.fillRect(0, 0, w, VH); else sx.fillRect(VW - w, 0, w, VH); }
-      sx.globalAlpha = 1;
-    } else if (f.kind === 'dance') { // 雪華の輪舞: 円が回る軌道(点線の輪)と、中心の雪の結晶
-      const R = DANCE_R, fade = Math.min(1, (f.life - f.t) * 3, f.t * 4), n = 40;
-      for (let i = 0; i < n; i++) { if ((i + Math.floor(t * 8)) % 2) continue; const a = TAU / n * i; sx.globalAlpha = 0.6 * fade; sx.fillStyle = '#d8f0ff'; sx.fillRect(Math.round(fx + Math.cos(a) * R), Math.round(fy + Math.sin(a) * R), 1, 1); }
-      sx.globalAlpha = fade; drawSp(ART.S.flake, f.x, f.y, { alpha: fade }); sx.globalAlpha = 1;
-    } else if (f.kind === 'afterimg') { // 消える残像: 縦に伸びて細くなりながら溶ける
-      sx.globalAlpha = Math.max(0, 1 - u); drawSp(ART.S[f.spr], f.x, f.y, { flip: f.flip, sy: 1 + u * 0.5, sxk: Math.max(0.1, 1 - u * 0.8), white: u < 0.15 }); sx.globalAlpha = 1;
-    } else if (f.kind === 'spincut') { // 十二の刻印の回転斬り: 大鎌が一回転する三日月の斬撃(白い刃先・赤い軌跡・黒い縁)
-      const k = 1 - Math.pow(1 - Math.min(1, u / 0.55), 3), head = f.a0 + f.dir * TAU * k;
-      const tail = 2.6 * Math.min(1, k * 3) * (1 - Math.max(0, (u - 0.55) / 0.45)); // 軌跡の長さ(rad): 振り始めに伸び、振り切ったあと縮んで消える
-      const n = Math.ceil(tail * f.r);
-      for (let i = 0; i <= n; i++) {
-        const s = i / Math.max(1, n), a = head - f.dir * tail * s, w = Math.max(1, Math.round((1 - s) * 7)); // 刃先ほど太い
-        for (let j = 0; j < w; j++) {
-          const rr = f.r - j + 1, x = Math.round(fx + Math.cos(a) * rr), y = Math.round(fy + Math.sin(a) * rr);
-          sx.fillStyle = j === 0 && s < 0.5 ? '#000000' : s < 0.1 ? '#ffffff' : s < 0.45 ? '#ff3b5c' : '#8e0016';
-          sx.globalAlpha = 1 - s * 0.6; sx.fillRect(x, y, 1, 1);
-          if (j > 0 && s < 0.45) { gx.fillStyle = s < 0.1 ? '#ffffff' : '#5a000c'; gx.fillRect(x, y, 1, 1); }
-        }
-      }
-      sx.globalAlpha = 1;
-      const hx2 = f.x + Math.cos(head) * f.r, hy2 = f.y + Math.sin(head) * f.r;
-      if (u < 0.55) drawRot('rscythe', head + f.dir * Math.PI / 2, hx2, hy2, { scale: 1.6 }); // 刃先の大鎌
-      addLight(hx2, hy2, 50, '#ff3b5c', 0.9 * (1 - u)); addLight(f.x, f.y, f.r * 2.5, '#ff3b5c', 0.4 * (1 - u));
-    } else if (f.kind === 'skyspear') { // 氷柱の墓標の氷柱: 女王の頭上から空へ飛ぶ(up)/ 空から落ちてくる(down)
-      const H = 200, y = f.up ? f.y - 10 - H * u * u : f.y - 18 - H * (1 - u) * (1 - u);
-      drawSp(f.up ? ART.S.icespireUp : ART.S.obj_tomb, f.x, y, { alpha: f.up ? Math.max(0, 1 - u * 0.6) : 1 });
-      addLight(f.x, y, 50, '#bff4ff', 0.8);
-      if (Math.random() < 0.6) part(f.x + rand(-3, 3), y + (f.up ? 12 : -12), 0, f.up ? 30 : -30, 0.3, pick(['#ffffff', '#bff4ff']), { glow: true, drag: 2 }); // 尾を引く冷気
     } else if (f.kind === 'icespike') { // 氷の棘: 地面から突き出て、砕けて沈む
       const k = u < 0.15 ? u / 0.15 : u > 0.6 ? Math.max(0, 1 - (u - 0.6) / 0.4) : 1, H = Math.round(f.h * k), x0 = Math.round(fx), y0 = Math.round(fy);
       for (let j = 0; j < H; j++) { const w = Math.max(1, Math.round((H - j) / Math.max(1, H) * 3)); sx.fillStyle = j > H - 3 ? '#ffffff' : j < 2 ? '#5ab8e8' : '#bff4ff'; sx.fillRect(x0 - (w >> 1), y0 - j, w, 1); if (j > H / 2) { gx.fillStyle = '#2a5a6a'; gx.fillRect(x0, y0 - j, 1, 1); } }
       if (H > 0) { sx.fillStyle = '#2a3448'; sx.fillRect(x0 - 2, y0 + 1, 5, 1); }
-    } else if (f.kind === 'windwarn') { // 吹雪の風の予告: 画面いっぱいに風の線(点滅しながら風向きへ流れる)
-      const c = Math.cos(f.th), s = Math.sin(f.th), VW = GFX.VW, VH = GFX.VH, W = VW + 60, H = VH + 60, on = Math.floor(t * 8) % 2;
-      for (let i = 0; i < 26; i++) {
-        const h1 = hash2(i, 71), h2 = hash2(i, 83), sp = 160 * (1 + h2);
-        const x = ((h1 * W + c * f.t * sp) % W + W) % W - 30, y = ((h2 * H + s * f.t * sp) % H + H) % H - 30, L = 10 + h1 * 14;
-        sx.globalAlpha = on ? 0.8 : 0.45; pLine(sx, x, y, x - c * L, y - s * L, '#ffffff'); pLine(gx, x, y, x - c * L * 0.5, y - s * L * 0.5, '#3a4a5a');
-        if (i % 5 === 0) for (const k of [-1, 1]) pLine(sx, x + c * 3, y + s * 3, x - c * 2 + s * 4 * k, y - s * 2 - c * 4 * k, '#ff3b5c'); // 風向きの矢印(赤)
-      }
-      sx.globalAlpha = 1;
-    } else if (f.kind === 'veilwarn') { // 吹雪の帳の予告: 画面の縁が白く凍りはじめる
-      const VW = GFX.VW, VH = GFX.VH, bw = Math.round(6 + 10 * u), on = Math.floor(t * 8) % 2;
-      sx.globalAlpha = (on ? 0.55 : 0.35); sx.fillStyle = '#e8f4ff';
-      sx.fillRect(0, 0, VW, bw); sx.fillRect(0, VH - bw, VW, bw); sx.fillRect(0, bw, bw, VH - bw * 2); sx.fillRect(VW - bw, bw, bw, VH - bw * 2);
-      sx.globalAlpha = 1; sx.fillStyle = on ? '#ff3b5c' : '#ffd0d8';
-      sx.fillRect(bw, bw, VW - bw * 2, 1); sx.fillRect(bw, VH - bw - 1, VW - bw * 2, 1); sx.fillRect(bw, bw, 1, VH - bw * 2); sx.fillRect(VW - bw - 1, bw, 1, VH - bw * 2);
-    } else if (f.kind === 'wavewarn') { // 大津波の予告: 波の来る側の端に赤い帯、画面を横切って流れる矢印の列
-      const blink = Math.floor(t * 8) % 2;
-      sx.save(); gx.save(); sx.translate(fx, fy); gx.translate(fx, fy); sx.rotate(f.th); gx.rotate(f.th);
-      sx.globalAlpha = 0.22 + 0.12 * blink; sx.fillStyle = '#ff3b5c'; sx.fillRect(0, -f.span, 46, f.span * 2); // 端(画面の外 20)から画面の内側 26 まで
-      sx.globalAlpha = 1; sx.fillStyle = blink ? '#ff3b5c' : '#ffd0d8'; sx.fillRect(46, -f.span, 1, f.span * 2);
-      gx.fillStyle = '#7a1020'; gx.fillRect(46, -f.span, 1, f.span * 2);
-      for (let row = -f.span + 40; row < f.span; row += 70) for (let k = 0; k < 4; k++) {
-        const al = (t * 170 + k * f.len / 4 + row * 0.7) % f.len;
-        for (let j = 0; j < 6; j++) { sx.fillStyle = '#ff3b5c'; sx.fillRect(al - j, row - j, 2, 1); sx.fillRect(al - j, row + j, 2, 1); gx.fillStyle = '#5a1020'; gx.fillRect(al - j, row - j, 1, 1); gx.fillRect(al - j, row + j, 1, 1); }
-      }
-      sx.restore(); gx.restore(); sx.globalAlpha = 1;
     }
   }
 }

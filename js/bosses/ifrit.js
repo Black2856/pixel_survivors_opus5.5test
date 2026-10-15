@@ -212,3 +212,15 @@ HAZ_DRAW.fwall = (h, hx, hy, fade, hd) => {
   }
   for (let d = 0; d < L; d += 40) addLight(h.x + c * d, h.y + s * d, 60, '#ff6a2a', 0.7 * fade);
 };
+// 灼熱の鎖: 飛んでいく鎖 / つながった鎖(イフリートとプレイヤーの間。輪が流れる)
+BFX_DRAW.chain = (f, fx, fy, u, bd) => {
+  const { t, sx, gx } = bd;
+  const tx = f.hold ? P.x - cam.x : fx + Math.cos(f.a) * f.len * Math.min(1, u * 1.6), ty = f.hold ? P.y - cam.y : fy + Math.sin(f.a) * f.len * Math.min(1, u * 1.6);
+  const L = Math.hypot(tx - fx, ty - fy), n = Math.floor(L / 4);
+  for (let i = 0; i <= n; i++) {
+    const k = i / Math.max(1, n), x = Math.round(fx + (tx - fx) * k), y = Math.round(fy + (ty - fy) * k), lit = (i + Math.floor(t * 20)) % 3 === 0;
+    sx.fillStyle = lit ? '#ffc34a' : '#a8381a'; sx.fillRect(x - 1, y, 3, 1); sx.fillRect(x, y - 1, 1, 3);
+    gx.fillStyle = lit ? '#ff8a3d' : '#3a0e04'; gx.fillRect(x, y, 1, 1);
+  }
+  addLight((f.x + tx + cam.x) / 2, (f.y + ty + cam.y) / 2, L * 0.6 + 20, '#ff6a2a', 0.6);
+};

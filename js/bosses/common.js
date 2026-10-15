@@ -4,6 +4,9 @@
 // 設置物(hazards)の描き方: 種類 → (h, hx, hy, fade, hd) => { … }(hx, hy: 画面の座標 / fade: 出始めと消え際の濃さ / hd: render() の sx・gx・t・warnBlink・VW・VH)
 //   各ボスのファイルで HAZ_DRAW.<種類> = … と足す。render() の設置物のループが呼ぶ(ここにない種類は render.js の中で描く)
 const HAZ_DRAW = {};
+// ボスの見た目だけの演出(bfx)の描き方: 種類 → (f, fx, fy, u, bd) => { … }(fx, fy: 画面の座標 / u: 経過 0〜1 / bd: drawBfx の sx・gx・t)
+//   各ボスのファイルで BFX_DRAW.<種類> = … と足す。render.js の drawBfx が呼ぶ(ここにない種類は drawBfx の中で描く)
+const BFX_DRAW = {};
 
 // ============================================================
 // ボス
