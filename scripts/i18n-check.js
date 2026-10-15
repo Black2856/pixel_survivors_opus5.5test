@@ -10,7 +10,9 @@
 const fs = require('fs'), path = require('path'), vm = require('vm');
 const root = path.join(__dirname, '..');
 const JP = /[぀-ヿ㐀-鿿！-｠　-〿]/;
-const CODE = ['world', 'ui', 'meta-ui', 'gacha', 'status-ui', 'stats', 'core', 'main', 'equip', 'help', 'classes'].map(f => `js/${f}.js`);
+// 調べるコード: index.html の <script> のうち、表示する文を持たないもの(辞書・描画・絵・音)を除いた全部(分けたファイルも入る)
+const NO_TEXT = ['js/data.js', 'js/i18n.js', 'js/art.js', 'js/audio.js', 'js/gfx.js', 'js/motions.js', 'js/skillfx.js', 'js/render.js'];
+const CODE = [...fs.readFileSync(path.join(root, 'index.html'), 'utf8').matchAll(/<script src="(js\/[^"]+)"><\/script>/g)].map(m => m[1]).filter(f => !f.startsWith('js/lang/') && !NO_TEXT.includes(f));
 
 // ---------- 字句解析(文字列・テンプレートを、引用符を含む位置で取り出す)----------
 function lex(src) {
