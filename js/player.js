@@ -236,13 +236,13 @@ function fatiguePlayer() {
 function lockPlayer(t) {
   if (P.dead) return;
   P.lockT = Math.max(P.lockT, t); P.lockMax = Math.max(P.lockMax || 0, P.lockT); S.hudDirty = true;
-  hint('plock', _t('攻撃不能'), _t('しばらく攻撃できない(歩く・回避はできる)'));
+  hint('plock', _t('攻撃不能'), _t('しばらく攻撃できない'));
 }
 // 回復不能: t 秒、HP回復速度・肉・クラスの回復・回復のスキルが効かない(heal)。今は付ける技がない(ラストラディアンスの回復不能は 2026-10-13 にユーザーが外した)
 function noHealPlayer(t) {
   if (P.dead) return;
   P.noHealT = Math.max(P.noHealT, t); P.noHealMax = Math.max(P.noHealMax || 0, P.noHealT); S.hudDirty = true;
-  hint('pnoheal', _t('回復不能'), _t('しばらく HP が回復しない(肉・スキルの回復も)'));
+  hint('pnoheal', _t('回復不能'), _t('しばらく HP が回復しない'));
 }
 // 眩惑(光の蝶 e が近くで光った): dz.t 秒、与えるダメージ −100%(hitEnemy。継続ダメージ・アイテムは除く。当たったときの効果は出る)
 //   眩惑の間は掛け直さず、切れてから dz.imm 秒は眩惑にならない(蝶が続けて来ても、倒せる間を残す)。ほかの状態異常と同じく、回避の無敵中は付かない。付いたら true

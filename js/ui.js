@@ -238,10 +238,10 @@ const UI = (() => {
     if (P.frzT > 0) out.push({ id: 'pfrz', glyph: '氷', name: _t('凍結'), fx: _t('動けず、攻撃、回避、スキルができない'), t: P.frzT, max: d.pFrzT, kind: 'debuff' });
     const ds = DATA.debuffStage;
     if (P.numb > 0) out.push({ id: 'pnumb', glyph: '痺', name: _t('痺れ'), fx: _t`${P.numb}スタック ・ CD回復 -${Math.round(ds.numbCd * P.numb * 100)}%(${ds.numbMax}スタックで麻痺。受けないでいると ${d.pDur}秒で消える)`, t: P.numbT, max: d.pDur, kind: 'debuff' });
-    if (P.paraT > 0) out.push({ id: 'ppara', glyph: '麻', name: _t('麻痺'), fx: _t('攻撃できない(歩く・回避はできる)'), t: P.paraT, max: ds.paraT, kind: 'debuff' });
-    if (P.lockT > 0) out.push({ id: 'plock', glyph: '封', name: _t('攻撃不能'), fx: _t('攻撃できない(歩く・回避はできる)'), t: P.lockT, max: P.lockMax || P.lockT, kind: 'debuff' });
-    if (P.noHealT > 0) out.push({ id: 'pnoheal', glyph: '禁', name: _t('回復不能'), fx: _t('HP が回復しない(HP回復速度・肉・スキルの回復も)'), t: P.noHealT, max: P.noHealMax || P.noHealT, kind: 'debuff' });
-    if (P.dazT > 0) out.push({ id: 'pdaz', glyph: '眩', name: _t('眩惑'), fx: _t('与えるダメージ -100%(炎上などの継続ダメージは除く)'), t: P.dazT, max: P.dazMax || P.dazT, kind: 'debuff' });
+    if (P.paraT > 0) out.push({ id: 'ppara', glyph: '麻', name: _t('麻痺'), fx: _t('攻撃できない'), t: P.paraT, max: ds.paraT, kind: 'debuff' });
+    if (P.lockT > 0) out.push({ id: 'plock', glyph: '封', name: _t('攻撃不能'), fx: _t('攻撃できない'), t: P.lockT, max: P.lockMax || P.lockT, kind: 'debuff' });
+    if (P.noHealT > 0) out.push({ id: 'pnoheal', glyph: '禁', name: _t('回復不能'), fx: _t('HP が回復しない'), t: P.noHealT, max: P.noHealMax || P.noHealT, kind: 'debuff' });
+    if (P.dazT > 0) out.push({ id: 'pdaz', glyph: '眩', name: _t('眩惑'), fx: _t('与えるダメージ -100%'), t: P.dazT, max: P.dazMax || P.dazT, kind: 'debuff' });
     if (P.dust > 0) out.push({ id: 'pdust', glyph: '砂', name: _t('砂塵'), fx: _t`${P.dust}スタック ・ 命中率 -${Math.round(ds.dustHit * P.dust * 100)}%(受けないでいると ${d.pDur}秒で消える)`, t: P.dustT, max: d.pDur, kind: 'debuff' });
     if (P.weak > 0) out.push({ id: 'pweak', glyph: '衰', name: _t('衰弱'), fx: _t`${P.weak}スタック ・ 攻撃力 -${Math.round(ds.weakAtk * P.weak * 100)}%(受けないでいると ${d.pDur}秒で消える)`, t: P.weakT, max: d.pDur, kind: 'debuff' });
     if (P.bleed > 0) out.push({ id: 'pbleed', glyph: '血', name: _t('出血'), fx: _t`${P.bleed}スタック ・ 毎秒 最大HP の ${Math.round(P.bleed * d.pBleed * 100)}%`, t: P.bleedT, max: d.pDur, kind: 'debuff' });
@@ -396,10 +396,10 @@ const UI = (() => {
     gfx: [_t('画質'), _t('低いほどブルーム・画面の歪み・パーティクルを減らし軽くなります')],
     fxA: [_t('攻撃の濃さ'), _t('自分の攻撃エフェクトの不透明度')],
     ui: [_t('UIサイズ'), _t('HUD とメニュー画面の大きさ')],
-    autoE: [_t('E 自動発動'), _t('武器スキル(E)を自動で使います。周りに敵が集まっているときだけ使います(移動中に勝手に足が止まらないように)')],
-    autoQ: [_t('Q 自動発動'), _t('クラススキル(Q)を自動で使います。周りに敵が集まっているときだけ使います(移動中に勝手に足が止まらないように)')],
-    cutin: [_t('カットイン'), _t('E / Q を使ったときに、スキル名の帯を画面の上の方に出します(OFF でも足元の陣などの演出は出ます)')],
-    hints: [_t('初見の説明'), _t('敵の技・状態異常を、そのランで初めて見たときに説明の帯を出します(OFF でも、ガイドの用語集はいつでも見られます)')],
+    autoE: [_t('E 自動発動'), _t('武器スキル(E)を自動で使います。周りに敵が集まっているときだけ使います')],
+    autoQ: [_t('Q 自動発動'), _t('クラススキル(Q)を自動で使います。周りに敵が集まっているときだけ使います')],
+    cutin: [_t('カットイン'), _t('E / Q を使ったときに、スキル名の帯を画面の上の方に出します')],
+    hints: [_t('初見の説明'), _t('敵の技・状態異常を、そのランで初めて見たときに説明の帯を出します')],
     lang: [_t('言語'), _t('表示の言語を切り替えます(ページを読み直します)。ラン中は変えられません')],
   };
   document.addEventListener('pointerover', ev => {

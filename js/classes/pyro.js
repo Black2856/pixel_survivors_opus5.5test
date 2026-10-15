@@ -192,7 +192,6 @@ CLASS_RT.pyro = {
       { key: _t('特性'), name: _t('業火'), cat: 'trait', desc: [
         _t`火勢: 敵の炎上 1スタックにつき、その敵の炎上ダメージ +${+((p.stackPct + (c.lvFx.stackPct || 0) + (c.hasSp('trait', 'dur') ? p.fierce : 0)) * 100).toFixed(1)}%`,
         _t`延焼: 炎上中の敵が倒れると、残っていた炎上ダメージを周りの ${p.spreadN}体へ燃え移らせる`,
-        _t('どの炎上にも効く(武器・スキル・装備のどれで付けた炎上でも)'),
       ], rows: [
         [_t('火勢の最大スタック'), `${p.stackMax + c.cuV('trait', 'stack')}`],
         [_t('燃え移る量'), `<b>${Math.round(c.cuV('trait', 'spread', p.spreadPct) * 100)}%</b>`],

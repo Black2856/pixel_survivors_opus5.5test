@@ -65,7 +65,7 @@ const Gacha = (() => {
     }).join('');
     const R = DATA.gacha.rates;
     $('gc-rates').innerHTML = Object.keys(R).map(k => `<span style="color:${DATA.equip.rarity[k].col}">${DATA.equip.rarity[k].name} <b>${R[k]}%</b></span>`).join('')
-      + `<span class="note">${_t('どのガチャもレアリティの確率は同じ。高いガチャほどロール値・最大Lv の上限が高い。ミシックはレジェンダリーの全オプションがその上限(最高ロール値・最高Lv)')}</span>`;
+      + `<span class="note">${_t('どのガチャもレアリティの確率は同じ。高いガチャほどロール値・最大Lv の上限が高い。ミシックはレジェンダリーの全オプションがその上限')}</span>`;
     Help.glossify($('gc-list'), { per: '.gc-cap' });
   }
   function pull(t, n) {

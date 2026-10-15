@@ -174,7 +174,7 @@ CLASS_RT.knight = {
         [_t('シールドの上限'), _t`最大HP の ${Math.round(capP * 100)}%`],
       ] },
       { key: _t('パッシブ'), name: _t('堅守'), cat: 'passive', desc: [
-        _t('シールドの量に比例して攻撃力アップ(全ての攻撃)'),
+        _t('シールドの量に比例して攻撃力アップ'),
         _t('  → 魔力障壁などほかのシールドも同じ扱い'),
       ], rows: [
         [_t('攻撃力(上限のとき)'), `<b>+${Math.round((c.cuV('passive', 'hold', p.holdAtk) + (c.lvFx.holdAtk || 0)) * 100)}%</b>`],

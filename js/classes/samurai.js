@@ -255,7 +255,7 @@ CLASS_RT.samurai = {
       { key: _t('特性'), name: _t('剣気'), cat: 'trait', desc: [
         _t`メイン武器の通常攻撃の命中1体につき +${p.kiHit}(1回の攻撃で ${p.kiHitCap} まで)`,
         _t`ジャスト見切りで +${p.kiParry}`,
-        _t`${p.kiFull} 以上の間は攻撃力アップ(全ての攻撃)`,
+        _t`${p.kiFull} 以上の間は攻撃力アップ`,
         _t('居合で全て消費し、威力に上乗せする'),
       ], rows: [
         [_t('最大値'), `${p.kiMax + c.cuV('trait', 'zan')}`],
@@ -263,7 +263,7 @@ CLASS_RT.samurai = {
         [_t`${p.kiFull} 以上の攻撃力`, `<b>+${Math.round(c.cuV('trait', 'juu', p.kiFullAtk) * 100)}%</b>`],
       ] },
       { key: _t('パッシブ'), name: _t('残心'), cat: 'passive', desc: [
-        _t('見切り(ガード)で攻撃を受けた後、一定時間 攻撃力アップ(全ての攻撃)'),
+        _t('見切り(ガード)で攻撃を受けた後、一定時間 攻撃力アップ'),
         _t('ガードで受けるたびに効果時間が戻る'),
       ], rows: [
         [_t('攻撃力'), `<b>+${Math.round(zAtk * 100)}%</b>`],

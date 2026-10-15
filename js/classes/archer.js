@@ -158,7 +158,7 @@ CLASS_RT.archer = {
       { key: _t('パッシブ'), name: _t('集中'), cat: 'passive', desc: [
         _t`止まっている間、${p.focusStep}秒ごとに +1段(E / Q の予備動作中も)`,
         _t`移動すると1秒ごとに ${p.focusDecay}段 下がる。被弾すると ${p.focusHurt}段 下がる`,
-        _t`1段につき 攻撃速度 +${Math.round(p.focusAtkSpd * 100)}%(全武器)・クリティカル率 +${Math.round(p.focusCrit * 100)}%(全ての攻撃)`,
+        _t`1段につき 攻撃速度 +${Math.round(p.focusAtkSpd * 100)}%・クリティカル率 +${Math.round(p.focusCrit * 100)}%`,
       ], rows: [
         [_t('最大段'), `${p.focusMax + (c.lvFx.focusMax || 0)}`],
         [_t('最大時の攻撃速度'), `<b>+${Math.round((p.focusMax + (c.lvFx.focusMax || 0)) * p.focusAtkSpd * 100)}%</b>`],

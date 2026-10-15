@@ -212,7 +212,7 @@ CLASS_RT.astro = {
       ] },
       { key: _t('パッシブ'), name: _t('重力圏'), cat: 'passive', desc: [
         _t`自分の周り(半径 ${Math.round(fieldR)})の敵の移動速度・攻撃速度と、敵の弾が遅くなる`,
-        _t`遅くなる割合は 質量 1 につき ${pc(slowPer)}%(最大 ${Math.round(p.slowCap * 100)}%)。敵の移動は凍傷と掛け算で重ねる`,
+        _t`遅くなる割合は 質量 1 につき ${pc(slowPer)}%(最大 ${Math.round(p.slowCap * 100)}%)`,
       ], rows: [
         [_t('半径'), `<b>${Math.round(fieldR)}</b>`],
         [_t('遅くなる割合'), `<b>${pc(Math.min(p.slowCap, mass * slowPer))}%</b>`, c.run ? _t('今の質量') : _t`上限で ${pc(Math.min(p.slowCap, max * slowPer))}%`],
