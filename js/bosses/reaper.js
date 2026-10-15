@@ -309,3 +309,36 @@ function deadCrossHit(cx, cy, angs) {
   GFX.fx.hurt = 1; GFX.fx.aberr = Math.max(GFX.fx.aberr, 1.5); hitstop(0.15);
   burst(P.x, P.y, 40, ['#ff3b5c', '#8e0016', '#0a0002', '#ffffff'], { sp: 160, life: 0.6 }); AudioMan.hurt();
 }
+
+// ---------- 描画(render.js の render / drawBossFx / drawBossGround から呼ぶ)----------
+function drawReaperFx(e, sx, gx, ex, ey, yo) {
+  const k = 1 - S.morph.t / 2, R = Math.round(30 + 40 * k);
+  sx.globalAlpha = 0.5 * k; pCircle(sx, ex, ey, R, '#c29bff'); pCircle(sx, ex, ey, R - 3, '#ff3b5c'); sx.globalAlpha = 1;
+  for (let i = 0; i < 12; i++) { const a = TAU / 12 * i; sx.fillStyle = gx.fillStyle = '#ffd0d8'; sx.fillRect(Math.round(ex + Math.cos(a) * (R - 6)), Math.round(ey + Math.sin(a) * (R - 6)), 2, 2); gx.fillRect(Math.round(ex + Math.cos(a) * (R - 6)), Math.round(ey + Math.sin(a) * (R - 6)), 1, 1); }
+  const ha = -Math.PI / 2 + (1 - k) * 8; pLine(sx, ex, ey, ex + Math.cos(ha) * R * 0.8, ey + Math.sin(ha) * R * 0.8, '#ffffff', 2); pLine(gx, ex, ey, ex + Math.cos(ha) * R * 0.8, ey + Math.sin(ha) * R * 0.8, '#5a1020', 1);
+  for (let i = 0; i < Math.floor(k * 10); i++) { const a = hash2(i, 61) * TAU, l = 6 + hash2(i, 67) * 10; pLine(gx, ex, ey + yo - 6, ex + Math.cos(a) * l, ey + yo - 6 + Math.sin(a) * l, '#ff3b5c', 1); } // 赤いひび
+  addLight(e.x, e.y, 60 + 120 * k, '#ff3b5c', 0.4 + 0.6 * k);
+}
+// 十二の刻印で消えている間は描かない
+function drawFhourFx(e, ai, sx, gx, ex, ey, sp, yo, t) {
+  const R = 22, frozen = S.tstop > 0, rv = S.rewind > 0 ? -4 : 1;
+  for (let i = 0; i < 12; i++) {
+    const a = -Math.PI / 2 + TAU / 12 * i, glow = ai.secGlow > 0 && Math.floor(t * 12 + i) % 2 === 0, rr = ai.secGlow > 0 ? R + 10 : R;
+    sx.fillStyle = glow ? '#ffffff' : '#c8a050'; sx.fillRect(Math.round(ex + Math.cos(a) * rr), Math.round(ey + yo - 4 + Math.sin(a) * rr), i % 3 ? 1 : 2, i % 3 ? 1 : 2);
+    if (glow) { gx.fillStyle = '#ff3b5c'; gx.fillRect(Math.round(ex + Math.cos(a) * rr), Math.round(ey + yo - 4 + Math.sin(a) * rr), 2, 2); }
+  }
+  const ha = frozen ? -Math.PI / 2 : t * 2 * rv - Math.PI / 2, ma = frozen ? Math.PI / 6 : t * 0.3 * rv;
+  sx.globalAlpha = 0.7; pLine(sx, ex, ey + yo - 4, ex + Math.cos(ha) * (R - 3), ey + yo - 4 + Math.sin(ha) * (R - 3), '#ff3b5c'); pLine(sx, ex, ey + yo - 4, ex + Math.cos(ma) * (R - 8), ey + yo - 4 + Math.sin(ma) * (R - 8), '#c8a050', 2); sx.globalAlpha = 1;
+  if (ai.secGlow > 0) addLight(e.x, e.y, 100, '#ff3b5c', 0.7);
+  drawSp(sp, e.x, e.y + yo, { flip: (e.face || 1) < 0, sy: e.sq || 1, sxk: 2 - (e.sq || 1), white: e.flash > 0 }); // 光輪の上に体を描き直す
+}
+function drawFhourFx2(e, ai, sx, sp, t) {
+  for (const g of ai.echoes) {
+    if (g.hidden) continue;
+    const a = Math.min(1, g.t / 0.4) * (g.out ? Math.max(0, 1 - g.out / 0.4) : 1), gx0 = g.x - cam.x, gy0 = g.y - cam.y;
+    sx.globalAlpha = 0.75 * a; sx.drawImage(grayOf((g.face || 1) < 0 ? ART.variant(sp, 'flip') : sp.c), Math.round(gx0 - sp.w / 2), Math.round(gy0 - sp.h / 2));
+    if (g.ai.secGlow > 0) for (let i = 0; i < 12; i++) { const ta = -Math.PI / 2 + TAU / 12 * i; if (Math.floor(t * 12 + i) % 2) continue; sx.fillStyle = '#e8e8f0'; sx.fillRect(Math.round(gx0 + Math.cos(ta) * 32), Math.round(gy0 - 4 + Math.sin(ta) * 32), 2, 2); }
+    sx.globalAlpha = 1;
+    addLight(g.x, g.y, 46, '#9a9aaa', 0.5 * a);
+  }
+}

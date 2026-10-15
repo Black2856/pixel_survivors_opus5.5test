@@ -126,3 +126,30 @@ function raijinGod(e, ai) {
   AudioMan.drumroll(2); AudioMan.warning();
   hint('raijin_god', _t('神鳴り'), _t('背中の太鼓が全部光った次の拍に、巨大な雷が落ちる。その拍で回避する'));
 }
+
+// ---------- 描画(render.js の render / drawBossFx / drawBossGround から呼ぶ)----------
+// 神鳴りの溜め(雷神の側だけで読ませる): 背中の太鼓が真上から時計回りに 1つずつ光り、光った太鼓どうしを稲妻がつなぐ
+function drawRaijinFx(e, ai, sx, gx, ex, ey, yo, t) {
+  //   掲げた撥の先(頭の上)へ、稲妻の輪と渦を巻いて吸いこまれる光の筋が集まる。ゆっくり始まって最後に一気に収束し(ease-in の 3乗)、収束した瞬間に落ちる
+  const D = RAIJIN_DRUM, cx = ex, cy = ey + yo + D.cy, n = ai.godLit, k = n / 8;
+  let qx = null, qy = null;
+  for (let i = 0; i < n; i++) {
+    const a = -Math.PI / 2 + TAU / 8 * i, x = Math.round(cx + Math.cos(a) * D.r), y = Math.round(cy + Math.sin(a) * D.r);
+    pDisc(gx, x, y, 3, '#5a3aa8'); pDisc(sx, x, y, 2, '#f0e8ff'); // 光る太鼓(光の層は暗い紫)
+    if (qx !== null) jagBolt(qx, qy, x, y, { step: 5, j: 2, col: '#d8c8ff', glow: '#3a2478' });
+    qx = x; qy = y;
+  }
+  addLight(e.x, e.y - (e.jz || 0) + D.cy, 40 + 40 * k, '#5a3aa8', 0.25 + 0.3 * k); // 照らす光は暗い紫で弱く(体が白く飛ばないように)
+  const gt = Math.min(2, S.time - ai.godT0), u = gt / 2, ez = u * u * u, last = gt > 1.75, beat = (S.time - ai.godT0) % 0.25 < 0.06; // ez: 収束のイージング
+  const fx = cx, fy = ey + yo - 23, RG = 4 + 52 * (1 - ez), rot = t * 1.5 + ez * 3; // 収束する点(掲げた撥の先)と、稲妻の輪の半径(56 → 4。雷神のまわりに収め、プレイヤーの近くまで広げない)
+  let p0x = 0, p0y = 0;
+  for (let i = 0; i <= 16; i++) { const a = rot + TAU / 16 * i, x = fx + Math.cos(a) * RG, y = fy + Math.sin(a) * RG; if (i) jagBolt(p0x, p0y, x, y, { step: 5, j: last ? 3 : 2, col: last ? '#ffffff' : '#d8c8ff', glow: last ? '#5a3aa8' : '#3a2478' }); p0x = x; p0y = y; } // 稲妻の輪(16 の点を結ぶ、はじける雷)
+  for (let j = 0; j < 14; j++) { // 渦を巻いて吸いこまれる光の筋(収束が速くなるほど長く)
+    const a = TAU / 14 * j + hash2(j, 5) * 0.4 - ez * 4 - t * 0.8, rr = RG * (1.15 + 0.5 * hash2(j, 9)) + 6, L = 3 + 14 * u * u;
+    const x0 = fx + Math.cos(a) * rr, y0 = fy + Math.sin(a) * rr, x1 = fx + Math.cos(a + 0.25) * Math.max(0, rr - L), y1 = fy + Math.sin(a + 0.25) * Math.max(0, rr - L);
+    sx.globalAlpha = 0.5 + 0.5 * u; pLine(sx, x0, y0, x1, y1, '#c8b8ff'); sx.globalAlpha = 1; pLine(gx, x0, y0, x1, y1, '#2a1a5a');
+  }
+  const cr = Math.round(1 + 3 * u) + (beat ? 1 : 0) + (last && Math.floor(t * 30) % 2 ? 1 : 0); // 撥の先の光の芯(溜まるほど大きく、拍ごとに強く、最後の拍からはまたたく)
+  pDisc(gx, fx, fy, cr + 2, '#5a3aa8'); pDisc(sx, fx, fy, cr, '#f0e8ff');
+  addLight(e.x, e.y - (e.jz || 0) - 23, 30 + 40 * u, '#5a3aa8', 0.3 + 0.4 * u);
+}

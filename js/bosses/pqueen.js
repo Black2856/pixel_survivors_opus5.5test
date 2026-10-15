@@ -168,3 +168,8 @@ function queenBlink(e, ai) {
     bossBlast(tx, ty, R0, Object.assign({ n: 16, decal: false }, BFX.pqueen)); // 光の爆発
   });
 }
+
+// ---------- 描画(render.js の render / drawBossFx / drawBossGround から呼ぶ)----------
+function drawPqueenFx(e, ai, sx, gx, ex, ey, sp, yo, t) {
+  if (ai.clones && t % 0.5 < 0.12) { const gxp = Math.round(ex), gyp = Math.round(ey + yo - sp.h / 2 - 3); sx.fillStyle = gx.fillStyle = '#fff6c8'; sx.fillRect(gxp - 1, gyp, 3, 1); sx.fillRect(gxp, gyp - 1, 1, 3); gx.fillRect(gxp, gyp, 1, 1); } // 本物のしるし
+}

@@ -162,3 +162,21 @@ function fireAltars(e) {
   shake(8); AudioMan.roar(); AudioMan.fire(); screenFlash(0.3, '#ff6a2a');
   UI.announce(_t('炎の祭壇'), _t('燃えている祭壇 1つにつき、イフリートの与ダメージ +10%・技が速くなる。壊せる'));
 }
+
+// ---------- 描画(render.js の render / drawBossFx / drawBossGround から呼ぶ)----------
+function drawIfritFx(e, ai, sx, gx, ex, ey, sp, yo, t) {
+  if (ai.enraged) {
+    const rr = Math.round(sp.w * 0.75 + Math.sin(t * 10) * 1.5), fy = Math.round(ey + sp.h * 0.55);
+    sx.globalAlpha = 0.6; pCircle(sx, ex, fy, rr, '#ffc34a'); sx.globalAlpha = 1;
+    pCircle(gx, ex, fy, rr, '#6a2a08'); // 光の層は暗い色で
+    addLight(e.x, e.y, 90 + Math.sin(t * 8) * 10, '#ff8a3d', 0.85);
+  }
+  let n = 0;
+  for (const o of enemies) if (o.owner === e && o.obj === 'altar' && !o.dead) {
+    n++;
+    const ox = o.x - cam.x, oy = o.y - cam.y - 10, k = (t * 1.5 + o.seed) % 1;
+    sx.globalAlpha = 0.35; pLine(sx, ox, oy, ex, ey + yo, '#ff6a2a', 1); sx.globalAlpha = 1;
+    const px = ox + (ex - ox) * k, py = oy + (ey + yo - oy) * k; sx.fillStyle = gx.fillStyle = '#ffc34a'; sx.fillRect(Math.round(px), Math.round(py), 2, 2); gx.fillRect(Math.round(px), Math.round(py), 2, 2); // 流れる火の玉
+  }
+  if (n > 0) { gx.globalAlpha = 1; pCircle(gx, ex, ey + yo, Math.round(sp.w * 0.6 + Math.sin(t * 8) * 1.5), n > 2 ? '#ff6a2a' : '#7a2a0a', 1); addLight(e.x, e.y, 60 + n * 20, '#ff6a2a', 0.6 + n * 0.1); }
+}

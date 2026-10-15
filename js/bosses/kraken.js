@@ -103,3 +103,19 @@ function tideStart(e, ai) {
   AudioMan.charge(0.8);
   later(ai, 0.8, () => { addHazard('tide', tx, ty, { r: 120, dur: 3.4, dmg: e.dmg }); AudioMan.splash(); hint('tide', _t('潮の満ち引き'), _t('引き寄せられたあと押し出される。最後に縁へ触手の輪')); });
 }
+
+// ---------- 描画(render.js の render / drawBossFx / drawBossGround から呼ぶ)----------
+function drawKrakenFx(e, sx, gx, ex, ey, t) {
+  for (const o of enemies) {
+    if (o.owner !== e || o.obj !== 'tentacle' || o.dead) continue;
+    const ox = o.x - cam.x, oy = o.y - cam.y - 8, n = Math.floor(Math.hypot(ex - ox, ey - oy) / 4);
+    for (let i = 0; i <= n; i++) {
+      if ((i + Math.floor(t * 14)) % 3) continue;
+      const k = i / Math.max(1, n), x = Math.round(ox + (ex - ox) * k), y = Math.round(oy + (ey - oy) * k + Math.sin(k * Math.PI) * -6);
+      sx.fillStyle = '#7ad7ff'; sx.fillRect(x, y, 1, 1); gx.fillStyle = '#1a4a5a'; gx.fillRect(x, y, 1, 1);
+    }
+  }
+  const rr = Math.round(e.r + 8 + Math.sin(t * 4));
+  sx.globalAlpha = 0.5; pCircle(sx, ex, ey, rr, '#7ad7ff'); sx.globalAlpha = 1;
+  pCircle(gx, ex, ey, rr, '#1a4a5a', 2);
+}

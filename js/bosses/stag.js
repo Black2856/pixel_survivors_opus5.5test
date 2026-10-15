@@ -125,3 +125,8 @@ function stagHerd(e, ai) {
     });
   }
 }
+
+// ---------- 描画(render.js の render / drawBossFx / drawBossGround から呼ぶ)----------
+function drawStagFx(e, sx, gx, ex, ey, sp, yo, t) {
+  for (let i = 0; i < 3; i++) { const a = t * 6 + TAU / 3 * i, x = Math.round(ex + Math.cos(a) * 9), y = Math.round(ey + yo - sp.h / 2 - 3 + Math.sin(a) * 3); sx.fillStyle = gx.fillStyle = PRISM[(i * 2) % 7]; sx.fillRect(x - 1, y, 3, 1); sx.fillRect(x, y - 1, 1, 3); gx.fillRect(x, y, 1, 1); }
+}

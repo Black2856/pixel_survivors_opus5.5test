@@ -156,3 +156,18 @@ function updSplit(e, ai, dt) {
   burst(e.x, e.y, 40, ['#4fd6a8', '#d8fff2', '#23735f'], { sp: 150, g: 200 });
   bossBlast(e.x, e.y, R0, Object.assign({ n: 14 }, BFX.gslime)); // 戻った瞬間に潰した跡
 }
+
+// ---------- 描画(render.js の render / drawBossFx / drawBossGround から呼ぶ)----------
+function drawGslimeFx(e, ai, sx, gx, ex, ey, t) {
+  for (const s of enemies) if (s.pulled === e && !s.dead) {
+    const fl = 0.5 + 0.5 * Math.sin(t * 20 + s.id);
+    pLine(gx, ex, ey, s.x - cam.x, s.y - cam.y, fl > 0.5 ? '#5dff8a' : '#2a7a4a', 1);
+    sx.globalAlpha = 0.7; pLine(sx, ex, ey, s.x - cam.x, s.y - cam.y, '#d8fff2', 1); sx.globalAlpha = 1;
+    addLight(s.x, s.y, 30, '#5dff8a', 0.6);
+  }
+  if (ai.act === 'split' && ai.mids) {
+    const k = Math.max(0, ai.pt / 12), R = 22, n = Math.ceil(TAU * R * k);
+    for (let i = 0; i < n; i++) { const a = -Math.PI / 2 + TAU * k * i / Math.max(1, n); sx.fillStyle = gx.fillStyle = k < 0.25 && Math.floor(t * 8) % 2 ? '#ff3b5c' : '#d8fff2'; sx.fillRect(Math.round(ex + Math.cos(a) * R), Math.round(ey + Math.sin(a) * R), 1, 1); gx.fillRect(Math.round(ex + Math.cos(a) * R), Math.round(ey + Math.sin(a) * R), 1, 1); }
+    for (const m of ai.mids) if (!m.dead) { sx.globalAlpha = 0.35; pLine(sx, ex, ey, m.x - cam.x, m.y - cam.y, '#4fd6a8', 1); sx.globalAlpha = 1; }
+  }
+}

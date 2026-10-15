@@ -83,3 +83,10 @@ function boneSpear(e, ai) {
     fxRays(e.x, e.y - 4, 40, '#2a5a7a', { foe: true, n: 10, life: 0.24, core: '#6ee7ff' }); // 骨槍を放つ瞬間の光
   });
 }
+
+// ---------- 描画(render.js の render / drawBossFx / drawBossGround から呼ぶ)----------
+function drawWyrmFx(e, ai, sx, gx, ex, ey, sp, yo) {
+  const k = 1 - ai.aiming / 0.3, hx = ex, hy = ey + yo - sp.h / 2 + 7;
+  for (const s of [-1, 1]) { sx.fillStyle = gx.fillStyle = '#ffffff'; sx.fillRect(Math.round(hx + s * 4) - 1, Math.round(hy), 3, 2); gx.fillRect(Math.round(hx + s * 4) - 1, Math.round(hy), 3, 2); }
+  addLight(e.x, e.y + yo - sp.h / 2 + 7, 30 + 50 * k, '#6ee7ff', 1);
+}

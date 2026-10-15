@@ -77,3 +77,15 @@ function groundBlizzard(e, ai) {
   ai.glowT = 0.5; AudioMan.charge(0.5);
   later(ai, 0.5, () => { addHazard('drift', e.x, e.y, { r: 70, dur: 4, owner: e, tick: 1 }); AudioMan.blizz(); shockAt(e.x, e.y, 1.2, 0.9); });
 }
+
+// ---------- 描画(render.js の render / drawBossFx / drawBossGround から呼ぶ)----------
+function drawFgiantFx(e, ai, sx, gx, ex, ey, sp, yo, A) {
+  if (ai.raise && ai.wind > 0) {
+    const k = 1 - ai.wind / ai.raise, R = Math.round(3 + 7 * k), hx = ex, hy = ey + yo - sp.h / 2 - 4 - R;
+    pDisc(sx, hx, hy, R, '#bff4ff'); pDisc(sx, hx - 1, hy - 1, Math.max(1, R - 3), '#ffffff'); pCircle(sx, hx, hy, R, '#5ab8e8');
+    pDisc(gx, hx, hy, Math.max(1, R - 2), k > 0.7 && Math.floor(GFX.fx.time * 16) % 2 ? '#7ab8d0' : '#3a6a80');
+    for (let i = 0; i < 3; i++) { const pa = rand(0, TAU), pr = R + rand(6, 14); part(e.x + Math.cos(pa) * pr, e.y + yo - sp.h / 2 - 4 - R + Math.sin(pa) * pr, -Math.cos(pa) * pr * 4, -Math.sin(pa) * pr * 4, 0.2, pick(['#ffffff', '#9ff7ff']), { glow: true, drag: 0 }); } // 冷気が吸い込まれる
+    addLight(e.x, e.y + yo - sp.h / 2 - 4 - R, 40 + 40 * k, '#9ff7ff', 0.8);
+  }
+  if (ai.glowT > 0) { const k = 1 - ai.glowT / 0.5; gx.globalAlpha = 1; pCircle(gx, ex, ey, Math.round(e.r + 4 + k * 60 * A), '#8aa0b8', 2); pCircle(sx, ex, ey, Math.round(e.r + 4 + k * 60 * A), '#ffffff'); addLight(e.x, e.y, 120, '#ffffff', 0.6); }
+}

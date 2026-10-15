@@ -99,3 +99,21 @@ function leviaBreath(e, ai, a) {
   AudioMan.charge(0.6);
   windup(e, 0.6, () => { ai.act = 'breath'; ai.pt = 0; ai.bdir = Math.random() < 0.5 ? 1 : -1; ai.ba0 = a - ai.bdir * Math.PI / 4; ai.bhit = false; AudioMan.roar(); });
 }
+
+// ---------- 描画(render.js の render / drawBossFx / drawBossGround から呼ぶ)----------
+function drawLeviaFx(e, ai, sx, gx, ex, ey, A, t) {
+  if (ai.act === 'dive') {
+    sx.globalAlpha = 0.45; sx.fillStyle = '#04121a';
+    sx.beginPath(); sx.ellipse(ex, ey, 26, 11, Math.sin(t * 2) * 0.35, 0, TAU); sx.fill();
+    sx.beginPath(); sx.ellipse(ex - 22 * Math.cos(Math.sin(t * 2) * 0.35), ey - 22 * Math.sin(Math.sin(t * 2) * 0.35) + Math.sin(t * 5) * 3, 12, 4, Math.sin(t * 2) * 0.35 + Math.sin(t * 5) * 0.3, 0, TAU); sx.fill(); // 尾
+    sx.globalAlpha = 1;
+  }
+  if (ai.act === 'breath' && ai.ba != null) {
+    const BL = 220 * A, bx = ex + Math.cos(ai.ba) * BL, by = ey + Math.sin(ai.ba) * BL, fl = Math.floor(t * 30) % 2;
+    pLine(gx, ex, ey, bx, by, '#1a5a7a', Math.round((10 + fl * 2) * A));
+    pLine(sx, ex, ey, bx, by, '#2a8ac8', Math.round(9 * A));
+    pLine(sx, ex, ey, bx, by, '#7ad7ff', Math.round(5 * A));
+    pLine(sx, ex, ey, bx, by, '#ffffff', Math.max(1, Math.round(2 * A)));
+    for (let r = 0; r < BL; r += 44) addLight(e.x + Math.cos(ai.ba) * r, e.y + Math.sin(ai.ba) * r, 60, '#7ad7ff', 0.7);
+  }
+}

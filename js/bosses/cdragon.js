@@ -152,3 +152,20 @@ function updRaid(e, ai, dt) {
   addRing(e.x, e.y, 40, '#ff4a8a', { w: 2, life: 0.4 });
   if (ai.enraged && !rd.again) { startRaid(e, ai); ai.rd.again = true; } // 激昂: 降りてすぐもう1回(2回まで)
 }
+
+// ---------- 描画(render.js の render / drawBossFx / drawBossGround から呼ぶ)----------
+function drawCdragonFx(e, ai, A) {
+  for (let r = 20; r < 125 * A; r += 26 * A) addLight(e.x + Math.cos(ai.ba) * r, e.y + Math.sin(ai.ba) * r, r * 0.9, '#ff6a2a', 0.7);
+}
+function drawCdragonFx2(e, ai, sx, ex, ey, A, t) {
+  const R = 15 * A, x = ex, y = ey, c = Math.cos(ai.rd.th), s = Math.sin(ai.rd.th);
+  sx.globalAlpha = 0.55; sx.fillStyle = '#12060e';
+  sx.beginPath(); sx.ellipse(x, y, R, R * 0.7, ai.rd.th, 0, TAU); sx.fill();
+  for (const w of [-1, 1]) { // 翼の影
+    const wx = x - s * w * R * 1.1, wy = y + c * w * R * 1.1;
+    sx.beginPath(); sx.ellipse(wx, wy, R * 0.9, R * 0.35, ai.rd.th + w * 0.4, 0, TAU); sx.fill();
+  }
+  sx.globalAlpha = 1;
+  pCircle(sx, x, y, Math.round(R), Math.floor(t * 10) % 2 ? '#ff3b5c' : '#ffd0d8');
+  addLight(e.x, e.y, 60, '#ff6a2a', 0.5);
+}

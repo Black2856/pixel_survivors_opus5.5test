@@ -2383,19 +2383,9 @@ function drawBossFx(e) {
   if (e.boss === 'trichroma') drawTriFx(e, sx, gx, ex, ey, yo);
   if (e.boss === 'seraph') drawSerFx(e, sx, gx, ex, ey, yo);
   if (e.boss === 'shadowking' && !e.shadow) drawSkFx(e, sx, gx, ex, ey);
-  if (e.boss === 'sphinx') { // スフィンクス: 謎かけの頭上の印(逆さの問いは赤)/ 陽光の眼の溜めと光線
-    if (ai.rq) { const s2 = ART.S['sym_' + ai.rq.ans + (ai.rq.inv ? '_r' : '')], bob = Math.round(Math.sin(GFX.fx.time * 4) * 1.5); drawSp(s2, e.x, e.y + yo - sp.h / 2 - 9 + bob, { scale: 1 }); addLight(e.x, e.y - sp.h / 2 - 9, 34, ai.rq.inv ? '#ff3b5c' : '#ffd27a', 0.7); }
-    if (ai.act === 'eyes' && ai.tl && ai.tl.t < 0.8) { const k = ai.tl.t / 0.8, gx2 = Math.round(ex + ai.tl.ox), gy2 = Math.round(ey + ai.tl.oy); gx.fillStyle = '#7ad7ff'; gx.fillRect(gx2 - 2, gy2, 5, 1); addLight(e.x + ai.tl.ox, e.y + ai.tl.oy, 20 + 40 * k, '#7ad7ff', 0.5 + 0.5 * k); }
-    if (ai.beamA != null && ai.beamO) { // 両目の光線(2本の細い線が並ぶ。光の太さは当たり判定の幅 16 に合わせる)
-      const BL = 240 * A, ca = Math.cos(ai.beamA), sa = Math.sin(ai.beamA), ox2 = ai.beamO.x - cam.x, oy2 = ai.beamO.y - cam.y, fl = Math.floor(GFX.fx.time * 30) % 2;
-      pLine(gx, ox2, oy2, ox2 + ca * BL, oy2 + sa * BL, '#8a6a20', Math.round((12 + fl * 2) * A));
-      for (const s of [-3, 3]) { const nx = -sa * s, ny = ca * s; pLine(sx, ox2 + nx, oy2 + ny, ox2 + ca * BL + nx, oy2 + sa * BL + ny, '#fff0c0', 2); }
-      pLine(sx, ox2, oy2, ox2 + ca * BL, oy2 + sa * BL, '#7ad7ff', 1);
-      for (let r = 0; r < BL; r += 48) addLight(ai.beamO.x + ca * r, ai.beamO.y + sa * r, 50, '#ffd27a', 0.6);
-    }
-  }
+  if (e.boss === 'sphinx') drawSphinxFx(e, ai, sx, gx, ex, ey, sp, yo, A);
   if (e.stun > 0 || e.stunVis) for (let i = 0; i < 3; i++) { const a = GFX.fx.time * 6 + TAU / 3 * i, x = Math.round(ex + Math.cos(a) * 10), y = Math.round(ey + yo - sp.h / 2 - 4 + Math.sin(a) * 3); sx.fillStyle = gx.fillStyle = '#ffe14a'; sx.fillRect(x - 1, y, 3, 1); sx.fillRect(x, y - 1, 1, 3); gx.fillRect(x, y, 1, 1); } // ひるみ(砂時計・終刻の時計を壊した): 頭の上を星が回る
-  if (ai.act === 'breath' && e.boss === 'cdragon') for (let r = 20; r < 125 * A; r += 26 * A) addLight(e.x + Math.cos(ai.ba) * r, e.y + Math.sin(ai.ba) * r, r * 0.9, '#ff6a2a', 0.7);
+  if (ai.act === 'breath' && e.boss === 'cdragon') drawCdragonFx(e, ai, A);
   if (ai.act === 'beam' && ai.bA != null) {
     const BL = BEAM_LEN * A, bx = ex + Math.cos(ai.bA) * BL, by = ey + Math.sin(ai.bA) * BL, fl = Math.floor(GFX.fx.time * 30) % 2;
     pLine(gx, ex, ey, bx, by, '#ff4a8a', Math.round((9 + fl * 2) * A));
@@ -2408,218 +2398,35 @@ function drawBossFx(e) {
     addLight(e.x, e.y, 120 - ai.wind * 50, '#ff4a8a', 1);
   }
   const t = GFX.fx.time;
-  if (e.boss === 'raijin' && ai.godLit > 0) { // 神鳴りの溜め(雷神の側だけで読ませる): 背中の太鼓が真上から時計回りに 1つずつ光り、光った太鼓どうしを稲妻がつなぐ
-    //   掲げた撥の先(頭の上)へ、稲妻の輪と渦を巻いて吸いこまれる光の筋が集まる。ゆっくり始まって最後に一気に収束し(ease-in の 3乗)、収束した瞬間に落ちる
-    const D = RAIJIN_DRUM, cx = ex, cy = ey + yo + D.cy, n = ai.godLit, k = n / 8;
-    let qx = null, qy = null;
-    for (let i = 0; i < n; i++) {
-      const a = -Math.PI / 2 + TAU / 8 * i, x = Math.round(cx + Math.cos(a) * D.r), y = Math.round(cy + Math.sin(a) * D.r);
-      pDisc(gx, x, y, 3, '#5a3aa8'); pDisc(sx, x, y, 2, '#f0e8ff'); // 光る太鼓(光の層は暗い紫)
-      if (qx !== null) jagBolt(qx, qy, x, y, { step: 5, j: 2, col: '#d8c8ff', glow: '#3a2478' });
-      qx = x; qy = y;
-    }
-    addLight(e.x, e.y - (e.jz || 0) + D.cy, 40 + 40 * k, '#5a3aa8', 0.25 + 0.3 * k); // 照らす光は暗い紫で弱く(体が白く飛ばないように)
-    const gt = Math.min(2, S.time - ai.godT0), u = gt / 2, ez = u * u * u, last = gt > 1.75, beat = (S.time - ai.godT0) % 0.25 < 0.06; // ez: 収束のイージング
-    const fx = cx, fy = ey + yo - 23, RG = 4 + 52 * (1 - ez), rot = t * 1.5 + ez * 3; // 収束する点(掲げた撥の先)と、稲妻の輪の半径(56 → 4。雷神のまわりに収め、プレイヤーの近くまで広げない)
-    let p0x = 0, p0y = 0;
-    for (let i = 0; i <= 16; i++) { const a = rot + TAU / 16 * i, x = fx + Math.cos(a) * RG, y = fy + Math.sin(a) * RG; if (i) jagBolt(p0x, p0y, x, y, { step: 5, j: last ? 3 : 2, col: last ? '#ffffff' : '#d8c8ff', glow: last ? '#5a3aa8' : '#3a2478' }); p0x = x; p0y = y; } // 稲妻の輪(16 の点を結ぶ、はじける雷)
-    for (let j = 0; j < 14; j++) { // 渦を巻いて吸いこまれる光の筋(収束が速くなるほど長く)
-      const a = TAU / 14 * j + hash2(j, 5) * 0.4 - ez * 4 - t * 0.8, rr = RG * (1.15 + 0.5 * hash2(j, 9)) + 6, L = 3 + 14 * u * u;
-      const x0 = fx + Math.cos(a) * rr, y0 = fy + Math.sin(a) * rr, x1 = fx + Math.cos(a + 0.25) * Math.max(0, rr - L), y1 = fy + Math.sin(a + 0.25) * Math.max(0, rr - L);
-      sx.globalAlpha = 0.5 + 0.5 * u; pLine(sx, x0, y0, x1, y1, '#c8b8ff'); sx.globalAlpha = 1; pLine(gx, x0, y0, x1, y1, '#2a1a5a');
-    }
-    const cr = Math.round(1 + 3 * u) + (beat ? 1 : 0) + (last && Math.floor(t * 30) % 2 ? 1 : 0); // 撥の先の光の芯(溜まるほど大きく、拍ごとに強く、最後の拍からはまたたく)
-    pDisc(gx, fx, fy, cr + 2, '#5a3aa8'); pDisc(sx, fx, fy, cr, '#f0e8ff');
-    addLight(e.x, e.y - (e.jz || 0) - 23, 30 + 40 * u, '#5a3aa8', 0.3 + 0.4 * u);
-  }
+  if (e.boss === 'raijin' && ai.godLit > 0) drawRaijinFx(e, ai, sx, gx, ex, ey, yo, t);
   // 白骨竜の狙い撃ち: 撃つ前に頭(目)が光る
-  if (e.boss === 'wyrm' && ai.aiming > 0) {
-    const k = 1 - ai.aiming / 0.3, hx = ex, hy = ey + yo - sp.h / 2 + 7;
-    for (const s of [-1, 1]) { sx.fillStyle = gx.fillStyle = '#ffffff'; sx.fillRect(Math.round(hx + s * 4) - 1, Math.round(hy), 3, 2); gx.fillRect(Math.round(hx + s * 4) - 1, Math.round(hy), 3, 2); }
-    addLight(e.x, e.y + yo - sp.h / 2 + 7, 30 + 50 * k, '#6ee7ff', 1);
-  }
+  if (e.boss === 'wyrm' && ai.aiming > 0) drawWyrmFx(e, ai, sx, gx, ex, ey, sp, yo);
   // 巨大スライム: 吸収の光の線 / 分裂の残り時間(縮む弧)と中スライムへの糸
-  if (e.boss === 'gslime') {
-    for (const s of enemies) if (s.pulled === e && !s.dead) {
-      const fl = 0.5 + 0.5 * Math.sin(t * 20 + s.id);
-      pLine(gx, ex, ey, s.x - cam.x, s.y - cam.y, fl > 0.5 ? '#5dff8a' : '#2a7a4a', 1);
-      sx.globalAlpha = 0.7; pLine(sx, ex, ey, s.x - cam.x, s.y - cam.y, '#d8fff2', 1); sx.globalAlpha = 1;
-      addLight(s.x, s.y, 30, '#5dff8a', 0.6);
-    }
-    if (ai.act === 'split' && ai.mids) {
-      const k = Math.max(0, ai.pt / 12), R = 22, n = Math.ceil(TAU * R * k);
-      for (let i = 0; i < n; i++) { const a = -Math.PI / 2 + TAU * k * i / Math.max(1, n); sx.fillStyle = gx.fillStyle = k < 0.25 && Math.floor(t * 8) % 2 ? '#ff3b5c' : '#d8fff2'; sx.fillRect(Math.round(ex + Math.cos(a) * R), Math.round(ey + Math.sin(a) * R), 1, 1); gx.fillRect(Math.round(ex + Math.cos(a) * R), Math.round(ey + Math.sin(a) * R), 1, 1); }
-      for (const m of ai.mids) if (!m.dead) { sx.globalAlpha = 0.35; pLine(sx, ex, ey, m.x - cam.x, m.y - cam.y, '#4fd6a8', 1); sx.globalAlpha = 1; }
-    }
-  }
+  if (e.boss === 'gslime') drawGslimeFx(e, ai, sx, gx, ex, ey, t);
   // ゴーレム: 岩の鎧(体を覆う岩・削った分だけ入るひび・DPSチェックの輪)/ ひるみの星 / 全速の赤い光
-  if (e.boss === 'golem') {
-    if (ai.act === 'armor') {
-      const dx = Math.round(ex - sp.w / 2), dy = Math.round(ey + yo - sp.h / 2);
-      sx.globalAlpha = 0.55; sx.drawImage(ART.tint(sp.c, '#3a3530'), dx, dy); sx.globalAlpha = 1;
-      const n = Math.floor(ai.armK * 14);
-      for (let i = 0; i < n; i++) { // 削るほど増えるひび(光る)
-        const x0 = dx + 2 + hash2(i, 41) * (sp.w - 4), y0 = dy + 2 + hash2(i, 43) * (sp.h - 4), a = hash2(i, 47) * TAU;
-        pLine(gx, x0, y0, x0 + Math.cos(a) * 4, y0 + Math.sin(a) * 4, '#6ee7ff', 1);
-      }
-      const R = 26, m = Math.ceil(TAU * R);
-      for (let i = 0; i < m; i++) { // DPSチェックの輪: 削った割合だけ金色に満ちる。残り時間で点滅
-        const u = i / m, a = -Math.PI / 2 + TAU * u, on = u <= ai.armK;
-        if (!on && i % 2) continue;
-        sx.fillStyle = on ? '#ffd23f' : ai.pt < 1.5 && Math.floor(t * 8) % 2 ? '#ff3b5c' : '#8a8676';
-        sx.fillRect(Math.round(ex + Math.cos(a) * R), Math.round(ey + Math.sin(a) * R), 1, 1);
-        if (on) { gx.fillStyle = '#5a4a10'; gx.fillRect(Math.round(ex + Math.cos(a) * R), Math.round(ey + Math.sin(a) * R), 1, 1); }
-      }
-    } else if (ai.act === 'stagger') {
-      for (let i = 0; i < 3; i++) { const a = t * 6 + TAU / 3 * i, x = Math.round(ex + Math.cos(a) * 9), y = Math.round(ey + yo - sp.h / 2 - 4 + Math.sin(a) * 3); sx.fillStyle = gx.fillStyle = '#ffe14a'; sx.fillRect(x, y, 1, 1); gx.fillRect(x, y, 1, 1); sx.fillRect(x - 1, y, 3, 1); sx.fillRect(x, y - 1, 1, 3); }
-    }
-    if (ai.overT > 0) addLight(e.x, e.y, 80, '#ff3b1a', 0.8);
-  }
+  if (e.boss === 'golem') drawGolemFx(e, ai, sx, gx, ex, ey, sp, yo, t);
   // 炎魔イフリート: 激昂の熱(足元の赤熱した輪と強い光)/ 祭壇から流れ込む炎の筋 / 祭壇で強まった炎のオーラ
-  if (e.boss === 'ifrit') {
-    if (ai.enraged) {
-      const rr = Math.round(sp.w * 0.75 + Math.sin(t * 10) * 1.5), fy = Math.round(ey + sp.h * 0.55);
-      sx.globalAlpha = 0.6; pCircle(sx, ex, fy, rr, '#ffc34a'); sx.globalAlpha = 1;
-      pCircle(gx, ex, fy, rr, '#6a2a08'); // 光の層は暗い色で
-      addLight(e.x, e.y, 90 + Math.sin(t * 8) * 10, '#ff8a3d', 0.85);
-    }
-    let n = 0;
-    for (const o of enemies) if (o.owner === e && o.obj === 'altar' && !o.dead) {
-      n++;
-      const ox = o.x - cam.x, oy = o.y - cam.y - 10, k = (t * 1.5 + o.seed) % 1;
-      sx.globalAlpha = 0.35; pLine(sx, ox, oy, ex, ey + yo, '#ff6a2a', 1); sx.globalAlpha = 1;
-      const px = ox + (ex - ox) * k, py = oy + (ey + yo - oy) * k; sx.fillStyle = gx.fillStyle = '#ffc34a'; sx.fillRect(Math.round(px), Math.round(py), 2, 2); gx.fillRect(Math.round(px), Math.round(py), 2, 2); // 流れる火の玉
-    }
-    if (n > 0) { gx.globalAlpha = 1; pCircle(gx, ex, ey + yo, Math.round(sp.w * 0.6 + Math.sin(t * 8) * 1.5), n > 2 ? '#ff6a2a' : '#7a2a0a', 1); addLight(e.x, e.y, 60 + n * 20, '#ff6a2a', 0.6 + n * 0.1); }
-  }
+  if (e.boss === 'ifrit') drawIfritFx(e, ai, sx, gx, ex, ey, sp, yo, t);
   // 晶角の大鹿: ひるみの星
-  if (e.boss === 'stag' && ai.act === 'stun') {
-    for (let i = 0; i < 3; i++) { const a = t * 6 + TAU / 3 * i, x = Math.round(ex + Math.cos(a) * 9), y = Math.round(ey + yo - sp.h / 2 - 3 + Math.sin(a) * 3); sx.fillStyle = gx.fillStyle = PRISM[(i * 2) % 7]; sx.fillRect(x - 1, y, 3, 1); sx.fillRect(x, y - 1, 1, 3); gx.fillRect(x, y, 1, 1); }
-  }
+  if (e.boss === 'stag' && ai.act === 'stun') drawStagFx(e, sx, gx, ex, ey, sp, yo, t);
   // 七彩の女王: 分身の間、本物だけ 0.5秒ごとに弱く光る
-  if (e.boss === 'pqueen') {
-    if (ai.clones && t % 0.5 < 0.12) { const gxp = Math.round(ex), gyp = Math.round(ey + yo - sp.h / 2 - 3); sx.fillStyle = gx.fillStyle = '#fff6c8'; sx.fillRect(gxp - 1, gyp, 3, 1); sx.fillRect(gxp, gyp - 1, 1, 3); gx.fillRect(gxp, gyp, 1, 1); } // 本物のしるし
-  }
+  if (e.boss === 'pqueen') drawPqueenFx(e, ai, sx, gx, ex, ey, sp, yo, t);
   // クラーケン: 触手が 2本以上ある間は、触手から本体へ水の流れ(守り)と、本体を包む水の膜
-  if (e.boss === 'kraken' && e.takeK < 1 && !e.hidden) {
-    for (const o of enemies) {
-      if (o.owner !== e || o.obj !== 'tentacle' || o.dead) continue;
-      const ox = o.x - cam.x, oy = o.y - cam.y - 8, n = Math.floor(Math.hypot(ex - ox, ey - oy) / 4);
-      for (let i = 0; i <= n; i++) {
-        if ((i + Math.floor(t * 14)) % 3) continue;
-        const k = i / Math.max(1, n), x = Math.round(ox + (ex - ox) * k), y = Math.round(oy + (ey - oy) * k + Math.sin(k * Math.PI) * -6);
-        sx.fillStyle = '#7ad7ff'; sx.fillRect(x, y, 1, 1); gx.fillStyle = '#1a4a5a'; gx.fillRect(x, y, 1, 1);
-      }
-    }
-    const rr = Math.round(e.r + 8 + Math.sin(t * 4));
-    sx.globalAlpha = 0.5; pCircle(sx, ex, ey, rr, '#7ad7ff'); sx.globalAlpha = 1;
-    pCircle(gx, ex, ey, rr, '#1a4a5a', 2);
-  }
+  if (e.boss === 'kraken' && e.takeK < 1 && !e.hidden) drawKrakenFx(e, sx, gx, ex, ey, t);
   // 深淵の海竜: 潜航中は大きな影が水の下を泳ぐ / 水流ブレス
-  if (e.boss === 'levia') {
-    if (ai.act === 'dive') {
-      sx.globalAlpha = 0.45; sx.fillStyle = '#04121a';
-      sx.beginPath(); sx.ellipse(ex, ey, 26, 11, Math.sin(t * 2) * 0.35, 0, TAU); sx.fill();
-      sx.beginPath(); sx.ellipse(ex - 22 * Math.cos(Math.sin(t * 2) * 0.35), ey - 22 * Math.sin(Math.sin(t * 2) * 0.35) + Math.sin(t * 5) * 3, 12, 4, Math.sin(t * 2) * 0.35 + Math.sin(t * 5) * 0.3, 0, TAU); sx.fill(); // 尾
-      sx.globalAlpha = 1;
-    }
-    if (ai.act === 'breath' && ai.ba != null) {
-      const BL = 220 * A, bx = ex + Math.cos(ai.ba) * BL, by = ey + Math.sin(ai.ba) * BL, fl = Math.floor(t * 30) % 2;
-      pLine(gx, ex, ey, bx, by, '#1a5a7a', Math.round((10 + fl * 2) * A));
-      pLine(sx, ex, ey, bx, by, '#2a8ac8', Math.round(9 * A));
-      pLine(sx, ex, ey, bx, by, '#7ad7ff', Math.round(5 * A));
-      pLine(sx, ex, ey, bx, by, '#ffffff', Math.max(1, Math.round(2 * A)));
-      for (let r = 0; r < BL; r += 44) addLight(e.x + Math.cos(ai.ba) * r, e.y + Math.sin(ai.ba) * r, 60, '#7ad7ff', 0.7);
-    }
-  }
+  if (e.boss === 'levia') drawLeviaFx(e, ai, sx, gx, ex, ey, A, t);
   // 死神: 変身(時が止まる間、背後に大きな時計が現れて針が止まり、体が赤くひび割れる)
-  if (e.boss === 'reaper' && S.morph && S.morph.e === e) {
-    const k = 1 - S.morph.t / 2, R = Math.round(30 + 40 * k);
-    sx.globalAlpha = 0.5 * k; pCircle(sx, ex, ey, R, '#c29bff'); pCircle(sx, ex, ey, R - 3, '#ff3b5c'); sx.globalAlpha = 1;
-    for (let i = 0; i < 12; i++) { const a = TAU / 12 * i; sx.fillStyle = gx.fillStyle = '#ffd0d8'; sx.fillRect(Math.round(ex + Math.cos(a) * (R - 6)), Math.round(ey + Math.sin(a) * (R - 6)), 2, 2); gx.fillRect(Math.round(ex + Math.cos(a) * (R - 6)), Math.round(ey + Math.sin(a) * (R - 6)), 1, 1); }
-    const ha = -Math.PI / 2 + (1 - k) * 8; pLine(sx, ex, ey, ex + Math.cos(ha) * R * 0.8, ey + Math.sin(ha) * R * 0.8, '#ffffff', 2); pLine(gx, ex, ey, ex + Math.cos(ha) * R * 0.8, ey + Math.sin(ha) * R * 0.8, '#5a1020', 1);
-    for (let i = 0; i < Math.floor(k * 10); i++) { const a = hash2(i, 61) * TAU, l = 6 + hash2(i, 67) * 10; pLine(gx, ex, ey + yo - 6, ex + Math.cos(a) * l, ey + yo - 6 + Math.sin(a) * l, '#ff3b5c', 1); } // 赤いひび
-    addLight(e.x, e.y, 60 + 120 * k, '#ff3b5c', 0.4 + 0.6 * k);
-  }
+  if (e.boss === 'reaper' && S.morph && S.morph.e === e) drawReaperFx(e, sx, gx, ex, ey, yo);
   // 終刻の死神: 背後に回る時計の光輪(12の目盛りと針)/ 秒針の弾幕の前に目盛りが光る / 時間停止中は止まった時計
-  if (e.boss === 'fhour' && !e.hidden) { // 十二の刻印で消えている間は描かない
-    const R = 22, frozen = S.tstop > 0, rv = S.rewind > 0 ? -4 : 1;
-    for (let i = 0; i < 12; i++) {
-      const a = -Math.PI / 2 + TAU / 12 * i, glow = ai.secGlow > 0 && Math.floor(t * 12 + i) % 2 === 0, rr = ai.secGlow > 0 ? R + 10 : R;
-      sx.fillStyle = glow ? '#ffffff' : '#c8a050'; sx.fillRect(Math.round(ex + Math.cos(a) * rr), Math.round(ey + yo - 4 + Math.sin(a) * rr), i % 3 ? 1 : 2, i % 3 ? 1 : 2);
-      if (glow) { gx.fillStyle = '#ff3b5c'; gx.fillRect(Math.round(ex + Math.cos(a) * rr), Math.round(ey + yo - 4 + Math.sin(a) * rr), 2, 2); }
-    }
-    const ha = frozen ? -Math.PI / 2 : t * 2 * rv - Math.PI / 2, ma = frozen ? Math.PI / 6 : t * 0.3 * rv;
-    sx.globalAlpha = 0.7; pLine(sx, ex, ey + yo - 4, ex + Math.cos(ha) * (R - 3), ey + yo - 4 + Math.sin(ha) * (R - 3), '#ff3b5c'); pLine(sx, ex, ey + yo - 4, ex + Math.cos(ma) * (R - 8), ey + yo - 4 + Math.sin(ma) * (R - 8), '#c8a050', 2); sx.globalAlpha = 1;
-    if (ai.secGlow > 0) addLight(e.x, e.y, 100, '#ff3b5c', 0.7);
-    drawSp(sp, e.x, e.y + yo, { flip: (e.face || 1) < 0, sy: e.sq || 1, sxk: 2 - (e.sq || 1), white: e.flash > 0 }); // 光輪の上に体を描き直す
-  }
+  if (e.boss === 'fhour' && !e.hidden) drawFhourFx(e, ai, sx, gx, ex, ey, sp, yo, t);
   // クロノ・エコー(終刻の死神): 灰色の死神。0.4秒で現れ、技が終わると 0.4秒で消える。秒針の弾幕の構えでは目盛りが光る
-  if (e.boss === 'fhour' && ai.echoes) for (const g of ai.echoes) {
-    if (g.hidden) continue;
-    const a = Math.min(1, g.t / 0.4) * (g.out ? Math.max(0, 1 - g.out / 0.4) : 1), gx0 = g.x - cam.x, gy0 = g.y - cam.y;
-    sx.globalAlpha = 0.75 * a; sx.drawImage(grayOf((g.face || 1) < 0 ? ART.variant(sp, 'flip') : sp.c), Math.round(gx0 - sp.w / 2), Math.round(gy0 - sp.h / 2));
-    if (g.ai.secGlow > 0) for (let i = 0; i < 12; i++) { const ta = -Math.PI / 2 + TAU / 12 * i; if (Math.floor(t * 12 + i) % 2) continue; sx.fillStyle = '#e8e8f0'; sx.fillRect(Math.round(gx0 + Math.cos(ta) * 32), Math.round(gy0 - 4 + Math.sin(ta) * 32), 2, 2); }
-    sx.globalAlpha = 1;
-    addLight(g.x, g.y, 46, '#9a9aaa', 0.5 * a);
-  }
+  if (e.boss === 'fhour' && ai.echoes) drawFhourFx2(e, ai, sx, sp, t);
   // 時計仕掛けの番人: 背中のゼンマイ / 時針と分針 / 鐘の光 / ゼンマイ巻きのDPSチェックの輪 / 止まった火花の星 / 全速の赤い光(リングギアは床として描く)
-  if (e.boss === 'warden') {
-    const kx = ex + 13, ky = ey + yo - 2, ka = ai.keyA || 0; // ゼンマイの鍵(背中から横に突き出て回る)
-    pLine(sx, ex + 8, ky, kx, ky, '#8a6a30', 2);
-    for (const s2 of [1, -1]) { const bx = kx + Math.cos(ka) * 4 * s2, by = ky + Math.sin(ka) * 2 * s2; pDisc(sx, bx, by, 2, '#c8a050'); sx.fillStyle = '#241e1a'; sx.fillRect(Math.round(bx), Math.round(by), 1, 1); }
-    if (ai.hands) { // 2本の針: 薄く出る → 真鍮の針が回る
-      const on = ai.hands.t > 1, L = 180 * A;
-      for (const [ha, w, col] of [[ai.hands.a1, 10, '#8a6a30'], [ai.hands.a2, 7, '#c8a050']]) {
-        const x1 = ex + Math.cos(ha) * L, y1 = ey + Math.sin(ha) * L;
-        if (!on) { sx.globalAlpha = 0.35; pLine(sx, ex, ey, x1, y1, '#c8a050', 3); sx.globalAlpha = 1; continue; }
-        const nx = -Math.sin(ha) * w * A * 0.3, ny = Math.cos(ha) * w * A * 0.3;
-        pLine(sx, ex, ey, x1, y1, '#241e1a', Math.round((w + 2) * A)); pLine(sx, ex, ey, x1, y1, col, Math.round(w * A));
-        pLine(sx, ex + nx, ey + ny, x1 + nx, y1 + ny, '#e8c880', 1); // 片側の照り返し
-        for (const k of [0.55, 0.85]) { const tx = ex + Math.cos(ha) * L * k, ty = ey + Math.sin(ha) * L * k; pDisc(sx, tx, ty, Math.round(w * 0.55 * A) + 1, '#241e1a'); pDisc(sx, tx, ty, Math.round(w * 0.55 * A), col); } // 針の飾り(透かしの輪)
-      }
-      if (on) { pDisc(sx, ex, ey, 5, '#241e1a'); pDisc(sx, ex, ey, 4, '#c8a050'); addLight(e.x, e.y, 90, '#ffd27a', 0.3); }
-    }
-    if (ai.hands) drawSp(sp, e.x, e.y + yo, { flip: (e.face || 1) < 0, sy: e.sq || 1, sxk: 2 - (e.sq || 1), white: e.flash > 0 }); // 針の上に体を描き直す(軸は胸の文字盤)
-    if (ai.bellT > 0) { const k = 1 - ai.bellT / 0.8; pCircle(gx, ex, ey + yo - sp.h / 2 + 4, Math.round(6 + 6 * k), '#7a5a10'); addLight(e.x, e.y + yo - sp.h / 2 + 4, 40 + 60 * k, '#ffd27a', 0.9); } // 鐘が光る
-    if (ai.act === 'spring') {
-      const R = 26, m = Math.ceil(TAU * R);
-      for (let i = 0; i < m; i++) { // DPSチェックの輪: 削った割合だけ金色に満ちる。残り時間で点滅
-        const u = i / m, a2 = -Math.PI / 2 + TAU * u, on = u <= ai.armK;
-        if (!on && i % 2) continue;
-        sx.fillStyle = on ? '#ffd23f' : ai.pt < 1.5 && Math.floor(t * 8) % 2 ? '#ff3b5c' : '#8a7a60';
-        sx.fillRect(Math.round(ex + Math.cos(a2) * R), Math.round(ey + Math.sin(a2) * R), 1, 1);
-        if (on) { gx.fillStyle = '#5a4a10'; gx.fillRect(Math.round(ex + Math.cos(a2) * R), Math.round(ey + Math.sin(a2) * R), 1, 1); }
-      }
-    } else if (ai.act === 'stall') {
-      for (let i = 0; i < 3; i++) { const a2 = t * 6 + TAU / 3 * i, x = Math.round(ex + Math.cos(a2) * 10), y = Math.round(ey + yo - sp.h / 2 - 4 + Math.sin(a2) * 3); sx.fillStyle = gx.fillStyle = '#ffe14a'; sx.fillRect(x - 1, y, 3, 1); sx.fillRect(x, y - 1, 1, 3); gx.fillRect(x, y, 1, 1); }
-    }
-    if (ai.fastT > 0) addLight(e.x, e.y, 80, '#ff8a3d', 0.8);
-  }
+  if (e.boss === 'warden') drawWardenFx(e, ai, sx, gx, ex, ey, sp, yo, A, t);
   // 霜の巨人: 氷槌を振りかぶる間、頭上に氷が集まる / 地吹雪の前に体が白く光る
-  if (e.boss === 'fgiant') {
-    if (ai.raise && ai.wind > 0) {
-      const k = 1 - ai.wind / ai.raise, R = Math.round(3 + 7 * k), hx = ex, hy = ey + yo - sp.h / 2 - 4 - R;
-      pDisc(sx, hx, hy, R, '#bff4ff'); pDisc(sx, hx - 1, hy - 1, Math.max(1, R - 3), '#ffffff'); pCircle(sx, hx, hy, R, '#5ab8e8');
-      pDisc(gx, hx, hy, Math.max(1, R - 2), k > 0.7 && Math.floor(GFX.fx.time * 16) % 2 ? '#7ab8d0' : '#3a6a80');
-      for (let i = 0; i < 3; i++) { const pa = rand(0, TAU), pr = R + rand(6, 14); part(e.x + Math.cos(pa) * pr, e.y + yo - sp.h / 2 - 4 - R + Math.sin(pa) * pr, -Math.cos(pa) * pr * 4, -Math.sin(pa) * pr * 4, 0.2, pick(['#ffffff', '#9ff7ff']), { glow: true, drag: 0 }); } // 冷気が吸い込まれる
-      addLight(e.x, e.y + yo - sp.h / 2 - 4 - R, 40 + 40 * k, '#9ff7ff', 0.8);
-    }
-    if (ai.glowT > 0) { const k = 1 - ai.glowT / 0.5; gx.globalAlpha = 1; pCircle(gx, ex, ey, Math.round(e.r + 4 + k * 60 * A), '#8aa0b8', 2); pCircle(sx, ex, ey, Math.round(e.r + 4 + k * 60 * A), '#ffffff'); addLight(e.x, e.y, 120, '#ffffff', 0.6); }
-  }
+  if (e.boss === 'fgiant') drawFgiantFx(e, ai, sx, gx, ex, ey, sp, yo, A);
   // カオスドラゴン: 空襲の影(空の上の竜の影が地面を走る)
-  if (e.boss === 'cdragon' && ai.act === 'raid' && ai.rd && ai.rd.ph === 'sky') {
-    const R = 15 * A, x = ex, y = ey, c = Math.cos(ai.rd.th), s = Math.sin(ai.rd.th);
-    sx.globalAlpha = 0.55; sx.fillStyle = '#12060e';
-    sx.beginPath(); sx.ellipse(x, y, R, R * 0.7, ai.rd.th, 0, TAU); sx.fill();
-    for (const w of [-1, 1]) { // 翼の影
-      const wx = x - s * w * R * 1.1, wy = y + c * w * R * 1.1;
-      sx.beginPath(); sx.ellipse(wx, wy, R * 0.9, R * 0.35, ai.rd.th + w * 0.4, 0, TAU); sx.fill();
-    }
-    sx.globalAlpha = 1;
-    pCircle(sx, x, y, Math.round(R), Math.floor(t * 10) % 2 ? '#ff3b5c' : '#ffd0d8');
-    addLight(e.x, e.y, 60, '#ff6a2a', 0.5);
-  }
+  if (e.boss === 'cdragon' && ai.act === 'raid' && ai.rd && ai.rd.ph === 'sky') drawCdragonFx2(e, ai, sx, ex, ey, A, t);
 }
 
 // ボスの技の見た目だけの演出(bfx。world.js の各ボスの技が積む)

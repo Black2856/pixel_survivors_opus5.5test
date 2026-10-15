@@ -126,3 +126,27 @@ function updArmor(e, ai, dt) {
   e.flash = Math.sin(ai.pt * 30) > 0.6 ? 0.04 : 0; // ひるみ: 白く明滅して、頭の上を星が回る
   if (ai.pt <= 0) { ai.act = null; e.takeK = 1; ai.cd = 1; }
 }
+
+// ---------- 描画(render.js の render / drawBossFx / drawBossGround から呼ぶ)----------
+function drawGolemFx(e, ai, sx, gx, ex, ey, sp, yo, t) {
+  if (ai.act === 'armor') {
+    const dx = Math.round(ex - sp.w / 2), dy = Math.round(ey + yo - sp.h / 2);
+    sx.globalAlpha = 0.55; sx.drawImage(ART.tint(sp.c, '#3a3530'), dx, dy); sx.globalAlpha = 1;
+    const n = Math.floor(ai.armK * 14);
+    for (let i = 0; i < n; i++) { // 削るほど増えるひび(光る)
+      const x0 = dx + 2 + hash2(i, 41) * (sp.w - 4), y0 = dy + 2 + hash2(i, 43) * (sp.h - 4), a = hash2(i, 47) * TAU;
+      pLine(gx, x0, y0, x0 + Math.cos(a) * 4, y0 + Math.sin(a) * 4, '#6ee7ff', 1);
+    }
+    const R = 26, m = Math.ceil(TAU * R);
+    for (let i = 0; i < m; i++) { // DPSチェックの輪: 削った割合だけ金色に満ちる。残り時間で点滅
+      const u = i / m, a = -Math.PI / 2 + TAU * u, on = u <= ai.armK;
+      if (!on && i % 2) continue;
+      sx.fillStyle = on ? '#ffd23f' : ai.pt < 1.5 && Math.floor(t * 8) % 2 ? '#ff3b5c' : '#8a8676';
+      sx.fillRect(Math.round(ex + Math.cos(a) * R), Math.round(ey + Math.sin(a) * R), 1, 1);
+      if (on) { gx.fillStyle = '#5a4a10'; gx.fillRect(Math.round(ex + Math.cos(a) * R), Math.round(ey + Math.sin(a) * R), 1, 1); }
+    }
+  } else if (ai.act === 'stagger') {
+    for (let i = 0; i < 3; i++) { const a = t * 6 + TAU / 3 * i, x = Math.round(ex + Math.cos(a) * 9), y = Math.round(ey + yo - sp.h / 2 - 4 + Math.sin(a) * 3); sx.fillStyle = gx.fillStyle = '#ffe14a'; sx.fillRect(x, y, 1, 1); gx.fillRect(x, y, 1, 1); sx.fillRect(x - 1, y, 3, 1); sx.fillRect(x, y - 1, 1, 3); }
+  }
+  if (ai.overT > 0) addLight(e.x, e.y, 80, '#ff3b1a', 0.8);
+}

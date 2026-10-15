@@ -114,3 +114,37 @@ function ringGear(e, ai) {
   AudioMan.charge(1); AudioMan.warning();
   hint('ringgear', _t('リングギア'), _t('番人を囲む歯車の輪が降りてくる。輪に触れないように(内側は安全)'));
 }
+
+// ---------- 描画(render.js の render / drawBossFx / drawBossGround から呼ぶ)----------
+function drawWardenFx(e, ai, sx, gx, ex, ey, sp, yo, A, t) {
+  const kx = ex + 13, ky = ey + yo - 2, ka = ai.keyA || 0; // ゼンマイの鍵(背中から横に突き出て回る)
+  pLine(sx, ex + 8, ky, kx, ky, '#8a6a30', 2);
+  for (const s2 of [1, -1]) { const bx = kx + Math.cos(ka) * 4 * s2, by = ky + Math.sin(ka) * 2 * s2; pDisc(sx, bx, by, 2, '#c8a050'); sx.fillStyle = '#241e1a'; sx.fillRect(Math.round(bx), Math.round(by), 1, 1); }
+  if (ai.hands) { // 2本の針: 薄く出る → 真鍮の針が回る
+    const on = ai.hands.t > 1, L = 180 * A;
+    for (const [ha, w, col] of [[ai.hands.a1, 10, '#8a6a30'], [ai.hands.a2, 7, '#c8a050']]) {
+      const x1 = ex + Math.cos(ha) * L, y1 = ey + Math.sin(ha) * L;
+      if (!on) { sx.globalAlpha = 0.35; pLine(sx, ex, ey, x1, y1, '#c8a050', 3); sx.globalAlpha = 1; continue; }
+      const nx = -Math.sin(ha) * w * A * 0.3, ny = Math.cos(ha) * w * A * 0.3;
+      pLine(sx, ex, ey, x1, y1, '#241e1a', Math.round((w + 2) * A)); pLine(sx, ex, ey, x1, y1, col, Math.round(w * A));
+      pLine(sx, ex + nx, ey + ny, x1 + nx, y1 + ny, '#e8c880', 1); // 片側の照り返し
+      for (const k of [0.55, 0.85]) { const tx = ex + Math.cos(ha) * L * k, ty = ey + Math.sin(ha) * L * k; pDisc(sx, tx, ty, Math.round(w * 0.55 * A) + 1, '#241e1a'); pDisc(sx, tx, ty, Math.round(w * 0.55 * A), col); } // 針の飾り(透かしの輪)
+    }
+    if (on) { pDisc(sx, ex, ey, 5, '#241e1a'); pDisc(sx, ex, ey, 4, '#c8a050'); addLight(e.x, e.y, 90, '#ffd27a', 0.3); }
+  }
+  if (ai.hands) drawSp(sp, e.x, e.y + yo, { flip: (e.face || 1) < 0, sy: e.sq || 1, sxk: 2 - (e.sq || 1), white: e.flash > 0 }); // 針の上に体を描き直す(軸は胸の文字盤)
+  if (ai.bellT > 0) { const k = 1 - ai.bellT / 0.8; pCircle(gx, ex, ey + yo - sp.h / 2 + 4, Math.round(6 + 6 * k), '#7a5a10'); addLight(e.x, e.y + yo - sp.h / 2 + 4, 40 + 60 * k, '#ffd27a', 0.9); } // 鐘が光る
+  if (ai.act === 'spring') {
+    const R = 26, m = Math.ceil(TAU * R);
+    for (let i = 0; i < m; i++) { // DPSチェックの輪: 削った割合だけ金色に満ちる。残り時間で点滅
+      const u = i / m, a2 = -Math.PI / 2 + TAU * u, on = u <= ai.armK;
+      if (!on && i % 2) continue;
+      sx.fillStyle = on ? '#ffd23f' : ai.pt < 1.5 && Math.floor(t * 8) % 2 ? '#ff3b5c' : '#8a7a60';
+      sx.fillRect(Math.round(ex + Math.cos(a2) * R), Math.round(ey + Math.sin(a2) * R), 1, 1);
+      if (on) { gx.fillStyle = '#5a4a10'; gx.fillRect(Math.round(ex + Math.cos(a2) * R), Math.round(ey + Math.sin(a2) * R), 1, 1); }
+    }
+  } else if (ai.act === 'stall') {
+    for (let i = 0; i < 3; i++) { const a2 = t * 6 + TAU / 3 * i, x = Math.round(ex + Math.cos(a2) * 10), y = Math.round(ey + yo - sp.h / 2 - 4 + Math.sin(a2) * 3); sx.fillStyle = gx.fillStyle = '#ffe14a'; sx.fillRect(x - 1, y, 3, 1); sx.fillRect(x, y - 1, 1, 3); gx.fillRect(x, y, 1, 1); }
+  }
+  if (ai.fastT > 0) addLight(e.x, e.y, 80, '#ff8a3d', 0.8);
+}
