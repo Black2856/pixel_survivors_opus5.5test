@@ -526,3 +526,12 @@ function drawCerbFx(e, sx, gx, ex, ey, A) {
     addLight(ai.mx, ai.my, 60 + 60 * u, '#7a3ab0', 0.4 + 0.5 * u);
   }
 }
+// 闇の遠吠え(ケルベロス): 黒い霧の波が広がる(縁は紫の光、内側は闇)
+HAZ_DRAW.darkwave = (h, hx, hy, fade, hd) => {
+  const { sx, gx } = hd;
+  const R = Math.max(1, Math.round(h.cur || 1)), f2 = h.t <= h.spread ? 1 : Math.max(0, 1 - (h.t - h.spread) / (h.dur - h.spread));
+  sx.globalAlpha = 0.42 * f2; pDisc(sx, hx, hy, R, '#06030c');
+  sx.globalAlpha = 0.8 * f2; pCircle(sx, hx, hy, R, '#e8c8ff'); pCircle(sx, hx, hy, Math.max(1, R - 1), '#a66bff', 2); pCircle(sx, hx, hy, Math.max(1, R - 4), '#3a1a5a', 2); sx.globalAlpha = 1;
+  pCircle(gx, hx, hy, R, dimCol('#a66bff', 0.7 * f2), 2);
+  addLight(h.x, h.y, R * 1.6, '#7a3ab0', 0.55 * f2);
+};

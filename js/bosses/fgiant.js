@@ -89,3 +89,40 @@ function drawFgiantFx(e, ai, sx, gx, ex, ey, sp, yo, A) {
   }
   if (ai.glowT > 0) { const k = 1 - ai.glowT / 0.5; gx.globalAlpha = 1; pCircle(gx, ex, ey, Math.round(e.r + 4 + k * 60 * A), '#8aa0b8', 2); pCircle(sx, ex, ey, Math.round(e.r + 4 + k * 60 * A), '#ffffff'); addLight(e.x, e.y, 120, '#ffffff', 0.6); }
 }
+// 地吹雪(霜の巨人の周り): 渦を巻く雪(縁は危険の赤)
+HAZ_DRAW.drift = (h, hx, hy, fade, hd) => {
+  const { sx, t, warnBlink, gx } = hd;
+  const R = Math.round(h.r * Math.min(1, h.t * 6));
+  sx.globalAlpha = 0.12 * fade; pDisc(sx, hx, hy, R, '#e8f4ff');
+  for (let j = 0; j < 4; j++) for (let s = 0; s < 14; s++) { const a = -t * 3 + TAU / 4 * j + s * 0.22, r = R * (0.25 + s / 18); sx.globalAlpha = 0.75 * fade; sx.fillStyle = s % 3 ? '#ffffff' : '#bff4ff'; sx.fillRect(Math.round(hx + Math.cos(a) * r), Math.round(hy + Math.sin(a) * r), 2, 1); }
+  sx.globalAlpha = fade; pCircle(sx, hx, hy, R, warnBlink ? '#ff3b5c' : '#ffd0d8'); sx.globalAlpha = 1;
+  pCircle(gx, hx, hy, R, '#5a1020');
+  addLight(h.x, h.y, R * 2, '#e8f4ff', 0.35 * fade);
+};
+// 吹雪の風: 画面が白くかすみ、氷塊の風下(風も凍傷も受けない所)を淡い緑で示す
+HAZ_DRAW.blizzard = (h, hx, hy, fade, hd) => {
+  const { sx, VW, VH, t, gx } = hd;
+  const c = Math.cos(h.th), s = Math.sin(h.th), L = 70 * CHAOS.area, W = 15 * CHAOS.area;
+  sx.globalAlpha = 0.1 * fade; sx.fillStyle = '#e8f4ff'; sx.fillRect(0, 0, VW, VH);
+  for (const o of enemies) {
+    if (o.obj !== 'iceblock' || o.dead) continue;
+    const ox = o.x - cam.x, oy = o.y - cam.y;
+    sx.globalAlpha = (0.18 + 0.06 * Math.sin(t * 6)) * fade; sx.fillStyle = '#7dffd0'; sx.beginPath();
+    sx.moveTo(ox - s * W, oy + c * W); sx.lineTo(ox + c * L - s * W, oy + s * L + c * W); sx.lineTo(ox + c * L + s * W, oy + s * L - c * W); sx.lineTo(ox + s * W, oy - c * W); sx.fill();
+    sx.globalAlpha = 0.7 * fade;
+    for (const k of [-1, 1]) for (let d = 0; d < L; d += 4) { const qx = Math.round(ox + c * d - s * W * k), qy = Math.round(oy + s * d + c * W * k); sx.fillStyle = '#d8fff0'; sx.fillRect(qx, qy, 2, 1); gx.fillStyle = '#1a4a3a'; gx.fillRect(qx, qy, 1, 1); }
+  }
+  sx.globalAlpha = 1;
+  if (S.lee) { pCircle(sx, P.x - cam.x, P.y - cam.y, 10, '#7dffd0'); pCircle(gx, P.x - cam.x, P.y - cam.y, 10, '#1a4a3a'); } // 風下にいる: 足元に緑の輪
+};
+// 雪崩: 帯を転がる雪の塊と、後ろに残る雪の跡
+HAZ_DRAW.aval = (h, hx, hy, fade, hd) => {
+  const { sx } = hd;
+  const c = Math.cos(h.th), s = Math.sin(h.th), R = Math.round(h.w / 2), mx = hx + c * h.d, my = hy + s * h.d;
+  for (let k = 1; k < 7; k++) { sx.globalAlpha = 0.4 * (1 - k / 7); pDisc(sx, mx - c * k * 7, my - s * k * 7, Math.max(2, R - k), '#e8f0fa'); }
+  sx.globalAlpha = 0.5; pDisc(sx, mx, my + 3, R, '#2a3448'); sx.globalAlpha = 1; // 影
+  pDisc(sx, mx, my, R, '#dce8f6'); pDisc(sx, mx - R * 0.3, my - R * 0.3, Math.round(R * 0.55), '#ffffff');
+  for (let k = 0; k < 6; k++) { const a = h.d / Math.max(4, R) + TAU / 6 * k; sx.fillStyle = k % 2 ? '#b8c8e0' : '#ffffff'; sx.fillRect(Math.round(mx + Math.cos(a) * R * 0.7), Math.round(my + Math.sin(a) * R * 0.7), 2, 2); } // 転がる凹凸
+  pCircle(sx, mx, my, R, '#8aa0c8');
+  addLight(h.x + c * h.d, h.y + s * h.d, 50, '#e8f4ff', 0.4);
+};

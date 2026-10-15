@@ -95,3 +95,36 @@ function iceLance(e, ai) {
     hint('lance', _t('氷の槍'), _t('当たると凍傷が上限までたまり、そのまま凍結する'));
   });
 }
+
+// ---------- 描画(render.js の render / drawBossFx / drawBossGround から呼ぶ)----------
+// 縮む氷輪: 氷の棘の輪(外側に危険の赤)
+HAZ_DRAW.icering = (h, hx, hy, fade, hd) => {
+  const { sx, gx, t, warnBlink } = hd;
+  const R = Math.round(h.rr ?? h.r0);
+  if (R > 1) {
+    pCircle(sx, hx, hy, R + 1, '#5ab8e8'); pCircle(sx, hx, hy, R, '#ffffff'); pCircle(sx, hx, hy, Math.max(1, R - 1), '#bff4ff');
+    pCircle(gx, hx, hy, R, '#2a5a6a');
+    const n = Math.max(6, Math.round(R / 3));
+    for (let i = 0; i < n; i++) { const a = TAU / n * i + t * 0.5, x = Math.round(hx + Math.cos(a) * R), y = Math.round(hy + Math.sin(a) * R); sx.fillStyle = '#ffffff'; sx.fillRect(x, y - 3, 1, 3); sx.fillStyle = '#9ff7ff'; sx.fillRect(x - 1, y - 1, 3, 1); } // 氷の棘
+    sx.globalAlpha = 0.7; pCircle(sx, hx, hy, R + 4, warnBlink ? '#ff3b5c' : '#ffd0d8', 2); sx.globalAlpha = 1;
+    addLight(h.x, h.y, R * 2 + 20, '#9ff7ff', 0.35);
+  }
+};
+// 吹雪の帳: 画面の縁から白い霜が凍りつく(内側の縁は危険の赤)
+HAZ_DRAW.veil = (h, hx, hy, fade, hd) => {
+  const { sx, VW, VH, warnBlink, gx } = hd;
+  const R = Math.round(h.cur ?? h.R), f2 = Math.min(1, (h.dur - h.t) * 2, h.t * 4);
+  sx.globalAlpha = 0.58 * f2; sx.fillStyle = '#d4ecff';
+  sx.beginPath(); sx.rect(0, 0, VW, VH); sx.arc(Math.round(hx), Math.round(hy), R, 0, TAU); sx.fill('evenodd');
+  sx.globalAlpha = 0.5 * f2; // 凍った面のひび
+  for (let i = 0; i < 40; i++) {
+    const a = hash2(i, h.seed + 1) * TAU, r = R + 8 + hash2(i, h.seed + 2) * 140, x = hx + Math.cos(a) * r, y = hy + Math.sin(a) * r;
+    if (x < -10 || y < -10 || x > VW + 10 || y > VH + 10) continue;
+    const ca = a + (hash2(i, h.seed + 3) - 0.5) * 2;
+    pLine(sx, x, y, x + Math.cos(ca) * 8, y + Math.sin(ca) * 8, '#8ab8e0');
+  }
+  const n = Math.round(R / 2.5);
+  for (let i = 0; i < n; i++) { const a = TAU / n * i, j = hash2(i, h.seed) * 7; sx.globalAlpha = 0.9 * f2; sx.fillStyle = i % 3 ? '#ffffff' : '#9ff7ff'; sx.fillRect(Math.round(hx + Math.cos(a) * (R + j)), Math.round(hy + Math.sin(a) * (R + j)), 2, 1); } // 霜の結晶
+  sx.globalAlpha = f2; pCircle(sx, hx, hy, R, warnBlink ? '#ff3b5c' : '#ffd0d8'); sx.globalAlpha = 1;
+  pCircle(gx, hx, hy, R, '#5a1020');
+};

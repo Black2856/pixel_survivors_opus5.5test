@@ -9,7 +9,8 @@
   - クラスのファイルの読み込み順 = WEAPON_SKILL の並び(hooks.js の WS_TAKEN がこの順に掛ける)。足すときは末尾に
 - ラン: `js/world.js`(ラン初期化・ステータス・カオス強化・敵Lv)/ `player.js` / `weapons.js`(自動攻撃・弾・ゾーン)/ `damage.js`(hitEnemy・撃破)/ `enemies.js`(出現・通常敵)/ `phase.js`(ボスの撃破・フェーズ)/ `hazards.js`(敵弾・ボスの床などの動きと当たり)/ `drops.js` / `spawner.js`(出現・闘技場)/ `rewards.js`(レベルアップの選択肢)
 - ボス: `js/bosses/common.js`(makeBoss・spawnBoss・eball・later・壊せる物・`bossAI` の分岐)と `js/bosses/<キー>.js`(1体 1ファイル。キーは DATA.bosses。死神と終刻の死神は reaper.js、分裂した犬は cerberus.js)
-- 描画: `js/render.js` の `render()`(地面 → 自分の攻撃(地面側)→ ボスの設置物 → ジェム → 敵 → 自分 → 自分の攻撃(手前)→ 敵の攻撃・予兆 → 数値)、ボスの技は `drawBossFx` / `drawBfx`、熾天使は `drawSer*`
+- 描画: `js/render.js` の `render()`(地面 → 自分の攻撃(地面側)→ ボスの設置物 → ジェム → 敵 → 自分 → 自分の攻撃(手前)→ 敵の攻撃・予兆 → 数値)
+  - ボスの描画は各ボスのファイルの末尾の「描画」: 設置物は `HAZ_DRAW.<種類>`(共有する種類だけ render.js)、体まわりは `drawBossFx` から呼ぶ `draw<ボス>Fx`、熾天使・三原の光精・ケルベロス・影の王の専用の描画も。見た目だけの演出 `drawBfx`・敵弾の描画は render.js
 - 絵: `js/art.js`(ASCII のドット絵)/ 光の層: `js/gfx.js`(scene・light・glow・over + WebGL の仕上げ)
 - 画面: `js/ui.js`(ラン中)/ `js/meta-ui.js`(ラン外)/ `js/status-ui.js` / `js/gacha.js` / `js/help.js`(用語集)
 - 仕様書(ユーザーが直接直す): `claudedocs/enemies.md`・`claudedocs/classes/*.md`

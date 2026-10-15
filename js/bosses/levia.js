@@ -117,3 +117,56 @@ function drawLeviaFx(e, ai, sx, gx, ex, ey, A, t) {
     for (let r = 0; r < BL; r += 44) addLight(e.x + Math.cos(ai.ba) * r, e.y + Math.sin(ai.ba) * r, 60, '#7ad7ff', 0.7);
   }
 }
+// 岩礁: 苔むした黒い岩。波が来るまで、陰(波に当たらない所)を淡い緑で示す
+HAZ_DRAW.reef = (h, hx, hy, fade, hd) => {
+  const { sx, t, gx } = hd;
+  const c = Math.cos(h.th), s = Math.sin(h.th), L = 60 * CHAOS.area, W = 13 * CHAOS.area, R = Math.round(h.r * Math.min(1, h.t * 5));
+  if (!h.gone) {
+    sx.globalAlpha = (0.16 + 0.06 * Math.sin(t * 6)) * fade; sx.fillStyle = '#7dffd0'; sx.beginPath();
+    sx.moveTo(hx - s * W, hy + c * W); sx.lineTo(hx + c * L - s * W, hy + s * L + c * W); sx.lineTo(hx + c * L + s * W, hy + s * L - c * W); sx.lineTo(hx + s * W, hy - c * W); sx.fill();
+    sx.globalAlpha = 0.7 * fade;
+    for (const k of [-1, 1]) for (let d = 0; d < L; d += 4) { const qx = Math.round(hx + c * d - s * W * k), qy = Math.round(hy + s * d + c * W * k); sx.fillStyle = '#bff4ff'; sx.fillRect(qx, qy, 2, 1); gx.fillStyle = '#1a4a3a'; gx.fillRect(qx, qy, 1, 1); }
+    sx.globalAlpha = 1;
+  }
+  pDisc(sx, hx, hy + 2, R, '#081418');
+  pDisc(sx, hx, hy, Math.max(1, R - 1), '#2a3e46');
+  pDisc(sx, hx - 2, hy - 3, Math.max(1, R - 5), '#4a6a70');
+  for (let i = 0; i < 6; i++) { const a = hash2(i, h.seed) * TAU, r = R * 0.6 * hash2(i + 5, h.seed); sx.fillStyle = i % 2 ? '#2f7a5a' : '#e8d8c8'; sx.fillRect(Math.round(hx + Math.cos(a) * r), Math.round(hy + Math.sin(a) * r * 0.7), 2, 1); } // 苔とフジツボ
+  gx.globalAlpha = 1; pCircle(gx, hx, hy + 1, R + 1, '#163a44'); // 波打ちぎわの白い泡
+};
+// 大津波: 画面を横切る大波(白い波頭)。岩礁の陰では波が割れる
+HAZ_DRAW.tsunami = (h, hx, hy, fade, hd) => {
+  const { sx, gx, t } = hd;
+  const c = Math.cos(h.th), s = Math.sin(h.th), d = h.d, A = CHAOS.area;
+  sx.save(); gx.save(); sx.translate(hx, hy); gx.translate(hx, hy); sx.rotate(h.th); gx.rotate(h.th);
+  for (let sd = -h.span; sd < h.span; sd += 4) {
+    const wob = Math.sin(t * 9 + sd * 0.15) * 2 + Math.sin(sd * 0.05 + t * 3) * 2;
+    if (h.reefs.some(r => d > r.along && d - r.along < 60 * A && Math.abs(sd + 2 - r.side) < 13 * A)) { sx.globalAlpha = 0.3; sx.fillStyle = '#0e3a5a'; sx.fillRect(d - 90 + wob, sd, 30, 4); continue; } // 陰: 波が割れて跡だけ
+    const fo = (Math.floor(sd / 4) + Math.floor(t * 12)) % 3;
+    sx.globalAlpha = 0.45; sx.fillStyle = '#0e3a5a'; sx.fillRect(d - 90 + wob, sd, 66, 4); // 波の背(深い水)
+    sx.globalAlpha = 0.7; sx.fillStyle = '#1a6a9a'; sx.fillRect(d - 24 + wob, sd, 14, 4);
+    sx.globalAlpha = 0.9; sx.fillStyle = '#4ab8e8'; sx.fillRect(d - 10 + wob, sd, 6, 4); // 波の面
+    sx.globalAlpha = 1; sx.fillStyle = fo ? '#ffffff' : '#bff4ff'; sx.fillRect(d - 4 + wob, sd, 4, 4); // 白い波頭
+    if (fo === 0) { sx.globalAlpha = 0.7; sx.fillRect(d + 1 + wob + (sd % 3), sd + 1, 1, 1); } // 前に散るしぶき
+    gx.fillStyle = '#163a4a'; gx.fillRect(d - 3 + wob, sd, 2, 4);
+  }
+  sx.restore(); gx.restore(); sx.globalAlpha = 1;
+  for (let k = -2; k <= 2; k++) addLight(h.x + c * d - s * k * h.span / 2.5, h.y + s * d + c * k * h.span / 2.5, 90, '#7ad7ff', 0.35);
+};
+// 水柱: 足元の渦(縁は危険の赤)と、渦を巻いて立ちのぼる水の柱
+HAZ_DRAW.wpillar = (h, hx, hy, fade, hd) => {
+  const { sx, warnBlink, gx, t } = hd;
+  const R = Math.round(h.r * Math.min(1, h.t * 6)), H = Math.round(36 * Math.min(1, h.t * 4) * fade);
+  sx.globalAlpha = 0.35 * fade; pDisc(sx, hx, hy, R, '#2a8ac8');
+  sx.globalAlpha = fade; pCircle(sx, hx, hy, R, warnBlink ? '#ff3b5c' : '#ffd0d8'); sx.globalAlpha = 1;
+  pCircle(gx, hx, hy, R, '#5a1020');
+  for (let j = 0; j < H; j++) {
+    const w = Math.max(1, Math.round(R * 0.55 * (1 - j / Math.max(1, H) * 0.35))), y = Math.round(hy - j), sw = Math.round(Math.sin(t * 10 + j * 0.45) * w * 0.8);
+    sx.globalAlpha = 0.5 * fade; sx.fillStyle = '#2a8ac8'; sx.fillRect(Math.round(hx - w), y, w * 2 + 1, 1);
+    sx.globalAlpha = 0.9 * fade; sx.fillStyle = j % 4 < 2 ? '#bff4ff' : '#7ad7ff'; sx.fillRect(Math.round(hx + sw), y, 2, 1);
+    gx.fillStyle = '#1a4a5a'; gx.fillRect(Math.round(hx + sw), y, 1, 1);
+  }
+  sx.globalAlpha = 1;
+  for (let i = 0; i < 5; i++) { sx.fillStyle = '#ffffff'; sx.fillRect(Math.round(hx + Math.sin(t * 7 + i * 1.3) * R * 0.5), Math.round(hy - H - (i % 2)), 1, 1); } // 柱の先の白いしぶき
+  addLight(h.x, h.y - H / 2, 50, '#7ad7ff', 0.5 * fade);
+};

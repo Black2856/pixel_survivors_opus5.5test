@@ -105,3 +105,34 @@ function rootCage(e, ai) {
     bossBlast(cx, cy, RR * 0.8, Object.assign({ n: 18 }, BFX.elder)); shockAt(cx, cy, 2, 0.75); shake(10); hitstop(0.05); AudioMan.boom(); AudioMan.crush();
   });
 }
+
+// ---------- 描画(render.js の render / drawBossFx / drawBossGround から呼ぶ)----------
+// 茨の木(古樹の主の芽吹き): 地面からせり上がる、棘だらけの低い木。叩くときは枝が揺れる
+HAZ_DRAW.thorn = (h, hx, hy, fade, hd) => {
+  const { t } = hd;
+  const sp = ART.S.thorn, k = Math.min(h.rise || 0, Math.max(0, (h.dur - h.t) * 2)), sw = h.swing > 0 ? Math.round(Math.sin(t * 60) * 2) : 0;
+  shadow(h.x, h.y + 2, sp.w * 0.9);
+  if (k > 0.02) drawSp(sp, h.x + sw, h.y + 3 - sp.h / 2, { sy: k }); // 根元(h.y + 3)を地面に固定して上へ伸びる
+  return;
+};
+// 根の檻(古樹の主): 円に沿ってせり上がる根の柵(抜け道 1か所は根がない)
+HAZ_DRAW.rootring = (h, hx, hy, fade, hd) => {
+  const { warnBlink, sx, gx } = hd;
+  // 予告の赤い円は根の下に描く(最前面の予告に重ねると根が赤に埋もれる)。光の縁は根に重なるので描かない。暗闇の間は見えない(ほかの予告と同じ)
+  if (h.t < h.tele && !(P.darkT > 0)) drawWarnCircle(hx, hy, Math.round(h.r), h.t / h.tele, warnBlink ? '#ff3b5c' : '#ffd0d8', { glow: false }); // h.r は攻撃範囲の倍率が掛かっている(締めつけの hitCircle と同じ)
+  const R = h.r, rise = Math.min(1, h.t / 0.3, Math.max(0, (h.dur - h.t) / 0.3)), n = Math.ceil(TAU * R / 3), posts = [];
+  for (let i = 0; i < n; i++) { const a = TAU / n * i; if (Math.abs(angDiff(a, h.gap)) >= h.gapH) posts.push({ i, x: Math.round(hx + Math.cos(a) * R), y: Math.round(hy + Math.sin(a) * R) }); }
+  posts.sort((p, q) => p.y - q.y); // 奥(上)の根から描く
+  sx.fillStyle = '#0e0804'; for (const p of posts) sx.fillRect(p.x - 3, p.y - 1, 6, 3); // 根元の暗い土の帯(柵の足元を赤い塗りから浮かせる)
+  for (const p of posts) {
+    const H = Math.round((10 + 6 * hash2(p.i, h.seed | 0)) * rise);
+    for (let j = 0; j < H; j++) { // 根元ほど太い。左が明るく右が暗い木肌(赤の上でも形が見える)
+      const w = j < H * 0.3 ? 4 : j < H * 0.6 ? 3 : j < H * 0.85 ? 2 : 1, x0 = p.x - (w >> 1), y = p.y - j;
+      sx.fillStyle = j % 3 ? '#6a4626' : '#4a2e14'; sx.fillRect(x0, y, w, 1);
+      if (w > 1) { sx.fillStyle = '#b8884e'; sx.fillRect(x0, y, 1, 1); sx.fillStyle = '#1a0e06'; sx.fillRect(x0 + w - 1, y, 1, 1); }
+    }
+    if (H > 2) { sx.fillStyle = hash2(p.i + 7, h.seed | 0) < 0.5 ? '#8fd06a' : '#d8b070'; sx.fillRect(p.x, p.y - H + 1, 1, 1); } // 先端: 若葉か明るい木肌
+  }
+  for (const sd of [-1, 1]) { const a = h.gap + sd * h.gapH, x = Math.round(hx + Math.cos(a) * R), y = Math.round(hy + Math.sin(a) * R), H = Math.round(14 * rise); gx.fillStyle = '#4a8a2a'; gx.fillRect(x - 1, y - H, 2, H); } // 抜け道の両端の根は光る(出口の目印)
+  return;
+};

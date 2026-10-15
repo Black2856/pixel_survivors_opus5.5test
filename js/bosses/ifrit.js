@@ -180,3 +180,35 @@ function drawIfritFx(e, ai, sx, gx, ex, ey, sp, yo, t) {
   }
   if (n > 0) { gx.globalAlpha = 1; pCircle(gx, ex, ey + yo, Math.round(sp.w * 0.6 + Math.sin(t * 8) * 1.5), n > 2 ? '#ff6a2a' : '#7a2a0a', 1); addLight(e.x, e.y, 60 + n * 20, '#ff6a2a', 0.6 + n * 0.1); }
 }
+// マグマ溜まり: 黒い岩の縁の中で赤く煮えたつ溶岩。泡がはじける(縁は危険を示す赤)
+HAZ_DRAW.magma = (h, hx, hy, fade, hd) => {
+  const { sx, t, warnBlink, gx } = hd;
+  const R = Math.round(h.r * Math.min(1, h.t * 6));
+  sx.globalAlpha = 0.85 * fade; pDisc(sx, hx, hy, R, '#2a1008');
+  sx.globalAlpha = 0.9 * fade; pDisc(sx, hx, hy, Math.max(1, R - 3), '#a8281a');
+  sx.globalAlpha = 0.8 * fade; pDisc(sx, hx + Math.round(Math.sin(t * 1.3 + h.seed) * 2), hy + Math.round(Math.cos(t * 1.1 + h.seed) * 2), Math.max(1, R - 7), '#ff6a2a');
+  sx.globalAlpha = fade; pCircle(sx, hx, hy, R, warnBlink ? '#ff3b1a' : '#ff8a3d'); sx.globalAlpha = 1;
+  pDisc(gx, hx, hy, Math.max(1, R - 4), fade > 0.6 ? '#3a1004' : '#1e0602'); // 赤熱(光の層は暗い色で)
+  for (let i = 0; i < 5; i++) { // 泡: 決まった位置でふくらんではじける
+    const u2 = (t * 0.9 + hash2(i, h.seed)) % 1, pa = hash2(i + 9, h.seed) * TAU, pr = Math.sqrt(hash2(i + 17, h.seed)) * (R - 5);
+    const bx = Math.round(hx + Math.cos(pa) * pr), by = Math.round(hy + Math.sin(pa) * pr * 0.8), br = Math.round(u2 * 2.5);
+    if (u2 < 0.85) { sx.globalAlpha = fade; pCircle(sx, bx, by, Math.max(1, br), '#ffc34a'); sx.globalAlpha = 1; }
+  }
+  addLight(h.x, h.y, R * 3, '#ff6a2a', 0.7 * fade);
+};
+// 炎の壁: 赤熱した帯の上に炎の柱が揺らめく(縁は危険の赤)
+HAZ_DRAW.fwall = (h, hx, hy, fade, hd) => {
+  const { sx, warnBlink, t, gx } = hd;
+  const c = Math.cos(h.a), s = Math.sin(h.a), nx = -s * h.w / 2, ny = c * h.w / 2, L = h.len * Math.min(1, h.t * 6);
+  const band = (k, col, al) => { sx.globalAlpha = al; sx.fillStyle = col; sx.beginPath(); sx.moveTo(hx + nx * k, hy + ny * k); sx.lineTo(hx + c * L + nx * k, hy + s * L + ny * k); sx.lineTo(hx + c * L - nx * k, hy + s * L - ny * k); sx.lineTo(hx - nx * k, hy - ny * k); sx.fill(); };
+  band(1, '#4a1208', 0.6 * fade); band(0.6, '#c2401a', 0.5 * fade); sx.globalAlpha = 1;
+  for (const k of [-1, 1]) { sx.globalAlpha = fade; pLine(sx, hx + nx * k, hy + ny * k, hx + c * L + nx * k, hy + s * L + ny * k, warnBlink ? '#ff3b1a' : '#ff8a3d'); sx.globalAlpha = 1; }
+  const n = Math.floor(L / 3);
+  for (let i = 0; i < n; i++) { // 炎の柱: 位置は壁ごとに決まっていて、高さが揺らめく
+    const d = (i + hash2(i, h.seed)) * 3, off = (hash2(i + 7, h.seed) - 0.5) * h.w * 0.7;
+    const fx = Math.round(hx + c * d + nx * off * 2 / h.w), fy = Math.round(hy + s * d + ny * off * 2 / h.w);
+    const fh = Math.max(1, Math.round((3 + 5 * Math.abs(Math.sin(t * 8 + i * 1.3))) * fade));
+    for (let k = 0; k < fh; k++) { const col = k === fh - 1 ? '#fff0b0' : k > fh * 0.55 ? '#ffc34a' : '#ff6a2a'; sx.fillStyle = gx.fillStyle = col; sx.fillRect(fx, fy - k, 1, 1); if (k > 0) gx.fillRect(fx, fy - k, 1, 1); }
+  }
+  for (let d = 0; d < L; d += 40) addLight(h.x + c * d, h.y + s * d, 60, '#ff6a2a', 0.7 * fade);
+};

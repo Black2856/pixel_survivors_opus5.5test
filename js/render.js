@@ -1178,40 +1178,14 @@ function render() {
 
   // ---- ボスの設置物(自分の範囲より手前。縁は赤で危険を示す) ----
   const warnBlink = Math.floor(t * 8) % 2;
+  const hd = { t, warnBlink, sx, gx, VW, VH }; // HAZ_DRAW に渡す render のローカル
   for (const h of hazards) {
     if (h.delay > 0) continue; // 予告のあとに出る床
     const hx = h.x - cam.x, hy = h.y - cam.y, fade = Math.min(1, (h.dur - h.t) * 3, h.t * 8);
-    if (h.kind === 'thorn') { // 茨の木(古樹の主の芽吹き): 地面からせり上がる、棘だらけの低い木。叩くときは枝が揺れる
-      const sp = ART.S.thorn, k = Math.min(h.rise || 0, Math.max(0, (h.dur - h.t) * 2)), sw = h.swing > 0 ? Math.round(Math.sin(t * 60) * 2) : 0;
-      shadow(h.x, h.y + 2, sp.w * 0.9);
-      if (k > 0.02) drawSp(sp, h.x + sw, h.y + 3 - sp.h / 2, { sy: k }); // 根元(h.y + 3)を地面に固定して上へ伸びる
-      continue;
-    }
-    if (h.kind === 'rootring') { // 根の檻(古樹の主): 円に沿ってせり上がる根の柵(抜け道 1か所は根がない)
-      // 予告の赤い円は根の下に描く(最前面の予告に重ねると根が赤に埋もれる)。光の縁は根に重なるので描かない。暗闇の間は見えない(ほかの予告と同じ)
-      if (h.t < h.tele && !(P.darkT > 0)) drawWarnCircle(hx, hy, Math.round(h.r), h.t / h.tele, warnBlink ? '#ff3b5c' : '#ffd0d8', { glow: false }); // h.r は攻撃範囲の倍率が掛かっている(締めつけの hitCircle と同じ)
-      const R = h.r, rise = Math.min(1, h.t / 0.3, Math.max(0, (h.dur - h.t) / 0.3)), n = Math.ceil(TAU * R / 3), posts = [];
-      for (let i = 0; i < n; i++) { const a = TAU / n * i; if (Math.abs(angDiff(a, h.gap)) >= h.gapH) posts.push({ i, x: Math.round(hx + Math.cos(a) * R), y: Math.round(hy + Math.sin(a) * R) }); }
-      posts.sort((p, q) => p.y - q.y); // 奥(上)の根から描く
-      sx.fillStyle = '#0e0804'; for (const p of posts) sx.fillRect(p.x - 3, p.y - 1, 6, 3); // 根元の暗い土の帯(柵の足元を赤い塗りから浮かせる)
-      for (const p of posts) {
-        const H = Math.round((10 + 6 * hash2(p.i, h.seed | 0)) * rise);
-        for (let j = 0; j < H; j++) { // 根元ほど太い。左が明るく右が暗い木肌(赤の上でも形が見える)
-          const w = j < H * 0.3 ? 4 : j < H * 0.6 ? 3 : j < H * 0.85 ? 2 : 1, x0 = p.x - (w >> 1), y = p.y - j;
-          sx.fillStyle = j % 3 ? '#6a4626' : '#4a2e14'; sx.fillRect(x0, y, w, 1);
-          if (w > 1) { sx.fillStyle = '#b8884e'; sx.fillRect(x0, y, 1, 1); sx.fillStyle = '#1a0e06'; sx.fillRect(x0 + w - 1, y, 1, 1); }
-        }
-        if (H > 2) { sx.fillStyle = hash2(p.i + 7, h.seed | 0) < 0.5 ? '#8fd06a' : '#d8b070'; sx.fillRect(p.x, p.y - H + 1, 1, 1); } // 先端: 若葉か明るい木肌
-      }
-      for (const sd of [-1, 1]) { const a = h.gap + sd * h.gapH, x = Math.round(hx + Math.cos(a) * R), y = Math.round(hy + Math.sin(a) * R), H = Math.round(14 * rise); gx.fillStyle = '#4a8a2a'; gx.fillRect(x - 1, y - H, 2, H); } // 抜け道の両端の根は光る(出口の目印)
-      continue;
-    }
-    if (h.kind === 'goo') {
-      const R = Math.round(h.r * Math.min(1, h.t * 6));
-      sx.globalAlpha = 0.45 * fade; pDisc(sx, hx, hy, R, '#2f9c7c');
-      sx.globalAlpha = fade; pCircle(sx, hx, hy, R, '#4fd6a8'); pCircle(sx, hx, hy, R + 1, '#ff3b5c', 2); sx.globalAlpha = 1;
-      gx.globalAlpha = 0.3 * fade; pCircle(gx, hx, hy, R + 1, '#ff3b5c', 2); gx.globalAlpha = 1;
-    } else if (h.kind === 'fire') { // 燃える床: 赤熱した地面に炎の舌がちらつく(縁は危険を示す赤)
+    // ボスが置く物の描き方は、そのボスのファイルの HAZ_DRAW.<種類>(bosses/common.js)。ここは共有する種類(敵も置く物・複数のボス)
+    const hf = HAZ_DRAW[h.kind];
+    if (hf) { hf(h, hx, hy, fade, hd); continue; }
+    if (h.kind === 'fire') { // 燃える床: 赤熱した地面に炎の舌がちらつく(縁は危険を示す赤)
       const R = Math.round(h.r * Math.min(1, h.t * 8));
       sx.globalAlpha = 0.55 * fade; pDisc(sx, hx, hy, R, '#4a1208');
       sx.globalAlpha = 0.45 * fade; pDisc(sx, hx, hy, Math.max(1, R - 2), '#a8321a');
@@ -1225,55 +1199,6 @@ function render() {
         for (let k = 0; k < fh; k++) { const col = k === fh - 1 ? '#ffe9a0' : k > fh / 2 ? '#ffc34a' : '#ff6a2a'; sx.fillStyle = gx.fillStyle = col; sx.fillRect(fx, fy - k, 1, 1); gx.fillRect(fx, fy - k, 1, 1); }
       }
       addLight(h.x, h.y, R * 3, '#ff6a2a', 0.75 * fade * (h.lite || 1));
-    } else if (h.kind === 'tcage') { // 雷の檻(雷神): 隣どうしの雷柱を結ぶ線(つながるまでは細い赤の線が点滅、つながると紫白のぎざぎざの雷)。柱が壊れると、その柱の線は消える
-      if (h.t < 3) for (let k = 0; k < 4; k++) {
-        const A = h.ps[k], B = h.ps[(k + 1) % 4]; if (A.dead || B.dead) continue;
-        const ax = A.x - cam.x, ay = A.y - cam.y - 4, bx = B.x - cam.x, by = B.y - cam.y - 4;
-        if (h.t < 0.4) { if (warnBlink) { sx.globalAlpha = 0.8; pLine(sx, ax, ay, bx, by, '#ff3b5c'); sx.globalAlpha = 1; } }
-        else jagBolt(ax, ay, bx, by, { step: 10, j: 3, col: '#f0e8ff', glow: '#4a2a98' });
-      }
-      if (h.t >= 0.4 && h.t < 3) addLight(h.x, h.y, 80, '#9a7aff', 0.4);
-    } else if (h.kind === 'etrail') { // 雷化の跡(雷獣): 雷の体が通った所に残る紫白のぎざぎざの雷(消える前の 0.5秒は点滅)
-      const pts = h.pts;
-      for (let i = 0; i < pts.length - 1; i++) {
-        const A = pts[i], B = pts[i + 1]; if (!A || !B) continue;
-        if (S.time - A.at > 4.5 && Math.floor(t * 20) % 2) continue;
-        jagBolt(A.x - cam.x, A.y - cam.y, B.x - cam.x, B.y - cam.y, { step: 6, j: 2, col: '#d8c8ff', glow: '#3a2478' });
-      }
-      for (let i = 0; i < pts.length; i += 8) if (pts[i]) addLight(pts[i].x, pts[i].y, 40, '#9a7aff', 0.3);
-    } else if (h.kind === 'eline') { // 雷の線(雷獣の稲妻走りの跡): 折れ線にそって紫白のぎざぎざの雷がはじける(消える前は点滅)
-      if (h.t > h.dur - 0.6 && Math.floor(t * 20) % 2) continue;
-      for (let i = 0; i < h.pts.length - 1; i++) {
-        const A = h.pts[i], B = h.pts[i + 1], L = Math.hypot(B.x - A.x, B.y - A.y), n = Math.max(2, Math.round(L / 9)), nxu = -(B.y - A.y) / (L || 1), nyu = (B.x - A.x) / (L || 1);
-        let px0 = A.x - cam.x, py0 = A.y - cam.y;
-        for (let k = 1; k <= n; k++) { const v = k / n, j = k === n ? 0 : rand(-2, 2), nx = lerp(A.x, B.x, v) - cam.x + nxu * j, ny = lerp(A.y, B.y, v) - cam.y + nyu * j; pLine(sx, px0, py0, nx, ny, '#d8c8ff'); pLine(gx, px0, py0, nx, ny, '#3a2478', 2); px0 = nx; py0 = ny; }
-      }
-      const m = h.pts[2]; addLight(m.x, m.y, 60, '#9a7aff', 0.4);
-    } else if (h.kind === 'torb') { // 雷玉(雷獣): 稲妻をまとう玉と、稲妻が飛ぶ範囲(細い点線の輪)
-      const sp = ART.S.torb[Math.floor(t * 12 + h.seed) % 2], bob = Math.round(Math.sin(t * 5 + h.seed) * 2);
-      sx.globalAlpha = 0.45 * fade; pCircle(sx, hx, hy, Math.round(h.r), '#9a7aff', 3); sx.globalAlpha = 1;
-      drawSp(sp, h.x, h.y - 6 + bob, {});
-      addLight(h.x, h.y - 6, 40, '#9a7aff', 0.6 * fade);
-    } else if (h.kind === 'tablet') { // 謎かけの石板(スフィンクス): 砂から浮き上がる平たい石。印が金に光る。答えの出る最後の 0.6秒は、安全な石板が明るく光る
-      const sp = ART.S['tab_' + h.k], k = Math.min(1, h.t / 0.3, Math.max(0, (h.dur - h.t) / 0.3));
-      if (k > 0.05) drawSp(sp, h.x, h.y + 3 - sp.h / 2, { sy: k });
-      addLight(h.x, h.y, 30, '#ffd27a', 0.5 * k);
-      if (h.ok && h.t > 3.4 && h.t < 4.1) addLight(h.x, h.y, 70, '#fff0c0', 0.9);
-    } else if (h.kind === 'sandstream') { // 砂嵐(スフィンクス): 画面を横切る砂の帯。砂の筋が流れる。縁は危険を示す赤(濃くなるまでは薄い)
-      const c = Math.cos(h.a), s = Math.sin(h.a), L = h.len / 2, W = h.bw / 2, on = h.t >= h.tele, k0 = on ? 1 : h.t / h.tele;
-      const quad = (al, col) => { sx.globalAlpha = al; sx.fillStyle = col; sx.beginPath(); sx.moveTo(hx - c * L - s * W, hy - s * L + c * W); sx.lineTo(hx + c * L - s * W, hy + s * L + c * W); sx.lineTo(hx + c * L + s * W, hy + s * L - c * W); sx.lineTo(hx - c * L + s * W, hy - s * L - c * W); sx.fill(); };
-      quad(0.34 * k0 * fade, '#c8a060'); sx.globalAlpha = fade * k0;
-      for (let i = 0, ns = Math.max(26, Math.round(h.bw * 0.9)); i < ns; i++) { const u = ((hash2(i, h.seed) * 2 - 1) * L + t * 140) % (2 * L) - L, v = (hash2(i + 9, h.seed) * 2 - 1) * W * 0.85, x = hx + c * u - s * v, y = hy + s * u + c * v; pLine(sx, x, y, x - c * 8, y - s * 8, '#f0d8a0'); } // 砂の筋
-      const ec = on ? (warnBlink ? '#ff3b1a' : '#ff8a3d') : '#c8a060';
-      for (const sd of [-1, 1]) pLine(sx, hx - c * L - s * W * sd, hy - s * L + c * W * sd, hx + c * L - s * W * sd, hy + s * L + c * W * sd, ec);
-      sx.globalAlpha = 1;
-    } else if (h.kind === 'quicksand') { // 流砂の渦(大蠍): 渦を巻く砂(予告の間は薄く)。中心のはさみの届く所は暗く、縁は危険を示す赤
-      const R = Math.round(h.r), on = h.t >= h.tele, k0 = on ? 1 : h.t / h.tele, RC = Math.round(h.core * CHAOS.area);
-      sx.globalAlpha = 0.32 * fade * k0; pDisc(sx, hx, hy, R, '#a8803a');
-      sx.globalAlpha = 0.5 * fade * k0; pDisc(sx, hx, hy, RC, '#6a4a22'); sx.globalAlpha = fade * k0;
-      for (let k = 0; k < 5; k++) for (let i = 0; i < 70; i++) { const u = i / 70, pa = t * 1.3 + k * TAU / 5 + u * 5, pr = R * (1 - u); if (pr < 6) continue; sx.fillStyle = u > 0.65 ? '#5a4220' : u > 0.3 ? '#c8a060' : '#f0d8a0'; sx.fillRect(Math.round(hx + Math.cos(pa) * pr), Math.round(hy + Math.sin(pa) * pr), 1, 1); }
-      if (on) { pCircle(sx, hx, hy, R, warnBlink ? '#ff3b1a' : '#ff8a3d'); pCircle(sx, hx, hy, RC, '#ff3b5c', 2); }
-      sx.globalAlpha = 1;
     } else if (h.kind === 'pit') { // すり鉢(アリジゴク): 底ほど暗い砂のくぼみ。3本の筋が渦を巻いて中心へ流れ込む。縁は危険を示す赤
       const R = Math.round(h.r * Math.min(1, h.t * 4));
       sx.globalAlpha = 0.5 * fade; pDisc(sx, hx, hy, R, '#a8803a');
@@ -1281,62 +1206,6 @@ function render() {
       sx.globalAlpha = 0.6 * fade; pDisc(sx, hx, hy, Math.round(R * 0.33), '#5a4220'); sx.globalAlpha = fade;
       for (let k = 0; k < 3; k++) for (let i = 0; i < 28; i++) { const u = i / 28, pa = t * 1.6 + k * TAU / 3 + u * 4, pr = R * (1 - u); sx.fillStyle = u > 0.6 ? '#4a3418' : '#e8c88a'; sx.fillRect(Math.round(hx + Math.cos(pa) * pr), Math.round(hy + Math.sin(pa) * pr), 1, 1); }
       pCircle(sx, hx, hy, R, warnBlink ? '#ff3b1a' : '#ff8a3d'); sx.globalAlpha = 1;
-    } else if (h.kind === 'magma') { // マグマ溜まり: 黒い岩の縁の中で赤く煮えたつ溶岩。泡がはじける(縁は危険を示す赤)
-      const R = Math.round(h.r * Math.min(1, h.t * 6));
-      sx.globalAlpha = 0.85 * fade; pDisc(sx, hx, hy, R, '#2a1008');
-      sx.globalAlpha = 0.9 * fade; pDisc(sx, hx, hy, Math.max(1, R - 3), '#a8281a');
-      sx.globalAlpha = 0.8 * fade; pDisc(sx, hx + Math.round(Math.sin(t * 1.3 + h.seed) * 2), hy + Math.round(Math.cos(t * 1.1 + h.seed) * 2), Math.max(1, R - 7), '#ff6a2a');
-      sx.globalAlpha = fade; pCircle(sx, hx, hy, R, warnBlink ? '#ff3b1a' : '#ff8a3d'); sx.globalAlpha = 1;
-      pDisc(gx, hx, hy, Math.max(1, R - 4), fade > 0.6 ? '#3a1004' : '#1e0602'); // 赤熱(光の層は暗い色で)
-      for (let i = 0; i < 5; i++) { // 泡: 決まった位置でふくらんではじける
-        const u2 = (t * 0.9 + hash2(i, h.seed)) % 1, pa = hash2(i + 9, h.seed) * TAU, pr = Math.sqrt(hash2(i + 17, h.seed)) * (R - 5);
-        const bx = Math.round(hx + Math.cos(pa) * pr), by = Math.round(hy + Math.sin(pa) * pr * 0.8), br = Math.round(u2 * 2.5);
-        if (u2 < 0.85) { sx.globalAlpha = fade; pCircle(sx, bx, by, Math.max(1, br), '#ffc34a'); sx.globalAlpha = 1; }
-      }
-      addLight(h.x, h.y, R * 3, '#ff6a2a', 0.7 * fade);
-    } else if (h.kind === 'fband') { // 空襲の燃える床: 影の通り道と同じ幅の赤熱した帯に炎の舌がちらつく(縁は危険の赤)
-      const c = Math.cos(h.a), s = Math.sin(h.a), nx = -s * h.w / 2, ny = c * h.w / 2;
-      const head = Math.min(h.L, h.t * h.spd), tail = Math.max(0, (h.t - h.stay) * h.spd);
-      if (head > tail) {
-        const x0 = hx + c * tail, y0 = hy + s * tail, x1 = hx + c * head, y1 = hy + s * head;
-        const band = (ctx, k, col, al) => { ctx.globalAlpha = al; ctx.fillStyle = col; ctx.beginPath(); ctx.moveTo(x0 + nx * k, y0 + ny * k); ctx.lineTo(x1 + nx * k, y1 + ny * k); ctx.lineTo(x1 - nx * k, y1 - ny * k); ctx.lineTo(x0 - nx * k, y0 - ny * k); ctx.fill(); ctx.globalAlpha = 1; };
-        band(sx, 1, '#4a1208', 0.55 * fade); band(sx, 0.85, '#a8321a', 0.45 * fade);
-        band(gx, 0.85, '#120401', fade); // 赤熱(光の層は色で明るさが決まるので、広い帯はとても暗い色で)
-        for (const k of [-1, 1]) { sx.globalAlpha = fade; pLine(sx, x0 + nx * k, y0 + ny * k, x1 + nx * k, y1 + ny * k, warnBlink ? '#ff3b1a' : '#ff8a3d'); sx.globalAlpha = 1; }
-        for (let i = Math.floor(tail / 2); i < Math.ceil(head / 2); i++) { // 炎の舌: 位置は帯ごとに決まっていて、高さが揺らめく
-          const d = (i + hash2(i, h.seed)) * 2; if (d < tail || d > head) continue;
-          const off = (hash2(i + 7, h.seed) - 0.5) * 0.9, fx = Math.round(hx + c * d + nx * off * 2), fy = Math.round(hy + s * d + ny * off * 2);
-          const fh = Math.max(1, Math.round((1 + 3 * Math.abs(Math.sin(t * 9 + i * 1.7))) * fade * Math.min(1, (d - tail) / 16 + 0.3)));
-          for (let k = 0; k < fh; k++) { const col = k === fh - 1 ? '#ffe9a0' : k > fh / 2 ? '#ffc34a' : '#ff6a2a'; sx.fillStyle = gx.fillStyle = col; sx.fillRect(fx, fy - k, 1, 1); gx.fillRect(fx, fy - k, 1, 1); }
-        }
-        for (let d = tail; d < head; d += 50) addLight(h.x + c * d, h.y + s * d, 55, '#ff6a2a', 0.3 * fade);
-      }
-    } else if (h.kind === 'fwall') { // 炎の壁: 赤熱した帯の上に炎の柱が揺らめく(縁は危険の赤)
-      const c = Math.cos(h.a), s = Math.sin(h.a), nx = -s * h.w / 2, ny = c * h.w / 2, L = h.len * Math.min(1, h.t * 6);
-      const band = (k, col, al) => { sx.globalAlpha = al; sx.fillStyle = col; sx.beginPath(); sx.moveTo(hx + nx * k, hy + ny * k); sx.lineTo(hx + c * L + nx * k, hy + s * L + ny * k); sx.lineTo(hx + c * L - nx * k, hy + s * L - ny * k); sx.lineTo(hx - nx * k, hy - ny * k); sx.fill(); };
-      band(1, '#4a1208', 0.6 * fade); band(0.6, '#c2401a', 0.5 * fade); sx.globalAlpha = 1;
-      for (const k of [-1, 1]) { sx.globalAlpha = fade; pLine(sx, hx + nx * k, hy + ny * k, hx + c * L + nx * k, hy + s * L + ny * k, warnBlink ? '#ff3b1a' : '#ff8a3d'); sx.globalAlpha = 1; }
-      const n = Math.floor(L / 3);
-      for (let i = 0; i < n; i++) { // 炎の柱: 位置は壁ごとに決まっていて、高さが揺らめく
-        const d = (i + hash2(i, h.seed)) * 3, off = (hash2(i + 7, h.seed) - 0.5) * h.w * 0.7;
-        const fx = Math.round(hx + c * d + nx * off * 2 / h.w), fy = Math.round(hy + s * d + ny * off * 2 / h.w);
-        const fh = Math.max(1, Math.round((3 + 5 * Math.abs(Math.sin(t * 8 + i * 1.3))) * fade));
-        for (let k = 0; k < fh; k++) { const col = k === fh - 1 ? '#fff0b0' : k > fh * 0.55 ? '#ffc34a' : '#ff6a2a'; sx.fillStyle = gx.fillStyle = col; sx.fillRect(fx, fy - k, 1, 1); if (k > 0) gx.fillRect(fx, fy - k, 1, 1); }
-      }
-      for (let d = 0; d < L; d += 40) addLight(h.x + c * d, h.y + s * d, 60, '#ff6a2a', 0.7 * fade);
-    } else if (h.kind === 'rift') { // 断界の裂け目(影の王): 黒い裂け目の縁が紫に光り、ときどき白く走る(この線は越えられない)
-      const c = Math.cos(h.a), s = Math.sin(h.a), x1 = hx + c * h.len, y1 = hy + s * h.len, fl = Math.floor(t * 10 + h.seed) % 7 === 0;
-      pLine(sx, hx, hy, x1, y1, '#06030c', 4);
-      pLine(sx, hx - s * 2, hy + c * 2, x1 - s * 2, y1 + c * 2, warnBlink ? '#a66bff' : '#7a3ab0'); pLine(sx, hx + s * 2, hy - c * 2, x1 + s * 2, y1 - c * 2, warnBlink ? '#a66bff' : '#7a3ab0');
-      if (fl) pLine(sx, hx, hy, x1, y1, '#e8c8ff');
-      pLine(gx, hx, hy, x1, y1, dimCol('#a66bff', 0.45 * fade), 2);
-      for (let d = 0; d < h.len; d += 70) { const lx = h.x + c * d, ly = h.y + s * d; if (onScreen(lx, ly, 40)) addLight(lx, ly, 60, '#7a3ab0', 0.4 * fade); }
-    } else if (h.kind === 'darkwave') { // 闇の遠吠え(ケルベロス): 黒い霧の波が広がる(縁は紫の光、内側は闇)
-      const R = Math.max(1, Math.round(h.cur || 1)), f2 = h.t <= h.spread ? 1 : Math.max(0, 1 - (h.t - h.spread) / (h.dur - h.spread));
-      sx.globalAlpha = 0.42 * f2; pDisc(sx, hx, hy, R, '#06030c');
-      sx.globalAlpha = 0.8 * f2; pCircle(sx, hx, hy, R, '#e8c8ff'); pCircle(sx, hx, hy, Math.max(1, R - 1), '#a66bff', 2); pCircle(sx, hx, hy, Math.max(1, R - 4), '#3a1a5a', 2); sx.globalAlpha = 1;
-      pCircle(gx, hx, hy, R, dimCol('#a66bff', 0.7 * f2), 2);
-      addLight(h.x, h.y, R * 1.6, '#7a3ab0', 0.55 * f2);
     } else if (h.kind === 'miasma') { // 瘴気の霧(腐毒のグール)・三獄の雨の霧(ケルベロス): 霧が渦を巻く(縁は危険の赤)。毒 = 緑と紫・炎 = 橙と赤・氷 = 青白
       const R = Math.round(h.r * Math.min(1, h.t * 5)), FC = FOG_COL[h.el] || FOG_COL.poison;
       sx.globalAlpha = 0.35 * fade; pDisc(sx, hx, hy, R, FC[0]);
@@ -1395,122 +1264,6 @@ function render() {
       }
       gx.globalAlpha = 1;
       addLight(h.x, h.y, R * 2, '#ff4a8a', 0.45 * fade);
-    } else if (h.kind === 'ink') { // 墨だまり: 黒い墨がゆらぎ、ふちに飛沫。中で暗い紫のうずが回る(ダメージはないので縁は赤くしない)
-      const R = Math.round(h.r * Math.min(1, h.t * 6));
-      sx.globalAlpha = 0.72 * fade; pDisc(sx, hx, hy, R, '#0a0a14');
-      sx.globalAlpha = 0.5 * fade; pDisc(sx, hx, hy, Math.max(1, R - 4), '#04040a');
-      for (let i = 0; i < 12; i++) {
-        const a = hash2(i, h.seed) * TAU, r = R + Math.sin(t * 3 + i * 1.7) * 2;
-        sx.globalAlpha = 0.6 * fade; pDisc(sx, hx + Math.cos(a) * r, hy + Math.sin(a) * r, 1 + (i % 3), '#0a0a14');
-      }
-      sx.globalAlpha = 0.85 * fade; pCircle(sx, hx, hy, R, '#3a2a5a');
-      for (let i = 0; i < 3; i++) for (let k = 0; k < 7; k++) { const aa = t * 0.8 + TAU / 3 * i + k * 0.16, rr = R * (0.2 + 0.09 * k); sx.fillStyle = '#2a2a4a'; sx.fillRect(Math.round(hx + Math.cos(aa) * rr), Math.round(hy + Math.sin(aa) * rr), 1, 1); }
-      sx.globalAlpha = 1;
-    } else if (h.kind === 'tide') { // 潮の満ち引き: 引き(内へ縮む波紋)→ 押し(外へ広がる波紋)→ 縁に触手の輪(縁の予告は赤)
-      const R = Math.round(h.r), RR = Math.round(h.r * 1.06), pull = h.t < 2;
-      sx.globalAlpha = 0.16 * fade; pDisc(sx, hx, hy, R, '#2a8ac8'); sx.globalAlpha = 1;
-      if (h.t < 3) {
-        for (let j = 0; j < 4; j++) { const k = (t * (pull ? 0.7 : 1.5) + j / 4) % 1, rr = Math.round(R * (pull ? 1 - k : k)); if (rr > 2) pCircle(gx, hx, hy, rr, '#1a4a5a'); }
-        sx.globalAlpha = 0.8; pCircle(sx, hx, hy, R, '#7ad7ff'); sx.globalAlpha = 1;
-        if (h.t > 1.2) { const bw = Math.max(2, Math.round(h.r * 0.12)); sx.globalAlpha = 0.18 + 0.1 * warnBlink; sx.strokeStyle = '#ff3b5c'; sx.lineWidth = bw; sx.beginPath(); sx.arc(Math.round(hx), Math.round(hy), RR, 0, TAU); sx.stroke(); sx.globalAlpha = 1; pCircle(sx, hx, hy, RR + Math.ceil(bw / 2), warnBlink ? '#ff3b5c' : '#ffd0d8'); pCircle(gx, hx, hy, RR + Math.ceil(bw / 2), '#7a1020'); }
-      } else { // 触手の輪: せり上がって沈む
-        const u = (h.t - 3) / Math.max(0.01, h.dur - 3), k = u < 0.2 ? u / 0.2 : Math.max(0, 1 - (u - 0.2) / 0.8), H = Math.round(20 * k);
-        for (let i = 0; i < 28; i++) {
-          const a = TAU / 28 * i + 0.11, x0 = Math.round(hx + Math.cos(a) * RR), y0 = Math.round(hy + Math.sin(a) * RR);
-          sx.fillStyle = '#0a1a1e'; sx.fillRect(x0 - 3, y0 + 1, 7, 1);
-          for (let j = 0; j < H; j++) {
-            const sw = Math.round(Math.sin(j * 0.35 + i) * j / 5), w = j < H * 0.4 ? 3 : j < H - 3 ? 2 : 1;
-            sx.fillStyle = '#3a0e24'; sx.fillRect(x0 + sw - 1, y0 - j, w + 2, 1);
-            sx.fillStyle = j > H - 3 ? '#e89aaa' : j % 3 === 1 ? '#c2486a' : '#8a2a4a'; sx.fillRect(x0 + sw, y0 - j, w, 1);
-            if (j % 3 === 0 && w > 1) { sx.fillStyle = '#e89aaa'; sx.fillRect(x0 + sw, y0 - j, 1, 1); } // 吸盤
-          }
-        }
-      }
-      addLight(h.x, h.y, R * 1.6, '#2a8ac8', 0.35 * fade);
-    } else if (h.kind === 'reef') { // 岩礁: 苔むした黒い岩。波が来るまで、陰(波に当たらない所)を淡い緑で示す
-      const c = Math.cos(h.th), s = Math.sin(h.th), L = 60 * CHAOS.area, W = 13 * CHAOS.area, R = Math.round(h.r * Math.min(1, h.t * 5));
-      if (!h.gone) {
-        sx.globalAlpha = (0.16 + 0.06 * Math.sin(t * 6)) * fade; sx.fillStyle = '#7dffd0'; sx.beginPath();
-        sx.moveTo(hx - s * W, hy + c * W); sx.lineTo(hx + c * L - s * W, hy + s * L + c * W); sx.lineTo(hx + c * L + s * W, hy + s * L - c * W); sx.lineTo(hx + s * W, hy - c * W); sx.fill();
-        sx.globalAlpha = 0.7 * fade;
-        for (const k of [-1, 1]) for (let d = 0; d < L; d += 4) { const qx = Math.round(hx + c * d - s * W * k), qy = Math.round(hy + s * d + c * W * k); sx.fillStyle = '#bff4ff'; sx.fillRect(qx, qy, 2, 1); gx.fillStyle = '#1a4a3a'; gx.fillRect(qx, qy, 1, 1); }
-        sx.globalAlpha = 1;
-      }
-      pDisc(sx, hx, hy + 2, R, '#081418');
-      pDisc(sx, hx, hy, Math.max(1, R - 1), '#2a3e46');
-      pDisc(sx, hx - 2, hy - 3, Math.max(1, R - 5), '#4a6a70');
-      for (let i = 0; i < 6; i++) { const a = hash2(i, h.seed) * TAU, r = R * 0.6 * hash2(i + 5, h.seed); sx.fillStyle = i % 2 ? '#2f7a5a' : '#e8d8c8'; sx.fillRect(Math.round(hx + Math.cos(a) * r), Math.round(hy + Math.sin(a) * r * 0.7), 2, 1); } // 苔とフジツボ
-      gx.globalAlpha = 1; pCircle(gx, hx, hy + 1, R + 1, '#163a44'); // 波打ちぎわの白い泡
-    } else if (h.kind === 'tsunami') { // 大津波: 画面を横切る大波(白い波頭)。岩礁の陰では波が割れる
-      const c = Math.cos(h.th), s = Math.sin(h.th), d = h.d, A = CHAOS.area;
-      sx.save(); gx.save(); sx.translate(hx, hy); gx.translate(hx, hy); sx.rotate(h.th); gx.rotate(h.th);
-      for (let sd = -h.span; sd < h.span; sd += 4) {
-        const wob = Math.sin(t * 9 + sd * 0.15) * 2 + Math.sin(sd * 0.05 + t * 3) * 2;
-        if (h.reefs.some(r => d > r.along && d - r.along < 60 * A && Math.abs(sd + 2 - r.side) < 13 * A)) { sx.globalAlpha = 0.3; sx.fillStyle = '#0e3a5a'; sx.fillRect(d - 90 + wob, sd, 30, 4); continue; } // 陰: 波が割れて跡だけ
-        const fo = (Math.floor(sd / 4) + Math.floor(t * 12)) % 3;
-        sx.globalAlpha = 0.45; sx.fillStyle = '#0e3a5a'; sx.fillRect(d - 90 + wob, sd, 66, 4); // 波の背(深い水)
-        sx.globalAlpha = 0.7; sx.fillStyle = '#1a6a9a'; sx.fillRect(d - 24 + wob, sd, 14, 4);
-        sx.globalAlpha = 0.9; sx.fillStyle = '#4ab8e8'; sx.fillRect(d - 10 + wob, sd, 6, 4); // 波の面
-        sx.globalAlpha = 1; sx.fillStyle = fo ? '#ffffff' : '#bff4ff'; sx.fillRect(d - 4 + wob, sd, 4, 4); // 白い波頭
-        if (fo === 0) { sx.globalAlpha = 0.7; sx.fillRect(d + 1 + wob + (sd % 3), sd + 1, 1, 1); } // 前に散るしぶき
-        gx.fillStyle = '#163a4a'; gx.fillRect(d - 3 + wob, sd, 2, 4);
-      }
-      sx.restore(); gx.restore(); sx.globalAlpha = 1;
-      for (let k = -2; k <= 2; k++) addLight(h.x + c * d - s * k * h.span / 2.5, h.y + s * d + c * k * h.span / 2.5, 90, '#7ad7ff', 0.35);
-    } else if (h.kind === 'wpillar') { // 水柱: 足元の渦(縁は危険の赤)と、渦を巻いて立ちのぼる水の柱
-      const R = Math.round(h.r * Math.min(1, h.t * 6)), H = Math.round(36 * Math.min(1, h.t * 4) * fade);
-      sx.globalAlpha = 0.35 * fade; pDisc(sx, hx, hy, R, '#2a8ac8');
-      sx.globalAlpha = fade; pCircle(sx, hx, hy, R, warnBlink ? '#ff3b5c' : '#ffd0d8'); sx.globalAlpha = 1;
-      pCircle(gx, hx, hy, R, '#5a1020');
-      for (let j = 0; j < H; j++) {
-        const w = Math.max(1, Math.round(R * 0.55 * (1 - j / Math.max(1, H) * 0.35))), y = Math.round(hy - j), sw = Math.round(Math.sin(t * 10 + j * 0.45) * w * 0.8);
-        sx.globalAlpha = 0.5 * fade; sx.fillStyle = '#2a8ac8'; sx.fillRect(Math.round(hx - w), y, w * 2 + 1, 1);
-        sx.globalAlpha = 0.9 * fade; sx.fillStyle = j % 4 < 2 ? '#bff4ff' : '#7ad7ff'; sx.fillRect(Math.round(hx + sw), y, 2, 1);
-        gx.fillStyle = '#1a4a5a'; gx.fillRect(Math.round(hx + sw), y, 1, 1);
-      }
-      sx.globalAlpha = 1;
-      for (let i = 0; i < 5; i++) { sx.fillStyle = '#ffffff'; sx.fillRect(Math.round(hx + Math.sin(t * 7 + i * 1.3) * R * 0.5), Math.round(hy - H - (i % 2)), 1, 1); } // 柱の先の白いしぶき
-      addLight(h.x, h.y - H / 2, 50, '#7ad7ff', 0.5 * fade);
-    } else if (h.kind === 'ringgear') { // リングギア: 予告(地面に赤い輪の帯)と、上から降りてくる中が空いた真鍮の歯車(内側に歯)。降りたあとは回り、縁は危険の赤
-      const R = h.r, W = h.w, u = Math.min(1, h.t / h.land), down = h.t >= h.land, up = Math.max(0, (h.t - (h.dur - 0.4)) / 0.4);
-      const lift = down ? 150 * up * up : 150 * (1 - u) * (1 - u), gy = hy - lift, rot = h.rot0 + h.dir * 0.35 * Math.max(0, h.t - h.land);
-      const band = (c, cy, r0, r1) => { c.beginPath(); c.arc(hx, cy, r1, 0, TAU); c.arc(hx, cy, Math.max(0, r0), 0, TAU, true); c.fill(); };
-      if (!down) { // 予告: 落ちてくる歯車の影の上に、赤い輪の帯(内側から満ちる)と、点滅する縁
-        sx.globalAlpha = 0.15 + 0.25 * u; sx.fillStyle = '#000'; band(sx, hy, R - W / 2, R + W / 2);
-        sx.fillStyle = '#ff3b5c'; sx.globalAlpha = 0.16; band(sx, hy, R - W / 2, R + W / 2);
-        sx.globalAlpha = 0.26; band(sx, hy, R - W / 2, R - W / 2 + W * u); sx.globalAlpha = 1;
-        const edge = warnBlink ? '#ff3b5c' : '#ffd0d8';
-        pCircle(sx, hx, hy, Math.round(R - W / 2), edge); pCircle(sx, hx, hy, Math.round(R + W / 2), edge);
-        pCircle(gx, hx, hy, Math.round(R + W / 2), '#ff3b5c');
-      }
-      const a0 = down ? fade : u; // 降りてくる間は薄い → 着地でくっきり
-      // 歯も含めて幅 W の中に描く(見た目 = 当たり判定): 外側 12 が輪の体、内側 4 が歯
-      sx.globalAlpha = a0; sx.fillStyle = '#5a4520'; band(sx, gy, R - W / 2 + 4, R + W / 2); // 輪の体(暗い真鍮)
-      sx.fillStyle = '#7a5e2c'; band(sx, gy, R - W / 2 + 7, R + W / 2 - 3); // 中ほどの面
-      const nT = 56;
-      for (let i = 0; i < nT; i++) { // 内側の歯
-        const a = rot + TAU / nT * i, tx = hx + Math.cos(a) * (R - W / 2 + 2), ty = gy + Math.sin(a) * (R - W / 2 + 2);
-        pDisc(sx, tx, ty, 3, '#241e1a'); pDisc(sx, tx, ty, 2, '#c8a050'); sx.fillStyle = '#ffd27a'; sx.fillRect(Math.round(tx) - 1, Math.round(ty) - 1, 1, 1);
-      }
-      for (let i = 0; i < 12; i++) { const a = rot + TAU / 24 + TAU / 12 * i; pDisc(sx, hx + Math.cos(a) * (R + 2), gy + Math.sin(a) * (R + 2), 2, '#241e1a'); } // 輪の穴
-      pCircle(sx, hx, gy, Math.round(R + W / 2), '#241e1a'); pCircle(sx, hx, gy, Math.round(R + W / 2 - 1), '#c8a050'); pCircle(sx, hx, gy, Math.round(R - W / 2 + 4), '#8a6a30');
-      if (down && up === 0) { // 当たる輪: 縁を危険の赤で(光の層は色で弱める)
-        sx.globalAlpha = fade * 0.9; pCircle(sx, hx, gy, Math.round(R + W / 2 + 1), '#ff3b5c'); pCircle(sx, hx, gy, Math.round(R - W / 2 - 2), '#ff3b5c');
-        pCircle(gx, hx, gy, Math.round(R + W / 2 + 1), dimCol('#ff3b5c', 0.55)); pCircle(gx, hx, gy, Math.round(R - W / 2 - 2), dimCol('#ff3b5c', 0.4));
-      }
-      sx.globalAlpha = 1;
-      for (let k = 0; k < 6; k++) { const a = rot + TAU / 6 * k; addLight(h.x + Math.cos(a) * R, h.y - lift + Math.sin(a) * R, 70, '#ffd27a', 0.25 * a0); }
-    } else if (h.kind === 'gearfloor') { // 歯車の床: 床の上で回る真鍮の歯車(歯・スポーク・軸)と、回る向きの矢印
-      const R = Math.round(h.r * Math.min(1, h.t * 5)), rot = h.t * 1.0 * h.dir, n = 14;
-      sx.globalAlpha = 0.35 * fade; pDisc(sx, hx, hy, R, '#3a2e1e');
-      sx.globalAlpha = 0.85 * fade;
-      for (let i = 0; i < n; i++) { const a = rot + TAU / n * i; for (let k = 0; k < 3; k++) { const aa = a + (k - 1) * 0.06; sx.fillStyle = '#c8a050'; sx.fillRect(Math.round(hx + Math.cos(aa) * (R + 1)), Math.round(hy + Math.sin(aa) * (R + 1)), 2, 2); } } // 歯
-      pCircle(sx, hx, hy, R, '#c8a050'); pCircle(sx, hx, hy, Math.max(1, R - 1), '#8a6a30'); pCircle(sx, hx, hy, Math.round(R * 0.3), '#c8a050');
-      for (let i = 0; i < 6; i++) { const a = rot + TAU / 6 * i; pLine(sx, hx + Math.cos(a) * R * 0.3, hy + Math.sin(a) * R * 0.3, hx + Math.cos(a) * (R - 2), hy + Math.sin(a) * (R - 2), '#8a6a30', 2); } // スポーク
-      for (let i = 0; i < 4; i++) { const a = rot * 1.5 + TAU / 4 * i, r = R * 0.65, x = hx + Math.cos(a) * r, y = hy + Math.sin(a) * r, ta = a + h.dir * Math.PI / 2; for (const k of [-1, 1]) pLine(sx, x + Math.cos(ta) * 3, y + Math.sin(ta) * 3, x - Math.cos(ta) * 2 + Math.cos(ta + k * 1.6) * 3, y - Math.sin(ta) * 2 + Math.sin(ta + k * 1.6) * 3, '#ffd27a'); } // 回る向きの矢印
-      sx.fillStyle = '#ffd27a'; sx.fillRect(Math.round(hx) - 1, Math.round(hy) - 1, 3, 3); sx.globalAlpha = 1;
-      pCircle(gx, hx, hy, R, '#3a2a08');
-      addLight(h.x, h.y, R * 1.8, '#ffd27a', 0.35 * fade);
     } else if (h.kind === 'ice') { // 滑る床: 青白い氷の面に、反射の筋が流れる(ダメージはないので縁は赤くしない)
       const R = Math.round(h.r * Math.min(1, h.t * 6));
       sx.globalAlpha = 0.3 * fade; pDisc(sx, hx, hy, R, '#7ab0d8');
@@ -1527,59 +1280,6 @@ function render() {
       sx.globalAlpha = 0.8 * fade; pDisc(sx, hx, hy, R, '#e8f0fa');
       for (let i = 0; i < 9; i++) { const a = hash2(i, h.seed) * TAU, r = R * 0.75 * hash2(i + 3, h.seed); sx.fillStyle = i % 2 ? '#ffffff' : '#b8c8de'; sx.fillRect(Math.round(hx + Math.cos(a) * r), Math.round(hy + Math.sin(a) * r * 0.8), 2, 1); }
       sx.globalAlpha = fade; pCircle(sx, hx, hy, R, warnBlink ? '#ff3b5c' : '#ffd0d8'); sx.globalAlpha = 1;
-      pCircle(gx, hx, hy, R, '#5a1020');
-    } else if (h.kind === 'drift') { // 地吹雪(霜の巨人の周り): 渦を巻く雪(縁は危険の赤)
-      const R = Math.round(h.r * Math.min(1, h.t * 6));
-      sx.globalAlpha = 0.12 * fade; pDisc(sx, hx, hy, R, '#e8f4ff');
-      for (let j = 0; j < 4; j++) for (let s = 0; s < 14; s++) { const a = -t * 3 + TAU / 4 * j + s * 0.22, r = R * (0.25 + s / 18); sx.globalAlpha = 0.75 * fade; sx.fillStyle = s % 3 ? '#ffffff' : '#bff4ff'; sx.fillRect(Math.round(hx + Math.cos(a) * r), Math.round(hy + Math.sin(a) * r), 2, 1); }
-      sx.globalAlpha = fade; pCircle(sx, hx, hy, R, warnBlink ? '#ff3b5c' : '#ffd0d8'); sx.globalAlpha = 1;
-      pCircle(gx, hx, hy, R, '#5a1020');
-      addLight(h.x, h.y, R * 2, '#e8f4ff', 0.35 * fade);
-    } else if (h.kind === 'blizzard') { // 吹雪の風: 画面が白くかすみ、氷塊の風下(風も凍傷も受けない所)を淡い緑で示す
-      const c = Math.cos(h.th), s = Math.sin(h.th), L = 70 * CHAOS.area, W = 15 * CHAOS.area;
-      sx.globalAlpha = 0.1 * fade; sx.fillStyle = '#e8f4ff'; sx.fillRect(0, 0, VW, VH);
-      for (const o of enemies) {
-        if (o.obj !== 'iceblock' || o.dead) continue;
-        const ox = o.x - cam.x, oy = o.y - cam.y;
-        sx.globalAlpha = (0.18 + 0.06 * Math.sin(t * 6)) * fade; sx.fillStyle = '#7dffd0'; sx.beginPath();
-        sx.moveTo(ox - s * W, oy + c * W); sx.lineTo(ox + c * L - s * W, oy + s * L + c * W); sx.lineTo(ox + c * L + s * W, oy + s * L - c * W); sx.lineTo(ox + s * W, oy - c * W); sx.fill();
-        sx.globalAlpha = 0.7 * fade;
-        for (const k of [-1, 1]) for (let d = 0; d < L; d += 4) { const qx = Math.round(ox + c * d - s * W * k), qy = Math.round(oy + s * d + c * W * k); sx.fillStyle = '#d8fff0'; sx.fillRect(qx, qy, 2, 1); gx.fillStyle = '#1a4a3a'; gx.fillRect(qx, qy, 1, 1); }
-      }
-      sx.globalAlpha = 1;
-      if (S.lee) { pCircle(sx, P.x - cam.x, P.y - cam.y, 10, '#7dffd0'); pCircle(gx, P.x - cam.x, P.y - cam.y, 10, '#1a4a3a'); } // 風下にいる: 足元に緑の輪
-    } else if (h.kind === 'aval') { // 雪崩: 帯を転がる雪の塊と、後ろに残る雪の跡
-      const c = Math.cos(h.th), s = Math.sin(h.th), R = Math.round(h.w / 2), mx = hx + c * h.d, my = hy + s * h.d;
-      for (let k = 1; k < 7; k++) { sx.globalAlpha = 0.4 * (1 - k / 7); pDisc(sx, mx - c * k * 7, my - s * k * 7, Math.max(2, R - k), '#e8f0fa'); }
-      sx.globalAlpha = 0.5; pDisc(sx, mx, my + 3, R, '#2a3448'); sx.globalAlpha = 1; // 影
-      pDisc(sx, mx, my, R, '#dce8f6'); pDisc(sx, mx - R * 0.3, my - R * 0.3, Math.round(R * 0.55), '#ffffff');
-      for (let k = 0; k < 6; k++) { const a = h.d / Math.max(4, R) + TAU / 6 * k; sx.fillStyle = k % 2 ? '#b8c8e0' : '#ffffff'; sx.fillRect(Math.round(mx + Math.cos(a) * R * 0.7), Math.round(my + Math.sin(a) * R * 0.7), 2, 2); } // 転がる凹凸
-      pCircle(sx, mx, my, R, '#8aa0c8');
-      addLight(h.x + c * h.d, h.y + s * h.d, 50, '#e8f4ff', 0.4);
-    } else if (h.kind === 'icering') { // 縮む氷輪: 氷の棘の輪(外側に危険の赤)
-      const R = Math.round(h.rr ?? h.r0);
-      if (R > 1) {
-        pCircle(sx, hx, hy, R + 1, '#5ab8e8'); pCircle(sx, hx, hy, R, '#ffffff'); pCircle(sx, hx, hy, Math.max(1, R - 1), '#bff4ff');
-        pCircle(gx, hx, hy, R, '#2a5a6a');
-        const n = Math.max(6, Math.round(R / 3));
-        for (let i = 0; i < n; i++) { const a = TAU / n * i + t * 0.5, x = Math.round(hx + Math.cos(a) * R), y = Math.round(hy + Math.sin(a) * R); sx.fillStyle = '#ffffff'; sx.fillRect(x, y - 3, 1, 3); sx.fillStyle = '#9ff7ff'; sx.fillRect(x - 1, y - 1, 3, 1); } // 氷の棘
-        sx.globalAlpha = 0.7; pCircle(sx, hx, hy, R + 4, warnBlink ? '#ff3b5c' : '#ffd0d8', 2); sx.globalAlpha = 1;
-        addLight(h.x, h.y, R * 2 + 20, '#9ff7ff', 0.35);
-      }
-    } else if (h.kind === 'veil') { // 吹雪の帳: 画面の縁から白い霜が凍りつく(内側の縁は危険の赤)
-      const R = Math.round(h.cur ?? h.R), f2 = Math.min(1, (h.dur - h.t) * 2, h.t * 4);
-      sx.globalAlpha = 0.58 * f2; sx.fillStyle = '#d4ecff';
-      sx.beginPath(); sx.rect(0, 0, VW, VH); sx.arc(Math.round(hx), Math.round(hy), R, 0, TAU); sx.fill('evenodd');
-      sx.globalAlpha = 0.5 * f2; // 凍った面のひび
-      for (let i = 0; i < 40; i++) {
-        const a = hash2(i, h.seed + 1) * TAU, r = R + 8 + hash2(i, h.seed + 2) * 140, x = hx + Math.cos(a) * r, y = hy + Math.sin(a) * r;
-        if (x < -10 || y < -10 || x > VW + 10 || y > VH + 10) continue;
-        const ca = a + (hash2(i, h.seed + 3) - 0.5) * 2;
-        pLine(sx, x, y, x + Math.cos(ca) * 8, y + Math.sin(ca) * 8, '#8ab8e0');
-      }
-      const n = Math.round(R / 2.5);
-      for (let i = 0; i < n; i++) { const a = TAU / n * i, j = hash2(i, h.seed) * 7; sx.globalAlpha = 0.9 * f2; sx.fillStyle = i % 3 ? '#ffffff' : '#9ff7ff'; sx.fillRect(Math.round(hx + Math.cos(a) * (R + j)), Math.round(hy + Math.sin(a) * (R + j)), 2, 1); } // 霜の結晶
-      sx.globalAlpha = f2; pCircle(sx, hx, hy, R, warnBlink ? '#ff3b5c' : '#ffd0d8'); sx.globalAlpha = 1;
       pCircle(gx, hx, hy, R, '#5a1020');
     }
   }

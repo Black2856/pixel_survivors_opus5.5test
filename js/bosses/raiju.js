@@ -126,3 +126,35 @@ function raijuTrail(e, ai) {
   if (!last || d2(last.x, last.y, e.x, e.y) > 36) pts.push({ x: e.x, y: e.y, at: S.time });
   if (Math.random() < 0.4) part(e.x + rand(-10, 10), e.y + rand(-8, 4), rand(-15, 15), -rand(10, 30), 0.3, pick(THUN), { glow: true, drag: 2 }); // 雷の体から火花
 }
+
+// ---------- 描画(render.js の render / drawBossFx / drawBossGround から呼ぶ)----------
+// 雷化の跡(雷獣): 雷の体が通った所に残る紫白のぎざぎざの雷(消える前の 0.5秒は点滅)
+HAZ_DRAW.etrail = (h, hx, hy, fade, hd) => {
+  const { t } = hd;
+  const pts = h.pts;
+  for (let i = 0; i < pts.length - 1; i++) {
+    const A = pts[i], B = pts[i + 1]; if (!A || !B) continue;
+    if (S.time - A.at > 4.5 && Math.floor(t * 20) % 2) continue;
+    jagBolt(A.x - cam.x, A.y - cam.y, B.x - cam.x, B.y - cam.y, { step: 6, j: 2, col: '#d8c8ff', glow: '#3a2478' });
+  }
+  for (let i = 0; i < pts.length; i += 8) if (pts[i]) addLight(pts[i].x, pts[i].y, 40, '#9a7aff', 0.3);
+};
+// 雷の線(雷獣の稲妻走りの跡): 折れ線にそって紫白のぎざぎざの雷がはじける(消える前は点滅)
+HAZ_DRAW.eline = (h, hx, hy, fade, hd) => {
+  const { t, sx, gx } = hd;
+  if (h.t > h.dur - 0.6 && Math.floor(t * 20) % 2) return;
+  for (let i = 0; i < h.pts.length - 1; i++) {
+    const A = h.pts[i], B = h.pts[i + 1], L = Math.hypot(B.x - A.x, B.y - A.y), n = Math.max(2, Math.round(L / 9)), nxu = -(B.y - A.y) / (L || 1), nyu = (B.x - A.x) / (L || 1);
+    let px0 = A.x - cam.x, py0 = A.y - cam.y;
+    for (let k = 1; k <= n; k++) { const v = k / n, j = k === n ? 0 : rand(-2, 2), nx = lerp(A.x, B.x, v) - cam.x + nxu * j, ny = lerp(A.y, B.y, v) - cam.y + nyu * j; pLine(sx, px0, py0, nx, ny, '#d8c8ff'); pLine(gx, px0, py0, nx, ny, '#3a2478', 2); px0 = nx; py0 = ny; }
+  }
+  const m = h.pts[2]; addLight(m.x, m.y, 60, '#9a7aff', 0.4);
+};
+// 雷玉(雷獣): 稲妻をまとう玉と、稲妻が飛ぶ範囲(細い点線の輪)
+HAZ_DRAW.torb = (h, hx, hy, fade, hd) => {
+  const { t, sx } = hd;
+  const sp = ART.S.torb[Math.floor(t * 12 + h.seed) % 2], bob = Math.round(Math.sin(t * 5 + h.seed) * 2);
+  sx.globalAlpha = 0.45 * fade; pCircle(sx, hx, hy, Math.round(h.r), '#9a7aff', 3); sx.globalAlpha = 1;
+  drawSp(sp, h.x, h.y - 6 + bob, {});
+  addLight(h.x, h.y - 6, 40, '#9a7aff', 0.6 * fade);
+};

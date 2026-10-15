@@ -337,3 +337,13 @@ function drawCine() {
     addLight(c.x, c.y, 90, '#a66bff', 0.8 * (1 - u * 0.5));
   }
 }
+// 断界の裂け目(影の王): 黒い裂け目の縁が紫に光り、ときどき白く走る(この線は越えられない)
+HAZ_DRAW.rift = (h, hx, hy, fade, hd) => {
+  const { t, sx, warnBlink, gx } = hd;
+  const c = Math.cos(h.a), s = Math.sin(h.a), x1 = hx + c * h.len, y1 = hy + s * h.len, fl = Math.floor(t * 10 + h.seed) % 7 === 0;
+  pLine(sx, hx, hy, x1, y1, '#06030c', 4);
+  pLine(sx, hx - s * 2, hy + c * 2, x1 - s * 2, y1 + c * 2, warnBlink ? '#a66bff' : '#7a3ab0'); pLine(sx, hx + s * 2, hy - c * 2, x1 + s * 2, y1 - c * 2, warnBlink ? '#a66bff' : '#7a3ab0');
+  if (fl) pLine(sx, hx, hy, x1, y1, '#e8c8ff');
+  pLine(gx, hx, hy, x1, y1, dimCol('#a66bff', 0.45 * fade), 2);
+  for (let d = 0; d < h.len; d += 70) { const lx = h.x + c * d, ly = h.y + s * d; if (onScreen(lx, ly, 40)) addLight(lx, ly, 60, '#7a3ab0', 0.4 * fade); }
+};

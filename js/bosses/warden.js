@@ -148,3 +148,49 @@ function drawWardenFx(e, ai, sx, gx, ex, ey, sp, yo, A, t) {
   }
   if (ai.fastT > 0) addLight(e.x, e.y, 80, '#ff8a3d', 0.8);
 }
+// リングギア: 予告(地面に赤い輪の帯)と、上から降りてくる中が空いた真鍮の歯車(内側に歯)。降りたあとは回り、縁は危険の赤
+HAZ_DRAW.ringgear = (h, hx, hy, fade, hd) => {
+  const { sx, warnBlink, gx } = hd;
+  const R = h.r, W = h.w, u = Math.min(1, h.t / h.land), down = h.t >= h.land, up = Math.max(0, (h.t - (h.dur - 0.4)) / 0.4);
+  const lift = down ? 150 * up * up : 150 * (1 - u) * (1 - u), gy = hy - lift, rot = h.rot0 + h.dir * 0.35 * Math.max(0, h.t - h.land);
+  const band = (c, cy, r0, r1) => { c.beginPath(); c.arc(hx, cy, r1, 0, TAU); c.arc(hx, cy, Math.max(0, r0), 0, TAU, true); c.fill(); };
+  if (!down) { // 予告: 落ちてくる歯車の影の上に、赤い輪の帯(内側から満ちる)と、点滅する縁
+    sx.globalAlpha = 0.15 + 0.25 * u; sx.fillStyle = '#000'; band(sx, hy, R - W / 2, R + W / 2);
+    sx.fillStyle = '#ff3b5c'; sx.globalAlpha = 0.16; band(sx, hy, R - W / 2, R + W / 2);
+    sx.globalAlpha = 0.26; band(sx, hy, R - W / 2, R - W / 2 + W * u); sx.globalAlpha = 1;
+    const edge = warnBlink ? '#ff3b5c' : '#ffd0d8';
+    pCircle(sx, hx, hy, Math.round(R - W / 2), edge); pCircle(sx, hx, hy, Math.round(R + W / 2), edge);
+    pCircle(gx, hx, hy, Math.round(R + W / 2), '#ff3b5c');
+  }
+  const a0 = down ? fade : u; // 降りてくる間は薄い → 着地でくっきり
+  // 歯も含めて幅 W の中に描く(見た目 = 当たり判定): 外側 12 が輪の体、内側 4 が歯
+  sx.globalAlpha = a0; sx.fillStyle = '#5a4520'; band(sx, gy, R - W / 2 + 4, R + W / 2); // 輪の体(暗い真鍮)
+  sx.fillStyle = '#7a5e2c'; band(sx, gy, R - W / 2 + 7, R + W / 2 - 3); // 中ほどの面
+  const nT = 56;
+  for (let i = 0; i < nT; i++) { // 内側の歯
+    const a = rot + TAU / nT * i, tx = hx + Math.cos(a) * (R - W / 2 + 2), ty = gy + Math.sin(a) * (R - W / 2 + 2);
+    pDisc(sx, tx, ty, 3, '#241e1a'); pDisc(sx, tx, ty, 2, '#c8a050'); sx.fillStyle = '#ffd27a'; sx.fillRect(Math.round(tx) - 1, Math.round(ty) - 1, 1, 1);
+  }
+  for (let i = 0; i < 12; i++) { const a = rot + TAU / 24 + TAU / 12 * i; pDisc(sx, hx + Math.cos(a) * (R + 2), gy + Math.sin(a) * (R + 2), 2, '#241e1a'); } // 輪の穴
+  pCircle(sx, hx, gy, Math.round(R + W / 2), '#241e1a'); pCircle(sx, hx, gy, Math.round(R + W / 2 - 1), '#c8a050'); pCircle(sx, hx, gy, Math.round(R - W / 2 + 4), '#8a6a30');
+  if (down && up === 0) { // 当たる輪: 縁を危険の赤で(光の層は色で弱める)
+    sx.globalAlpha = fade * 0.9; pCircle(sx, hx, gy, Math.round(R + W / 2 + 1), '#ff3b5c'); pCircle(sx, hx, gy, Math.round(R - W / 2 - 2), '#ff3b5c');
+    pCircle(gx, hx, gy, Math.round(R + W / 2 + 1), dimCol('#ff3b5c', 0.55)); pCircle(gx, hx, gy, Math.round(R - W / 2 - 2), dimCol('#ff3b5c', 0.4));
+  }
+  sx.globalAlpha = 1;
+  for (let k = 0; k < 6; k++) { const a = rot + TAU / 6 * k; addLight(h.x + Math.cos(a) * R, h.y - lift + Math.sin(a) * R, 70, '#ffd27a', 0.25 * a0); }
+};
+// 歯車の床: 床の上で回る真鍮の歯車(歯・スポーク・軸)と、回る向きの矢印
+HAZ_DRAW.gearfloor = (h, hx, hy, fade, hd) => {
+  const { sx, gx } = hd;
+  const R = Math.round(h.r * Math.min(1, h.t * 5)), rot = h.t * 1.0 * h.dir, n = 14;
+  sx.globalAlpha = 0.35 * fade; pDisc(sx, hx, hy, R, '#3a2e1e');
+  sx.globalAlpha = 0.85 * fade;
+  for (let i = 0; i < n; i++) { const a = rot + TAU / n * i; for (let k = 0; k < 3; k++) { const aa = a + (k - 1) * 0.06; sx.fillStyle = '#c8a050'; sx.fillRect(Math.round(hx + Math.cos(aa) * (R + 1)), Math.round(hy + Math.sin(aa) * (R + 1)), 2, 2); } } // 歯
+  pCircle(sx, hx, hy, R, '#c8a050'); pCircle(sx, hx, hy, Math.max(1, R - 1), '#8a6a30'); pCircle(sx, hx, hy, Math.round(R * 0.3), '#c8a050');
+  for (let i = 0; i < 6; i++) { const a = rot + TAU / 6 * i; pLine(sx, hx + Math.cos(a) * R * 0.3, hy + Math.sin(a) * R * 0.3, hx + Math.cos(a) * (R - 2), hy + Math.sin(a) * (R - 2), '#8a6a30', 2); } // スポーク
+  for (let i = 0; i < 4; i++) { const a = rot * 1.5 + TAU / 4 * i, r = R * 0.65, x = hx + Math.cos(a) * r, y = hy + Math.sin(a) * r, ta = a + h.dir * Math.PI / 2; for (const k of [-1, 1]) pLine(sx, x + Math.cos(ta) * 3, y + Math.sin(ta) * 3, x - Math.cos(ta) * 2 + Math.cos(ta + k * 1.6) * 3, y - Math.sin(ta) * 2 + Math.sin(ta + k * 1.6) * 3, '#ffd27a'); } // 回る向きの矢印
+  sx.fillStyle = '#ffd27a'; sx.fillRect(Math.round(hx) - 1, Math.round(hy) - 1, 3, 3); sx.globalAlpha = 1;
+  pCircle(gx, hx, hy, R, '#3a2a08');
+  addLight(h.x, h.y, R * 1.8, '#ffd27a', 0.35 * fade);
+};

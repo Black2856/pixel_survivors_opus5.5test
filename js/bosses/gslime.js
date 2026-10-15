@@ -171,3 +171,10 @@ function drawGslimeFx(e, ai, sx, gx, ex, ey, t) {
     for (const m of ai.mids) if (!m.dead) { sx.globalAlpha = 0.35; pLine(sx, ex, ey, m.x - cam.x, m.y - cam.y, '#4fd6a8', 1); sx.globalAlpha = 1; }
   }
 }
+HAZ_DRAW.goo = (h, hx, hy, fade, hd) => {
+  const { sx, gx } = hd;
+  const R = Math.round(h.r * Math.min(1, h.t * 6));
+  sx.globalAlpha = 0.45 * fade; pDisc(sx, hx, hy, R, '#2f9c7c');
+  sx.globalAlpha = fade; pCircle(sx, hx, hy, R, '#4fd6a8'); pCircle(sx, hx, hy, R + 1, '#ff3b5c', 2); sx.globalAlpha = 1;
+  gx.globalAlpha = 0.3 * fade; pCircle(gx, hx, hy, R + 1, '#ff3b5c', 2); gx.globalAlpha = 1;
+};

@@ -129,3 +129,21 @@ function drawSphinxFx(e, ai, sx, gx, ex, ey, sp, yo, A) {
     for (let r = 0; r < BL; r += 48) addLight(ai.beamO.x + ca * r, ai.beamO.y + sa * r, 50, '#ffd27a', 0.6);
   }
 }
+// 謎かけの石板(スフィンクス): 砂から浮き上がる平たい石。印が金に光る。答えの出る最後の 0.6秒は、安全な石板が明るく光る
+HAZ_DRAW.tablet = (h, hx, hy, fade, hd) => {
+  const sp = ART.S['tab_' + h.k], k = Math.min(1, h.t / 0.3, Math.max(0, (h.dur - h.t) / 0.3));
+  if (k > 0.05) drawSp(sp, h.x, h.y + 3 - sp.h / 2, { sy: k });
+  addLight(h.x, h.y, 30, '#ffd27a', 0.5 * k);
+  if (h.ok && h.t > 3.4 && h.t < 4.1) addLight(h.x, h.y, 70, '#fff0c0', 0.9);
+};
+// 砂嵐(スフィンクス): 画面を横切る砂の帯。砂の筋が流れる。縁は危険を示す赤(濃くなるまでは薄い)
+HAZ_DRAW.sandstream = (h, hx, hy, fade, hd) => {
+  const { sx, t, warnBlink } = hd;
+  const c = Math.cos(h.a), s = Math.sin(h.a), L = h.len / 2, W = h.bw / 2, on = h.t >= h.tele, k0 = on ? 1 : h.t / h.tele;
+  const quad = (al, col) => { sx.globalAlpha = al; sx.fillStyle = col; sx.beginPath(); sx.moveTo(hx - c * L - s * W, hy - s * L + c * W); sx.lineTo(hx + c * L - s * W, hy + s * L + c * W); sx.lineTo(hx + c * L + s * W, hy + s * L - c * W); sx.lineTo(hx - c * L + s * W, hy - s * L - c * W); sx.fill(); };
+  quad(0.34 * k0 * fade, '#c8a060'); sx.globalAlpha = fade * k0;
+  for (let i = 0, ns = Math.max(26, Math.round(h.bw * 0.9)); i < ns; i++) { const u = ((hash2(i, h.seed) * 2 - 1) * L + t * 140) % (2 * L) - L, v = (hash2(i + 9, h.seed) * 2 - 1) * W * 0.85, x = hx + c * u - s * v, y = hy + s * u + c * v; pLine(sx, x, y, x - c * 8, y - s * 8, '#f0d8a0'); } // 砂の筋
+  const ec = on ? (warnBlink ? '#ff3b1a' : '#ff8a3d') : '#c8a060';
+  for (const sd of [-1, 1]) pLine(sx, hx - c * L - s * W * sd, hy - s * L + c * W * sd, hx + c * L - s * W * sd, hy + s * L + c * W * sd, ec);
+  sx.globalAlpha = 1;
+};

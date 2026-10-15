@@ -153,3 +153,14 @@ function drawRaijinFx(e, ai, sx, gx, ex, ey, yo, t) {
   pDisc(gx, fx, fy, cr + 2, '#5a3aa8'); pDisc(sx, fx, fy, cr, '#f0e8ff');
   addLight(e.x, e.y - (e.jz || 0) - 23, 30 + 40 * u, '#5a3aa8', 0.3 + 0.4 * u);
 }
+// 雷の檻(雷神): 隣どうしの雷柱を結ぶ線(つながるまでは細い赤の線が点滅、つながると紫白のぎざぎざの雷)。柱が壊れると、その柱の線は消える
+HAZ_DRAW.tcage = (h, hx, hy, fade, hd) => {
+  const { warnBlink, sx } = hd;
+  if (h.t < 3) for (let k = 0; k < 4; k++) {
+    const A = h.ps[k], B = h.ps[(k + 1) % 4]; if (A.dead || B.dead) continue;
+    const ax = A.x - cam.x, ay = A.y - cam.y - 4, bx = B.x - cam.x, by = B.y - cam.y - 4;
+    if (h.t < 0.4) { if (warnBlink) { sx.globalAlpha = 0.8; pLine(sx, ax, ay, bx, by, '#ff3b5c'); sx.globalAlpha = 1; } }
+    else jagBolt(ax, ay, bx, by, { step: 10, j: 3, col: '#f0e8ff', glow: '#4a2a98' });
+  }
+  if (h.t >= 0.4 && h.t < 3) addLight(h.x, h.y, 80, '#9a7aff', 0.4);
+};

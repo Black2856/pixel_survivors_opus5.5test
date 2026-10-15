@@ -104,3 +104,15 @@ function earthPincer(e, ai) {
   });
   hint('escorp_pinch', _t('大地の挟撃'), _t('左右から大きなはさみが閉じる。前か後ろへ逃げる'));
 }
+
+// ---------- 描画(render.js の render / drawBossFx / drawBossGround から呼ぶ)----------
+// 流砂の渦(大蠍): 渦を巻く砂(予告の間は薄く)。中心のはさみの届く所は暗く、縁は危険を示す赤
+HAZ_DRAW.quicksand = (h, hx, hy, fade, hd) => {
+  const { sx, t, warnBlink } = hd;
+  const R = Math.round(h.r), on = h.t >= h.tele, k0 = on ? 1 : h.t / h.tele, RC = Math.round(h.core * CHAOS.area);
+  sx.globalAlpha = 0.32 * fade * k0; pDisc(sx, hx, hy, R, '#a8803a');
+  sx.globalAlpha = 0.5 * fade * k0; pDisc(sx, hx, hy, RC, '#6a4a22'); sx.globalAlpha = fade * k0;
+  for (let k = 0; k < 5; k++) for (let i = 0; i < 70; i++) { const u = i / 70, pa = t * 1.3 + k * TAU / 5 + u * 5, pr = R * (1 - u); if (pr < 6) continue; sx.fillStyle = u > 0.65 ? '#5a4220' : u > 0.3 ? '#c8a060' : '#f0d8a0'; sx.fillRect(Math.round(hx + Math.cos(pa) * pr), Math.round(hy + Math.sin(pa) * pr), 1, 1); }
+  if (on) { pCircle(sx, hx, hy, R, warnBlink ? '#ff3b1a' : '#ff8a3d'); pCircle(sx, hx, hy, RC, '#ff3b5c', 2); }
+  sx.globalAlpha = 1;
+};

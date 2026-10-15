@@ -119,3 +119,41 @@ function drawKrakenFx(e, sx, gx, ex, ey, t) {
   sx.globalAlpha = 0.5; pCircle(sx, ex, ey, rr, '#7ad7ff'); sx.globalAlpha = 1;
   pCircle(gx, ex, ey, rr, '#1a4a5a', 2);
 }
+// 墨だまり: 黒い墨がゆらぎ、ふちに飛沫。中で暗い紫のうずが回る(ダメージはないので縁は赤くしない)
+HAZ_DRAW.ink = (h, hx, hy, fade, hd) => {
+  const { sx, t } = hd;
+  const R = Math.round(h.r * Math.min(1, h.t * 6));
+  sx.globalAlpha = 0.72 * fade; pDisc(sx, hx, hy, R, '#0a0a14');
+  sx.globalAlpha = 0.5 * fade; pDisc(sx, hx, hy, Math.max(1, R - 4), '#04040a');
+  for (let i = 0; i < 12; i++) {
+    const a = hash2(i, h.seed) * TAU, r = R + Math.sin(t * 3 + i * 1.7) * 2;
+    sx.globalAlpha = 0.6 * fade; pDisc(sx, hx + Math.cos(a) * r, hy + Math.sin(a) * r, 1 + (i % 3), '#0a0a14');
+  }
+  sx.globalAlpha = 0.85 * fade; pCircle(sx, hx, hy, R, '#3a2a5a');
+  for (let i = 0; i < 3; i++) for (let k = 0; k < 7; k++) { const aa = t * 0.8 + TAU / 3 * i + k * 0.16, rr = R * (0.2 + 0.09 * k); sx.fillStyle = '#2a2a4a'; sx.fillRect(Math.round(hx + Math.cos(aa) * rr), Math.round(hy + Math.sin(aa) * rr), 1, 1); }
+  sx.globalAlpha = 1;
+};
+// 潮の満ち引き: 引き(内へ縮む波紋)→ 押し(外へ広がる波紋)→ 縁に触手の輪(縁の予告は赤)
+HAZ_DRAW.tide = (h, hx, hy, fade, hd) => {
+  const { sx, t, gx, warnBlink } = hd;
+  const R = Math.round(h.r), RR = Math.round(h.r * 1.06), pull = h.t < 2;
+  sx.globalAlpha = 0.16 * fade; pDisc(sx, hx, hy, R, '#2a8ac8'); sx.globalAlpha = 1;
+  if (h.t < 3) {
+    for (let j = 0; j < 4; j++) { const k = (t * (pull ? 0.7 : 1.5) + j / 4) % 1, rr = Math.round(R * (pull ? 1 - k : k)); if (rr > 2) pCircle(gx, hx, hy, rr, '#1a4a5a'); }
+    sx.globalAlpha = 0.8; pCircle(sx, hx, hy, R, '#7ad7ff'); sx.globalAlpha = 1;
+    if (h.t > 1.2) { const bw = Math.max(2, Math.round(h.r * 0.12)); sx.globalAlpha = 0.18 + 0.1 * warnBlink; sx.strokeStyle = '#ff3b5c'; sx.lineWidth = bw; sx.beginPath(); sx.arc(Math.round(hx), Math.round(hy), RR, 0, TAU); sx.stroke(); sx.globalAlpha = 1; pCircle(sx, hx, hy, RR + Math.ceil(bw / 2), warnBlink ? '#ff3b5c' : '#ffd0d8'); pCircle(gx, hx, hy, RR + Math.ceil(bw / 2), '#7a1020'); }
+  } else { // 触手の輪: せり上がって沈む
+    const u = (h.t - 3) / Math.max(0.01, h.dur - 3), k = u < 0.2 ? u / 0.2 : Math.max(0, 1 - (u - 0.2) / 0.8), H = Math.round(20 * k);
+    for (let i = 0; i < 28; i++) {
+      const a = TAU / 28 * i + 0.11, x0 = Math.round(hx + Math.cos(a) * RR), y0 = Math.round(hy + Math.sin(a) * RR);
+      sx.fillStyle = '#0a1a1e'; sx.fillRect(x0 - 3, y0 + 1, 7, 1);
+      for (let j = 0; j < H; j++) {
+        const sw = Math.round(Math.sin(j * 0.35 + i) * j / 5), w = j < H * 0.4 ? 3 : j < H - 3 ? 2 : 1;
+        sx.fillStyle = '#3a0e24'; sx.fillRect(x0 + sw - 1, y0 - j, w + 2, 1);
+        sx.fillStyle = j > H - 3 ? '#e89aaa' : j % 3 === 1 ? '#c2486a' : '#8a2a4a'; sx.fillRect(x0 + sw, y0 - j, w, 1);
+        if (j % 3 === 0 && w > 1) { sx.fillStyle = '#e89aaa'; sx.fillRect(x0 + sw, y0 - j, 1, 1); } // 吸盤
+      }
+    }
+  }
+  addLight(h.x, h.y, R * 1.6, '#2a8ac8', 0.35 * fade);
+};
