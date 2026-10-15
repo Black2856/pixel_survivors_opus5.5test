@@ -96,13 +96,16 @@ const SET = (() => {
   return d;
 })();
 // UI の大きさ(HUD とメニュー画面の中身を css の zoom で拡大縮小する): uiZ = 窓に合わせた拡大率 × 設定の倍率(SET.uiMul)
-//   窓に合わせた拡大率は 1280×720 を 1 とし、幅・高さの小さい方に合わせる(メニュー画面は約 1070×600 まで収まるので、100% は少し余裕がある。設定の倍率は 120% まで収まり、それより大きいとメニュー画面はスクロールになる)。小さすぎる窓でも 0.5 まで
+//   窓に合わせた拡大率: 高さは 720 を 1 として合わせる。幅は 1280 を超えた分だけ大きくし、900 以上なら縮めずに狭い組み方に切り替え、900 未満で幅に合わせて縮める。どちらも 0.5 まで
+//     (どれも測った値: メニュー画面は 1280×720 から約 1070×600 まで収まるので 100% は少し余裕がある。設定の倍率は 120% まで収まり、それより大きいとメニュー画面はスクロールになる。
+//      狭い組み方では幅 900 で全ての画面が収まり、820 では強化ツリー・ガチャがスクロールになる)
 //   zoom は中の vw / vh も拡大するので、css は画面に対する大きさを --ui で割って書く。狭い画面の組み方は、拡大した後の幅(innerWidth / uiZ)で html に付ける vn1140 / vn820 / vn760 で切り替える(1140: 装備画面の 4列が入らなくなる幅)
 //   --ui は数のまま入れる(gacha.js が parseFloat で読む)
-const UI_REF = { w: 1280, h: 720 };
+const UI_REF = { w: 1280, h: 720, nw: 900 }; // nw: 狭い組み方で全ての画面が収まる最小の幅
 let uiZ = 1;
 function applyUiScale() {
-  const fit = Math.max(0.5, Math.min(innerWidth / UI_REF.w, innerHeight / UI_REF.h)), r = document.documentElement;
+  const fitW = Math.max(innerWidth / UI_REF.w, Math.min(1, innerWidth / UI_REF.nw));
+  const fit = Math.max(0.5, Math.min(fitW, innerHeight / UI_REF.h)), r = document.documentElement;
   uiZ = fit * SET.uiMul;
   r.style.setProperty('--ui', String(uiZ));
   const vw = innerWidth / uiZ;
