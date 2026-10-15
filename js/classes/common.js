@@ -11,8 +11,9 @@ function staUse(n, lock = 0) {
 }
 function updStamina(dt) {
   P.staLockT -= dt;
-  if (P.staLockT > 0 || P.sta >= P.maxSta) return;
+  if (P.staLockT > 0) return;
   let n = P.staRegen * dt * (P.fatigueT > 0 ? DATA.debuff.fatigue : 1) * (P.cdSlowT > 0 ? DATA.debuff.slowRegen : 1); // 疲労中・スロウタイム(時の歪み)の中はスタミナ回復 -50%(重なると掛け算)
+  if (P.sta >= P.maxSta) { if (clsRT() && clsRT().staFull) clsRT().staFull(n); return; } // 満タンで回復しない分(メイジの瞑想)
   if (clsRT() && clsRT().staRegen) n = clsRT().staRegen(n); // クラスの補正(メイジの瞑想)
   P.sta = Math.min(P.maxSta, P.sta + n);
 }

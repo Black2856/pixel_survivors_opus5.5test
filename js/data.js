@@ -718,12 +718,12 @@ const DATA = {
       //   上限のときは 次のスキルの威力 +crysOvf(最大 crysOvfMax。E か Q の発動で全て消費。オーバーフローとは別枠)
       //   魔力増幅: 魔力結晶 1つにつき攻撃力 +ampAtk / 共鳴結晶: 共鳴 giantN 回ごとに、その場所へ巨大な魔力結晶(giantFall 秒で落ちる。基礎威力 giantPow・半径 giantR)
       // 魔力循環: 通常攻撃の命中ごとに E / Q の CD -flowCut 秒(1秒あたり flowCap 秒まで)
-      //   瞑想: 止まっている間 スタミナ回復 -calmCut。減らした量 × calmK 秒だけ CD を縮める(同じ 1秒あたりの上限の枠から)
+      //   瞑想: 止まっている間 スタミナ回復 -calmCut。減らした量 × calmK 秒だけ CD を縮める(同じ 1秒あたりの上限の枠から)。満タンの間は回復量 × calmK 秒
       // ブリンク: 移動方向へ blinkDist 瞬間移動、無敵 blinkIfr 秒、スタミナ blinkCost。出発地点に氷の残滓(residueT 秒・半径 residueR。触れた敵に凍傷)
       params: {
         burnPct: 0.2, burnDur: 3, frostCap: 5, chainPct: 0.3, chainN: 1, chainR: 60,
         resoPow: 50, resoR: 30, crystalMax: 10, crysOvf: 0.005, crysOvfMax: 0.5, ampAtk: 0.02, giantN: 10, giantPow: 500, giantR: 100, giantFall: 0.5,
-        flowCut: 0.05, flowCap: 0.5, calmCut: 0.5, calmK: 0.05,
+        flowCut: 0.05, flowCap: 0.5, calmCut: 0.5, calmK: 0.03,
         blinkDist: 50, blinkIfr: 0.15, blinkCost: 80, residueT: 1.5, residueR: 14,
       },
       // メテオ(Q): 照準位置へ。詠唱 windup 秒(動けない)→ fall 秒後に着弾(基礎威力 pow・半径 r・与えたダメージの burnPct を炎上で)。武器に依存しない
@@ -740,7 +740,7 @@ const DATA = {
         } },
         passive: { name: '魔力循環', paths: {
           flow: { name: '循環', desc: '魔力循環の1回の短縮 +{v}秒', v: [0.01, 0.02, 0.03], sp: { name: 'オーバーフロー', desc: 'E / Q の CD が 0 のときにメイン武器の通常攻撃が当たると、次の E / Q の威力 +0.1%(最大 +50%)' } },
-          cap: { name: '容量', desc: '魔力循環の1秒あたりの上限 +{v}秒', v: [0.1, 0.3, 0.5], sp: { name: '瞑想', desc: '止まっている間、スタミナ回復 -50%。減った量 × 0.05 秒だけ E / Q の CD を縮める(魔力循環の 1秒あたりの上限に含む)' } },
+          cap: { name: '容量', desc: '魔力循環の1秒あたりの上限 +{v}秒', v: [0.1, 0.3, 0.5], sp: { name: '瞑想', desc: '止まっている間、スタミナ回復 -50%。減った量 × 0.03 秒だけ E / Q の CD を縮める(スタミナが満タンの間は回復量 × 0.03 秒。魔力循環の 1秒あたりの上限に含む)' } },
           echo: { name: '余韻', desc: 'E / Q を使った後 5秒、全武器の攻撃速度 +{p}%', v: [0.1, 0.2, 0.3], sp: { name: '詠唱加速', desc: 'E / Q を使った後 5秒、全武器の弾数 +1(近接武器は攻撃回数 +1)' } },
         } },
         q: { name: 'メテオ', need: 'q', paths: {

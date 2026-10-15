@@ -137,13 +137,14 @@ CLASS_RT.mage = {
     if (hasSp('passive', 'flow') && (P.sk.e.cd <= 0 || P.sk.q.cd <= 0)) P.ovf = Math.min(0.5, P.ovf + 0.001);
     mageFlow(MG().flowCut + cuV('passive', 'flow') + (P.lvFx.flowCut || 0));
   },
-  // 瞑想: 止まっている間はスタミナ回復 -calmCut。減らした量 × calmK 秒だけ E / Q の CD を縮める(魔力循環の上限の枠から)
+  // 瞑想: 止まっている間はスタミナ回復 -calmCut。減らした量 × calmK 秒だけ E / Q の CD を縮める(魔力循環の上限の枠から)。満タンの間は回復量 × calmK 秒
   staRegen(n) {
     if (!hasSp('passive', 'cap') || P.moving) return n;
     const p = MG(), cut = n * p.calmCut;
     mageFlow(cut * p.calmK);
     return n - cut;
   },
+  staFull(n) { if (hasSp('passive', 'cap') && !P.moving) mageFlow(n * MG().calmK); },
   // 次の攻撃の属性(三重詠唱: 15% で全属性)
   nextEl() {
     if (hasSp('trait', 'el') && Math.random() < 0.25) return 'all';
@@ -161,7 +162,7 @@ CLASS_RT.mage = {
     if (P.echoT > 0 && (e || sp)) out.push({ id: 'echo', glyph: '韻', name: sp ? _t('詠唱加速') : _t('余韻'), fx: (e ? _t`攻撃速度 +${Math.round(e * 100)}%` : '') + (sp ? _t(' 弾数 +1') : ''), t: P.echoT, max: 5, kind: 'buff' });
     if (P.ovf > 0) out.push({ id: 'ovf', glyph: '溢', name: _t('オーバーフロー'), fx: _t`次のスキルの威力 +${+(P.ovf * 100).toFixed(1)}%`, kind: 'buff' });
     if (P.covf > 0) out.push({ id: 'covf', glyph: '余', name: _t('余剰魔力'), fx: _t`次のスキルの威力 +${+(P.covf * 100).toFixed(1)}%`, kind: 'buff' });
-    if (hasSp('passive', 'cap') && !P.moving && P.sta < P.maxSta) out.push({ id: 'calm', glyph: '瞑', name: _t('瞑想'), fx: _t`スタミナ回復 -${Math.round(MG().calmCut * 100)}%。減った分で E / Q の CD を縮める`, kind: 'buff' });
+    if (hasSp('passive', 'cap') && !P.moving && P.staLockT <= 0) out.push({ id: 'calm', glyph: '瞑', name: _t('瞑想'), fx: P.sta >= P.maxSta ? _t('スタミナが満タン。回復量の分で E / Q の CD を縮める') : _t`スタミナ回復 -${Math.round(MG().calmCut * 100)}%。減った分で E / Q の CD を縮める`, kind: 'buff' });
     if (hasSp('trait', 'rpow')) out.push({ id: 'gcrys', glyph: '結', name: _t('共鳴結晶'), fx: _t`あと ${MG().giantN - P.resoN}回の共鳴で、巨大な魔力結晶が落ちる`, kind: 'buff' });
     return out;
   },
