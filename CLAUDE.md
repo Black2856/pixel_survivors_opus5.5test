@@ -4,7 +4,9 @@
 
 ## どこに何があるか
 - 数値・文: `js/data.js` の `DATA`(classes / weapons / bosses / enemies / stages / stageRuns / flow …)。値は `node scripts/dev/data.js classes.knight.params` で引ける(長い行を読まない)
-- クラス: `js/classes.js` の `CLASS_RT[クラス]`(特性・パッシブ・Q)と `WEAPON_SKILL[武器]`(E スキル)。ゲームの側からは `cls*` の入口(`clsShieldMod` `clsResistDebuff` など 17個)だけで呼ぶ。クラス名で分ける所をゲームの側に作らない
+- クラス: `js/classes/<クラス>.js`(1クラス 1ファイル: その武器の E スキル `WEAPON_SKILL.<武器>` → `CLASS_RT.<クラス>`(特性・パッシブ・Q)→ そのクラスの関数。仕様書 `claudedocs/classes/<名前>.md` と同じ単位)
+  - 共通は `classes/common.js`(スタミナ・強化ツリーの値 cuV / hasSp・E / Q の共通)、ゲームの側からの入口は `classes/hooks.js`(`cls*`: `clsShieldMod` `clsResistDebuff` など)。クラス名で分ける所をゲームの側に作らない
+  - クラスのファイルの読み込み順 = WEAPON_SKILL の並び(hooks.js の WS_TAKEN がこの順に掛ける)。足すときは末尾に
 - ラン: `js/world.js`(ラン初期化・ステータス・カオス強化・敵Lv)/ `player.js` / `weapons.js`(自動攻撃・弾・ゾーン)/ `damage.js`(hitEnemy・撃破)/ `enemies.js`(出現・通常敵)/ `phase.js`(ボスの撃破・フェーズ)/ `hazards.js`(敵弾・ボスの床などの動きと当たり)/ `drops.js` / `spawner.js`(出現・闘技場)/ `rewards.js`(レベルアップの選択肢)
 - ボス: `js/bosses/common.js`(makeBoss・spawnBoss・eball・later・壊せる物・`bossAI` の分岐)と `js/bosses/<キー>.js`(1体 1ファイル。キーは DATA.bosses。死神と終刻の死神は reaper.js、分裂した犬は cerberus.js)
 - 描画: `js/render.js` の `render()`(地面 → 自分の攻撃(地面側)→ ボスの設置物 → ジェム → 敵 → 自分 → 自分の攻撃(手前)→ 敵の攻撃・予兆 → 数値)、ボスの技は `drawBossFx` / `drawBfx`、熾天使は `drawSer*`
