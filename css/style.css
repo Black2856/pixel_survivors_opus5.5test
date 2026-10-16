@@ -371,18 +371,19 @@ input[type=range] { width: 220px; accent-color: var(--gold); }
 .card .opt em { color: var(--green); font-style: normal; font-size: 11px; }
 
 /* ---------- 装備画面 ---------- */
-.eq-wrap { display: grid; grid-template-columns: 200px minmax(240px, 450px) 325px minmax(300px, 1fr); gap: 16px; width: min(1440px, calc(96vw / var(--ui))); height: min(600px, calc(100vh / var(--ui) - 170px)); }
+.eq-wrap { display: grid; grid-template-columns: 200px auto 325px minmax(300px, 1fr); gap: 16px; width: min(1440px, calc(96vw / var(--ui))); height: min(600px, calc(100vh / var(--ui) - 170px)); }
+.eq-slotc { display: flex; flex-direction: column; min-height: 0; padding: 10px 12px 12px; }
 #eq-slots { display: flex; flex-direction: column; gap: 10px; }
-.eq-slot { position: relative; display: flex; align-items: center; gap: 10px; padding: 10px; min-height: 76px; text-align: left; background: var(--panel); box-shadow: inset 0 0 0 3px var(--rc); }
+.eq-slot { position: relative; display: flex; align-items: center; gap: 10px; padding: 10px; min-height: 76px; text-align: left; background: rgba(12,10,28,.7); box-shadow: inset 0 0 0 2px var(--rc); }
 .eq-slot.sel { outline: 3px solid var(--gold); }
 .eq-slot .lbl { position: absolute; top: 2px; left: 8px; font-size: 11px; color: var(--dim); }
 .eq-slot .big, .eq-head .big { width: 44px; image-rendering: pixelated; }
 .eq-slot .nm { font-size: 14px; color: var(--rc); margin-top: 8px; }
-.eq-mid { display: flex; flex-direction: column; gap: 8px; min-height: 0; padding: 10px 10px 12px; }
+.eq-mid { display: flex; flex-direction: column; gap: 8px; min-height: 0; padding: 10px 12px 12px; }
+.eq-mid > .seg { width: auto; }
 #eq-sellall { width: 100%; padding: 7px 6px; font-size: 14px; letter-spacing: 1px; }
-.eq-detc { display: flex; flex-direction: column; min-height: 0; padding: 0; }
-.eq-bar { display: flex; align-items: center; justify-content: space-between; }
-#eq-list { flex: 1; overflow-y: auto; scrollbar-gutter: stable; display: grid; grid-template-columns: repeat(auto-fill, 52px); gap: 8px; align-content: start; padding: 4px; background: rgba(12,9,19,.5); } /* スクロールバーの幅(10px)はいつもあけておく(出たときに列が1つ減らないように。枠の最大 430px = 7列 + スクロールバー) */
+.eq-detc { display: flex; flex-direction: column; min-height: 0; }
+#eq-list { flex: 1; width: 310px; min-height: 0; overflow-y: auto; scrollbar-gutter: stable; display: grid; grid-template-columns: repeat(auto-fill, 52px); gap: 8px; align-content: start; padding: 4px; background: rgba(12,9,19,.5); } /* 幅は 5列ちょうど(52px × 5 + 間 8px × 4 + 内側 4px × 2 + スクロールバー 10px)。スクロールバーの分はいつもあけておく(出ても列が減らず、右に空きも出ない) */
 .eq-item { position: relative; width: 52px; height: 52px; display: grid; place-items: center; background: var(--panel); box-shadow: inset 0 0 0 3px var(--rc); }
 .eq-item.sel { outline: 3px solid var(--gold); }
 .eq-item .icon { width: 30px; image-rendering: pixelated; }
@@ -391,7 +392,7 @@ input[type=range] { width: 220px; accent-color: var(--gold); }
 .eq-item .nw { position: absolute; left: -4px; bottom: -5px; font: 7px 'Press Start 2P'; color: var(--ink); background: var(--gold); padding: 1px 2px; animation: flick .6s steps(2) infinite; }
 .eq-item .en { position: absolute; right: 2px; bottom: 1px; font: 8px 'Press Start 2P'; color: var(--cyan); text-shadow: 1px 1px 0 var(--ink); }
 .eq-empty { grid-column: 1 / -1; padding: 20px; text-align: center; }
-#eq-detail { flex: 1; min-height: 0; padding: 14px; display: flex; flex-direction: column; gap: 8px; overflow-y: auto; }
+#eq-detail { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 8px; overflow-y: auto; }
 .eq-head { display: flex; gap: 10px; align-items: center; }
 .eq-head .rar { font-size: 12px; color: var(--rc); }
 .eq-head .nm { font-size: 18px; color: var(--rc); }
@@ -584,9 +585,9 @@ html[lang="en"] .stg .sub { grid-template-columns: 10em 11em auto; }
 /* ノード詳細: 選んでいない時(empty)は真ん中に菱形の印・「ノードを選択」・説明 */
 .tr-infoc { flex: none; display: flex; flex-direction: column; }
 #tr-info { display: flex; flex-direction: column; gap: 6px; min-height: 150px; font-size: 13px; }
-#tr-info.empty { align-items: center; justify-content: center; gap: 6px; padding: 0 6px; text-align: center; line-height: 1.6; }
-#tr-info.empty .pxi { width: 40px; height: 40px; color: #8f80e0; filter: drop-shadow(0 0 6px rgba(143,128,224,.45)); }
-#tr-info.empty b { font-size: 18px; font-weight: normal; letter-spacing: 1px; color: var(--txt); text-shadow: 2px 2px 0 var(--ink); }
+#tr-info.empty, #eq-detail.empty { align-items: center; justify-content: center; gap: 6px; padding: 0 6px; text-align: center; line-height: 1.6; }
+#tr-info.empty .pxi, #eq-detail.empty .pxi { width: 40px; height: 40px; color: #8f80e0; filter: drop-shadow(0 0 6px rgba(143,128,224,.45)); }
+#tr-info.empty b, #eq-detail.empty b { font-size: 18px; font-weight: normal; letter-spacing: 1px; color: var(--txt); text-shadow: 2px 2px 0 var(--ink); }
 .tr-nm { font-size: 17px; }
 .tr-buy { margin-top: auto; }
 /* 取得済み効果: 1行ずつ(1行おきに少し明るく)。見出しの右に 取得した数 / 全部 */
@@ -720,6 +721,7 @@ html[lang="en"] .stg .sub { grid-template-columns: 10em 11em auto; }
 .sv-break { min-height: 80px; max-height: 30%; overflow-y: auto; padding: 6px; background: rgba(12,9,19,.6); }
 :where(.vn1140) .eq-wrap, :where(.vn1140) .cl-wrap { grid-template-columns: 1fr; height: auto; max-height: calc(100vh / var(--ui) - 170px); overflow-y: auto; padding: 4px; } :where(.vn1140) .sv { max-height: calc(60vh / var(--ui)); }
 
+:where(.vn1140) #eq-list { width: auto; } /* 1列に並べた時は一覧を広く */
 /* ステータス画面: スキルの詳細 */
 .sv-sk { padding: 0 2px 2px; cursor: pointer; }
 @media (hover: hover) { .sv-sk:hover { background: rgba(255,255,255,.07); } }

@@ -46,8 +46,9 @@ const MetaUI = (() => {
 
   // 選んだ装備の詳細と操作
   function detail() {
-    const box = $('eq-detail'), it = sel;
-    if (!it || !META.inventory.includes(it)) { box.innerHTML = _t('<div class="dim">装備を選ぶと詳細が表示されます</div>'); return; }
+    const box = $('eq-detail'), it = sel, none = !it || !META.inventory.includes(it);
+    box.classList.toggle('empty', none);
+    if (none) { box.innerHTML = ART.uiIcon('chest') + `<b>${_t('装備を選択')}</b>` + _t('<div class="dim">装備を選ぶと詳細が表示されます</div>'); return; } // 選んでいない時は強化ツリーのノード詳細と同じ形
     const R = DATA.equip.rarity[it.rarity], eq = isEquipped(it);
     box.innerHTML = `
       <div class="eq-head" style="--rc:${R.col}">${icon(it, 'big')}<div><div class="rar">${R.name}${_t(' ・ ')}${DATA.equip.slots[itemSlot(it)]}</div><div class="nm">${itemName(it)}</div></div></div>
@@ -318,7 +319,7 @@ const MetaUI = (() => {
   ];
   // again: カオス強化の設定を閉じて並べ直すとき(並ぶ動きを出さない)
   // coop: 協力プレイの部屋を作る(協力プレイの画面の「部屋を作る」から)。協力プレイで遊べる物(net.js の COOP_MODES)だけを並べ、公開かコードかを選ぶ。選ぶと部屋ができて協力プレイの画面へ。戻ると協力プレイの画面へ
-  //   クラス画面へ行って戻った時・カオス強化を閉じた時は、前の形(coop)のまま
+  //   協力プレイの形ではクラス変更を出さない。カオス強化を閉じた時は、前の形(coop)のまま
   let stCoop = false, stPub = true;
   function stageSelect(again, coop = again ? stCoop : false) {
     state = 'stage'; stCoop = coop;
@@ -327,6 +328,7 @@ const MetaUI = (() => {
     $('st-class').style.setProperty('--cc', c.col);
     $('st-class').innerHTML = _t`<img src="${portrait(META.cls)}" alt=""><span><b>${c.name}</b> Lv${m.lv} ・ ${DATA.weapons[m.weapon].name}</span><small>クラス変更 ▶</small>`;
     $('st-coop').classList.toggle('hidden', !coop);
+    $('st-class').classList.toggle('hidden', coop); // 部屋を作る時はクラス変更を出さない(クラスは協力プレイの画面の「自分のクラス」で変える)
     if (coop) pubSync();
     const items = STAGE_ITEMS().filter(s => !coop || COOP_MODES.includes(s.mode));
     $('stage-list').classList.toggle('calm', !!again);
