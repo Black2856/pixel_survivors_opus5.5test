@@ -1591,11 +1591,11 @@ const DATA = {
   // kills: 1階の撃破数 / killStep: 1階ごとに増える数 / spawnK: 出現の間隔 = spawnK ÷ 撃破数 秒(1回の出現は平均約 1.6体なので、約 45秒で撃破数が出そろう)/ maxK: 同時に出る上限 = 撃破数 × maxK
   // skip: [秒, 飛ばす階の数](撃破数に届くまでの時間がこの秒以内なら。ボスの階は越えない)/ rest: 階と階の間の休憩秒 / lap: 1周の階の数 / bossEvery: ボスの階の間隔
   // chaos: 2周目から付くカオス強化(最大Lv。周ごとに 1つ増える)/ bossChaos: ボスの階だけ、どちらか1つを候補に足す / chestGold: 宝箱の代わりに落とすゴールド(15枚に分ける)
-  // partyHp: 敵の HP の人数の倍率(1〜4人。協力プレイ)
+  // partyHp: 敵の HP の人数の倍率(1〜4人。協力プレイ)/ coopWait: 協力プレイの休憩で、レベルアップを選び終わるのを待つ最長の秒(クリアから。tower.md #31)
   tower: {
     kills: 100, killStep: 1, spawnK: 72, maxK: 0.75,
     skip: [[60, 3], [90, 2], [120, 1]], rest: 8, lap: 40, bossEvery: 5,
     chaos: ['area', 'rate', 'loot', 'debuff'], bossChaos: ['rage', 'twin'], chestGold: 150,
-    partyHp: [1, 1.5, 2, 2.5],
+    partyHp: [1, 1.5, 2, 2.5], coopWait: 30,
   },
 };

@@ -43,14 +43,17 @@ function updTower(dt) {
     if (!T.boss && T.kills >= T.goal) towerClear();
     return T.wave;
   }
-  if (players.some(p => p.pendingLv > 0)) return false; // レベルアップの選択中は休憩を止める(誰か 1人でも。協力プレイの最長 30秒は tower.md #31・5段)
+  const choosing = players.some(p => p.pendingLv > 0 || p.lvPick);
+  if (players.length > 1) T.waitT = (T.waitT || 0) + dt; // 協力プレイ: クリアからの秒(tower.md #31)
+  else if (choosing) return false; // 1人: レベルアップの選択中は休憩の時計も止まる
   T.rest -= dt;
   if (!T.warned && T.rest <= 2.5) {
     T.warned = true;
     UI.announce(T.next + 'F', towerIsBoss(T.next) ? _t('ボスの階') : _t`${towerGoal(T.next)}体 倒すと次の階へ`);
     AudioMan.warning();
   }
-  if (T.rest <= 0) towerFloor(T.next);
+  // 協力プレイ: 全員が選び終わり、かつ休憩が終わった時か、クリアから coopWait 秒(選び終わっていない人は次の階でも選び続ける)
+  if (T.rest <= 0 && (players.length === 1 || !choosing || T.waitT >= DATA.tower.coopWait)) { T.waitT = 0; towerFloor(T.next); }
   return false;
 }
 

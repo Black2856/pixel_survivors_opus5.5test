@@ -97,6 +97,7 @@ const UI = (() => {
   let bossLag = 1;
   function hud(dt) {
     if (!S) return;
+    coopPickHud(); // 協力プレイの止まらないレベルアップ・休憩の待ち
     $('xpfill').style.width = (P.xp / P.xpNext * 100).toFixed(1) + '%';
     const bank = S.tower ? towerBankLv() : 0; // タワー: 貯蓄経験値で上がる Lv の数
     set('lvl', 'LV ' + P.level + (bank ? _t` ・ 貯蓄 Lv+${bank}` : ''));
@@ -836,6 +837,54 @@ const UI = (() => {
       if (/^Digit[1-4]$/.test(e.code)) choose(+e.code.slice(5) - 1);
       if (e.code === 'KeyR') reroll();
     } else if (state === 'chest' && (e.code === 'Space' || e.code === 'Enter')) chestAct();
+    else if (state === 'play' && COOP.on && P.lvPick) { // 協力プレイの止まらないレベルアップ
+      if (/^Digit[1-3]$/.test(e.code)) coopPick(+e.code.slice(5));
+      if (e.code === 'KeyR') coopPick(PICK.reroll);
+    }
+  }
+
+  // ---------- 協力プレイ: 止まらないレベルアップ(画面の下に小さく出す。選んだ物は入力の pick で送り、全員が同じフレームで使う: net.js の coopLevel)----------
+  let cpEl = null, cpShown = null, cpN = -1, cpSent = null;
+  function coopPickHud() {
+    if (!cpEl) { cpEl = el('div', 'hidden'); cpEl.id = 'coop-pick'; $('hud').appendChild(cpEl); }
+    const c = COOP.on ? P.lvPick : null;
+    if (!c) { if (cpShown) { cpEl.classList.add('hidden'); cpShown = null; } return coopWaitHud(); }
+    if (c !== cpShown || c.n !== cpN) {
+      cpShown = c; cpN = c.n; cpSent = null;
+      cpEl.innerHTML = `<div class="cp-title">${isClassLv(c.lv) ? 'CLASS UP!' : 'LEVEL UP!'}</div>`;
+      const box = el('div', 'cp-cards');
+      c.list.forEach((ch, i) => {
+        const { html, rar } = cardHTML(ch);
+        const d = el('button', 'card ' + rar, html + `<div class="card-key">${i + 1}</div>`);
+        d.onclick = () => coopPick(i + 1);
+        box.appendChild(d);
+      });
+      const btns = el('div', 'cp-btns');
+      const rb = el('button', 'btn', _t`リロール (${P.rerolls}) <small>R</small>`);
+      rb.disabled = P.rerolls <= 0; rb.onclick = () => coopPick(PICK.reroll);
+      const sb = el('button', 'btn ghost', _t('スキップ (+10G)'));
+      sb.onclick = () => coopPick(PICK.skip);
+      btns.append(rb, sb);
+      cpEl.append(box, btns);
+      cpEl.classList.remove('hidden', 'sent');
+    }
+    coopWaitHud();
+  }
+  // 選んだ物を次の入力で送る(届くまでは同じカードにもう一度は送らない)
+  function coopPick(k) {
+    if (!COOP.on || !P.lvPick || cpSent === P.lvPick) return;
+    keys._pick = k; cpSent = P.lvPick;
+    if (cpEl) cpEl.classList.add('sent');
+    AudioMan.click();
+  }
+  // タワーの休憩で、ほかの人がレベルアップを選んでいる間(tower.md #31)
+  let cwEl = null, cwText = '';
+  function coopWaitHud() {
+    if (!cwEl) { cwEl = el('div', 'hidden'); cwEl.id = 'coop-wait'; $('hud').appendChild(cwEl); }
+    const T = S.tower, who = COOP.on && T && !T.wave ? players.filter(p => p !== P && (p.lvPick || p.pendingLv > 0)) : [];
+    const txt = who.length ? _t`${who.map(p => 'P' + (p.pid + 1)).join('・')} がレベルアップを選んでいます(あと ${Math.max(0, Math.ceil(DATA.tower.coopWait - (T.waitT || 0)))}秒)` : '';
+    if (txt === cwText) return;
+    cwText = txt; cwEl.textContent = txt; cwEl.classList.toggle('hidden', !txt);
   }
 
   return { announce, skillCut, enrage, banner, toast, hud, bossBar, enemyLvUp, openChest, levelUp, beginPlay: close, only, weaponIcon: k => icon('weapon', k), title, pause, closeSettings, result, onKey, show, hide, $ };

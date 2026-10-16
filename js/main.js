@@ -126,7 +126,7 @@ function updWorld(rdt) {
   for (const p of players) { p.comboT -= dt; if (p.comboT <= 0 && p.combo > 0) p.combo = 0; }
 
   // レベルアップ演出 → 選択画面(自分 = players[0]。協力プレイのほかの人の止まらないレベルアップは 5段)
-  if (COOP.on) coopAutoLevel(); // 協力プレイ(4段の仮): 止まらないレベルアップの画面は 5段
+  if (COOP.on) coopLevel(); // 協力プレイ: 止まらないレベルアップ(選んだ物は入力で届く。net.js)
   else if (P.pendingLv > 0 && !P.dead && state === 'play') {
     if (P.lvUpT <= 0) {
       P.lvUpT = 0.4;

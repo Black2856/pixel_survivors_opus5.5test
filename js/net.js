@@ -120,7 +120,8 @@ function coopCleanInput(r) {
   if (l > 1) { mx /= l; my /= l; }
   const a = r.aim && typeof r.aim === 'object' ? r.aim : null;
   const aim = a && typeof a.x === 'number' && isFinite(a.x) && typeof a.y === 'number' && isFinite(a.y) ? { x: clamp(num(a.x), -1e6, 1e6), y: clamp(num(a.y), -1e6, 1e6) } : null;
-  return { mx: num(mx), my: num(my), e: r.e === true, q: r.q === true, def: r.def === true, aim, autoE: r.autoE === true, autoQ: r.autoQ === true };
+  const pick = [1, 2, 3, PICK.skip, PICK.reroll].includes(r.pick) ? r.pick : 0;
+  return { mx: num(mx), my: num(my), e: r.e === true, q: r.q === true, def: r.def === true, aim, autoE: r.autoE === true, autoQ: r.autoQ === true, pick };
 }
 // フレーム f の pid の入力を入れる(今より前・ずっと先の物は捨てる)
 function coopPut(f, pid, r) {
@@ -175,13 +176,26 @@ function coopHashPut(f, pid, h) {
   console.error('COOP: 同期がずれた(フレーム ' + f + ')', row.map(x => x.toString(16)));
   UI.banner('DESYNC', _t('同期がずれました'), 4000);
 }
-// レベルアップ(4段の仮): 協力プレイでは止まらない画面がまだ無いので(5段)、全員のレベルアップを計算の中で 1枚目のカードに決める
-function coopAutoLevel() {
+// 止まらないレベルアップ(#8): 選ぶカードは計算の中で決めて P.lvPick に置き、選んだ物は入力の pick で届く(全員が同じフレームで使う)
+//   P.lvPick = { lv, list, n }(n: リロールした回数。画面が出し直すため)。カードを取る・スキップ(+10G)・リロール(残りがあれば)
+const PICK = { skip: 8, reroll: 9 };
+function coopLevel() {
   for (const p of players) withPlayer(p, () => {
-    while (P.pendingLv > 0) {
+    const c = P.lvPick, k = P.inp.pick | 0;
+    if (c && k) {
+      if (k >= 1 && k <= c.list.length) {
+        const ch = c.list[k - 1];
+        applyChoice(ch); P.lvPick = null;
+        const col = ch.type === 'weapon' ? DATA.weapons[ch.key].col : ch.type === 'cls' ? DATA.classes[P.cls].col : ch.type === 'eqopt' ? '#9ff7ff' : '#ffffff';
+        burst(P.x, P.y, 30, [col, '#ffffff'], { sp: 90, glow: true, up: 20 }); addRing(P.x, P.y, 40, col, { life: 0.35 });
+        if (P === players[COOP.pid]) AudioMan.select();
+      } else if (k === PICK.reroll && P.rerolls > 0) { P.rerolls--; c.list = buildChoices(c.lv); c.n++; }
+      else if (k === PICK.skip) { addGold(10); P.lvPick = null; }
+    }
+    if (!P.lvPick && P.pendingLv > 0) {
       P.pendingLv--;
       const lv = P.lvQueue.shift() || P.level, list = buildChoices(lv);
-      if (list.length) applyChoice(list[0]); else microBuff();
+      if (list.length) { P.lvPick = { lv, list, n: 0 }; if (P === players[COOP.pid]) AudioMan.levelup(); } else microBuff();
     }
   });
 }
