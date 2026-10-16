@@ -19,7 +19,7 @@
 - 改行は CRLF(js / md / css / html。`core.autocrlf=true`)。書いたら `node scripts/dev/eol.js`(`--fix` でそろえる)。sed -i は使わない
 - 表示する日本語は `_t` を通し、訳を `js/lang/en.js`・`zh.js`・`ko.js` に足す(キー = 日本語の文)。`node scripts/i18n-check.js` で抜けを見る。DATA の文は読み込み時にまるごと訳す
   - 強化のパスの `desc` は多くが値を差し込む型(`'バラージュの威力 +{p}%'` + `v`。表示は `pathDesc`)。数値だけの調整は `v` を変えるだけで、説明も辞書も触らない。配列のもの(Lv ごとに文が違う)は今までどおり 3つの文と辞書を直す
-- 計算(update の中)はどのブラウザでも同じ結果にする(協力プレイ: `claudedocs/coop.md` 3章): `**` は使わない(`Math.pow` で。Math の関数は `js/detmath.js` が置き換えている)/ 計算に関わる「少し後で」は `setTimeout` ではなく `simTimeout`
+- 計算(update の中)はどのブラウザでも同じ結果にする(協力プレイ: `claudedocs/coop.md` 3章): `**` は使わない(`Math.pow` で。Math の関数は `js/detmath.js` が置き換えている)/ 計算に関わる「少し後で」は `setTimeout` ではなく `simTimeout` / update の中の `Math.random` は計算の乱数の列(core.js)。見た目だけで、引く回数が設定(画質・攻撃の濃さ)・画面・実時間で変わる物は `fxScope(() => …)` の中か `frand` / `fpick` で引く(確かめは `T.classSmoke({ pix: false })` を `SET.gfx`・`SET.fxA` を変えて比べる)
 - `claudedocs/db.xlsx` はユーザーの物。ステージもコミットもしない
 - 作業は feature ブランチ。`release` は公開元(GitHub Pages)で、マージだけ。マージはユーザーに言われた時だけ
 
