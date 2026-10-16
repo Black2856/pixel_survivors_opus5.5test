@@ -1485,6 +1485,7 @@ const I18N_EN = {
   "カオス強化は {0}階から": "Chaos from {0}F",
   "ボスの階": "Boss floor",
   "同期がずれました": "Out of sync",
+  "協力プレイ中はゲームが止まりません": "The game does not pause in co-op",
   "所持品": "Inventory",
   "装備の詳細": "Item Details",
   "装備を選択": "Select an item",

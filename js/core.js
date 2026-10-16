@@ -200,7 +200,7 @@ if (TOUCH_UI) {
   hold('tc-def', v => { keys.TouchDef = v; });
   hold('tc-e', v => { if (v && state === 'play') keys._e = true; });
   hold('tc-q', v => { if (v && state === 'play') keys._q = true; });
-  hold('tc-pause', v => { if (v) pauseGame(); });
+  hold('tc-pause', v => { if (v) pauseGame(true); }); // 協力プレイでは止めずにメニューだけ
   document.getElementById('touch-ctl').addEventListener('contextmenu', e => e.preventDefault()); // 長押しのメニューを出さない
   document.addEventListener('gesturestart', e => e.preventDefault()); // iPhone の 2本指の拡大(user-scalable=no が効かない)
 }
@@ -238,9 +238,11 @@ function moveInput() {
 }
 // 計算が読む 1人分の入力(計算 1回ごとの記録。協力プレイではこれを送り合う: claudedocs/coop.md 2章)。計算は keys・touch・mouse を直接読まない
 //   mx, my: 移動 / e, q: E・Q を押した印(押した瞬間だけ。取ったら消す)/ def: 防御のキー / aim: マウスの照準(ワールド座標)/ autoE, autoQ: スキルの自動発動の設定
-//   pick: 協力プレイの止まらないレベルアップで選んだ物(1〜3 = カード / 8 = スキップ / 9 = リロール。net.js の coopLevel)
+//   pick: 協力プレイの止まらないレベルアップで選んだ物(1〜7 = カード / 8 = スキップ / 9 = リロール。net.js の coopLevel)
 const NO_INPUT = Object.freeze({ mx: 0, my: 0, e: false, q: false, def: false, aim: null, autoE: false, autoQ: false, pick: 0 });
 function readInput() {
+  // 協力プレイでメニュー・ステータス・設定・ガイドを開いている間は何もしない(止まらないので。ガイドの検索に打つ字で動かないように)
+  if (COOP.on && UI.menuOpen()) { keys._e = keys._q = false; keys._pick = 0; return NO_INPUT; }
   const [mx, my] = moveInput();
   const r = { mx, my, e: !!keys._e, q: !!keys._q, def: !!(keys.Space || keys.TouchDef), aim: mouse.aim ? { x: cam.x + mouse.x, y: cam.y + mouse.y } : null, autoE: !!SET.autoE, autoQ: !!SET.autoQ, pick: keys._pick | 0 };
   keys._e = keys._q = false; keys._pick = 0;

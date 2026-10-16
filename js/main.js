@@ -21,9 +21,23 @@ function startRun(mode = 'escalation', stageNo = 1, o = {}) {
 }
 // クリア記録のキー: escalation / arena / stage1〜12
 const runKey = () => (S.mode === 'stage' ? 'stage' + S.stageNo : S.mode);
-// 協力プレイは止めない(#9。ESC・ウィンドウを離れた時・縦向きでも)
-function pauseGame() { if (state !== 'play' || COOP.on) return; state = 'pause'; UI.pause(true); AudioMan.pauseMusic(); }
-function resumeGame() { if (state !== 'pause') return; state = 'play'; UI.pause(false); AudioMan.resumeMusic(); }
+// 協力プレイは止めない(#9)。ESC・スマホのポーズのボタン(menu)ではメニューだけ出す: state は 'play' のまま(計算は state を見るので、変えるとほかの人とずれる)。
+//   メニュー・ステータス・設定・ガイドを開いている間、自分の入力は「何もしない」(core.js の readInput)。ウィンドウを離れた時・縦向きでは出さない
+function pauseGame(menu) {
+  if (state !== 'play') return;
+  if (COOP.on) { if (menu && !UI.menuOpen()) UI.pause(true); return; }
+  state = 'pause'; UI.pause(true); AudioMan.pauseMusic();
+}
+function resumeGame() {
+  if (COOP.on && state === 'play') { if (UI.shown('pause-screen')) UI.pause(false); return; }
+  if (state !== 'pause') return; state = 'play'; UI.pause(false); AudioMan.resumeMusic();
+}
+// 協力プレイの ESC: 設定 → メニューへ / メニュー → 閉じる / 何も出ていない → メニュー(ステータス・ガイドはそれぞれの onKey が閉じる)
+function coopEsc() {
+  if (UI.shown('settings-screen')) UI.closeSettings();
+  else if (UI.shown('pause-screen')) resumeGame();
+  else pauseGame(true);
+}
 function endRun(win) {
   const coop = COOP.on;
   if (coop) coopFinish(); // 協力プレイ: 自分(players[COOP.pid])の分で終える。報酬は各自のセーブへ、記録は 1人とは別(coop.md #17・#18)
@@ -76,7 +90,7 @@ function onKey(e) {
   if (StatusUI.modalOpen()) { if (e.code === 'Escape' || e.code === 'Tab') { if (e.preventDefault) e.preventDefault(); StatusUI.closeModal(); } return; } // 詳細のモーダルを先に閉じる
   if (Help.onKey(e)) return; // ガイド画面(ESC で戻る)
   if (e.code === 'KeyM') AudioMan.toggleMute();
-  if (e.code === 'Escape') { if (state === 'play') pauseGame(); else if (state === 'pause') resumeGame(); else if (state === 'settings') UI.closeSettings(); }
+  if (e.code === 'Escape') { if (COOP.on && state === 'play') coopEsc(); else if (state === 'play') pauseGame(); else if (state === 'pause') resumeGame(); else if (state === 'settings') UI.closeSettings(); }
   if ((state === 'over' || state === 'victory') && e.code === 'KeyR') startRun(S.mode, S.stageNo); // タイトルの Enter は UI.onKey(選んでいるメニュー)
   else if (state === 'victory' && e.code === 'Enter' && S.mode === 'escalation') startEndless();
   CoopUI.onKey(e); // 先に(ステージ選択の ESC で協力プレイの画面に戻った時、同じ ESC でタイトルまで戻らないように)

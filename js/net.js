@@ -287,7 +287,7 @@ function coopCleanInput(r) {
   if (l > 1 + 1e-9) { mx /= l; my /= l; } // 1 を少し超えるだけなら直さない(直した物をもう一度通しても変わらないように)
   const a = r.aim && typeof r.aim === 'object' ? r.aim : null;
   const aim = a && typeof a.x === 'number' && isFinite(a.x) && typeof a.y === 'number' && isFinite(a.y) ? { x: clamp(num(a.x), -1e6, 1e6), y: clamp(num(a.y), -1e6, 1e6) } : null;
-  const pick = [1, 2, 3, PICK.skip, PICK.reroll].includes(r.pick) ? r.pick : 0;
+  const pick = Number.isInteger(r.pick) && r.pick >= 1 && r.pick <= PICK.reroll ? r.pick : 0; // カードは 1〜7(枚数は 3 + 選択枠。強化ツリーと固有効果で 5枚まで出る。前は 1〜3 だけ通して、4枚目を選ぶと選べないまま残った)/ 8 = スキップ / 9 = リロール
   return { mx: num(mx), my: num(my), e: r.e === true, q: r.q === true, def: r.def === true, aim, autoE: r.autoE === true, autoQ: r.autoQ === true, pick };
 }
 // フレーム f の pid の入力を入れる(今より前・ずっと先の物は捨てる)

@@ -277,14 +277,16 @@ const Help = (() => {
     [_t('持ち帰る'), _t('ランが終わると、ゴールド・装備・クラス経験値が残る。ゴールドは強化ツリー・ガチャで使い、装備は装備画面で付ける')],
   ];
   let cat = '操作', back = 'title';
+  // 協力プレイのメニューから開いた時は state を 'play' のまま(止まらない。main.js の pauseGame)
+  const coopMenu = () => COOP.on && state === 'play';
   function open(from = 'title') {
-    back = from; state = 'help';
+    back = from; if (!(from === 'pause' && coopMenu())) state = 'help';
     UI.only('help-screen');
     $('hp-q').value = '';
     render();
   }
   function close() {
-    if (back === 'pause') { state = 'pause'; UI.pause(true); } else { state = 'title'; UI.title(); }
+    if (back === 'pause') { if (!coopMenu()) state = 'pause'; UI.pause(true); } else { state = 'title'; UI.title(); }
   }
   function render() {
     const q = $('hp-q').value.trim();
@@ -309,7 +311,7 @@ const Help = (() => {
   $('btn-help-p').onclick = () => { AudioMan.click(); open('pause'); };
   // ガイドの画面では ESC で戻るだけ。ほかのキー(M のミュートなど)は受け付けない(検索欄に文字を打つため)
   function onKey(e) {
-    if (state !== 'help') return false;
+    if (state !== 'help' && !(coopMenu() && UI.shown('help-screen'))) return false;
     if (e.code === 'Escape' && !e.isComposing) close(); // 日本語入力の変換中の ESC は変換の取り消し
     return true;
   }

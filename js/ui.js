@@ -6,7 +6,10 @@ const UI = (() => {
   const el = (tag, cls, html) => { const e = document.createElement(tag); if (cls) e.className = cls; if (html !== undefined) e.innerHTML = html; return e; };
   const show = e => e.classList.remove('hidden'), hide = e => e.classList.add('hidden');
   const screens = ['title-screen', 'stage-screen', 'class-screen', 'tree-screen', 'gacha-screen', 'status-screen', 'equip-screen', 'choice-screen', 'chest-screen', 'pause-screen', 'settings-screen', 'result-screen', 'help-screen', 'coop-screen'];
-  const only = id => { screens.forEach(s => (s === id ? show : hide)($(s))); hideTip(); gold(); }; // 画面を替えたら説明の吹き出しを消す(スマホでは指を離しても残るため)
+  const only = id => { screens.forEach(s => (s === id ? show : hide)($(s))); hideTip(); gold(); };
+  const shown = id => !$(id).classList.contains('hidden');
+  // レベルアップ以外の画面(メニュー・ステータス・設定・ガイドなど)が出ているか(協力プレイは止まらないので、出ている間は入力を止め、レベルアップの画面を隠す)
+  const menuOpen = () => screens.some(s => s !== 'choice-screen' && shown(s)); // 画面を替えたら説明の吹き出しを消す(スマホでは指を離しても残るため)
   // ラン外の画面の右上のゴールド(どの画面も同じ所)。ラン中(ポーズ画面から開いたガイド・設定)は出さない。買った・売った後にも呼ぶ
   function gold() {
     const run = !$('hud').classList.contains('hidden'), t = '● ' + META.gold.toLocaleString() + ' G';
@@ -799,8 +802,10 @@ const UI = (() => {
   $('set-lang').onchange = e => { if (setBack === 'pause' || e.target.value === SET.lang) return; SET.lang = e.target.value; saveSet(); AudioMan.click(); location.reload(); };
   $('set-fxa').oninput = e => { SET.fxA = e.target.value / 100; $('set-fxa-n').textContent = e.target.value + '%'; saveSet(); };
   $('set-ui').oninput = e => { SET.uiMul = e.target.value / 100; $('set-ui-n').textContent = e.target.value + '%'; applyUiScale(); saveSet(); };
-  function settings(from = 'title') { setBack = from; state = 'settings'; only('settings-screen'); syncSettings(); }
-  function closeSettings() { if (setBack === 'pause') { state = 'pause'; pause(true); } else { state = 'title'; title(); } }
+  // 協力プレイのメニューから開いた時は state を 'play' のまま(止まらない。main.js の pauseGame)
+  const coopMenu = () => COOP.on && state === 'play';
+  function settings(from = 'title') { setBack = from; if (!(from === 'pause' && coopMenu())) state = 'settings'; only('settings-screen'); syncSettings(); }
+  function closeSettings() { if (setBack === 'pause') { if (!coopMenu()) state = 'pause'; pause(true); } else { state = 'title'; title(); } }
   $('btn-settings').onclick = () => { AudioMan.click(); settings('title'); };
   $('btn-settings-p').onclick = () => { AudioMan.click(); settings('pause'); };
   $('btn-set-back').onclick = () => { AudioMan.click(); closeSettings(); };
@@ -808,6 +813,8 @@ const UI = (() => {
   function pause(on) {
     if (on) {
       only('pause-screen');
+      $('pause-title').textContent = COOP.on ? 'MENU' : 'PAUSED'; // 協力プレイは止まらない
+      $('pause-note').classList.toggle('hidden', !COOP.on);
       $('pause-build').innerHTML = Object.keys(P.weapons).map(k => icon('weapon', k)).join('');
     } else only(null);
   }
@@ -851,7 +858,7 @@ const UI = (() => {
 
   function onKey(e) {
     if (state === 'levelup') {
-      if (/^Digit[1-4]$/.test(e.code)) choose(+e.code.slice(5) - 1);
+      if (/^Digit[1-7]$/.test(e.code)) choose(+e.code.slice(5) - 1); // カードは 5枚まで出る(強化ツリーと固有効果の選択枠)
       if (e.code === 'KeyR') reroll();
     } else if (state === 'title') {
       if (e.code === 'ArrowUp' || e.code === 'KeyW') tmSet(tmSel - 1);
@@ -859,15 +866,16 @@ const UI = (() => {
       else if ((e.code === 'Enter' || e.code === 'Space') && !e.repeat) { if (e.preventDefault) e.preventDefault(); TM[tmSel].click(); } // preventDefault: マウスで押した後に focus が残ったボタンを、ブラウザが Enter でもう一度押さないように
     } else if (state === 'chest' && (e.code === 'Space' || e.code === 'Enter')) chestAct();
     else if (state === 'play' && COOP.on && P.lvPick) { // 協力プレイの止まらないレベルアップ
-      if (/^Digit[1-4]$/.test(e.code)) coopPick(+e.code.slice(5));
+      if (/^Digit[1-7]$/.test(e.code)) coopPick(+e.code.slice(5));
       if (e.code === 'KeyR') coopPick(PICK.reroll);
     }
   }
 
   // ---------- 協力プレイ: 止まらないレベルアップ(1人の時と同じ画面に出す。時間は止まらない。選んだ物は入力の pick で送り、全員が同じフレームで使う: net.js の coopLevel)----------
-  let cpShown = null, cpN = -1, cpSent = null;
+  let cpShown = null, cpN = -1, cpSent = null, cpSentF = 0;
   function coopPickHud() {
     const c = COOP.on ? P.lvPick : null, cs = $('choice-screen');
+    if (c && cpSent === c && COOP.f - cpSentF > 60) cpShown = null; // 送った物が 1秒(計算のフレーム)たっても届かない時は、出し直して選び直せるように(薄いまま残らないように。入力の遅れは 8フレームまで)
     if (!c) cpShown = null;
     else if (c !== cpShown || c.n !== cpN) {
       cpShown = c; cpN = c.n; cpSent = null;
@@ -876,9 +884,9 @@ const UI = (() => {
       drawCards(c.list, i => coopPick(i + 1), () => coopPick(PICK.reroll), () => coopPick(PICK.skip), P.rerolls > 0);
       cs.classList.remove('sent');
     }
-    // 出すのはプレイ中だけ(ポーズ・ステータスを開くと only() が隠すので、閉じたら出し直す)。毎回 DOM と比べる
+    // 出すのはプレイ中で、ほかの画面(ステータスなど)が出ていない時だけ(only() が隠すので、閉じたら出し直す)。毎回 DOM と比べる
     if (COOP.on) {
-      const want = !!c && state === 'play';
+      const want = !!c && state === 'play' && !menuOpen();
       if (want === cs.classList.contains('hidden')) { (want ? show : hide)(cs); if (!want) hideTip(); }
     }
     coopWaitHud();
@@ -886,9 +894,9 @@ const UI = (() => {
   // 選んだ物を次の入力で送る(届くまでは同じカードにもう一度は送らない)。届かない物(ないカード・残りのないリロール)は送らない(送ると選べないまま残る)
   function coopPick(k) {
     const c = COOP.on && P.lvPick;
-    if (!c || cpSent === c || (k <= 4 && k > c.list.length) || (k === PICK.reroll && P.rerolls <= 0)) return;
-    keys._pick = k; cpSent = c;
-    const card = k <= 4 && $('cards').children[k - 1];
+    if (!c || cpSent === c || $('choice-screen').classList.contains('hidden') || (k < PICK.skip && k > c.list.length) || (k === PICK.reroll && P.rerolls <= 0)) return; // 画面が隠れている間(ステータスを開いている時)の数字キーでは選ばない
+    keys._pick = k; cpSent = c; cpSentF = COOP.f;
+    const card = k < PICK.skip && $('cards').children[k - 1];
     if (card) card.classList.add('picked');
     $('choice-screen').classList.add('sent');
     AudioMan.click();
@@ -905,5 +913,5 @@ const UI = (() => {
     cwText = txt; cwEl.textContent = txt; cwEl.classList.toggle('hidden', !txt);
   }
 
-  return { announce, skillCut, enrage, banner, toast, hud, bossBar, enemyLvUp, openChest, levelUp, beginPlay: close, only, gold, weaponIcon: k => icon('weapon', k), title, pause, closeSettings, result, onKey, show, hide, $ };
+  return { announce, skillCut, enrage, banner, toast, hud, bossBar, enemyLvUp, openChest, levelUp, beginPlay: close, only, gold, weaponIcon: k => icon('weapon', k), title, pause, closeSettings, result, onKey, show, hide, shown, menuOpen, $ };
 })();

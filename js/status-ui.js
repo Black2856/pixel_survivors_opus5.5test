@@ -181,7 +181,11 @@ const StatusUI = (() => {
   modal.onclick = e => { if (e.target === modal || e.target.closest('.svm-x')) { AudioMan.click(); closeModal(); } };
 
   // ---------- ラン中の画面 ----------
+  // 協力プレイは止まらない: state は 'play' のまま画面だけ出す(main.js の pauseGame)。メニューから開いた時は、閉じるとメニューへ
+  let coopBack = false;
+  const coopShown = () => COOP.on && state === 'play' && UI.shown('status-screen');
   function open() {
+    if (COOP.on && state === 'play') { coopBack = UI.shown('pause-screen'); UI.only('status-screen'); render($('status-panel'), true); return; }
     if (state !== 'play' && state !== 'pause') return;
     back = state; state = 'status';
     if (back === 'play') AudioMan.pauseMusic();
@@ -190,15 +194,17 @@ const StatusUI = (() => {
   }
   function close() {
     closeModal();
+    if (coopShown()) { if (coopBack) UI.pause(true); else UI.only(null); return; }
     state = back;
     if (back === 'pause') UI.pause(true); else { UI.only(null); AudioMan.resumeMusic(); }
   }
   $('st-close').onclick = () => { AudioMan.click(); close(); };
   $('btn-status').onclick = () => { AudioMan.click(); open(); };
   function onKey(e) {
-    if (e.code !== 'Tab' && !(e.code === 'Escape' && state === 'status')) return;
+    const shown = state === 'status' || coopShown();
+    if (e.code !== 'Tab' && !(e.code === 'Escape' && shown)) return;
     if (e.preventDefault) e.preventDefault();
-    if (state === 'status') close(); else if (e.code === 'Tab') open();
+    if (shown) close(); else if (e.code === 'Tab') open();
   }
   return { render, open, close, onKey, modalOpen, closeModal, setTab: t => { const p = tab; tab = t; return p; }, blocks: (run, cls) => blocksOf(ctx(run, run ? P.cls : cls)) };
 })();
