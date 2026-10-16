@@ -106,13 +106,17 @@ const StatusUI = (() => {
     }).join('');
     return h;
   }
-  function equipTab(c) {
+  // slotFn: 装備画面では、部位の見出しと名前の代わりに装備中の枠(押すと詳細)を出す
+  function equipTab(c, slotFn) {
     let h = '';
     for (const slot in DATA.equip.slots) {
       const it = itemById(META.loadout[slot]);
-      h += `<div class="sv-g">${DATA.equip.slots[slot]}</div>`;
-      if (!it) { h += _t('<div class="dim sv-note">なし</div>'); continue; }
-      h += `<div class="sv-it" style="color:${DATA.equip.rarity[it.rarity].col}">${itemName(it)}${it.enh ? ' +' + it.enh : ''}</div>`;
+      if (slotFn) { h += slotFn(slot, it); if (!it) continue; }
+      else {
+        h += `<div class="sv-g">${DATA.equip.slots[slot]}</div>`;
+        if (!it) { h += _t('<div class="dim sv-note">なし</div>'); continue; }
+        h += `<div class="sv-it" style="color:${DATA.equip.rarity[it.rarity].col}">${itemName(it)}${it.enh ? ' +' + it.enh : ''}</div>`;
+      }
       it.opts.forEach((o, i) => {
         const red = DATA.stats[o.k].kind === 'red', val = n => (red ? 1 - Math.pow(1 - o.v, n) : o.v * n);
         // ラン中は「現在Lv の値 / 最大時」、ラン外は最大時だけ
@@ -145,19 +149,19 @@ const StatusUI = (() => {
   }
 
   // ---------- 描画 ----------
-  // el にパネルを描く。run: ラン中か / cls: ラン外で表示するクラス
-  function render(el, run, cls) {
+  // el にパネルを描く。run: ラン中か / cls: ラン外で表示するクラス / slotFn: 装備タブの装備中の枠(装備画面だけ)
+  function render(el, run, cls, slotFn) {
     const c = ctx(run, cls);
     if (!run && tab === 'build') tab = 'stat';
     const tabs = Object.keys(TABS).filter(t => run || t !== 'build');
-    const body = tab === 'stat' ? statTab(c) : tab === 'skill' ? skillTab(c) : tab === 'equip' ? equipTab(c) : buildTab();
+    const body = tab === 'stat' ? statTab(c) : tab === 'skill' ? skillTab(c) : tab === 'equip' ? equipTab(c, slotFn) : buildTab();
     el.innerHTML = head(c) + `<div class="seg sv-tabs">${tabs.map(t => `<button data-t="${t}" class="${t === tab ? 'on' : ''}">${TABS[t]}</button>`).join('')}</div>`
       + `<div class="sv-body">${body}</div>`
       + (tab === 'stat' ? (TOUCH_UI ? _t('<div class="sv-break"><div class="dim">行をタップすると内訳を表示します</div></div>') : _t('<div class="sv-break"><div class="dim">行にマウスを乗せると内訳を表示します</div></div>')) : '');
     Help.glossify(el.querySelector('.sv-body'), { cls: c.cls, run, per: '.sv-sk, .sv-row, .sv-note, .sv-uq' }); // 用語にマウスを乗せると説明
     el.onclick = e => {
       const b = e.target.closest('[data-t]'), s = e.target.closest('.sv-sk');
-      if (b) { tab = b.dataset.t; AudioMan.click(); render(el, run, cls); }
+      if (b) { tab = b.dataset.t; AudioMan.click(); render(el, run, cls, slotFn); }
       else if (s) { AudioMan.click(); openModal(skillDetail(c, skBlocks[+s.dataset.sk]), c); } // スキルの詳細はモーダルで
     };
     el.onpointerover = e => { // pointer にすると、スマホで行に触れたときにも来る
@@ -196,5 +200,5 @@ const StatusUI = (() => {
     if (e.preventDefault) e.preventDefault();
     if (state === 'status') close(); else if (e.code === 'Tab') open();
   }
-  return { render, open, close, onKey, modalOpen, closeModal, blocks: (run, cls) => blocksOf(ctx(run, run ? P.cls : cls)) };
+  return { render, open, close, onKey, modalOpen, closeModal, setTab: t => { tab = t; }, blocks: (run, cls) => blocksOf(ctx(run, run ? P.cls : cls)) };
 })();

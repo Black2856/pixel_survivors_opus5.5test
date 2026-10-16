@@ -15,19 +15,18 @@ const MetaUI = (() => {
 
   function open() {
     state = 'equip'; sel = null;
+    if (typeof StatusUI !== 'undefined') StatusUI.setTab('equip'); // 装備中の枠は右のパネルの「装備」タブにあるので、開いた時はそのタブ
     UI.only('equip-screen');
     render();
   }
   function close() { state = 'title'; UI.title(); }
 
+  // 装備中の枠(右のパネルの「装備」タブに出す。押すと詳細)
+  const slotBtn = (slot, it) => `<button class="eq-slot ${it && sel === it ? 'sel' : ''}" data-id="${it ? it.id : ''}" style="--rc:${it ? rcol(it) : '#3a3060'}">
+        <span class="lbl">${DATA.equip.slots[slot]}</span>${it ? icon(it, 'big') + `<span class="nm">${itemName(it)}${it.enh ? ' +' + it.enh : ''}</span>` : _t('<span class="nm dim">なし</span>')}</button>`;
+
   function render() {
     UI.gold();
-    // 装備中の3枠
-    $('eq-slots').innerHTML = Object.entries(DATA.equip.slots).map(([slot, label]) => {
-      const it = itemById(META.loadout[slot]);
-      return `<button class="eq-slot ${it && sel === it ? 'sel' : ''}" data-id="${it ? it.id : ''}" style="--rc:${it ? rcol(it) : '#3a3060'}">
-        <span class="lbl">${label}</span>${it ? icon(it, 'big') + `<span class="nm">${itemName(it)}</span>` : _t('<span class="nm dim">なし</span>')}</button>`;
-    }).join('');
     // 一覧(部位で絞り込み・レアリティの高い順 → 新しい順)
     const list = META.inventory.filter(it => filter === 'all' || itemSlot(it) === filter)
       .sort((a, b) => RARITY_KEYS.indexOf(b.rarity) - RARITY_KEYS.indexOf(a.rarity) || b.id - a.id);
@@ -41,7 +40,7 @@ const MetaUI = (() => {
     const b = $('eq-sellall');
     b.disabled = !unlocked.length;
     if (!sellArm) b.textContent = _t`ロック以外を売却 (${unlocked.length}個 +${unlocked.reduce((a, it) => a + sellValue(it), 0)}G)`;
-    statusPanel('eq-status');
+    statusPanel('eq-status', undefined, slotBtn);
   }
 
   // 選んだ装備の詳細と操作
@@ -124,7 +123,7 @@ const MetaUI = (() => {
     statusPanel('cl-status', k);
   }
   // MetaUI は StatusUI より先に読み込まれるので、実行時に参照する
-  const statusPanel = (id, cls) => { if (typeof StatusUI !== 'undefined') StatusUI.render($(id), false, cls); };
+  const statusPanel = (id, cls, slotFn) => { if (typeof StatusUI !== 'undefined') StatusUI.render($(id), false, cls, slotFn); };
   $('cl-list').onclick = e => { const b = e.target.closest('.cl-card'); if (!b) return; clSel = b.dataset.k; AudioMan.click(); renderClass(); };
   // メイン武器の切り替え(モーダル)。Lv15 まではクラス専用の武器だけ選べる(一覧は見られる)。専用武器がないクラスは Lv1 から選べる
   const canSwap = k => !DATA.classes[k].weapon || !!classLvFx(k).swap;
@@ -420,7 +419,7 @@ const MetaUI = (() => {
     AudioMan.click(); render();
   };
   $('eq-list').onclick = pickItem;
-  $('eq-slots').onclick = pickItem;
+  $('eq-status').addEventListener('click', pickItem); // 装備中の枠(onclick は StatusUI が描くたびに付け直すので、こちらは足す形で)
   $('eq-detail').onclick = e => { const b = e.target.closest('[data-act]'); if (b && !b.disabled) act(b.dataset.act); };
   // 一括売却は2回押しで確定(誤操作防止)
   $('eq-sellall').onclick = () => {

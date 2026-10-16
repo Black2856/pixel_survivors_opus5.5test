@@ -371,14 +371,17 @@ input[type=range] { width: 220px; accent-color: var(--gold); }
 .card .opt em { color: var(--green); font-style: normal; font-size: 11px; }
 
 /* ---------- 装備画面 ---------- */
-.eq-wrap { display: grid; grid-template-columns: 200px auto minmax(260px, 325px) minmax(250px, 1fr); gap: 16px; width: min(1440px, calc(96vw / var(--ui))); height: min(600px, calc(100vh / var(--ui) - 170px)); }
-.eq-slotc { display: flex; flex-direction: column; min-height: 0; padding: 10px 12px 12px; }
-#eq-slots { display: flex; flex-direction: column; gap: 10px; }
+.eq-wrap { display: grid; grid-template-columns: auto minmax(260px, 360px) minmax(280px, 1fr); gap: 16px; width: min(1140px, calc(96vw / var(--ui))); height: min(600px, calc(100vh / var(--ui) - 170px)); }
 .eq-slot { position: relative; display: flex; align-items: center; gap: 10px; padding: 10px; min-height: 76px; text-align: left; background: rgba(12,10,28,.7); box-shadow: inset 0 0 0 2px var(--rc); }
 .eq-slot.sel { outline: 3px solid var(--gold); }
 .eq-slot .lbl { position: absolute; top: 2px; left: 8px; font-size: 11px; color: var(--dim); }
 .eq-slot .big, .eq-head .big { width: 44px; image-rendering: pixelated; }
 .eq-slot .nm { font-size: 14px; color: var(--rc); margin-top: 8px; }
+/* 右のパネルの「装備」タブの中: 小さめにして、部位の名前は絵の右・装備の名前の上に(選んだ時の枠が切れないように左右をあける) */
+.sv .eq-slot { display: grid; grid-template-columns: 34px 1fr; column-gap: 10px; align-items: center; width: calc(100% - 6px); min-height: 52px; margin: 10px 3px 4px; padding: 6px 8px; }
+.sv .eq-slot .lbl { position: static; grid-column: 2; grid-row: 1; align-self: end; }
+.sv .eq-slot .big { grid-column: 1; grid-row: 1 / 3; width: 34px; }
+.sv .eq-slot .nm { grid-column: 2; grid-row: 2; align-self: start; margin-top: 0; font-size: 13px; }
 .eq-mid { display: flex; flex-direction: column; gap: 8px; min-height: 0; padding: 10px 12px 12px; }
 .eq-mid > .seg { width: auto; }
 #eq-sellall { width: 100%; padding: 7px 6px; font-size: 14px; letter-spacing: 1px; }
@@ -407,7 +410,6 @@ input[type=range] { width: 220px; accent-color: var(--gold); }
 .mscr .eq-btns .btn { padding: 8px 6px; font-size: 14px; letter-spacing: 1px; }
 .btn:disabled { opacity: .4; cursor: default; }
 .btn.warn { --line: var(--red); color: var(--red); }
-:where(.vn820) #eq-slots { flex-direction: row; }
 .nw-badge { font: 8px 'Press Start 2P'; color: var(--ink); background: var(--gold); padding: 2px 4px; margin-left: 6px; vertical-align: middle; }
 
 /* ---------- UI サイズ(--ui = 窓に合わせた拡大率 × 設定の倍率。core.js の applyUiScale)。HUD の各部品とメニュー画面の中身を拡大縮小する ---------- */
