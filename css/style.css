@@ -24,7 +24,7 @@ button { font: inherit; color: inherit; cursor: pointer; border: 0; background: 
 #xpbar { position: absolute; top: 0; left: 0; right: 0; height: 14px; background: #120d22; border-bottom: 3px solid var(--ink); }
 #xpfill { height: 100%; width: 0; background: linear-gradient(180deg, #9ff7ff 0 30%, #3ab0ff 30% 70%, #1d6fd8 70%); box-shadow: 0 0 12px #3ab0ff; transition: width .12s cubic-bezier(.22,1,.36,1); }
 #lvl { position: absolute; right: 10px; top: 1px; font: 10px 'Press Start 2P'; text-shadow: 2px 2px 0 var(--ink); }
-#hud-top { position: absolute; top: 22px; left: 12px; right: 12px; display: flex; justify-content: space-between; align-items: flex-start; }
+#hud-top { position: absolute; top: 24px; left: 12px; right: 12px; display: flex; justify-content: space-between; align-items: flex-start; }
 #slotbox { display: flex; flex-direction: column; gap: 6px; pointer-events: auto; }
 #wslots, #pslots, #aslots { display: flex; gap: 6px; }
 .slot { position: relative; width: 40px; height: 40px; display: grid; place-items: center; }
@@ -128,8 +128,8 @@ button { font: inherit; color: inherit; cursor: pointer; border: 0; background: 
 @keyframes scLines { to { background-position: -48px 0; } }
 @keyframes scStripe { to { background-position: -67.88px 0; } } /* 135° の縞の横の周期 = 48 / cos45° */
 @keyframes scShine { to { left: 112%; } }
-/* 小さな知らせ(照準の切り替えなど。帯ほど目立たせない): 画面の下の方(左下の HP・スタミナより上)に小さく出て、すぐ消える。色は --tc */
-#toast { position: absolute; left: 50%; bottom: 22%; z-index: 48; pointer-events: none; opacity: 0; transform: translateX(-50%); white-space: nowrap;
+/* 小さな知らせ(照準の切り替えなど。帯ほど目立たせない): 画面の下の方(左下のパネルより上。パネルの高さは --uh に比例するので、--ui で拡大される分を割る)に小さく出て、すぐ消える。色は --tc */
+#toast { position: absolute; left: 50%; bottom: calc(184px * var(--uh) / var(--ui)); z-index: 48; pointer-events: none; opacity: 0; transform: translateX(-50%); white-space: nowrap;
   padding: 3px 10px 4px; font-size: 14px; color: var(--dim); background: rgba(10,6,20,.55); box-shadow: inset 0 0 0 1px var(--tc, #4c3a86); --tc: #4c3a86; }
 #toast .k { color: var(--tc); }
 #toast.on { animation: toast 1.3s ease-out forwards; }
@@ -415,8 +415,10 @@ input[type=range] { width: 220px; accent-color: var(--gold); }
 :root { --ui: 1; --uh: 1; --uc: 1; --um: 1; } /* --uh: HUD の拡大率(PC では --ui と同じ。スマホは下限が違う)/ --uc: 宝箱・ガチャを引いた画面(窓の高さに収まる上限あり)/ --um: 設定の倍率だけ(スマホのボタン) */
 #hud > * { zoom: var(--uh); }
 .screen > *, #announce, #skillcut, #bosscut, #banner, #toast, #tooltip { zoom: var(--ui); }
-/* 左下のパネルは少し小さめ。中はゲームの 1ドット(--px = --pxn px。窓の大きさで整数に丸めて変わる)で描くので、その分を打ち消し、ほかの HUD と同じ割合で拡大する(1280×720 で 3 × .75) */
-#hud > #pstat { zoom: calc(var(--uh) * 2.25 / var(--pxn, 3)); }
+/* 左下のパネル。中はゲームの 1ドット(--px = --pxn px。窓の大きさで整数に丸めて変わる)で描くので、その分を打ち消し、ほかの HUD と同じ割合で拡大する */
+#hud > #pstat { zoom: calc(var(--uh) * 3.375 / var(--pxn, 3)); } /* 1.5倍(2.25 × 1.5。ユーザーの指定 2026-10-17) */
+/* 上の物(武器のスロット・時間・数・ボスの HP・コンボ)は 75%(ユーザーの指定 2026-10-17。経験値のバーはそのまま)。top などの位置も一緒に縮む */
+#hud > #hud-top, #hud > #bossbar, #hud > #combo { zoom: calc(var(--uh) * .75); }
 #chest-screen > * { zoom: var(--uc); }
 #chest-screen > #chest-fx, #chest-screen > #chest-flash { zoom: 1; } /* 宝箱の演出は画面の座標で描くので拡大しない */
 /* 装備のステータス: 数値は黄色、/Lv は灰色 */
@@ -719,9 +721,9 @@ html[lang="en"] .stg .sub { grid-template-columns: 10em 11em auto; }
 .sv-it { padding: 0 4px; }
 .sv-uq { color: #ffb347; font-size: 11px; padding: 0 4px; }
 .sv-break { min-height: 80px; max-height: 30%; overflow-y: auto; padding: 6px; background: rgba(12,9,19,.6); }
+:where(.vn1140) #eq-list { width: auto; } /* 1列に並べた時は一覧を広く */
 :where(.vn1140) .eq-wrap, :where(.vn1140) .cl-wrap { grid-template-columns: 1fr; height: auto; max-height: calc(100vh / var(--ui) - 170px); overflow-y: auto; padding: 4px; } :where(.vn1140) .sv { max-height: calc(60vh / var(--ui)); }
 
-:where(.vn1140) #eq-list { width: auto; } /* 1列に並べた時は一覧を広く */
 /* ステータス画面: スキルの詳細 */
 .sv-sk { padding: 0 2px 2px; cursor: pointer; }
 @media (hover: hover) { .sv-sk:hover { background: rgba(255,255,255,.07); } }
@@ -823,6 +825,7 @@ html.touch body { touch-action: manipulation; overscroll-behavior: none; -webkit
 html.touch #game { touch-action: none; }
 html.touch #hud { inset: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left); } /* ノッチ・角の丸い所に HUD がかからないように */
 html.touch .screen { padding-left: env(safe-area-inset-left); padding-right: env(safe-area-inset-right); }
+html.touch #hud > #hud-top, html.touch #hud > #bossbar, html.touch #hud > #combo { zoom: var(--uh); } /* スマホは上の物を 75% にしない(HUD は 0.7倍が下限なので、75% だと字が 7px ほどになる。仮) */
 html.touch #hud-top { right: calc((12px + 52px * var(--um)) / var(--uh)); } /* 右上のポーズのボタンの分あける(#hud-top は --uh で拡大されるので割る) */
 html.touch .card-key, html.touch #choice-btns small { display: none; } /* キーの番号・R */
 /* タイトル: ロゴを窓の高さでも小さくして、スクロールせずに収める */
@@ -864,6 +867,7 @@ html.touch #hud:not(.hidden) ~ #touch-ctl { display: block; }
 @keyframes rotHint { 0%, 25% { transform: rotate(0); } 60%, 100% { transform: rotate(-90deg); } }
 /* 協力プレイ: 止まらないレベルアップ(画面の下に小さく)・休憩の待ち */
 #coop-pick { position: absolute; left: 50%; bottom: 6px; transform: translateX(-50%) scale(.6); transform-origin: 50% 100%; display: flex; flex-direction: column; align-items: center; gap: 8px; pointer-events: auto; }
+html:not(.touch) #coop-pick { left: auto; right: 16px; transform: scale(.6); transform-origin: 100% 100%; } /* PC は右下(1.5倍にした左下のパネルと重ならないように。スマホは右下にボタンがあるので真ん中のまま) */
 #coop-pick .cp-title { font: 16px 'Press Start 2P'; color: var(--gold); text-shadow: 0 2px 0 #000; }
 #coop-pick .cp-cards { display: flex; gap: 14px; }
 #coop-pick .card { min-height: 0; animation: none; }
