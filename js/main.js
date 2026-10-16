@@ -91,8 +91,8 @@ function update(rdt, inp = readInput()) {
   P.inp = inp;
   if (inp.e) P.wantE = true; // 押した印は、スキルの処理が使い切るまで残す(ヒットストップの間に押しても消えない)
   if (inp.q) P.wantQ = true;
-  updWorld(rdt);
-  tickSimTimers(rdt); // ヒットストップ・時間停止の間も進む(今までの setTimeout と同じく実時間の側)
+  const step = () => { updWorld(rdt); tickSimTimers(rdt); }; // タイマーはヒットストップ・時間停止の間も進む(今までの setTimeout と同じく実時間の側)
+  if (SIM_VIEW.on) simView(step); else step(); // 入力の照準は入れ替える前の本当のカメラで取る(readInput)
 }
 function updWorld(rdt) {
   if (S.freeze > 0) { S.freeze -= rdt; return; }
@@ -181,12 +181,15 @@ const NET_SIM = { on: false, lag: 4, ping: 0, jitter: 0, q: [], run: null, pendi
   const qs = new URLSearchParams(location.search), num = (k, d) => (qs.has(k) ? Math.max(0, +qs.get(k) || 0) : d);
   if (qs.has('lag') || qs.has('ping')) {
     Object.assign(NET_SIM, { on: true, lag: Math.round(num('lag', 4)), ping: num('ping', 0), jitter: num('jitter', 0) });
-    FIXED_STEP.on = true;
+    FIXED_STEP.on = true; SIM_VIEW.on = true; // 協力プレイと同じ計算の形で
     console.info('NET_SIM', NET_SIM.lag + 'フレーム', 'ping ' + NET_SIM.ping + 'ms', '± ' + NET_SIM.jitter + 'ms');
   }
 }
 const netBlank = () => Object.assign({}, NO_INPUT, { at: 0 });
-function netReset() { Object.assign(NET_SIM, { q: Array.from({ length: NET_SIM.lag }, netBlank), run: S, qLag: NET_SIM.lag, pending: false, lastAt: 0 }); } // ランの始めと lag を変えたとき
+function netReset() { // ランの始めと lag を変えたとき
+  Object.assign(NET_SIM, { q: Array.from({ length: NET_SIM.lag }, netBlank), run: S, qLag: NET_SIM.lag, pending: false, lastAt: 0 });
+  SIM_VIEW.w = GFX.VW; SIM_VIEW.h = GFX.VH; // 計算用の画面の大きさ: ランの始めの自分の窓(協力プレイでは全員の窓の一番大きいもの。#16)。小さいと敵が見えている所から出てくる
+}
 // 計算 1回ぶんの入力を取り、相手に届く時刻を決める(届く順は送った順)
 function netSample() {
   const r = readInput(), N = NET_SIM, at = performance.now() + N.ping / 2 + (fxRandom() * 2 - 1) * N.jitter;

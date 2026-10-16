@@ -286,7 +286,19 @@ function tickSimTimers(rdt) { // 時刻の来たものを、早い順(同じな�
   }
 }
 function screenFlash(a, col = '#ffffff') { GFX.fx.flash = Math.max(GFX.fx.flash, a); GFX.fx.flashCol = hexRgb(col); }
-function shockAt(x, y, k = 1, spd = 0.9) { if (gq().post) GFX.shock(x - cam.x, y - cam.y, k * (FX_MINE ? SET.fxA : 1), spd); }
+function shockAt(x, y, k = 1, spd = 0.9) { if (gq().post) { const c = simViewOn ? camReal : cam; GFX.shock(x - c.x, y - c.y, k * (FX_MINE ? SET.fxA : 1), spd); } } // 画面の位置なので本当のカメラで
+// 計算用のカメラと画面の大きさ(協力プレイ: claudedocs/coop.md 3章・#16)。窓の大きさ・なめらかに追うカメラ・揺れは人によって違うので、計算に入れない
+//   on の間は、計算(update)の間だけ cam を「自分が真ん中の揺れない w × h の四角」、GFX.VW / VH を w / h に入れ替える(描画は元のまま)
+//   1人用は off(今までどおり本当のカメラと窓の大きさで計算する)。通信の遅れを試す NET_SIM と協力プレイで on
+const SIM_VIEW = { on: false, w: 480, h: 270 };
+const camReal = { x: 0, y: 0 };
+let simViewOn = false;
+function simView(fn) {
+  const G = GFX, vw = G.VW, vh = G.VH;
+  camReal.x = cam.x; camReal.y = cam.y; simViewOn = true;
+  G.VW = SIM_VIEW.w; G.VH = SIM_VIEW.h; cam.x = Math.round(P.x - SIM_VIEW.w / 2); cam.y = Math.round(P.y - SIM_VIEW.h / 2);
+  try { return fn(); } finally { cam.x = camReal.x; cam.y = camReal.y; G.VW = vw; G.VH = vh; simViewOn = false; }
+}
 const onScreen = (x, y, m = 16) => x > cam.x - m && x < cam.x + GFX.VW + m && y > cam.y - m && y < cam.y + GFX.VH + m;
 
 // ============================================================
