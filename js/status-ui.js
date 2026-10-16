@@ -116,7 +116,7 @@ const StatusUI = (() => {
       it.opts.forEach((o, i) => {
         const red = DATA.stats[o.k].kind === 'red', val = n => (red ? 1 - Math.pow(1 - o.v, n) : o.v * n);
         // ラン中は「現在Lv の値 / 最大時」、ラン外は最大時だけ
-        if (c.run) { const lv = S.eqLv[slot] ? S.eqLv[slot][i] : 0; h += `<div class="sv-row sv-op"><span>${DATA.stats[o.k].label}</span><em>Lv ${lv} / ${o.max}</em><b>${fmt(o.k, val(lv))}</b><b class="mx">${fmt(o.k, val(o.max))}</b></div>`; }
+        if (c.run) { const lv = P.eqLv[slot] ? P.eqLv[slot][i] : 0; h += `<div class="sv-row sv-op"><span>${DATA.stats[o.k].label}</span><em>Lv ${lv} / ${o.max}</em><b>${fmt(o.k, val(lv))}</b><b class="mx">${fmt(o.k, val(o.max))}</b></div>`; }
         else h += _t`<div class="sv-row sv-op1"><span>${DATA.stats[o.k].label}</span><em>最大Lv ${o.max}</em><b>${fmt(o.k, val(o.max))}</b></div>`;
       });
       if (it.uq) h += `<div class="sv-uq">★ ${DATA.uniques[it.uq].desc}</div>`;

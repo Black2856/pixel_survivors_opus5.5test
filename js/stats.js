@@ -191,7 +191,7 @@ function computeStats({ cls = META.cls, run = false, eq = run ? 'run' : 'zero' }
   for (const k in tc) addN('tree', k, treeNodeValue(k), tc[k]);
 
   // 装備(オプションは Lv0 開始。ラン中にレベルアップで伸びる)
-  const lvOf = eq === 'run' ? (slot, i) => (S && S.eqLv && S.eqLv[slot] ? S.eqLv[slot][i] || 0 : 0)
+  const lvOf = eq === 'run' ? (slot, i) => (P && P.eqLv && P.eqLv[slot] ? P.eqLv[slot][i] || 0 : 0)
     : eq === 'max' ? (slot, i, o) => o.max : () => 0;
   for (const o of equippedOpts(lvOf)) addN('equip', o.k, o.v, o.lv);
 

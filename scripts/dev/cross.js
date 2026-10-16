@@ -3,6 +3,7 @@
 //     npm i playwright(どこか別のフォルダで)→ npx playwright install chromium firefox webkit
 //     python -m http.server 8765 --bind 127.0.0.1(リポジトリの直下で)
 //     PLAYWRIGHT_DIR=<playwright を入れたフォルダ> node scripts/dev/cross.js [chromium,firefox,webkit] [sim] [class] [trace] [w=1280] [h=720]
+//   coop: 3人の協力プレイの通し(T.coopSmoke。sim の形で)を class / boss の代わりに回す
 //   sim: 協力プレイの計算の形(計算用のカメラと画面の大きさ。core.js の SIM_VIEW)/ class: classSmoke だけ / trace: 毎フレームの状態を trace-<ブラウザ>.json に書く(大きい)
 //   w / h: 窓の大きさ(sim なら窓の大きさを変えても同じハッシュになるはず)
 //   Math の関数はゲームが js/detmath.js で置き換えている(置き換える前は 3つとも違った。2026-10-16)
@@ -12,7 +13,7 @@ const path = require('path');
 const fs = require('fs');
 const pw = require(process.env.PLAYWRIGHT_DIR ? path.join(process.env.PLAYWRIGHT_DIR, 'node_modules', 'playwright') : 'playwright');
 const names = (process.argv[2] || 'chromium,firefox,webkit').split(',');
-const flags = process.argv.slice(3), classOnly = flags.includes('class'), trace = flags.includes('trace'), simMode = flags.includes('sim');
+const flags = process.argv.slice(3), classOnly = flags.includes('class'), trace = flags.includes('trace'), simMode = flags.includes('sim') || flags.includes('coop'), coopMode = flags.includes('coop');
 const flagNum = (k, d) => { const f = flags.find(x => x.startsWith(k + '=')); return f ? +f.slice(k.length + 1) : d; };
 const viewport = { width: flagNum('w', 1280), height: flagNum('h', 720) };
 
@@ -30,8 +31,8 @@ const viewport = { width: flagNum('w', 1280), height: flagNum('h', 720) };
     await page.addScriptTag({ url: '/scripts/dev/harness.js?t=' + Date.now() });
     const env = await page.evaluate(sim => (T.init(), SIM_VIEW.on = sim, { VW: GFX.VW, VH: GFX.VH, fns: [typeof updSpawner, typeof updTower, typeof spawnBoss].join() }), simMode);
     if (env.fns.includes('undefined')) throw new Error(name + ': ゲームのファイルが読めていない(' + env.fns + ')。もう一度'); // サーバーを立てた直後に 1度あった
-    const cs = await page.evaluate(tr => T.classSmoke({ pix: false, trace: tr }), trace);
-    const bs = classOnly ? { hash: '-', frames: 0, errs: [], per: {} } : await page.evaluate(tr => T.bossSmoke({ pix: false, trace: tr }), trace);
+    const cs = await page.evaluate(([tr, coop]) => coop ? T.coopSmoke({ frames: 1800, classes: ['knight', 'mage', 'cryo'], pix: false }) : T.classSmoke({ pix: false, trace: tr }), [trace, coopMode]);
+    const bs = classOnly || coopMode ? { hash: '-', frames: 0, errs: [], per: {} } : await page.evaluate(tr => T.bossSmoke({ pix: false, trace: tr }), trace);
     if (trace) fs.writeFileSync(`trace-${name}.json`, JSON.stringify({ c: cs.trace, b: bs.trace }));
     await browser.close();
     out[name] = { cs, bs };

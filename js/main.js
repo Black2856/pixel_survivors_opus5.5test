@@ -86,11 +86,15 @@ function onKey(e) {
 // ============================================================
 // メイン更新
 // ============================================================
-// inp: この計算 1回の入力の記録(省略で今の入力を取る。通信の遅れを試す NET_SIM・協力プレイは列から渡す)
+// inp: この計算 1回の入力の記録(省略で今の入力を取る。通信の遅れを試す NET_SIM・協力プレイは列から渡す)。協力プレイは players の順の配列
 function update(rdt, inp = readInput()) {
-  P.inp = inp;
-  if (inp.e) P.wantE = true; // 押した印は、スキルの処理が使い切るまで残す(ヒットストップの間に押しても消えない)
-  if (inp.q) P.wantQ = true;
+  const ins = Array.isArray(inp) ? inp : [inp];
+  players.forEach((p, i) => {
+    const r = ins[i] || NO_INPUT;
+    p.inp = r;
+    if (r.e) p.wantE = true; // 押した印は、スキルの処理が使い切るまで残す(ヒットストップの間に押しても消えない)
+    if (r.q) p.wantQ = true;
+  });
   const step = () => { updWorld(rdt); tickSimTimers(rdt); }; // タイマーはヒットストップ・時間停止の間も進む(今までの setTimeout と同じく実時間の側)
   if (SIM_VIEW.on) simView(step); else step(); // 入力の照準は入れ替える前の本当のカメラで取る(readInput)
 }
@@ -215,7 +219,7 @@ const interpLists = () => [enemies, projs, eprojs, hazards, zones, gems, drops, 
 const interpMoved = [];
 let interpReady = false; // 直前に計算を進めた(控えが今の計算の 1つ前)
 function interpSave() {
-  P._ix = P.x; P._iy = P.y;
+  for (const p of players) { p._ix = p.x; p._iy = p.y; } // 全員
   for (const a of interpLists()) for (const o of a) { o._ix = o.x; o._iy = o.y; }
   interpReady = true;
 }
@@ -227,7 +231,7 @@ function interpOne(o, k) {
   interpMoved.push(o);
 }
 function interpApply(k) {
-  interpOne(P, k);
+  for (const p of players) interpOne(p, k);
   for (const a of interpLists()) for (const o of a) interpOne(o, k);
 }
 function interpRestore() {

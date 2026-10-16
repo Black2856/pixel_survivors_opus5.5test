@@ -416,11 +416,11 @@ function tenkyuEcho(e, dmg, ang, o) {
 }
 // ---------- 弾 ----------
 // 弾ごとに P を撃った人にして動かす(撃破・ダメージ・倍率がその人のものになる。core.js の owned)
-function updProjs(dt) { const P0 = P; try { updProjs1(dt, P0); } finally { P = P0; } }
+function updProjs(dt) { const P0 = P; try { updProjs1(dt, P0); } finally { setP(P0); } }
 function updProjs1(dt, P0) {
   for (let i = projs.length - 1; i >= 0; i--) {
     const p = projs[i];
-    P = p.pl || P0;
+    setP(p.pl || P0);
     p.t += dt;
     if ((p.homing || p.home) && !p.spiral) {
       // target: 一斉射撃の狙った敵 / seek: 弾ごとの狙い方(スピリットストーム: まだ取り憑かれていない敵)/ それ以外は、まだ当たっていない一番近い敵
@@ -533,11 +533,11 @@ function rainImpact(z, ar) {
     if (z.fire && Math.random() < 0.5) part(ar.x + rand(-1, 1), ar.y - 2, rand(-6, 6), -rand(15, 30), rand(0.4, 0.7), pick(['#ff6a2a', '#ffc34a', '#b8261a']), { glow: true, drag: 1 });
   });
 }
-function updZones(dt) { const P0 = P; try { updZones1(dt, P0); } finally { P = P0; } } // ゾーンごとに P を出した人に
+function updZones(dt) { const P0 = P; try { updZones1(dt, P0); } finally { setP(P0); } } // ゾーンごとに P を出した人に
 function updZones1(dt, P0) {
   for (let i = zones.length - 1; i >= 0; i--) {
     const z = zones[i];
-    P = z.pl || P0;
+    setP(z.pl || P0);
     z.t += dt; z.tick -= dt;
     if (z.kind === 'blizz') {
       if (z.evo) z.r = z.r0 * (1 + 0.1 * z.t);

@@ -96,16 +96,16 @@ function enhanceItem(it) {
 // ラン開始時は全オプションが Lv0。レベルアップの装備カードで選んだオプションが +1Lv
 //   装備初期レベル(永続ツリー): 各オプションが その割合の確率で +1Lv から始まる。100% ごとに確定で +1(150% = +1 と 50% でさらに +1)。最大Lv まで
 function eqInitRun() {
-  S.eqLv = {};
-  const up = computeStats({ cls: META.cls }).v.eqInit || 0, sure = Math.floor(up + 1e-9), rest = up - sure;
-  for (const slot in DATA.equip.slots) { const it = itemById(META.loadout[slot]); if (it) S.eqLv[slot] = it.opts.map(o => Math.min(o.max, sure + (Math.random() < rest ? 1 : 0))); }
+  P.eqLv = {};
+  const up = computeStats({ cls: P.cls }).v.eqInit || 0, sure = Math.floor(up + 1e-9), rest = up - sure;
+  for (const slot in DATA.equip.slots) { const it = itemById(META.loadout[slot]); if (it) P.eqLv[slot] = it.opts.map(o => Math.min(o.max, sure + (Math.random() < rest ? 1 : 0))); }
 }
 // 装備カードの候補: 最大Lv に達していないオプション
 function eqCards() {
   const out = [];
-  for (const slot in S.eqLv) {
+  for (const slot in P.eqLv) {
     const it = itemById(META.loadout[slot]);
-    it.opts.forEach((o, i) => { if (S.eqLv[slot][i] < o.max) out.push({ type: 'eqopt', slot, i }); });
+    it.opts.forEach((o, i) => { if (P.eqLv[slot][i] < o.max) out.push({ type: 'eqopt', slot, i }); });
   }
   return out;
 }
@@ -113,9 +113,9 @@ function eqCards() {
 const optAt = (o, lv) => (DATA.stats[o.k].kind === 'red' ? 1 - Math.pow(1 - o.v, lv) : o.v * lv);
 function eqLvUp(slot, i) {
   const o = itemById(META.loadout[slot]).opts[i];
-  S.eqLv[slot][i]++;
+  P.eqLv[slot][i]++;
   recalc();
-  addFloat(P.x, P.y - 30, `${DATA.stats[o.k].label} Lv${S.eqLv[slot][i]}`, '#9ff7ff', 0.9, -24);
+  addFloat(P.x, P.y - 30, `${DATA.stats[o.k].label} Lv${P.eqLv[slot][i]}`, '#9ff7ff', 0.9, -24);
 }
 
 // ---------- 宝箱・ラン終了時の報酬 ----------

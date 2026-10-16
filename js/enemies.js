@@ -332,14 +332,14 @@ function tagTargets() {
   tagN.e = eprojs.length; tagN.h = hazards.length;
 }
 
-function updEnemies(dt) { const P0 = P; try { updEnemies1(dt); } finally { tagTargets(); P = P0; } }
+function updEnemies(dt) { const P0 = P; try { updEnemies1(dt); } finally { tagTargets(); setP(P0); } }
 function updEnemies1(dt) {
   const R2 = Math.pow(Math.hypot(GFX.VW, GFX.VH) * 0.75, 2);
   tagN.e = eprojs.length; tagN.h = hazards.length;
   for (const e of enemies) {
     tagTargets();
     if (e.dead) continue;
-    P = enemyTarget(e);
+    setP(enemyTarget(e));
     S.eatk = (e.atkDownT > S.time ? 1 - DATA.weapons.bhole.evo.atkDown : 1) * (1 + buffOn(e, 'atk')); // ビッグクランチ: ブラックホールの中の敵は攻撃力が下がる(体当たり・矢・ボスの攻撃)/ ファイアーメイジのバフ
     e.t += dt; e.flash -= dt;
     if (e.prop) { if (d2(e.x, e.y, P.x, P.y) > R2 * 2) e.dead = true; continue; }

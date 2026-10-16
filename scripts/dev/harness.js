@@ -12,6 +12,7 @@
 //                         (技は関数を直接呼ぶか、待ち時間を 0.01 に)
 //   T.classSmoke(o)     : 全クラス × 特殊強化 3通りで E / Q を使い、update + render を回す → { frames, errs, hash }
 //   T.bossSmoke(o)      : ステージのボスを全部、本物の出方で出して戦わせる(途中で激昂・最後に倒す)→ { frames, errs, hash, per }
+//   T.coopSmoke(o)      : 協力プレイ(2人以上)を 1つの計算で回す。決まった入力で動き回り E / Q も使う → { frames, errs, hash, per(1人ずつ), hurt }
 //   hash は乱数を固定して回した状態(自分・敵・弾・設置物)と描いた画素から作る(o.pix: false で画素と粒の数を入れない = 計算だけ。o.draw: false で描画しない)。動かすだけのリファクタリングの前後で同じになる
 //     ページを開くたびに init → 同じ順に呼ぶ(初回だけ作るキャッシュがあるので、比べるときは呼ぶ順をそろえる)
 //     ずれたら o.trace: true で毎フレームの状態(T.snap)が付く。T.diff(前, 後) で最初にずれた所
@@ -125,8 +126,8 @@
     for (const k of Object.keys(keys)) keys[k] = false;
   };
   // 1フレーム: 本物の frame と同じ順(update → カメラ → 演出 → 描画)。draw: 描画もする
-  const frame = draw => {
-    tryf('update', () => T.upd(1 / 60));
+  const frame = (draw, inp) => { // inp: 入力の記録(協力プレイは players の順の配列。省略で今の keys から)
+    tryf('update', () => T.upd(1 / 60, inp));
     runTimers();
     tryf('cam', () => updCam(1 / 60));
     tryf('fx', () => GFX.updateFx(1 / 60));
@@ -223,6 +224,32 @@
     }
     T.unseed();
     return { frames, errs: T.errs.slice(), hash: hex(H), trace: o.trace ? trace : undefined };
+  };
+  // 協力プレイの通し: players を classes の人数にして(2人目からは addPlayer)、決まった入力の記録で動かす。敵は自然に出す
+  //   o: classes / frames / seed / mode / stage / pix / draw。hash には全員の位置・HP・撃破数も入れる。hurt: 1人ずつ当たった回数(全員に当たっているか)
+  T.coopSmoke = (o = {}) => {
+    const F = o.frames || 900, seed = o.seed || 3, classes = o.classes || ['knight', 'mage'];
+    T.errs.length = 0; seen.clear(); H = 0x811c9dc5;
+    T.seed(seed); reset();
+    META.cls = classes[0];
+    tryf('coop start', () => startRun(o.mode || 'escalation', o.stage || 1));
+    for (let k = 1; k < classes.length; k++) tryf('coop add', () => addPlayer(classes[k], P.x + 36 * k, P.y + 18 * k));
+    const hurt = players.map(() => 0), h0 = window.hurtPlayer;
+    window.hurtPlayer = function () { const r = h0.apply(this, arguments); if (r) hurt[P.pid]++; return r; };
+    let frames = 0;
+    try {
+      for (let i = 0; i < F; i++) {
+        if (i % 30 === 0) for (const p of players) { p.hp = p.maxhp; p.dead = false; }
+        const inp = players.map((p, k) => ({ mx: Math.cos(i / 70 + k * 2.1), my: Math.sin(i / 55 + k), e: i % 240 === 40 + k * 25, q: i % 480 === 100 + k * 40, def: i % 300 > 280, aim: null, autoE: false, autoQ: false }));
+        frame(o.draw !== false && i % 3 === 0, inp);
+        if (i % 60 === 0) { hashState(o.pix !== false); for (const p of players) { num(p.x); num(p.y); num(p.hp); num(p.kills); num(p.totalDmg); } }
+        if (i % 180 === 0 && o.pix !== false) hashPixels();
+        frames++;
+      }
+    } finally { window.hurtPlayer = h0; }
+    const per = players.map(p => ({ cls: p.cls, kills: p.kills, dmg: Math.round(p.totalDmg), lv: p.level, gold: p.gold, x: Math.round(p.x), y: Math.round(p.y) }));
+    T.unseed();
+    return { frames, errs: T.errs.slice(), hash: hex(H), per, hurt, enemies: enemies.filter(e => !e.dead).length };
   };
   // ステージのボス: 予定をボスまで飛ばして本物の出方で出す → sec 秒戦う(半分で激昂の HP に)→ 倒して 4秒(変身・撃破の演出)
   //   どのステージにも出ないボス(第二形態を除く)は、エスカレーションの草原で spawnBoss で出す。o: stages / extra(false で出さない)/ sec / seed / pix / trace

@@ -485,7 +485,7 @@ const UI = (() => {
       foot = `<div class="evohint">${c.sold ? _t`インベントリが満杯 → 売却 +${c.sold}G` : _t('インベントリに追加')}</div>`;
     } else if (c.type === 'eqopt') {
       // 装備カード: 装備中のアイテムのオプション1つを +1Lv
-      const it = itemById(META.loadout[c.slot]), o = it.opts[c.i], lv = S.eqLv[c.slot][c.i], R = DATA.equip.rarity[it.rarity];
+      const it = itemById(META.loadout[c.slot]), o = it.opts[c.i], lv = P.eqLv[c.slot][c.i], R = DATA.equip.rarity[it.rarity];
       ic = icon('equip', it.type, 'big'); head = `<span style="color:${R.col}">${DATA.equip.slots[c.slot]}</span> Lv ${lv} → ${lv + 1}`;
       name = `<small>${itemName(it)}</small>${DATA.stats[o.k].label}`;
       rar = lv + 1 === o.max ? 'epic' : 'rare';

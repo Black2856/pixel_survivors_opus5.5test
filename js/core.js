@@ -36,7 +36,9 @@ let S = null, P = null;
 // プレイヤー(協力プレイでは入った順。ホストが 0。全員で同じ順)。P は「いま計算しているプレイヤー」で、計算の外では players[0](自分)
 //   1人ずつの処理は withPlayer で P を入れ替えて、players の順に回す(全員の乱数の引き方をそろえるため、順を変えない)
 let players = [];
-function withPlayer(p, fn) { const p0 = P; P = p; try { return fn(); } finally { P = p0; } }
+function withPlayer(p, fn) { const p0 = P; setP(p); try { return fn(); } finally { setP(p0); } }
+// P を入れ替える(協力プレイの形では、計算用のカメラの四角もその人に合わせる: simView)
+function setP(p) { P = p; if (simViewOn && p) { cam.x = Math.round(p.x - SIM_VIEW.w / 2); cam.y = Math.round(p.y - SIM_VIEW.h / 2); } }
 const anyAlive = () => players.some(p => !p.dead);
 // プレイヤーが作った物(弾・ゾーン・斬撃)に、作った人を付ける(pl)。動かすときに P をその人にして、撃破・ダメージ・倍率をその人のものにする
 const owned = o => { if (o.pl === undefined) o.pl = P; return o; };
