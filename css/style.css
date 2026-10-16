@@ -416,7 +416,7 @@ input[type=range] { width: 220px; accent-color: var(--gold); }
 #hud > * { zoom: var(--uh); }
 .screen > *, #announce, #skillcut, #bosscut, #banner, #toast, #tooltip { zoom: var(--ui); }
 /* 左下のパネル。中はゲームの 1ドット(--px = --pxn px。窓の大きさで整数に丸めて変わる)で描くので、その分を打ち消し、ほかの HUD と同じ割合で拡大する */
-#hud > #pstat { zoom: calc(var(--uh) * 3.375 / var(--pxn, 3)); } /* 1.5倍(2.25 × 1.5。ユーザーの指定 2026-10-17) */
+#hud > #pstat { zoom: calc(var(--uh) * 3.0375 / var(--pxn, 3)); } /* 元の 1.35倍(2.25 × 1.35。1.5倍の 90%。ユーザーの指定 2026-10-17) */
 /* 上の物(武器のスロット・時間・数・ボスの HP・コンボ)は 75%(ユーザーの指定 2026-10-17。経験値のバーはそのまま)。top などの位置も一緒に縮む */
 #hud > #hud-top, #hud > #bossbar, #hud > #combo { zoom: calc(var(--uh) * .75); }
 #chest-screen > * { zoom: var(--uc); }
@@ -871,7 +871,7 @@ html.touch #hud:not(.hidden) ~ #touch-ctl { display: block; }
 @keyframes rotHint { 0%, 25% { transform: rotate(0); } 60%, 100% { transform: rotate(-90deg); } }
 /* 協力プレイ: 止まらないレベルアップ(画面の下に小さく)・休憩の待ち */
 #coop-pick { position: absolute; left: 50%; bottom: 6px; transform: translateX(-50%) scale(.6); transform-origin: 50% 100%; display: flex; flex-direction: column; align-items: center; gap: 8px; pointer-events: auto; }
-html:not(.touch) #coop-pick { left: auto; right: 16px; transform: scale(.6); transform-origin: 100% 100%; } /* PC は右下(1.5倍にした左下のパネルと重ならないように。スマホは右下にボタンがあるので真ん中のまま) */
+html:not(.touch) #coop-pick { left: auto; right: 16px; transform: scale(.6); transform-origin: 100% 100%; } /* PC は右下(大きくした左下のパネルと重ならないように。スマホは右下にボタンがあるので真ん中のまま) */
 #coop-pick .cp-title { font: 16px 'Press Start 2P'; color: var(--gold); text-shadow: 0 2px 0 #000; }
 #coop-pick .cp-cards { display: flex; gap: 14px; }
 #coop-pick .card { min-height: 0; animation: none; }
