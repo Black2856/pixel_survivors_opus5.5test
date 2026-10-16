@@ -54,6 +54,7 @@
       <!-- START は1行、ほかは2列(クラス・強化ツリー / 装備・ガチャ / ガイド・設定)-->
       <div class="menu title-menu">
         <button id="btn-start" class="btn big">▶ START</button>
+        <button id="btn-coop" class="btn">協力プレイ</button>
         <button id="btn-class" class="btn">クラス</button>
         <button id="btn-tree" class="btn">強化ツリー</button>
         <button id="btn-equip" class="btn">装備</button>
@@ -64,6 +65,22 @@
       <div id="title-gold" class="gold-chip"></div>
       <div id="title-best" class="best"></div>
       <div class="howto">WASD / 矢印 移動 ・ SPACE 防御スキル ・ E 武器スキル ・ Q クラススキル ・ 攻撃は自動(SHIFT でマウス照準切替) ・ ESC ポーズ ・ M ミュート</div>
+    </div>
+  </div>
+
+  <!-- 協力プレイの部屋(ラン外。coop-ui.js)-->
+  <div id="coop-screen" class="screen hidden">
+    <h2 class="scr-title">協力プレイ</h2>
+    <div class="coop-box">
+      <div id="coop-cls" class="coop-cls"></div>
+      <div id="coop-join-row" class="coop-row">
+        <button id="coop-make" class="btn">部屋を作る</button>
+        <input id="coop-code" maxlength="6" autocomplete="off" spellcheck="false">
+        <button id="coop-enter" class="btn">コードで入る</button>
+      </div>
+      <div id="coop-room" class="coop-room hidden"></div>
+      <div class="coop-note">チャレンジタワーを 2〜4人で遊ぶ。今は同じブラウザのウィンドウどうしだけつながる(ネット越しは準備中)。ウィンドウは並べて開く</div>
+      <button id="coop-back" class="btn ghost">戻る</button>
     </div>
   </div>
 
@@ -299,6 +316,7 @@
 <script src="js/status-ui.js"></script>
 <script src="js/help.js"></script>
 <script src="js/net.js"></script>
+<script src="js/coop-ui.js"></script>
 <script src="js/main.js"></script>
 </body>
 </html>

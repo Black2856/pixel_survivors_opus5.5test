@@ -5,7 +5,7 @@ const UI = (() => {
   const $ = id => document.getElementById(id);
   const el = (tag, cls, html) => { const e = document.createElement(tag); if (cls) e.className = cls; if (html !== undefined) e.innerHTML = html; return e; };
   const show = e => e.classList.remove('hidden'), hide = e => e.classList.add('hidden');
-  const screens = ['title-screen', 'stage-screen', 'class-screen', 'tree-screen', 'gacha-screen', 'status-screen', 'equip-screen', 'choice-screen', 'chest-screen', 'pause-screen', 'settings-screen', 'result-screen', 'help-screen'];
+  const screens = ['title-screen', 'stage-screen', 'class-screen', 'tree-screen', 'gacha-screen', 'status-screen', 'equip-screen', 'choice-screen', 'chest-screen', 'pause-screen', 'settings-screen', 'result-screen', 'help-screen', 'coop-screen'];
   const only = id => { screens.forEach(s => (s === id ? show : hide)($(s))); hideTip(); }; // 画面を替えたら説明の吹き出しを消す(スマホでは指を離しても残るため)
 
   // ---------- アイコン(スプライト → dataURL) ----------

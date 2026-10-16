@@ -815,3 +815,14 @@ html.touch #hud:not(.hidden) ~ #touch-ctl { display: block; }
 #coop-pick .cp-btns { display: flex; gap: 10px; }
 #coop-pick.sent .card, #coop-pick.sent .btn { opacity: .45; pointer-events: none; }
 #coop-wait { position: absolute; left: 50%; top: 92px; transform: translateX(-50%); color: var(--txt); font-size: 13px; text-shadow: 0 1px 2px #000; white-space: nowrap; }
+/* 協力プレイの部屋(coop-ui.js) */
+.title-menu #btn-coop { grid-column: 1 / -1; }
+#coop-screen .coop-box { display: flex; flex-direction: column; align-items: center; gap: 14px; max-width: 640px; margin: 0 auto; padding: 0 16px; }
+.coop-cls { color: var(--txt); font-size: 14px; }
+.coop-row { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; align-items: center; }
+#coop-code { font: 15px 'Press Start 2P'; width: 9em; text-transform: uppercase; padding: 10px; background: #12203a; color: var(--txt); border: 2px solid #2a6a80; text-align: center; }
+.coop-room { display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 16px 24px; border: 2px solid #3a2a6a; background: #1a1030; }
+.coop-code-big { font: 16px 'Press Start 2P'; color: var(--gold); letter-spacing: 2px; }
+.coop-list { display: flex; flex-direction: column; gap: 6px; font-size: 14px; color: var(--txt); min-width: 220px; }
+.coop-mem.dim { color: var(--dim); }
+.coop-note { color: var(--dim); font-size: 12px; text-align: center; max-width: 520px; line-height: 1.6; }

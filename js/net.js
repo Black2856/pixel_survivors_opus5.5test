@@ -77,10 +77,15 @@ function coopOnMsg(m) {
       if (!COOP.host || COOP.on || COOP.members.length >= 4 || COOP.members.some(x => x.id === m.from)) return;
       COOP.members.push({ id: m.from, cls: okCls(m.cls), vw: okView(m.vw, 480), vh: okView(m.vh, 270) });
       NET.send({ t: 'lobby', members: COOP.members });
+      if (typeof CoopUI !== 'undefined') CoopUI.refresh();
       console.info('COOP: ' + COOP.members.length + '人');
       if (COOP.want && COOP.members.length >= COOP.want) coopStart();
       return;
-    case 'lobby': if (!COOP.host && Array.isArray(m.members)) console.info('COOP: ' + m.members.length + '人'); return;
+    case 'lobby': // 参加者: 部屋の人の並び(画面に出す。確かめた物だけ)
+      if (COOP.host || COOP.on || !Array.isArray(m.members) || m.members.length > 4) return;
+      COOP.members = m.members.map(x => ({ id: String(x && x.id).slice(0, 32), cls: okCls(x && x.cls), vw: okView(x && x.vw, 480), vh: okView(x && x.vh, 270) }));
+      if (typeof CoopUI !== 'undefined') CoopUI.refresh();
+      return;
     case 'start': {
       if (COOP.host || COOP.on || !Array.isArray(m.members) || m.members.length > 4) return;
       const members = m.members.map(x => ({ id: String(x && x.id), cls: okCls(x && x.cls), vw: okView(x && x.vw, 480), vh: okView(x && x.vh, 270) }));
