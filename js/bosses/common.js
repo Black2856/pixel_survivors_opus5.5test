@@ -88,13 +88,20 @@ function segD2(px, py, x0, y0, x1, y1) {
   const vx = x1 - x0, vy = y1 - y0, k = clamp(((px - x0) * vx + (py - y0) * vy) / (vx * vx + vy * vy || 1), 0, 1);
   return d2(px, py, x0 + vx * k, y0 + vy * k);
 }
-const hitCircle = (x, y, r, dmg, o) => { r *= CHAOS.area; return d2(x, y, P.x, P.y) < (r + 3) * (r + 3) && hurtPlayer(dmg, o); }; // 当たったら true(o: hurtPlayer に渡す。pierce = 無敵無視)
+// 敵の技の当たり(円・線・扇)。範囲にいる全員に当てる(forHit)。誰かに当たったら true。o: hurtPlayer に渡す(pierce = 無敵無視)
+//   then: 当たった人ごとの追加効果(炎上・押し出しなど。呼ぶ間の P はその人)。o を渡さない時は o の所に then を渡してよい
+function hitWith(test, dmg, o, then) {
+  if (typeof o === 'function') { then = o; o = undefined; }
+  return forHit(() => { if (!test() || !hurtPlayer(dmg, o)) return false; if (then) then(); return true; });
+}
+const inCircle = (x, y, r) => { r *= CHAOS.area; return d2(x, y, P.x, P.y) < (r + 3) * (r + 3); };
+const hitCircle = (x, y, r, dmg, o, then) => hitWith(() => inCircle(x, y, r), dmg, o, then);
 const inLine = (x, y, a, len, w) => { len *= CHAOS.area; w *= CHAOS.area; return segD2(P.x, P.y, x, y, x + Math.cos(a) * len, y + Math.sin(a) * len) < Math.pow(w / 2 + 3, 2); };
-const hitLine = (x, y, a, len, w, dmg, o) => inLine(x, y, a, len, w) && hurtPlayer(dmg, o); // 当たったら true
+const hitLine = (x, y, a, len, w, dmg, o, then) => hitWith(() => inLine(x, y, a, len, w), dmg, o, then);
 const angDiff = (a, b) => Math.atan2(Math.sin(a - b), Math.cos(a - b));
 // 扇の当たり判定(中心 x, y・向き a・半径 r・片側 h rad。半径は攻撃範囲の倍率で広がる)
 const inFan = (x, y, a, r, h) => { r *= CHAOS.area; const d = Math.sqrt(d2(x, y, P.x, P.y)); return d < r + 3 && (d < 4 || Math.abs(angDiff(Math.atan2(P.y - y, P.x - x), a)) < h + 3 / d); };
-const hitFan = (x, y, a, r, h, dmg, o) => inFan(x, y, a, r, h) && hurtPlayer(dmg, o);
+const hitFan = (x, y, a, r, h, dmg, o, then) => hitWith(() => inFan(x, y, a, r, h), dmg, o, then);
 // 予備動作(停止して点滅 → fn)
 //   windT: 構えの長さ(render.js の足元の輪)/ glint: 技の直前の合図を出したか
 function windup(e, t, fn) { e.ai.wind = t; e.ai.windT = t; e.ai.glint = false; e.ai.fire = fn; }
@@ -179,7 +186,7 @@ function updObj(e, dt) {
       e.swA += angDiff(Math.atan2(P.y - e.y, P.x - e.x), e.swA) * Math.min(1, dt * 1.5); // 予告の間、少しだけプレイヤーを追う
       e.ta = e.swA;
       if ((e.swT -= dt) <= 0) {
-        if (hitLine(e.x, e.y, e.swA, 90, 16, e.owner.dmg * 0.8)) drainSta(15);
+        hitLine(e.x, e.y, e.swA, 90, 16, e.owner.dmg * 0.8, () => drainSta(15));
         bfx.push({ kind: 'tslap', x: e.x, y: e.y, a: e.swA, len: 90 * CHAOS.area, w: 12 * CHAOS.area, t: 0, life: 0.35 });
         burst(e.x + Math.cos(e.swA) * 60, e.y + Math.sin(e.swA) * 60, 10, SPLASH, { sp: 80, up: 30, g: 200 }); AudioMan.dash();
         e.sq = 0.5;

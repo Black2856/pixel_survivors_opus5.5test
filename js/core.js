@@ -281,6 +281,17 @@ function addRing(x, y, r, col, o = {}) { rings.push({ x, y, r0: o.r0 || 2, r, t:
 function addFlash(x, y, r, col, life = 0.25) { flashes.push({ x, y, r, col, t: 0, life, mine: FX_MINE && P }); }
 // 協力プレイ: 揺れ・画面の閃光は、起こした人(計算の中の P)が自分の時だけ(coop.md #5 の仮。見た目だけで計算には入らない)
 const fxForMe = () => !COOP.on || P === players[COOP.pid];
+// 敵の攻撃の当たり判定を、生きている全員に(協力プレイ: coop.md #25)。players の順に P をその人にして fn を呼ぶ(1人なら今の P で 1回)。fn が true の人がいれば true
+//   動き・狙い(どこへ撃つか・追う玉)は狙われた人(tPl)のまま。当たる・押される・遅くなるなどを全員に
+function forHit(fn) {
+  if (players.length <= 1) return !!fn();
+  let any = false;
+  for (const pl of players) if (!pl.dead && !pl.left && withPlayer(pl, fn)) any = true;
+  return any;
+}
+// 1回だけ当たる技の「当たった」印を人ごとに(1人なら o[k] のまま。協力プレイは o[k + 'By'] に当たった人を入れる。印を消す所では o[k + 'By'] も消す)
+const hitDone = (o, k = 'hit') => (players.length <= 1 ? !!o[k] : !!(o[k + 'By'] && o[k + 'By'].has(P)));
+const hitMark = (o, k = 'hit') => { if (players.length <= 1) o[k] = true; else (o[k + 'By'] || (o[k + 'By'] = new Set())).add(P); };
 function shake(n) { if (fxForMe()) cam.shake = Math.max(cam.shake, n); }
 // all: 全員に関わる物(ボスの技・撃破・エリート群など)。協力プレイ(2人以上)では all の物だけ時間を止める・遅くする(1人が起こす物は止めない: coop.md #5)
 function hitstop(t, all) { if (!all && players.length > 1) return; S.freeze = Math.max(S.freeze, t); }

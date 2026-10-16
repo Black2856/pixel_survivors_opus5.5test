@@ -22,7 +22,7 @@ function dragonAI(e, ai, dt, a, dist, slow) {
     ai.pt += dt;
     const k = ai.pt / ai.T;
     ai.bA = ai.b0 + ai.dir * TAU * Math.min(1, k);
-    if (hitLine(e.x, e.y, ai.bA, BEAM_LEN, 10, e.dmg * 1.2)) burnPlayer(e.dmg * 0.03); // 当たると炎上
+    hitLine(e.x, e.y, ai.bA, BEAM_LEN, 10, e.dmg * 1.2, () => burnPlayer(e.dmg * 0.03)); // 当たると炎上
     const r = rand(20, BEAM_LEN * CHAOS.area);
     part(e.x + Math.cos(ai.bA) * r, e.y + Math.sin(ai.bA) * r, rand(-30, 30), rand(-30, 30), 0.4, pick(['#ff4a8a', '#ffd0f0', '#ffffff']), { glow: true });
     shake(1.5);
@@ -91,7 +91,7 @@ function dragonAI(e, ai, dt, a, dist, slow) {
     const mark = off => arms(off).forEach(r => pushWarn({ kind: 'line', x: r.x, y: r.y, a: r.a, len: L * 2, w: W, t: 0, life: T }));
     const blast = off => {
       for (const r of arms(off)) {
-        if (hitLine(r.x, r.y, r.a, L * 2, W, e.dmg * 1.3)) burnPlayer(e.dmg * 0.03); // 当たると炎上
+        hitLine(r.x, r.y, r.a, L * 2, W, e.dmg * 1.3, () => burnPlayer(e.dmg * 0.03)); // 当たると炎上
         slashes.push({ line: true, x: r.x, y: r.y, x1: r.x + Math.cos(r.a) * LA * 2, y1: r.y + Math.sin(r.a) * LA * 2, t: 0, life: 0.45, w: 10 * CHAOS.area, enemy: true });
       }
       addFlash(tx, ty, 160 * CHAOS.area, '#ff4a8a', 0.5); shockAt(tx, ty, 1.6, 0.9); shake(7); AudioMan.boom(); AudioMan.zap();

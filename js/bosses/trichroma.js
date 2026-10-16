@@ -71,7 +71,7 @@ function triConverge(e, ai) {
   later(ai, Q.lock, () => { cv.lock = true; pushWarn({ kind: 'circle', x: cv.cx, y: cv.cy, r: 50, t: 0, life: Q.end - Q.lock, owner: e }); });
   later(ai, Q.end, () => {
     const cx = cv.cx, cy = cv.cy;
-    if (hitCircle(cx, cy, 50, e.dmg * 1.4)) randomLight(2, e.dmg);
+    hitCircle(cx, cy, 50, e.dmg * 1.4, () => randomLight(2, e.dmg));
     const R0 = 50 * CHAOS.area;
     bossBlast(cx, cy, R0, { col: '#8a8ab8', core: '#d8dcff', decal: false, n: 22, light: 0.6 });
     fxRays(cx, cy, R0 * 1.4, '#c8d0ff', { foe: true, n: 18, core: '#ffffff', life: 0.45, light: 0.5 });
@@ -97,7 +97,7 @@ function triPillars(e, ai) {
     const [x, y] = serClamp(P.x + (P.ivx || 0) * TRI_PILL.lead, P.y + (P.ivy || 0) * TRI_PILL.lead); pts.push([x, y]); // 歩きの速さ(押し流し・ダッシュは入れない)で lead 秒先へ
     pushWarn({ kind: 'circle', x, y, r: 30, t: 0, life: TRI_PILL.warn, owner: e });
     later(ai, TRI_PILL.warn, () => {
-      if (hitCircle(x, y, 30, e.dmg * 0.6)) triStatus(1 << i, e.dmg);
+      hitCircle(x, y, 30, e.dmg * 0.6, () => triStatus(1 << i, e.dmg));
       const R0 = 30 * CHAOS.area + 3;
       if (i === 2 && P.invT <= 0 && !P.dead && pts.every(([qx, qy]) => d2(qx, qy, P.x, P.y) < R0 * R0)) { randomLight(2, e.dmg); addFlash(x, y, 70, '#c8c8d8', 0.4); fxRays(x, y, 50, '#e8e8ff', { foe: true, n: 14, core: '#ffffff', life: 0.35, light: 0.4 }); } // 3色が重なった白
       fxBeam(x, y, { foe: true, w: 9 * CHAOS.area, H: 180, col: TRI.col[i], mid: TRI.col[i], core: '#ffffff', life: 0.5, drop: 0.07 });

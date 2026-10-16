@@ -81,7 +81,7 @@ function sphinxFeathers(e, ai, a) {
 function sphinxPaw(e, ai, a) {
   pushWarn({ kind: 'fan', x: e.x, y: e.y, a, r: 70, h: 1.05, t: 0, life: 0.5, owner: e });
   windup(e, 0.5, () => {
-    if (hitFan(e.x, e.y, a, 70, 1.05, e.dmg * 1.2)) pushPlayer(a, 80, 0.25);
+    hitFan(e.x, e.y, a, 70, 1.05, e.dmg * 1.2, () => pushPlayer(a, 80, 0.25));
     slashes.push({ x: e.x, y: e.y, a, r: 70 * CHAOS.area, t: 0, life: 0.22, flip: Math.random() < 0.5, span: 2.1, pal: SWING_PAL.enemy, enemy: true });
     burst(e.x + Math.cos(a) * 30, e.y + Math.sin(a) * 30, 14, SAND, { sp: 80, g: 160 }); e.sq = 0.75; shake(3); AudioMan.slash(); AudioMan.thud();
   });

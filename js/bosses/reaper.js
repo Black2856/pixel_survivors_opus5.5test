@@ -62,7 +62,7 @@ function reaperReap(e, ai, a) {
   pushWarn({ kind: 'fan', x: e.x, y: e.y, a, r: 65, h: 1.22, t: 0, life: 0.4 });
   windup(e, 0.4, () => {
     slashes.push({ x: e.x, y: e.y, a, r: 65 * CHAOS.area, t: 0, life: 0.26, span: 2.44, pal: SWING_PAL.enemy, enemy: true });
-    if (hitFan(e.x, e.y, a, 65, 1.22, e.dmg * 0.8)) bleedPlayer(2);
+    hitFan(e.x, e.y, a, 65, 1.22, e.dmg * 0.8, () => bleedPlayer(2));
     AudioMan.slash(); shake(3);
   });
 }

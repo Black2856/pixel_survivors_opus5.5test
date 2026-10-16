@@ -109,7 +109,7 @@ function skSlash(e, a) {
   if (e.dead) return;
   slashes.push({ x: e.x, y: e.y, a, r: 100 * CHAOS.area, t: 0, life: 0.3, span: 2.1, pal: SWING_PAL.shadow, enemy: true });
   slashes.push({ x: e.x, y: e.y, a, r: 74 * CHAOS.area, t: 0, life: 0.24, span: 2.1, flip: 1, pal: SWING_PAL.shadow, enemy: true }); // 二重の刃筋
-  if (hitFan(e.x, e.y, a, 100, 1.05, e.dmg * 0.9)) pushPlayer(a, 100, 0.3);
+  hitFan(e.x, e.y, a, 100, 1.05, e.dmg * 0.9, () => pushPlayer(a, 100, 0.3));
   fxRays(e.x + Math.cos(a) * 42, e.y + Math.sin(a) * 42, 80, '#3a1a5a', { foe: true, n: 14, life: 0.3, core: '#a66bff', light: 0.6 });
   for (let i = 0; i < 22; i++) { const pa = a + rand(-1, 1), r = rand(24, 100) * CHAOS.area; part(e.x + Math.cos(pa) * r, e.y + Math.sin(pa) * r, Math.cos(pa) * 60, Math.sin(pa) * 60, 0.4, pick(SKC), { glow: Math.random() < 0.4, drag: 2 }); }
   shake(5); AudioMan.slash(); AudioMan.cutHit();

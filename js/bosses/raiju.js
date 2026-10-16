@@ -94,7 +94,7 @@ function updRaijuBlink(e, ai, dt) {
 function raijuDischarge(e, ai) {
   pushWarn({ kind: 'circle', x: e.x, y: e.y, r: 80, t: 0, life: 0.7, owner: e, track: w => { w.x = e.x; w.y = e.y; } });
   windup(e, 0.7, () => {
-    if (hitCircle(e.x, e.y, 80, e.dmg)) numbPlayer(4);
+    hitCircle(e.x, e.y, 80, e.dmg, () => numbPlayer(4));
     const RR = 80 * CHAOS.area;
     for (let k = 0; k < 9; k++) { const pa = TAU / 9 * k + rand(-0.2, 0.2), L = RR * rand(0.6, 1); bfx.push({ kind: 'ebolt', x: e.x, y: e.y - 4, x1: e.x + Math.cos(pa) * L, y1: e.y + Math.sin(pa) * L, t: 0, life: 0.22, w: 1, jit: 5, col: '#c8b8ff' }); } // 放射する稲妻は芯を淡い紫に(白い線が重なると白く飛ぶ)
     addRing(e.x, e.y, RR, '#b8a0ff', { w: 2, life: 0.35 }); addFlash(e.x, e.y, RR * 1.6, '#5a3aa8', 0.4); shake(7); AudioMan.zap(); AudioMan.boom(); // 光芒は出さない(放射する稲妻と輪で見せる)

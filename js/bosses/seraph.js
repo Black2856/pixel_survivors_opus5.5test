@@ -9,8 +9,8 @@
 //   技は ai.act と later で進める(windup は使わない: 構えの間も衣・続く技・ホワイトアウトを毎フレーム動かすため)
 const SER_GOLD = ['#ffe8a0', '#fff6dc', '#ffd23f', '#ffffff'];
 const serLight = e => (e.ai.enraged ? 2 : 1); // 当たったときの乱光(激昂で 2回)
-function serCircle(e, x, y, r, n) { if (hitCircle(x, y, r, e.dmg * n, PIERCE)) { randomLight(serLight(e), e.dmg); return true; } return false; }
-function serLine(e, x, y, a, len, w, n) { if (hitLine(x, y, a, len, w, e.dmg * n, PIERCE)) { randomLight(serLight(e), e.dmg); return true; } return false; }
+function serCircle(e, x, y, r, n) { return hitCircle(x, y, r, e.dmg * n, PIERCE, () => randomLight(serLight(e), e.dmg)); }
+function serLine(e, x, y, a, len, w, n) { return hitLine(x, y, a, len, w, e.dmg * n, PIERCE, () => randomLight(serLight(e), e.dmg)); }
 function serHurt(e, n) { if (hurtPlayer(e.dmg * n, PIERCE)) { randomLight(serLight(e), e.dmg); return true; } return false; }
 function serBall(e, x, y, a, spd, n, kind) { const p = eball(x, y, a, spd, e.dmg * n, kind); p.pierce = true; p.light = serLight(e); p.src = e.dmg; return p; }
 // 光の衣が数える状態異常: 炎上・凍傷(凍結)・出血・印・聖痕・呪い・スタン・弱点露出・攻撃力低下・取り憑き・減速(時の歪み)。感電は一瞬の連鎖なので数えない

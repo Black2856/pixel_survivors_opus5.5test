@@ -275,7 +275,7 @@ function updCerbToMerge(e, ai, dt) {
   e.x = ai.mx; e.y = ai.my; e.flying = e.hidden = e.air = false;
   ai.form = 'merge'; ai.mergeAt = S.time; ai.gap = 0.8; e.sq = 0.6;
   for (const h of ai.hs) if (!h.dead) h.rise = 0.4;
-  if (hitCircle(e.x, e.y, 50, e.dmg * 1.2)) pushPlayer(Math.atan2(P.y - e.y, P.x - e.x), 60, 0.25);
+  hitCircle(e.x, e.y, 50, e.dmg * 1.2, () => pushPlayer(Math.atan2(P.y - e.y, P.x - e.x), 60, 0.25));
   const R = 50 * CHAOS.area;
   fxBeam(e.x, e.y, { foe: true, w: 22, H: 190, col: '#2a1240', mid: '#5a2a8a', core: '#a66bff', life: 0.55, up: true, drop: 0.12 }); // 影の柱(白く飛ばないように芯は紫)
   bossBlast(e.x, e.y, R, Object.assign({ n: 20 }, BFX.cerberus));
@@ -410,7 +410,7 @@ function dogDark(d, o, dt, a, dist, spd) {
   }
   if (d.st === 'mark' && d.stT <= 0) { // 飛び出して噛む
     cerbDogSurface(d); d.st = 'run'; d.stT = 2.5;
-    if (hitCircle(d.x, d.y, 24, o.dmg)) darkPlayer(3);
+    hitCircle(d.x, d.y, 24, o.dmg, () => darkPlayer(3));
     bfx.push({ kind: 'cbite', x: d.x, y: d.y - 4, a: -Math.PI / 2, col: CERB.dark[0], t: 0, life: 0.3 });
     burst(d.x, d.y, 30, [...SKC, '#ffffff'], { sp: 130, up: 40, glow: true, life: 0.5 }); addRing(d.x, d.y, 24 * CHAOS.area, '#a66bff', { r0: 6, w: 2, life: 0.3 });
     shockAt(d.x, d.y, 1.2, 0.9); shake(5); AudioMan.bite(); AudioMan.shade2();

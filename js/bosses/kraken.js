@@ -60,7 +60,7 @@ function tentacleSlam(e, ai) {
   AudioMan.charge(0.9);
   later(ai, 0.9, () => {
     for (const b of bands) {
-      if (hitLine(b.x, b.y, b.a, 140, 18, e.dmg)) drainSta(20);
+      hitLine(b.x, b.y, b.a, 140, 18, e.dmg, () => drainSta(20));
       bfx.push({ kind: 'tslap', x: b.x, y: b.y, a: b.a, len: 140 * CHAOS.area, w: 18 * CHAOS.area, t: 0, life: 0.4 });
       burst(b.x + Math.cos(b.a) * LA, b.y + Math.sin(b.a) * LA, 14, SPLASH, { sp: 100, up: 40, g: 200 });
       fxRays(b.x + Math.cos(b.a) * LA, b.y + Math.sin(b.a) * LA, 34, '#1a4a7a', { foe: true, n: 9, life: 0.28, core: '#4ab8e8' }); // 叩きつけた水しぶきの光

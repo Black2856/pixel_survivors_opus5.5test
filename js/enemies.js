@@ -74,7 +74,7 @@ function splitDarkOrb(p) {
 // ホーリーメイジの光のビーム: 予告の帯の向きへ、白金の光線が一瞬で走る(当たると ×n・乱光 +light)
 function holyBeam(e, bm) {
   const x = e.x, y = e.y - 4, a = e.ta, len = bm.len * e.areaK, w = bm.w * e.areaK;
-  if (hitLine(x, y, a, len, w, e.dmg * bm.n)) randomLight(bm.light, e.dmg);
+  hitLine(x, y, a, len, w, e.dmg * bm.n, () => randomLight(bm.light, e.dmg));
   bfx.push({ kind: 'hbeam', x, y, a, len: len * CHAOS.area, w: w * CHAOS.area, t: 0, life: 0.32 });
   const tx = e.x + (e.face || 1) * 3.5, ty = e.y - 7;
   burst(tx, ty, 12, MAGE_COL.holymage, { sp: 60, glow: true, life: 0.3 }); addRing(tx, ty, 9, '#fff6c8', { life: 0.25 });
@@ -84,7 +84,7 @@ function holyBeam(e, bm) {
 // 灯の番人が見つけた: 扇の光が一瞬強まり(白い光の扇)、扇の中にいると ×n・乱光 +light
 function lampFlash(e, so) {
   const R0 = so.r * e.areaK;
-  if (hitFan(e.x, e.y - 3, e.spotA, R0, so.h, e.dmg * so.n)) randomLight(so.light, e.dmg);
+  hitFan(e.x, e.y - 3, e.spotA, R0, so.h, e.dmg * so.n, () => randomLight(so.light, e.dmg));
   bfx.push({ kind: 'spotflash', x: e.x, y: e.y - 3, a: e.spotA, r: R0 * CHAOS.area, h: so.h, t: 0, life: 0.35 });
   burst(e.x + (e.face || 1) * 8, e.y - 1, 14, ['#ffffff', '#fff6c8', '#ffd23f'], { sp: 70, glow: true, life: 0.35 });
   AudioMan.sparkle(); AudioMan.zap();
@@ -136,7 +136,7 @@ function throwSpear(e, th) {
 // 鬼火の自爆: 半径 r に ×n と炎上。倒した扱いにはしない(経験値・コンボなし)
 function onibiBlast(e, bl) {
   e.dead = true;
-  if (hitCircle(e.x, e.y, bl.r * e.areaK, e.dmg * bl.n)) burnPlayer(e.dmg * bl.burn);
+  hitCircle(e.x, e.y, bl.r * e.areaK, e.dmg * bl.n, () => burnPlayer(e.dmg * bl.burn));
   const R = bl.r * CHAOS.area * e.areaK;
   burst(e.x, e.y, 30, ['#7ad7ff', '#ffffff', '#3a8ad0', '#ffc34a', '#ff6a2a'], { sp: 120, glow: true, life: 0.45 });
   for (let i = 0; i < 12; i++) { const pa = TAU / 12 * i; part(e.x, e.y, Math.cos(pa) * R * 3.2, Math.sin(pa) * R * 3.2, 0.3, '#bff4ff', { glow: true, drag: 6, sz: 2 }); } // 炎の輪が半径いっぱいまで走る
@@ -155,7 +155,7 @@ function drainSta(n) {
 function yetiThrow(e, sb) {
   const dmg = e.dmg * sb.n, kind = sb.kind || 'snowball', acorn = kind === 'acorn';
   lob(kind, e.x, e.y - (acorn ? 4 : 8), e.tx, e.ty, 1.0, acorn ? 38 : 45, p => {
-    if (hitCircle(p.x, p.y, sb.r * e.areaK, dmg) && sb.frost) frostPlayer(sb.frost);
+    hitCircle(p.x, p.y, sb.r * e.areaK, dmg, () => { if (sb.frost) frostPlayer(sb.frost); });
     if (sb.floor) addHazard('snow', p.x, p.y, { r: sb.r * e.areaK, dur: sb.floor, tick: 1 });
     if (acorn) { burst(p.x, p.y, 12, ['#8a5a2a', '#c8a060', '#5a3a1a', '#e8d890'], { sp: 70, up: 30, g: 220, life: 0.45 }); addRing(p.x, p.y, sb.r * CHAOS.area * e.areaK, '#c8a060', { life: 0.25 }); }
     else { burst(p.x, p.y, 22, ['#ffffff', '#e8f4ff', '#bff4ff'], { sp: 90, up: 40, g: 200, life: 0.6 }); addRing(p.x, p.y, sb.r * CHAOS.area * e.areaK, '#ffffff', { life: 0.3 }); }
@@ -177,7 +177,7 @@ function growInto(e, into) {
 // 足元の一撃(樹人の根): 予告の円の中に ×n。衰弱 +weak・痺れ +numb・砂塵 +dust(当たったときだけ)
 function groundStrike(e, st) {
   const R = st.r * e.areaK;
-  if (hitCircle(e.tx, e.ty, R, e.dmg * st.n)) { if (st.weak) weakPlayer(st.weak); if (st.numb) numbPlayer(st.numb); if (st.dust) dustPlayer(st.dust); }
+  hitCircle(e.tx, e.ty, R, e.dmg * st.n, () => { if (st.weak) weakPlayer(st.weak); if (st.numb) numbPlayer(st.numb); if (st.dust) dustPlayer(st.dust); });
   const RR = R * CHAOS.area;
   if (st.kind === 'bolt') skyBolt(e.tx, e.ty, RR, { from: { x: e.x, y: e.y + 2 } }); // 雷雲: 雲の下から稲妻が落ちる
   if (st.kind === 'discharge') { // 雷の甲冑: 掲げた刀に雷が落ち、まわりへ放電する
@@ -217,7 +217,7 @@ function miasmaCloud(e, m) {
 // マグマワーム: 予告の円の中心へ飛び出す(半径 r に ×n・炎上)。出ている up 秒だけ攻撃が当たる
 function wormErupt(e, bu) {
   Object.assign(e, { x: e.tx, y: e.ty, kx: 0, ky: 0, under: false, hidden: false, flying: false, air: false, rise: 0, upT: bu.up });
-  if (hitCircle(e.x, e.y, bu.r * e.areaK, e.dmg * bu.n)) burnPlayer(e.dmg * bu.burn);
+  hitCircle(e.x, e.y, bu.r * e.areaK, e.dmg * bu.n, () => burnPlayer(e.dmg * bu.burn));
   const R = bu.r * CHAOS.area * e.areaK;
   burst(e.x, e.y, 24, ['#2a1410', '#5a2a1a', '#ff6a2a', '#ffc34a'], { sp: 100, up: 50, g: 240, life: 0.5 });
   for (let i = 0; i < 10; i++) part(e.x + rand(-R, R) * 0.4, e.y + rand(-R, R) * 0.3, rand(-20, 20), -rand(70, 140), rand(0.4, 0.7), pick(['#ff6a2a', '#ffc34a', '#fff0b0']), { glow: true, g: 260 }); // 吹き上がる溶岩
@@ -270,7 +270,7 @@ const twinAxis = a => Math.atan2(a.y - P.y, a.x - P.x) + (Math.random() < 0.5 ? 
 // ハゲワシの急降下: 影の円に ×n・砂塵 +dust。砂が舞い上がる
 function vultureLand(e, sw) {
   const R = sw.r * e.areaK;
-  if (hitCircle(e.x, e.y, R, e.dmg * sw.n)) dustPlayer(sw.dust);
+  hitCircle(e.x, e.y, R, e.dmg * sw.n, () => dustPlayer(sw.dust));
   burst(e.x, e.y, 18, [...SAND, '#4a3020'], { sp: 90, up: 30, g: 200, life: 0.45 });
   addRing(e.x, e.y, R * CHAOS.area, '#e8c88a', { w: 2, life: 0.3 }); shake(2); AudioMan.thud();
   e.sq = 0.7;
