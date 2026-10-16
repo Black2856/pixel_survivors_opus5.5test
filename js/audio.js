@@ -36,7 +36,7 @@ const AudioMan = (() => {
           bus = ctx.createGain(); bus.connect(comp); comp.connect(ctx.destination);
           noiseBuf = ctx.createBuffer(1, ctx.sampleRate, ctx.sampleRate);
           const d = noiseBuf.getChannelData(0);
-          for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+          for (let i = 0; i < d.length; i++) d[i] = fxRandom() * 2 - 1;
         } catch (e) { ctx = null; }
       }
       if (ctx && ctx.state === 'suspended') ctx.resume();
@@ -114,7 +114,7 @@ const AudioMan = (() => {
       g.gain.setValueAtTime((o.vol || 0.2) * vol.sfx, t);
       g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
       src.connect(f); f.connect(g); g.connect(bus);
-      src.start(t, Math.random() * 0.5); src.stop(t + dur + 0.02);
+      src.start(t, fxRandom() * 0.5); src.stop(t + dur + 0.02);
     },
 
     // ---------- 効果音 ----------
@@ -171,7 +171,7 @@ const AudioMan = (() => {
     tick(i)   { if (this._ok('tick', 0.02)) this.tone(600 + i * 60, 600 + i * 60, 0.03, { vol: 0.05, type: 'square' }); },
     land(r)   { if (!this._ok()) return; const b = [523, 659, 784, 1047][r] || 523; [1, 1.25, 1.5, 2].forEach((m, i) => this.tone(b * m, b * m, 0.18, { vol: 0.08, delay: i * 0.04, type: 'triangle' })); this.noise(0.25, { vol: 0.1, f0: 9000, f1: 3000, ftype: 'highpass' }); },
     burstOpen(){ if (!this._ok()) return; this.noise(0.9, { vol: 0.35, f0: 6000, f1: 80 }); this.tone(80, 30, 0.7, { vol: 0.2, type: 'sine' }); [784, 988, 1175, 1568, 1976, 2349].forEach((f, i) => this.tone(f, f, 0.5, { vol: 0.06, delay: 0.1 + i * 0.05, type: 'triangle' })); },
-    coinRain(n) { if (!this._ok()) return; for (let i = 0; i < n; i++) this.tone(1800 + Math.random() * 900, 2400 + Math.random() * 900, 0.05, { vol: 0.03, delay: i * 0.05 + Math.random() * 0.03, type: 'square' }); },
+    coinRain(n) { if (!this._ok()) return; for (let i = 0; i < n; i++) this.tone(1800 + fxRandom() * 900, 2400 + fxRandom() * 900, 0.05, { vol: 0.03, delay: i * 0.05 + fxRandom() * 0.03, type: 'square' }); },
     // ガチャ演出用: 玉が落ちる / 玉の色が上がる(step 0〜2。上がるほど高く派手)/ 玉が割れる(rank 0〜5 = コモン〜ミシック)
     //   当たりのファンファーレ(rank)/ ミシックへの昇格の溜め(鼓動 3回と上がっていくうなり)/ ミシックの大爆発と和音
     gachaDrop() { if (!this._ok()) return; this.tone(190, 55, 0.24, { vol: 0.16, type: 'sine' }); this.noise(0.14, { vol: 0.12, f0: 1600, f1: 200 }); this.tone(1300, 1600, 0.07, { vol: 0.03, type: 'triangle', delay: 0.04 }); },
@@ -230,7 +230,7 @@ const AudioMan = (() => {
     spearReady() { if (this._ok('spearReady', 0.15)) { this.tone(2200, 1900, 0.06, { vol: 0.025, type: 'triangle' }); this.noise(0.08, { vol: 0.05, f0: 5000, f1: 2500, ftype: 'highpass' }); } },
     spearThrow() { if (this._ok('spearThrow', 0.08)) { this.noise(0.22, { vol: 0.12, f0: 900, f1: 4200, ftype: 'bandpass', rate: 1.3 }); this.tone(500, 260, 0.1, { vol: 0.03, type: 'sawtooth' }); } },
     // 晶窟: 結晶が鳴る音(澄んだ高い和音)
-    chime()   { if (!this._ok('chime', 0.08)) return; const b = 1320 + Math.random() * 400; this.tone(b, b, 0.25, { vol: 0.035, type: 'sine' }); this.tone(b * 1.5, b * 1.5, 0.3, { vol: 0.025, type: 'sine', delay: 0.03 }); this.tone(b * 2, b * 2, 0.2, { vol: 0.015, type: 'triangle', delay: 0.06 }); },
+    chime()   { if (!this._ok('chime', 0.08)) return; const b = 1320 + fxRandom() * 400; this.tone(b, b, 0.25, { vol: 0.035, type: 'sine' }); this.tone(b * 1.5, b * 1.5, 0.3, { vol: 0.025, type: 'sine', delay: 0.03 }); this.tone(b * 2, b * 2, 0.2, { vol: 0.015, type: 'triangle', delay: 0.06 }); },
     // 海淵: スタミナを奪われる(泡がはじける)/ フグの針 / 水しぶき
     drain()   { if (!this._ok('drain', 0.15)) return; this.tone(700, 260, 0.18, { vol: 0.05, type: 'sine' }); this.tone(520, 200, 0.16, { vol: 0.03, type: 'sine', delay: 0.06 }); this.noise(0.12, { vol: 0.05, f0: 1800, f1: 600, ftype: 'bandpass' }); },
     puff()    { if (!this._ok('puff', 0.12)) return; this.noise(0.2, { vol: 0.1, f0: 600, f1: 2400, ftype: 'bandpass', rate: 1.2 }); this.tone(300, 900, 0.08, { vol: 0.03, type: 'triangle' }); },
@@ -239,7 +239,7 @@ const AudioMan = (() => {
     poison()  { if (!this._ok('poison', 0.12)) return; this.noise(0.35, { vol: 0.08, f0: 900, f1: 2600, ftype: 'bandpass', rate: 2.2 }); this.tone(320, 140, 0.25, { vol: 0.04, type: 'triangle' }); this.tone(210, 260, 0.18, { vol: 0.025, type: 'sine', delay: 0.08 }); },
     blind()   { if (!this._ok('blind', 0.3)) return; this.tone(220, 55, 0.7, { vol: 0.08, type: 'sine' }); this.noise(0.6, { vol: 0.07, f0: 600, f1: 90 }); this.tone(440, 110, 0.5, { vol: 0.02, type: 'triangle', delay: 0.05 }); },
     howl()    { if (!this._ok('howl', 0.5)) return; this.tone(160, 420, 0.5, { vol: 0.09, type: 'sawtooth' }); this.tone(420, 300, 0.9, { vol: 0.08, type: 'sawtooth', delay: 0.45 }); this.tone(240, 180, 1.2, { vol: 0.05, type: 'sine', delay: 0.1 }); this.noise(1.1, { vol: 0.06, f0: 500, f1: 1400, ftype: 'bandpass' }); },
-    chain()   { if (!this._ok('chain', 0.06)) return; const b = 1700 + Math.random() * 500; this.tone(b, b * 0.92, 0.08, { vol: 0.03, type: 'square' }); this.tone(b * 1.41, b * 1.3, 0.1, { vol: 0.02, type: 'triangle', delay: 0.03 }); this.noise(0.08, { vol: 0.05, f0: 6000, f1: 3000, ftype: 'highpass' }); },
+    chain()   { if (!this._ok('chain', 0.06)) return; const b = 1700 + fxRandom() * 500; this.tone(b, b * 0.92, 0.08, { vol: 0.03, type: 'square' }); this.tone(b * 1.41, b * 1.3, 0.1, { vol: 0.02, type: 'triangle', delay: 0.03 }); this.noise(0.08, { vol: 0.05, f0: 6000, f1: 3000, ftype: 'highpass' }); },
     sever()   { if (!this._ok('sever', 0.2)) return; this.noise(0.35, { vol: 0.22, f0: 12000, f1: 900, ftype: 'highpass', rate: 1.6 }); this.tone(1400, 60, 0.45, { vol: 0.07, type: 'sawtooth' }); this.tone(55, 30, 1.2, { vol: 0.16, type: 'sine', delay: 0.05 }); },
     shade2()  { if (!this._ok('shade2', 0.15)) return; this.tone(90, 45, 0.6, { vol: 0.1, type: 'sawtooth' }); this.noise(0.5, { vol: 0.08, f0: 300, f1: 1800, ftype: 'bandpass' }); this.tone(660, 880, 0.3, { vol: 0.018, type: 'sine', delay: 0.15 }); },
     bite()    { if (!this._ok('bite', 0.06)) return; this.noise(0.1, { vol: 0.14, f0: 2400, f1: 500 }); this.tone(180, 70, 0.12, { vol: 0.08, type: 'square' }); },

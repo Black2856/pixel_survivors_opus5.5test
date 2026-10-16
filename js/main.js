@@ -144,7 +144,7 @@ function updCam(dt) {
   }
   cam.shake = Math.max(0, cam.shake - dt * 30);
   const s = cam.shake;
-  cam.x = Math.round(cam.fx + rand(-s, s)); cam.y = Math.round(cam.fy + rand(-s, s));
+  cam.x = Math.round(cam.fx + frand(-s, s)); cam.y = Math.round(cam.fy + frand(-s, s)); // 揺れは見た目の列(フレームの数は人によって違う)
   GFX.fx.aberr = Math.max(GFX.fx.aberr, s * 0.04);
 }
 

@@ -236,7 +236,7 @@ const MAX_PARTS = 2600;
 let FX_MINE = false;
 // 汎用パーティクル: glow=true でグロー層にも描画(ブルームの光源になる)
 function part(x, y, vx, vy, life, col, o = {}) {
-  if (gq().parts < 1 && Math.random() > gq().parts) return;
+  if (gq().parts < 1 && fxRandom() > gq().parts) return; // 画質で間引く(見た目の列で引く。計算の列の回数を画質で変えない)
   if (parts.length >= MAX_PARTS) parts.shift();
   parts.push({ x, y, vx, vy, t: 0, life, col, sz: o.sz || 1, g: o.g || 0, drag: o.drag ?? 2.5, glow: !!o.glow, shrink: !!o.shrink, up: o.up || 0, mine: FX_MINE });
 }

@@ -77,7 +77,8 @@ function flameStep(X, a, dt) {
   return true;
 }
 // 火炎放射の見た目: 杖先から炎の塊を噴き出す(描画は render.js)。先端の速さは長さ L に届くように
-function flamePuffs(X, ang, L, arc, blue, dt) {
+//   見た目だけで、数は画質で変わるので見た目の乱数の列で(core.js の fxScope)
+function flamePuffs(X, ang, L, arc, blue, dt) { fxScope(() => {
   const fp = S.flamePuffs || (S.flamePuffs = []), n = Math.round(dt * 110 * gq().parts) || 1;
   const nx = X.x + Math.cos(ang) * 9, ny = X.y - 6 + Math.sin(ang) * 6;
   for (let i = 0; i < n && fp.length < 260; i++) {
@@ -85,7 +86,7 @@ function flamePuffs(X, ang, L, arc, blue, dt) {
     fp.push({ x: nx + rand(-1, 1), y: ny + rand(-1, 1), vx: Math.cos(d) * sp, vy: Math.sin(d) * sp, t: 0, life, r0: rand(1, 2), r1: rand(6, 10) * X.area, blue, seed: Math.random() });
   }
   if (Math.random() < dt * 25) part(nx, ny, Math.cos(ang) * L * 2 + rand(-40, 40), Math.sin(ang) * L * 2 + rand(-40, 40), rand(0.3, 0.5), blue ? '#ffffff' : pick(['#ffc34a', '#fff6c8']), { glow: true, drag: 2 }); // 火の粉
-}
+}); }
 // 火炎放射の1回: 向き ang の扇形の中の敵へダメージと炎上(1回 = 1回の E の攻撃)
 function flameTick(X, a, ang, L, blue) {
   const sk = DATA.weapons.fire.skill, st = wst('fire'), pw = (1 + X.lv('pow')) * a.pow, dmg = st.dmg * sk.pow * pw, burn = (st.burn || 0) * sk.burn * (blue ? 2 : 1), el = clsNextEl();

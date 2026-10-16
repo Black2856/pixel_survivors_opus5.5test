@@ -63,7 +63,7 @@ function ranbuStep(X, a, dt) {
     const r = rand(0, TAU), d = rand(0.35, 1) * sk.radius * X.area, s = rand(60, 110);
     part(X.x + Math.cos(r) * d, X.y + Math.sin(r) * d * 0.8, -Math.sin(r) * s, Math.cos(r) * s * 0.8 - 10, rand(0.5, 0.9), pick(['#ffb7d5', '#ff8ac0', '#ffffff']), { glow: Math.random() < 0.5, drag: 1.2 });
   }
-  for (let n = dt * 45 * SET.fxA; Math.random() < n; n--) ranbuCut(X); // あちこちで流れるような斬撃(毎秒 約45本)
+  fxScope(() => { for (let n = dt * 45 * SET.fxA; Math.random() < n; n--) ranbuCut(X); }); // あちこちで流れるような斬撃(毎秒 約45本。見た目だけで、数は攻撃の濃さで変わるので見た目の乱数の列)
   if (a.u < a.dur) return false;
   if (X.sp('pow')) sakuraBurst(X, a); // 桜吹雪
   return true;
@@ -93,9 +93,9 @@ function ranbuCut(X) {
   const a = rand(0, TAU), ca = Math.cos(a), sa = Math.sin(a), L = rand(16, 30) * X.area, run = rand(0.07, 0.11); // run: 切っ先が走る時間(4〜7フレーム)
   const s = { flow: true, a, x0: cx - ca * L, y0: cy - sa * L, x1: cx + ca * L, y1: cy + sa * L, nx: -sa, ny: ca, bulge: L * 2 * rand(0.1, 0.22) * (Math.random() < 0.5 ? -1 : 1),
     len: L * 2, t: 0, run, lag: run * 0.55, fade: 0.1, life: run * 1.55 + 0.1, w: rand(1.6, 2.4), pal: RANBU_PAL };
-  s.ev = [{ at: run, fn: () => asMine(() => { // 走り抜けた先に花びら
+  s.ev = [{ at: run, fn: () => fxScope(() => asMine(() => { // 走り抜けた先に花びら(updFx で後から呼ばれるので、ここも見た目の列)
     for (let i = 0; i < 2; i++) part(s.x1, s.y1, ca * rand(20, 80) + rand(-20, 20), sa * rand(20, 80) + rand(-20, 20), rand(0.3, 0.6), pick(['#ffb7d5', '#ff8ac0', '#ffffff']), { glow: true, drag: 3 });
-  }) }];
+  })) }];
   slashes.push(s);
 }
 function sakuraBurst(X, a) {

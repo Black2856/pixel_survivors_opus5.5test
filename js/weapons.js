@@ -551,14 +551,14 @@ function updZones(dt) {
       //   見た目の矢: t < 0 は降り始める前(少しずつずらして降らせる)→ RAIN_FALL 秒で落ちる → 刺さって残る。終わった後も linger 秒は刺さった矢だけ残る
       const live = z.t < z.dur;
       if (z.follow && live) { z.x = z.follow.x; z.y = z.follow.y; }
-      for (const ar of z.arrows) { ar.t += dt; if (!ar.hit && ar.t >= RAIN_FALL) { ar.hit = true; rainImpact(z, ar); } }
+      fxScope(() => { for (const ar of z.arrows) { ar.t += dt; if (!ar.hit && ar.t >= RAIN_FALL) { ar.hit = true; rainImpact(z, ar); } } }); // 見た目の矢(数は画質で変わるので見た目の乱数の列)
       z.arrows = z.arrows.filter(ar => ar.t < RAIN_FALL + RAIN_STUCK);
       if (z.t >= z.delay && live) {
         z.acc += dt;
         while (z.acc >= z.every) { // every 秒ごとに、範囲内の敵全員へ(見た目の矢はランダムな位置に。最後の 1回は倍の本数)
           z.acc -= z.every; z.pulseT = z.t;
           const el = clsNextEl(), x0 = z.x, y0 = z.y, n = rainArrowN(z) * (z.t + z.every >= z.dur ? 2 : 1);
-          for (let i = 0; i < n; i++) { const a = rand(0, TAU), rr = Math.sqrt(Math.random()) * z.r; z.arrows.push({ x: x0 + Math.cos(a) * rr, y: y0 + Math.sin(a) * rr, t: -i * z.every / n }); }
+          fxScope(() => { for (let i = 0; i < n; i++) { const a = rand(0, TAU), rr = Math.sqrt(Math.random()) * z.r; z.arrows.push({ x: x0 + Math.cos(a) * rr, y: y0 + Math.sin(a) * rr, t: -i * z.every / n }); } });
           if (z.arrows.length > 220) z.arrows.splice(0, z.arrows.length - 220);
           AudioMan.rainTick();
           simTimeout(() => { // 矢が落ちてから当たる

@@ -583,8 +583,8 @@ const UI = (() => {
     if (chest && chest.phase === 'charge') { // 溜め: 光の粒が宝箱へ吸い込まれる
       const c = chestCenter();
       for (let i = 0; i < 3; i++) {
-        const an = Math.random() * TAU, r = 260 + Math.random() * 200;
-        fxParts.push({ k: 'suck', x: c.x + Math.cos(an) * r, y: c.y + Math.sin(an) * r, tx: c.x, ty: c.y, t: 0, life: 0.6, col: pick(chest.tier.cols), s: 3 + Math.random() * 4 });
+        const an = fxRandom() * TAU, r = 260 + fxRandom() * 200;
+        fxParts.push({ k: 'suck', x: c.x + Math.cos(an) * r, y: c.y + Math.sin(an) * r, tx: c.x, ty: c.y, t: 0, life: 0.6, col: fpick(chest.tier.cols), s: 3 + fxRandom() * 4 });
       }
     }
     for (let i = fxParts.length - 1; i >= 0; i--) {
@@ -623,11 +623,11 @@ const UI = (() => {
   function fxStart() { if (!fxRun) { fxRun = true; fxLast = performance.now(); requestAnimationFrame(fxLoop); } }
   function fxBurst(x, y, n, kind, cols, o = {}) {
     for (let i = 0; i < n; i++) {
-      const an = o.up ? -Math.PI / 2 + (Math.random() - 0.5) * (o.spread || 1.6) : Math.random() * TAU;
-      const sp = (o.sp || 600) * (0.35 + Math.random() * 0.65);
+      const an = o.up ? -Math.PI / 2 + (fxRandom() - 0.5) * (o.spread || 1.6) : fxRandom() * TAU;
+      const sp = (o.sp || 600) * (0.35 + fxRandom() * 0.65);
       fxParts.push({ k: kind, x, y, vx: Math.cos(an) * sp, vy: Math.sin(an) * sp, g: o.g ?? 900, drag: o.drag ?? 0.6, t: 0,
-        life: (o.life || 2.4) * (0.6 + Math.random() * 0.4), col: pick(cols), s: o.s || (kind === 'coin' ? 4 : kind === 'conf' ? 5 + Math.random() * 4 : 6 + Math.random() * 8),
-        rot: Math.random() * TAU, vr: (Math.random() - 0.5) * 16, seed: Math.random() * 10 });
+        life: (o.life || 2.4) * (0.6 + fxRandom() * 0.4), col: fpick(cols), s: o.s || (kind === 'coin' ? 4 : kind === 'conf' ? 5 + fxRandom() * 4 : 6 + fxRandom() * 8),
+        rot: fxRandom() * TAU, vr: (fxRandom() - 0.5) * 16, seed: fxRandom() * 10 });
     }
   }
   function chestCenter() { const r = $('chest-img').getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; }
@@ -686,7 +686,7 @@ const UI = (() => {
     if (chest.tierKey !== 'normal') [300, 650].forEach(d => setTimeout(() => {
       if (!chest) return;
       fxBurst(c.x, c.y, T.coins / 2, 'coin', ['#ffd23f'], { sp: 1000, up: true, spread: 1.8, g: 1500 });
-      fxBurst(innerWidth * Math.random(), innerHeight + 10, 60, 'conf', T.cols, { sp: 1400, up: true, spread: 0.6, g: 700, drag: 1 });
+      fxBurst(innerWidth * fxRandom(), innerHeight + 10, 60, 'conf', T.cols, { sp: 1400, up: true, spread: 0.6, g: 700, drag: 1 });
       AudioMan.coinRain(10);
     }, d));
     const tl = $('chest-tier');
@@ -725,7 +725,7 @@ const UI = (() => {
         setTimeout(() => revealNext(i + 1), chest.skip ? 60 : 150);
         return;
       }
-      iconBox.innerHTML = pick(pool);
+      iconBox.innerHTML = fpick(pool);
       AudioMan.tick(n);
       n++;
       setTimeout(step, 30 + Math.pow(n / spins, 3) * 110); // 減速(イーズアウト)
@@ -734,14 +734,14 @@ const UI = (() => {
   }
 
   function finishChest() {
-    const total = Math.round(10 + Math.random() * 20) * (chest.tierKey === 'jackpot' ? 5 : chest.tierKey === 'normal' ? 1 : 3);
+    const total = Math.round(10 + fxRandom() * 20) * (chest.tierKey === 'jackpot' ? 5 : chest.tierKey === 'normal' ? 1 : 3);
     const g = addGold(total);
     const gl = $('chest-gold'), t0 = performance.now();
     gl.classList.add('in');
     const count = ts => {
       const k = easeOutCubic((ts - t0) / 450);
       gl.textContent = '+' + Math.round(g * k) + ' G';
-      if (k < 1) { if (Math.random() < 0.4) AudioMan.coin(); requestAnimationFrame(count); }
+      if (k < 1) { if (fxRandom() < 0.4) AudioMan.coin(); requestAnimationFrame(count); }
       else if (chest) { chest.phase = 'done'; show($('chest-ok')); }
     };
     requestAnimationFrame(count);

@@ -12,7 +12,7 @@
 //                         (技は関数を直接呼ぶか、待ち時間を 0.01 に)
 //   T.classSmoke(o)     : 全クラス × 特殊強化 3通りで E / Q を使い、update + render を回す → { frames, errs, hash }
 //   T.bossSmoke(o)      : ステージのボスを全部、本物の出方で出して戦わせる(途中で激昂・最後に倒す)→ { frames, errs, hash, per }
-//   hash は乱数を固定して回した状態(自分・敵・弾・設置物)と描いた画素から作る。動かすだけのリファクタリングの前後で同じになる
+//   hash は乱数を固定して回した状態(自分・敵・弾・設置物)と描いた画素から作る(o.pix: false で画素と粒の数を入れない = 計算だけ。o.draw: false で描画しない)。動かすだけのリファクタリングの前後で同じになる
 //     ページを開くたびに init → 同じ順に呼ぶ(初回だけ作るキャッシュがあるので、比べるときは呼ぶ順をそろえる)
 //     ずれたら o.trace: true で毎フレームの状態(T.snap)が付く。T.diff(前, 後) で最初にずれた所
 'use strict';
@@ -63,12 +63,12 @@
   const f64 = new Float64Array(1), u32 = new Uint32Array(f64.buffer);
   const num = v => { f64[0] = +v || 0; mix(u32[0]); mix(u32[1]); };
   const str = s => { s = String(s); for (let i = 0; i < s.length; i++) mix(s.charCodeAt(i)); };
-  const hashState = () => {
+  const hashState = (vis = true) => { // vis: 粒の数も入れる(見た目だけの物。画素なしの比べでは入れない: 画質で変わる)
     num(S.time); num(P.x); num(P.y); num(P.hp); num(P.sta); num(P.shield || 0); num(P.level);
     for (const e of enemies) { str(e.type); num(e.x); num(e.y); num(e.hp); }
     for (const p of eprojs) { str(p.kind); num(p.x); num(p.y); }
     for (const z of hazards) { str(z.kind); num(z.x); num(z.y); num(z.t); }
-    num(projs.length); num(zones.length); num(parts.length);
+    num(projs.length); num(zones.length); if (vis) num(parts.length);
   };
   const LAYERS = ['scene', 'glow', 'light', 'mscene', 'mglow', 'over'];
   const hashPixels = () => { // 戻り値: 層ごとのハッシュ(trace 用)
@@ -208,13 +208,13 @@
           if (i === 120) { P.act = null; P.sk.e.cd = 0; keys._e = true; }
           if (i === 123) keys._e = false;
           if (i % 30 === 15) { tryf(cls + ' hurt', () => hurtPlayer(20)); tryf(cls + ' burn', () => burnPlayer(3)); }
-          frame(i % 3 === 0);
+          frame(o.draw !== false && i % 3 === 0);
           if (o.trace) trace.push(cls + r + ' ' + i + ' ' + T.snap());
           if (i % 60 === 0) {
             tryf(cls + ' statuses', () => clsRT().statuses());
             tryf(cls + ' info', () => clsRT().info(info()));
             tryf(cls + ' einfo', () => WEAPON_SKILL[P.mainW] && WEAPON_SKILL[P.mainW].info(info(), wst(P.mainW).dmg));
-            hashState();
+            hashState(o.pix !== false);
             if (o.pix !== false) { const px = hashPixels(); if (o.trace) trace.push(cls + r + ' ' + i + ' px ' + px); }
           }
           frames++;
@@ -261,15 +261,15 @@
         for (let i = 0; i < N; i++) {
           if (i === (N >> 1)) for (const x of S.bosses || [b]) if (x.hp > 0) x.hp = Math.max(x.hpFloor || 0, x.maxhp * ((x.enrage ?? 0.6) - 0.05));
           P.hp = P.maxhp;
-          frame(i % 3 === 0);
+          frame(o.draw !== false && i % 3 === 0);
           if (o.trace) trace.push(tag + ' ' + i + ' ' + T.snap());
-          if (i % 60 === 0) hashState();
+          if (i % 60 === 0) hashState(o.pix !== false);
           if (i % (o.pixEvery || 180) === 0 && o.pix !== false) hashPixels();
           frames++;
         }
         for (const x of (S.bosses || [b]).slice()) tryf('kill ' + key, () => { x.hpFloor = 0; hitEnemy(x, 1e9, { item: true }); });
-        for (let i = 0; i < 240; i++) { P.hp = P.maxhp; frame(i % 3 === 0); frames++; } // 撃破・変身の演出
-        hashState();
+        for (let i = 0; i < 240; i++) { P.hp = P.maxhp; frame(o.draw !== false && i % 3 === 0); frames++; } // 撃破・変身の演出
+        hashState(o.pix !== false);
         if (S.boss === b) break;
       }
       per[tag] = hex(H);

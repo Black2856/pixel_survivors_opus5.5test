@@ -81,7 +81,7 @@ function riftTick(dt) {
         hitEnemy(e, dmg, { src: 'rift', eHit: true, el, noNum: true, quiet: true, col: '#c78bff', cl: r.cl });
         if (e.dead) continue;
         if (warp) { e.riftN = (e.riftT > S.time ? e.riftN || 0 : 0) + 1; e.riftT = until; } // 次元歪み: 当たるたびに 1段ずつ(前のリフトの分は数えない)
-        if (marks) { const a = rand(0, Math.PI), L = (e.r || 4) + 2; slashes.push({ mark: true, x: e.x - Math.cos(a) * L, y: e.y - 2 - Math.sin(a) * L, x1: e.x + Math.cos(a) * L, y1: e.y - 2 + Math.sin(a) * L, t: 0, life: 0.22, col: '#6a1a58', core: '#ff7ad9' }); } // 体に細い裂け目が一瞬走る
+        if (marks) fxScope(() => { const a = rand(0, Math.PI), L = (e.r || 4) + 2; slashes.push({ mark: true, x: e.x - Math.cos(a) * L, y: e.y - 2 - Math.sin(a) * L, x1: e.x + Math.cos(a) * L, y1: e.y - 2 + Math.sin(a) * L, t: 0, life: 0.22, col: '#6a1a58', core: '#ff7ad9' }); }); // 体に細い裂け目が一瞬走る(画質で出す / 出さないので見た目の乱数の列)
       }
     });
     if (gq().post) GFX.fx.aberr = Math.max(GFX.fx.aberr, 0.25 * SET.fxA);

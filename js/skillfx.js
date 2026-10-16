@@ -45,7 +45,7 @@ const SIGIL = {
 // 共通: t(秒。負の値は遅れて出る)/ life / follow(x, y を持つもの。ついていく)+ ox, oy
 function fxAdd(kind, o) {
   if (sfx.length > 160) sfx.splice(Math.max(0, sfx.findIndex(f => f.kind !== 'decal')), 1); // 多すぎるときは地面の跡以外の古いものから
-  const f = Object.assign({ kind, t: 0, life: 0.5, seed: Math.random() * 1000 }, o);
+  const f = Object.assign({ kind, t: 0, life: 0.5, seed: fxRandom() * 1000 }, o);
   if (f.follow) { f.x = f.follow.x + (f.ox || 0); f.y = f.follow.y + (f.oy || 0); }
   sfx.push(f);
   return f;
@@ -54,11 +54,11 @@ function fxAdd(kind, o) {
 //   r: 半径 / col: 色 / sq: 縦のつぶれ(地面を斜めから見た形。照準の範囲を示すときは 1)/ spin: 回る速さ / glow: 光の強さ / dim: 全体の濃さ
 //   形は o.style を渡せばそれ(クラスの飾りは付けない)、なければクラスの形(SIGIL)
 function fxSigil(x, y, r, col, o = {}) {
-  return fxAdd('sigil', Object.assign({ x, y, r, col, wu: 0.3, life: 0.65, sq: 0.5, spin: 1.2, glow: 0.6, rot0: Math.random() * TAU }, o.style ? {} : SIGIL[P.cls] || SIGIL.mage, o));
+  return fxAdd('sigil', Object.assign({ x, y, r, col, wu: 0.3, life: 0.65, sq: 0.5, spin: 1.2, glow: 0.6, rot0: fxRandom() * TAU }, o.style ? {} : SIGIL[P.cls] || SIGIL.mage, o));
 }
 // 光芒: 点から放射状に伸びる光の筋(炸裂の瞬間)。n: 本数 / r: 長さ / core: 根元の色 / r0: 根元の半径(中心は空けて、重なって白く飛ばないように)/ light: まわりを照らす強さ
 function fxRays(x, y, r, col, o = {}) {
-  return fxAdd('rays', Object.assign({ x, y, r, col, core: col, n: 12, life: 0.35, sq: 1, spin: 0.6, a0: Math.random() * TAU, r0: Math.max(5, r * 0.12), light: 0.8 }, o, { n: fxN(o.n || 12) }));
+  return fxAdd('rays', Object.assign({ x, y, r, col, core: col, n: 12, life: 0.35, sq: 1, spin: 0.6, a0: fxRandom() * TAU, r0: Math.max(5, r * 0.12), light: 0.8 }, o, { n: fxN(o.n || 12) }));
 }
 // 集中線: 画面の縁から (x, y) へ集まる細い線(Q の構え)。画面の座標で描く
 function fxFocus(x, y, life, col, o = {}) {
@@ -209,11 +209,11 @@ function drawSigil(f, sx, gx) {
       sx.fillStyle = '#fff6c8'; sx.fillRect(x, y - h, 1, 1); gx.fillStyle = G(0.8); gx.fillRect(x, y - h, 1, h);
     }
   }
-  if (f.crackle && Math.random() < 0.5 + 0.5 * charge) { // 縁を走る稲妻(毎フレーム引き直す)
-    const a = Math.random() * TAU, L = 0.5 + Math.random() * 0.5;
+  if (f.crackle && fxRandom() < 0.5 + 0.5 * charge) { // 縁を走る稲妻(毎フレーム引き直す)
+    const a = fxRandom() * TAU, L = 0.5 + fxRandom() * 0.5;
     let px = cx + Math.cos(a) * R, py = cy + Math.sin(a) * R * q;
     for (let k = 1; k <= 5; k++) {
-      const b = a + L * k / 5, rr = R + (Math.random() - 0.5) * 5, nx = cx + Math.cos(b) * rr, ny = cy + Math.sin(b) * rr * q;
+      const b = a + L * k / 5, rr = R + (fxRandom() - 0.5) * 5, nx = cx + Math.cos(b) * rr, ny = cy + Math.sin(b) * rr * q;
       lineBoth(sx, gx, px, py, nx, ny, '#ffffff', al(1), G(1)); px = nx; py = ny;
     }
   }
