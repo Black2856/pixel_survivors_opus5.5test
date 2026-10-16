@@ -261,7 +261,7 @@ function twinPairUpdate(a, b, pr, lk, dt) {
     if ((near(a, 1) && near(b, -1)) || pr.t >= lk.move) { pr.ph = 'tele'; pr.t = 0; AudioMan.charge(lk.tele); hint('twinlink', _t('対の雷精'), _t('2体の間に雷の線を張る。片方を倒すと線が消える')); }
   } else if (pr.ph === 'tele') { if (pr.t >= lk.tele) { pr.ph = 'on'; pr.t = 0; pr.tick = 0; AudioMan.zap(); } }
   else if (pr.ph === 'on') {
-    if (!P.dead && segD2(P.x, P.y, a.x, a.y, b.x, b.y) < Math.pow(3 * CHAOS.area + 3, 2)) { if ((pr.tick -= dt) <= 0) { pr.tick = lk.tick; if (hurtPlayer(a.dmg * lk.n)) numbPlayer(lk.numb); } } else pr.tick = 0;
+    forHit(() => { const s = perP(pr, { tick: 0 }); if (!P.dead && segD2(P.x, P.y, a.x, a.y, b.x, b.y) < Math.pow(3 * CHAOS.area + 3, 2)) { if ((s.tick -= dt) <= 0) { s.tick = lk.tick; if (hurtPlayer(a.dmg * lk.n)) numbPlayer(lk.numb); } } else s.tick = 0; }); // 間隔の時計は人ごと
     if (pr.t >= lk.on) { pr.ph = 'rest'; pr.t = 0; }
   } else if (pr.ph === 'rest' && pr.t >= lk.rest) { pr.ph = 'move'; pr.t = 0; pr.ang = twinAxis(a); }
 }

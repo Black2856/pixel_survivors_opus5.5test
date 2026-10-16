@@ -126,8 +126,8 @@ function skRings(e, ai) {
 }
 function skRingHit(e, x, y, r0, r1) {
   if (e.dead) return;
-  const R0 = r0 * CHAOS.area, R1 = r1 * CHAOS.area, d = Math.sqrt(d2(x, y, P.x, P.y));
-  if (d >= R0 - 3 && d <= R1 + 3 && hurtPlayer(e.dmg)) pushPlayer(d > 1 ? Math.atan2(P.y - y, P.x - x) : rand(0, TAU), 40, 0.18);
+  const R0 = r0 * CHAOS.area, R1 = r1 * CHAOS.area;
+  forHit(() => { const d = Math.sqrt(d2(x, y, P.x, P.y)); if (d >= R0 - 3 && d <= R1 + 3 && hurtPlayer(e.dmg)) pushPlayer(d > 1 ? Math.atan2(P.y - y, P.x - x) : rand(0, TAU), 40, 0.18); });
   bfx.push({ kind: 'skring', x, y, r0: R0, r1: R1, t: 0, life: 0.45 });
   const n = Math.round(12 + R1 * 0.5);
   for (let i = 0; i < n; i++) { const pa = TAU / n * i + rand(-0.1, 0.1), r = rand(R0, R1); part(x + Math.cos(pa) * r, y + Math.sin(pa) * r, Math.cos(pa) * 70, Math.sin(pa) * 50 - rand(10, 40), rand(0.4, 0.7), pick(SKC), { glow: Math.random() < 0.4, drag: 2, sz: pick([1, 2]) }); }

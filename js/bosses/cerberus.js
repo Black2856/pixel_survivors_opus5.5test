@@ -105,7 +105,7 @@ function cerbSRush(e, ai) {
       later(ai, life, () => {
         if (e.dead) return;
         if (!last) return cerbShadeRush(e, ai, a);
-        ai.act = 'rush'; ai.ra = a; ai.rleft = SRUSH.len; ai.rhit = false;
+        ai.act = 'rush'; ai.ra = a; ai.rleft = SRUSH.len; ai.rhit = false; ai.rhitBy = null;
         AudioMan.dash(); AudioMan.roar(); shake(5);
       });
     });
@@ -123,14 +123,14 @@ function updCerbRush(e, ai, dt) {
   e.face = Math.cos(ai.ra) < 0 ? -1 : 1;
   if ((ai.ghostT = (ai.ghostT || 0) - dt) <= 0) { ai.ghostT = 0.03; bfx.push({ kind: 'ghost', x: e.x, y: e.y, spr: 'cerberus', flip: e.face < 0, col: '#ff5a5a', t: 0, life: 0.25 }); } // 残像
   if (Math.random() < dt * 60) part(e.x + rand(-10, 10), e.y + 8, -Math.cos(ai.ra) * 60 + rand(-20, 20), -rand(10, 40), 0.4, pick(['#3a2a40', '#5a4a60', '#ff5a5a']), { g: 120, drag: 2 }); // 土煙
-  if (!ai.rhit && d2(e.x, e.y, P.x, P.y) < Math.pow(SRUSH.w / 2 + 3, 2) && hurtPlayer(e.dmg * 1.3)) { // 噛みついた
-    ai.rhit = true; pushPlayer(ai.ra, 60, 0.2); darkPlayer(DATA.debuffTomb.darkDur);
+  forHit(() => { if (!hitDone(ai, 'rhit') && d2(e.x, e.y, P.x, P.y) < Math.pow(SRUSH.w / 2 + 3, 2) && hurtPlayer(e.dmg * 1.3)) { // 噛みついた(1回の突進で 1人 1回)
+    hitMark(ai, 'rhit'); pushPlayer(ai.ra, 60, 0.2); darkPlayer(DATA.debuffTomb.darkDur);
     bfx.push({ kind: 'cbite', x: P.x, y: P.y, a: ai.ra, col: CERB.fang[0], t: 0, life: 0.3 }); AudioMan.bite(); shake(6); hitstop(0.05, true);
-  }
+  } });
   if (ai.rleft > 0) return;
   // 着いた所で半径 60 を切り裂く(無敵無視)
   const R = SRUSH.slash * CHAOS.area;
-  if (d2(e.x, e.y, P.x, P.y) < (R + 3) * (R + 3)) hurtPlayer(e.dmg, { pierce: true });
+  forHit(() => { if (d2(e.x, e.y, P.x, P.y) < (R + 3) * (R + 3)) hurtPlayer(e.dmg, { pierce: true }); });
   slashes.push({ x: e.x, y: e.y, a: ai.ra, r: R, t: 0, life: 0.34, full: true, pal: SWING_PAL.cerb, enemy: true });
   slashes.push({ x: e.x, y: e.y, a: ai.ra + Math.PI, r: R * 0.72, t: 0, life: 0.28, full: true, flip: 1, pal: SWING_PAL.cerb, enemy: true }); // 二重の刃筋
   fxRays(e.x, e.y, R * 1.2, '#5a1020', { foe: true, n: 18, life: 0.35, core: '#ff5a5a', light: 0.7 });
@@ -154,11 +154,11 @@ function updCerbBreath(e, ai, dt, a) {
   b.a += clamp(angDiff(a, b.a), -b.track * dt, b.track * dt);
   if (b.tick <= 0) {
     b.tick = 0.5;
-    if (inFan(e.x, e.y, b.a, b.r, b.h) && hurtPlayer(e.dmg * 0.3 * b.els.length, { pierce: true })) {
+    forHit(() => { if (inFan(e.x, e.y, b.a, b.r, b.h) && hurtPlayer(e.dmg * 0.3 * b.els.length, { pierce: true })) {
       if (b.els.includes('poison')) poisonPlayer(1);
       if (b.els.includes('fang')) burnPlayer(e.dmg * 0.1);
       if (b.els.includes('dark')) frostPlayer(1);
-    }
+    } });
   }
   const R0 = b.r * CHAOS.area;
   for (const hk of b.els) { // 首ごとの口から、毒・炎・氷が扇いっぱいに噴き出す
@@ -349,7 +349,7 @@ function updCerbDog(d, dt) {
   else if (d.hk === 'poison') dogPoison(d, o, dt, a, dist, spd);
   else if (d.hk === 'fang') dogFang(d, o, dt, a, dist, spd);
   else dogDark(d, o, dt, a, dist, spd);
-  if (!d.sunk && !d.air && d2(d.x, d.y, P.x, P.y) < Math.pow(d.r + 4, 2)) hurtPlayer(d.dmg, TOUCH); // 触れると ×0.6
+  forHit(() => { if (!d.sunk && !d.air && d2(d.x, d.y, P.x, P.y) < Math.pow(d.r + 4, 2)) hurtPlayer(d.dmg, TOUCH); }); // 触れると ×0.6
   for (const q of ai.dogs) { // 犬どうしは重ならない
     if (q === d || q.dead || q.sunk || q.jump) continue;
     const dx = d.x - q.x, dy = d.y - q.y, dd = Math.hypot(dx, dy) || 0.1, ov = d.r + q.r - dd;
@@ -372,12 +372,12 @@ function dogPoison(d, o, dt, a, dist, spd) {
   if ((d.shotT -= dt * CHAOS.rate) <= 0) { d.spitT = 0.5; d.pulse = 1.4; AudioMan.charge(0.5); }
 }
 function dogFang(d, o, dt, a, dist, spd) {
-  if (d.st === 'wind') { d.run = false; if ((d.stT -= dt) <= 0) { d.st = 'lunge'; d.lLeft = 130; d.lHit = false; AudioMan.dash(); } return; }
+  if (d.st === 'wind') { d.run = false; if ((d.stT -= dt) <= 0) { d.st = 'lunge'; d.lLeft = 130; d.lHit = false; d.lHitBy = null; AudioMan.dash(); } return; }
   if (d.st === 'lunge') {
     const step = Math.min(d.lLeft, 340 * dt);
     d.x += Math.cos(d.lA) * step; d.y += Math.sin(d.lA) * step; d.lLeft -= step; d.run = true; d.face = Math.cos(d.lA) < 0 ? -1 : 1;
     if ((d.ghostT = (d.ghostT || 0) - dt) <= 0) { d.ghostT = 0.035; bfx.push({ kind: 'ghost', x: d.x, y: d.y, spr: 'cdog_fang', flip: d.face < 0, col: '#ff5a5a', t: 0, life: 0.22 }); } // 赤い残像
-    if (!d.lHit && d2(d.x, d.y, P.x, P.y) < Math.pow(11, 2) && hurtPlayer(o.dmg)) { d.lHit = true; pushPlayer(d.lA, 40, 0.18); bfx.push({ kind: 'cbite', x: P.x, y: P.y, a: d.lA, col: CERB.fang[0], t: 0, life: 0.28 }); AudioMan.bite(); shake(4); }
+    forHit(() => { if (!hitDone(d, 'lHit') && d2(d.x, d.y, P.x, P.y) < Math.pow(11, 2) && hurtPlayer(o.dmg)) { hitMark(d, 'lHit'); pushPlayer(d.lA, 40, 0.18); bfx.push({ kind: 'cbite', x: P.x, y: P.y, a: d.lA, col: CERB.fang[0], t: 0, life: 0.28 }); AudioMan.bite(); shake(4); } });
     if (d.lLeft <= 0) { d.st = 'rest'; d.stT = o.ai.enraged ? 0.8 : 1.2; }
     return;
   }
@@ -439,15 +439,15 @@ function dogHunt(d, o, dt) {
     AudioMan.charge(0.8);
     return;
   }
-  if (h.ph === 'warn') { d.run = false; if (h.t >= 0.8) { h.ph = 'run'; h.t = 0; h.left = 240; h.hit = false; AudioMan.dash(); } return; }
+  if (h.ph === 'warn') { d.run = false; if (h.t >= 0.8) { h.ph = 'run'; h.t = 0; h.left = 240; h.hit = false; h.hitBy = null; AudioMan.dash(); } return; }
   const step = Math.min(h.left, 380 * dt);
   d.x += Math.cos(h.a) * step; d.y += Math.sin(h.a) * step; h.left -= step; d.run = true; d.face = Math.cos(h.a) < 0 ? -1 : 1;
   if ((d.ghostT = (d.ghostT || 0) - dt) <= 0) { d.ghostT = 0.035; bfx.push({ kind: 'ghost', x: d.x, y: d.y, spr: d.type, flip: d.face < 0, col: CERB[d.hk][0], t: 0, life: 0.22 }); }
-  if (!h.hit && d2(d.x, d.y, P.x, P.y) < Math.pow(12, 2) && hurtPlayer(o.dmg)) {
-    h.hit = true;
+  forHit(() => { if (!hitDone(h) && d2(d.x, d.y, P.x, P.y) < Math.pow(12, 2) && hurtPlayer(o.dmg)) {
+    hitMark(h);
     if (d.hk === 'poison') poisonPlayer(1); else if (d.hk === 'dark') darkPlayer(3);
     bfx.push({ kind: 'cbite', x: P.x, y: P.y, a: h.a, col: CERB[d.hk][0], t: 0, life: 0.28 }); AudioMan.bite(); shake(4);
-  }
+  } });
   if (h.left <= 0) { d.hunt = null; d.st = d.hk === 'fang' ? 'rest' : 'run'; d.stT = d.hk === 'fang' ? 1 : 2.5; }
 }
 

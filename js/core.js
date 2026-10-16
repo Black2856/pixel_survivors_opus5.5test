@@ -292,6 +292,15 @@ function forHit(fn) {
 // 1回だけ当たる技の「当たった」印を人ごとに(1人なら o[k] のまま。協力プレイは o[k + 'By'] に当たった人を入れる。印を消す所では o[k + 'By'] も消す)
 const hitDone = (o, k = 'hit') => (players.length <= 1 ? !!o[k] : !!(o[k + 'By'] && o[k + 'By'].has(P)));
 const hitMark = (o, k = 'hit') => { if (players.length <= 1) o[k] = true; else (o[k + 'By'] || (o[k + 'By'] = new Set())).add(P); };
+// 人ごとの状態(当たる間隔の時計・壁のどちら側にいたか など)。1人の時と、狙われた人(o.tPl。無ければ 1人目)は o そのもの(1人の計算は変わらない)。
+//   ほかの人は o.pp に人ごとの入れ物を作る(init: 初めの値。配列を持つ物は関数で)
+function perP(o, init) {
+  if (players.length <= 1 || P === (o.tPl || players[0])) return o;
+  const m = o.pp || (o.pp = new Map());
+  let s = m.get(P);
+  if (!s) m.set(P, s = typeof init === 'function' ? init() : Object.assign({}, init));
+  return s;
+}
 function shake(n) { if (fxForMe()) cam.shake = Math.max(cam.shake, n); }
 // all: 全員に関わる物(ボスの技・撃破・エリート群など)。協力プレイ(2人以上)では all の物だけ時間を止める・遅くする(1人が起こす物は止めない: coop.md #5)
 function hitstop(t, all) { if (!all && players.length > 1) return; S.freeze = Math.max(S.freeze, t); }

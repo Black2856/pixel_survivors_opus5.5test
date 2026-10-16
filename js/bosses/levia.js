@@ -89,7 +89,7 @@ function leviaTail(e, ai, a) {
   pushWarn({ kind: 'fan', x: e.x, y: e.y, a, r: 70, h: 1.047, t: 0, life: 0.5 });
   windup(e, 0.5, () => {
     slashes.push({ x: e.x, y: e.y, a, r: 70 * CHAOS.area, t: 0, life: 0.26, span: 2.1, pal: SWING_PAL.enemy, enemy: true });
-    if (inFan(e.x, e.y, a, 70, 1.047)) { if (hurtPlayer(e.dmg * 0.9)) drainSta(20); pushPlayer(Math.atan2(P.y - e.y, P.x - e.x), 110, 0.35); }
+    forHit(() => { if (inFan(e.x, e.y, a, 70, 1.047)) { if (hurtPlayer(e.dmg * 0.9)) drainSta(20); pushPlayer(Math.atan2(P.y - e.y, P.x - e.x), 110, 0.35); } });
     burst(e.x + Math.cos(a) * 30, e.y + Math.sin(a) * 30, 18, SPLASH, { sp: 110 }); AudioMan.splash(); shake(5);
   });
 }

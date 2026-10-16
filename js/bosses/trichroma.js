@@ -49,8 +49,7 @@ function updTriLamps(e, ai, dt) {
   }
   if (L.t >= 0.6 && L.t < L.dur && (L.tick -= dt) <= 0) {
     L.tick = 0.5;
-    const mask = triLampMask(ai);
-    if (mask && hurtPlayer(e.dmg * [0, 0.1, 0.3, 0.6][TRI_N[mask]])) triStatus(mask | triBallMask(e, ai), e.dmg); // ミラーボールの光と重なった所は色が混ざる
+    forHit(() => { const mask = triLampMask(ai); if (mask && hurtPlayer(e.dmg * [0, 0.1, 0.3, 0.6][TRI_N[mask]])) triStatus(mask | triBallMask(e, ai), e.dmg); }); // ミラーボールの光と重なった所は色が混ざる
   }
   if (L.t >= L.dur + 0.5) ai.lamp = null; // 終わりの 0.5秒で光が消えて灯が戻る
 }
@@ -167,8 +166,7 @@ function updTriBall(e, ai, dt) {
   const bs = triBallBeams(e, B);
   if ((B.tick -= dt) <= 0) {
     B.tick = Q.tick;
-    const m = triBallMask(e, ai);
-    if (m && !P.dead && hurtPlayer(e.dmg * Q.dmg[TRI_N[m]])) triStatus(m | triLampMask(ai), e.dmg); // 三原の灯の円と重なった所は色が混ざる
+    forHit(() => { const m = triBallMask(e, ai); if (m && !P.dead && hurtPlayer(e.dmg * Q.dmg[TRI_N[m]])) triStatus(m | triLampMask(ai), e.dmg); }); // 三原の灯の円と重なった所は色が混ざる
   }
   if (Math.random() < dt * 12) { // 照らされた地面から光の粒が昇る(その光の色)
     const b = pick(bs), c = Math.cos(b.a), sn = Math.sin(b.a), q = rand(0, TAU), r = Math.sqrt(Math.random()), lu = b.o.c + Math.cos(q) * b.o.a * r, lv = Math.sin(q) * b.o.b * r;

@@ -94,6 +94,8 @@ function hitWith(test, dmg, o, then) {
   if (typeof o === 'function') { then = o; o = undefined; }
   return forHit(() => { if (!test() || !hurtPlayer(dmg, o)) return false; if (then) then(); return true; });
 }
+// 今の P への向きと距離(bossAI の a・dist と同じ式。forHit の中で、狙われた人以外の分を計算し直す)
+const aimTo = e => [Math.atan2(P.y - e.y, P.x - e.x), Math.sqrt(d2(e.x, e.y, P.x, P.y))];
 const inCircle = (x, y, r) => { r *= CHAOS.area; return d2(x, y, P.x, P.y) < (r + 3) * (r + 3); };
 const hitCircle = (x, y, r, dmg, o, then) => hitWith(() => inCircle(x, y, r), dmg, o, then);
 const inLine = (x, y, a, len, w) => { len *= CHAOS.area; w *= CHAOS.area; return segD2(P.x, P.y, x, y, x + Math.cos(a) * len, y + Math.sin(a) * len) < Math.pow(w / 2 + 3, 2); };
@@ -227,7 +229,7 @@ function updObj(e, dt) {
       if (e.bounce-- <= 0) { e.dead = true; objDown(e, false); return; } // 3回目の縁で崩れる
       burst(e.x, e.y, 16, BRASS, { sp: 90, glow: true, life: 0.3 }); shake(4); AudioMan.thud();
     }
-    if (d2(e.x, e.y, P.x, P.y) < Math.pow(e.r + 4, 2) && hurtPlayer(e.owner.dmg, TOUCH)) slowPlayer(0.6, 1);
+    forHit(() => { if (d2(e.x, e.y, P.x, P.y) < Math.pow(e.r + 4, 2) && hurtPlayer(e.owner.dmg, TOUCH)) slowPlayer(0.6, 1); });
     if (Math.random() < dt * 20) part(e.x + rand(-e.r, e.r) * 0.5, e.y + e.r * 0.8, -e.vx * 0.2 + rand(-15, 15), -rand(10, 30), 0.35, pick(['#ffd27a', '#c8a050', '#8a7a60']), { glow: Math.random() < 0.3, g: 160 }); // 火花と砂ぼこり
   } else if (e.obj === 'stake') { // 冥鎖の杭: 紫のルーンが脈打ち、黒いもやが立ちのぼる
     if (Math.random() < dt * 8) part(e.x + rand(-3, 3), e.y - rand(0, 16), rand(-4, 4), -rand(6, 16), 0.7, pick(SKC.slice(0, 4)), { glow: Math.random() < 0.3, drag: 1 });
@@ -240,11 +242,11 @@ function updObj(e, dt) {
     if (k < 1) { const u = easeOutCubic(k); e.x = lerp(e.sx, tx, u); e.y = lerp(e.sy, ty, u); } else { e.x = tx; e.y = ty; }
     e.face = Math.cos(e.ang) > 0 ? -1 : 1; // 中心の方を向く
     if (k >= 3.5) { e.dead = true; objDown(e, false); return; }
-    if (k > 0.8 && d2(e.x, e.y, P.x, P.y) < Math.pow(e.r + 4, 2)) hurtPlayer(e.owner.dmg * 0.6, TOUCH);
+    if (k > 0.8) forHit(() => { if (d2(e.x, e.y, P.x, P.y) < Math.pow(e.r + 4, 2)) hurtPlayer(e.owner.dmg * 0.6, TOUCH); });
   } else if (e.obj === 'beeball') { // 蜂球(女王蜂): プレイヤーを追う(速さ 30)。触れると 0.5秒ごとに ×0.8
     const pa = Math.atan2(P.y - e.y, P.x - e.x);
     e.x += Math.cos(pa) * 30 * dt; e.y += Math.sin(pa) * 30 * dt; e.face = Math.cos(pa) < 0 ? -1 : 1;
-    if ((e.tick -= dt) <= 0 && d2(e.x, e.y, P.x, P.y) < Math.pow(e.r + 4, 2)) { e.tick = 0.5; hurtPlayer(e.owner.dmg * 0.8, TOUCH); }
+    forHit(() => { const s = perP(e, { tick: 0 }); if ((s.tick -= dt) <= 0 && d2(e.x, e.y, P.x, P.y) < Math.pow(e.r + 4, 2)) { s.tick = 0.5; hurtPlayer(e.owner.dmg * 0.8, TOUCH); } }); // 0.5秒の時計は人ごと
     if (Math.random() < dt * 14) part(e.x + rand(-9, 9), e.y + rand(-9, 9), rand(-20, 20), rand(-20, 20), 0.3, pick(HONEY), { drag: 2 }); // まわりを飛ぶ蜂
   } else if (e.obj === 'sprout') { // 若芽(古樹の主): 葉がふるえる。育つ前の 2秒は光る
     if (e.life < 2 && Math.random() < dt * 10) part(e.x + rand(-4, 4), e.y - rand(2, 8), 0, -rand(8, 16), 0.5, pick(['#d8ff9a', '#8fd06a']), { glow: true, drag: 1 });

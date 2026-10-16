@@ -54,7 +54,7 @@ function sphinxRiddle(e, ai) {
   later(ai, 3.4, () => { pushWarn({ kind: 'sun', x: P.x, y: P.y, safe, t: 0, life: 0.6, owner: e }); AudioMan.warning(); });
   later(ai, 4, () => {
     ai.rq = null;
-    if (!P.dead && !safe.some(s => d2(P.x, P.y, s.x, s.y) < s.r * s.r)) hurtPlayer(e.dmg * 1.6);
+    forHit(() => { if (!P.dead && !safe.some(s => d2(P.x, P.y, s.x, s.y) < s.r * s.r)) hurtPlayer(e.dmg * 1.6); });
     for (let i = 0; i < 7; i++) { const pa = rand(0, TAU), pr = rand(10, 170), x = P.x + Math.cos(pa) * pr, y = P.y + Math.sin(pa) * pr; if (safe.some(s => d2(x, y, s.x, s.y) < Math.pow(s.r + 8, 2))) continue; fxBeam(x, y, { foe: true, w: 6, H: 170, col: '#5a4018', mid: '#c88a30', core: '#e8b860', life: 0.45, drop: 0.1 }); } // 陽光の柱(明るい砂の上で白く飛ばないように暗めの金)
     for (const s of safe) addRing(s.x, s.y, s.r, '#ffd27a', { w: 2, life: 0.4 });
     screenFlash(0.08, '#ffb040'); shake(8); AudioMan.boom();

@@ -121,7 +121,7 @@ function updSerRonde(e, ai, dt) {
   if (r.t < 0.6) return;
   if ((r.tick -= dt) <= 0) {
     r.tick = 0.5;
-    for (let k = 0; k < r.n; k++) if (!P.dead && P.invT <= 0 && inLine(e.x, e.y, rondeA(r, k), 300, 8)) { serHurt(e, 0.3); break; }
+    forHit(() => { for (let k = 0; k < r.n; k++) if (!P.dead && P.invT <= 0 && inLine(e.x, e.y, rondeA(r, k), 300, 8)) { serHurt(e, 0.3); break; } });
   }
   if (r.t >= 10.6) ai.ronde = null;
 }
@@ -203,7 +203,7 @@ function updSerRift(e, ai, dt) {
     if (!b.lit) { b.lit = true; burst(R.x, R.y, 12, SER_GOLD, { sp: 70, glow: true, life: 0.35 }); addRing(R.x, R.y, 22 * A, '#fff6dc', { r0: 6, life: 0.25 }); AudioMan.cast(); } // 光が強まって傾き始める
     if (b.t >= Q.aim + RIFT_SWEEP) continue; // 消えていく間は当たらない
     const o = riftSpot(riftTh(b), A), c = Math.cos(b.a), s = Math.sin(b.a);
-    if (!b.hit && !P.dead && P.invT <= 0 && inConeSpot(R.x, R.y, b.a, o, P.x, P.y, 3)) { b.hit = true; serHurt(e, 0.6); }
+    forHit(() => { if (!hitDone(b) && !P.dead && P.invT <= 0 && inConeSpot(R.x, R.y, b.a, o, P.x, P.y, 3)) { hitMark(b); serHurt(e, 0.6); } });
     if (Math.random() < dt * 30) { // 照らされた地面から光の粒が昇る
       const q = rand(0, TAU), r = Math.sqrt(Math.random()), lu = o.c + Math.cos(q) * o.a * r, lv = Math.sin(q) * o.b * r;
       part(R.x + c * lu - s * lv, R.y + s * lu + c * lv, rand(-8, 8), -rand(15, 40), 0.5, pick(SER_GOLD), { glow: true, drag: 1.5 });
@@ -227,11 +227,15 @@ function serVortex(e, ai) {
 function vortPos(v, k, t) { const u = clamp((t - 0.3) / 1.5, 0, 1), R = 110 * CHAOS.area * (1 - u * u), a = v.a0 + TAU / v.n * k + v.dir * u * 3.2; return [v.cx + Math.cos(a) * R, v.cy + Math.sin(a) * R]; }
 function updSerVortex(e, ai, dt) {
   const v = ai.vortex; v.t += dt;
-  if (v.t >= 0.3 && v.t < 1.8 && !P.dead && P.invT <= 0) for (let k = 0; k < v.n; k++) {
-    if (v.hit[k]) continue;
-    const [x, y] = vortPos(v, k, v.t);
-    if (d2(x, y, P.x, P.y) < Math.pow(24 * CHAOS.area + 3, 2)) { v.hit[k] = true; serHurt(e, 0.5); }
-  }
+  if (v.t >= 0.3 && v.t < 1.8) forHit(() => { // 玉ごとに 1人 1回(当たった印は人ごと)
+    if (P.dead || P.invT > 0) return;
+    const vs = perP(v, () => ({ hit: [] }));
+    for (let k = 0; k < v.n; k++) {
+      if (vs.hit[k]) continue;
+      const [x, y] = vortPos(v, k, v.t);
+      if (d2(x, y, P.x, P.y) < Math.pow(24 * CHAOS.area + 3, 2)) { vs.hit[k] = true; serHurt(e, 0.5); }
+    }
+  });
   if (!v.boom && v.t >= 1.8) {
     v.boom = true; serCircle(e, v.cx, v.cy, 30, 0.5);
     fxRays(v.cx, v.cy, 50 * CHAOS.area, '#ffe8a0', { foe: true, n: 14, core: '#ffffff', life: 0.35, light: 0.4 }); burst(v.cx, v.cy, 26, SER_GOLD, { sp: 110, glow: true, life: 0.45 });
@@ -380,7 +384,7 @@ function updSerWhiteout(e, ai, dt) {
     if (Math.random() < dt * 80) { const pa = rand(0, TAU); part(W.x + Math.cos(pa) * 20, W.y - e.jz + Math.sin(pa) * 20, Math.cos(pa) * rand(200, 420), Math.sin(pa) * rand(200, 420), 0.7, pick(SER_GOLD), { glow: true, drag: 0.3, sz: pick([1, 2]) }); } // 外へ吹き出す光の嵐
     if ((W.tick -= dt) <= 0) {
       W.tick = 0.5; shake(4); // 光の脈(0.5秒ごと)
-      if (!P.dead && P.invT <= 0 && !serShadowed(W.x, W.y, ai.husks || [], P.x, P.y) && hurtPlayer(e.dmg * 2, PIERCE)) randomLight(10, e.dmg);
+      forHit(() => { if (!P.dead && P.invT <= 0 && !serShadowed(W.x, W.y, ai.husks || [], P.x, P.y) && hurtPlayer(e.dmg * 2, PIERCE)) randomLight(10, e.dmg); });
     }
     return;
   }
