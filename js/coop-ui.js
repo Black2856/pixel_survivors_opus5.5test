@@ -9,8 +9,16 @@ const CoopUI = (() => {
   const newCode = () => Array.from({ length: 6 }, () => CODE_CH[NATIVE_RANDOM() * CODE_CH.length | 0]).join('');
   const clsName = k => (DATA.classes[k] ? DATA.classes[k].name : String(k));
   const div = (cls, text) => { const d = document.createElement('div'); d.className = cls; d.textContent = text; return d; };
+  let msgEl = null;
+  // 知らせ(入れなかった・ホストが閉じた)。次に部屋を作る・入る・開くまで出す
+  function say(text) {
+    if (!msgEl) { msgEl = div('coop-mem dim', ''); $('coop-room').after(msgEl); }
+    msgEl.textContent = text || '';
+    refresh();
+  }
   function open() {
     if (COOP.on) return;
+    say('');
     $('coop-code').placeholder = _t('コード');
     $('coop-cls').textContent = _t`自分のクラス: ${clsName(META.cls)}(クラス画面で変える)`;
     const noRtc = NET.kind === 'p2p' && typeof RTCPeerConnection === 'undefined'; // WebRTC の無いブラウザ
@@ -38,14 +46,14 @@ const CoopUI = (() => {
       box.appendChild(b);
     } else if (COOP.members.length) box.appendChild(div('coop-mem dim', _t('ホストが開始するのを待っています')));
   }
-  function leave() { NET.close(); coopReset(); COOP.room = ''; COOP.members = []; COOP.host = false; }
+  function leave() { coopQuit(); }
   $('btn-coop').onclick = () => { AudioMan.click(); open(); };
-  $('coop-make').onclick = () => { AudioMan.click(); coopHost(newCode(), META.cls); refresh(); };
+  $('coop-make').onclick = () => { AudioMan.click(); say(''); coopHost(newCode(), META.cls); refresh(); };
   $('coop-enter').onclick = () => {
     const c = ($('coop-code').value || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 6);
     if (c.length !== 6) { $('coop-code').focus(); return; }
-    AudioMan.click(); coopJoin(c, META.cls); refresh();
+    AudioMan.click(); say(''); coopJoin(c, META.cls); refresh();
   };
   $('coop-back').onclick = () => { AudioMan.click(); leave(); UI.title(); };
-  return { open, refresh, leave };
+  return { open, refresh, leave, say };
 })();

@@ -882,7 +882,9 @@ const UI = (() => {
   function coopWaitHud() {
     if (!cwEl) { cwEl = el('div', 'hidden'); cwEl.id = 'coop-wait'; $('hud').appendChild(cwEl); }
     const T = S.tower, who = COOP.on && T && !T.wave ? players.filter(p => p !== P && (p.lvPick || p.pendingLv > 0)) : [];
-    const txt = COOP.on && P.dead && anyAlive() ? _t('倒れました。次の階の始めに戻ります(観戦中)') : who.length ? _t`${who.map(p => 'P' + (p.pid + 1)).join('・')} がレベルアップを選んでいます(あと ${Math.max(0, Math.ceil(DATA.tower.coopWait - (T.waitT || 0)))}秒)` : '';
+    const wait = COOP.on && COOP.waitSec >= COOP.warnT ? COOP.waitOn : []; // 入力が届かない人(#3)
+    const txt = wait.length ? _t`${wait.map(i => 'P' + (i + 1)).join('・')} の接続を待っています(あと ${Math.max(0, Math.ceil(COOP.dropT - COOP.waitSec))}秒)`
+      : COOP.on && P.dead && anyAlive() ? _t('倒れました。次の階の始めに戻ります(観戦中)') : who.length ? _t`${who.map(p => 'P' + (p.pid + 1)).join('・')} がレベルアップを選んでいます(あと ${Math.max(0, Math.ceil(DATA.tower.coopWait - (T.waitT || 0)))}秒)` : '';
     if (txt === cwText) return;
     cwText = txt; cwEl.textContent = txt; cwEl.classList.toggle('hidden', !txt);
   }

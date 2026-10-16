@@ -176,6 +176,7 @@ function stepFixed(sec) {
   F.acc = Math.min(F.acc + sec, F.dt * F.max);
   if (COOP.on) { // 協力プレイ: 全員の入力がそろったフレームだけ進める(net.js)
     if (!COOP.manual) while (F.acc >= F.dt - F.slack && state === 'play' && !COOP.desync) { if (!coopStepOnce(F.dt)) { COOP.stalls++; break; } F.acc -= F.dt; }
+    coopTick(); // 待っている人と秒・抜けた人を外す手続き(#3)
     return;
   }
   while (F.acc >= F.dt - F.slack && state === 'play') {

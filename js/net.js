@@ -7,6 +7,7 @@
 //   p2p: Trystero(js/vendor/p2p.js。Supabase の Realtime で仲介し、部屋の全員が WebRTC で直接つなぐ。coop.md 4章)
 //   bc: BroadcastChannel(同じブラウザのほかのウィンドウだけ。開発・試験の道具。URL に ?net=bc)
 //   送ってきた人(from)は通信の側が付けた ID を使い、中身の from は信じない。中身は COOP の側で形と範囲を確かめてから使う(コードとして動かさない)
+//   send(msg, to): to を付けるとその人だけへ(bc は全員に届くので、中身の to で自分宛てでない物を捨てる)
 // ============================================================
 //   Supabase のプロジェクト(公開キー: ブラウザのコードに入れて公開する前提のキー。表は作らず、仲介の Realtime だけに使う)
 const NET_CFG = { appId: 'https://onpbbaahinguyjauzrpj.supabase.co', relayConfig: { supabaseKey: 'sb_publishable_ZzuhMKY4wtk2zn7xXTuolQ_qrSKrZhL' } };
@@ -16,7 +17,7 @@ const NET = {
   // onMsg(m): m.from は送ってきた人 / onPeer(id, joined): 相手がつながった・切れた(p2p だけ)
   open(room, onMsg, onPeer) {
     this.close();
-    const ok = (m, from) => { if (m && typeof m === 'object' && !Array.isArray(m) && typeof m.t === 'string' && typeof from === 'string' && from !== this.me) onMsg(Object.assign({}, m, { from })); };
+    const ok = (m, from) => { if (m && typeof m === 'object' && !Array.isArray(m) && typeof m.t === 'string' && typeof from === 'string' && from !== this.me && (m.to === undefined || m.to === this.me)) onMsg(Object.assign({}, m, { from })); };
     if (this.kind === 'p2p') {
       this.me = P2P.selfId;
       this.room = P2P.joinRoom(NET_CFG, 'nocturne-' + room);
@@ -30,9 +31,10 @@ const NET = {
       this.ch.onmessage = e => ok(e.data, e.data && e.data.from);
     }
   },
-  send(msg) {
-    if (this.act) this.act.send(msg).catch(() => {});
-    else if (this.ch) this.ch.postMessage(Object.assign({}, msg, { from: this.me }));
+  send(msg, to) {
+    const m = to ? Object.assign({}, msg, { to }) : msg;
+    if (this.act) this.act.send(m, to ? { target: to } : undefined).catch(() => {}); // Trystero: send(data, { target })
+    else if (this.ch) this.ch.postMessage(Object.assign({}, m, { from: this.me }));
   },
   close() {
     if (this.room) { this.room.leave().catch(() => {}); this.room = null; this.act = null; }
@@ -60,18 +62,52 @@ const COOP = {
   manual: false, // 試験: 画面のフレームで進めない(COOP.pump で進める)
   testInput: null, // 試験: (f, pid) => 入力の記録(決まった入力)
   otherFx: 0.3, // ほかの人の攻撃の演出の濃さ(自分の「攻撃の濃さ」の設定に掛ける。#21)
+  // 抜けた人(#3・#12): 入力が届かないと全員が待つ。warnT 秒で「接続を待っています」、dropT 秒か、切れた・bye で「抜けた」と思い(suspect)、
+  //   決める人(自分から見て、抜けていない人のうち一番小さい番号)が全員に「どのフレームから外すか」を聞いて決め(query → drop)、全員がそのフレームから外す(gone)
+  warnT: 3, dropT: 15,
+  waitF: -1, waitFrom: 0, waitOn: [], waitSec: 0, // 今のフレームで入力を待っている人・待った秒(画面に出す)
+  past: new Map(), // 計算したフレーム → 入力の並び(最近 120フレーム。外す時に、ほかの人へ抜けた人の入力を渡すため)
+  gone: new Map(), // 外した人(全員で同じ): 番号 → 外すフレーム D(D からは入力なし・倒れた扱いで戻らない)
+  suspect: new Set(), // 自分が「抜けた」と思った人(まだ外していない)
+  query: null, // 決める人: 外す人の入力を集めている途中 { x, t, ans: 番号 → { f: その人の今のフレーム, have: [[フレーム, 入力]] } }
+  hello: null, // 参加者: 名乗る(ホストとつながるたびに)
 };
+// ゲームの版(coop.md 4章「版の確認」): ビルドした版はファイル名のハッシュ(js/game.<hash>.js)、開発中は 'dev'。違う人は部屋に入れない
+const GAME_VER = (() => { const s = document.currentScript && document.currentScript.src, m = s && /game\.([0-9a-f]+)\.js/.exec(s); return m ? m[1] : 'dev'; })();
 const COOP_CLASSES = () => DATA.classOrder;
 
 function coopReset() {
-  Object.assign(COOP, { on: false, f: 0, sentTo: -1, desync: null, stalls: 0, log: [], hostId: '' });
-  COOP.inq.clear(); COOP.hashes.clear();
+  Object.assign(COOP, { on: false, f: 0, sentTo: -1, desync: null, stalls: 0, log: [], hostId: '', query: null, waitF: -1, waitFrom: 0, waitOn: [], waitSec: 0 });
+  COOP.inq.clear(); COOP.hashes.clear(); COOP.past.clear(); COOP.gone.clear(); COOP.suspect.clear();
+}
+// 部屋を出る(始まる前。部屋の画面の「戻る」・入れなかった時)。ほかの人には bye
+function coopQuit() {
+  if (NET.isOpen) NET.send({ t: 'bye' });
+  NET.close(); coopReset();
+  Object.assign(COOP, { room: '', members: [], host: false, hello: null });
+}
+// 部屋の並びを送る(ホスト。キットは「開始」で送るので入れない)
+function coopLobby() {
+  NET.send({ t: 'lobby', ver: GAME_VER, members: COOP.members.map(({ kit, ...x }) => x) });
+  if (typeof CoopUI !== 'undefined') CoopUI.refresh();
+}
+// 相手がつながった・切れた(p2p)。切れたのと bye は同じ扱い
+function coopOnPeer(id, joined) {
+  if (joined) { if (!COOP.host && !COOP.on && COOP.hello) COOP.hello(); return; } // つながった人ごとに名乗る(ホストだけが受ける)
+  coopPeerGone(id);
+}
+function coopPeerGone(id) {
+  const i = COOP.members.findIndex(x => x.id === id);
+  if (i < 0) return;
+  if (COOP.on) coopSuspect(i);
+  else if (COOP.host) { COOP.members.splice(i, 1); coopLobby(); }
+  else if (i === 0) { coopQuit(); if (typeof CoopUI !== 'undefined') CoopUI.say(_t('ホストが部屋を閉じました')); }
 }
 // 部屋を作る(ホスト)。n: この人数がそろったら開始する(省略で coopStart を呼ぶまで待つ)
 function coopHost(room, cls = META.cls, n = 0) {
   coopReset();
   Object.assign(COOP, { host: true, room: String(room), want: n | 0 });
-  NET.open(COOP.room, coopOnMsg, null);
+  NET.open(COOP.room, coopOnMsg, coopOnPeer);
   COOP.members = [{ id: NET.me, cls, vw: GFX.VW, vh: GFX.VH, kit: coopKit(META) }];
   console.info('COOP: 部屋 ' + COOP.room + ' を作った。ほかのウィンドウで ?coop=join&room=' + COOP.room + ' を開き、そろったら coopStart()');
 }
@@ -80,9 +116,9 @@ function coopJoin(room, cls = META.cls) {
   coopReset();
   Object.assign(COOP, { host: false, room: String(room), members: [] });
   const kit = coopKit(META); // 入った時のセーブ(この後にクラス画面で変えた物は届かない)
-  const hello = () => NET.send({ t: 'join', cls, vw: GFX.VW, vh: GFX.VH, kit });
-  NET.open(COOP.room, coopOnMsg, (id, joined) => { if (joined && !COOP.on) hello(); }); // p2p: つながった人ごとに名乗る(ホストだけが受ける)
-  hello(); // bc: すぐ届く
+  COOP.hello = () => NET.send({ t: 'join', ver: GAME_VER, cls, vw: GFX.VW, vh: GFX.VH, kit });
+  NET.open(COOP.room, coopOnMsg, coopOnPeer); // p2p: つながった人ごとに名乗る
+  COOP.hello(); // bc: すぐ届く
   console.info('COOP: 部屋 ' + COOP.room + ' に入る');
 }
 // 開始(ホスト): 種・モード・入力の遅れ・全員の並び・計算用の画面の大きさ(全員の一番大きい窓。#16)を送り、自分も始める
@@ -139,16 +175,25 @@ function coopChaos(x, ck) {
 }
 function coopOnMsg(m) {
   switch (m.t) {
-    case 'join': // ホストだけ受ける(始まる前・4人まで)
-      if (!COOP.host || COOP.on || COOP.members.length >= 4 || COOP.members.some(x => x.id === m.from)) return;
+    case 'join': { // ホストだけ受ける(始まる前・4人まで・同じ版。入れない時は理由をその人へ)
+      if (!COOP.host || COOP.members.some(x => x.id === m.from)) return;
+      const why = COOP.on ? 'started' : COOP.members.length >= 4 ? 'full' : m.ver !== GAME_VER ? 'ver' : '';
+      if (why) { NET.send({ t: 'deny', why }, m.from); return; }
       COOP.members.push({ id: m.from, cls: okCls(m.cls), vw: okView(m.vw, 480), vh: okView(m.vh, 270), kit: coopKit(m.kit) });
-      NET.send({ t: 'lobby', members: COOP.members.map(({ kit, ...x }) => x) }); // 並びにキットは要らない(「開始」で送る)
-      if (typeof CoopUI !== 'undefined') CoopUI.refresh();
+      coopLobby();
       console.info('COOP: ' + COOP.members.length + '人');
       if (COOP.want && COOP.members.length >= COOP.want) coopStart();
       return;
+    }
+    case 'deny': // 参加者: 入れなかった
+      if (COOP.host || COOP.on || (COOP.hostId && COOP.hostId !== m.from)) return;
+      coopQuit();
+      if (typeof CoopUI !== 'undefined') CoopUI.say(m.why === 'ver' ? _t('ゲームの版が違うので入れません(ページを読み直してください)') : m.why === 'full' ? _t('部屋がいっぱいです(4人まで)') : _t('もう始まっています'));
+      return;
+    case 'bye': coopPeerGone(m.from); return;
     case 'lobby': // 参加者: 部屋の人の並び(画面に出す。確かめた物だけ)
       if (COOP.host || COOP.on || !Array.isArray(m.members) || m.members.length > 4 || !m.members[0] || m.members[0].id !== m.from || (COOP.hostId && COOP.hostId !== m.from)) return;
+      if (m.ver !== GAME_VER) { coopQuit(); if (typeof CoopUI !== 'undefined') CoopUI.say(_t('ゲームの版が違うので入れません(ページを読み直してください)')); return; }
       COOP.hostId = m.from; // 最初に並びを送ってきた人をホストとする(自分を 0 番に書いている人だけ)
       COOP.members = m.members.map(x => ({ id: String(x && x.id).slice(0, 32), cls: okCls(x && x.cls), vw: okView(x && x.vw, 480), vh: okView(x && x.vh, 270) }));
       if (typeof CoopUI !== 'undefined') CoopUI.refresh();
@@ -165,8 +210,30 @@ function coopOnMsg(m) {
     // 入力・ハッシュは、その番号の人が送ってきた物だけ(ほかの人の番号を名乗れない)
     case 'in': if (coopFromPid(m)) coopPut(m.f, m.pid, m.inp); return;
     case 'hash': if (COOP.on && coopFromPid(m) && Number.isInteger(m.f) && typeof m.h === 'number') coopHashPut(m.f, m.pid, m.h >>> 0); return;
+    // 抜けた人を外す手続き(下の coopTryDrop)
+    case 'q': { // 決める人から: x の入力を自分が持っている分と、自分の今のフレームを返す
+      const s = coopPidOf(m.from);
+      if (COOP.on && s >= 0 && !COOP.gone.has(s) && coopOkPid(m.x)) NET.send({ t: 'qa', x: m.x, f: COOP.f, have: coopHeld(m.x) }, m.from);
+      return;
+    }
+    case 'qa': { // 決める人: 答えを集める
+      const q = COOP.query, s = coopPidOf(m.from);
+      if (!q || m.x !== q.x || s < 0 || COOP.gone.has(s) || !Number.isInteger(m.f) || !Array.isArray(m.have)) return;
+      q.ans.set(s, { f: clamp(m.f, 0, COOP.f + 600), have: coopInpList(m.have) });
+      return;
+    }
+    case 'drop': { // x をフレーム f から外す。決めてよいのは、自分より小さい番号の人が全員外れた人だけ(届いた順によらず、全員が同じ答えになる決まり)
+      const s = coopPidOf(m.from), x = m.x;
+      if (!COOP.on || s < 0 || COOP.gone.has(s) || !coopOkPid(x) || COOP.gone.has(x) || !Number.isInteger(m.f) || m.f < 0 || m.f > COOP.f + 600 || !Array.isArray(m.inp)) return;
+      for (let i = 0; i < s; i++) if (!COOP.gone.has(i) && i !== x) return;
+      coopApplyDrop(x, m.f, coopInpList(m.inp));
+      return;
+    }
   }
 }
+const coopPidOf = id => COOP.members.findIndex(x => x.id === id);
+const coopOkPid = x => Number.isInteger(x) && x >= 0 && x < COOP.members.length;
+const coopInpList = a => a.filter(e => Array.isArray(e) && Number.isInteger(e[0]) && e[0] >= 0).slice(0, 700).map(e => [e[0], coopCleanInput(e[1])]);
 const coopFromPid = m => Number.isInteger(m.pid) && m.pid >= 0 && m.pid < COOP.members.length && COOP.members[m.pid].id === m.from;
 // 全員が同じ手順でランを始める(計算の乱数の列で。players の 0 番はホスト。ステータスは各自のキット・カオス強化はホストの設定)
 function coopBegin(m) {
@@ -192,7 +259,7 @@ function coopCleanInput(r) {
   if (!r || typeof r !== 'object') return NO_INPUT;
   let mx = clamp(num(r.mx), -1, 1), my = clamp(num(r.my), -1, 1);
   const l = Math.hypot(mx, my);
-  if (l > 1) { mx /= l; my /= l; }
+  if (l > 1 + 1e-9) { mx /= l; my /= l; } // 1 を少し超えるだけなら直さない(直した物をもう一度通しても変わらないように)
   const a = r.aim && typeof r.aim === 'object' ? r.aim : null;
   const aim = a && typeof a.x === 'number' && isFinite(a.x) && typeof a.y === 'number' && isFinite(a.y) ? { x: clamp(num(a.x), -1e6, 1e6), y: clamp(num(a.y), -1e6, 1e6) } : null;
   const pick = [1, 2, 3, PICK.skip, PICK.reroll].includes(r.pick) ? r.pick : 0;
@@ -201,7 +268,7 @@ function coopCleanInput(r) {
 // フレーム f の pid の入力を入れる(今より前・ずっと先の物は捨てる)
 function coopPut(f, pid, r) {
   const n = COOP.members.length;
-  if (!Number.isInteger(f) || !Number.isInteger(pid) || pid < 0 || pid >= n || f < COOP.f || f > COOP.f + 600) return;
+  if (!Number.isInteger(f) || !Number.isInteger(pid) || pid < 0 || pid >= n || f < COOP.f || f > COOP.f + 600 || (COOP.gone.has(pid) && f >= COOP.gone.get(pid))) return;
   let row = COOP.inq.get(f);
   if (!row) COOP.inq.set(f, row = new Array(n).fill(null));
   if (!row[pid]) row[pid] = coopCleanInput(r);
@@ -215,17 +282,26 @@ function coopStepOnce(dt) {
     NET.send({ t: 'in', f: tf, pid: COOP.pid, inp: r });
     COOP.sentTo = tf;
   }
-  const row = COOP.inq.get(f);
+  let row = COOP.inq.get(f);
+  if (COOP.gone.size) { // 外した人: D からは入力なし(届いていた物も使わない)
+    if (!row) COOP.inq.set(f, row = new Array(players.length).fill(null));
+    for (const [x, D] of COOP.gone) if (f >= D) row[x] = NO_INPUT;
+  }
   if (!row || row.length !== players.length || row.some(x => !x)) return false;
-  COOP.inq.delete(f);
+  COOP.inq.delete(f); COOP.past.set(f, row); COOP.past.delete(f - 120);
   interpSave();
-  withPlayer(players[0], () => simScope(() => update(dt, row)));
+  const left = [];
+  withPlayer(players[0], () => simScope(() => {
+    for (const [x, D] of COOP.gone) if (f >= D && !players[x].left) { coopLeft(players[x]); left.push(x); } // D の計算の前に(全員が同じフレームで)
+    update(dt, row);
+  }));
   COOP.f = f + 1;
+  for (const x of left) UI.toast(_t`P${x + 1} が抜けました`, '#5a4a6a');
   if (COOP.f % 60 === 0) { const h = coopHash(); COOP.log.push([COOP.f, h]); NET.send({ t: 'hash', f: COOP.f, pid: COOP.pid, h }); coopHashPut(COOP.f, COOP.pid, h); } // 送ってから比べる(ずれていると比べた所で閉じるので)
   return true;
 }
 // 試験: 画面のフレームに関係なく、入力がそろう所まで最大 n 回計算する。今のフレームを返す
-COOP.pump = n => { let k = 0; while (k < n && COOP.on && !COOP.desync && state === 'play' && coopStepOnce(1 / 60)) k++; return COOP.f; };
+COOP.pump = n => { coopTick(); let k = 0; while (k < n && COOP.on && !COOP.desync && state === 'play' && coopStepOnce(1 / 60)) k++; return COOP.f; };
 // 状態のハッシュ(計算の結果だけ。全員の位置・HP・撃破数、敵、弾・床・拾う物の数、時間)
 const coopHash = (() => {
   const f64 = new Float64Array(1), u32 = new Uint32Array(f64.buffer);
@@ -241,14 +317,20 @@ const coopHash = (() => {
   };
 })();
 function coopHashPut(f, pid, h) {
+  if (COOP.gone.has(pid)) return;
   let row = COOP.hashes.get(f);
   if (!row) COOP.hashes.set(f, row = new Array(COOP.members.length).fill(null));
   row[pid] = h;
-  if (row.some(x => x === null)) return;
+  coopHashCheck(f);
+}
+// 外していない人のハッシュがそろったら比べる
+function coopHashCheck(f) {
+  const row = COOP.hashes.get(f), live = row ? row.filter((_, i) => !COOP.gone.has(i)) : [];
+  if (!row || live.some(x => x === null)) return;
   COOP.hashes.delete(f);
-  if (row.every(x => x === row[0])) return;
+  if (live.every(x => x === live[0])) return;
   COOP.desync = { f, hashes: row.slice() };
-  console.error('COOP: 同期がずれた(フレーム ' + f + ')', row.map(x => x.toString(16)));
+  console.error('COOP: 同期がずれた(フレーム ' + f + ')', row.map(x => (x === null ? '-' : x.toString(16)))); // - は外した人
   UI.banner('DESYNC', _t('同期がずれました'), 4000);
   if (COOP.on && state === 'play') endRun(false); // ランを終える(報酬はそこまでの分を各自に: #4)
 }
@@ -289,10 +371,86 @@ function coopRevive() {
 function coopFinish() {
   COOP.on = false;
   P = players[COOP.pid] || P;
+  if (NET.isOpen) NET.send({ t: 'bye' });
   NET.close();
   SIM_VIEW.on = false;
   if (!NET_SIM.on) FIXED_STEP.on = false;
 }
+// ============================================================
+// 抜けた人(#3・#12)
+// ============================================================
+// 毎画面フレーム(main.js の stepFixed。待っている間も): 待っている人と秒・dropT 秒で抜けたと思う・決める人の手続き
+function coopTick() {
+  if (!COOP.on) return;
+  const now = performance.now(), f = COOP.f, row = COOP.inq.get(f);
+  const miss = COOP.members.map((_, i) => i).filter(i => i !== COOP.pid && !(row && row[i]) && !(COOP.gone.has(i) && f >= COOP.gone.get(i)));
+  if (!miss.length) COOP.waitFrom = 0;
+  else if (f !== COOP.waitF || !COOP.waitFrom) COOP.waitFrom = now;
+  COOP.waitF = f; COOP.waitOn = miss; COOP.waitSec = COOP.waitFrom ? (now - COOP.waitFrom) / 1000 : 0;
+  if (COOP.waitSec >= COOP.dropT) for (const i of miss) coopSuspect(i);
+  const q = COOP.query;
+  if (q && (now - q.t > 3000 || COOP.members.every((_, i) => i === COOP.pid || i === q.x || COOP.gone.has(i) || COOP.suspect.has(i) || q.ans.has(i)))) coopDecide();
+  else if (!q) coopTryDrop();
+}
+function coopSuspect(i) {
+  if (!COOP.on || i === COOP.pid || COOP.gone.has(i) || COOP.suspect.has(i)) return;
+  COOP.suspect.add(i);
+  console.info('COOP: P' + (i + 1) + ' が抜けたと思う');
+  coopTryDrop();
+}
+// 決める人(自分から見て、外していない・抜けたと思っていない人のうち一番小さい番号)だけが、抜けたと思う人を 1人ずつ外す: まず全員に x の入力を聞く
+function coopTryDrop() {
+  if (!COOP.on || COOP.query) return;
+  const dec = COOP.members.findIndex((_, i) => !COOP.gone.has(i) && !COOP.suspect.has(i));
+  const x = COOP.members.findIndex((_, i) => COOP.suspect.has(i) && !COOP.gone.has(i));
+  if (dec !== COOP.pid || x < 0) return;
+  COOP.query = { x, t: performance.now(), ans: new Map() };
+  NET.send({ t: 'q', x });
+}
+// 自分が持っている x の入力(計算した最近の分と、まだ計算していない分)
+function coopHeld(x) {
+  const out = [];
+  for (const [f, row] of COOP.past) if (f >= COOP.f - 32 && row[x]) out.push([f, row[x]]);
+  for (const [f, row] of COOP.inq) if (f >= COOP.f && row[x]) out.push([f, row[x]]);
+  return out;
+}
+// 決める人: 答えがそろったか 3秒で決める。外すフレーム D = 誰かが持っている x の入力の一番先の次(誰もまだ計算していない所)。
+//   それより前の x の入力は、持っている人の物を全員に渡す(遅れている人はまだ受け取っていないことがある。入力は順に届くので、持っている分は全員同じ)
+function coopDecide() {
+  const q = COOP.query; COOP.query = null;
+  if (!COOP.on || COOP.gone.has(q.x)) return;
+  q.ans.set(COOP.pid, { f: COOP.f, have: coopHeld(q.x) });
+  let D = 0, lo = Infinity;
+  const got = new Map();
+  for (const a of q.ans.values()) {
+    lo = Math.min(lo, a.f); D = Math.max(D, a.f);
+    for (const [f, r] of a.have) { got.set(f, r); D = Math.max(D, f + 1); }
+  }
+  const inp = [];
+  for (let f = lo; f < D; f++) inp.push([f, got.get(f) || NO_INPUT]); // 抜けは入力なし(順に届くので起きないはず)
+  NET.send({ t: 'drop', x: q.x, f: D, inp });
+  coopApplyDrop(q.x, D, inp);
+}
+// x をフレーム D から外す(全員が同じ D・同じ入力で)。D より前の x の入力は渡された物にそろえ、D からは入力なし
+function coopApplyDrop(x, D, inp) {
+  if (COOP.gone.has(x)) return;
+  COOP.gone.set(x, D); COOP.suspect.delete(x);
+  if (COOP.query && COOP.query.x === x) COOP.query = null;
+  const n = COOP.members.length;
+  for (const [f, r] of inp) if (f >= COOP.f && f < D) { let row = COOP.inq.get(f); if (!row) COOP.inq.set(f, row = new Array(n).fill(null)); row[x] = r; }
+  for (const [f, row] of COOP.inq) if (f >= D) row[x] = NO_INPUT;
+  console.info('COOP: P' + (x + 1) + ' を外す(フレーム ' + D + ')');
+  if (x === COOP.pid) { // 自分が外された(ほかの人には自分の入力が届いていなかった)
+    UI.banner('DISCONNECTED', _t('接続が切れたため、部屋から外れました'), 4000);
+    if (state === 'play') endRun(false);
+    return;
+  }
+  for (const f of [...COOP.hashes.keys()]) coopHashCheck(f);
+  coopTryDrop();
+}
+// 外した人(計算の中・D の計算の前): 倒れた扱いで、次の階でも戻らない。レベルアップの選択も消す(休憩で待たない)
+function coopLeft(p) { Object.assign(p, { left: true, dead: true, hp: 0, lvPick: null, pendingLv: 0, lvQueue: [] }); }
+addEventListener('pagehide', () => { if (NET.isOpen) NET.send({ t: 'bye' }); }); // ページを閉じる時: ほかの人がすぐ外せるように
 // URL で試す: ?coop=host&room=abc(&n=2 でその人数がそろったら開始)/ ?coop=join&room=abc。別々のウィンドウで開く(隠れたタブは画面のフレームが止まり、全員が待つ)
 {
   const qs = new URLSearchParams(location.search), role = qs.get('coop'), room = (qs.get('room') || 'test').slice(0, 32);

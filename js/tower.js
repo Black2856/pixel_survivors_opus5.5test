@@ -59,7 +59,7 @@ function updTower(dt) {
 
 // 階の始め: 敵Lv = 階、ステージ・出現の候補・カオス強化をその階のものに。ボスの階はボスを出す
 function towerFloor(n) {
-  if (players.length > 1) for (const p of players) if (p.dead) withPlayer(p, coopRevive); // 協力プレイ: 倒れた人は次の階の始めに戻る(tower.md #17)
+  if (players.length > 1) for (const p of players) if (p.dead && !p.left) withPlayer(p, coopRevive); // 協力プレイ: 倒れた人は次の階の始めに戻る(tower.md #17)
   const T = S.tower, C = DATA.tower, lap = towerLap(n), pos = (n - 1) % C.lap;
   if (lap !== T.lap) { T.lap = lap; T.plan = towerPlan(lap); }
   const B = T.plan[Math.floor(pos / C.bossEvery)], i = pos % C.bossEvery, goal = towerGoal(n);
