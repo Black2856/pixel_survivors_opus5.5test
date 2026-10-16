@@ -7,7 +7,7 @@
 - クラス: `js/classes/<クラス>.js`(1クラス 1ファイル: その武器の E スキル `WEAPON_SKILL.<武器>` → `CLASS_RT.<クラス>`(特性・パッシブ・Q)→ そのクラスの関数。仕様書 `claudedocs/classes/<名前>.md` と同じ単位)
   - 共通は `classes/common.js`(スタミナ・強化ツリーの値 cuV / hasSp・E / Q の共通)、ゲームの側からの入口は `classes/hooks.js`(`cls*`: `clsShieldMod` `clsResistDebuff` など)。クラス名で分ける所をゲームの側に作らない
   - クラスのファイルの読み込み順 = WEAPON_SKILL の並び(hooks.js の WS_TAKEN がこの順に掛ける)。足すときは末尾に
-- ラン: `js/world.js`(ラン初期化・ステータス・カオス強化・敵Lv)/ `player.js` / `weapons.js`(自動攻撃・弾・ゾーン)/ `damage.js`(hitEnemy・撃破)/ `enemies.js`(出現・通常敵)/ `phase.js`(ボスの撃破・フェーズ)/ `hazards.js`(敵弾・ボスの床などの動きと当たり)/ `drops.js` / `spawner.js`(出現・闘技場)/ `tower.js`(チャレンジタワー: 階・休憩・スキップ・貯蓄経験値。`S.tower`)/ `net.js`(協力プレイ: 通信の窓口 NET・ロックステップ COOP・止まらないレベルアップ・復活)/ `coop-ui.js`(協力プレイの部屋の画面)/ `rewards.js`(レベルアップの選択肢)
+- ラン: `js/world.js`(ラン初期化・ステータス・カオス強化・敵Lv)/ `player.js` / `weapons.js`(自動攻撃・弾・ゾーン)/ `damage.js`(hitEnemy・撃破)/ `enemies.js`(出現・通常敵)/ `phase.js`(ボスの撃破・フェーズ)/ `hazards.js`(敵弾・ボスの床などの動きと当たり)/ `drops.js` / `spawner.js`(出現・闘技場)/ `tower.js`(チャレンジタワー: 階・休憩・スキップ・貯蓄経験値。`S.tower`)/ `net.js`(協力プレイ: 通信の窓口 NET・ロックステップ COOP・キット・抜けた人・往復時間・止まらないレベルアップ・復活)/ `lobby.js`(公開ロビー: Supabase の Presence)/ `coop-ui.js`(協力プレイの部屋の画面)/ `vendor/p2p.js`(Trystero と supabase-js をまとめた物。`node scripts/vendor/p2p.js` で作る。手で直さない)/ `rewards.js`(レベルアップの選択肢)
 - ボス: `js/bosses/common.js`(makeBoss・spawnBoss・eball・later・壊せる物・`bossAI` の分岐)と `js/bosses/<キー>.js`(1体 1ファイル。キーは DATA.bosses。死神と終刻の死神は reaper.js、分裂した犬は cerberus.js)
 - 描画: `js/render.js` の `render()`(地面 → 自分の攻撃(地面側)→ ボスの設置物 → ジェム → 敵 → 自分 → 自分の攻撃(手前)→ 敵の攻撃・予兆 → 数値)
   - ボスの描画は各ボスのファイルの末尾の「描画」: 設置物 `HAZ_DRAW.<種類>`・見た目だけの演出 `BFX_DRAW.<種類>`(どちらも共有する種類だけ render.js)、体まわりは `drawBossFx` から呼ぶ `draw<ボス>Fx`、熾天使・三原の光精・ケルベロス・影の王の専用の描画も。敵弾の描画は render.js
@@ -38,7 +38,7 @@
 - 道具: `scripts/dev/harness.js`(使い方は先頭のコメント)。`python -m http.server 8765 --bind 127.0.0.1` を立て、Playwright の `browser_run_code_unsafe` に `filename: scripts/dev/open.pw.js` で開く → `T.setup` / `T.step` / `T.boss` で手で進める
 - 通し: `T.classSmoke()`(全クラス × 特殊強化 3通り、約 8秒)・`T.bossSmoke()`(全ステージのボス、約 20秒)→ 例外の数とハッシュ
 - ブラウザどうし(協力プレイのずれ): `scripts/dev/cross.js` が通しを Chromium / Firefox / WebKit で回して、画素なしのハッシュを比べる(Playwright はリポジトリの外に入れる。使い方は先頭のコメント)。`sim` / `coop` で協力プレイの形
-- 協力プレイの通信(js/net.js の NET・COOP): `scripts/dev/coop2.js` が 1つのブラウザで 2〜4ページをつなぎ、交互に進めてハッシュを比べる(`inject` でわざとずらして、見つけられるか)。手で試すときは別々のウィンドウで `?coop=host&room=abc&n=2` と `?coop=join&room=abc`
+- 協力プレイの通信(js/net.js の NET・COOP): `scripts/dev/coop2.js` が 2〜4ページをつなぎ、交互に進めてハッシュを比べる(既定は BroadcastChannel。`net=p2p`・`mix`(chromium と firefox)で Supabase を通す。`inject` でわざとずらす・`kits` で違うセーブ・`leave=1@600` で抜ける。使い方は先頭のコメント)。手で試すときは別々のウィンドウで `?coop=host&room=abc&n=2` と `?coop=join&room=abc`(`&net=bc` で同じブラウザだけ)
 - 動かすだけのリファクタリングは、前後でハッシュが同じか比べる。ページを開き直して `classSmoke()` → `bossSmoke()` の順に呼ぶ(初回だけ作るキャッシュがあるので順番をそろえる)
 - 試験はセーブに書かない(T.init が saveMeta を止める)。公開版を手で遊ばせるときは先にセーブ(localStorage)を写し、`/scripts/`(ゲームを読まないページ)で戻す。終わったらサーバーを止め、`.playwright-mcp/` を消す
 - 遊ばせても時計が進まないときは rAF が止まっている(この環境で起きる)。`page.bringToFront()` してから
