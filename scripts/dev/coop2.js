@@ -1,5 +1,5 @@
 // coop2.js — 協力プレイ(4段)の確かめ: 1つのブラウザで 2つのページを開き、BroadcastChannel でつないで 2人で同じ計算になるかを比べる
-//   PLAYWRIGHT_DIR=<playwright を入れたフォルダ> node scripts/dev/coop2.js [chromium|firefox|webkit] [frames=1800] [inject] [classes=knight,mage] [mode=tower|escalation] [net=bc|p2p] [mix] [kits] [nokit] [leave=1@600] [how=close|bye|stall] [behind=2] [norelay] [lag=4]
+//   PLAYWRIGHT_DIR=<playwright を入れたフォルダ> node scripts/dev/coop2.js [chromium|firefox|webkit] [frames=1800] [inject] [classes=knight,mage] [mode=tower|escalation] [net=bc|p2p] [mix] [kits] [nokit] [leave=1@600] [how=close|bye|stall] [behind=2] [norelay] [lag=4] [dirty]
 //   python -m http.server 8765 --bind 127.0.0.1(リポジトリの直下で)を先に立てる
 //   画面のフレームでは進めず(COOP.manual)、両方のページを交互に COOP.pump で進める。入力は決まった物(COOP.testInput)
 //   inject: 2つ目のページだけ 600フレームで敵の HP を変える → 次のハッシュ(660)で「同期がずれた」と出るはず(見つける仕組みの確かめ)
@@ -9,6 +9,7 @@
 //     待つ秒は短く(COOP.dropT 2秒)。残りの人が同じフレームで外し、その後もハッシュが同じか・抜けた人が次の階で戻らないか
 //     behind=Y: players の Y 番を F + 1 で止めておき、外すのが決まってから進める(人によって計算した所が違う時に、抜けた人の入力を渡せるか)
 //     norelay: 抜けた人の入力を渡さない(持っている分を空にする)→ behind と一緒だとずれるはず(渡す仕組みが効いている確かめ)
+//   dirty: 1つ目のページだけ、先に 1人のランを 5秒遊んでおく(同じページの前の遊びを持ち越すとずれる。2026-10-17 に敵の ID の数えで起きた)
 'use strict';
 const path = require('path');
 const pw = require(process.env.PLAYWRIGHT_DIR ? path.join(process.env.PLAYWRIGHT_DIR, 'node_modules', 'playwright') : 'playwright');
@@ -16,7 +17,7 @@ const args = process.argv.slice(2);
 const name = args.find(a => ['chromium', 'firefox', 'webkit'].includes(a)) || 'chromium';
 const arg = (k, d) => { const a = args.find(x => x.startsWith(k + '=')); return a ? a.slice(k.length + 1) : d; };
 const lv = arg('leave', ''), [LX, LF] = lv ? lv.split('@').map(Number) : [-1, -1], how = arg('how', 'close'), behind = +arg('behind', -1), norelay = args.includes('norelay');
-const kits = args.includes('kits'), nokit = args.includes('nokit'), mix = args.includes('mix'), net = arg('net', mix ? 'p2p' : 'bc'), mode = arg('mode', 'tower'), N = +arg('frames', 1800), inject = args.includes('inject'), classes = arg('classes', 'knight,mage').split(',');
+const dirty = args.includes('dirty'), kits = args.includes('kits'), nokit = args.includes('nokit'), mix = args.includes('mix'), net = arg('net', mix ? 'p2p' : 'bc'), mode = arg('mode', 'tower'), N = +arg('frames', 1800), inject = args.includes('inject'), classes = arg('classes', 'knight,mage').split(',');
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
 (async () => {
@@ -40,6 +41,7 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
       await page.goto('http://127.0.0.1:8765/?net=' + net + '&t=' + Date.now());
     }
     await page.evaluate(() => { window.saveMeta = () => {}; });
+    if (dirty && i === 0) await page.evaluate(() => { startRun('stage', 1); for (let k = 0; k < 300; k++) simScope(() => update(1 / 60)); goTitle(); });
     if (kits) await page.evaluate(i => { // 決まった作り方の違うセーブ(genItem は見た目の列の乱数を引くので使わない)
       const top = DATA.classLevel.need.length + 1, mains = DATA.classOrder.map(k => DATA.classes[k].weapon).filter(Boolean);
       Object.keys(DATA.classes).forEach((k, j) => { META.classes[k].lv = 1 + (i * 7 + j * 3) % top; });

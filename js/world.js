@@ -173,6 +173,7 @@ function addPlayer(cls, x = P.x, y = P.y, kit = META) {
 // o: 協力プレイの開始(net.js の coopBegin)だけ。{ cls: 0 番の人のクラス, kit: その人のセーブ, chaos: ホストのカオス強化 }
 function initRun(mode = 'escalation', stageNo = 1, o = {}) {
   clearSimTimers(); // 前のランの「少し後で」は捨てる
+  nextId = 1; // 敵の ID はランごとに 1 から(協力プレイ: 前に 1人のランを遊んだページだけ番号が進んでいて、ハッシュ(敵の ID を含む)がずれた)
   S = {
     mode, arena: null, tower: null, time: 0, stage: 1, loop: 1,
     freeze: 0, ts: 1, tsBack: 0, schedIdx: 0, spawnT: 0, spawnCfg: null,
