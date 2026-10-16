@@ -35,6 +35,7 @@
 ## 試験
 - 道具: `scripts/dev/harness.js`(使い方は先頭のコメント)。`python -m http.server 8765 --bind 127.0.0.1` を立て、Playwright の `browser_run_code_unsafe` に `filename: scripts/dev/open.pw.js` で開く → `T.setup` / `T.step` / `T.boss` で手で進める
 - 通し: `T.classSmoke()`(全クラス × 特殊強化 3通り、約 8秒)・`T.bossSmoke()`(全ステージのボス、約 20秒)→ 例外の数とハッシュ
+- ブラウザどうし(協力プレイのずれ): `scripts/dev/cross.js` が通しを Chromium / Firefox / WebKit で回して、画素なしのハッシュを比べる(Playwright はリポジトリの外に入れる。使い方は先頭のコメント)。`det` で `scripts/dev/detmath.js`(エンジンで結果が変わらない Math)を先に読む
 - 動かすだけのリファクタリングは、前後でハッシュが同じか比べる。ページを開き直して `classSmoke()` → `bossSmoke()` の順に呼ぶ(初回だけ作るキャッシュがあるので順番をそろえる)
 - 試験はセーブに書かない(T.init が saveMeta を止める)。公開版を手で遊ばせるときは先にセーブ(localStorage)を写し、`/scripts/`(ゲームを読まないページ)で戻す。終わったらサーバーを止め、`.playwright-mcp/` を消す
 - 遊ばせても時計が進まないときは rAF が止まっている(この環境で起きる)。`page.bringToFront()` してから
