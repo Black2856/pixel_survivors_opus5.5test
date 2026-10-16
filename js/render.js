@@ -2600,8 +2600,8 @@ function updFx(dt) {
   }
   // 斬撃のイベント(鬼神・村正の一閃など): 決まった時刻に一度だけ。処理中に slashes が増えてもいいように、集めてから実行する
   const due = [];
-  for (const s of slashes) if (s.ev) for (const ev of s.ev) if (!ev.done && s.t >= ev.at) { ev.done = true; due.push([ev.fn, !s.enemy]); }
-  for (const [fn, mine] of due) if (mine) asMine(fn); else fn(); // 自分の斬撃のイベントの演出は「攻撃の濃さ」の対象
+  for (const s of slashes) if (s.ev) for (const ev of s.ev) if (!ev.done && s.t >= ev.at) { ev.done = true; due.push([ev.fn, !s.enemy, s.pl]); }
+  for (const [fn, mine, pl] of due) if (mine) withPlayer(pl || P, () => asMine(fn)); else fn(); // 自分の斬撃のイベントは斬った人で(撃破・ダメージ)。演出は「攻撃の濃さ」の対象
   for (const w of warns) if (w.track) w.track(w); // 追随する予兆(発生源・向きを毎フレーム更新)
   for (const f of bfx) if (f.track) f.track(f, dt); // ボスの技の演出(動く影など)
   updSkillFx(dt); // スキルの演出(skillfx.js)

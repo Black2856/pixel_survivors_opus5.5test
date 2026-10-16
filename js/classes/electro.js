@@ -44,8 +44,8 @@ WEAPON_SKILL.thunder = {
 // グラビティスパークの球を置く(k: 威力の倍率。again: 二重重力でもう一度)
 function gravitySpark(X, x, y, pow, k, again) {
   const sk = DATA.weapons.thunder.skill, m = P.wm.thunder || {}, ar = (1 + X.lv('area')) * X.area;
-  zones.push({ kind: 'gspark', x, y, r: sk.pullR * ar * (1 + (m.eArea || 0)), boomR: sk.boomR * ar, t: 0, tick: 0, pulled: false, boomed: false,
-    dur: sk.boomT + 0.15, dmg: wst('thunder').dmg * sk.pow * (1 + X.lv('pow')) * pow * k, stun: X.sp('pow'), cl: X.cl });
+  zones.push(owned({ kind: 'gspark', x, y, r: sk.pullR * ar * (1 + (m.eArea || 0)), boomR: sk.boomR * ar, t: 0, tick: 0, pulled: false, boomed: false,
+    dur: sk.boomT + 0.15, dmg: wst('thunder').dmg * sk.pow * (1 + X.lv('pow')) * pow * k, stun: X.sp('pow'), cl: X.cl }));
   if (again) simTimeout(() => { if (state === 'play' && P.weapons.thunder) gravitySpark(X, x, y, pow, sk.againK, false); }, sk.againT * 1000); // 二重重力
   AudioMan.zap();
 }
@@ -215,8 +215,8 @@ function electroTowers() {
     const x = big ? P.x : cam.x + rand(24, GFX.VW - 24), y = big ? P.y : cam.y + rand(30, GFX.VH - 20);
     simTimeout(() => {
       if (state !== 'play') return;
-      zones.push({ kind: 'tower', id, x, y, r: q.r * rk, t: 0, dur: q.dur, tick: q.every, dis, pow: q.pow * k, shock: q.shock, wireT: 0, big,
-        wire: hasSp('q', 'n') ? q.wirePow * k0 : 0 });
+      zones.push(owned({ kind: 'tower', id, x, y, r: q.r * rk, t: 0, dur: q.dur, tick: q.every, dis, pow: q.pow * k, shock: q.shock, wireT: 0, big,
+        wire: hasSp('q', 'n') ? q.wirePow * k0 : 0 }));
       asMine(() => {
         forEachNear(x, y, q.landR * rk, e => {
           if (e.prop) { killEnemy(e); return; }

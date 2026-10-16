@@ -81,7 +81,7 @@ function riftTick(dt) {
         hitEnemy(e, dmg, { src: 'rift', eHit: true, el, noNum: true, quiet: true, col: '#c78bff', cl: r.cl });
         if (e.dead) continue;
         if (warp) { e.riftN = (e.riftT > S.time ? e.riftN || 0 : 0) + 1; e.riftT = until; } // 次元歪み: 当たるたびに 1段ずつ(前のリフトの分は数えない)
-        if (marks) fxScope(() => { const a = rand(0, Math.PI), L = (e.r || 4) + 2; slashes.push({ mark: true, x: e.x - Math.cos(a) * L, y: e.y - 2 - Math.sin(a) * L, x1: e.x + Math.cos(a) * L, y1: e.y - 2 + Math.sin(a) * L, t: 0, life: 0.22, col: '#6a1a58', core: '#ff7ad9' }); }); // 体に細い裂け目が一瞬走る(画質で出す / 出さないので見た目の乱数の列)
+        if (marks) fxScope(() => { const a = rand(0, Math.PI), L = (e.r || 4) + 2; slashes.push(owned({ mark: true, x: e.x - Math.cos(a) * L, y: e.y - 2 - Math.sin(a) * L, x1: e.x + Math.cos(a) * L, y1: e.y - 2 + Math.sin(a) * L, t: 0, life: 0.22, col: '#6a1a58', core: '#ff7ad9' })); }); // 体に細い裂け目が一瞬走る(画質で出す / 出さないので見た目の乱数の列)
       }
     });
     if (gq().post) GFX.fx.aberr = Math.max(GFX.fx.aberr, 0.25 * SET.fxA);
@@ -112,7 +112,7 @@ function riftFault(r) {
     for (const e of riftTargets()) hitEnemy(e, dmg, { src: 'rift', eHit: true, el, quiet: true, noNum: Math.random() < 0.6, col: '#c78bff', cl: r.cl });
     for (let i = 0; i < 4; i++) {
       const a = rand(-0.5, 0.5) + (i % 2 ? Math.PI / 2 : 0), cx = cam.x + GFX.VW * rand(0.25, 0.75), cy = cam.y + GFX.VH * rand(0.25, 0.75), L = Math.hypot(GFX.VW, GFX.VH) * 0.6;
-      slashes.push({ line: true, x: cx - Math.cos(a) * L, y: cy - Math.sin(a) * L, x1: cx + Math.cos(a) * L, y1: cy + Math.sin(a) * L, t: 0, life: 0.4, w: 3, col: '#6a1a58', core: '#ff7ad9' });
+      slashes.push(owned({ line: true, x: cx - Math.cos(a) * L, y: cy - Math.sin(a) * L, x1: cx + Math.cos(a) * L, y1: cy + Math.sin(a) * L, t: 0, life: 0.4, w: 3, col: '#6a1a58', core: '#ff7ad9' }));
     }
     shake(9); hitstop(0.06);
     screenFlash(0.15 * SET.fxA, '#3a0a30');

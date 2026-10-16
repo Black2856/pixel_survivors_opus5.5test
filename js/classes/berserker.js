@@ -60,8 +60,8 @@ function tomaThrow(X, a) {
   const sz = (st.size || 1) * sk.big, max = sk.bounces + X.lv('jump') + (m.eBounce || 0), inc = X.sp('jump') ? sk.incSp : sk.inc, pw = (1 + X.lv('pow')) * a.pow;
   const hx = X.x + Math.cos(ang) * 6, hy = X.y - 8;
   for (const d of X.sp('cd') ? [ang - sk.twinA, ang + sk.twinA] : [ang]) { // 双斧
-    projs.push({ kind: 'toma', x: hx, y: hy, vx: 0, vy: 0, ang: 0, spin: (Math.cos(d) < 0 ? -1 : 1) * 24, t: 0, life: 99, r: 5 * sz, sz, noHit: true, hit: new Set(), backHit: new Set(), src: 'toma',
-      ph: 'out', dir: d, sp: sk.speed, dist: 0, reach, tg, n: 0, max, inc, pw, add: a.add || 0, armT: 0, trail: [], X });
+    projs.push(owned({ kind: 'toma', x: hx, y: hy, vx: 0, vy: 0, ang: 0, spin: (Math.cos(d) < 0 ? -1 : 1) * 24, t: 0, life: 99, r: 5 * sz, sz, noHit: true, hit: new Set(), backHit: new Set(), src: 'toma',
+      ph: 'out', dir: d, sp: sk.speed, dist: 0, reach, tg, n: 0, max, inc, pw, add: a.add || 0, armT: 0, trail: [], X }));
   }
   asMine(() => { burst(hx, hy, 10, ['#ffb070', '#fff1d0', '#8a5a2a'], { sp: 90, glow: true, life: 0.3 }); fxRays(hx, hy, 36, '#e07a3a', { n: 9, life: 0.22, core: '#ffb070' }); shake(3); });
   AudioMan.dash(); AudioMan.slash();
@@ -169,7 +169,7 @@ function tomaCrack(X, x, y, pw) {
   });
   for (let i = 0; i < 6; i++) {
     const a = i * TAU / 6 + rand(-0.4, 0.4), L = R * rand(0.6, 1.05);
-    slashes.push({ mark: true, x, y: y + 2, x1: x + Math.cos(a) * L, y1: y + 2 + Math.sin(a) * L * 0.6, t: 0, life: 0.5, core: '#140806', col: '#7a2a10' });
+    slashes.push(owned({ mark: true, x, y: y + 2, x1: x + Math.cos(a) * L, y1: y + 2 + Math.sin(a) * L * 0.6, t: 0, life: 0.5, core: '#140806', col: '#7a2a10' }));
   }
   burst(x, y + 2, 12, ['#8a7a60', '#5a4a3a', '#3a2a20'], { sp: 80, up: 40, g: 200, life: 0.5 });
   addRing(x, y + 2, R, '#6a3a1a', { w: 2, life: 0.3 });
@@ -394,7 +394,7 @@ function bkFrenzy() {
       if (e.prop) { killEnemy(e); return; }
       hitEnemy(e, dmg, { src: 'frenzy', ang: Math.atan2(e.y - P.y, e.x - P.x), kb: 130, col: '#b8402a' });
     });
-    slashes.push({ x: P.x, y: P.y, follow: true, a: P.facing < 0 ? Math.PI : 0, r: R, t: 0, life: 0.32, full: true, flip: P.facing < 0, pal: SWING_PAL.rage });
+    slashes.push(owned({ x: P.x, y: P.y, follow: true, a: P.facing < 0 ? Math.PI : 0, r: R, t: 0, life: 0.32, full: true, flip: P.facing < 0, pal: SWING_PAL.rage }));
     addRing(P.x, P.y, R, '#7a1418', { w: 3, life: 0.4 }); addRing(P.x, P.y, R * 1.5, '#3a0610', { r0: R * 0.5, w: 2, life: 0.5 });
     addFlash(P.x, P.y, R * 2.4, '#3a0610', 0.35);
     burst(P.x, P.y, 40, BK_FX, { sp: 150, life: 0.55 }); burst(P.x, P.y, 8, BK_FX, { sp: 120, glow: true, life: 0.4 }); // 赤黒い破片(光るのは少しだけ)
@@ -424,7 +424,7 @@ function bkWhirl(f) {
       if (e.prop) { killEnemy(e); return; }
       hitEnemy(e, dmg, { src: 'frenzy', ang: Math.atan2(e.y - P.y, e.x - P.x), kb: 40, col: '#b8402a', noNum: Math.random() < 0.4 });
     });
-    slashes.push({ x: P.x, y: P.y, follow: true, a: rand(0, TAU), r: R, t: 0, life: 0.24, full: true, flip: Math.random() < 0.5, pal: SWING_PAL.rage });
+    slashes.push(owned({ x: P.x, y: P.y, follow: true, a: rand(0, TAU), r: R, t: 0, life: 0.24, full: true, flip: Math.random() < 0.5, pal: SWING_PAL.rage }));
   });
   AudioMan.slash();
 }

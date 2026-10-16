@@ -119,7 +119,7 @@ CLASS_RT.assassin = {
         P.dashHit.add(e.id);
         hitEnemy(e, p.dashPow, { src: 'adash', ang: Math.atan2(P.dash.vy, P.dash.vx), kb: 30, col: '#8e0016' });
         addBleed(e, p.dashBleed);
-        slashes.push({ mark: true, x: e.x - 5, y: e.y + 4, x1: e.x + 5, y1: e.y - 4, t: 0, life: 0.14, core: '#c0102a', col: '#5a000c' });
+        slashes.push(owned({ mark: true, x: e.x - 5, y: e.y + 4, x1: e.x + 5, y1: e.y - 4, t: 0, life: 0.14, core: '#c0102a', col: '#5a000c' }));
       }));
       if (P.dash.t <= 0) P.dash = null;
     }
@@ -261,7 +261,7 @@ function asChain(e) {
   near.sort((a, b) => d2(e.x, e.y, a.x, a.y) - d2(e.x, e.y, b.x, b.y));
   asMine(() => near.slice(0, p.chainN).forEach(t => {
     addBleed(t, n);
-    slashes.push({ line: true, x: e.x, y: e.y, x1: t.x, y1: t.y, t: 0, life: 0.18, w: 1, col: '#5a000c', core: '#a0001a' });
+    slashes.push(owned({ line: true, x: e.x, y: e.y, x1: t.x, y1: t.y, t: 0, life: 0.18, w: 1, col: '#5a000c', core: '#a0001a' }));
   }));
 }
 // 瞬影: 移動方向へ駆け抜ける
@@ -303,7 +303,7 @@ function assassinPact(a) {
         if (e.prop) { killEnemy(e); continue; }
         hitEnemy(e, dmg, { src: 'pact', ang: a, kb: 90, col: '#8e0016' });
         addBleed(e, q.bleed);
-        if (marks++ < 8) for (const t of [t1, t2]) slashes.push({ mark: true, x: e.x - Math.cos(t) * 7, y: e.y - Math.sin(t) * 7, x1: e.x + Math.cos(t) * 7, y1: e.y + Math.sin(t) * 7, t: 0, life: 0.18, core: '#c0102a', col: '#5a000c' }); // 敵の上の×字の斬り跡
+        if (marks++ < 8) for (const t of [t1, t2]) slashes.push(owned({ mark: true, x: e.x - Math.cos(t) * 7, y: e.y - Math.sin(t) * 7, x1: e.x + Math.cos(t) * 7, y1: e.y + Math.sin(t) * 7, t: 0, life: 0.18, core: '#c0102a', col: '#5a000c' })); // 敵の上の×字の斬り跡
         for (let i = 0; i < 8; i++) { const d = rand(0, TAU), sp = rand(40, 120); part(e.x, e.y, Math.cos(d) * sp, Math.sin(d) * sp - 20, rand(0.3, 0.6), pick(BLOOD), { g: 220, drag: 2, sz: pick([1, 2]) }); } // 血しぶき
       }
       for (const s of [c1, c2]) for (let i = 0; i < 18; i++) { // 墨のような飛沫(線全体から)
@@ -334,7 +334,7 @@ function asStorm() {
       hitEnemy(e, q.stormPow, { src: 'pact', ang: Math.atan2(e.y - P.y, e.x - P.x), kb: 30, col: '#8e0016', noNum: Math.random() < 0.5 });
       addBleed(e, 1);
     });
-    slashes.push({ x: P.x, y: P.y, follow: true, a: rand(0, TAU), r: R, t: 0, life: 0.22, full: true, pal: SWING_PAL.blood });
+    slashes.push(owned({ x: P.x, y: P.y, follow: true, a: rand(0, TAU), r: R, t: 0, life: 0.22, full: true, pal: SWING_PAL.blood }));
   });
   AudioMan.slash();
 }

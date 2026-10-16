@@ -57,8 +57,8 @@ function holyPillar(X, pow) {
       hitEnemy(e, dmg, { src: 'hstrike', ang: Math.atan2(e.y - y, e.x - x), kb: 40, col: '#ffe38a', el, eHit: true, cl: X.cl });
       if (mark && !e.dead && missed !== e) { e.stigmaT = S.time + sk.stigmaT; S.stigmaUntil = Math.max(S.stigmaUntil || 0, e.stigmaT); } // 聖痕(外れた敵には付かない)
     });
-    zones.push({ kind: 'pillar', x, y, r: R, t: 0, dur: 0.45, tick: 0 });
-    if (X.sp('heal')) zones.push({ kind: 'lightrain', x, y, r: R, t: 0, dur: sk.rainT, tick: 0 }); // 光の雨
+    zones.push(owned({ kind: 'pillar', x, y, r: R, t: 0, dur: 0.45, tick: 0 }));
+    if (X.sp('heal')) zones.push(owned({ kind: 'lightrain', x, y, r: R, t: 0, dur: sk.rainT, tick: 0 })); // 光の雨
     addFlash(x, y, R * 2.4, '#fff6d8', 0.3); addRing(x, y, R, '#ffe38a', { w: 2, life: 0.35 });
     burst(x, y, 18, ['#ffe38a', '#fff6d8', '#ffffff'], { sp: 90, up: 40, glow: true, life: 0.45 }); shake(2);
     fxSigil(x, y, R, '#ffe38a', { style: 'rune', n: 8, step: 3, sq: 0.5, wu: 0, life: 0.6, spin: 1.5, glow: 0.5 }); // 聖印が押されて広がる
@@ -225,11 +225,11 @@ function clericJudge(a) {
       hitEnemy(e, dmg, { src: 'judge', ang: Math.atan2(e.y - P.y, e.x - P.x), kb: 120, col: '#fff6d8' });
       if (hasSp('q', 'pow') && !e.dead && missed !== e) e.stun = Math.max(e.stun || 0, e.boss ? q.bossStun : q.stun); // 神罰(外れた敵は止まらない)
     });
-    slashes.push({ x: P.x, y: P.y, a: a.a, r: R, t: 0, life: 0.45, col: '#ffe38a', fan: true, span: full ? TAU : q.arc });
+    slashes.push(owned({ x: P.x, y: P.y, a: a.a, r: R, t: 0, life: 0.45, col: '#ffe38a', fan: true, span: full ? TAU : q.arc }));
     const n = 6 + Math.min(10, Math.floor(used / 15));
     for (let i = 0; i < n; i++) { // 天から降る光の柱
       const d = full ? rand(0, TAU) : a.a + rand(-q.arc / 2, q.arc / 2), r = rand(0.3, 1) * R;
-      zones.push({ kind: 'pillar', x: P.x + Math.cos(d) * r, y: P.y + Math.sin(d) * r, r: 12, t: -i * 0.03, dur: 0.45, tick: 0 });
+      zones.push(owned({ kind: 'pillar', x: P.x + Math.cos(d) * r, y: P.y + Math.sin(d) * r, r: 12, t: -i * 0.03, dur: 0.45, tick: 0 }));
     }
     const cx = full ? P.x : P.x + Math.cos(a.a) * R * 0.5, cy = full ? P.y : P.y + Math.sin(a.a) * R * 0.5;
     addFlash(cx, cy, R * 2, '#fff6d8', 0.45);

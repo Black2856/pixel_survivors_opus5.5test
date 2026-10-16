@@ -307,9 +307,12 @@ function updEnemies(dt) {
       for (const b of bs) b.t -= dt;
       if (e.burnTick <= 0) {
         e.burnTick = DATA.debuff.burnTick;
-        const by = {}, k = clsBurnMul(e); // クラスの補正(パイロマンサーの火勢など)
-        for (const b of bs) if (b.t > -DATA.debuff.burnTick) by[b.src] = (by[b.src] || 0) + b.v * DATA.debuff.burnTick;
-        for (const src in by) { hitEnemy(e, by[src] * k, { src, dot: true, col: '#ff8a3d', noNum: Math.random() < 0.5 }); if (e.dead) break; } // 攻撃力・クリティカルが乗る
+        // 出どころ × 付けた人ごとにまとめ、付けた人で当てる(クラスの補正・攻撃力・クリティカル・撃破はその人。1人用は出どころごと)
+        const by = new Map();
+        for (const b of bs) if (b.t > -DATA.debuff.burnTick) { const pl = b.pl || P, key = b.src + '|' + pl.pid, g = by.get(key) || by.set(key, { src: b.src, pl, v: 0 }).get(key); g.v += b.v * DATA.debuff.burnTick; }
+        const gs = [...by.values()];
+        for (const g of gs) g.k = withPlayer(g.pl, () => clsBurnMul(e)); // クラスの補正(パイロマンサーの火勢など。積んだ数で決まるので、当てる前に)
+        for (const g of gs) { withPlayer(g.pl, () => hitEnemy(e, g.v * g.k, { src: g.src, dot: true, col: '#ff8a3d', noNum: Math.random() < 0.5 })); if (e.dead) break; } // 攻撃力・クリティカルが乗る
         if (e.dead) continue;
       }
       e.burns = bs.filter(b => b.t > 0);

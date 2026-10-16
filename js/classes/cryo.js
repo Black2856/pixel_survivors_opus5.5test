@@ -45,9 +45,9 @@ WEAPON_SKILL.blizzard = {
 function icicleFall(X, a) {
   const sk = DATA.weapons.blizzard.skill, m = P.wm.blizzard || {}, ar = X.area, dmg = wst('blizzard').dmg * (1 + X.lv('pow')) * a.pow;
   const n = Math.round((sk.n + X.lv('n') + (m.eCount || 0)) * (X.sp('cd') ? sk.rainK : 1)); // 氷雨: 攻撃頻度 1.5倍
-  zones.push({ kind: 'icicle', x: a.x, y: a.y, r: sk.radius * ar, t: 0, dur: sk.dur + 0.5, tick: 0, acc: 0, every: sk.dur / n, left: n, ices: [],
+  zones.push(owned({ kind: 'icicle', x: a.x, y: a.y, r: sk.radius * ar, t: 0, dur: sk.dur + 0.5, tick: 0, acc: 0, every: sk.dur / n, left: n, ices: [],
     dmg: dmg * sk.pow, iceR: sk.iceR * ar, frost: sk.frost,
-    patch: X.sp('n'), big: X.sp('pow') ? dmg * sk.bigPow : 0, bigR: sk.bigR * ar, cl: X.cl });
+    patch: X.sp('n'), big: X.sp('pow') ? dmg * sk.bigPow : 0, bigR: sk.bigR * ar, cl: X.cl }));
   const x = X.x, y = X.y;
   asMine(() => { addRing(a.x, a.y, sk.radius * ar, '#bff4ff', { w: 2, life: 0.4 }); addFlash(x, y - 20, 40, '#bff4ff', 0.25); });
   fxSigil(a.x, a.y, sk.radius * ar, '#bff4ff', { style: 'rune', mark: 'snow', sq: 1, wu: sk.dur, life: sk.dur + 0.4, spin: 0.35, glow: 0.35, dim: 0.65 });
@@ -220,8 +220,8 @@ function cryoMirror() {
 // ダイヤモンドダスト: 自分を中心に細氷の領域(zones の 'ddust'、world.js で凍傷とダメージ)
 function cryoDust() {
   const q = DATA.classes.cryo.q, k = 1 + cuV('q', 'pow') + (P.lvFx.qPow || 0);
-  zones.push({ kind: 'ddust', x: P.x, y: P.y, r: q.r * (1 + cuV('q', 'area')) * P.area, t: 0, dur: q.dur + (hasSp('q', 'cd') ? q.longDur : 0), tick: 0,
-    every: q.every, frost: q.frost, dmg: q.pow * k, glitter: hasSp('q', 'pow') ? q.glitter * k : 0 });
+  zones.push(owned({ kind: 'ddust', x: P.x, y: P.y, r: q.r * (1 + cuV('q', 'area')) * P.area, t: 0, dur: q.dur + (hasSp('q', 'cd') ? q.longDur : 0), tick: 0,
+    every: q.every, frost: q.frost, dmg: q.pow * k, glitter: hasSp('q', 'pow') ? q.glitter * k : 0 }));
   asMine(() => {
     burst(P.x, P.y, 50, ['#ffffff', '#bff4ff', '#7ad7ff'], { sp: 180, glow: true, life: 0.6 });
     addRing(P.x, P.y, q.r * P.area, '#ffffff', { w: 3, life: 0.5 }); addFlash(P.x, P.y, q.r * 2.5, '#bff4ff', 0.4);

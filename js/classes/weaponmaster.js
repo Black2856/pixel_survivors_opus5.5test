@@ -154,7 +154,7 @@ function wmShade(k, side, twin) {
         if (e.prop) { killEnemy(e); return; }
         hitEnemy(e, edge, { src: 'wshade', ang: Math.atan2(e.y - s.y, e.x - s.x), kb: 30, col: WM_COL, noNum: Math.random() < 0.4 });
         if (stun && !e.dead && missed !== e) e.stun = Math.max(e.stun || 0, p.stunT); // 影縫い(外れた敵は止まらない)
-        if (marks++ < 8) { const a = rand(0, Math.PI), L = (e.r || 4) + 3; slashes.push({ mark: true, x: e.x - Math.cos(a) * L, y: e.y - 2 - Math.sin(a) * L, x1: e.x + Math.cos(a) * L, y1: e.y - 2 + Math.sin(a) * L, t: 0, life: 0.2, col: '#2a1a0e', core: '#d08a48' }); }
+        if (marks++ < 8) { const a = rand(0, Math.PI), L = (e.r || 4) + 3; slashes.push(owned({ mark: true, x: e.x - Math.cos(a) * L, y: e.y - 2 - Math.sin(a) * L, x1: e.x + Math.cos(a) * L, y1: e.y - 2 + Math.sin(a) * L, t: 0, life: 0.2, col: '#2a1a0e', core: '#d08a48' })); }
       });
       addRing(s.x, s.y, R, '#8a5a2a', { r0: R * 0.6, life: 0.22 });
     }

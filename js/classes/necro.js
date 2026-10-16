@@ -137,7 +137,7 @@ function stormHop(ps) {
   };
   const t1 = near(null);
   if (!t1) { stormBurst(ps); return false; }
-  const jump = t => asMine(() => slashes.push({ line: true, x: fx, y: fy - 4, x1: t.x, y1: t.y - 4, t: 0, life: 0.2, w: 1, col: '#1f8f6a', core: '#9dffcf' }));
+  const jump = t => asMine(() => slashes.push(owned({ line: true, x: fx, y: fy - 4, x1: t.x, y1: t.y - 4, t: 0, life: 0.2, w: 1, col: '#1f8f6a', core: '#9dffcf' })));
   stormHost(ps, t1); jump(t1);
   if (ps.X.sp('cd') && P.poss.filter(q => !q.done).length < sk.splitMax) { // 分霊
     const t2 = near(t1);
@@ -477,7 +477,7 @@ function necBombBurst(b, last) {
       fxRays(b.x, b.y, b.R * 1.4, '#5a3ab0', { n: 16, life: 0.4, core: '#c8b4ff' }); fxDecal(b.x, b.y, b.R * 0.8, 'crack', { n: 8, col: '#0a0614', hot: '#8a6cff', heatT: 1.2, life: 3.5 });
     } else { shockAt(b.x, b.y, 0.7, 1.2); shake(2); if (Math.random() < 0.5) fxDecal(b.x, b.y, b.R * 0.6, 'scorch', { col: '#140c24', hot: '#6a4ad0', heatT: 0.6, life: 2 }); }
   });
-  if (hasSp('q', 'pow')) zones.push({ kind: 'grudge', x: b.x, y: b.y, r: b.R, t: 0, dur: q.lingerT, tick: 0, dmg: q.lingerPow * necK() }); // 慟哭(霊力も乗る)
+  if (hasSp('q', 'pow')) zones.push(owned({ kind: 'grudge', x: b.x, y: b.y, r: b.R, t: 0, dur: q.lingerT, tick: 0, dmg: q.lingerPow * necK() })); // 慟哭(霊力も乗る)
   if (last) AudioMan.knell(); else AudioMan.boom();
   if (b.big) AudioMan.impact();
 }

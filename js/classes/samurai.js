@@ -74,7 +74,7 @@ function ranbuHit(X, a) {
   const x = X.x, y = X.y;
   asMine(() => {
     forEachNear(x, y, R, e => { if (!e.prop) hitEnemy(e, dmg, { src: 'ranbu', ang: Math.atan2(e.y - y, e.x - x), kb: 25, col: '#ffb7d5', noNum: Math.random() < 0.4, el, eHit: true, cl: X.cl }); });
-    slashes.push({ x, y, follow: X, a: rand(0, TAU), r: R, t: 0, life: 0.18, flip: Math.random() < 0.5, span: 1.9, pal: SWING_PAL.ranbu }); // 外縁 = 乱れ桜の範囲(全周に当たる。向きはばらばら)
+    slashes.push(owned({ x, y, follow: X, a: rand(0, TAU), r: R, t: 0, life: 0.18, flip: Math.random() < 0.5, span: 1.9, pal: SWING_PAL.ranbu })); // 外縁 = 乱れ桜の範囲(全周に当たる。向きはばらばら)
     burst(x + rand(-R, R) * 0.6, y + rand(-R, R) * 0.6, 6, ['#ffb7d5', '#ffffff'], { sp: 70, glow: true, life: 0.3 });
     shake(1.5);
   });
@@ -96,7 +96,7 @@ function ranbuCut(X) {
   s.ev = [{ at: run, fn: () => fxScope(() => asMine(() => { // 走り抜けた先に花びら(updFx で後から呼ばれるので、ここも見た目の列)
     for (let i = 0; i < 2; i++) part(s.x1, s.y1, ca * rand(20, 80) + rand(-20, 20), sa * rand(20, 80) + rand(-20, 20), rand(0.3, 0.6), pick(['#ffb7d5', '#ff8ac0', '#ffffff']), { glow: true, drag: 3 });
   })) }];
-  slashes.push(s);
+  slashes.push(owned(s));
 }
 function sakuraBurst(X, a) {
   const sk = DATA.weapons.katana.skill, R = sk.burstR * X.area, dmg = wst('katana').dmg * sk.burst * (1 + X.lv('pow')) * a.pow, x = X.x, y = X.y;
@@ -306,7 +306,7 @@ function iaiStrike(a) {
       for (const e of hits) if (!e.dead) {
         hitEnemy(e, dmg, { src: 'iai', ang: a.a, kb: 120, col: '#ff3b5c' });
         if (ittou) addBleed(e, 10); // 一刀両断: 出血 10スタック
-        if (marks++ < 8) slashes.push({ mark: true, x: e.x - ca * 8, y: e.y - sa * 8, x1: e.x + ca * 8, y1: e.y + sa * 8, t: 0, life: 0.16 }); // 敵の上の細い斬り跡
+        if (marks++ < 8) slashes.push(owned({ mark: true, x: e.x - ca * 8, y: e.y - sa * 8, x1: e.x + ca * 8, y1: e.y + sa * 8, t: 0, life: 0.16 })); // 敵の上の細い斬り跡
         for (let i = 0; i < 8; i++) { // 血しぶき(線の両側へ)
           const k = i % 2 ? 1 : -1, sp = rand(40, 120);
           part(e.x, e.y, -sa * k * sp + ca * rand(-30, 30), ca * k * sp + sa * rand(-30, 30) - 20, rand(0.3, 0.6), pick(['#a0122a', '#5a0a14', '#ff3b5c']), { g: 220, drag: 2, sz: pick([1, 2]) });
@@ -364,7 +364,7 @@ function samuraiParry() {
       hitEnemy(e, c.parryPow, { src: 'parry', ang: Math.atan2(e.y - P.y, e.x - P.x), kb: 80, col: '#ffffff' });
       if (stun && !e.dead && missed !== e) e.stun = Math.max(e.stun || 0, c.parryStun); // 外れた敵は止まらない
     });
-    slashes.push({ x: P.x, y: P.y, follow: true, a: rand(0, TAU), r: R, t: 0, life: 0.25, full: true, pal: SWING_PAL.parry }); // 全周を一回転で斬る(見た目 = 反撃の範囲)
+    slashes.push(owned({ x: P.x, y: P.y, follow: true, a: rand(0, TAU), r: R, t: 0, life: 0.25, full: true, pal: SWING_PAL.parry })); // 全周を一回転で斬る(見た目 = 反撃の範囲)
     hitstop(0.06); shake(5); screenFlash(0.25 * SET.fxA, '#ffffff'); shockAt(P.x, P.y, 1, 1.2);
     addRing(P.x, P.y, R, '#ffffff', { w: 2, life: 0.3 });
     burst(P.x, P.y, 24, ['#ffffff', '#9ff7ff', '#ff3b5c'], { sp: 120, glow: true, life: 0.35 });

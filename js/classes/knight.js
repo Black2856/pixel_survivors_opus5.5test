@@ -256,7 +256,7 @@ function knightVerdict(a) {
       if (holy && dealt && !e.dead) addBurn(e, dealt * 0.5 / 3 / dmgMul(), 3, 'verdict'); // 聖炎
     });
     // 見た目は攻撃判定と同じ形(扇形。全周のときだけ円)
-    slashes.push({ x: P.x, y: P.y, a: a.a, r: R, t: 0, life: 0.4, col: '#f2c84b', fan: true, span: full ? TAU : q.arc });
+    slashes.push(owned({ x: P.x, y: P.y, a: a.a, r: R, t: 0, life: 0.4, col: '#f2c84b', fan: true, span: full ? TAU : q.arc }));
     if (full) { addRing(P.x, P.y, R, '#f2c84b', { w: 3, life: 0.45 }); addRing(P.x, P.y, R * 0.55, '#ffffff', { w: 2, life: 0.3 }); }
     const cx = full ? P.x : P.x + Math.cos(a.a) * R * 0.5, cy = full ? P.y : P.y + Math.sin(a.a) * R * 0.5;
     addFlash(cx, cy, full ? R * 2.5 : R * 1.6, '#fff1d0', 0.5);

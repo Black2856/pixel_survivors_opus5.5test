@@ -100,25 +100,26 @@ function updWorld(rdt) {
   if (S.cine) { updCine(rdt); return; } // 影の王の冥鎖: 杭が落ちて鎖がつながる間は、すべて止まる
   if (S.tsBack > 0) S.tsBack -= rdt; else S.ts = Math.min(1, S.ts + rdt * 1.5);
   const dt = rdt * S.ts;
-  if (!P.dead) { S.time += dt; updPlayer(dt); }
+  // 1人ずつの処理は players の順に P を入れ替えて(1人用は 1回)。共有の処理は誰か 1人でも生きていれば
+  if (anyAlive()) S.time += dt;
+  for (const p of players) if (!p.dead) withPlayer(p, () => updPlayer(dt));
   buildGrid();
   FX_MINE = true; // 自分の攻撃による演出(濃さ設定の対象)
-  if (!P.dead) updWeapons(dt);
-  updProjs(dt);
+  for (const p of players) if (!p.dead) withPlayer(p, () => updWeapons(dt));
+  updProjs(dt); // 弾・ゾーンは作った人で(owned)
   updZones(dt);
   FX_MINE = false;
   updEnemies(dt);
-  if (!P.dead) { updEnemyLevel(dt); updPhase(dt); } // フェーズの時計 / エリート群の終わり / 闇の霧
+  if (anyAlive()) { updEnemyLevel(dt); updPhase(dt); } // フェーズの時計 / エリート群の終わり / 闇の霧
   updEprojs(dt);
   updHazards(dt);
   if (S.mode === 'arena') confineArena();
-  if (!P.dead) { updGems(dt); updDrops(dt); updSpawner(dt); }
+  if (anyAlive()) { updGems(dt); updDrops(dt); updSpawner(dt); }
   updFx(dt);
-  if (!P.dead) updSky(dt); // ステージの空(雲海の稲光と遠雷)
-  P.comboT -= dt;
-  if (P.comboT <= 0 && P.combo > 0) P.combo = 0;
+  if (anyAlive()) updSky(dt); // ステージの空(雲海の稲光と遠雷)
+  for (const p of players) { p.comboT -= dt; if (p.comboT <= 0 && p.combo > 0) p.combo = 0; }
 
-  // レベルアップ演出 → 選択画面
+  // レベルアップ演出 → 選択画面(自分 = players[0]。協力プレイのほかの人の止まらないレベルアップは 5段)
   if (P.pendingLv > 0 && !P.dead && state === 'play') {
     if (P.lvUpT <= 0) {
       P.lvUpT = 0.4;
@@ -134,7 +135,7 @@ function updWorld(rdt) {
       if (list.length) UI.levelUp(lv, list); else microBuff();
     }
   }
-  if (P.dead) { P.deathT -= rdt; if (P.deathT <= 0) endRun(false); }
+  if (!anyAlive()) { P.deathT -= rdt; if (P.deathT <= 0) endRun(false); } // 全員が倒れたら(倒れた人の復活は tower.md #17・5段)
   if (S.victoryT > 0) { S.victoryT -= rdt; if (S.victoryT <= 0) { AudioMan.playMusic('title'); endRun(true); } }
 }
 

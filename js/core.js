@@ -37,6 +37,9 @@ let S = null, P = null;
 //   1人ずつの処理は withPlayer で P を入れ替えて、players の順に回す(全員の乱数の引き方をそろえるため、順を変えない)
 let players = [];
 function withPlayer(p, fn) { const p0 = P; P = p; try { return fn(); } finally { P = p0; } }
+const anyAlive = () => players.some(p => !p.dead);
+// プレイヤーが作った物(弾・ゾーン・斬撃)に、作った人を付ける(pl)。動かすときに P をその人にして、撃破・ダメージ・倍率をその人のものにする
+const owned = o => { if (o.pl === undefined) o.pl = P; return o; };
 let enemies = [], projs = [], eprojs = [], gems = [], drops = [], props = [];
 let parts = [], floats = [], rings = [], zones = [], slashes = [], bolts = [], warns = [], flashes = [];
 let hazards = []; // ボスが設置する床・フィールド(粘液 / 衝撃波 / スロウタイム)
@@ -277,7 +280,7 @@ function slowmo(k, dur) { S.ts = k; S.tsBack = dur; }
 // ゲームの時間のタイマー(計算に関わる「少し後で」は setTimeout ではなくこれ)。update の最後に進むので、ポーズ・レベルアップの間は止まる
 //   実時間の setTimeout は人によって呼ばれる時がずれる(協力プレイ: claudedocs/coop.md 3章)。画面だけの物(ui.js など)は setTimeout のまま
 let simTq = [], simTNow = 0, simTId = 0;
-function simTimeout(fn, ms = 0) { simTq.push({ t: simTNow + (+ms || 0) / 1000, fn, id: ++simTId }); }
+function simTimeout(fn, ms = 0) { simTq.push({ t: simTNow + (+ms || 0) / 1000, fn, id: ++simTId, pl: P }); } // pl: 足した時のプレイヤー(呼ぶときもその人で)
 function clearSimTimers() { simTq = []; simTNow = 0; }
 function tickSimTimers(rdt) { // 時刻の来たものを、早い順(同じなら足した順)に。呼んだ中で足された 0ms の物も同じフレームで
   simTNow += rdt;
@@ -286,7 +289,7 @@ function tickSimTimers(rdt) { // 時刻の来たものを、早い順(同じな�
     for (let i = 0; i < simTq.length; i++) { const q = simTq[i]; if (q.t <= simTNow + 1e-9 && (k < 0 || q.t < simTq[k].t || (q.t === simTq[k].t && q.id < simTq[k].id))) k = i; }
     if (k < 0) return;
     const q = simTq.splice(k, 1)[0];
-    try { q.fn(); } catch (e) { (self.reportError || console.error)(e); } // 1つの失敗でフレームを止めない(setTimeout と同じ)
+    try { withPlayer(q.pl || P, q.fn); } catch (e) { (self.reportError || console.error)(e); } // 1つの失敗でフレームを止めない(setTimeout と同じ)
   }
 }
 function screenFlash(a, col = '#ffffff') { GFX.fx.flash = Math.max(GFX.fx.flash, a); GFX.fx.flashCol = hexRgb(col); }

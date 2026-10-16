@@ -42,7 +42,7 @@ function nearestUnhit(x, y, maxD, hit) {
 }
 function fire(kind, x, y, ang, spd, o) {
   if (o.src === P.mainW && o.el === undefined) o.el = clsNextEl(); // 通常攻撃の1発ごとに属性(メイジ)
-  projs.push(Object.assign({ kind, x, y, vx: Math.cos(ang) * spd, vy: Math.sin(ang) * spd, ang, t: 0, life: 1.5, r: 3, pierce: 0, hit: new Set() }, o));
+  projs.push(owned(Object.assign({ kind, x, y, vx: Math.cos(ang) * spd, vy: Math.sin(ang) * spd, ang, t: 0, life: 1.5, r: 3, pierce: 0, hit: new Set() }, o)));
 }
 
 // 通常攻撃の撃ち手: 撃つ位置と狙い。自分は P_ORG、影・分身などは orgOf(位置を持つもの) で作る
@@ -139,7 +139,7 @@ function weaponFire(k, w, st, o) {
           hitEnemy(e, st.dmg, { src: k, ang: Math.atan2(e.y - y, e.x - x) + Math.PI / 2, kb: 45 });
           if (w.evo && !e.prop) addBleed(e, DATA.weapons.blade.evo.bleed);
         });
-        slashes.push({ x, y, follow: o.main ? true : null, a: rand(0, TAU), r: R + band * 0.5, t: 0, life: 0.22, full: true, pal: SWING_PAL.ring });
+        slashes.push(owned({ x, y, follow: o.main ? true : null, a: rand(0, TAU), r: R + band * 0.5, t: 0, life: 0.22, full: true, pal: SWING_PAL.ring }));
       });
       AudioMan.slash();
       return true;
@@ -163,7 +163,7 @@ function weaponFire(k, w, st, o) {
       for (let i = 0; i < n; i++) {
         const dir = (i % 2 ? -1 : 1) * o.face;
         const p = { dmg: st.dmg, pierce: 999, life: 2.4, src: k, g: 300, spin: dir * 12, r: 5 * sz, sz, whirl: !!w.evo, wdmg: st.dmg * DATA.weapons.axe.evo.whirlPow }; // whirl: 巨斧旋風
-        projs.push(Object.assign({ kind: 'axe', x: o.x, y: o.y - 4, vx: dir * rand(20, 55) + i * 8 * dir, vy: -rand(150, 185), ang: 0, t: 0, hit: new Set() }, p));
+        projs.push(owned(Object.assign({ kind: 'axe', x: o.x, y: o.y - 4, vx: dir * rand(20, 55) + i * 8 * dir, vy: -rand(150, 185), ang: 0, t: 0, hit: new Set() }, p)));
       }
       AudioMan.slash();
       return true;
@@ -182,7 +182,7 @@ function weaponFire(k, w, st, o) {
     }
     case 'blizzard': {
       const t = mouseAimPt() || randomTargets(1)[0], x = t ? t.x : o.x + rand(-40, 40), y = t ? t.y : o.y + rand(-40, 40);
-      zones.push({ kind: 'blizz', x, y, r: st.radius * P.area, r0: st.radius * P.area, t: 0, dur: st.dur, tick: 0, dmg: st.dmg, evo: w.evo });
+      zones.push(owned({ kind: 'blizz', x, y, r: st.radius * P.area, r0: st.radius * P.area, t: 0, dur: st.dur, tick: 0, dmg: st.dmg, evo: w.evo }));
       AudioMan.blizz();
       return true;
     }
@@ -226,7 +226,7 @@ function strikeNow(x, y, st, evo) {
 }
 
 function spawnHole(x, y, st, evo) {
-  zones.push({ kind: 'hole', x, y, r: st.radius * P.area, t: 0, dur: st.dur, tick: 0, dmg: st.dmg, pull: st.pull, evo });
+  zones.push(owned({ kind: 'hole', x, y, r: st.radius * P.area, t: 0, dur: st.dur, tick: 0, dmg: st.dmg, pull: st.pull, evo }));
   AudioMan.hole(); shockAt(x, y, 0.8, 0.5);
 }
 
@@ -237,7 +237,7 @@ function addBurn(e, perSec, dur = DATA.debuff.burnDur, src = 'fire') {
   if (!(perSec > 0) || e.dead || e.prop || missed === e) return; // 外れた攻撃(砂塵・暗闇)では付かない
   dur += clsBurnDur(); // クラスの持続の追加(パイロマンサー)
   const b = e.burns || (e.burns = []);
-  b.push({ v: perSec, t: dur, src });
+  b.push({ v: perSec, t: dur, src, pl: P }); // pl: 付けた人(ダメージ・倍率・撃破はその人)
   if (b.length > 40) b.shift();
   if (e.burnT <= 0) e.burnTick = DATA.debuff.burnTick;
   e.burnT = Math.max(e.burnT, dur);
@@ -272,7 +272,7 @@ const SWING_PAL = {
 // 騎士剣の薙ぎ払い(扇形)。o.arc: 半分の角度 / o.evo: 聖剣(当てるたびに 5秒のシールド +1。1回の攻撃につき1まで)/ org: 撃ち手
 function sweep(a, st, flip, o, org = P_ORG) {
   const R = st.aoe * P.area, el = o.src === P.mainW && org.main ? clsNextEl() : undefined, x = org.x, y = org.y;
-  slashes.push({ x, y, follow: org.main ? true : org, a, r: R, t: 0, life: 0.24, flip, span: o.arc * 2, pal: SWING_PAL.sword }); // 見た目 = 当たり判定(半径 R・角度 ±arc)
+  slashes.push(owned({ x, y, follow: org.main ? true : org, a, r: R, t: 0, life: 0.24, flip, span: o.arc * 2, pal: SWING_PAL.sword })); // 見た目 = 当たり判定(半径 R・角度 ±arc)
   const hits = [];
   forEachNear(x, y, R, e => {
     let diff = Math.atan2(e.y - y, e.x - x) - a;
@@ -304,7 +304,7 @@ const KATANA_ARC = 1.05; // 刀の斬撃の半分の角度(全体で約 120°)
 function doSlash(a, st, evo, flip, org = P_ORG, w = P.weapons.katana) {
   const R = st.aoe * P.area, el = P.mainW === 'katana' && org.main ? clsNextEl() : undefined, x = org.x, y = org.y; // 斬撃1回 = 1属性(メイジ。メイン武器のときだけ)
   let hits = 0;
-  slashes.push({ x, y, follow: org.main ? true : org, a, r: R, t: 0, life: 0.2, flip, span: KATANA_ARC * 2, pal: evo ? SWING_PAL.katanaEvo : SWING_PAL.katana }); // 見た目 = 当たり判定
+  slashes.push(owned({ x, y, follow: org.main ? true : org, a, r: R, t: 0, life: 0.2, flip, span: KATANA_ARC * 2, pal: evo ? SWING_PAL.katanaEvo : SWING_PAL.katana })); // 見た目 = 当たり判定
   forEachNear(x, y, R, e => {
     let diff = Math.atan2(e.y - y, e.x - x) - a;
     diff = Math.atan2(Math.sin(diff), Math.cos(diff));
@@ -349,7 +349,7 @@ function makeCut(x0, y0, x1, y1, o = {}) {
   const s = { cut: true, a, x0, y0, x1, y1, nx: -Math.sin(a), ny: Math.cos(a), bulge: len * 0.025 * (Math.random() < 0.5 ? -1 : 1), len, t: 0,
     omen: o.omen ?? CUT_OMEN, run: o.run ?? CUT_RUN, hit: o.hit ?? CUT_HIT, life: o.life ?? CUT_LIFE, wk: o.wk ?? 1, nodim: !!o.nodim, pal: o.pal || CUT_PAL, ev: [] };
   if (o.late) s.ev.push({ at: s.hit, fn: () => { s.hitDue = true; if (s.onHit) s.onHit(); } });
-  slashes.push(s);
+  slashes.push(owned(s));
   return s;
 }
 // 走り終えた瞬間の火花(線に沿って進行方向へ飛ぶ。切っ先の先で小さく爆ぜる)
@@ -383,7 +383,7 @@ function cutHit(s, st, W) {
       const sd = (e.x - px) * s.nx + (e.y - py) * s.ny < 0 ? -1 : 1; // 線のどちら側にいるか(そちらへ押し出す)
       hitEnemy(e, st.dmg * 8, { src: 'katana', ang: Math.atan2(s.ny * sd, s.nx * sd), kb: 70, col: '#ff3b5c' });
       addBleed(e, 5); // 出血 5
-      if (marks++ < 8) slashes.push({ mark: true, x: e.x - ca * 8, y: e.y - sa * 8, x1: e.x + ca * 8, y1: e.y + sa * 8, t: 0, life: 0.16 }); // 敵の上の細い斬り跡(重なって白く飛ばないよう 8体まで)
+      if (marks++ < 8) slashes.push(owned({ mark: true, x: e.x - ca * 8, y: e.y - sa * 8, x1: e.x + ca * 8, y1: e.y + sa * 8, t: 0, life: 0.16 })); // 敵の上の細い斬り跡(重なって白く飛ばないよう 8体まで)
       for (let i = 0; i < 10; i++) { // 血しぶき(線の両側へ。重さで落ちる)
         const k = i % 2 ? 1 : -1, sp = rand(40, 130);
         part(e.x, e.y, s.nx * k * sp + ca * rand(-30, 30), s.ny * k * sp + sa * rand(-30, 30) - 20, rand(0.35, 0.7), pick(['#a0122a', '#5a0a14', '#ff3b5c']), { g: 220, drag: 2, sz: pick([1, 2]) });
@@ -409,15 +409,18 @@ function tenkyuEcho(e, dmg, ang, o) {
     asMine(() => {
       hitEnemy(e, dmg, o);
       const ca = Math.cos(ang), sa = Math.sin(ang);
-      slashes.push({ mark: true, x: e.x - ca * 9, y: e.y - 2 - sa * 9, x1: e.x + ca * 3, y1: e.y - 2 + sa * 3, t: 0, life: 0.16, col: '#8a6a10', core: '#ffe14a' }); // 金の残像の矢
+      slashes.push(owned({ mark: true, x: e.x - ca * 9, y: e.y - 2 - sa * 9, x1: e.x + ca * 3, y1: e.y - 2 + sa * 3, t: 0, life: 0.16, col: '#8a6a10', core: '#ffe14a' })); // 金の残像の矢
       burst(e.x, e.y - 2, 5, ['#ffe14a', '#fff6c8'], { sp: 55, glow: true, life: 0.22 });
     });
   }, TENKYU_ECHO * 1000);
 }
 // ---------- 弾 ----------
-function updProjs(dt) {
+// 弾ごとに P を撃った人にして動かす(撃破・ダメージ・倍率がその人のものになる。core.js の owned)
+function updProjs(dt) { const P0 = P; try { updProjs1(dt, P0); } finally { P = P0; } }
+function updProjs1(dt, P0) {
   for (let i = projs.length - 1; i >= 0; i--) {
     const p = projs[i];
+    P = p.pl || P0;
     p.t += dt;
     if ((p.homing || p.home) && !p.spiral) {
       // target: 一斉射撃の狙った敵 / seek: 弾ごとの狙い方(スピリットストーム: まだ取り憑かれていない敵)/ それ以外は、まだ当たっていない一番近い敵
@@ -530,9 +533,11 @@ function rainImpact(z, ar) {
     if (z.fire && Math.random() < 0.5) part(ar.x + rand(-1, 1), ar.y - 2, rand(-6, 6), -rand(15, 30), rand(0.4, 0.7), pick(['#ff6a2a', '#ffc34a', '#b8261a']), { glow: true, drag: 1 });
   });
 }
-function updZones(dt) {
+function updZones(dt) { const P0 = P; try { updZones1(dt, P0); } finally { P = P0; } } // ゾーンごとに P を出した人に
+function updZones1(dt, P0) {
   for (let i = zones.length - 1; i >= 0; i--) {
     const z = zones[i];
+    P = z.pl || P0;
     z.t += dt; z.tick -= dt;
     if (z.kind === 'blizz') {
       if (z.evo) z.r = z.r0 * (1 + 0.1 * z.t);
@@ -665,7 +670,7 @@ function updZones(dt) {
           if (ic.big) { addRing(ic.x, ic.y, R, '#ffffff', { w: 3, life: 0.45 }); shockAt(ic.x, ic.y, 1.6, 1); shake(8); hitstop(0.05); AudioMan.boom(); fxRays(ic.x, ic.y - 4, R * 1.5, '#7ad7ff', { n: 16, life: 0.38 }); fxDecal(ic.x, ic.y, R, 'frost', { life: 3.5, n: 10 }); }
           else { shake(1); if (Math.random() < 0.4) fxDecal(ic.x, ic.y, R * 0.9, 'frost', { life: 1.8, n: 5 }); }
         });
-        if (z.patch) zones.push({ kind: 'frostpatch', x: ic.x, y: ic.y, r: R, t: 0, dur: DATA.weapons.blizzard.skill.patchT, tick: 0.5 }); // 凍てつく大地
+        if (z.patch) zones.push(owned({ kind: 'frostpatch', x: ic.x, y: ic.y, r: R, t: 0, dur: DATA.weapons.blizzard.skill.patchT, tick: 0.5 })); // 凍てつく大地
         if (!ic.big && Math.random() < 0.5) AudioMan.hit();
       }
       z.ices = z.ices.filter(ic => !ic.done || ic.t < ICE_FALL + 0.4);

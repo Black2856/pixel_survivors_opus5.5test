@@ -47,9 +47,9 @@ function arrowRain(X, a) {
   const follow = X.sp('cd'); // 追従: ついてくる + 持続 +50%
   const x = X.x, y = X.y, f = X.face || 1, every = sk.every * (heavy ? 0.5 : 1);
   // acc = every: 照準の輪が定まった瞬間(delay)に 1回目が降る(dur 秒で dur / every 回)
-  zones.push({ kind: 'rain', x: a.x, y: a.y, r: sk.radius * (1 + X.lv('area')) * X.area, t: 0, delay, dur: delay + (sk.dur + (m.eDur || 0)) * (follow ? 1.5 : 1), tick: 0, acc: every,
+  zones.push(owned({ kind: 'rain', x: a.x, y: a.y, r: sk.radius * (1 + X.lv('area')) * X.area, t: 0, delay, dur: delay + (sk.dur + (m.eDur || 0)) * (follow ? 1.5 : 1), tick: 0, acc: every,
     every, dmg: wst('longbow').dmg * sk.pow * (1 + X.lv('pow')) * a.pow * (heavy ? 0.6 : 1),
-    nArrows: sk.arrows, follow: follow ? X : null, fire: X.sp('area') ? sk.fire : 0, fireT: sk.fireT, arrows: [], cl: X.cl, slant: 0.32 * f, linger: RAIN_STUCK });
+    nArrows: sk.arrows, follow: follow ? X : null, fire: X.sp('area') ? sk.fire : 0, fireT: sk.fireT, arrows: [], cl: X.cl, slant: 0.32 * f, linger: RAIN_STUCK }));
   asMine(() => { // 空へ放つ矢の一斉射(当たらない。上へ飛んで消える)と、手元の光
     for (let i = 0; i < 7; i++) fire('volley', x + f * 3, y - 9, -Math.PI / 2 + f * 0.15 + (i - 3) * 0.07 + rand(-0.03, 0.03), rand(430, 520), { noHit: true, pierce: 999, life: rand(0.2, 0.28), src: 'arrowsky', r: 0, col: '#b8ffb0' });
     for (let i = 0; i < 6; i++) part(x + f * 4, y - 10, rand(-30, 30) + f * 20, -rand(200, 320), 0.3, pick(['#e4ffd8', '#b8ff9a', '#ffffff']), { glow: true, drag: 0 });
@@ -243,7 +243,7 @@ function archerVolley() {
   asMine(() => {
     shots.slice(0, q.max).forEach((tg, i) => {
       const a = Math.atan2(tg.y - P.y, tg.x - P.x);
-      if (i < 8) slashes.push({ line: true, x: P.x, y: P.y - 4, x1: tg.x, y1: tg.y, t: 0, life: 0.13, w: 1, col: '#1f6a3a', core: '#b8ffb0' }); // 狙った敵へ一瞬走る照準の光
+      if (i < 8) slashes.push(owned({ line: true, x: P.x, y: P.y - 4, x1: tg.x, y1: tg.y, t: 0, life: 0.13, w: 1, col: '#1f6a3a', core: '#b8ffb0' })); // 狙った敵へ一瞬走る照準の光
       fire('volley', P.x, P.y - 4, a, q.speed, { dmg: q.pow * k, pierce: 999, life: 1.2, src: 'volley', r: 4, col: '#b8ffb0', forceCrit: sure, onHit });
     });
     addRing(P.x, P.y - 4, 30, '#b8ff9a', { w: 2, life: 0.4 }); addFlash(P.x, P.y, 90, '#b8ff9a', 0.3);

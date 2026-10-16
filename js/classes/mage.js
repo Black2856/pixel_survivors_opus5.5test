@@ -383,7 +383,7 @@ function meteorImpact(m) {
       AudioMan.zap();
     }, 250 + i * 110);
   }
-  if (hasSp('q', 'area')) zones.push({ kind: 'blizz', x: m.x, y: m.y, r: R, r0: R, t: 0, dur: 4, tick: 0, dmg: 0, maxFrost: true }); // 絶対零度
+  if (hasSp('q', 'area')) zones.push(owned({ kind: 'blizz', x: m.x, y: m.y, r: R, r0: R, t: 0, dur: 4, tick: 0, dmg: 0, maxFrost: true })); // 絶対零度
 }
 
 function mageBlink() {
@@ -392,12 +392,12 @@ function mageBlink() {
   staUse(blinkCost());
   P.x += dx * p.blinkDist; P.y += dy * p.blinkDist;
   P.invT = Math.max(P.invT, dodgeIfr(p.blinkIfr)); P.ifr = Math.max(P.ifr, dodgeIfr(p.blinkIfr));
-  zones.push({ kind: 'residue', x: x0, y: y0, r: p.residueR * P.area, t: 0, dur: p.residueT, tick: 0 });
+  zones.push(owned({ kind: 'residue', x: x0, y: y0, r: p.residueR * P.area, t: 0, dur: p.residueT, tick: 0 }));
   playAnim('mBlink', MOTIONS.mBlink.dur); P.anim.keep = true;
   for (let i = 1; i <= 4; i++) P.after = (P.after || []).concat([{ x: x0 + dx * p.blinkDist * i / 5, y: y0 + dy * p.blinkDist * i / 5, t: 0, f: P.facing }]).slice(-6);
   burst(x0, y0, 14, ['#9ff7ff', '#ffffff', '#7ad7ff'], { sp: 70, glow: true, life: 0.35 });
   burst(P.x, P.y, 10, ['#9ff7ff', '#ffffff'], { sp: 50, glow: true, life: 0.3 });
   addRing(P.x, P.y, 14, '#9ff7ff', { life: 0.2 });
-  asMine(() => { fxGlint(P.x, P.y - 4, 7, '#9ff7ff', { life: 0.22 }); slashes.push({ line: true, x: x0, y: y0 - 4, x1: P.x, y1: P.y - 4, t: 0, life: 0.14, w: 2, col: '#2a6a9a', core: '#bff4ff' }); }); // 跳んだ道筋に光が走る
+  asMine(() => { fxGlint(P.x, P.y - 4, 7, '#9ff7ff', { life: 0.22 }); slashes.push(owned({ line: true, x: x0, y: y0 - 4, x1: P.x, y1: P.y - 4, t: 0, life: 0.14, w: 2, col: '#2a6a9a', core: '#bff4ff' })); }); // 跳んだ道筋に光が走る
   AudioMan.dash();
 }
