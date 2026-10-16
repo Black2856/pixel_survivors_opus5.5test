@@ -20,7 +20,7 @@
 - 表示する日本語は `_t` を通し、訳を `js/lang/en.js`・`zh.js`・`ko.js` に足す(キー = 日本語の文)。`node scripts/i18n-check.js` で抜けを見る。DATA の文は読み込み時にまるごと訳す
   - 強化のパスの `desc` は多くが値を差し込む型(`'バラージュの威力 +{p}%'` + `v`。表示は `pathDesc`)。数値だけの調整は `v` を変えるだけで、説明も辞書も触らない。配列のもの(Lv ごとに文が違う)は今までどおり 3つの文と辞書を直す
 - 計算(update の中)はどのブラウザでも同じ結果にする(協力プレイ: `claudedocs/coop.md` 3章): `**` は使わない(`Math.pow` で。Math の関数は `js/detmath.js` が置き換えている)/ 計算に関わる「少し後で」は `setTimeout` ではなく `simTimeout` / update の中の `Math.random` は計算の乱数の列(core.js)。見た目だけで、引く回数が設定(画質・攻撃の濃さ)・画面・実時間で変わる物は `fxScope(() => …)` の中か `frand` / `fpick` で引く(確かめは `T.classSmoke({ pix: false })` を `SET.gfx`・`SET.fxA` を変えて比べる)/ 計算は入力を `P.inp`(core.js の `readInput` の記録)から読み、`keys`・`touch`・`mouse`・`SET` を直接読まない / update の中の `cam`・`GFX.VW / VH` は、協力プレイの形(`SIM_VIEW.on`)では計算用の四角に入れ替わる(画面の位置に直すのは描画の側で)
-- 協力プレイ(players は 1〜4人。`P` は「いま計算しているプレイヤー」): 1人ずつの物は `P` に置く(`S` に置かない)/ プレイヤーごとの処理は `withPlayer` / `setP` で players の順に / プレイヤーが作る弾・ゾーン・斬撃は `owned(…)` で作った人を付ける / 敵の処理の間の `P` はその敵の狙い(`e.tPl`)/ 2人以上の通しは `T.coopSmoke()`
+- 協力プレイ(players は 1〜4人。`P` は「いま計算しているプレイヤー」): 1人ずつの物は `P` に置く(`S` に置かない)/ プレイヤーごとの処理は `withPlayer` / `setP` で players の順に / プレイヤーが作る弾・ゾーン・斬撃は `owned(…)` で作った人を付ける / 敵の処理の間の `P` はその敵の狙い(`e.tPl`)/ 計算の状態(番号の数え `nextId` など)はランごとに `initRun` で始め直す(同じページで前に遊んだ物を持ち越すと、まっさらなページの人とずれる)/ 2人以上の通しは `T.coopSmoke()`
 - `claudedocs/db.xlsx` はユーザーの物。ステージもコミットもしない
 - 作業は feature ブランチ。`release` は公開元(GitHub Pages)で、マージだけ。マージはユーザーに言われた時だけ
 
@@ -42,7 +42,7 @@
 - 道具: `scripts/dev/harness.js`(使い方は先頭のコメント)。`python -m http.server 8765 --bind 127.0.0.1` を立て、Playwright の `browser_run_code_unsafe` に `filename: scripts/dev/open.pw.js` で開く → `T.setup` / `T.step` / `T.boss` で手で進める
 - 通し: `T.classSmoke()`(全クラス × 特殊強化 3通り、約 8秒)・`T.bossSmoke()`(全ステージのボス、約 20秒)→ 例外の数とハッシュ
 - ブラウザどうし(協力プレイのずれ): `scripts/dev/cross.js` が通しを Chromium / Firefox / WebKit で回して、画素なしのハッシュを比べる(Playwright はリポジトリの外に入れる。使い方は先頭のコメント)。`sim` / `coop` で協力プレイの形
-- 協力プレイの通信(js/net.js の NET・COOP): `scripts/dev/coop2.js` が 2〜4ページをつなぎ、交互に進めてハッシュを比べる(既定は BroadcastChannel。`net=p2p`・`mix`(chromium と firefox)で Supabase を通す。`inject` でわざとずらす・`kits` で違うセーブ・`leave=1@600` で抜ける。使い方は先頭のコメント)。手で試すときは別々のウィンドウで `?coop=host&room=abc&n=2` と `?coop=join&room=abc`(`&net=bc` で同じブラウザだけ)
+- 協力プレイの通信(js/net.js の NET・COOP): `scripts/dev/coop2.js` が 2〜4ページをつなぎ、交互に進めてハッシュを比べる(既定は BroadcastChannel。`net=p2p`・`mix`(chromium と firefox)で Supabase を通す。`inject` でわざとずらす・`kits` で違うセーブ・`leave=1@600` で抜ける・`dirty` で 1つ目のページだけ先に 1人のランを遊ぶ。使い方は先頭のコメント)。手で試すときは別々のウィンドウで `?coop=host&room=abc&n=2` と `?coop=join&room=abc`(`&net=bc` で同じブラウザだけ)
 - 動かすだけのリファクタリングは、前後でハッシュが同じか比べる。ページを開き直して `classSmoke()` → `bossSmoke()` の順に呼ぶ(初回だけ作るキャッシュがあるので順番をそろえる)
 - 試験はセーブに書かない(T.init が saveMeta を止める)。公開版を手で遊ばせるときは先にセーブ(localStorage)を写し、`/scripts/`(ゲームを読まないページ)で戻す。終わったらサーバーを止め、`.playwright-mcp/` を消す
 - 遊ばせても時計が進まないときは rAF が止まっている(この環境で起きる)。`page.bringToFront()` してから
