@@ -60,7 +60,7 @@ function updStagRush(e, ai, dt) {
     if (o.obj !== 'crystal' || o.dead || rs.ignore.has(o) || d2(o.x, o.y, e.x, e.y) > Math.pow(o.r + e.r, 2)) continue;
     o.dead = true; objDown(o, true); e.air = false;
     ai.act = 'stun'; ai.pt = 1.5; e.takeK = 1.5;
-    hitstop(0.08); shake(10); shockAt(e.x, e.y, 1.6, 0.8); AudioMan.crush();
+    hitstop(0.08, true); shake(10); shockAt(e.x, e.y, 1.6, 0.8); AudioMan.crush();
     burst(e.x, e.y, 50, [...PRISM, '#ffffff'], { sp: 160, glow: true, life: 0.7 });
     bossBlast(e.x, e.y, 40, Object.assign({ n: 18, decal: false }, BFX.stag)); // 砕けた結晶の光
     UI.announce(_t('柱にぶつかった!'), _t('ひるんでいる間は 1.5倍のダメージ'));

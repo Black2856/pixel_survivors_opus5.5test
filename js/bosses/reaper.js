@@ -83,7 +83,7 @@ function startReaperMorph(e) {
   for (const o of enemies) if (o.owner === e && !o.dead) { o.dead = true; if (o.obj) objDown(o, false); }
   eprojs = []; warns = []; hazards = []; bfx = []; P.push = null; P.rootT = 0; e.ai.q = []; e.ai.wind = 0; S.tstop = 0; S.madClock = null; S.rewind = 0;
   S.morph = { e, t: 2 };
-  hitstop(0.1); shake(10); screenFlash(0.5, '#ffffff'); AudioMan.knell(); AudioMan.hum(2);
+  hitstop(0.1, true); shake(10); screenFlash(0.5, '#ffffff'); AudioMan.knell(); AudioMan.hum(2);
   UI.announce(_t('時が止まる…'), '');
 }
 function updMorph(rdt) { // main.js の update から(この間はほかのすべてが止まる)
@@ -100,7 +100,7 @@ function updMorph(rdt) { // main.js の update から(この間はほかのす�
   S.bosses = wasMain ? [f, ...partner] : [...partner, f]; S.boss = S.bosses[0]; UI.bossBar(S.boss);
   burst(f.x, f.y, 120, ['#ff3b5c', '#1a0a14', '#c8a050', '#ffffff'], { sp: 220, glow: true, life: 1.2 });
   addRing(f.x, f.y, 120, '#ff3b5c', { w: 3, life: 0.7 }); addFlash(f.x, f.y, 240, '#ff3b5c', 1);
-  shockAt(f.x, f.y, 3, 0.6); shake(16); hitstop(0.12); screenFlash(0.6, '#ff3b5c'); AudioMan.roar(); AudioMan.boom();
+  shockAt(f.x, f.y, 3, 0.6); shake(16); hitstop(0.12, true); screenFlash(0.6, '#ff3b5c'); AudioMan.roar(); AudioMan.boom();
 }
 
 // ---------- 時の操作(終刻の死神): 時間停止(敵の弾が止まる)/ 狂い時計(弾の進みが不規則)/ 逆戻し(終刻の時計を壊せなかった) ----------
@@ -234,7 +234,7 @@ function twelveMarks(e, ai, at) {
     const R0 = 50 * CHAOS.area;
     hitCircle(x0, y0, 50, e.dmg * 1.2);
     bfx.push({ kind: 'spincut', x: x0, y: y0, a0: rand(0, TAU), dir: Math.random() < 0.5 ? 1 : -1, r: R0 + 8, t: 0, life: 0.45 });
-    burst(x0, y0, 30, ['#ff3b5c', '#ffffff', '#8e0016'], { sp: 150, glow: true, life: 0.4 }); shockAt(x0, y0, 1.4, 0.8); shake(7); hitstop(0.04); AudioMan.slash(); AudioMan.cutHit(); AudioMan.boom();
+    burst(x0, y0, 30, ['#ff3b5c', '#ffffff', '#8e0016'], { sp: 150, glow: true, life: 0.4 }); shockAt(x0, y0, 1.4, 0.8); shake(7); hitstop(0.04, true); AudioMan.slash(); AudioMan.cutHit(); AudioMan.boom();
     bossBlast(x0, y0, R0, Object.assign({ n: 16 }, BFX.fhour)); // 斬った所の地面が割れる
     later(ai, 0, () => { // 赤い円が消えた瞬間から 12方向の帯
       for (let i = 0; i < 12; i++) {
@@ -291,7 +291,7 @@ function deadCross(e, ai) {
     for (const sa of fa) {
       const s = makeCut(cx - Math.cos(sa) * L, cy - Math.sin(sa) * L, cx + Math.cos(sa) * L, cy + Math.sin(sa) * L, { pal: CUT_PAL_XCROSS, wk: 1.8, nodim: true, late: true });
       s.enemy = true;
-      s.ev.push({ at: CUT_RUN, fn: () => { hitstop(0.05); shake(6); cutSpark(s, 18, ['#ff3b5c', '#8e0016', '#ffffff']); fxDecal(cx, cy, L, 'scar', { foe: true, hx: Math.cos(sa) * L, hy: Math.sin(sa) * L, col: '#0a0002', hot: '#ff3b5c', heatT: 1.2, life: 3.5 }); } }); // X の斬撃の跡が地面に残る
+      s.ev.push({ at: CUT_RUN, fn: () => { hitstop(0.05, true); shake(6); cutSpark(s, 18, ['#ff3b5c', '#8e0016', '#ffffff']); fxDecal(cx, cy, L, 'scar', { foe: true, hx: Math.cos(sa) * L, hy: Math.sin(sa) * L, col: '#0a0002', hot: '#ff3b5c', heatT: 1.2, life: 3.5 }); } }); // X の斬撃の跡が地面に残る
       s.onHit = () => { if (done) return; done = true; deadCrossHit(cx, cy, fa); };
     }
     AudioMan.cutDraw(); later(ai, CUT_OMEN, () => AudioMan.cut());
@@ -306,7 +306,7 @@ function deadCrossHit(cx, cy, angs) {
   if (clsOnHurt(Math.max(1, P.hp - 1)) === null) { S.hudDirty = true; return; } // ガード系の防御で防げる
   if (P.hp > 1) { addFloat(P.x, P.y - 14, 'DEAD CROSS', '#ff3b5c', 1.4); P.hp = 1; }
   P.ifr = P.iframe; P.hurtT = 0.2; breakCombo(); S.hudDirty = true;
-  GFX.fx.hurt = 1; GFX.fx.aberr = Math.max(GFX.fx.aberr, 1.5); hitstop(0.15);
+  GFX.fx.hurt = 1; GFX.fx.aberr = Math.max(GFX.fx.aberr, 1.5); hitstop(0.15, true);
   burst(P.x, P.y, 40, ['#ff3b5c', '#8e0016', '#0a0002', '#ffffff'], { sp: 160, life: 0.6 }); AudioMan.hurt();
 }
 

@@ -276,7 +276,7 @@ function objDown(e, broken) {
     burst(e.x, e.y - 14, Math.round(60 * k), ['#bff4ff', '#ffffff', '#ffe8a0', '#7ad7ff'], { sp: 150 * k, g: 180, glow: true, life: 0.7 });
     if (broken && !e.owner.dead) {
       const ai = e.owner.ai; (ai.husks = ai.husks || []).push({ x: e.x, y: e.y, r: 15 });
-      addFlash(e.x, e.y, 90, '#9fd8ff', 0.5); shockAt(e.x, e.y, 1.2, 0.8); shake(6); hitstop(0.05); AudioMan.crush(); AudioMan.chime();
+      addFlash(e.x, e.y, 90, '#9fd8ff', 0.5); shockAt(e.x, e.y, 1.2, 0.8); shake(6); hitstop(0.05, true); AudioMan.crush(); AudioMan.chime();
       hint('ser_husk', _t('壊れたクリスタル'), _t('壊れたクリスタルは残り、ホワイトアウトのときに影(安全な所)を作る'));
     }
   } else if (e.obj === 'altar') {
@@ -294,7 +294,7 @@ function objDown(e, broken) {
     if (broken && !e.owner.dead) { e.owner.stun = 1.5; addFlash(e.x, e.y, 70, '#c29bff', 0.5); shake(5); AudioMan.chime(); AudioMan.thud(); UI.announce(_t('砂時計が割れた!'), _t('死神がひるんでいる')); }
   } else if (e.obj === 'doom') { // 終刻の時計: 壊すと死神が 3秒ひるむ。壊せないまま時間が来ると、時が巻き戻る
     burst(e.x, e.y - 10, Math.round(60 * k), ['#ff3b5c', '#c8a050', '#e8e0d0', '#1a0a14'], { sp: 160 * k, g: 200, glow: true, life: 0.8 });
-    if (broken && !e.owner.dead) { e.owner.stun = 3; addFlash(e.x, e.y, 120, '#ff3b5c', 0.7); hitstop(0.1); shake(12); shockAt(e.x, e.y, 2.4, 0.7); AudioMan.crush(); AudioMan.knell(); UI.announce(_t('終刻の時計が砕けた!'), _t('死神が 3秒ひるむ')); }
+    if (broken && !e.owner.dead) { e.owner.stun = 3; addFlash(e.x, e.y, 120, '#ff3b5c', 0.7); hitstop(0.1, true); shake(12); shockAt(e.x, e.y, 2.4, 0.7); AudioMan.crush(); AudioMan.knell(); UI.announce(_t('終刻の時計が砕けた!'), _t('死神が 3秒ひるむ')); }
     else if (!broken && e.life <= 0) finaleRewind(e.owner);
   } else if (e.obj === 'tomb') { // 氷柱の墓標: 砕けると滑る床も一緒に消える
     burst(e.x, e.y - 12, Math.round(50 * k), [...SNOW, '#ffffff', '#7ab8e8'], { sp: 140 * k, g: 180, glow: true, life: 0.6 });
@@ -314,7 +314,7 @@ function objDown(e, broken) {
     if (broken) {
       const ph = S.phase;
       if (ph) { if (ph.fogOn) ph.fogPause = (ph.fogPause || 0) + 20; else { ph.t -= 20; if (ph.t < DATA.flow.fog.start - 10) ph.fogWarn = false; } }
-      addFlash(e.x, e.y, 110, '#a66bff', 0.6); shake(8); hitstop(0.06); AudioMan.crush(); AudioMan.chain();
+      addFlash(e.x, e.y, 110, '#a66bff', 0.6); shake(8); hitstop(0.06, true); AudioMan.crush(); AudioMan.chain();
       UI.announce(_t('鎖が切れた!'), ph && ph.fogPause > 0 ? _t('闇の霧が 20秒 晴れる') : _t('闇の霧が 20秒 遅れる'));
     }
     return;
@@ -323,7 +323,7 @@ function objDown(e, broken) {
     burst(e.x, y, Math.round(46 * k), [C[0], C[1], '#1a0a14', '#ffffff'], { sp: 150 * k, g: 220, glow: true, life: 0.7 });
     if (broken && !o.dead) {
       const h = o.ai.hs[e.slot]; h.dead = true; h.hp = 0;
-      addFlash(e.x, y, 90, C[0], 0.5); shake(7); hitstop(0.05); AudioMan.crush(); AudioMan.bite();
+      addFlash(e.x, y, 90, C[0], 0.5); shake(7); hitstop(0.05, true); AudioMan.crush(); AudioMan.bite();
       bossBlast(e.x, y, 26, { col: C[1], core: C[0], decal: false, n: 14, light: 0.6 });
       for (let i = 0; i < 14; i++) part(e.x + rand(-3, 3), y + rand(-3, 3), rand(-60, 60), -rand(40, 110), rand(0.5, 0.9), pick(['#1a0a14', '#5a1020', C[1]]), { g: 300, drag: 0.5, sz: pick([1, 2]) }); // 黒い血
       if (o.ai.hs.every(q => q.dead)) cerbDownStart(o, o.ai, e.x, e.y); // 3匹とも倒した

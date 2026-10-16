@@ -125,7 +125,7 @@ function updCerbRush(e, ai, dt) {
   if (Math.random() < dt * 60) part(e.x + rand(-10, 10), e.y + 8, -Math.cos(ai.ra) * 60 + rand(-20, 20), -rand(10, 40), 0.4, pick(['#3a2a40', '#5a4a60', '#ff5a5a']), { g: 120, drag: 2 }); // 土煙
   if (!ai.rhit && d2(e.x, e.y, P.x, P.y) < Math.pow(SRUSH.w / 2 + 3, 2) && hurtPlayer(e.dmg * 1.3)) { // 噛みついた
     ai.rhit = true; pushPlayer(ai.ra, 60, 0.2); darkPlayer(DATA.debuffTomb.darkDur);
-    bfx.push({ kind: 'cbite', x: P.x, y: P.y, a: ai.ra, col: CERB.fang[0], t: 0, life: 0.3 }); AudioMan.bite(); shake(6); hitstop(0.05);
+    bfx.push({ kind: 'cbite', x: P.x, y: P.y, a: ai.ra, col: CERB.fang[0], t: 0, life: 0.3 }); AudioMan.bite(); shake(6); hitstop(0.05, true);
   }
   if (ai.rleft > 0) return;
   // 着いた所で半径 60 を切り裂く(無敵無視)
@@ -135,7 +135,7 @@ function updCerbRush(e, ai, dt) {
   slashes.push({ x: e.x, y: e.y, a: ai.ra + Math.PI, r: R * 0.72, t: 0, life: 0.28, full: true, flip: 1, pal: SWING_PAL.cerb, enemy: true }); // 二重の刃筋
   fxRays(e.x, e.y, R * 1.2, '#5a1020', { foe: true, n: 18, life: 0.35, core: '#ff5a5a', light: 0.7 });
   for (let i = 0; i < 26; i++) { const pa = rand(0, TAU), r = rand(10, R); part(e.x + Math.cos(pa) * r, e.y + Math.sin(pa) * r, Math.cos(pa) * 70, Math.sin(pa) * 70, 0.4, pick(['#1a0a14', '#5a1020', '#ff5a5a', '#a66bff']), { glow: Math.random() < 0.4, drag: 2 }); }
-  shockAt(e.x, e.y, 2, 0.7); shake(9); hitstop(0.06); AudioMan.slash(); AudioMan.cutHit();
+  shockAt(e.x, e.y, 2, 0.7); shake(9); hitstop(0.06, true); AudioMan.slash(); AudioMan.cutHit();
   ai.act = null; ai.gap = 0.6; e.sq = 0.85;
 }
 // 三獄の息吹(名前は仮): 0.5秒(前方の扇 半径 110・±35°)→ 2秒 吐き続ける(扇は毎秒 0.6rad でプレイヤーを追う)。中にいる間 0.5秒ごとに ×0.3 × 残った首の数
@@ -248,7 +248,7 @@ function updCerbToSplit(e, ai, dt) {
   burst(e.x, e.y, 80, ['#0a0612', '#2a1240', '#7a3ab0', '#7dff6a', '#ff5a5a', '#a66bff'], { sp: 190, up: 40, glow: true, life: 0.9 });
   fxBeam(e.x, e.y, { foe: true, w: 22, H: 160, col: '#2a1240', mid: '#7a3ab0', core: '#e8c8ff', life: 0.5, up: true, drop: 0.1 });
   addRing(e.x, e.y, 60, '#a66bff', { r0: 10, w: 3, life: 0.45 }); addFlash(e.x, e.y, 150, '#7a3ab0', 0.6);
-  shockAt(e.x, e.y, 2.4, 0.7); shake(10); hitstop(0.06); screenFlash(0.15, '#2a1240'); AudioMan.howl(); AudioMan.boom();
+  shockAt(e.x, e.y, 2.4, 0.7); shake(10); hitstop(0.06, true); screenFlash(0.15, '#2a1240'); AudioMan.howl(); AudioMan.boom();
 }
 function updCerbSplit(e, ai, dt) {
   ai.splitT += dt;
@@ -281,7 +281,7 @@ function updCerbToMerge(e, ai, dt) {
   bossBlast(e.x, e.y, R, Object.assign({ n: 20 }, BFX.cerberus));
   burst(e.x, e.y, 90, ['#0a0612', '#2a1240', '#7dff6a', '#ff5a5a', '#a66bff', '#ffffff'], { sp: 200, up: 50, glow: true, life: 0.9 });
   addRing(e.x, e.y, R, '#e8c8ff', { r0: 8, w: 3, life: 0.4 }); addFlash(e.x, e.y, 160, '#7a3ab0', 0.5);
-  shockAt(e.x, e.y, 2.8, 0.6); shake(13); hitstop(0.1); screenFlash(0.12, '#7a3ab0'); AudioMan.boom(); AudioMan.roar();
+  shockAt(e.x, e.y, 2.8, 0.6); shake(13); hitstop(0.1, true); screenFlash(0.12, '#7a3ab0'); AudioMan.boom(); AudioMan.roar();
 }
 // 3匹とも倒した: 合体できずに最後の犬の場所で倒れ込む(5秒。動かず技も使わない。被ダメ ×1.5)
 function cerbDownStart(e, ai, x, y) {
@@ -290,7 +290,7 @@ function cerbDownStart(e, ai, x, y) {
   e.x = x; e.y = y; e.flying = e.hidden = e.air = false; e.takeK = 1.5; e.sq = 0.8; e.stunVis = true;
   burst(e.x, e.y, 70, ['#1a0a14', '#5a1020', '#7dff6a', '#a66bff', '#ff5a5a'], { sp: 170, g: 200, glow: true, life: 0.9 });
   fxBeam(e.x, e.y, { foe: true, w: 20, H: 120, col: '#2a1240', mid: '#5a1020', core: '#e8c8ff', life: 0.45, drop: 0.1 });
-  shockAt(e.x, e.y, 2, 0.7); shake(12); hitstop(0.1); slowmo(0.35, 0.8); screenFlash(0.3, '#ffffff'); AudioMan.boom(); AudioMan.roar();
+  shockAt(e.x, e.y, 2, 0.7); shake(12); hitstop(0.1, true); slowmo(0.35, 0.8, true); screenFlash(0.3, '#ffffff'); AudioMan.boom(); AudioMan.roar();
   UI.announce(_t('ケルベロスが倒れ込んだ!'), _t`${CFORM.down}秒 大きなダメージを与えられる`);
 }
 function updCerbDown(e, ai, dt) { // 倒れ込み: 頭の上を星が回る。起き上がると首が全部生え直す

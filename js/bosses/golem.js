@@ -111,7 +111,7 @@ function updArmor(e, ai, dt) {
     if (ai.armK >= 1) { // 砕けた: 2秒ひるむ(受けるダメージ ×1.5)
       ai.act = 'stagger'; ai.pt = 2; e.takeK = 1.5;
       burst(e.x, e.y, 70, ['#544c44', '#7a6f60', '#241f1c', '#6ee7ff', '#ffffff'], { sp: 180, g: 260, life: 0.9 });
-      hitstop(0.1); shake(14); screenFlash(0.35, '#6ee7ff'); shockAt(e.x, e.y, 2.2, 0.7); AudioMan.crush(); AudioMan.boom();
+      hitstop(0.1, true); shake(14); screenFlash(0.35, '#6ee7ff'); shockAt(e.x, e.y, 2.2, 0.7); AudioMan.crush(); AudioMan.boom();
       addRing(e.x, e.y, 50, '#6ee7ff', { w: 3, life: 0.5 });
       bossBlast(e.x, e.y, 50, Object.assign({ n: 20, life: 0.45, decal: false }, BFX.golem)); // 砕けた鎧の光
       UI.announce(_t('岩の鎧が砕けた!'), _t('ひるんでいる 2秒は 1.5倍のダメージ'));

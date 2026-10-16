@@ -17,7 +17,7 @@ function gslimeAI(e, ai, dt, a, dist, slow) {
     hitCircle(e.x, e.y, 44, e.dmg * 1.3);
     addHazard('goo', e.x, e.y, { r: 30, dur: 8 });
     const R0 = 44 * CHAOS.area;
-    shockAt(e.x, e.y, 2, 0.75); shake(11); AudioMan.boom(); AudioMan.splat(); hitstop(0.05);
+    shockAt(e.x, e.y, 2, 0.75); shake(11); AudioMan.boom(); AudioMan.splat(); hitstop(0.05, true);
     addRing(e.x, e.y, R0, '#d8fff2', { w: 3, life: 0.4 }); addRing(e.x, e.y, R0 * 1.4, '#4fd6a8', { w: 2, life: 0.55 });
     bossBlast(e.x, e.y, R0, Object.assign({ n: 16 }, BFX.gslime)); // 落ちた跡
     burst(e.x, e.y, 50, ['#4fd6a8', '#d8fff2', '#23735f'], { sp: 160, g: 220 });

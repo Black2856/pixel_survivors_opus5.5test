@@ -275,8 +275,9 @@ const easeOutBack = t => { t = clamp(t, 0, 1); const c = 1.70158; return 1 + (c 
 function addRing(x, y, r, col, o = {}) { rings.push({ x, y, r0: o.r0 || 2, r, t: 0, life: o.life || 0.4, col, w: o.w || 1, mine: FX_MINE }); }
 function addFlash(x, y, r, col, life = 0.25) { flashes.push({ x, y, r, col, t: 0, life, mine: FX_MINE }); }
 function shake(n) { cam.shake = Math.max(cam.shake, n); }
-function hitstop(t) { S.freeze = Math.max(S.freeze, t); }
-function slowmo(k, dur) { S.ts = k; S.tsBack = dur; }
+// all: 全員に関わる物(ボスの技・撃破・エリート群など)。協力プレイ(2人以上)では all の物だけ時間を止める・遅くする(1人が起こす物は止めない: coop.md #5)
+function hitstop(t, all) { if (!all && players.length > 1) return; S.freeze = Math.max(S.freeze, t); }
+function slowmo(k, dur, all) { if (!all && players.length > 1) return; S.ts = k; S.tsBack = dur; }
 // ゲームの時間のタイマー(計算に関わる「少し後で」は setTimeout ではなくこれ)。update の最後に進むので、ポーズ・レベルアップの間は止まる
 //   実時間の setTimeout は人によって呼ばれる時がずれる(協力プレイ: claudedocs/coop.md 3章)。画面だけの物(ui.js など)は setTimeout のまま
 let simTq = [], simTNow = 0, simTId = 0;

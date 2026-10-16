@@ -367,7 +367,7 @@ function updSerWhiteout(e, ai, dt) {
   }
   if (!W.boomed) { // 爆発
     W.boomed = true;
-    screenFlash(1, '#ffffff'); hitstop(0.08); shake(18);
+    screenFlash(1, '#ffffff'); hitstop(0.08, true); shake(18);
     shockAt(W.x, W.y, 3.2, 0.5); later(ai, 0.25, () => shockAt(W.x, W.y, 2.4, 0.7)); later(ai, 0.5, () => shockAt(W.x, W.y, 1.6, 0.9));
     fxRays(W.x, W.y - e.jz, 320, '#ffe8a0', { foe: true, n: 36, core: '#ffffff', life: 1.2, light: 0.6 });
     for (let k = 0; k < 4; k++) addRing(W.x, W.y, 120 + k * 90, k % 2 ? '#ffffff' : '#ffe8a0', { r0: 20, w: 3, life: 0.6 + k * 0.15 });
@@ -407,7 +407,7 @@ function startSerLR(e, ai) {
   }
   ai.husks = [];
   lockPlayer(20);
-  hitstop(0.25); slowmo(0.25, 1.4); screenFlash(0.7, '#ffffff'); shake(14);
+  hitstop(0.25, true); slowmo(0.25, 1.4, true); screenFlash(0.7, '#ffffff'); shake(14);
   shockAt(e.x, e.y, 3.4, 0.45); later(ai, 0.3, () => shockAt(e.x, e.y, 2.6, 0.7));
   fxBeam(e.x, e.y, { foe: true, w: 46, H: 320, col: '#ffe8a0', mid: '#fff6dc', core: '#ffffff', life: 1.4, drop: 0.12 });
   fxSigil(e.x, e.y, 110, '#ffe8a0', { foe: true, style: 'rune', n: 12, step: 5, wu: 1.2, life: 2.2, sq: 0.45, spin: 0.6, glow: 0.4, hi: '#ffffff' });

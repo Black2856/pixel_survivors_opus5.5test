@@ -102,7 +102,7 @@ function rootCage(e, ai) {
     const RR = 70 * CHAOS.area;
     for (let k = 0; k < 14; k++) { const pa = TAU / 14 * k + rand(-0.2, 0.2), pr = RR * rand(0.15, 0.85); bfx.push({ kind: 'rootspike', x: cx + Math.cos(pa) * pr, y: cy + Math.sin(pa) * pr, t: 0, life: 0.9, h: rand(10, 18), a: pa }); }
     burst(cx, cy, 50, ['#5a3a1a', '#8a5a2a', '#3a6a34', '#c8a060'], { sp: 150, up: 60, g: 240, life: 0.6 });
-    bossBlast(cx, cy, RR * 0.8, Object.assign({ n: 18 }, BFX.elder)); shockAt(cx, cy, 2, 0.75); shake(10); hitstop(0.05); AudioMan.boom(); AudioMan.crush();
+    bossBlast(cx, cy, RR * 0.8, Object.assign({ n: 18 }, BFX.elder)); shockAt(cx, cy, 2, 0.75); shake(10); hitstop(0.05, true); AudioMan.boom(); AudioMan.crush();
   });
 }
 

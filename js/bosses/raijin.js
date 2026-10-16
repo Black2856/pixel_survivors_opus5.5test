@@ -120,7 +120,7 @@ function raijinGod(e, ai) {
   later(ai, 2, () => { // 収束した力を撥の先から空へ放ち、プレイヤーのいる所へ落とす
     const fx = e.x, fy = e.y - e.jz - 23, at = ai.godAt;
     bfx.push({ kind: 'ebolt', x: fx, y: fy, x1: fx + rand(-8, 8), y1: Math.min(fy - 120, cam.y - 20), t: 0, life: 0.3, w: 3, jit: 6 }); burst(fx, fy, 24, THUN, { sp: 90, glow: true, life: 0.4 });
-    raijinStrike(e, at.x, at.y, 60, 1.2, 20, { big: true }); hitstop(0.08); ai.godLit = 0; e.spr = 'raijin2'; e.sq = 0.8;
+    raijinStrike(e, at.x, at.y, 60, 1.2, 20, { big: true }); hitstop(0.08, true); ai.godLit = 0; e.spr = 'raijin2'; e.sq = 0.8;
   });
   later(ai, 2.5, () => { e.spr = 'raijin'; ai.act = null; ai.godAt = null; ai.busy = 1; });
   AudioMan.drumroll(2); AudioMan.warning();

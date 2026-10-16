@@ -48,7 +48,7 @@ function updSpring(e, ai, dt) {
     if (ai.armK >= 1) { // 止めた: 2秒 止まる
       ai.act = 'stall'; ai.pt = 2; e.takeK = 1;
       burst(e.x, e.y - 8, 60, [...BRASS, '#5a5a6a'], { sp: 160, g: 240, life: 0.8 });
-      hitstop(0.08); shake(12); screenFlash(0.3, '#ffd27a'); shockAt(e.x, e.y, 2, 0.7); AudioMan.crush(); AudioMan.boom();
+      hitstop(0.08, true); shake(12); screenFlash(0.3, '#ffd27a'); shockAt(e.x, e.y, 2, 0.7); AudioMan.crush(); AudioMan.boom();
       bossBlast(e.x, e.y - 8, 44, Object.assign({ n: 18, decal: false }, BFX.warden)); // 弾け飛ぶ真鍮の光
       UI.announce(_t('ゼンマイが止まった!'), _t('2秒 動けない'));
     } else if (ai.pt <= 0) { // 巻き切った: 10秒 全速

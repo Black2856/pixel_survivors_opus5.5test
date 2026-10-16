@@ -28,7 +28,7 @@ function giantHammer(e, ai, a) {
     const RR = R0 * CHAOS.area;
     burst(cx, cy, big ? 70 : 45, [...SNOW, '#7ad7ff'], { sp: big ? 190 : 140, up: 60, g: 220, life: 0.7 });
     for (let i = 0; i < 10; i++) { const pa = TAU / 10 * i; bfx.push({ kind: 'icespike', x: cx + Math.cos(pa) * RR * 0.75, y: cy + Math.sin(pa) * RR * 0.75, t: 0, life: 0.8, h: rand(8, 14) }); } // 氷の棘が突き出る
-    addRing(cx, cy, RR, '#bff4ff', { w: 3, life: 0.4 }); shockAt(cx, cy, big ? 2.2 : 1.6, 0.75); shake(big ? 12 : 8); hitstop(big ? 0.06 : 0.03);
+    addRing(cx, cy, RR, '#bff4ff', { w: 3, life: 0.4 }); shockAt(cx, cy, big ? 2.2 : 1.6, 0.75); shake(big ? 12 : 8); hitstop(big ? 0.06 : 0.03, true);
     bossBlast(cx, cy, RR, Object.assign({ n: big ? 20 : 14 }, BFX.ice)); // 凍りついた地面
     AudioMan.boom(); AudioMan.frost(); e.sq = 0.7; ai.raise = 0;
     addHazard('ice', cx, cy, { r: R0, dur: 6 });

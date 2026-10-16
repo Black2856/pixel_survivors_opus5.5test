@@ -54,7 +54,7 @@ function skSummon(e, ai) {
     fxRays(x, y - 10, 110, '#3a1a5a', { foe: true, n: 22, life: 0.55, core: '#a66bff', light: 0.7 });
     burst(x, y, 90, SKC, { sp: 170, up: 70, glow: true, life: 1 });
     addRing(x, y, 70, '#a66bff', { w: 3, life: 0.55 }); addRing(x, y, 40, '#e8c8ff', { w: 2, life: 0.35 }); addFlash(x, y, 200, '#7a3ab0', 0.8);
-    shockAt(x, y, 2.6, 0.6); shake(11); hitstop(0.08); screenFlash(0.2, '#7a3ab0'); AudioMan.roar(); AudioMan.knell();
+    shockAt(x, y, 2.6, 0.6); shake(11); hitstop(0.08, true); screenFlash(0.2, '#7a3ab0'); AudioMan.roar(); AudioMan.knell();
     hint('shadowcall', _t('影喚び'), _t('影を倒すまで、影の王へのダメージは ×0.3。HP も一定より下がらない'));
   });
 }
@@ -66,7 +66,7 @@ function shadowDown(s) {
   burst(s.x, s.y, 110, [...SKC, '#ffffff'], { sp: 200, up: 40, glow: true, life: 1.1 });
   fxRays(s.x, s.y, 90, '#3a1a5a', { foe: true, n: 22, life: 0.55, core: '#a66bff', light: 0.7 });
   addRing(s.x, s.y, 90, '#a66bff', { w: 3, life: 0.6 }); addFlash(s.x, s.y, 180, '#7a3ab0', 0.7);
-  shockAt(s.x, s.y, 2.4, 0.6); shake(10); hitstop(0.1); AudioMan.boom(); AudioMan.shade2();
+  shockAt(s.x, s.y, 2.4, 0.6); shake(10); hitstop(0.1, true); AudioMan.boom(); AudioMan.shade2();
   const k = s.owner;
   if (!k || k.dead || k.ai.shade !== s) return;
   k.ai.shade = null; k.takeK = 1; k.hpFloor = k.ai.sumIdx < 4 ? k.maxhp * (1 - 0.25 * k.ai.sumIdx) : 0; // 次の影喚びの HP より下がらない(同じフレームの大きな一撃でも飛ばさない)
@@ -201,7 +201,7 @@ function skCut(e, a) {
     bfx.push({ kind: 'sever', x: e.x, y: e.y, a: aa, len: L, t: 0, life: 0.5 });
     for (let d = 0; d < 520; d += 6) part(e.x + Math.cos(aa) * d + rand(-3, 3), e.y + Math.sin(aa) * d + rand(-3, 3), rand(-30, 30), rand(-60, -10), rand(0.4, 0.8), pick([...SKC, '#ffffff']), { glow: Math.random() < 0.5, drag: 1.5, sz: pick([1, 2]) });
   }
-  hitstop(0.12); shake(14); screenFlash(0.45, '#7a3ab0'); shockAt(e.x, e.y, 2.8, 0.55); AudioMan.sever();
+  hitstop(0.12, true); shake(14); screenFlash(0.45, '#7a3ab0'); shockAt(e.x, e.y, 2.8, 0.55); AudioMan.sever();
   if (state === 'play' && !P.dead && (inLine(e.x, e.y, a, SEVER_LEN, 10) || inLine(e.x, e.y, a + Math.PI, SEVER_LEN, 10))) skKill();
 }
 // 即死(断界): 回避の無敵・ガード系の防御で防げる。不死鳥の(蘇生)は効く

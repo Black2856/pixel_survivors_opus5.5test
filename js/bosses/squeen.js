@@ -46,7 +46,7 @@ function iceTomb(e, ai) {
       if (hitCircle(x, y, 44, e.dmg * 1.3)) frostPlayer(3);
       burst(x, y, 50, [...SNOW, '#ffffff'], { sp: 150, up: 40, glow: true, life: 0.6 }); addRing(x, y, R0, '#bff4ff', { w: 3, life: 0.4 });
       for (let k = 0; k < 8; k++) { const pa = TAU / 8 * k; bfx.push({ kind: 'icespike', x: x + Math.cos(pa) * R0 * 0.6, y: y + Math.sin(pa) * R0 * 0.6, t: 0, life: 0.7, h: rand(8, 13) }); }
-      shockAt(x, y, 2, 0.75); shake(10); hitstop(0.05); AudioMan.boom(); AudioMan.frost();
+      shockAt(x, y, 2, 0.75); shake(10); hitstop(0.05, true); AudioMan.boom(); AudioMan.frost();
       bossBlast(x, y, R0, Object.assign({ n: 18 }, BFX.ice)); // 氷柱が突き刺さった地面
       const o = spawnObj(e, 'tomb', x, y, { pct: 0.08, r: 9, life: 15 });
       addHazard('ice', x, y, { r: 110, dur: 15 }).spire = o; // 滑る床: 氷柱が砕けたら一緒に消える

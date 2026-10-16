@@ -21,7 +21,7 @@ function escorpAI(e, ai, dt, a, dist, slow) {
       if (!(P.rootT > 0)) { ai.act = null; ai.grabT = 0; } // 回避で抜けた
       else if ((ai.grabT -= dt) <= 0) {
         P.rootT = 0; ai.act = null; hurtPlayer(e.dmg * 1.2);
-        bfx.push({ kind: 'estab', x: P.x, y: P.y, t: 0, life: 0.35 }); burst(P.x, P.y - 4, 18, ['#ffb040', '#ffd27a', '#2e2622'], { sp: 90, life: 0.4 }); shake(5); hitstop(0.04); AudioMan.slash(); AudioMan.thud();
+        bfx.push({ kind: 'estab', x: P.x, y: P.y, t: 0, life: 0.35 }); burst(P.x, P.y - 4, 18, ['#ffb040', '#ffd27a', '#2e2622'], { sp: 90, life: 0.4 }); shake(5); hitstop(0.04, true); AudioMan.slash(); AudioMan.thud();
       }
     }
     return;
@@ -100,7 +100,7 @@ function earthPincer(e, ai) {
   AudioMan.charge(1); AudioMan.thud(); shake(4);
   later(ai, 1, () => {
     hitLine(x0, y0, sa, D * 2, 40, e.dmg * 1.4);
-    burst(cx, cy, 40, [...SAND, '#ffd27a'], { sp: 140, up: 50, g: 200, life: 0.5 }); bossBlast(cx, cy, 40 * CHAOS.area, Object.assign({ n: 14 }, BFX.escorp)); shake(9); hitstop(0.05); AudioMan.crush(); AudioMan.boom();
+    burst(cx, cy, 40, [...SAND, '#ffd27a'], { sp: 140, up: 50, g: 200, life: 0.5 }); bossBlast(cx, cy, 40 * CHAOS.area, Object.assign({ n: 14 }, BFX.escorp)); shake(9); hitstop(0.05, true); AudioMan.crush(); AudioMan.boom();
   });
   hint('escorp_pinch', _t('大地の挟撃'), _t('左右から大きなはさみが閉じる。前か後ろへ逃げる'));
 }

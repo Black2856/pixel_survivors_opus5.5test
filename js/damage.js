@@ -116,7 +116,7 @@ function killEnemy(e, o = {}) {
   if (ed.shatter) glassShatter(e, ed.shatter); // 玻璃の天使: 割れてガラスの破片が全周に飛ぶ
   if (e.phaseElite && S.phase && S.phase.kind === 'elite') { S.phase.lastX = e.x; S.phase.lastY = e.y; } // エリート群: 宝箱は最後の1体の位置に
   if (e.elite || e.type === 'goblin') {
-    hitstop(0.06); shake(6); shockAt(e.x, e.y, 1.2, 0.8); addFlash(e.x, e.y, 100, '#ffd23f', 0.4);
+    hitstop(0.06, true); shake(6); shockAt(e.x, e.y, 1.2, 0.8); addFlash(e.x, e.y, 100, '#ffd23f', 0.4);
     if (!e.noChest) dropItem('chest', e.x, e.y); // 自然発生のエリート・トレジャー(ゴブリン)は装備宝箱を落とす(エリート群・親衛隊・ボス戦中のエリートは落とさない)
     const n = e.type === 'goblin' ? 18 : 4;
     for (let i = 0; i < n; i++) dropItem('coin', e.x, e.y, e.type === 'goblin' ? 3 : 2);

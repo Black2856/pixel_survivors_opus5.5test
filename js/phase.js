@@ -18,7 +18,7 @@ function onBossDeath(e) {
   S.boss = null;
   S.phase = null; // ボスのフェーズのクリア(闇の霧も晴れる)
   UI.bossBar(null);
-  hitstop(0.18); slowmo(0.2, 2); screenFlash(0.9); shake(16);
+  hitstop(0.18, true); slowmo(0.2, 2, true); screenFlash(0.9); shake(16);
   shockAt(e.x, e.y, 3, 0.55);
   simTimeout(() => shockAt(e.x, e.y, 2, 0.8), 250);
   burst(e.x, e.y, 180, [e.col, '#ffd23f', '#ffffff', '#ff8c42'], { sp: 220, glow: true, life: 1.6, g: 40 });
@@ -74,14 +74,14 @@ function startElitePhase(n) {
   S.phase = { kind: 'elite', t: 0, elites, lastX: P.x, lastY: P.y };
   UI.banner(_t('ELITE 襲来!!'), _t`エリート ${n}体を倒せ`, 2200);
   AudioMan.eliteHorn(); shake(7); screenFlash(0.35, '#ff3b5c'); shockAt(P.x, P.y, 1.6, 0.7);
-  slowmo(0.35, 0.6);
+  slowmo(0.35, 0.6, true);
 }
 function endElitePhase() {
   const ph = S.phase, x = ph.lastX, y = ph.lastY;
   S.phase = null;
   if (CHAOS.bossLv) { S.elv += CHAOS.bossLv; UI.enemyLvUp(); } // カオス「復讐の連鎖」: エリート群を倒しても敵Lv アップ(ボスと同じ)
   dropItem('chest', x, y - 10); chestBeacon(x, y - 10);
-  hitstop(0.12); slowmo(0.3, 1.2); shake(10); screenFlash(0.5, '#ffd23f'); shockAt(x, y, 2.2, 0.6);
+  hitstop(0.12, true); slowmo(0.3, 1.2, true); shake(10); screenFlash(0.5, '#ffd23f'); shockAt(x, y, 2.2, 0.6);
   addRing(x, y, 120, '#ffd23f', { w: 3, life: 0.8 }); addRing(x, y, 70, '#ffffff', { w: 2, life: 0.6 });
   UI.banner('PHASE CLEAR', _t('エリート群を撃破!'), 2200, 'gold');
   AudioMan.phaseClear();

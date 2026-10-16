@@ -60,7 +60,7 @@ function ifritAI(e, ai, dt, a, dist, slow) {
       if (inside) pushPlayer(Math.atan2(P.y - e.y, P.x - e.x), 100, 0.35);
       burst(e.x, e.y, 60, ['#ff6a2a', '#ffc34a', '#fff0b0', '#ff3b1a'], { sp: 200, glow: true, life: 0.6 });
       addRing(e.x, e.y, R0, '#ffc34a', { w: 3, life: 0.4 }); addRing(e.x, e.y, R0 * 1.3, '#ff6a2a', { w: 2, life: 0.55 }); addFlash(e.x, e.y, R0 * 3, '#ff8a3d', 1);
-      shockAt(e.x, e.y, 2.2, 0.7); shake(11); hitstop(0.05); AudioMan.boom(); AudioMan.fire(); e.sq = 0.7;
+      shockAt(e.x, e.y, 2.2, 0.7); shake(11); hitstop(0.05, true); AudioMan.boom(); AudioMan.fire(); e.sq = 0.7;
       hint('blast', _t('爆炎'), _t('吹き飛ばされる。燃える床・炎の壁へ押し込まれないように'));
       heatedRocks(e, ai.enraged ? 6 : 4);
     });
@@ -149,7 +149,7 @@ function ifritRage(e) {
   burst(e.x, e.y, 90, ['#ffffff', '#fff0b0', '#ffc34a', '#ff6a2a'], { sp: 200, up: 80, glow: true, life: 0.9 });
   for (let i = 0; i < 40; i++) part(e.x + rand(-10, 10), e.y + rand(-4, 8), rand(-15, 15), -rand(80, 200), rand(0.5, 1), pick(['#fff0b0', '#ffc34a', '#ff6a2a']), { glow: true, drag: 1.5 }); // 火柱
   addRing(e.x, e.y, 70, '#ffc34a', { w: 3, life: 0.6 }); addFlash(e.x, e.y, 220, '#ff8a3d', 1.2);
-  shockAt(e.x, e.y, 2.4, 0.7); hitstop(0.08);
+  shockAt(e.x, e.y, 2.4, 0.7); hitstop(0.08, true);
 }
 // 炎の祭壇(激昂したときに1回): プレイヤーから 150 の 4方向に祭壇(HP 各 10%)
 function fireAltars(e) {

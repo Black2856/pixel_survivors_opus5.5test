@@ -417,7 +417,7 @@ function playerDown() {
     return;
   }
   P.dead = true; P.hp = 0;
-  P.deathT = 1.8; slowmo(0.25, 2.5);
+  P.deathT = 1.8; slowmo(0.25, 2.5, !anyAlive()); // 協力プレイ: 全員が倒れた時だけ全員に効く(1人が倒れた時は止めない)
   screenFlash(0.8, '#ff3b5c'); shockAt(P.x, P.y, 2, 0.6); shake(12);
   burst(P.x, P.y, 80, ['#4c3a86', '#e8434f', '#9ff7ff', '#ffffff'], { sp: 140, glow: true, life: 1.4 });
   AudioMan.death(); AudioMan.stopMusic(2);
