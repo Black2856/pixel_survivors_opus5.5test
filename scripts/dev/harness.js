@@ -24,12 +24,13 @@
   const tryf = (tag, f) => { try { return f(); } catch (e) { err(tag, e); } };
 
   // ---------- 乱数の固定(mulberry32)----------
-  //   update と描画で別の列にする。描画の列はフレームごとに始め直す(描画の中の乱数・初回だけ作るキャッシュが update の乱数の順をずらさない)
-  const mathRandom = Math.random;
+  //   ゲームの計算の列(core.js の simSeed)と見た目の列(setFxRandom)を両方固定する。試験の間はずっと計算の列(inSim = 1。
+  //   ゲームでは main.js の frame が update だけを包むが、試験は準備の中でも引くので)。描画の列はフレームごとに始め直す
+  //   (描画の中の乱数・初回だけ作るキャッシュが、ほかの乱数の順をずらさない)
   const rng = s => { let a = s >>> 0; return () => { a = (a + 0x6d2b79f5) >>> 0; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; };
-  let rngU = null, seedR = 0, nR = 0;
-  T.seed = s => { rngU = rng(s); seedR = s ^ 0x9e3779b9; nR = 0; Math.random = rngU; };
-  T.unseed = () => { rngU = null; Math.random = mathRandom; };
+  let seeded = false, fxU = null, seedR = 0, nR = 0;
+  T.seed = s => { seeded = true; seedR = s ^ 0x9e3779b9; nR = 0; simSeed(s); fxU = rng(seedR ^ 0x2545f491); setFxRandom(fxU); inSim = 1; };
+  T.unseed = () => { seeded = false; inSim = 0; setFxRandom(null); simSeed(NATIVE_RANDOM() * 4294967296); };
 
   // ---------- setTimeout をゲームの時間で ----------
   //   スキルの一部(グランドスラムの余震・ホーリーピラーの連打など)は setTimeout で後の処理を動かす。実時間だと試験の合間に動いてずれるので、
@@ -130,9 +131,9 @@
     tryf('cam', () => updCam(1 / 60));
     tryf('fx', () => GFX.updateFx(1 / 60));
     if (draw) {
-      if (rngU) Math.random = rng(seedR + nR++ * 7919);
+      if (seeded) setFxRandom(rng(seedR + nR++ * 7919));
       tryf('render', () => T.render());
-      if (rngU) Math.random = rngU;
+      if (seeded) setFxRandom(fxU);
     }
   };
   T.step = (sec, f) => { const n = Math.round(sec * 60); for (let i = 0; i < n; i++) { tryf('update', () => T.upd(1 / 60)); runTimers(); if (f) tryf('step-f', f); } };

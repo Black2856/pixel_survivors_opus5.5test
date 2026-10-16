@@ -155,7 +155,7 @@ let lastT = performance.now();
 function frame(ts) {
   const rdt = Math.min(1 / 30, (ts - lastT) / 1000);
   lastT = ts;
-  if (state === 'play') update(rdt);
+  if (state === 'play') simScope(() => update(rdt)); // 計算の乱数の列で(core.js)
   else if (state === 'over' || state === 'victory') updFx(rdt * 0.3);
   if (state !== 'pause' && state !== 'levelup' && state !== 'chest') updCam(rdt);
   GFX.updateFx(rdt);

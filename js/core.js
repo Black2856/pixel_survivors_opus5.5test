@@ -11,6 +11,21 @@ const d2 = (ax, ay, bx, by) => (ax - bx) * (ax - bx) + (ay - by) * (ay - by);
 const hash2 = (x, y) => { let h = (x * 374761393 + y * 668265263) | 0; h = (h ^ (h >>> 13)) * 1274126177; return ((h ^ (h >>> 16)) >>> 0) / 4294967296; };
 const fmtTime = t => String((t / 60) | 0).padStart(2, '0') + ':' + String((t % 60) | 0).padStart(2, '0');
 const shuffle = a => { for (let i = a.length - 1; i > 0; i--) { const j = (Math.random() * (i + 1)) | 0; [a[i], a[j]] = [a[j], a[i]]; } return a; };
+
+// ---------- 乱数: 計算の列と見た目の列 ----------
+//   協力プレイは全員が同じ計算をするので、計算(update の中)が引く乱数は、全員で同じ列・同じ回数にする(claudedocs/coop.md 3章)
+//   Math.random は simScope の中(main.js の frame が update を包む)では計算の列、外では見た目の列(ネイティブ)
+//   update の中でも、引く回数が設定(画質・攻撃の濃さ)・画面・実時間で変わる見た目は、fxScope の中で引くか frand / fpick で引く
+const NATIVE_RANDOM = Math.random;
+const mulberry32 = s => { let a = s >>> 0; return () => { a = (a + 0x6d2b79f5) >>> 0; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; };
+let simRandom = mulberry32(NATIVE_RANDOM() * 4294967296), fxRandom = NATIVE_RANDOM, inSim = 0;
+Math.random = () => (inSim > 0 ? simRandom() : fxRandom());
+function simSeed(s) { simRandom = mulberry32(s); } // 協力プレイでは部屋の種
+function setFxRandom(f) { fxRandom = f || NATIVE_RANDOM; } // 試験の道具が見た目の列も固定するとき
+function simScope(fn) { inSim++; try { return fn(); } finally { inSim--; } }
+function fxScope(fn) { const k = inSim; inSim = 0; try { return fn(); } finally { inSim = k; } }
+const frand = (a, b) => a + fxRandom() * (b - a);
+const fpick = a => a[(fxRandom() * a.length) | 0];
 function hexRgb(h) { const n = parseInt(h.slice(1), 16); return [(n >> 16) / 255, ((n >> 8) & 255) / 255, (n & 255) / 255]; }
 
 // ============================================================

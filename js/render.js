@@ -768,7 +768,8 @@ function drawBerserkRings(t) {
   sx.globalAlpha = gx.globalAlpha = 1;
 }
 
-function render() {
+function render() { fxScope(drawFrame); } // 描画の乱数は見た目の列(引く回数は窓の大きさ・画質で変わる)
+function drawFrame() {
   const { lctx: lx, VW, VH } = GFX;
   if (GFX.overOn) { GFX.octx.clearRect(0, 0, VW, VH); GFX.overOn = false; } // 前景(重力崩壊の特異点)と重力レンズは毎フレーム描き直す
   GFX.lenses.length = 0;
