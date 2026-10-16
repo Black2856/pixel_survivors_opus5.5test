@@ -45,7 +45,7 @@ const SIGIL = {
 // 共通: t(秒。負の値は遅れて出る)/ life / follow(x, y を持つもの。ついていく)+ ox, oy
 function fxAdd(kind, o) {
   if (sfx.length > 160) sfx.splice(Math.max(0, sfx.findIndex(f => f.kind !== 'decal')), 1); // 多すぎるときは地面の跡以外の古いものから
-  const f = Object.assign({ kind, t: 0, life: 0.5, seed: fxRandom() * 1000 }, o);
+  const f = Object.assign({ kind, t: 0, life: 0.5, seed: fxRandom() * 1000, pl: o.foe ? undefined : P }, o); // pl: 作った人(協力プレイ #21)
   if (f.follow) { f.x = f.follow.x + (f.ox || 0); f.y = f.follow.y + (f.oy || 0); }
   sfx.push(f);
   return f;
@@ -122,7 +122,7 @@ function drawSkillFx(layer, foe = false) {
   if (!sfx.length || (!foe && P.dead)) return;
   const sx = GFX.sctx, gx = GFX.gctx;
   for (const f of sfx) {
-    if (f.t < 0 || !!f.foe !== foe || (f.front ? 2 : SFX_LAYER[f.kind]) !== layer) continue;
+    if (f.t < 0 || !!f.foe !== foe || (f.front ? 2 : SFX_LAYER[f.kind]) !== layer || (!foe && !fxOwnOk(f))) continue;
     if (f.kind === 'decal') drawDecal(f, sx, gx);
     else if (f.kind === 'sigil') drawSigil(f, sx, gx);
     else if (f.kind === 'rays') drawRays(f, sx, gx);

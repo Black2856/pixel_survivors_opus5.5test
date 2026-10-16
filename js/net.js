@@ -36,6 +36,7 @@ const COOP = {
   desync: null, stalls: 0,
   manual: false, // 試験: 画面のフレームで進めない(COOP.pump で進める)
   testInput: null, // 試験: (f, pid) => 入力の記録(決まった入力)
+  otherFx: 0.3, // ほかの人の攻撃の演出の濃さ(自分の「攻撃の濃さ」の設定に掛ける。#21)
 };
 const COOP_CLASSES = () => DATA.classOrder;
 

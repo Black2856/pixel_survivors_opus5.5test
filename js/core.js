@@ -257,7 +257,7 @@ let FX_MINE = false;
 function part(x, y, vx, vy, life, col, o = {}) {
   if (gq().parts < 1 && fxRandom() > gq().parts) return; // 画質で間引く(見た目の列で引く。計算の列の回数を画質で変えない)
   if (parts.length >= MAX_PARTS) parts.shift();
-  parts.push({ x, y, vx, vy, t: 0, life, col, sz: o.sz || 1, g: o.g || 0, drag: o.drag ?? 2.5, glow: !!o.glow, shrink: !!o.shrink, up: o.up || 0, mine: FX_MINE });
+  parts.push({ x, y, vx, vy, t: 0, life, col, sz: o.sz || 1, g: o.g || 0, drag: o.drag ?? 2.5, glow: !!o.glow, shrink: !!o.shrink, up: o.up || 0, mine: FX_MINE && P }); // mine: 自分の攻撃なら作った人
 }
 function burst(x, y, n, cols, o = {}) {
   const sp = o.sp || 60;
@@ -275,9 +275,11 @@ function addFloat(x, y, txt, col, scale = 1, vy = -30, k = 1) {
 const easeOutCubic = t => 1 - Math.pow(1 - clamp(t, 0, 1), 3);
 const easeInQuart = t => Math.pow(clamp(t, 0, 1), 4);
 const easeOutBack = t => { t = clamp(t, 0, 1); const c = 1.70158; return 1 + (c + 1) * Math.pow(t - 1, 3) + c * Math.pow(t - 1, 2); };
-function addRing(x, y, r, col, o = {}) { rings.push({ x, y, r0: o.r0 || 2, r, t: 0, life: o.life || 0.4, col, w: o.w || 1, mine: FX_MINE }); }
-function addFlash(x, y, r, col, life = 0.25) { flashes.push({ x, y, r, col, t: 0, life, mine: FX_MINE }); }
-function shake(n) { cam.shake = Math.max(cam.shake, n); }
+function addRing(x, y, r, col, o = {}) { rings.push({ x, y, r0: o.r0 || 2, r, t: 0, life: o.life || 0.4, col, w: o.w || 1, mine: FX_MINE && P }); }
+function addFlash(x, y, r, col, life = 0.25) { flashes.push({ x, y, r, col, t: 0, life, mine: FX_MINE && P }); }
+// 協力プレイ: 揺れ・画面の閃光は、起こした人(計算の中の P)が自分の時だけ(coop.md #5 の仮。見た目だけで計算には入らない)
+const fxForMe = () => !COOP.on || P === players[COOP.pid];
+function shake(n) { if (fxForMe()) cam.shake = Math.max(cam.shake, n); }
 // all: 全員に関わる物(ボスの技・撃破・エリート群など)。協力プレイ(2人以上)では all の物だけ時間を止める・遅くする(1人が起こす物は止めない: coop.md #5)
 function hitstop(t, all) { if (!all && players.length > 1) return; S.freeze = Math.max(S.freeze, t); }
 function slowmo(k, dur, all) { if (!all && players.length > 1) return; S.ts = k; S.tsBack = dur; }
@@ -296,7 +298,7 @@ function tickSimTimers(rdt) { // 時刻の来たものを、早い順(同じな�
     try { withPlayer(q.pl || P, q.fn); } catch (e) { (self.reportError || console.error)(e); } // 1つの失敗でフレームを止めない(setTimeout と同じ)
   }
 }
-function screenFlash(a, col = '#ffffff') { GFX.fx.flash = Math.max(GFX.fx.flash, a); GFX.fx.flashCol = hexRgb(col); }
+function screenFlash(a, col = '#ffffff') { if (!fxForMe()) return; GFX.fx.flash = Math.max(GFX.fx.flash, a); GFX.fx.flashCol = hexRgb(col); }
 function shockAt(x, y, k = 1, spd = 0.9) { if (gq().post) { const c = simViewOn ? camReal : cam; GFX.shock(x - c.x, y - c.y, k * (FX_MINE ? SET.fxA : 1), spd); } } // 画面の位置なので本当のカメラで
 // 計算用のカメラと画面の大きさ(協力プレイ: claudedocs/coop.md 3章・#16)。窓の大きさ・なめらかに追うカメラ・揺れは人によって違うので、計算に入れない
 //   on の間は、計算(update)の間だけ cam を「自分が真ん中の揺れない w × h の四角」、GFX.VW / VH を w / h に入れ替える(描画は元のまま)
