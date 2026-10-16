@@ -14,7 +14,7 @@ const BFX_DRAW = {};
 // ボスの体を作る(出現の演出・曲・HP バーなどの副作用なし)。hpMul: HP の倍率(影の王が呼ぶ影は 0.25)
 function makeBoss(key, x, y, hpMul = 1) {
   const b = DATA.bosses[key];
-  const hp = b.hp * enemyBase() * hpK() * CHAOS.bossHp * hpMul; // カオス: ボスの基礎体力(闘技場)
+  const hp = b.hp * enemyBase() * hpK() * CHAOS.bossHp * hpMul * (S.tower ? S.tower.hpK : 1); // カオス: ボスの基礎体力(闘技場)/ タワー: 人数の倍率
   const e = {
     id: nextId++, type: key, boss: key, name: b.name, final: false, enrage: b.enrage ?? 0.6, x, y,
     hp, maxhp: hp, spd: b.spd * Math.min(DATA.enemyLevel.spdMax, lvK('spd')), dmg: b.dmg * enemyDmgK(), r: b.r, col: b.col, xp: 0, kbRes: 1,
@@ -43,8 +43,8 @@ function spawnBoss(key, final, companion) {
   UI.bossBar(e);
   S.bosses = [e];
   if (!S.phase || S.phase.kind !== 'boss') S.phase = { kind: 'boss', t: 0 }; // ボスのフェーズ(双王の2体目では始め直さない)
-  if (CHAOS.twin && !companion) { // カオス: もう1体(このステージ以外のボスからランダム)
-    const here = new Set(S.sched ? S.sched.filter(x => x.boss).flatMap(x => x.boss) : []);
+  if (CHAOS.twin && !companion) { // カオス: もう1体(このステージ以外のボスからランダム。タワーはその階のステージのボスを除く)
+    const here = new Set(S.tower ? S.tower.twinEx : S.sched ? S.sched.filter(x => x.boss).flatMap(x => x.boss) : []);
     const solo = k => !DATA.bosses[k].form2 && !DATA.bosses[k].noTwin; // 第二形態(終刻の死神)は単独では出ない / 影の王は相方に選ばれない
     const pool = Object.keys(DATA.bosses).filter(k => k !== key && !here.has(k) && solo(k));
     const k2 = pick(pool.length ? pool : Object.keys(DATA.bosses).filter(k => k !== key && solo(k)));

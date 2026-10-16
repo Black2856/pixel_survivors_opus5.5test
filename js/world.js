@@ -95,10 +95,13 @@ function stageSchedule(n) {
 //   ボスはそのステージのボス2体からランダム。敵Lv は通して上がり続ける(ボスの間は止まる)
 //   tier 4 は 3分 → ボス(そのステージの1体目)→ esc.rest 秒 → ラスボス(2体目。時計塔 = 死神(→ 終刻の死神)/ 王墓 = 影の王)で、倒すとクリア
 //   敵はそのステージで出るものだけ: 0秒 = 1つ目の区間の3種 / 60秒 = 2つ目の区間の敵 / 120秒 = そのステージの敵の全部(通常モードの区間の順)
+// 出現の候補から同じものを除く(まとまりは 1つの候補のまま。中身が同じなら同じもの)
+const uniqTypes = a => a.filter((t, i) => a.findIndex(u => String(u) === String(t)) === i);
+// ステージで出る敵の 3段: 通常モードの1つ目の3分 / 2つ目の3分 / そのステージの敵の全部(エスカレーション・タワー)
+const runLists = R => [R.segs[0], R.segs[1] || R.segs[0], R.segs[2] || uniqTypes(R.segs.filter(Boolean).flat())];
 function escSchedule(R, tier) {
   const F = DATA.flow, E = F.esc;
-  const own = R.segs.filter(Boolean).flat().filter((t, i, a) => a.findIndex(u => String(u) === String(t)) === i); // まとまりは 1つの候補のまま。中身が同じなら同じもの
-  const lists = [R.segs[0], R.segs[1] || R.segs[0], R.segs[2] || own];
+  const lists = runLists(R);
   const out = E.waves.map((w, i) => ({ t: w.t, types: lists[i], interval: w.interval, max: w.max }));
   if (tier >= 4) out.push({ t: F.seg, boss: [R.bosses[0]] }, { t: F.seg + E.rest, boss: [R.bosses[1]], final: true }); // ラスボスはボスを倒してから rest 秒(ボスの間はフェーズの時計が止まる)
   else out.push({ t: F.seg, boss: R.bosses });
@@ -106,11 +109,13 @@ function escSchedule(R, tier) {
 }
 // 報酬の倍率(獲得ゴールド・装備品質・宝箱品質・クラス経験値。stats.js の computeStats が掛ける)
 //   通常モード = ステージの tier(DATA.flow.tierRew)/ エスカレーション = S.rewMul(tier が進むたびに上がる)/ 闘技場 = ラウンドの tier(2ラウンドごと)
+//   タワー = 1周目は今の階の tier。2周目からは下げず、エスカレーションの周回と同じく tier が進むたびに +loopStep(max まで)
 function rewMul() {
   if (!S) return 1;
   const T = DATA.flow.tierRew;
   if (S.mode === 'escalation') return S.rewMul || 1;
   if (S.mode === 'arena') return T[Math.min(T.length - 1, Math.floor((S.arena ? S.arena.idx : 0) / 2))];
+  if (S.mode === 'tower' && S.tower && S.tower.lap > 1) { const ER = DATA.flow.escRew; return Math.min(ER.max, Math.round((T[T.length - 1] + ER.loopStep * ((S.tower.lap - 2) * T.length + S.tier)) * 100) / 100); }
   return T[Math.max(0, Math.min(T.length - 1, (S.tier || 1) - 1))];
 }
 function escStage(tier, first) {
@@ -127,7 +132,7 @@ function escStage(tier, first) {
 }
 function initRun(mode = 'escalation', stageNo = 1) {
   S = {
-    mode, arena: null, time: 0, kills: 0, totalDmg: 0, dmgBy: {}, stage: 1, loop: 1,
+    mode, arena: null, tower: null, time: 0, kills: 0, totalDmg: 0, dmgBy: {}, stage: 1, loop: 1,
     combo: 0, comboT: 0, bestCombo: 0, gemStreak: 0, gemStreakT: 0,
     freeze: 0, ts: 1, tsBack: 0, schedIdx: 0, spawnT: 0, spawnCfg: null,
     eatk: 1, // 敵の攻撃力の倍率(敵ごとの処理の間だけ。ビッグクランチのブラックホールの中で下がる)
@@ -139,6 +144,7 @@ function initRun(mode = 'escalation', stageNo = 1) {
   };
   P = {
     cls: META.cls, mainW: META.classes[META.cls].weapon, micro: {}, lvFx: classLvFx(META.cls), wm: {}, x: 0, y: 0, hp: 0, maxhp: 100, level: 1, xp: 0, xpNext: xpFor(1), weapons: {},
+    bank: 0, // タワーの貯蓄経験値(階の間に拾った分。経験値の倍率を掛けた値。階をクリアすると入る)
     ifr: 0, facing: 1, animT: 0, moving: false, hurtT: 0, dead: false,
     slowT: 0, cdSlowT: 0, burnT: 0, burnDmg: 0, burnTick: 0, shield: 0, oShield: 0, oChunks: [],
     frost: 0, frostT: 0, bleed: 0, bleedT: 0, bleedTick: 0, // 自分の凍傷・出血(スタック数と、消えるまでの秒)
@@ -162,6 +168,7 @@ function initRun(mode = 'escalation', stageNo = 1) {
   if (mode === 'arena') { S.stage = 4; S.elv = DATA.arena.elv[0]; S.arena = { idx: 0, restT: 3, warned: false, order: arenaOrder() }; } // 開始時の敵Lv(深い闇)は下で足す。ラウンドの敵Lv は arenaLv
   if (mode === 'stage') { const R = stageRun(stageNo); S.stage = R.stage; S.tier = R.tier; } // 開始の敵Lv は 1 + 深い闇(tier のカオス強化)
   if (mode === 'escalation') escStage(1, true); // エスカレーション: tier 1 のステージから
+  if (mode === 'tower') towerInit(); // チャレンジタワー: 1周の顔ぶれを決め、1階の前の短い休憩から(tower.js)
   // カオス強化: クリアするまでは tier の値で固定(エスカレーション・闘技場は無し)。クリア後は META.chaos[キー]
   const ck = mode === 'stage' ? 'stage' + stageNo : mode;
   S.chaos = Object.assign({}, chaosSetting(ck));
@@ -217,7 +224,7 @@ const lvK = (kind, lv = S.elv) => 1 + DATA.enemyLevel[kind] * (lv - 1);
 const hpK = (lv = S.elv) => DATA.enemyLevel.hpLin * (lv - 1) + Math.pow(DATA.enemyLevel.hpExp, lv - 1);
 const enemyDmgK = () => enemyBase() * lvK('dmg');
 function updEnemyLevel(dt) {
-  if (S.phase || S.mode === 'arena') return; // ボス・エリート群のフェーズ中は停止(闘技場はラウンドごとに固定)
+  if (S.phase || S.mode === 'arena' || S.mode === 'tower') return; // ボス・エリート群のフェーズ中は停止(闘技場はラウンドごと・タワーは階ごとに固定)
   S.elvT += dt * CHAOS.lvSpeed; // カオス: 敵Lv の上昇速度
   if (S.elvT >= DATA.enemyLevel.interval) { S.elvT -= DATA.enemyLevel.interval; S.elv++; UI.enemyLvUp(); }
 }

@@ -98,15 +98,17 @@ const UI = (() => {
   function hud(dt) {
     if (!S) return;
     $('xpfill').style.width = (P.xp / P.xpNext * 100).toFixed(1) + '%';
-    set('lvl', 'LV ' + P.level);
+    const bank = S.tower ? towerBankLv() : 0; // タワー: 貯蓄経験値で上がる Lv の数
+    set('lvl', 'LV ' + P.level + (bank ? _t` ・ 貯蓄 Lv+${bank}` : ''));
     set('timer', fmtTime(S.time));
-    const pre = S.mode === 'arena' ? 'ROUND ' + Math.min(S.arena.idx + 1, DATA.arena.rounds) + '/' + DATA.arena.rounds + ' · ' : (S.loop > 1 ? 'LOOP ' + S.loop + ' · ' : '') + (S.mode === 'escalation' ? 'TIER ' + S.tier + ' · ' : '');
+    const pre = S.mode === 'arena' ? 'ROUND ' + Math.min(S.arena.idx + 1, DATA.arena.rounds) + '/' + DATA.arena.rounds + ' · ' : S.mode === 'tower' ? (S.tower.floor || S.tower.next) + 'F · '
+      : (S.loop > 1 ? 'LOOP ' + S.loop + ' · ' : '') + (S.mode === 'escalation' ? 'TIER ' + S.tier + ' · ' : '');
     const ph = phaseInfo();
     set('stage-name', pre + DATA.stages[S.stage - 1].label + (ph ? ' · ' + ph : ''));
     set('kills', '☠ ' + S.kills.toLocaleString());
     set('gold', '● ' + S.gold.toLocaleString());
     set('dmgtotal', '⚔ ' + fmtBig(S.totalDmg));
-    set('elv-n', 'ENEMY LV ' + S.elv + (S.phase ? '  ⏸' : ''));
+    set('elv-n', 'ENEMY LV ' + S.elv + (S.phase && S.mode !== 'tower' ? '  ⏸' : '')); // タワーの敵Lv は階で決まる(時間では上がらない)
     $('elv-fill').style.width = (S.elvT / DATA.enemyLevel.interval * 100).toFixed(1) + '%';
     const c = $('combo');
     if (S.combo >= 10) {
@@ -125,8 +127,9 @@ const UI = (() => {
     pstat(dt);
   }
 
-  // 通常モードのフェーズの表示: フェーズ中はその名前、外では次のフェーズまでの残り(フェーズの時計)
+  // 通常モードのフェーズの表示: フェーズ中はその名前、外では次のフェーズまでの残り(フェーズの時計)。タワーは撃破数・休憩(towerInfo)
   function phaseInfo() {
+    if (S.mode === 'tower') return towerInfo();
     const ph = S.phase;
     if (ph) return S.mode === 'stage' || S.mode === 'escalation' || ph.fogOn ? (ph.kind === 'elite' ? _t('エリート戦') : _t('ボス戦')) + (ph.fogOn ? _t(' · 闇の霧') : '') : '';
     if ((S.mode !== 'stage' && S.mode !== 'escalation') || !S.sched) return '';
@@ -248,7 +251,7 @@ const UI = (() => {
     const dt2 = DATA.debuffTomb;
     if (P.poison > 0) out.push({ id: 'ppoison', glyph: '毒', name: _t('毒'), fx: _t`${P.poison}スタック ・ 最大HP -${Math.round(P.poison * dt2.poison * 100)}%(受けないでいると ${dt2.poisonDur}秒で消える)`, t: P.poisonT, max: dt2.poisonDur, kind: 'debuff' });
     if (P.darkT > 0) out.push({ id: 'pdark', glyph: '闇', name: _t('暗闇'), fx: _t`周りが暗くなり、敵の攻撃の予告が見えない ・ 命中率 -${Math.round(dt2.darkHit * 100)}%`, t: P.darkT, max: dt2.darkDur, kind: 'debuff' });
-    if (S.phase && S.phase.fogOn && !(S.phase.fogPause > 0)) out.push({ id: 'fog', glyph: '霧', name: _t('闇の霧'), fx: _t`毎秒 HP -${S.phase.fogDmg}(10秒ごとに +1)。フェーズをクリアすると晴れる`, kind: 'debuff' });
+    if (S.phase && S.phase.fogOn && !(S.phase.fogPause > 0)) out.push({ id: 'fog', glyph: '霧', name: _t('闇の霧'), fx: S.mode === 'tower' ? _t`毎秒 HP -${S.phase.fogDmg}(10秒ごとに +1)。階をクリアすると晴れる` : _t`毎秒 HP -${S.phase.fogDmg}(10秒ごとに +1)。フェーズをクリアすると晴れる`, kind: 'debuff' });
     if (P.shield >= 1) out.push({ id: 'shield', glyph: '盾', name: _t('シールド'), fx: _t`${Math.floor(P.shield)} のダメージを先に受ける`, kind: 'buff' });
     if (P.oShield >= 1) out.push({ id: 'oshield', glyph: '守', name: _t('一時シールド'), fx: _t`${Math.floor(P.oShield)} のダメージを先に受ける(得た分ごとに時間で消える)`, t: Math.min(...P.oChunks.map(c => c.t)), max: Math.max(...P.oChunks.map(c => c.dur)), kind: 'buff' });
     if (P.uq.phoenix && !P.revived) out.push({ id: 'phoenix', glyph: '鳳', name: _t('不死鳥の加護'), fx: _t('一度だけ蘇生'), kind: 'buff' });
@@ -799,7 +802,7 @@ const UI = (() => {
     $('result-title').textContent = win ? (arena ? 'ARENA CLEAR!' : 'VICTORY!') : 'YOU DIED';
     $('result-title').className = win ? 'win' : 'lose';
     $('btn-endless').classList.toggle('hidden', !win || S.mode !== 'escalation'); // エンドレスはエスカレーションのみ
-    const rows = [arena ? [_t('撃破ボス'), S.arena.idx + ' / ' + DATA.arena.rounds] : null, [arena ? _t('タイム') : _t('生存時間'), fmtTime(S.time)], [_t('レベル'), P.level], [_t('撃破数'), S.kills.toLocaleString()], [_t('最大コンボ'), S.bestCombo], [_t('総ダメージ'), Math.round(S.totalDmg).toLocaleString()], [_t('獲得ゴールド'), '● ' + earned], first ? [_t('初クリア報酬'), '● ' + first.toLocaleString()] : null];
+    const rows = [arena ? [_t('撃破ボス'), S.arena.idx + ' / ' + DATA.arena.rounds] : null, S.tower ? [_t('到達した階'), S.tower.top + 'F'] : null, [arena ? _t('タイム') : _t('生存時間'), fmtTime(S.time)], [_t('レベル'), P.level], [_t('撃破数'), S.kills.toLocaleString()], [_t('最大コンボ'), S.bestCombo], [_t('総ダメージ'), Math.round(S.totalDmg).toLocaleString()], [_t('獲得ゴールド'), '● ' + earned], first ? [_t('初クリア報酬'), '● ' + first.toLocaleString()] : null];
     $('result-stats').innerHTML = rows.filter(Boolean).map(([a, b]) => `<div class="rs"><span>${a}</span><b>${b}</b></div>`).join('');
     const tot = Object.values(S.dmgBy).reduce((a, b) => a + b, 0) || 1;
     const list = Object.entries(S.dmgBy).filter(([k]) => DATA.weapons[k]).sort((a, b) => b[1] - a[1]);

@@ -29,6 +29,9 @@ function endRun(win) {
   if (S.mode === 'arena') { // 闘技場は専用の記録(撃破ラウンド / 最速クリア)
     META.best.arenaRound = Math.max(META.best.arenaRound || 0, S.arena.idx);
     if (win) META.best.arenaTime = Math.min(META.best.arenaTime || Infinity, S.time);
+  } else if (S.mode === 'tower') { // タワーも専用の記録(着いた階の一番上 / その階に着いたときの経過時間。同じ階なら早い方)
+    const B = META.best, T = S.tower;
+    if (T.top > (B.towerFloor || 0) || (T.top && T.top === B.towerFloor && T.topT < (B.towerTime ?? Infinity))) { B.towerFloor = T.top; B.towerTime = T.topT; }
   } else {
     if (S.time > META.best.time) META.best.time = S.time;
     META.best.kills = Math.max(META.best.kills, S.kills);

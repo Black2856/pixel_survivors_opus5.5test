@@ -88,6 +88,7 @@ function killEnemy(e, o = {}) {
     return;
   }
   S.kills++; S.cxpK += rewMul(); // クラス経験値は倒したときの報酬の倍率で数える
+  if (S.tower) S.tower.kills++; // タワー: その階の撃破数
   S.combo++; S.comboT = DATA.player.comboTime; S.bestCombo = Math.max(S.bestCombo, S.combo);
   if (S.combo % 100 === 0) { UI.announce(S.combo + ' COMBO!!', _t`ボーナス +${Math.round(S.combo / 10)}G`); addGold(S.combo / 10); }
   burst(e.x, e.y, e.elite ? 40 : 7, [col[0], col[1], '#ffffff'], { sp: e.elite ? 120 : 60, up: 15, g: 120, drag: 3 });

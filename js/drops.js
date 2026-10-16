@@ -10,11 +10,14 @@ function dropGem(x, y, v) {
   gems.push({ x, y, v, tier: gemTier(v), t: rand(0, 3), home: false, sp: 0, z: 0, vz: -rand(40, 70), vx: rand(-20, 20), vy: rand(-20, 20) });
 }
 // アイテムの出現率(装備宝箱は除く): カオス強化「枯れた大地」で下がり、アイテム出現率(永続ツリー)で上がる。1 を超えた分は、その確率でもう1つ出る
+//   タワーは宝箱を出さず、その代わりに大金(DATA.tower.chestGold を 15枚に分けたコイン。宝箱と同じく枯れた大地では減らない)
 function dropItem(kind, x, y, val = 0) {
+  if (kind === 'chest' && S.mode === 'tower') { for (let i = 0; i < 15; i++) pushDrop('coin', x, y, DATA.tower.chestGold / 15); return; }
   let n = 1;
   if (kind !== 'chest') { const k = (1 - CHAOS.loot) * (1 + ((P.stats && P.stats.v.itemRate) || 0)); n = Math.floor(k) + (Math.random() < k - Math.floor(k) ? 1 : 0); }
-  for (let i = 0; i < n; i++) drops.push({ kind, x, y, val, t: 0, z: 0, vz: -rand(60, 110), vx: rand(-35, 35), vy: rand(-25, 25), home: false, sp: 0 });
+  for (let i = 0; i < n; i++) pushDrop(kind, x, y, val);
 }
+const pushDrop = (kind, x, y, val) => drops.push({ kind, x, y, val, t: 0, z: 0, vz: -rand(60, 110), vx: rand(-35, 35), vy: rand(-25, 25), home: false, sp: 0 });
 function addGold(v) {
   const g = Math.max(1, Math.round(v * P.goldMul));
   S.gold += g; S.hudDirty = true;

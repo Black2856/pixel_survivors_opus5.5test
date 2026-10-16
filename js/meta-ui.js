@@ -269,7 +269,7 @@ const MetaUI = (() => {
   $('btn-tree').onclick = () => { AudioMan.click(); treeScreen(); };
 
   // ---------- ステージ選択 ----------
-  // 1列で、枠の中をスクロール: エスカレーション / 闘技場 / 通常モードのステージ(ステージを1つ選ぶ。3分 → エリート群 → 3分 → ボス → 3分 → ボス)を tier の順に。帯の色は tier
+  // 1列で、枠の中をスクロール: エスカレーション / 闘技場 / チャレンジタワー / 通常モードのステージ(ステージを1つ選ぶ。3分 → エリート群 → 3分 → ボス → 3分 → ボス)を tier の順に。帯の色は tier
   // クリアしたものに ★。カオス強化はクリアするまで tier の値で固定(見るだけ)、クリアすると変えられる
   // 解放: 通常モードのステージは tier 1 が最初から、tier N は tier N−1 のステージを1つクリアすると。エスカレーション・闘技場は tier 4 のステージをクリアすると
   // 未解放のカードは、名前を「？？？」にして説明(tier・敵Lv・報酬)を伏せる。解放の条件だけ出す(クラス画面の未解放と同じ考え)
@@ -307,6 +307,8 @@ const MetaUI = (() => {
       art: [1, 5, 3, 9], badge: ['TIER', '1-4'] }, // 絵: 草原(tier 1)→ 晶窟(2)→ 奈落(3)→ 王墓(4)。だんだん暗く危なく
     { key: 'arena', mode: 'arena', n: 1, name: _t('闘技場'), sub: subOf('arena', _t`報酬 ${rewX(TR[0])}〜${rewX(TR[TR.length - 1])}`, _t`ボス${DATA.arena.rounds}体の連戦`), col: '#ff3b5c',
       art: [4], badge: ['BOSS', '×' + DATA.arena.rounds] },
+    { key: 'tower', mode: 'tower', n: 1, name: _t('チャレンジタワー'), sub: subOf('tower', _t`報酬 ${rewX(TR[0])}〜${rewX(DATA.flow.escRew.max)}`, _t('倒した数で次の階へ')), col: '#5dffc8',
+      art: [10, 11, 12, 8], badge: ['TOWER', '∞'] }, // 絵: 森 → 砂海 → 雲海 → 時計塔
     ...DATA.stageRuns.map(R => ({ key: 'stage' + R.no, mode: 'stage', n: R.no, tier: R.tier, name: DATA.stages[R.stage - 1].label, first: DATA.flow.firstClear[R.tier - 1],
       sub: subOf('stage' + R.no, _t`報酬 ${rewX(TR[R.tier - 1])}`), col: TIER_COL[R.tier - 1], art: [R.stage], badge: ['TIER', R.tier] }))
       .sort((a, b) => a.tier - b.tier), // 通常モード: tier の順
@@ -324,7 +326,9 @@ const MetaUI = (() => {
       const clear = META.stageClear[s.key], open = stageUnlocked(s);
       const pt = open ? chaosPoints(chaosSetting(s.key), s.key) : 0;
       // 右のカオス強化の札: 上に「カオス強化」と pt、下に(クリアまでは「クリアまで固定」と)設定・見るのボタン。幅はどのカードも同じ
+      const best = META.best.towerFloor || 0;
       const right = !open ? _t`<span class="lock">未解放: tier ${needTier(s)} のステージを1つクリア</span>`
+        : s.mode === 'tower' ? `<span class="chaos on${best ? ' has' : ''}"><span class="cz-l">${_t('最高到達')}</span><b class="cz-v">${best}<small>F</small></b><span class="cz-tag">${_t`カオス強化は ${DATA.tower.lap + 1}階から`}</span></span>` // タワーのカオス強化は階で決まる(設定は出さない)
         : `<span class="chaos${clear ? ' on' : ''}${pt ? ' has' : ''}"><span class="cz-l">${_t('カオス強化')}</span><b class="cz-v">${pt}<small>pt</small></b>`
           + `<span class="cz-tag">${clear ? '' : _t('クリアまで固定')}</span><span class="cz-btn" data-chaos="${s.key}">${clear ? _t('設定 ▶') : _t('見る ▶')}</span></span>`;
       const badge = open ? s.badge : [s.badge[0], '?'];
@@ -337,9 +341,9 @@ const MetaUI = (() => {
     L.style.maxHeight = '';
     if (its.length > LIST_N) { const cs = getComputedStyle(L); L.style.maxHeight = (its[LIST_N - 1].offsetTop + its[LIST_N - 1].offsetHeight - its[0].offsetTop + parseFloat(cs.paddingTop) + parseFloat(cs.paddingBottom)) + 'px'; }
   }
-  // 解放に必要な tier(そのクリアが要る。0 = 最初から): 通常モードは tier − 1、エスカレーション・闘技場は tier 4
+  // 解放に必要な tier(そのクリアが要る。0 = 最初から): 通常モードは tier − 1、エスカレーション・闘技場は tier 4、タワーは最初から
   const tierCleared = t => DATA.stageRuns.some(R => R.tier === t && META.stageClear['stage' + R.no]);
-  const needTier = s => (s.mode === 'stage' ? s.tier - 1 : 4);
+  const needTier = s => (s.mode === 'stage' ? s.tier - 1 : s.mode === 'tower' ? 0 : 4);
   const stageUnlocked = s => needTier(s) < 1 || tierCleared(needTier(s));
   $('stage-list').onclick = e => {
     const c = e.target.closest('[data-chaos]');

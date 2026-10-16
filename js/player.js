@@ -424,7 +424,13 @@ function playerDown() {
 }
 
 function gainXP(v) {
-  P.xp += v * P.xpMul;
+  const x = v * P.xpMul;
+  if (S.tower && S.tower.wave) { P.bank += x; S.hudDirty = true; return; } // タワー: 階の途中は貯めるだけ(クリアでまとめて入る)
+  xpIn(x);
+}
+// 経験値を入れる(経験値の倍率を掛けた後の値)。上がった分のレベルアップを積む
+function xpIn(x) {
+  P.xp += x;
   while (P.xp >= P.xpNext) {
     P.xp -= P.xpNext; P.level++; P.xpNext = xpFor(P.level); S.pendingLv++; S.lvQueue.push(P.level);
   }

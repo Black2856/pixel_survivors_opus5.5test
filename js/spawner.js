@@ -16,6 +16,7 @@ function spawnPack(t) {
 const serLROn = () => (S.bosses || []).some(b => !b.dead && b.boss === 'seraph' && b.ai && b.ai.lr);
 function updSpawner(dt) {
   if (S.mode === 'arena') return updArena(dt);
+  if (S.mode === 'tower' && !updTower(dt)) return; // タワー: 休憩中は出さない(出方は階ごとに S.spawnCfg。tower.js)
   if (serLROn()) return; // ラストラディアンス: 敵(雑魚・エリート・ゴブリン)も篝火も出ない。フェーズの時計も止まっているので、倒れてから続きが出る
   // 出現のスケジュールはフェーズの時計(ボス・エリート群の間は止まる。エスカレーションはステージごとに 0 から)
   const stage = S.mode === 'stage', sc = S.sched, el = S.ptime;
@@ -28,7 +29,7 @@ function updSpawner(dt) {
   }
   const cfg = S.spawnCfg;
   if (!cfg) return;
-  const rate = (1 + (S.loop - 1) * 0.3) * (P.uq.clock ? 1.15 : 1) * (S.phase ? 0.6 : 1) * CHAOS.spawn; // 狂時の: 出現数 +15% / フェーズ中は減らす / カオス: 出現率
+  const rate = (1 + (S.loop - 1) * 0.3) * (P.uq.clock ? 1.15 : 1) * (inPhase() ? 0.6 : 1) * CHAOS.spawn; // 狂時の: 出現数 +15% / フェーズ中は減らす / カオス: 出現率
   S.spawnT -= dt;
   while (S.spawnT <= 0) {
     S.spawnT += cfg.interval / rate;
@@ -47,8 +48,8 @@ function updSpawner(dt) {
     if (S.eliteT <= 0) {
       S.eliteT = 60;
       const pool = flatTypes(cfg.types).filter(k => !DATA.enemies[k].noElite);
-      if (pool.length) spawnEnemy(pick(pool), { elite: true, noChest: !!S.phase }); // ボス戦中に出たエリートは宝箱を落とさない
-      UI.banner(_t('ELITE 出現!!'), S.phase ? _t('ボス戦中のエリート') : _t('倒すと宝箱を落とす'), 1600); AudioMan.warning();
+      if (pool.length) spawnEnemy(pick(pool), { elite: true, noChest: inPhase() }); // ボス戦中に出たエリートは宝箱を落とさない
+      UI.banner(_t('ELITE 出現!!'), inPhase() ? _t('ボス戦中のエリート') : S.mode === 'tower' ? _t('倒すと大金を落とす') : _t('倒すと宝箱を落とす'), 1600); AudioMan.warning();
     }
   }
   S.goblinT -= tdt;

@@ -7,7 +7,7 @@
 - クラス: `js/classes/<クラス>.js`(1クラス 1ファイル: その武器の E スキル `WEAPON_SKILL.<武器>` → `CLASS_RT.<クラス>`(特性・パッシブ・Q)→ そのクラスの関数。仕様書 `claudedocs/classes/<名前>.md` と同じ単位)
   - 共通は `classes/common.js`(スタミナ・強化ツリーの値 cuV / hasSp・E / Q の共通)、ゲームの側からの入口は `classes/hooks.js`(`cls*`: `clsShieldMod` `clsResistDebuff` など)。クラス名で分ける所をゲームの側に作らない
   - クラスのファイルの読み込み順 = WEAPON_SKILL の並び(hooks.js の WS_TAKEN がこの順に掛ける)。足すときは末尾に
-- ラン: `js/world.js`(ラン初期化・ステータス・カオス強化・敵Lv)/ `player.js` / `weapons.js`(自動攻撃・弾・ゾーン)/ `damage.js`(hitEnemy・撃破)/ `enemies.js`(出現・通常敵)/ `phase.js`(ボスの撃破・フェーズ)/ `hazards.js`(敵弾・ボスの床などの動きと当たり)/ `drops.js` / `spawner.js`(出現・闘技場)/ `rewards.js`(レベルアップの選択肢)
+- ラン: `js/world.js`(ラン初期化・ステータス・カオス強化・敵Lv)/ `player.js` / `weapons.js`(自動攻撃・弾・ゾーン)/ `damage.js`(hitEnemy・撃破)/ `enemies.js`(出現・通常敵)/ `phase.js`(ボスの撃破・フェーズ)/ `hazards.js`(敵弾・ボスの床などの動きと当たり)/ `drops.js` / `spawner.js`(出現・闘技場)/ `tower.js`(チャレンジタワー: 階・休憩・スキップ・貯蓄経験値。`S.tower`)/ `rewards.js`(レベルアップの選択肢)
 - ボス: `js/bosses/common.js`(makeBoss・spawnBoss・eball・later・壊せる物・`bossAI` の分岐)と `js/bosses/<キー>.js`(1体 1ファイル。キーは DATA.bosses。死神と終刻の死神は reaper.js、分裂した犬は cerberus.js)
 - 描画: `js/render.js` の `render()`(地面 → 自分の攻撃(地面側)→ ボスの設置物 → ジェム → 敵 → 自分 → 自分の攻撃(手前)→ 敵の攻撃・予兆 → 数値)
   - ボスの描画は各ボスのファイルの末尾の「描画」: 設置物 `HAZ_DRAW.<種類>`・見た目だけの演出 `BFX_DRAW.<種類>`(どちらも共有する種類だけ render.js)、体まわりは `drawBossFx` から呼ぶ `draw<ボス>Fx`、熾天使・三原の光精・ケルベロス・影の王の専用の描画も。敵弾の描画は render.js

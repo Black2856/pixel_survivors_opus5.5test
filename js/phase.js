@@ -29,12 +29,14 @@ function onBossDeath(e) {
   P.chain = null; S.cine = null; S.shadows = []; // 影の王: 鎖・影
   S.bossKills++; S.cxpB += rewMul(); // クラス経験値は倒したときの報酬の倍率で数える
   if (S.mode === 'arena') return arenaBossDown(e);
+  if (S.mode === 'tower') towerClear(); // タワー: 階のクリア(貯蓄経験値が入る)。ボスの報酬はこの後に落ち、休憩中に拾う
   if (CHAOS.bossLv) { S.elv += CHAOS.bossLv; UI.enemyLvUp(); } // カオス: ボスを倒すたびに敵Lv アップ
-  const rk = S.tier; // 撃破報酬: tier で数える(通常モード・エスカレーション)
+  const rk = S.tier; // 撃破報酬: tier で数える(通常モード・エスカレーション・タワー)
   for (let i = 0; i < 14; i++) dropGem(e.x + rand(-30, 30), e.y + rand(-30, 30), 20 * rk);
   for (let i = 0; i < 25; i++) dropItem('coin', e.x, e.y, 3 * rk);
   dropItem('meat', e.x + 14, e.y); dropItem('magnet', e.x - 14, e.y);
-  dropItem('chest', e.x, e.y - 14); chestBeacon(e.x, e.y - 14); // 装備宝箱(フェーズのクリア)
+  dropItem('chest', e.x, e.y - 14); chestBeacon(e.x, e.y - 14); // 装備宝箱(フェーズのクリア。タワーは代わりのゴールド)
+  if (S.mode === 'tower') return; // 最後のボス(死神・影の王・熾天使)でも勝ちにしない
   if (e.final) {
     if (S.mode === 'stage' || (S.loop === 1 && !S.won)) { S.won = true; S.victoryT = 2.4; AudioMan.stopMusic(1.5); return; }
     S.loop++; escStage(1); UI.announce('LOOP ' + S.loop, _t('敵はさらに強くなる…')); return; // エスカレーションの周回: tier 1 から
@@ -84,6 +86,8 @@ function endElitePhase() {
   UI.banner('PHASE CLEAR', _t('エリート群を撃破!'), 2200, 'gold');
   AudioMan.phaseClear();
 }
+// ボス・エリート群のフェーズの中か(タワーの階の霧の時計 kind 'wave' は除く: 出現率 ×0.6・エリートが宝箱を落とさない・HUD の「ボス戦」を付けない)
+const inPhase = () => !!S.phase && S.phase.kind !== 'wave';
 // 毎フレーム: フェーズの外ではフェーズの時計を進め、フェーズの中では経過を数えて闇の霧
 function updPhase(dt) {
   const ph = S.phase;
