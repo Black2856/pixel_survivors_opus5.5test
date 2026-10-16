@@ -1486,6 +1486,7 @@ const I18N_EN = {
   "カオス強化は {0}階から": "Chaos from {0}F",
   "ボスの階": "Boss floor",
   "同期がずれました": "Out of sync",
+  "倒れました。次の階の始めに戻ります(観戦中)": "You went down. You will return at the start of the next floor (spectating)",
   "{0} がレベルアップを選んでいます(あと {1}秒)": "{0} choosing a level-up ({1}s left)",
   "協力プレイの記録と報酬は、まだ保存しません": "Co-op records and rewards are not saved yet",
   "{0}体 倒すと次の階へ": "Defeat {0} enemies to go up",

@@ -150,7 +150,8 @@ function updCam(dt) {
   if (S.demo) { cam.fx = (cam.fx || 0) + dt * 10; cam.fy = (cam.fy || 0) + dt * 4; }
   else {
     const [mx, my] = P.dead ? [0, 0] : moveInput();
-    const tx = P.x - GFX.VW / 2 + mx * 14, ty = P.y - GFX.VH / 2 + my * 10;
+    const F = COOP.on && P.dead ? players.find(p => !p.dead) || P : P; // 協力プレイ: 倒れている間は生きている人を追う(観戦。#7)
+    const tx = F.x - GFX.VW / 2 + mx * 14, ty = F.y - GFX.VH / 2 + my * 10;
     const k = 1 - Math.exp(-6 * dt);
     cam.fx += (tx - cam.fx) * k; cam.fy += (ty - cam.fy) * k;
   }

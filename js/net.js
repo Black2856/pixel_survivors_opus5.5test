@@ -200,6 +200,16 @@ function coopLevel() {
     }
   });
 }
+// 倒れた人の復活(tower.md #17): 次の階の始めに、HP 50% で生きている人の近くに戻る(状態異常は消し、少しの間は無敵)
+function coopRevive() {
+  const al = players.find(q => !q.dead && q !== P);
+  if (al) { P.x = al.x + 16; P.y = al.y; }
+  P.dead = false; P.deathT = 0; P.ifr = 2;
+  cleansePlayer();
+  P.hp = Math.max(1, Math.round(P.maxhp * 0.5));
+  addRing(P.x, P.y, 40, '#ffd23f', { w: 2, life: 0.5 }); burst(P.x, P.y, 30, ['#ffd23f', '#ffffff'], { sp: 80, up: 30, glow: true, life: 0.6 });
+  S.hudDirty = true;
+}
 // ランの終わり(4段の仮): 記録・報酬はまだ保存しない(5段)。止めてタイトルへ
 function coopEndRun(win) {
   COOP.on = false;
