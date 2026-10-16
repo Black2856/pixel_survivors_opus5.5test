@@ -74,12 +74,13 @@
     <div class="coop-box">
       <div id="coop-cls" class="coop-cls"></div>
       <div id="coop-join-row" class="coop-row">
-        <button id="coop-make" class="btn">部屋を作る</button>
-        <input id="coop-code" maxlength="6" autocomplete="off" spellcheck="false">
-        <button id="coop-enter" class="btn">コードで入る</button>
+        <button id="coop-make-pub" class="btn">公開の部屋を作る</button>
+        <button id="coop-make" class="btn">コードの部屋を作る</button>
+        <span class="coop-row"><input id="coop-code" maxlength="6" autocomplete="off" spellcheck="false"><button id="coop-enter" class="btn">コードで入る</button></span>
       </div>
       <div id="coop-room" class="coop-room hidden"></div>
-      <div class="coop-note">チャレンジタワーを 2〜4人で遊ぶ。部屋のコードを伝えると、別の PC やスマホからも入れる(つながるまで数秒)</div>
+      <div id="coop-pub" class="coop-pub hidden"></div>
+      <div class="coop-note">チャレンジタワーを 2〜4人で遊ぶ。公開の部屋は一覧から誰でも入れる。コードの部屋はコードを伝えた人だけが入れる(別の PC やスマホからも。つながるまで数秒)</div>
       <button id="coop-back" class="btn ghost">戻る</button>
     </div>
   </div>
@@ -317,6 +318,7 @@
 <script src="js/help.js"></script>
 <script src="js/vendor/p2p.js"></script>
 <script src="js/net.js"></script>
+<script src="js/lobby.js"></script>
 <script src="js/coop-ui.js"></script>
 <script src="js/main.js"></script>
 </body>

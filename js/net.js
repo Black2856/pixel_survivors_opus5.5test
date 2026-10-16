@@ -71,6 +71,10 @@ const COOP = {
   suspect: new Set(), // 自分が「抜けた」と思った人(まだ外していない)
   query: null, // 決める人: 外す人の入力を集めている途中 { x, t, ans: 番号 → { f: その人の今のフレーム, have: [[フレーム, 入力]] } }
   hello: null, // 参加者: 名乗る(ホストとつながるたびに)
+  pub: false, // ホスト: 公開の部屋(公開ロビーに載せる。lobby.js)
+  rtt: new Map(), // 往復時間(始まる前): 相手の ID → 最近の往復 ms(#1・#3)
+  worst: new Map(), // ホスト: 参加者の ID → その人が測った一番遅い相手の往復(95%)
+  rttN: 0,
 };
 // ゲームの版(coop.md 4章「版の確認」): ビルドした版はファイル名のハッシュ(js/game.<hash>.js)、開発中は 'dev'。違う人は部屋に入れない
 const GAME_VER = (() => { const s = document.currentScript && document.currentScript.src, m = s && /game\.([0-9a-f]+)\.js/.exec(s); return m ? m[1] : 'dev'; })();
@@ -78,17 +82,19 @@ const COOP_CLASSES = () => DATA.classOrder;
 
 function coopReset() {
   Object.assign(COOP, { on: false, f: 0, sentTo: -1, desync: null, stalls: 0, log: [], hostId: '', query: null, waitF: -1, waitFrom: 0, waitOn: [], waitSec: 0 });
-  COOP.inq.clear(); COOP.hashes.clear(); COOP.past.clear(); COOP.gone.clear(); COOP.suspect.clear();
+  COOP.inq.clear(); COOP.hashes.clear(); COOP.past.clear(); COOP.gone.clear(); COOP.suspect.clear(); COOP.rtt.clear(); COOP.worst.clear();
 }
 // 部屋を出る(始まる前。部屋の画面の「戻る」・入れなかった時)。ほかの人には bye
 function coopQuit() {
   if (NET.isOpen) NET.send({ t: 'bye' });
   NET.close(); coopReset();
-  Object.assign(COOP, { room: '', members: [], host: false, hello: null });
+  Object.assign(COOP, { room: '', members: [], host: false, hello: null, pub: false });
+  if (typeof Lobby !== 'undefined') Lobby.announce(); // 公開ロビーから外す
 }
 // 部屋の並びを送る(ホスト。キットは「開始」で送るので入れない)
 function coopLobby() {
   NET.send({ t: 'lobby', ver: GAME_VER, members: COOP.members.map(({ kit, ...x }) => x) });
+  if (typeof Lobby !== 'undefined') Lobby.announce(); // 公開の部屋: 人数を直す(4人で外す)
   if (typeof CoopUI !== 'undefined') CoopUI.refresh();
 }
 // 相手がつながった・切れた(p2p)。切れたのと bye は同じ扱い
@@ -103,12 +109,13 @@ function coopPeerGone(id) {
   else if (COOP.host) { COOP.members.splice(i, 1); coopLobby(); }
   else if (i === 0) { coopQuit(); if (typeof CoopUI !== 'undefined') CoopUI.say(_t('ホストが部屋を閉じました')); }
 }
-// 部屋を作る(ホスト)。n: この人数がそろったら開始する(省略で coopStart を呼ぶまで待つ)
-function coopHost(room, cls = META.cls, n = 0) {
+// 部屋を作る(ホスト)。n: この人数がそろったら開始する(省略で coopStart を呼ぶまで待つ)/ pub: 公開ロビーに載せる
+function coopHost(room, cls = META.cls, n = 0, pub = false) {
   coopReset();
-  Object.assign(COOP, { host: true, room: String(room), want: n | 0 });
+  Object.assign(COOP, { host: true, room: String(room), want: n | 0, pub: !!pub });
   NET.open(COOP.room, coopOnMsg, coopOnPeer);
   COOP.members = [{ id: NET.me, cls, vw: GFX.VW, vh: GFX.VH, kit: coopKit(META) }];
+  if (typeof Lobby !== 'undefined') Lobby.announce();
   console.info('COOP: 部屋 ' + COOP.room + ' を作った。ほかのウィンドウで ?coop=join&room=' + COOP.room + ' を開き、そろったら coopStart()');
 }
 // 部屋に入る
@@ -121,11 +128,11 @@ function coopJoin(room, cls = META.cls) {
   COOP.hello(); // bc: すぐ届く
   console.info('COOP: 部屋 ' + COOP.room + ' に入る');
 }
-// 開始(ホスト): 種・モード・入力の遅れ・全員の並び・計算用の画面の大きさ(全員の一番大きい窓。#16)を送り、自分も始める
+// 開始(ホスト): 種・モード・入力の遅れ(o.lag か、往復時間から coopAutoLag)・全員の並び・計算用の画面の大きさ(全員の一番大きい窓。#16)を送り、自分も始める
 function coopStart(o = {}) {
   if (!COOP.host || COOP.on) return;
   const ms = COOP.members, mode = o.mode === 'escalation' ? 'escalation' : 'tower';
-  const m = { t: 'start', seed: NATIVE_RANDOM() * 4294967296 >>> 0, mode, stage: o.stage || 1, lag: o.lag || COOP.lag, members: ms,
+  const m = { t: 'start', seed: NATIVE_RANDOM() * 4294967296 >>> 0, mode, stage: o.stage || 1, lag: o.lag || coopAutoLag(), members: ms,
     view: { w: Math.max(...ms.map(x => x.vw)), h: Math.max(...ms.map(x => x.vh)) }, chaos: coopChaos(chaosSetting(mode), mode) }; // カオス強化はホストの設定
   NET.send(m);
   coopBegin(m);
@@ -191,6 +198,17 @@ function coopOnMsg(m) {
       if (typeof CoopUI !== 'undefined') CoopUI.say(m.why === 'ver' ? _t('ゲームの版が違うので入れません(ページを読み直してください)') : m.why === 'full' ? _t('部屋がいっぱいです(4人まで)') : _t('もう始まっています'));
       return;
     case 'bye': coopPeerGone(m.from); return;
+    // 往復時間(始まる前): ping にはその人へ pong を返す。参加者はホストへ「自分が測った一番遅い相手」を送る(rtt)
+    case 'ping': if (!COOP.on && typeof m.s === 'number' && isFinite(m.s)) NET.send({ t: 'pong', s: m.s }, m.from); return;
+    case 'pong': {
+      const ms = typeof m.s === 'number' ? performance.now() - m.s : NaN;
+      if (COOP.on || !(ms >= 0 && ms < 10000)) return;
+      let a = COOP.rtt.get(m.from);
+      if (!a) COOP.rtt.set(m.from, a = []);
+      a.push(ms); if (a.length > 24) a.shift();
+      return;
+    }
+    case 'rtt': if (COOP.host && !COOP.on && COOP.members.some(x => x.id === m.from) && typeof m.w === 'number' && isFinite(m.w)) COOP.worst.set(m.from, clamp(m.w, 0, 10000)); return;
     case 'lobby': // 参加者: 部屋の人の並び(画面に出す。確かめた物だけ)
       if (COOP.host || COOP.on || !Array.isArray(m.members) || m.members.length > 4 || !m.members[0] || m.members[0].id !== m.from || (COOP.hostId && COOP.hostId !== m.from)) return;
       if (m.ver !== GAME_VER) { coopQuit(); if (typeof CoopUI !== 'undefined') CoopUI.say(_t('ゲームの版が違うので入れません(ページを読み直してください)')); return; }
@@ -241,6 +259,7 @@ function coopBegin(m) {
   COOP.f = 0; COOP.sentTo = m.lag - 1; COOP.log = []; COOP.desync = null; // 入力は消さない(全員が直接つなぐので、ほかの人の入力が「開始」より先に届くことがある)
   Object.assign(SIM_VIEW, { on: true, w: m.view.w, h: m.view.h });
   FIXED_STEP.on = true; FIXED_STEP.acc = 0;
+  if (typeof Lobby !== 'undefined') Lobby.close(); // 公開ロビーはもう見ない(載せていた部屋も消える)
   simSeed(m.seed);
   simScope(() => {
     startRun(m.mode, m.stage, { cls: m.members[0].cls, kit: m.members[0].kit, chaos: m.chaos });
@@ -369,13 +388,42 @@ function coopRevive() {
 }
 // ランの終わり(endRun から): 自分を P にして協力プレイを閉じる(報酬・記録は endRun が自分の分で入れる)
 function coopFinish() {
-  COOP.on = false;
+  COOP.on = false; COOP.pub = false;
   P = players[COOP.pid] || P;
   if (NET.isOpen) NET.send({ t: 'bye' });
   NET.close();
   SIM_VIEW.on = false;
   if (!NET_SIM.on) FIXED_STEP.on = false;
 }
+// ============================================================
+// 往復時間(#1・#3): 部屋の中(始まる前)で 0.25秒ごとに全員へ ping(人ごとに最近 24回)
+// ============================================================
+const coopP95 = a => { if (!a || !a.length) return null; const s = a.slice().sort((x, y) => x - y); return s[Math.ceil(s.length * 0.95) - 1]; };
+const coopRttTo = id => coopP95(COOP.rtt.get(id)); // その人との往復(95%。まだ測れていなければ null)
+// 自分が測った一番遅い相手(測れていない人がいれば null)
+function coopMyWorst() {
+  let w = 0;
+  for (const x of COOP.members) if (x.id !== NET.me) { const v = coopRttTo(x.id); if (v === null) return null; w = Math.max(w, v); }
+  return w;
+}
+// ホスト: 入力の遅れ = 一番遅い組の往復(95%)で (片道 + 5ms) ÷ 1フレームを切り上げ、2〜8。測れていない人がいれば 4
+function coopAutoLag() {
+  let w = 0;
+  for (const x of COOP.members) {
+    if (x.id === NET.me) continue;
+    const a = coopRttTo(x.id), b = COOP.worst.get(x.id);
+    if (a === null || b === undefined) return 4;
+    w = Math.max(w, a, b);
+  }
+  return clamp(Math.ceil((w / 2 + 5) / (1000 / 60)), 2, 8);
+}
+setInterval(() => {
+  if (COOP.on || !COOP.room || !NET.isOpen) return;
+  NET.send({ t: 'ping', s: performance.now() });
+  if (!COOP.host && COOP.hostId && ++COOP.rttN % 4 === 0) { const w = coopMyWorst(); if (w !== null) NET.send({ t: 'rtt', w }, COOP.hostId); }
+  if (typeof CoopUI !== 'undefined') CoopUI.tick();
+}, 250);
+
 // ============================================================
 // 抜けた人(#3・#12)
 // ============================================================

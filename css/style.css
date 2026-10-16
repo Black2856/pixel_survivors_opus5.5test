@@ -826,3 +826,9 @@ html.touch #hud:not(.hidden) ~ #touch-ctl { display: block; }
 .coop-list { display: flex; flex-direction: column; gap: 6px; font-size: 14px; color: var(--txt); min-width: 220px; }
 .coop-mem.dim { color: var(--dim); }
 .coop-note { color: var(--dim); font-size: 12px; text-align: center; max-width: 520px; line-height: 1.6; }
+.coop-rtt { color: var(--dim); font-size: 12px; }
+.coop-lag { color: var(--dim); font-size: 12px; text-align: center; }
+.coop-lag.warn { color: #ffb070; }
+.coop-pub { display: flex; flex-direction: column; align-items: stretch; gap: 8px; padding: 12px 18px; border: 2px solid #2a4a6a; background: #101a30; min-width: 300px; max-height: 260px; overflow-y: auto; }
+.coop-pub-h { font: 11px 'Press Start 2P'; color: var(--gold); text-align: center; }
+.coop-pub-row { display: flex; justify-content: space-between; align-items: center; gap: 12px; color: var(--txt); font-size: 14px; }

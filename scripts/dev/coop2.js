@@ -1,5 +1,5 @@
 // coop2.js — 協力プレイ(4段)の確かめ: 1つのブラウザで 2つのページを開き、BroadcastChannel でつないで 2人で同じ計算になるかを比べる
-//   PLAYWRIGHT_DIR=<playwright を入れたフォルダ> node scripts/dev/coop2.js [chromium|firefox|webkit] [frames=1800] [inject] [classes=knight,mage] [mode=tower|escalation] [net=bc|p2p] [mix] [kits] [nokit] [leave=1@600] [how=close|bye|stall] [behind=2] [norelay]
+//   PLAYWRIGHT_DIR=<playwright を入れたフォルダ> node scripts/dev/coop2.js [chromium|firefox|webkit] [frames=1800] [inject] [classes=knight,mage] [mode=tower|escalation] [net=bc|p2p] [mix] [kits] [nokit] [leave=1@600] [how=close|bye|stall] [behind=2] [norelay] [lag=4]
 //   python -m http.server 8765 --bind 127.0.0.1(リポジトリの直下で)を先に立てる
 //   画面のフレームでは進めず(COOP.manual)、両方のページを交互に COOP.pump で進める。入力は決まった物(COOP.testInput)
 //   inject: 2つ目のページだけ 600フレームで敵の HP を変える → 次のハッシュ(660)で「同期がずれた」と出るはず(見つける仕組みの確かめ)
@@ -68,7 +68,7 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
     COOP.manual = true;
     COOP.testInput = (f, pid) => ({ mx: Math.cos(f / 70 + pid * 2.1), my: Math.sin(f / 55 + pid), e: f % 240 === 40 + pid * 25, q: f % 480 === 100 + pid * 40, def: f % 300 > 280, aim: null, autoE: false, autoQ: false, pick: f % 90 === 30 + pid * 7 ? 1 + (f / 90 | 0) % 3 : f % 400 === 200 ? 9 : 0 });
   });
-  await pages[0].evaluate(mode => coopStart({ mode }), mode);
+  await pages[0].evaluate(([mode, lag]) => coopStart({ mode, lag }), [mode, +arg('lag', 4)]); // 入力の遅れは決めた値(既定 4。往復時間で決めると bc は 2 になり、behind の試験が効かない)
   for (let k = 0; k < 200 && !(await Promise.all(pages.map(p => p.evaluate(() => COOP.on)))).every(Boolean); k++) await sleep(50);
   // 倒れないように(全員のページで同じフレーム 0 に同じことをする)
   for (const p of pages) await p.evaluate(() => { for (const q of players) q.hp = q.maxhp = 1e7; });
