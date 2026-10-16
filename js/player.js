@@ -86,8 +86,8 @@ function burnPlayer(dmg) {
   P.burnT = DATA.debuff.burnDur * CHAOS.debuff; P.burnDmg = Math.max(P.burnDmg, dmg); // カオス: デバフの時間
 }
 function breakCombo() {
-  if (S.combo >= 10) addFloat(P.x, P.y - 18, 'x' + S.combo, '#8a8098');
-  S.combo = 0; S.comboT = 0;
+  if (P.combo >= 10) addFloat(P.x, P.y - 18, 'x' + P.combo, '#8a8098');
+  P.combo = 0; P.comboT = 0;
 }
 // 自分の凍傷・出血(敵の技から)。どちらも最後に受けてから DATA.debuff.pDur 秒で全部消える
 //   凍傷: 1スタックにつき移動速度 −pFrostSlow。pFrostMax に達すると凍結(pFrzT 秒)して 0 に戻る。凍結の間は付かない。減速を受けない状態(不屈)では付かない
@@ -417,7 +417,7 @@ function playerDown() {
     return;
   }
   P.dead = true; P.hp = 0;
-  S.deathT = 1.8; slowmo(0.25, 2.5);
+  P.deathT = 1.8; slowmo(0.25, 2.5);
   screenFlash(0.8, '#ff3b5c'); shockAt(P.x, P.y, 2, 0.6); shake(12);
   burst(P.x, P.y, 80, ['#4c3a86', '#e8434f', '#9ff7ff', '#ffffff'], { sp: 140, glow: true, life: 1.4 });
   AudioMan.death(); AudioMan.stopMusic(2);
@@ -432,7 +432,7 @@ function gainXP(v) {
 function xpIn(x) {
   P.xp += x;
   while (P.xp >= P.xpNext) {
-    P.xp -= P.xpNext; P.level++; P.xpNext = xpFor(P.level); S.pendingLv++; S.lvQueue.push(P.level);
+    P.xp -= P.xpNext; P.level++; P.xpNext = xpFor(P.level); P.pendingLv++; P.lvQueue.push(P.level);
   }
   S.hudDirty = true;
 }

@@ -133,17 +133,20 @@ function escStage(tier, first) {
 function initRun(mode = 'escalation', stageNo = 1) {
   clearSimTimers(); // 前のランの「少し後で」は捨てる
   S = {
-    mode, arena: null, tower: null, time: 0, kills: 0, totalDmg: 0, dmgBy: {}, stage: 1, loop: 1,
-    combo: 0, comboT: 0, bestCombo: 0, gemStreak: 0, gemStreakT: 0,
+    mode, arena: null, tower: null, time: 0, stage: 1, loop: 1,
     freeze: 0, ts: 1, tsBack: 0, schedIdx: 0, spawnT: 0, spawnCfg: null,
     eatk: 1, // 敵の攻撃力の倍率(敵ごとの処理の間だけ。ビッグクランチのブラックホールの中で下がる)
-    eliteT: 95, goblinT: 70, propT: 2, elv: 1, elvT: 0, boss: null, pendingLv: 0, lvFx: 0,
+    eliteT: 95, goblinT: 70, propT: 2, elv: 1, elvT: 0, boss: null,
     ptime: 0, phase: null, tier: 0, // ptime: フェーズの時計(通常モード) / phase: ボス・エリート群のフェーズ { kind, t } / tier: ステージの tier(通常モード)
-    rerolls: 0, weaponSlots: 4, lvQueue: [],
-    gold: 0, deathT: 0, victoryT: 0, hudDirty: true, won: false, hint: {}, decoy: null, bossKills: 0, loot: [],
-    rewMul: 1, cxpK: 0, cxpB: 0, // rewMul: エスカレーションの報酬の倍率(tier が進むたびに上がる)/ cxpK・cxpB: 撃破数・ボス撃破数に、倒したときの報酬の倍率を掛けて足したもの(クラス経験値)
+    victoryT: 0, hudDirty: true, won: false, hint: {},
+    rewMul: 1, // エスカレーションの報酬の倍率(tier が進むたびに上がる)
   };
+  // プレイヤー 1人ずつの物は P(協力プレイでは players の 1人ずつ。claudedocs/coop.md 2章)
   P = {
+    pid: 0, // プレイヤーの番号(協力プレイでは入った順。ホストが 0。全員で同じ)
+    kills: 0, totalDmg: 0, dmgBy: {}, combo: 0, comboT: 0, bestCombo: 0, gemStreak: 0, gemStreakT: 0,
+    pendingLv: 0, lvUpT: 0, lvQueue: [], rerolls: 0, weaponSlots: 4, gold: 0, deathT: 0, decoy: null, bossKills: 0, loot: [],
+    cxpK: 0, cxpB: 0, // 撃破数・ボス撃破数に、倒したときの報酬の倍率を掛けて足したもの(クラス経験値)
     cls: META.cls, mainW: META.classes[META.cls].weapon, micro: {}, lvFx: classLvFx(META.cls), wm: {}, x: 0, y: 0, hp: 0, maxhp: 100, level: 1, xp: 0, xpNext: xpFor(1), weapons: {},
     bank: 0, // タワーの貯蓄経験値(階の間に拾った分。経験値の倍率を掛けた値。階をクリアすると入る)
     inp: NO_INPUT, wantE: false, wantQ: false, // 入力の記録(update が毎回入れる。core.js の readInput)/ E・Q を押した印(スキルの処理で使い切る)
@@ -158,13 +161,14 @@ function initRun(mode = 'escalation', stageNo = 1) {
     lockT: 0, lockMax: 0, noHealT: 0, noHealMax: 0, // 攻撃不能・回復不能(熾天使のラストラディアンス)の残り秒と、付いたときの長さ
     dazT: 0, dazMax: 0, dazImm: 0, // 眩惑(光の蝶)の残り秒・付いたときの長さ / 眩惑にならない残り秒(眩惑の間と、切れてからしばらく)
   };
+  players = [P];
   enemies = []; projs = []; eprojs = []; gems = []; drops = []; props = []; hazards = [];
   parts = []; floats = []; rings = []; zones = []; slashes = []; bolts = []; warns = []; flashes = []; bfx = []; sfx = [];
   eqInitRun();
   const st = recalc();
   P.hp = P.maxhp;
   addWeapon(P.mainW); // 1枠目はクラスのメイン武器(固定)
-  S.rerolls = st.v.reroll; S.weaponSlots = st.v.wslot;
+  P.rerolls = st.v.reroll; P.weaponSlots = st.v.wslot;
   clsInit();
   S.stageNo = stageNo; S.sched = mode === 'stage' ? stageSchedule(stageNo) : []; // エスカレーションは下の escStage で、闘技場は使わない
   if (mode === 'arena') { S.stage = 4; S.elv = DATA.arena.elv[0]; S.arena = { idx: 0, restT: 3, warned: false, order: arenaOrder() }; } // 開始時の敵Lv(深い闇)は下で足す。ラウンドの敵Lv は arenaLv
@@ -195,7 +199,7 @@ function recalc() {
 // 攻撃力倍率 = ステータス + クラスの一時的な強化(剣気満タン・残心など)
 // 与えるダメージ(バーサーカーの怒り・狂乱)は攻撃力とは別の倍率として掛ける。継続ダメージの割り戻し(/ dmgMul())でも一緒に戻る
 function dmgMul() {
-  return (1 + P.atk + clsAtkBonus() + (P.uq.berserk ? 1 - P.hp / P.maxhp : 0) + (P.uq.combo ? Math.min(0.3, S.combo * 0.001) : 0)) * P.atkMul * clsDmgDealt(); // 連撃の: コンボ 1 につき +0.1%(300 で上限)
+  return (1 + P.atk + clsAtkBonus() + (P.uq.berserk ? 1 - P.hp / P.maxhp : 0) + (P.uq.combo ? Math.min(0.3, P.combo * 0.001) : 0)) * P.atkMul * clsDmgDealt(); // 連撃の: コンボ 1 につき +0.1%(300 で上限)
 }
 const critRate = () => P.crit;
 // 武器の現在のステータス。熟練(クラスLv の共通強化)の威力・範囲・クールダウンを掛けたもの(Lv / 進化が変わるまでキャッシュ)

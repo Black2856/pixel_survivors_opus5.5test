@@ -25,7 +25,7 @@ function weaponPool() {
   const pool = [], wc = Object.keys(P.weapons).length;
   for (const k in DATA.weapons) {
     const w = P.weapons[k];
-    if (!w) { if (wc < S.weaponSlots) pool.push({ type: 'weapon', key: k, w: 1 }); } // サブ武器(メイン武器は所持済みなので Lv アップのみ)
+    if (!w) { if (wc < P.weaponSlots) pool.push({ type: 'weapon', key: k, w: 1 }); } // サブ武器(メイン武器は所持済みなので Lv アップのみ)
     else if (w.lv < 5) pool.push({ type: 'weapon', key: k, w: 1.6 });
   }
   return pool;

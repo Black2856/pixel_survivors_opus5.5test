@@ -105,17 +105,17 @@ const UI = (() => {
       : (S.loop > 1 ? 'LOOP ' + S.loop + ' · ' : '') + (S.mode === 'escalation' ? 'TIER ' + S.tier + ' · ' : '');
     const ph = phaseInfo();
     set('stage-name', pre + DATA.stages[S.stage - 1].label + (ph ? ' · ' + ph : ''));
-    set('kills', '☠ ' + S.kills.toLocaleString());
-    set('gold', '● ' + S.gold.toLocaleString());
-    set('dmgtotal', '⚔ ' + fmtBig(S.totalDmg));
+    set('kills', '☠ ' + P.kills.toLocaleString());
+    set('gold', '● ' + P.gold.toLocaleString());
+    set('dmgtotal', '⚔ ' + fmtBig(P.totalDmg));
     set('elv-n', 'ENEMY LV ' + S.elv + (S.phase && S.mode !== 'tower' ? '  ⏸' : '')); // タワーの敵Lv は階で決まる(時間では上がらない)
     $('elv-fill').style.width = (S.elvT / DATA.enemyLevel.interval * 100).toFixed(1) + '%';
     const c = $('combo');
-    if (S.combo >= 10) {
+    if (P.combo >= 10) {
       c.classList.add('on');
-      if (last.combo !== S.combo) { last.combo = S.combo; $('combo-n').textContent = S.combo; c.classList.remove('bump'); void c.offsetWidth; c.classList.add('bump'); }
-      $('combo-fill').style.width = (S.comboT / DATA.player.comboTime * 100) + '%';
-      c.dataset.tier = S.combo >= 300 ? 3 : S.combo >= 100 ? 2 : S.combo >= 40 ? 1 : 0;
+      if (last.combo !== P.combo) { last.combo = P.combo; $('combo-n').textContent = P.combo; c.classList.remove('bump'); void c.offsetWidth; c.classList.add('bump'); }
+      $('combo-fill').style.width = (P.comboT / DATA.player.comboTime * 100) + '%';
+      c.dataset.tier = P.combo >= 300 ? 3 : P.combo >= 100 ? 2 : P.combo >= 40 ? 1 : 0;
     } else c.classList.remove('on');
     if (S.boss) {
       const k = Math.max(0, S.boss.hp / S.boss.maxhp);
@@ -378,7 +378,7 @@ const UI = (() => {
   function slots() {
     const w = $('wslots');
     let h = '';
-    for (let i = 0; i < S.weaponSlots; i++) {
+    for (let i = 0; i < P.weaponSlots; i++) {
       const k = Object.keys(P.weapons)[i];
       if (!k) { h += '<div class="slot empty"></div>'; continue; }
       const wp = P.weapons[k];
@@ -521,7 +521,7 @@ const UI = (() => {
     });
     const btns = $('choice-btns');
     btns.innerHTML = '';
-    const rb = el('button', 'btn', _t`リロール (${S.rerolls}) <small>R</small>`);
+    const rb = el('button', 'btn', _t`リロール (${P.rerolls}) <small>R</small>`);
     rb.disabled = !canReroll();
     rb.onclick = reroll;
     btns.appendChild(rb);
@@ -530,10 +530,10 @@ const UI = (() => {
     btns.appendChild(sb);
   }
   // アーティファクトは未所持が3つ以下だと引き直しても同じ候補になるので不可
-  const canReroll = () => S.rerolls > 0 && !chosen;
+  const canReroll = () => P.rerolls > 0 && !chosen;
   function reroll() {
     if (!canReroll()) return;
-    S.rerolls--;
+    P.rerolls--;
     choices = buildChoices(curLv);
     AudioMan.select();
     renderCards();
@@ -802,16 +802,16 @@ const UI = (() => {
     $('result-title').textContent = win ? (arena ? 'ARENA CLEAR!' : 'VICTORY!') : 'YOU DIED';
     $('result-title').className = win ? 'win' : 'lose';
     $('btn-endless').classList.toggle('hidden', !win || S.mode !== 'escalation'); // エンドレスはエスカレーションのみ
-    const rows = [arena ? [_t('撃破ボス'), S.arena.idx + ' / ' + DATA.arena.rounds] : null, S.tower ? [_t('到達した階'), S.tower.top + 'F'] : null, [arena ? _t('タイム') : _t('生存時間'), fmtTime(S.time)], [_t('レベル'), P.level], [_t('撃破数'), S.kills.toLocaleString()], [_t('最大コンボ'), S.bestCombo], [_t('総ダメージ'), Math.round(S.totalDmg).toLocaleString()], [_t('獲得ゴールド'), '● ' + earned], first ? [_t('初クリア報酬'), '● ' + first.toLocaleString()] : null];
+    const rows = [arena ? [_t('撃破ボス'), S.arena.idx + ' / ' + DATA.arena.rounds] : null, S.tower ? [_t('到達した階'), S.tower.top + 'F'] : null, [arena ? _t('タイム') : _t('生存時間'), fmtTime(S.time)], [_t('レベル'), P.level], [_t('撃破数'), P.kills.toLocaleString()], [_t('最大コンボ'), P.bestCombo], [_t('総ダメージ'), Math.round(P.totalDmg).toLocaleString()], [_t('獲得ゴールド'), '● ' + earned], first ? [_t('初クリア報酬'), '● ' + first.toLocaleString()] : null];
     $('result-stats').innerHTML = rows.filter(Boolean).map(([a, b]) => `<div class="rs"><span>${a}</span><b>${b}</b></div>`).join('');
-    const tot = Object.values(S.dmgBy).reduce((a, b) => a + b, 0) || 1;
-    const list = Object.entries(S.dmgBy).filter(([k]) => DATA.weapons[k]).sort((a, b) => b[1] - a[1]);
+    const tot = Object.values(P.dmgBy).reduce((a, b) => a + b, 0) || 1;
+    const list = Object.entries(P.dmgBy).filter(([k]) => DATA.weapons[k]).sort((a, b) => b[1] - a[1]);
     // 獲得した装備(ボスの宝箱 + ラン終了時の報酬)とクラス経験値
     const cl = DATA.classes[P.cls], lvUp = cxp.lv > cxp.lv0;
     $('result-cls').innerHTML = _t`<b style="color:${cl.col}">${cl.name}</b> クラス経験値 +${cxp.xp}` + (lvUp ? ` <em>Lv ${cxp.lv0} → ${cxp.lv}!</em>` : ` <span class="dim">Lv ${cxp.lv}</span>`)
       + (cxp.newCls && cxp.newCls.length ? _t`<div class="unl-new">NEW CLASS! ${cxp.newCls.map(k => `<b style="color:${DATA.classes[k].col}">${DATA.classes[k].name}</b>`).join(_t('・'))} が使えるようになりました(クラス画面で選べます)</div>` : '');
     $('result-loot').innerHTML = (loot.chests ? _t`<div class="dim">ラン終了の報酬: 宝箱 ×${loot.chests}</div>` : '') +
-      (S.loot.length ? S.loot.map(it => `<span class="loot" style="--rc:${DATA.equip.rarity[it.rarity].col}">${icon('equip', it.type)}${itemName(it)}</span>`).join('') : _t('<div class="dim">装備の入手なし</div>'));
+      (P.loot.length ? P.loot.map(it => `<span class="loot" style="--rc:${DATA.equip.rarity[it.rarity].col}">${icon('equip', it.type)}${itemName(it)}</span>`).join('') : _t('<div class="dim">装備の入手なし</div>'));
     $('result-dmg').innerHTML = list.map(([k, v]) => `<div class="dm">${icon('weapon', k)}<div class="dm-bar"><i style="width:${(v / tot * 100).toFixed(1)}%;background:${DATA.weapons[k].col}"></i></div><span>${Math.round(v).toLocaleString()}</span></div>`).join('');
   }
 

@@ -8,7 +8,7 @@ function onBossDeath(e) {
   // 2体のボス(カオス: 双王): 両方倒すまで次へ進まない
   const rest = (S.bosses || []).filter(b => b !== e && !b.dead);
   if (rest.length) {
-    S.bosses = rest; S.boss = rest[0]; UI.bossBar(rest[0]); S.bossKills++; S.cxpB += rewMul(); S.twinFinal = S.twinFinal || e.final;
+    S.bosses = rest; S.boss = rest[0]; UI.bossBar(rest[0]); for (const p of players) { p.bossKills++; p.cxpB += rewMul(); } S.twinFinal = S.twinFinal || e.final;
     burst(e.x, e.y, 90, [e.col, '#ffd23f', '#ffffff'], { sp: 180, glow: true, life: 1.2 }); addFlash(e.x, e.y, 200, '#ffd23f', 0.8); shake(10); AudioMan.boom();
     UI.announce(_t('1体 撃破!'), _t('もう1体を倒せ')); // 宝箱はフェーズのクリア(2体目)で
     return;
@@ -27,7 +27,7 @@ function onBossDeath(e) {
   AudioMan.boom(); AudioMan.chest();
   eprojs = []; warns = []; hazards = []; bfx = []; P.push = null; P.current = null; P.rootT = 0; S.tstop = 0; S.madClock = null; S.rewind = 0;
   P.chain = null; S.cine = null; S.shadows = []; // 影の王: 鎖・影
-  S.bossKills++; S.cxpB += rewMul(); // クラス経験値は倒したときの報酬の倍率で数える
+  for (const p of players) { p.bossKills++; p.cxpB += rewMul(); } // ボスの撃破は全員に入る。クラス経験値は倒したときの報酬の倍率で数える
   if (S.mode === 'arena') return arenaBossDown(e);
   if (S.mode === 'tower') towerClear(); // タワー: 階のクリア(貯蓄経験値が入る)。ボスの報酬はこの後に落ち、休憩中に拾う
   if (CHAOS.bossLv) { S.elv += CHAOS.bossLv; UI.enemyLvUp(); } // カオス: ボスを倒すたびに敵Lv アップ

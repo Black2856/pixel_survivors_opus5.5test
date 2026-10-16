@@ -24,7 +24,7 @@ const runKey = () => (S.mode === 'stage' ? 'stage' + S.stageNo : S.mode);
 function pauseGame() { if (state !== 'play') return; state = 'pause'; UI.pause(true); AudioMan.pauseMusic(); }
 function resumeGame() { if (state !== 'pause') return; state = 'play'; UI.pause(false); AudioMan.resumeMusic(); }
 function endRun(win) {
-  const earned = S.gold + Math.floor(S.kills / 25);
+  const earned = P.gold + Math.floor(P.kills / 25);
   META.gold += earned; META.runs++;
   if (S.mode === 'arena') { // 闘技場は専用の記録(撃破ラウンド / 最速クリア)
     META.best.arenaRound = Math.max(META.best.arenaRound || 0, S.arena.idx);
@@ -34,7 +34,7 @@ function endRun(win) {
     if (T.top > (B.towerFloor || 0) || (T.top && T.top === B.towerFloor && T.topT < (B.towerTime ?? Infinity))) { B.towerFloor = T.top; B.towerTime = T.topT; }
   } else {
     if (S.time > META.best.time) META.best.time = S.time;
-    META.best.kills = Math.max(META.best.kills, S.kills);
+    META.best.kills = Math.max(META.best.kills, P.kills);
     META.best.level = Math.max(META.best.level, P.level);
   }
   const locked = DATA.classOrder.filter(k => !clsUnlocked(k));
@@ -51,7 +51,7 @@ function endRun(win) {
 }
 function startEndless() {
   // エスカレーションのクリア後もそのまま続行(tier 1 のステージから。ゴールドはリザルト時に精算済みなのでリセット)
-  S.gold = 0; S.loop = 2; S.won = false;
+  P.gold = 0; S.loop = 2; S.won = false;
   escStage(1);
   UI.show(UI.$('hud')); UI.pause(false);
   state = 'play';
@@ -115,26 +115,26 @@ function updWorld(rdt) {
   if (!P.dead) { updGems(dt); updDrops(dt); updSpawner(dt); }
   updFx(dt);
   if (!P.dead) updSky(dt); // ステージの空(雲海の稲光と遠雷)
-  S.comboT -= dt;
-  if (S.comboT <= 0 && S.combo > 0) S.combo = 0;
+  P.comboT -= dt;
+  if (P.comboT <= 0 && P.combo > 0) P.combo = 0;
 
   // レベルアップ演出 → 選択画面
-  if (S.pendingLv > 0 && !P.dead && state === 'play') {
-    if (S.lvFx <= 0) {
-      S.lvFx = 0.4;
+  if (P.pendingLv > 0 && !P.dead && state === 'play') {
+    if (P.lvUpT <= 0) {
+      P.lvUpT = 0.4;
       AudioMan.levelup(); slowmo(0.15, 0.3);
       screenFlash(0.35, '#ffd23f'); shockAt(P.x, P.y, 1.2, 1.1);
       addRing(P.x, P.y, 60, '#ffd23f', { w: 3, life: 0.4 }); addFlash(P.x, P.y, 140, '#ffd23f', 0.5);
       for (let i = 0; i < 40; i++) part(P.x + rand(-8, 8), P.y + rand(-2, 6), rand(-15, 15), -rand(60, 160), rand(0.5, 1), pick(['#ffd23f', '#fff6c8', '#ff8c42']), { glow: true, drag: 1.5 });
     }
-    S.lvFx -= rdt;
-    if (S.lvFx <= 0) {
-      S.pendingLv--;
-      const lv = S.lvQueue.shift() || P.level, list = buildChoices(lv);
+    P.lvUpT -= rdt;
+    if (P.lvUpT <= 0) {
+      P.pendingLv--;
+      const lv = P.lvQueue.shift() || P.level, list = buildChoices(lv);
       if (list.length) UI.levelUp(lv, list); else microBuff();
     }
   }
-  if (P.dead) { S.deathT -= rdt; if (S.deathT <= 0) endRun(false); }
+  if (P.dead) { P.deathT -= rdt; if (P.deathT <= 0) endRun(false); }
   if (S.victoryT > 0) { S.victoryT -= rdt; if (S.victoryT <= 0) { AudioMan.playMusic('title'); endRun(true); } }
 }
 
@@ -210,7 +210,7 @@ function netTake() { NET_SIM.pending = false; return NET_SIM.q.shift(); }
 //   計算の前に位置を控え(_ix / _iy)、描く前に間の値へ置き換え、描いた後に戻す。計算はこの値を読まない
 //   配列の外の座標(ボスの体の部品・鎖・光線の端など)は 1/60 秒刻みのまま
 const INTERP_JUMP = 48; // 1回の計算でこれより動いた物(瞬間移動・出し直し)は補間しない
-const interpLists = () => [enemies, projs, eprojs, hazards, zones, gems, drops, parts, floats, bfx, sfx, S.flamePuffs || []];
+const interpLists = () => [enemies, projs, eprojs, hazards, zones, gems, drops, parts, floats, bfx, sfx, P.flamePuffs || []];
 const interpMoved = [];
 let interpReady = false; // 直前に計算を進めた(控えが今の計算の 1つ前)
 function interpSave() {

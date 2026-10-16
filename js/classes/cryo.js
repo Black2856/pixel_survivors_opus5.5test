@@ -67,7 +67,7 @@ CLASS_RT.cryo = {
       if (Math.random() < 0.5) P.after = (P.after || []).concat([{ x: P.x, y: P.y, t: 0.1, f: P.facing }]).slice(-3);
       if (P.dash.t <= 0) P.dash = null;
     }
-    const dc = S.decoy;
+    const dc = P.decoy;
     if (dc && dc.cryo) forEachNear(dc.x, dc.y, p.decoyR + 6, e => { if (!e.prop && !e.dead && !dc.hit.has(e.id)) { dc.hit.add(e.id); if (rollHit(e)) { addFrost(e, p.decoyFrost, 10); part(e.x, e.y, 0, -15, 0.4, '#bff4ff', { glow: true }); } } }); // 効果だけの攻撃も外れる
     const held = defHeld();
     if (held && !P.mirrorHeld && !P.dash) { if (P.sta >= mirrorCost()) cryoMirror(); else addFloat(P.x, P.y - 16, 'STAMINA', '#6a7a88'); }
@@ -210,7 +210,7 @@ function cryWear() {
 function cryoMirror() {
   const p = CR(), d = P.moving && P.dir ? [-P.dir[0], -P.dir[1]] : [-P.facing, 0], len = Math.hypot(d[0], d[1]) || 1;
   staUse(mirrorCost());
-  S.decoy = { x: P.x, y: P.y, t: p.decoyT, cryo: true, hit: new Set() };
+  P.decoy = { x: P.x, y: P.y, t: p.decoyT, cryo: true, hit: new Set() };
   P.dash = { vx: d[0] / len * p.mirrorDist / p.mirrorTime, vy: d[1] / len * p.mirrorDist / p.mirrorTime, t: p.mirrorTime };
   P.invT = Math.max(P.invT, dodgeIfr(p.mirrorIfr)); P.ifr = Math.max(P.ifr, dodgeIfr(p.mirrorIfr));
   playAnim('cMirror', MOTIONS.cMirror.dur); P.anim.keep = true;

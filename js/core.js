@@ -33,6 +33,10 @@ function hexRgb(h) { const n = parseInt(h.slice(1), 16); return [(n >> 16) / 255
 // ============================================================
 let state = 'title'; // title | play | levelup | chest | pause | over | victory | settings
 let S = null, P = null;
+// プレイヤー(協力プレイでは入った順。ホストが 0。全員で同じ順)。P は「いま計算しているプレイヤー」で、計算の外では players[0](自分)
+//   1人ずつの処理は withPlayer で P を入れ替えて、players の順に回す(全員の乱数の引き方をそろえるため、順を変えない)
+let players = [];
+function withPlayer(p, fn) { const p0 = P; P = p; try { return fn(); } finally { P = p0; } }
 let enemies = [], projs = [], eprojs = [], gems = [], drops = [], props = [];
 let parts = [], floats = [], rings = [], zones = [], slashes = [], bolts = [], warns = [], flashes = [];
 let hazards = []; // ボスが設置する床・フィールド(粘液 / 衝撃波 / スロウタイム)

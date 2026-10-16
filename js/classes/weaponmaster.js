@@ -51,7 +51,7 @@ CLASS_RT.weaponmaster = {
     wmSummon();
     P.act = null;
   },
-  res: () => ({ kind: 'arms', label: _t('武器'), v: Object.keys(P.weapons).length, max: S.weaponSlots, seg: true, dk: '#7a4a22', pulse: '#e0a060' }),
+  res: () => ({ kind: 'arms', label: _t('武器'), v: Object.keys(P.weapons).length, max: P.weaponSlots, seg: true, dk: '#7a4a22', pulse: '#e0a060' }),
   staBroken: () => false,
   statuses() {
     const out = [], p = WM(), n = wmStack(), pc = v => String(+(v * 100).toFixed(1));
@@ -69,7 +69,7 @@ CLASS_RT.weaponmaster = {
   qInfo: () => ({ name: DATA.classes.weaponmaster.q.name, glyph: '神' }),
   info(c) {
     const p = WM(), q = DATA.classes.weaponmaster.q, pc = v => String(+(v * 100).toFixed(1)), ar = (1 + c.st.v.area) * c.st.mul.area;
-    const owned = c.run ? Object.keys(P.weapons).length : 1, n = c.run ? wmStack() : 1 + (c.lvFx.stack || 0), slots = c.run ? S.weaponSlots : c.st.v.wslot;
+    const owned = c.run ? Object.keys(P.weapons).length : 1, n = c.run ? wmStack() : 1 + (c.lvFx.stack || 0), slots = c.run ? P.weaponSlots : c.st.v.wslot;
     const per = c.cuV('trait', 'train', p.stackAtk), deft = c.cuV('trait', 'deft'), tough = c.cuV('trait', 'tough'), evo = c.hasSp('trait', 'train') ? 1 : p.evoK;
     const every = p.shadeT - c.cuV('passive', 'freq') - (c.lvFx.shadeCut || 0), sp = 1 + c.cuV('passive', 'pow') + (c.lvFx.shadePow || 0), edge = c.cuV('passive', 'edge');
     const qn = q.n + c.cuV('q', 'multi') + (c.lvFx.qN || 0), lvA = c.run ? cuLv('q', 'art') : 0, qk = 1 + c.cuV('q', 'art') + (c.lvFx.qPow || 0);
@@ -122,7 +122,7 @@ function wmStack() {
   for (const k in P.weapons) n += P.weapons[k].evo ? 1 + evo : 1;
   return n;
 }
-const wmFull = () => Object.keys(P.weapons).length >= S.weaponSlots;           // 武器枠が全て埋まっている(不動)
+const wmFull = () => Object.keys(P.weapons).length >= P.weaponSlots;           // 武器枠が全て埋まっている(不動)
 const wmDashCostOf = lvFx => WM().dashCost - (lvFx.dashCut || 0);              // 残像のスタミナ(クラスLv6)
 const wmDashCost = () => wmDashCostOf(P.lvFx);
 const wmShadeEvery = () => WM().shadeT - cuV('passive', 'freq') - (P.lvFx.shadeCut || 0); // 影の追撃の間隔(頻度・クラスLv5)

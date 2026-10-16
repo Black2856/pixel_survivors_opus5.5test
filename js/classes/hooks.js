@@ -14,8 +14,8 @@ function clsUpdate(dt) {
   P.invT -= dt;
   const cdt = dt * cdRateK(); // スロウタイム・痺れの間は武器と同じく CD の回復が遅い(凍結・麻痺の間も回復はする)
   for (const k in P.sk) P.sk[k].cd = Math.max(0, P.sk[k].cd - cdt);
-  if (S.decoy && (S.decoy.t -= dt) <= 0) S.decoy = null;
-  if (S.dimK > 0) S.dimK = Math.max(0, S.dimK - dt * 1.5); // 構えで暗くした周りを戻す
+  if (P.decoy && (P.decoy.t -= dt) <= 0) P.decoy = null;
+  if (P.dimK > 0) P.dimK = Math.max(0, P.dimK - dt * 1.5); // 構えで暗くした周りを戻す
   const rt = clsRT();
   if (rt) rt.update(dt);
   for (const w of WS_TICK) w.tick(dt); // 武器スキルの残る効果(オーブ・刃輪・精霊・異次元・斧など)。メイン武器以外の武器スキルも分身などが使うので全て
@@ -33,7 +33,7 @@ function clsUpdate(dt) {
     const a = P.act;
     a.t += dt;
     if (!a.rel && a.t >= skillWindup(a.slot)) { a.rel = true; skillRelease(a.slot); } // 放つ瞬間
-    else if (!a.rel && a.slot === 'q') S.dimK = Math.max(S.dimK || 0, 0.16 * Math.min(1, a.t / 0.12)); // Q の構え: 周りを少し暗くして、陣と集中線を浮かび上がらせる
+    else if (!a.rel && a.slot === 'q') P.dimK = Math.max(P.dimK || 0, 0.16 * Math.min(1, a.t / 0.12)); // Q の構え: 周りを少し暗くして、陣と集中線を浮かび上がらせる
     if (a.slot === 'q') rt.qUpdate(a, dt); else WEAPON_SKILL[P.mainW].update(a, dt);
   }
   // モーション(スキルが終わった後に歩き出したら途中で打ち切る)

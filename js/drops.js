@@ -20,7 +20,7 @@ function dropItem(kind, x, y, val = 0) {
 const pushDrop = (kind, x, y, val) => drops.push({ kind, x, y, val, t: 0, z: 0, vz: -rand(60, 110), vx: rand(-35, 35), vy: rand(-25, 25), home: false, sp: 0 });
 function addGold(v) {
   const g = Math.max(1, Math.round(v * P.goldMul));
-  S.gold += g; S.hudDirty = true;
+  P.gold += g; S.hudDirty = true;
   return g;
 }
 
@@ -32,8 +32,8 @@ function bounce(o, dt) {
 }
 
 function updGems(dt) {
-  S.gemStreakT -= dt;
-  if (S.gemStreakT <= 0) S.gemStreak = 0;
+  P.gemStreakT -= dt;
+  if (P.gemStreakT <= 0) P.gemStreak = 0;
   const mr2 = P.magnet * P.magnet;
   for (let i = gems.length - 1; i >= 0; i--) {
     const g = gems[i];
@@ -48,8 +48,8 @@ function updGems(dt) {
     }
     if (dd < 36) {
       gems.splice(i, 1);
-      S.gemStreak++; S.gemStreakT = 0.6;
-      AudioMan.gem(S.gemStreak);
+      P.gemStreak++; P.gemStreakT = 0.6;
+      AudioMan.gem(P.gemStreak);
       const cols = [['#4cc3ff', '#e0fbff'], ['#5dff8a', '#eaffea'], ['#ff5d73', '#ffe0e6'], ['#ffd23f', '#fffbe0']][g.tier];
       burst(P.x, P.y - 4, 3, cols, { sp: 35, glow: true, life: 0.35 });
       gainXP(g.v);

@@ -46,8 +46,8 @@ function hitEnemy(e, base, o = {}) {
   if (o.eHit) clsOnEHit(e, dmg);                   // 武器スキル(E)の命中
   if (o.el) clsOnElement(e, o.el, dmg);             // 属性(メイジの元素循環)
   if (!o.dot && (o.eHit || (o.src && P.weapons[o.src]))) clsOnWeaponHit(e, dmg, crit, o); // 武器の命中(炎上などの継続ダメージは除く)
-  S.totalDmg += dmg;
-  if (o.src) S.dmgBy[o.src] = (S.dmgBy[o.src] || 0) + dmg;
+  P.totalDmg += dmg;
+  if (o.src) P.dmgBy[o.src] = (P.dmgBy[o.src] || 0) + dmg;
   if (o.kb && o.ang !== undefined && !e.boss) {
     const k = o.kb * (1 - (e.kbRes || 0));
     e.kx += Math.cos(o.ang) * k; e.ky += Math.sin(o.ang) * k;
@@ -87,10 +87,10 @@ function killEnemy(e, o = {}) {
     AudioMan.kill();
     return;
   }
-  S.kills++; S.cxpK += rewMul(); // クラス経験値は倒したときの報酬の倍率で数える
+  P.kills++; P.cxpK += rewMul(); // クラス経験値は倒したときの報酬の倍率で数える
   if (S.tower) S.tower.kills++; // タワー: その階の撃破数
-  S.combo++; S.comboT = DATA.player.comboTime; S.bestCombo = Math.max(S.bestCombo, S.combo);
-  if (S.combo % 100 === 0) { UI.announce(S.combo + ' COMBO!!', _t`ボーナス +${Math.round(S.combo / 10)}G`); addGold(S.combo / 10); }
+  P.combo++; P.comboT = DATA.player.comboTime; P.bestCombo = Math.max(P.bestCombo, P.combo);
+  if (P.combo % 100 === 0) { UI.announce(P.combo + ' COMBO!!', _t`ボーナス +${Math.round(P.combo / 10)}G`); addGold(P.combo / 10); }
   burst(e.x, e.y, e.elite ? 40 : 7, [col[0], col[1], '#ffffff'], { sp: e.elite ? 120 : 60, up: 15, g: 120, drag: 3 });
   part(e.x, e.y, 0, -20, 0.45, '#ffffff', { glow: true, sz: 2, drag: 1 });
   addRing(e.x, e.y, e.r + 4, col[0], { life: 0.18 });

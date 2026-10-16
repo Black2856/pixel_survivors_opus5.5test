@@ -43,7 +43,7 @@ function updTower(dt) {
     if (!T.boss && T.kills >= T.goal) towerClear();
     return T.wave;
   }
-  if (S.pendingLv > 0) return false; // レベルアップの選択中は休憩を止める
+  if (players.some(p => p.pendingLv > 0)) return false; // レベルアップの選択中は休憩を止める(誰か 1人でも。協力プレイの最長 30秒は tower.md #31・5段)
   T.rest -= dt;
   if (!T.warned && T.rest <= 2.5) {
     T.warned = true;

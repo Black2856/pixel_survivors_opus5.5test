@@ -30,9 +30,9 @@ WEAPON_SKILL.aura = {
   //   自分の E(メイン武器がホーリーオーラ)が聖痕を持っているときと、ほかの使い手が付けた印が残っている間(S.stigmaUntil)
   tick(dt) {
     if (!(P.mainW === 'aura' && hasSp('e', 'pow')) && !(S.time < (S.stigmaUntil || 0))) { S.healSeen = S.healed || 0; return; }
-    S.stigmaT = (S.stigmaT || 0) - dt;
-    if (S.stigmaT > 0) return;
-    S.stigmaT = 0.5;
+    P.stigmaT = (P.stigmaT || 0) - dt;
+    if (P.stigmaT > 0) return;
+    P.stigmaT = 0.5;
     const amt = (S.healed || 0) - (S.healSeen || 0);
     S.healSeen = S.healed || 0;
     if (amt <= 0) return;

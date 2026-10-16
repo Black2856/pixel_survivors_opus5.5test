@@ -68,7 +68,7 @@ function updSpawner(dt) {
 // ============================================================
 function updArena(dt) {
   const A = S.arena, cfg = DATA.arena;
-  if (S.boss || S.won || A.idx >= cfg.rounds || S.pendingLv > 0) return; // レベルアップ処理中は休憩時間を止める
+  if (S.boss || S.won || A.idx >= cfg.rounds || players.some(p => p.pendingLv > 0)) return; // レベルアップ処理中は休憩時間を止める(誰か 1人でも)
   A.restT -= dt;
   if (!A.warned && A.restT <= 2.5) { A.warned = true; UI.announce('ROUND ' + (A.idx + 1) + ' / ' + cfg.rounds, _t('次の挑戦者が入場する…')); AudioMan.warning(); }
   if (A.restT > 0) return;

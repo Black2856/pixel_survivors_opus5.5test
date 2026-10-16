@@ -70,7 +70,7 @@ function ranbuStep(X, a, dt) {
 }
 
 function ranbuHit(X, a) {
-  const sk = DATA.weapons.katana.skill, R = sk.radius * X.area, dmg = wst('katana').dmg * sk.pow * (1 + X.lv('pow')) * a.pow, k0 = S.kills, el = clsNextEl(); // 1回の斬撃 = 1属性
+  const sk = DATA.weapons.katana.skill, R = sk.radius * X.area, dmg = wst('katana').dmg * sk.pow * (1 + X.lv('pow')) * a.pow, k0 = P.kills, el = clsNextEl(); // 1回の斬撃 = 1属性
   const x = X.x, y = X.y;
   asMine(() => {
     forEachNear(x, y, R, e => { if (!e.prop) hitEnemy(e, dmg, { src: 'ranbu', ang: Math.atan2(e.y - y, e.x - x), kb: 25, col: '#ffb7d5', noNum: Math.random() < 0.4, el, eHit: true, cl: X.cl }); });
@@ -79,7 +79,7 @@ function ranbuHit(X, a) {
     shake(1.5);
   });
   AudioMan.slash();
-  if (X.sp('cd')) X.cdCut(S.kills - k0); // 剣の舞: 撃破1体ごとに CD -1秒
+  if (X.sp('cd')) X.cdCut(P.kills - k0); // 剣の舞: 撃破1体ごとに CD -1秒
 }
 // 乱れ桜の演出: 範囲のあちこち(敵がいればその上)で、2点の間を数フレームかけて刻む、流れるような桜色の斬撃(ダメージは ranbuHit)
 //   切っ先が少し反った弧を描いて走り、少し遅れて尾がついていく(描画は render.js の drawFlow)
@@ -207,7 +207,7 @@ CLASS_RT.samurai = {
       // 抜刀: 剣気を全て消費して突進
       a.ph = 'dash'; a.t0 = a.t; a.ki = P.ki; P.ki = 0;
       P.invT = Math.max(P.invT, q.dash + 0.15);
-      if (hasSp('q', 'reach')) S.decoy = { x: P.x, y: P.y, t: 5 }; // 空蝉: 開始地点に分身
+      if (hasSp('q', 'reach')) P.decoy = { x: P.x, y: P.y, t: 5 }; // 空蝉: 開始地点に分身
       AudioMan.dash(); shake(2);
       return;
     }

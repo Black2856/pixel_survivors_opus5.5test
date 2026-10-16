@@ -34,7 +34,7 @@ WEAPON_SKILL.bolt = {
     if (a.ph === 'wind') { // 詠唱: 足元に魔法陣
       P.moveMul = 0;
       if (Math.random() < dt * 40) { const r = rand(0, TAU); part(P.x + Math.cos(r) * 14, P.y + 5 + Math.sin(r) * 6, 0, -20, 0.4, pick(['#b98bff', '#ffffff']), { glow: true }); }
-      if (a.t >= sk.windup) { a.ph = 'fire'; a.kills = S.kills; }
+      if (a.t >= sk.windup) { a.ph = 'fire'; a.kills = P.kills; }
       return;
     }
     const d0 = a.dur, done = barrageStep(ME, a, dt);
@@ -71,7 +71,7 @@ WEAPON_SKILL.bolt = {
 // バラージュ 1回分の状態(dur: 連射の時間 / pow: 威力の倍率 / id: 集中砲火の数え分け)
 function barrageState(X, pow) {
   const sk = DATA.weapons.bolt.skill, m = P.wm.bolt || {};
-  return { dur: sk.dur + X.lv('dur') + (m.eDur || 0), pow, shotT: 0, u: 0, kills: S.kills, ext: 0, id: (S.actId = (S.actId || 0) + 1) };
+  return { dur: sk.dur + X.lv('dur') + (m.eDur || 0), pow, shotT: 0, u: 0, kills: P.kills, ext: 0, id: (P.actId = (P.actId || 0) + 1) };
 }
 // オーブ: 使い手の周りを回る 3つのオーブが 5秒間、近くの敵へ自動で連射する
 function arcaneOrb(X, o) {
@@ -82,11 +82,11 @@ function arcaneOrb(X, o) {
 //   魔力障壁: 連射中に敵を倒すと持続 +killExt(1回の連射で killExtMax まで)
 function barrageStep(X, a, dt) {
   const sk = DATA.weapons.bolt.skill;
-  if (X.sp('dur') && S.kills > a.kills && a.ext < sk.killExtMax) {
-    const add = Math.min(sk.killExtMax - a.ext, (S.kills - a.kills) * sk.killExt);
+  if (X.sp('dur') && P.kills > a.kills && a.ext < sk.killExtMax) {
+    const add = Math.min(sk.killExtMax - a.ext, (P.kills - a.kills) * sk.killExt);
     a.dur += add; a.ext += add;
   }
-  a.kills = S.kills;
+  a.kills = P.kills;
   a.shotT -= dt;
   while (a.shotT <= 0) { a.shotT += 1 / sk.rate; barrageShot(X, a, X.x, X.y, X.aim(220)); }
   a.u += dt;

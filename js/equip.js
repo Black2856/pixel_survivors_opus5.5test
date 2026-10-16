@@ -130,27 +130,27 @@ function openEquipChest() {
   for (let i = chestCount(st.chestQual); i > 0; i--) {
     const it = genItem({ stats: st });
     const sold = invAdd(it);
-    S.loot.push(it);
+    P.loot.push(it);
     out.push({ type: 'item', item: it, sold });
   }
   return out;
 }
 // ラン終了時: 撃破ボス数に応じて宝箱 0〜2個(クリアで +1)
 function runEndLoot(win) {
-  const n = Math.min(DATA.equip.runEndMax, Math.floor(S.bossKills * DATA.equip.runEndPerBoss + 1e-9)) + (win ? 1 : 0);
+  const n = Math.min(DATA.equip.runEndMax, Math.floor(P.bossKills * DATA.equip.runEndPerBoss + 1e-9)) + (win ? 1 : 0);
   const got = [];
   const st = lootStats(P.stats);
   for (let c = 0; c < n; c++) for (let i = chestCount(st.chestQual); i > 0; i--) {
     const it = genItem({ stats: st });
-    invAdd(it); S.loot.push(it); got.push(it);
+    invAdd(it); P.loot.push(it); got.push(it);
   }
   return { chests: n, items: got };
 }
 // クラス経験値: 討伐数 × killK + 撃破ボス数 × bossK(クラス経験値% で増える)。上がった Lv を返す
-//   討伐数・撃破ボス数は、倒したときの tier の報酬の倍率を掛けて数えたもの(S.cxpK・S.cxpB。エスカレーションは tier ごとに倍率が違う)
+//   討伐数・撃破ボス数は、倒したときの tier の報酬の倍率を掛けて数えたもの(P.cxpK・P.cxpB。エスカレーションは tier ごとに倍率が違う)
 function gainClassXp() {
   const cl = DATA.classLevel, c = META.classes[P.cls];
-  const xp = Math.round((S.cxpK * cl.killK + S.cxpB * cl.bossK) * (1 + (P.stats.v.classXp || 0)));
+  const xp = Math.round((P.cxpK * cl.killK + P.cxpB * cl.bossK) * (1 + (P.stats.v.classXp || 0)));
   const lv0 = c.lv;
   c.xp += xp;
   while (c.lv <= cl.need.length && c.xp >= cl.need[c.lv - 1]) { c.xp -= cl.need[c.lv - 1]; c.lv++; }

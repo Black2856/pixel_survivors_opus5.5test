@@ -41,8 +41,8 @@ WEAPON_SKILL.blade = {
     const b = P.bladeE;
     if (!b) return;
     const sk = DATA.weapons.blade.skill, has = p => b.Xs.some(X => X.sp(p));
-    if (S.kills > b.kills && has('cd') && b.ext < sk.killExtMax) { const add = Math.min(sk.killExtMax - b.ext, (S.kills - b.kills) * sk.killExt); b.t += add; b.ext += add; }
-    b.kills = S.kills;
+    if (P.kills > b.kills && has('cd') && b.ext < sk.killExtMax) { const add = Math.min(sk.killExtMax - b.ext, (P.kills - b.kills) * sk.killExt); b.t += add; b.ext += add; }
+    b.kills = P.kills;
     if (has('area')) {
       const R = (wst('blade').radius || 20) * P.area * b.rMul;
       forEachNear(P.x, P.y, R * sk.pullK, e => {
@@ -62,7 +62,7 @@ WEAPON_SKILL.blade = {
 //   Xs: 使い手(連環・渦・刃の雨はここから読む)/ cl: 全て自分以外の使い手
 function bladeOpen(X, pow) {
   const sk = DATA.weapons.blade.skill, m = P.wm.blade || {}, pw = (1 + X.lv('pow')) * pow;
-  const b = { t: sk.dur + (m.eDur || 0), ext: 0, kills: S.kills, rMul: sk.rMul * (1 + X.lv('area')), size: sk.size, rot: sk.rot, pow: sk.pow * pw, scat: sk.scatter * pw, Xs: [X], cl: X.cl };
+  const b = { t: sk.dur + (m.eDur || 0), ext: 0, kills: P.kills, rMul: sk.rMul * (1 + X.lv('area')), size: sk.size, rot: sk.rot, pow: sk.pow * pw, scat: sk.scatter * pw, Xs: [X], cl: X.cl };
   const o = P.bladeE;
   if (o) { o.t = Math.max(o.t, b.t); o.rMul = Math.max(o.rMul, b.rMul); o.pow = Math.max(o.pow, b.pow); o.scat = Math.max(o.scat, b.scat); o.Xs.push(X); o.cl = o.cl && X.cl; }
   else P.bladeE = b;
@@ -238,7 +238,7 @@ function asBleedCap() {
 // HUD 用: 出血の最大スタックの上限(武器枠を全て斬撃タイプにしたとき)
 function asBleedMax() {
   const cuts = Object.keys(DATA.weapons).filter(isCut).length;
-  return Math.min(S.weaponSlots, cuts) * asPerCut();
+  return Math.min(P.weaponSlots, cuts) * asPerCut();
 }
 // 血の渇きの回復量の倍率(渇き・クラスLv6)
 const asLeechK = () => 1 + cuV('passive', 'thirst') + (P.lvFx.leech || 0);

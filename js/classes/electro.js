@@ -206,7 +206,7 @@ function electroDash() {
 }
 // 鉄塔: 画面内のランダムな位置に落とす(zones の 'tower'、world.js で放電)。大鉄塔: 自分の場所に 1本だけ(威力 × 本数 × bigK、半径 × bigR)
 function electroTowers() {
-  const q = DATA.classes.electro.q, k0 = 1 + cuV('q', 'pow') + (P.lvFx.qPow || 0), nT = q.n + cuV('q', 'n'), id = (S.actId = (S.actId || 0) + 1);
+  const q = DATA.classes.electro.q, k0 = 1 + cuV('q', 'pow') + (P.lvFx.qPow || 0), nT = q.n + cuV('q', 'n'), id = (P.actId = (P.actId || 0) + 1);
   const big = hasSp('q', 'pow'), n = big ? 1 : nT, k = big ? k0 * nT * q.bigK : k0, rk = (big ? q.bigR : 1) * P.area;
   setCd('q', q.cd * (1 - cuV('q', 'cd')) * P.cdMul); // ここで纏い + 放電(P.elDis.q)
   const dis = P.elDis.q || 0;

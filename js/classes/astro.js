@@ -95,7 +95,7 @@ function riftTick(dt) {
 // 異次元送り: 残りの HP を与えて倒した扱い(内側へ縮んで消える)
 function riftExile(e, cl) {
   const left = Math.max(0, Math.round(e.hp));
-  S.totalDmg += left; S.dmgBy.rift = (S.dmgBy.rift || 0) + left;
+  P.totalDmg += left; P.dmgBy.rift = (P.dmgBy.rift || 0) + left;
   e.hp = 0;
   asMine(() => {
     addRing(e.x, e.y, 1, '#ff7ad9', { r0: (e.r || 4) + 8, life: 0.25 });
@@ -175,7 +175,7 @@ CLASS_RT.astro = {
     const q = DATA.classes.astro.q;
     P.moveMul = 0;
     if (a.t < q.windup) { // 構え: 周りが少し暗くなり、光の粒が両手の間へ流れ込む。照準位置に縮む輪
-      S.dimK = Math.max(S.dimK || 0, 0.18 * Math.min(1, a.t / 0.15));
+      P.dimK = Math.max(P.dimK || 0, 0.18 * Math.min(1, a.t / 0.15));
       asMine(() => {
         for (let n = dt * 45; Math.random() < n; n--) { const r = rand(0, TAU), d = rand(14, 28); part(P.x + P.facing * 5 + Math.cos(r) * d, P.y - 8 + Math.sin(r) * d * 0.6, -Math.cos(r) * d * 3, -Math.sin(r) * d * 1.8, 0.3, pick(AST_FX), { glow: Math.random() < 0.4, drag: 0 }); }
         if (Math.random() < dt * 20) addRing(a.x, a.y, 3, '#ff7ad9', { r0: 16, life: 0.15 });

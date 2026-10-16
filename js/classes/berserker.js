@@ -262,7 +262,7 @@ CLASS_RT.berserker = {
     const q = DATA.classes.berserker.q;
     P.moveMul = 0;
     if (a.t < q.windup) { // 構え: 両手で斧を振りかぶる。周りが少し暗くなり、赤黒い闘気が集まる
-      S.dimK = Math.max(S.dimK || 0, 0.15 * Math.min(1, a.t / 0.12));
+      P.dimK = Math.max(P.dimK || 0, 0.15 * Math.min(1, a.t / 0.12));
       asMine(() => { for (let n = dt * 50; Math.random() < n; n--) { const r = rand(0, TAU), d = rand(14, 26); part(P.x + Math.cos(r) * d, P.y - 4 + Math.sin(r) * d * 0.6, -Math.cos(r) * d * 3, -Math.sin(r) * d * 2, 0.3, pick(BK_FX), { glow: Math.random() < 0.3, drag: 0 }); } });
       return;
     }

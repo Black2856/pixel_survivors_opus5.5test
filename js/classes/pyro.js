@@ -32,7 +32,7 @@ WEAPON_SKILL.fire = {
   },
   // 炎の塊の移動(放射が終わっても消えるまで動かす)
   tick(dt) {
-    const fp = S.flamePuffs;
+    const fp = P.flamePuffs;
     if (!fp || !fp.length) return;
     for (const f of fp) {
       f.t += dt;
@@ -40,7 +40,7 @@ WEAPON_SKILL.fire = {
       f.vy -= 40 * dt * (f.t / f.life);                     // 熱で昇る
       f.x += f.vx * dt; f.y += f.vy * dt;
     }
-    S.flamePuffs = fp.filter(f => f.t < f.life);
+    P.flamePuffs = fp.filter(f => f.t < f.life);
   },
   update(a, dt) {
     const sk = weaponSkill(), L = sk.len * (1 + cuV('e', 'len')) * P.area;
@@ -79,7 +79,7 @@ function flameStep(X, a, dt) {
 // 火炎放射の見た目: 杖先から炎の塊を噴き出す(描画は render.js)。先端の速さは長さ L に届くように
 //   見た目だけで、数は画質で変わるので見た目の乱数の列で(core.js の fxScope)
 function flamePuffs(X, ang, L, arc, blue, dt) { fxScope(() => {
-  const fp = S.flamePuffs || (S.flamePuffs = []), n = Math.round(dt * 110 * gq().parts) || 1;
+  const fp = P.flamePuffs || (P.flamePuffs = []), n = Math.round(dt * 110 * gq().parts) || 1;
   const nx = X.x + Math.cos(ang) * 9, ny = X.y - 6 + Math.sin(ang) * 6;
   for (let i = 0; i < n && fp.length < 260; i++) {
     const d = ang + rand(-arc / 2, arc / 2) * rand(0.3, 1), life = rand(0.32, 0.45), sp = L / life * rand(1.25, 1.55);

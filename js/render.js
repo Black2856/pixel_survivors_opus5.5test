@@ -971,7 +971,7 @@ function drawFrame() {
     if (!enemy) { // 一閃の間は周りを少し暗くする(刃筋だけが浮かび上がる)
       let dim = 0;
       for (const s of slashes) if (s.cut) dim = Math.max(dim, cutDim(s));
-      dim = Math.max(dim, S.dimK || 0); // スキルの構えで暗くする(Q の構え)
+      dim = Math.max(dim, P.dimK || 0); // スキルの構えで暗くする(Q の構え)
       if (dim > 0.01) { sx.globalAlpha = dim; sx.fillStyle = '#0a0208'; sx.fillRect(0, 0, VW, VH); sx.globalAlpha = 1; }
     }
     for (const s of slashes) {
@@ -1466,7 +1466,7 @@ function drawFrame() {
     const psp = ms ? rig.pose(ms.p) : rig && P.guard && rig.guard ? rig.pose(rig.guard) : rig ? ART.rigFrame(rig, walkM, P.cls === 'astro' && P.moving ? P.walkT : t) : ART.S.player; // アストロマンサーは重いほど足取りが遅い // guard: 構えの姿勢(ナイト)
     const py = P.y - (psp.h - ART.S.player.h) / 2; // 足元の位置を旧プレイヤーと揃える
     // 空蝉の分身(白いシルエットが明滅する)
-    if (S.decoy && rig) drawSp(rig.base, S.decoy.x, S.decoy.y - (rig.base.h - ART.S.player.h) / 2, { white: true, alpha: 0.35 + 0.25 * Math.sin(t * 20), flip: P.facing < 0, emit: false });
+    if (P.decoy && rig) drawSp(rig.base, P.decoy.x, P.decoy.y - (rig.base.h - ART.S.player.h) / 2, { white: true, alpha: 0.35 + 0.25 * Math.sin(t * 20), flip: P.facing < 0, emit: false });
     // 残像: クラスの色のシルエット(白だとブルームで塊になるため)
     if (P.after) for (const a of P.after) {
       const ax = Math.round(a.x - cam.x - psp.w / 2), ay = Math.round(a.y - (P.y - py) - cam.y - psp.h / 2);
@@ -1539,11 +1539,11 @@ function drawFrame() {
       }
       gx.globalAlpha = 1;
     }
-    const fireOn = !!(S.flamePuffs && S.flamePuffs.length) || !!P.flame || !!(P.wmClone && P.wmClone.chans.some(ch => ch.flame));
+    const fireOn = !!(P.flamePuffs && P.flamePuffs.length) || !!P.flame || !!(P.wmClone && P.wmClone.chans.some(ch => ch.flame));
     if (fireOn) mineOn(); // 火炎放射は自分の攻撃(「攻撃の濃さ」の層に描く)
-    if (S.flamePuffs && S.flamePuffs.length) { // 火炎放射: 炎の塊。進むほど膨らみ、白 → 黄 → 橙 → 赤 → 煙(古いものから描いて、芯が上に来る)
+    if (P.flamePuffs && P.flamePuffs.length) { // 火炎放射: 炎の塊。進むほど膨らみ、白 → 黄 → 橙 → 赤 → 煙(古いものから描いて、芯が上に来る)
       const PAL = [[0.05, '#fff6c8', '#dff8ff'], [0.2, '#ffc34a', '#7ad7ff'], [0.4, '#ff9a2a', '#4aa8f0'], [0.62, '#e8501a', '#2f6fd8'], [0.82, '#9a1e14', '#1f3f9a'], [1, '#3a2a2a', '#2a2a3a']];
-      for (const f of S.flamePuffs) {
+      for (const f of P.flamePuffs) {
         const u = f.t / f.life, r = Math.max(1, Math.round(f.r0 + (f.r1 - f.r0) * Math.pow(u, 0.7) * (0.9 + 0.2 * Math.sin(t * 30 + f.seed * 9))));
         let col = PAL[PAL.length - 1];
         for (const c of PAL) if (u < c[0]) { col = c; break; }

@@ -354,7 +354,7 @@ function updEnemies(dt) {
       const tw = clsEnemySlow(e); // 時の歪み(アストロマンサーの重力圏): 移動・攻撃が遅くなる
       const slow = Math.max(0.2, 1 - DATA.debuff.frostSlow * (e.frost || 0)) * (e.slowT > 0 ? 0.6 : 1) * tw; // 凍傷(時の歪みと掛け算)
       const sp = e.spd * slow * (1 + buffOn(e, 'spd')); // サンダーメイジのバフ
-      const dc = S.decoy && d2(e.x, e.y, S.decoy.x, S.decoy.y) < 200 * 200 ? S.decoy : P; // 空蝉の分身
+      const dc = P.decoy && d2(e.x, e.y, P.decoy.x, P.decoy.y) < 200 * 200 ? P.decoy : P; // 空蝉の分身
       const a = Math.atan2(dc.y - e.y, dc.x - e.x), d = DATA.enemies[e.type];
       let mx = Math.cos(a), my = Math.sin(a);
       if (e.ai === 'flutter') { const w = Math.sin(e.t * 5 + e.seed * 10) * (d.wobble || 0.8); mx -= Math.sin(a) * w; my += Math.cos(a) * w; if (d.dazzle && Math.random() < dt * 6) part(e.x + rand(-3, 3), e.y + rand(-1, 2), rand(-4, 4), rand(4, 10), 0.5, pick(['#fff6c8', '#ffe08a']), { glow: true, drag: 1 }); } // 光の蝶: 羽から光の粉がこぼれる

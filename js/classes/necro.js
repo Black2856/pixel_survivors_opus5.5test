@@ -221,7 +221,7 @@ CLASS_RT.necro = {
     const q = DATA.classes.necro.q;
     P.moveMul = 0;
     if (a.t < q.windup) { // 構え: 死霊が頭上に集まって渦を巻き、周りが少し暗くなる
-      S.dimK = Math.max(S.dimK || 0, 0.2 * Math.min(1, a.t / 0.15));
+      P.dimK = Math.max(P.dimK || 0, 0.2 * Math.min(1, a.t / 0.15));
       asMine(() => { if (Math.random() < dt * 40) { const r = rand(0, TAU), d = rand(10, 22); part(P.x + Math.cos(r) * d, P.y - 22 + Math.sin(r) * d * 0.5, -Math.cos(r) * d * 2, -Math.sin(r) * d, 0.3, pick(NEC_FX), { glow: true, drag: 0 }); } });
       return;
     }
