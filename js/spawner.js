@@ -9,8 +9,9 @@ function spawnPack(t) {
   if (!t) return;
   const pk = DATA.enemies[t].pack;
   if (!pk) return spawnEnemy(t);
+  const c = players.length > 1 ? spawnCenter() : P; // 協力プレイ: 群れも順番に選んだ人のまわりに(#13)
   const a = rand(0, TAU), R = Math.hypot(GFX.VW, GFX.VH) / 2 + 16, n = pk[0] + Math.floor(Math.random() * (pk[1] - pk[0] + 1));
-  for (let i = 0; i < n; i++) spawnEnemy(t, { x: P.x + Math.cos(a) * R + rand(-12, 12), y: P.y + Math.sin(a) * R + rand(-12, 12) });
+  for (let i = 0; i < n; i++) spawnEnemy(t, { x: c.x + Math.cos(a) * R + rand(-12, 12), y: c.y + Math.sin(a) * R + rand(-12, 12) });
 }
 // 熾天使がラストラディアンスを始めてから倒れるまで(立ち尽くす間も)
 const serLROn = () => (S.bosses || []).some(b => !b.dead && b.boss === 'seraph' && b.ai && b.ai.lr);

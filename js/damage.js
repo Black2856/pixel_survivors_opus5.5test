@@ -81,7 +81,7 @@ function killEnemy(e, o = {}) {
     burst(e.x, e.y, 18, ['#ff6a2a', '#ffc34a', '#3a3040', '#6a6070'], { sp: 70, up: 20, glow: true });
     addFlash(e.x, e.y, 50, '#ffb347', 0.3);
     const r = Math.random();
-    const kind = r < 0.3 ? 'coin' : r < 0.55 ? 'meat' : r < 0.7 ? 'magnet' : r < 0.82 ? 'bomb' : 'gem';
+    const kind = r < 0.3 ? 'coin' : r < 0.55 ? 'meat' : r < 0.7 ? 'magnet' : r < 0.82 && players.length === 1 ? 'bomb' : 'gem'; // 協力プレイは爆弾を出さない(その分はジェム。coop.md #6)
     if (kind === 'coin') for (let i = 0; i < 5; i++) dropItem('coin', e.x, e.y, 2);
     else if (kind === 'gem') dropGem(e.x, e.y, 10);
     else dropItem(kind, e.x, e.y);

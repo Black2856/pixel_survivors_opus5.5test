@@ -32,6 +32,7 @@ function bounce(o, dt) {
 }
 
 function updGems(dt) {
+  if (players.length > 1) return updGemsCoop(dt);
   P.gemStreakT -= dt;
   if (P.gemStreakT <= 0) P.gemStreak = 0;
   const mr2 = P.magnet * P.magnet;
@@ -59,6 +60,7 @@ function updGems(dt) {
 }
 
 function updDrops(dt) {
+  if (players.length > 1) return updDropsCoop(dt);
   for (let i = drops.length - 1; i >= 0; i--) {
     const d = drops[i];
     d.t += dt;
@@ -89,6 +91,69 @@ function updDrops(dt) {
         break;
       }
       case 'chest': UI.openChest(openEquipChest()); break;
+    }
+  }
+}
+
+// ============================================================
+// 協力プレイの拾う物(claudedocs/coop.md #6)。床の物は 1つで、番号の小さい人から順に見て先に届いた人が拾う
+//   ジェムとゴールドは誰かが拾うと全員が得る(倍率は各自。倒れている人も)/ 肉・磁石は拾った人だけ(磁石は拾った人へ集める)
+//   拾った時のクラスの効果(アストロマンサーの吸積)は拾った人だけ。吸い寄せは、吸い寄せる範囲に先に入った人へ向かう(to)
+// ============================================================
+const firstNear = (o, r2, al) => { for (const p of al) if (d2(o.x, o.y, p.x, p.y) < r2(p)) return p; return null; };
+const homeTo = (o, p, dt, acc) => { o.sp += acc * dt; const a = Math.atan2(p.y - o.y, p.x - o.x); o.x += Math.cos(a) * o.sp * dt; o.y += Math.sin(a) * o.sp * dt; };
+function updGemsCoop(dt) {
+  for (const p of players) { p.gemStreakT -= dt; if (p.gemStreakT <= 0) p.gemStreak = 0; }
+  const al = players.filter(p => !p.dead);
+  for (let i = gems.length - 1; i >= 0; i--) {
+    const g = gems[i];
+    g.t += dt;
+    bounce(g, dt);
+    const by = firstNear(g, () => 36, al);
+    if (!g.to || g.to.dead) { const p = firstNear(g, q => q.magnet * q.magnet, al); if (p) { g.to = p; if (!g.home) { g.home = true; g.sp = -40; } } }
+    if (g.home && g.to && !g.to.dead) homeTo(g, g.to, dt, 520);
+    if (!by) continue;
+    gems.splice(i, 1);
+    for (const p of players) withPlayer(p, () => gainXP(g.v)); // 全員が得る(経験値の倍率は各自)
+    withPlayer(by, () => {
+      P.gemStreak++; P.gemStreakT = 0.6;
+      AudioMan.gem(P.gemStreak);
+      const cols = [['#4cc3ff', '#e0fbff'], ['#5dff8a', '#eaffea'], ['#ff5d73', '#ffe0e6'], ['#ffd23f', '#fffbe0']][g.tier];
+      burst(P.x, P.y - 4, 3, cols, { sp: 35, glow: true, life: 0.35 });
+      clsOnPickup('gem');
+    });
+  }
+}
+function updDropsCoop(dt) {
+  const al = players.filter(p => !p.dead);
+  for (let i = drops.length - 1; i >= 0; i--) {
+    const d = drops[i];
+    d.t += dt;
+    bounce(d, dt);
+    if (d.kind === 'coin' && d.t > 0.4) {
+      if (!d.to || d.to.dead) { const p = firstNear(d, q => (d.home ? Infinity : q.magnet * q.magnet), al); if (p) { d.to = p; d.home = true; } }
+      if (d.home && d.to) homeTo(d, d.to, dt, 500);
+    }
+    if (d.t < 0.35) continue;
+    const by = firstNear(d, () => 100, al);
+    if (!by) continue;
+    drops.splice(i, 1);
+    withPlayer(by, () => clsOnPickup(d.kind));
+    switch (d.kind) {
+      case 'coin': { // 全員が得る(ゴールドの倍率は各自)。数字は拾った人の所に、拾った人の分
+        let shown = 0;
+        for (const p of players) withPlayer(p, () => { const g = addGold(d.val); if (p === by) shown = g; });
+        addFloat(by.x, by.y - 12, '+' + shown, '#ffcc33'); AudioMan.coin(); break;
+      }
+      case 'magnet':
+        for (const g of gems) { g.home = true; g.to = by; g.sp = Math.max(g.sp, 60); }
+        for (const c of drops) if (c.kind === 'coin') { c.home = true; c.to = by; }
+        addRing(by.x, by.y, 200, '#6ee7ff', { w: 2, life: 0.6 }); withPlayer(by, () => shockAt(P.x, P.y, 0.8));
+        AudioMan.select();
+        break;
+      default: withPlayer(by, () => { // 肉(拾った人だけ回復)など
+        if (d.kind === 'meat') { if (P.stats.v.foodCleanse) cleansePlayer(); heal(P.maxhp * DATA.player.food * P.foodMul); }
+      });
     }
   }
 }

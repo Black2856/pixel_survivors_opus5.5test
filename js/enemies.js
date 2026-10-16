@@ -4,12 +4,20 @@
 // ============================================================
 // 敵
 // ============================================================
+// 協力プレイ: 敵を出す中心の人(生きている人を順番に。S.spawnPi は全員で同じに進む)
+function spawnCenter() {
+  const al = players.filter(p => !p.dead);
+  if (!al.length) return P;
+  S.spawnPi = ((S.spawnPi || 0) + 1) % al.length;
+  return al[S.spawnPi];
+}
 function spawnEnemy(type, o = {}) {
   const d = DATA.enemies[type];
-  let x = o.x, y = o.y;
+  let x = o.x, y = o.y, near = null;
   if (x === undefined) {
+    const c = players.length > 1 ? (near = spawnCenter()) : P; // 協力プレイ: 出るたびに、生きている人を順番に 1人選んでその人の画面の外から(#13)
     const a = rand(0, TAU), R = Math.hypot(GFX.VW, GFX.VH) / 2 + 16;
-    x = P.x + Math.cos(a) * R; y = P.y + Math.sin(a) * R;
+    x = c.x + Math.cos(a) * R; y = c.y + Math.sin(a) * R;
   }
   const EL = DATA.enemyLevel, base = enemyBase();
   const hpk = base * hpK() * (o.elite ? EL.elite : 1) * (S.tower ? S.tower.hpK : 1); // タワー: 人数の倍率
@@ -25,6 +33,7 @@ function spawnEnemy(type, o = {}) {
   };
   if (d.burrow) Object.assign(e, { under: true, hidden: true, flying: true, air: true, rise: 0 }); // マグマワーム: 地中から始まる
   if (d.pit) Object.assign(e, { hidden: true, flying: true, air: true }); // アリジゴク: 砂の中から始まる(見えない・攻撃が当たらない)
+  if (near) { e.tPl = near; e.retT = S.time + 5; } // 出た所の人を最初に狙う
   enemies.push(e);
   if (d.pair && !o.mate) { // 対の雷精: 相方も出す(2体で 1組。線の状態 pr を共有。1体目 twinIdx 0 が組の時計を進める)
     const m = spawnEnemy(type, { x: x + rand(-14, 14), y: y + rand(-14, 14), mate: e, noChest: o.noChest });
