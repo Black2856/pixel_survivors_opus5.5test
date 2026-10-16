@@ -214,8 +214,8 @@ addEventListener('pointermove', e => {
   const r = cvsEl.getBoundingClientRect();
   mouse.x = (e.clientX - r.left) / GFX.PX; mouse.y = (e.clientY - r.top) / GFX.PX;
 });
-// 照準点(ワールド座標)。マウス照準モードでなければ null(従来の自動照準)
-const mouseAimPt = () => (mouse.aim ? { x: cam.x + mouse.x, y: cam.y + mouse.y } : null);
+// 照準点(ワールド座標)。マウス照準モードでなければ null(従来の自動照準)。計算の中では入力の記録(P.inp)から
+const mouseAimPt = () => { const a = P && P.inp && P.inp.aim; return a ? { x: a.x, y: a.y } : null; };
 
 function moveInput() {
   let x = 0, y = 0;
@@ -226,6 +226,15 @@ function moveInput() {
   if (touch.active) { x += touch.dx; y += touch.dy; }
   const l = Math.hypot(x, y);
   return l > 1 ? [x / l, y / l] : [x, y];
+}
+// 計算が読む 1人分の入力(計算 1回ごとの記録。協力プレイではこれを送り合う: claudedocs/coop.md 2章)。計算は keys・touch・mouse を直接読まない
+//   mx, my: 移動 / e, q: E・Q を押した印(押した瞬間だけ。取ったら消す)/ def: 防御のキー / aim: マウスの照準(ワールド座標)/ autoE, autoQ: スキルの自動発動の設定
+const NO_INPUT = Object.freeze({ mx: 0, my: 0, e: false, q: false, def: false, aim: null, autoE: false, autoQ: false });
+function readInput() {
+  const [mx, my] = moveInput();
+  const r = { mx, my, e: !!keys._e, q: !!keys._q, def: !!(keys.Space || keys.TouchDef), aim: mouse.aim ? { x: cam.x + mouse.x, y: cam.y + mouse.y } : null, autoE: !!SET.autoE, autoQ: !!SET.autoQ };
+  keys._e = keys._q = false;
+  return r;
 }
 
 // ============================================================

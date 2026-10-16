@@ -5,7 +5,7 @@
 // プレイヤー
 // ============================================================
 function updPlayer(dt) {
-  let [mx, my] = moveInput();
+  let mx = P.inp.mx, my = P.inp.my; // 入力の記録から(core.js の readInput)
   if (P.rootT > 0) { P.rootT -= dt; if (P.invT > 0) P.rootT = 0; mx = my = 0; } // 絡め取り(クラーケン): 動けない。回避の無敵で抜けられる
   if (P.frzT > 0) mx = my = 0; // 凍結(凍傷が上限に達した): 歩けない。回避・防御スキル・E・Q・攻撃もできない(defHeld・atkLock)
   P.moving = mx !== 0 || my !== 0;

@@ -86,7 +86,11 @@ function onKey(e) {
 // ============================================================
 // メイン更新
 // ============================================================
-function update(rdt) {
+// inp: この計算 1回の入力の記録(省略で今の入力を取る。通信の遅れを試す NET_SIM・協力プレイは列から渡す)
+function update(rdt, inp = readInput()) {
+  P.inp = inp;
+  if (inp.e) P.wantE = true; // 押した印は、スキルの処理が使い切るまで残す(ヒットストップの間に押しても消えない)
+  if (inp.q) P.wantQ = true;
   updWorld(rdt);
   tickSimTimers(rdt); // ヒットストップ・時間停止の間も進む(今までの setTimeout と同じく実時間の側)
 }
@@ -163,7 +167,7 @@ function stepFixed(sec) {
   while (F.acc >= F.dt - F.slack && state === 'play') {
     if (NET_SIM.on && !netHeadReady()) { NET_SIM.stalls++; break; } // 相手の入力がまだ届いていない: 届くまで進めない
     F.acc -= F.dt; interpSave();
-    if (NET_SIM.on) netStep(() => simScope(() => update(F.dt))); else simScope(() => update(F.dt));
+    if (NET_SIM.on) { const r = netTake(); simScope(() => update(F.dt, r)); } else simScope(() => update(F.dt));
   }
 }
 
@@ -171,7 +175,7 @@ function stepFixed(sec) {
 //   URL に ?lag=4&ping=120&jitter=20 を付ける(付けると 1/60 秒ずつ進める形になる。値はコンソールの NET_SIM でも変えられる)
 //   lag: 自分の入力を何フレーム後に使うか(協力プレイの入力の遅れ。4 = 約 67ms)
 //   ping: 相手との往復の時間(ms)・jitter: その揺れ(± ms)。相手の入力は「入力を取ってから ping / 2 ± jitter 後」に届くものとして、届くまで計算を止める
-//   計算が読む入力は 移動(キー・スティック)・E / Q の押した印・防御(Space・タッチ)・マウスの照準 だけ。1回分ずつ取って列に入れ、lag 回あとに使う
+//   入力の記録(core.js の readInput)を計算 1回ぶんずつ取って列に入れ、lag 回あとに使う
 const NET_SIM = { on: false, lag: 4, ping: 0, jitter: 0, q: [], run: null, pending: false, lastAt: 0, stalls: 0 };
 {
   const qs = new URLSearchParams(location.search), num = (k, d) => (qs.has(k) ? Math.max(0, +qs.get(k) || 0) : d);
@@ -181,16 +185,11 @@ const NET_SIM = { on: false, lag: 4, ping: 0, jitter: 0, q: [], run: null, pendi
     console.info('NET_SIM', NET_SIM.lag + 'フレーム', 'ping ' + NET_SIM.ping + 'ms', '± ' + NET_SIM.jitter + 'ms');
   }
 }
-const NET_KEYS = ['KeyA', 'KeyD', 'KeyW', 'KeyS', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space', 'TouchDef'];
-const netBlank = () => ({ k: {}, e: false, q: false, ta: false, tx: 0, ty: 0, ma: false, mx: 0, my: 0, at: 0 });
+const netBlank = () => Object.assign({}, NO_INPUT, { at: 0 });
 function netReset() { Object.assign(NET_SIM, { q: Array.from({ length: NET_SIM.lag }, netBlank), run: S, qLag: NET_SIM.lag, pending: false, lastAt: 0 }); } // ランの始めと lag を変えたとき
-// 計算 1回ぶんの入力を取る(E・Q は押した瞬間の印なので、取ったら消す)。相手に届く時刻も決める(届く順は送った順)
+// 計算 1回ぶんの入力を取り、相手に届く時刻を決める(届く順は送った順)
 function netSample() {
-  const k = {};
-  for (const c of NET_KEYS) k[c] = !!keys[c];
-  const r = { k, e: !!keys._e, q: !!keys._q, ta: touch.active, tx: touch.dx, ty: touch.dy, ma: mouse.aim, mx: cam.x + mouse.x, my: cam.y + mouse.y };
-  keys._e = keys._q = false;
-  const N = NET_SIM, at = performance.now() + N.ping / 2 + (fxRandom() * 2 - 1) * N.jitter;
+  const r = readInput(), N = NET_SIM, at = performance.now() + N.ping / 2 + (fxRandom() * 2 - 1) * N.jitter;
   r.at = N.lastAt = Math.max(N.lastAt, at);
   return r;
 }
@@ -201,21 +200,8 @@ function netHeadReady() {
   if (!N.pending) { N.q.push(netSample()); N.pending = true; }
   return performance.now() >= N.q[0].at;
 }
-// 先頭の入力に入れ替えて 1回計算し、今の入力に戻す
-function netStep(fn) {
-  const N = NET_SIM, r = N.q.shift(), live = { k: {}, e: keys._e, q: keys._q, ta: touch.active, tx: touch.dx, ty: touch.dy, ma: mouse.aim, mx: mouse.x, my: mouse.y };
-  N.pending = false;
-  for (const c of NET_KEYS) { live.k[c] = keys[c]; keys[c] = !!r.k[c]; }
-  keys._e = r.e; keys._q = r.q;
-  touch.active = r.ta; touch.dx = r.tx; touch.dy = r.ty;
-  mouse.aim = r.ma; mouse.x = r.mx - cam.x; mouse.y = r.my - cam.y;
-  try { fn(); } finally {
-    for (const c of NET_KEYS) keys[c] = live.k[c];
-    keys._e = live.e; keys._q = live.q;
-    touch.active = live.ta; touch.dx = live.tx; touch.dy = live.ty;
-    mouse.aim = live.ma; mouse.x = live.mx; mouse.y = live.my;
-  }
-}
+// 列の先頭(今の計算で使う入力)を取り出す
+function netTake() { NET_SIM.pending = false; return NET_SIM.q.shift(); }
 
 // ---------- 描画の補間 ----------
 //   計算の前に位置を控え(_ix / _iy)、描く前に間の値へ置き換え、描いた後に戻す。計算はこの値を読まない

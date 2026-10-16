@@ -65,7 +65,7 @@ const ME = {
   cdCut(n) { P.sk.e.cd = Math.max(0, P.sk.e.cd - n); },
 };
 // 防御スキル(回避・ガードなど)のキーを押しているか。スキルの実行中と凍結の間(行動不能)は使えない
-const defHeld = () => (keys.Space || keys.TouchDef) && !P.act && !(P.frzT > 0);
+const defHeld = () => P.inp.def && !P.act && !(P.frzT > 0);
 // 麻痺: E・Q のクールダウンを最初からにする(使ったときと同じ式。クラスごとの特別な式(居合の残心など)は使わない)
 function clsResetSkillCd() {
   const sk = weaponSkill(), m = P.wm[P.mainW] || {}, q = DATA.classes[P.cls].q;

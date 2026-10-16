@@ -22,12 +22,12 @@ function clsUpdate(dt) {
   // スキルの発動(実行中は他のスキルを使えない)。自動発動は周りに敵が集まっているときだけ(ガード中は使わない)
   if (!P.act && rt && !atkLock()) { // 凍結・麻痺の間は E・Q を使えない
     const ws = weaponSkill(), auto = !P.guard;
-    const wantQ = keys._q || (auto && SET.autoQ && crowd(90, 5));
-    const wantE = keys._e || (auto && SET.autoE && ws && crowd(ws.radius * P.area, 4));
+    const wantQ = P.wantQ || (auto && P.inp.autoQ && crowd(90, 5));
+    const wantE = P.wantE || (auto && P.inp.autoE && ws && crowd(ws.radius * P.area, 4));
     if (wantQ && rt.qStart && P.sk.q.cd <= 0) rt.qStart();
     else if (wantE && WEAPON_SKILL[P.mainW] && P.sk.e.cd <= 0) WEAPON_SKILL[P.mainW].start();
   }
-  keys._q = keys._e = false;
+  P.wantQ = P.wantE = false; // 押した印はここで使い切る(使えなかったときも)
   // 実行中のスキル
   if (P.act) {
     const a = P.act;

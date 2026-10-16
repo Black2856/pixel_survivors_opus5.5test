@@ -146,6 +146,7 @@ function initRun(mode = 'escalation', stageNo = 1) {
   P = {
     cls: META.cls, mainW: META.classes[META.cls].weapon, micro: {}, lvFx: classLvFx(META.cls), wm: {}, x: 0, y: 0, hp: 0, maxhp: 100, level: 1, xp: 0, xpNext: xpFor(1), weapons: {},
     bank: 0, // タワーの貯蓄経験値(階の間に拾った分。経験値の倍率を掛けた値。階をクリアすると入る)
+    inp: NO_INPUT, wantE: false, wantQ: false, // 入力の記録(update が毎回入れる。core.js の readInput)/ E・Q を押した印(スキルの処理で使い切る)
     ifr: 0, facing: 1, animT: 0, moving: false, hurtT: 0, dead: false,
     slowT: 0, cdSlowT: 0, burnT: 0, burnDmg: 0, burnTick: 0, shield: 0, oShield: 0, oChunks: [],
     frost: 0, frostT: 0, bleed: 0, bleedT: 0, bleedTick: 0, // 自分の凍傷・出血(スタック数と、消えるまでの秒)
