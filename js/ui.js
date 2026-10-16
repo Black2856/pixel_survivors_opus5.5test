@@ -509,18 +509,23 @@ const UI = (() => {
     state = 'levelup';
     $('choice-title').textContent = title;
     $('choice-title').dataset.mode = m;
+    $('choice-screen').classList.remove('sent'); // 協力プレイで選んだ印が残っていても消す
     renderCards();
     only('choice-screen');
     AudioMan.setDuck(0.45);
   }
   function renderCards() {
+    drawCards(choices, choose, reroll, () => { if (chosen) return; chosen = true; addGold(10); close(); }, canReroll());
+  }
+  // カードとリロール・スキップを描く(1人のレベルアップと、協力プレイの止まらないレベルアップで同じ形)
+  function drawCards(list, pick, rr, skip, rrOn) {
     const box = $('cards');
     box.innerHTML = '';
-    choices.forEach((c, i) => {
+    list.forEach((c, i) => {
       const { html, rar } = cardHTML(c);
       const d = el('button', 'card ' + rar, html + `<div class="card-key">${i + 1}</div>`);
       d.style.animationDelay = (i * 0.07) + 's';
-      d.onclick = () => choose(i);
+      d.onclick = () => pick(i);
       if (!TOUCH_UI) d.onmouseenter = () => AudioMan.click(); // スマホはタップで乗せたことになり、選んだ音と重なる
       box.appendChild(d);
       Help.glossify(d, { cls: P.cls, run: true });
@@ -528,11 +533,11 @@ const UI = (() => {
     const btns = $('choice-btns');
     btns.innerHTML = '';
     const rb = el('button', 'btn', _t`リロール (${P.rerolls}) <small>R</small>`);
-    rb.disabled = !canReroll();
-    rb.onclick = reroll;
+    rb.disabled = !rrOn;
+    rb.onclick = rr;
     btns.appendChild(rb);
     const sb = el('button', 'btn ghost', _t('スキップ (+10G)'));
-    sb.onclick = () => { if (chosen) return; chosen = true; addGold(10); close(); };
+    sb.onclick = skip;
     btns.appendChild(sb);
   }
   // アーティファクトは未所持が3つ以下だと引き直しても同じ候補になるので不可
@@ -854,43 +859,38 @@ const UI = (() => {
       else if ((e.code === 'Enter' || e.code === 'Space') && !e.repeat) { if (e.preventDefault) e.preventDefault(); TM[tmSel].click(); } // preventDefault: マウスで押した後に focus が残ったボタンを、ブラウザが Enter でもう一度押さないように
     } else if (state === 'chest' && (e.code === 'Space' || e.code === 'Enter')) chestAct();
     else if (state === 'play' && COOP.on && P.lvPick) { // 協力プレイの止まらないレベルアップ
-      if (/^Digit[1-3]$/.test(e.code)) coopPick(+e.code.slice(5));
+      if (/^Digit[1-4]$/.test(e.code)) coopPick(+e.code.slice(5));
       if (e.code === 'KeyR') coopPick(PICK.reroll);
     }
   }
 
-  // ---------- 協力プレイ: 止まらないレベルアップ(画面の下に小さく出す。選んだ物は入力の pick で送り、全員が同じフレームで使う: net.js の coopLevel)----------
-  let cpEl = null, cpShown = null, cpN = -1, cpSent = null;
+  // ---------- 協力プレイ: 止まらないレベルアップ(1人の時と同じ画面に出す。時間は止まらない。選んだ物は入力の pick で送り、全員が同じフレームで使う: net.js の coopLevel)----------
+  let cpShown = null, cpN = -1, cpSent = null;
   function coopPickHud() {
-    if (!cpEl) { cpEl = el('div', 'hidden'); cpEl.id = 'coop-pick'; $('hud').appendChild(cpEl); }
-    const c = COOP.on ? P.lvPick : null;
-    if (!c) { if (cpShown) { cpEl.classList.add('hidden'); cpShown = null; } return coopWaitHud(); }
-    if (c !== cpShown || c.n !== cpN) {
+    const c = COOP.on ? P.lvPick : null, cs = $('choice-screen');
+    if (!c) cpShown = null;
+    else if (c !== cpShown || c.n !== cpN) {
       cpShown = c; cpN = c.n; cpSent = null;
-      cpEl.innerHTML = `<div class="cp-title">${isClassLv(c.lv) ? 'CLASS UP!' : 'LEVEL UP!'}</div>`;
-      const box = el('div', 'cp-cards');
-      c.list.forEach((ch, i) => {
-        const { html, rar } = cardHTML(ch);
-        const d = el('button', 'card ' + rar, html + `<div class="card-key">${i + 1}</div>`);
-        d.onclick = () => coopPick(i + 1);
-        box.appendChild(d);
-      });
-      const btns = el('div', 'cp-btns');
-      const rb = el('button', 'btn', _t`リロール (${P.rerolls}) <small>R</small>`);
-      rb.disabled = P.rerolls <= 0; rb.onclick = () => coopPick(PICK.reroll);
-      const sb = el('button', 'btn ghost', _t('スキップ (+10G)'));
-      sb.onclick = () => coopPick(PICK.skip);
-      btns.append(rb, sb);
-      cpEl.append(box, btns);
-      cpEl.classList.remove('hidden', 'sent');
+      $('choice-title').textContent = isClassLv(c.lv) ? 'CLASS UP!' : 'LEVEL UP!';
+      $('choice-title').dataset.mode = isClassLv(c.lv) ? 'class' : 'level';
+      drawCards(c.list, i => coopPick(i + 1), () => coopPick(PICK.reroll), () => coopPick(PICK.skip), P.rerolls > 0);
+      cs.classList.remove('sent');
+    }
+    // 出すのはプレイ中だけ(ポーズ・ステータスを開くと only() が隠すので、閉じたら出し直す)。毎回 DOM と比べる
+    if (COOP.on) {
+      const want = !!c && state === 'play';
+      if (want === cs.classList.contains('hidden')) { (want ? show : hide)(cs); if (!want) hideTip(); }
     }
     coopWaitHud();
   }
-  // 選んだ物を次の入力で送る(届くまでは同じカードにもう一度は送らない)
+  // 選んだ物を次の入力で送る(届くまでは同じカードにもう一度は送らない)。届かない物(ないカード・残りのないリロール)は送らない(送ると選べないまま残る)
   function coopPick(k) {
-    if (!COOP.on || !P.lvPick || cpSent === P.lvPick) return;
-    keys._pick = k; cpSent = P.lvPick;
-    if (cpEl) cpEl.classList.add('sent');
+    const c = COOP.on && P.lvPick;
+    if (!c || cpSent === c || (k <= 4 && k > c.list.length) || (k === PICK.reroll && P.rerolls <= 0)) return;
+    keys._pick = k; cpSent = c;
+    const card = k <= 4 && $('cards').children[k - 1];
+    if (card) card.classList.add('picked');
+    $('choice-screen').classList.add('sent');
     AudioMan.click();
   }
   // タワーの休憩で、ほかの人がレベルアップを選んでいる間(tower.md #31)
