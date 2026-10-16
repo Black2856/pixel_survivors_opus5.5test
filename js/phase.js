@@ -20,7 +20,7 @@ function onBossDeath(e) {
   UI.bossBar(null);
   hitstop(0.18); slowmo(0.2, 2); screenFlash(0.9); shake(16);
   shockAt(e.x, e.y, 3, 0.55);
-  setTimeout(() => shockAt(e.x, e.y, 2, 0.8), 250);
+  simTimeout(() => shockAt(e.x, e.y, 2, 0.8), 250);
   burst(e.x, e.y, 180, [e.col, '#ffd23f', '#ffffff', '#ff8c42'], { sp: 220, glow: true, life: 1.6, g: 40 });
   addRing(e.x, e.y, 140, '#ffd23f', { w: 3, life: 0.8 }); addRing(e.x, e.y, 90, '#ffffff', { w: 2, life: 0.6 });
   addFlash(e.x, e.y, 260, '#ffd23f', 1.2);

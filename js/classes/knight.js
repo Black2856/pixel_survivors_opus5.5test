@@ -44,12 +44,12 @@ WEAPON_SKILL.longsword = {
 function grandSlam(X, a) {
   const x0 = X.x, y0 = X.y;
   slamWaves(X, a, x0, y0, 1);
-  if (X.sp('pow')) setTimeout(() => { if (state === 'play') slamWaves(X, a, x0, y0, 0.6); }, 1500); // 余震
+  if (X.sp('pow')) simTimeout(() => { if (state === 'play') slamWaves(X, a, x0, y0, 0.6); }, 1500); // 余震
 }
 // 衝撃波を段ごとに時間差で前へ走らせる(1段 = 1回の E の攻撃)。吹き飛ばし(迅速)/ 堅牢(堅陣): 当たった敵 1体につきシールド(自分に入る)
 function slamWaves(X, a, x0, y0, k) {
   const sk = DATA.weapons.longsword.skill, m = P.wm.longsword || {}, n = sk.steps + (m.eSteps || 0), fly = X.sp('cd'), firm = X.sp('guard');
-  for (let i = 0; i < n; i++) setTimeout(() => {
+  for (let i = 0; i < n; i++) simTimeout(() => {
     if (state !== 'play' || !P.weapons.longsword) return; // 遅れて走る間にランが変わったとき
     const d = sk.stepD * (i + 1) * X.area, x = x0 + Math.cos(a.a) * d, y = y0 + Math.sin(a.a) * d, R = sk.waveR * X.area, el = clsNextEl();
     const dmg = (wst('longsword').dmg * sk.pow * (1 + X.lv('pow')) * a.pow + shieldTotal()) * k; // シールドはそのまま足す

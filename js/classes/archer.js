@@ -233,7 +233,7 @@ function archerVolley() {
     let n = 0;
     for (let left = e.mark; left > 0 && n < e.mark * 3; n++) if (Math.random() >= keep) left--;
     e.mark = 0;
-    for (let i = 0; i < n; i++) setTimeout(() => {
+    for (let i = 0; i < n; i++) simTimeout(() => {
       if (state !== 'play' || e.dead) return;
       asMine(() => { hitEnemy(e, q.markPow * k, { src: 'volley', col: '#b8ffb0', forceCrit: sure, noNum: i % 2 === 1 }); part(e.x + rand(-4, 4), e.y + rand(-4, 4), rand(-30, 30), rand(-30, 10), 0.25, pick(['#b8ffb0', '#ffffff']), { glow: true }); });
       if (i === 0) fxGlint(e.x, e.y - 4, 6, '#b8ffb0', { life: 0.2 }); // 印が弾ける

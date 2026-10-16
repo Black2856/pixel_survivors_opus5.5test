@@ -369,7 +369,7 @@ function meteorImpact(m) {
   }
   if (hasSp('q', 'cd')) { // 審判: 落ちる瞬間に範囲内の敵を狙う(まだ打っていない敵を優先)
     const struck = new Set();
-    for (let i = 0; i < 6; i++) setTimeout(() => {
+    for (let i = 0; i < 6; i++) simTimeout(() => {
       if (state !== 'play') return;
       const near = alive(R), fresh = near.filter(o => !struck.has(o)), pool = fresh.length ? fresh : near;
       const tg = pool.length ? pick(pool) : nearestEnemy(m.x, m.y, R * 2); // 範囲内にいなければ、半径の2倍までで一番近い敵

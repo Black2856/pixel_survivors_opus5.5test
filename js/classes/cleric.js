@@ -44,7 +44,7 @@ WEAPON_SKILL.aura = {
 // ホーリーストライク: 光の柱を gap 秒おきに n 本(連祷: +more 本)
 function holyStrike(X, pow) {
   const sk = DATA.weapons.aura.skill, m = P.wm.aura || {}, n = sk.n + (X.sp('cd') ? sk.more : 0) + (m.eCount || 0);
-  for (let i = 0; i < n; i++) setTimeout(() => { if (state === 'play') holyPillar(X, pow); }, (0.1 + i * sk.gap) * 1000);
+  for (let i = 0; i < n; i++) simTimeout(() => { if (state === 'play') holyPillar(X, pow); }, (0.1 + i * sk.gap) * 1000);
 }
 // 光の柱1本: ランダムな敵の位置に落ちる(zones の 'pillar' は見た目だけ)。回復は自分に入る
 function holyPillar(X, pow) {

@@ -131,6 +131,7 @@ function escStage(tier, first) {
   screenFlash(0.4); shockAt(P.x, P.y, 1.5, 0.8);
 }
 function initRun(mode = 'escalation', stageNo = 1) {
+  clearSimTimers(); // 前のランの「少し後で」は捨てる
   S = {
     mode, arena: null, tower: null, time: 0, kills: 0, totalDmg: 0, dmgBy: {}, stage: 1, loop: 1,
     combo: 0, comboT: 0, bestCombo: 0, gemStreak: 0, gemStreakT: 0,

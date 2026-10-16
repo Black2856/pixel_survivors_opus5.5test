@@ -46,7 +46,7 @@ function gravitySpark(X, x, y, pow, k, again) {
   const sk = DATA.weapons.thunder.skill, m = P.wm.thunder || {}, ar = (1 + X.lv('area')) * X.area;
   zones.push({ kind: 'gspark', x, y, r: sk.pullR * ar * (1 + (m.eArea || 0)), boomR: sk.boomR * ar, t: 0, tick: 0, pulled: false, boomed: false,
     dur: sk.boomT + 0.15, dmg: wst('thunder').dmg * sk.pow * (1 + X.lv('pow')) * pow * k, stun: X.sp('pow'), cl: X.cl });
-  if (again) setTimeout(() => { if (state === 'play' && P.weapons.thunder) gravitySpark(X, x, y, pow, sk.againK, false); }, sk.againT * 1000); // 二重重力
+  if (again) simTimeout(() => { if (state === 'play' && P.weapons.thunder) gravitySpark(X, x, y, pow, sk.againK, false); }, sk.againT * 1000); // 二重重力
   AudioMan.zap();
 }
 
@@ -213,7 +213,7 @@ function electroTowers() {
   asMine(() => fxRays(P.x, P.y - 16, 70, '#fff27a', { n: 12, life: 0.3 })); screenFlash(0.1 * SET.fxA, '#fff27a'); // 空が一瞬光る
   for (let i = 0; i < n; i++) {
     const x = big ? P.x : cam.x + rand(24, GFX.VW - 24), y = big ? P.y : cam.y + rand(30, GFX.VH - 20);
-    setTimeout(() => {
+    simTimeout(() => {
       if (state !== 'play') return;
       zones.push({ kind: 'tower', id, x, y, r: q.r * rk, t: 0, dur: q.dur, tick: q.every, dis, pow: q.pow * k, shock: q.shock, wireT: 0, big,
         wire: hasSp('q', 'n') ? q.wirePow * k0 : 0 });

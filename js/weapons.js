@@ -147,7 +147,7 @@ function weaponFire(k, w, st, o) {
     case 'thunder': {
       const ts = randomTargets(((st.strikes || 1) + P.shots) * (S.time < (P.stormT || 0) ? 2 : 1)); // 雷雨(グラビティスパークの後): 回数 ×2
       if (!ts.length) return false;
-      ts.forEach((t, i) => setTimeout(() => state === 'play' && strike(t.x, t.y, st, w.evo), i * 70));
+      ts.forEach((t, i) => simTimeout(() => state === 'play' && strike(t.x, t.y, st, w.evo), i * 70));
       return true;
     }
     case 'aura': { // 周りの敵へ 1回(サンクチュアリ: 命中 1回につき HP 回復。1回で 5回分まで)
@@ -289,7 +289,7 @@ function sweep(a, st, flip, o, org = P_ORG) {
 const SKY_FALL = 0.16;
 function skyBlade(e, dmg, src, delay) {
   (S.skyBlades || (S.skyBlades = [])).push({ e, x: e.x, y: e.y, t0: S.time + delay });
-  setTimeout(() => {
+  simTimeout(() => {
     if (state !== 'play' || e.dead) return;
     asMine(() => {
       hitEnemy(e, dmg, { src, col: '#fff3a0', kb: 20, ang: Math.atan2(e.y - P.y, e.x - P.x), noNum: Math.random() < 0.3 });
@@ -404,7 +404,7 @@ function cutHit(s, st, W) {
 // 天弓の 2回目: 少し遅れて(TENKYU_ECHO 秒)、金の残像の矢が同じ向きでもう一度突き刺さる(ダメージの数字も出す。同じ瞬間に当てると 1回に見えるため)
 const TENKYU_ECHO = 0.08;
 function tenkyuEcho(e, dmg, ang, o) {
-  setTimeout(() => {
+  simTimeout(() => {
     if (state !== 'play' || e.dead) return;
     asMine(() => {
       hitEnemy(e, dmg, o);
@@ -561,7 +561,7 @@ function updZones(dt) {
           for (let i = 0; i < n; i++) { const a = rand(0, TAU), rr = Math.sqrt(Math.random()) * z.r; z.arrows.push({ x: x0 + Math.cos(a) * rr, y: y0 + Math.sin(a) * rr, t: -i * z.every / n }); }
           if (z.arrows.length > 220) z.arrows.splice(0, z.arrows.length - 220);
           AudioMan.rainTick();
-          setTimeout(() => { // 矢が落ちてから当たる
+          simTimeout(() => { // 矢が落ちてから当たる
             if (state !== 'play') return;
             asMine(() => {
               forEachNear(x0, y0, z.r, e => {

@@ -87,6 +87,10 @@ function onKey(e) {
 // メイン更新
 // ============================================================
 function update(rdt) {
+  updWorld(rdt);
+  tickSimTimers(rdt); // ヒットストップ・時間停止の間も進む(今までの setTimeout と同じく実時間の側)
+}
+function updWorld(rdt) {
   if (S.freeze > 0) { S.freeze -= rdt; return; }
   if (S.morph) { updMorph(rdt); return; } // 死神の変身: 時が止まる(すべて止まり、画面が色あせる)
   if (S.cine) { updCine(rdt); return; } // 影の王の冥鎖: 杭が落ちて鎖がつながる間は、すべて止まる

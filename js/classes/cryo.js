@@ -192,7 +192,7 @@ function cryFreeze(e) {
   const n = cuV('trait', 'wave');
   if (n) { // 寒波: 周りの敵に凍傷(少し遅らせて、連鎖しても深く再帰しない)
     const x = e.x, y = e.y;
-    setTimeout(() => {
+    simTimeout(() => {
       if (state !== 'play') return;
       forEachNear(x, y, p.waveR * P.area, o => { if (o !== e && !o.prop && !o.dead) addFrost(o, n, 10); });
       asMine(() => addRing(x, y, p.waveR * P.area, '#bff4ff', { w: 1, life: 0.3 }));

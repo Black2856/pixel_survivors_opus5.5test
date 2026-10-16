@@ -267,7 +267,7 @@ function pySpread(e, left) {
   }
   if (hasSp('trait', 'spread')) {
     const x = e.x, y = e.y, CR = p.chainR * P.area;
-    setTimeout(() => {
+    simTimeout(() => {
       if (state !== 'play') return;
       asMine(() => {
         forEachNear(x, y, CR, o => { if (!o.prop) hitEnemy(o, left, { src: 'spread', ang: Math.atan2(o.y - y, o.x - x), kb: 40, col: '#ff8a3d', noNum: Math.random() < 0.5 }); });
