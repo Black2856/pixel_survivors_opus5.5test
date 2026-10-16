@@ -167,6 +167,7 @@ function addPlayer(cls, x = P.x, y = P.y) {
   p.pid = players.length; p.x = x; p.y = y;
   players.push(p);
   withPlayer(p, () => { setupPlayer(); recalc(); });
+  if (S.tower) S.tower.hpK = DATA.tower.partyHp[Math.min(players.length, DATA.tower.partyHp.length) - 1]; // タワー: 敵の HP の人数の倍率
   return p;
 }
 function initRun(mode = 'escalation', stageNo = 1) {
