@@ -371,7 +371,7 @@ input[type=range] { width: 220px; accent-color: var(--gold); }
 .card .opt em { color: var(--green); font-style: normal; font-size: 11px; }
 
 /* ---------- 装備画面 ---------- */
-.eq-wrap { display: grid; grid-template-columns: auto minmax(260px, 360px) minmax(280px, 1fr); gap: 16px; width: min(1140px, calc(96vw / var(--ui))); height: min(600px, calc(100vh / var(--ui) - 170px)); }
+.eq-wrap { display: grid; grid-template-columns: auto minmax(260px, 350px) minmax(280px, 1fr); gap: 16px; width: min(1190px, calc(96vw / var(--ui))); height: min(600px, calc(100vh / var(--ui) - 170px)); }
 .eq-slot { position: relative; display: flex; align-items: center; gap: 10px; padding: 10px; min-height: 76px; text-align: left; background: rgba(12,10,28,.7); box-shadow: inset 0 0 0 2px var(--rc); }
 .eq-slot.sel { outline: 3px solid var(--gold); }
 .eq-slot .lbl { position: absolute; top: 2px; left: 8px; font-size: 11px; color: var(--dim); }
@@ -386,7 +386,7 @@ input[type=range] { width: 220px; accent-color: var(--gold); }
 .eq-mid > .seg { width: auto; }
 #eq-sellall { width: 100%; padding: 7px 6px; font-size: 14px; letter-spacing: 1px; }
 .eq-detc { display: flex; flex-direction: column; min-height: 0; }
-#eq-list { flex: 1; width: 310px; min-height: 0; overflow-y: auto; scrollbar-gutter: stable; display: grid; grid-template-columns: repeat(auto-fill, 52px); gap: 8px; align-content: start; padding: 4px; background: rgba(12,9,19,.5); } /* 幅は 5列ちょうど(52px × 5 + 間 8px × 4 + 内側 4px × 2 + スクロールバー 10px)。スクロールバーの分はいつもあけておく(出ても列が減らず、右に空きも出ない) */
+#eq-list { flex: 1; width: 370px; min-height: 0; overflow-y: auto; scrollbar-gutter: stable; display: grid; grid-template-columns: repeat(auto-fill, 52px); gap: 8px; align-content: start; padding: 4px; background: rgba(12,9,19,.5); } /* 幅は 6列ちょうど(52px × 6 + 間 8px × 5 + 内側 4px × 2 + スクロールバー 10px)。スクロールバーの分はいつもあけておく(出ても列が減らず、右に空きも出ない) */
 .eq-item { position: relative; width: 52px; height: 52px; display: grid; place-items: center; background: var(--panel); box-shadow: inset 0 0 0 3px var(--rc); }
 .eq-item.sel { outline: 3px solid var(--gold); }
 .eq-item .icon { width: 30px; image-rendering: pixelated; }
