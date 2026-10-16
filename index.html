@@ -70,27 +70,31 @@
     </div>
   </div>
 
-  <!-- 協力プレイの部屋(ラン外。coop-ui.js)-->
+  <!-- 協力プレイの部屋(ラン外。coop-ui.js): 部屋を作る(→ ステージ選択 → 部屋)/ コードで入る / 公開の部屋の一覧から入る -->
   <div id="coop-screen" class="screen hidden">
     <h2 class="scr-title">協力プレイ</h2>
     <div class="coop-box">
       <div id="coop-cls" class="coop-cls"></div>
       <div id="coop-join-row" class="coop-row">
-        <button id="coop-make-pub" class="btn">公開の部屋を作る</button>
-        <button id="coop-make" class="btn">コードの部屋を作る</button>
+        <button id="coop-make" class="btn big">部屋を作る</button>
         <span class="coop-row"><input id="coop-code" maxlength="6" autocomplete="off" spellcheck="false"><button id="coop-enter" class="btn">コードで入る</button></span>
       </div>
       <div id="coop-room" class="coop-room hidden"></div>
       <div id="coop-pub" class="coop-pub hidden"></div>
-      <div class="coop-note">チャレンジタワーを 2〜4人で遊ぶ。公開の部屋は一覧から誰でも入れる。コードの部屋はコードを伝えた人だけが入れる(別の PC やスマホからも。つながるまで数秒)</div>
+      <div class="coop-note">2〜4人で遊ぶ。部屋を作る時に、遊ぶステージと、公開の部屋(一覧から誰でも入れる)かコードの部屋(コードを伝えた人だけが入れる)かを選ぶ。別の PC やスマホからも入れる(つながるまで数秒)</div>
       <button id="coop-back" class="btn ghost">戻る</button>
     </div>
   </div>
 
-  <!-- ステージ選択(ラン外) -->
+  <!-- ステージ選択(ラン外)。協力プレイの部屋を作る時にも使う(協力プレイで遊べる物だけを並べ、公開かコードかを選ぶ st-coop を出す。meta-ui.js) -->
   <div id="stage-screen" class="screen hidden">
     <h2 class="scr-title">SELECT STAGE</h2>
     <button id="st-class" class="st-class"></button>
+    <div id="st-coop" class="st-coop hidden">
+      <span class="st-coop-h">協力プレイの部屋</span>
+      <div id="st-pub" class="seg"><button data-v="1">公開の部屋</button><button data-v="0">コードの部屋</button></div>
+      <span id="st-pub-note" class="dim"></span>
+    </div>
     <div id="stage-list"></div>
     <div id="chaos-panel" class="hidden"></div>
     <div class="menu row"><button id="st-back" class="btn">戻る (ESC)</button></div>

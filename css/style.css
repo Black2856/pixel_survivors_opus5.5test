@@ -153,7 +153,7 @@ button { font: inherit; color: inherit; cursor: pointer; border: 0; background: 
 .gold-chip { padding: 8px 16px; font: 12px 'Press Start 2P'; color: var(--gold); }
 
 /* ---------- タイトル ---------- */
-#title-screen, #stage-screen, #class-screen, #tree-screen, #gacha-screen, #equip-screen, #status-screen, #help-screen, #settings-screen, #pause-screen, #result-screen { overflow-y: auto; justify-content: safe center; } /* UI サイズを大きくして画面に収まらないときはスクロール */
+#title-screen, #stage-screen, #coop-screen, #class-screen, #tree-screen, #gacha-screen, #equip-screen, #status-screen, #help-screen, #settings-screen, #pause-screen, #result-screen { overflow-y: auto; justify-content: safe center; } /* UI サイズを大きくして画面に収まらないときはスクロール */
 /* 真ん中にロゴとメニュー(縦に1列)。右上にゴールド、左下に記録、右下にガイド・設定とキーの説明(角の物も .screen の直下に置き、UI の大きさの zoom を受ける) */
 #title-screen { background: radial-gradient(ellipse at center, rgba(8,5,16,.1) 0%, rgba(8,5,16,.75) 80%); }
 #title-screen::before { content: ''; position: absolute; inset: 0; pointer-events: none; background: linear-gradient(90deg, transparent 20%, rgba(8,5,16,.45) 38%, rgba(8,5,16,.45) 62%, transparent 80%); } /* メニューの後ろを少し暗く(動く背景の上でも字が読めるように) */
@@ -432,7 +432,7 @@ input[type=range] { width: 220px; accent-color: var(--gold); }
 .st .gl { position: relative; font: calc(var(--px) * 7) 'DotGothic16'; color: var(--sc); text-shadow: 0 0 calc(var(--px) * 2) var(--sc); line-height: 1; }
 
 /* ---------- ステージ選択 ---------- */
-#stage-screen { padding: 26px 0 14px; } /* 画面が低いと見出しが上で切れるので、上下をあけてリストの枠を縮ませる */
+#stage-screen, #coop-screen { padding: 26px 0 14px; } /* 画面が低いと見出しが上で切れるので、上下をあけてリストの枠を縮ませる(協力プレイの画面は低いとスクロール) */
 #stage-list { display: flex; flex-direction: column; gap: 6px; width: min(900px, calc(94vw / var(--ui))); max-height: calc(60vh / var(--ui)); min-height: 0; overflow-y: auto; padding: 2px 8px 2px 2px; } /* 1列で、枠の中をスクロール(エスカレーション・闘技場・ステージを tier の順に)。枠の高さはカード 10枚ぶん(meta-ui.js が並べてから測って決める。60vh は測る前の値) */
 /* カード: 左に tier の札、名前と説明の2行、右にカオス強化。背景はステージの床の絵(--art。2倍のドット)に、左を暗くする影を重ねて文字を読めるように */
 .stg { --art: none; position: relative; overflow: hidden; flex: 0 0 auto; display: grid; grid-template-columns: 44px 1fr auto; grid-template-rows: 1fr 1fr; column-gap: 12px; align-items: center; min-height: 58px; padding: 5px 12px 5px 8px; text-align: left; image-rendering: pixelated;
@@ -860,6 +860,12 @@ html.touch #hud:not(.hidden) ~ #touch-ctl { display: block; }
 #coop-code { font: 15px 'Press Start 2P'; width: 9em; text-transform: uppercase; padding: 10px; background: #12203a; color: var(--txt); border: 2px solid #2a6a80; text-align: center; }
 .coop-room { display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 16px 24px; border: 2px solid #3a2a6a; background: #1a1030; }
 .coop-code-big { font: 16px 'Press Start 2P'; color: var(--gold); letter-spacing: 2px; }
+.coop-mode { font-size: 20px; color: #5dffc8; letter-spacing: 2px; text-shadow: 2px 2px 0 var(--ink), 0 0 10px rgba(93,255,200,.35); } /* 部屋のモード(色はステージ選択のタワーのカード) */
+/* ステージ選択の協力プレイの形: 公開の部屋かコードの部屋か */
+.st-coop { display: flex; align-items: center; gap: 12px; padding: 6px 14px; background: var(--panel); box-shadow: inset 4px 0 0 0 #5dffc8, inset 0 0 0 2px #3a3060; font-size: 14px; }
+.st-coop-h { color: #5dffc8; }
+.st-coop .seg { width: 260px; }
+.st-coop .dim { color: var(--dim); font-size: 12px; }
 .coop-list { display: flex; flex-direction: column; gap: 6px; font-size: 14px; color: var(--txt); min-width: 220px; }
 .coop-mem.dim { color: var(--dim); }
 .coop-note { color: var(--dim); font-size: 12px; text-align: center; max-width: 520px; line-height: 1.6; }

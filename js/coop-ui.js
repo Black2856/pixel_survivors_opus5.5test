@@ -1,6 +1,7 @@
 // coop-ui.js — 協力プレイの部屋の画面(タイトルの「協力プレイ」から。claudedocs/coop.md #10)
-//   公開の部屋を作る(公開ロビーに載る: lobby.js)/ コードの部屋を作る(6文字のコード)/ コードで入る / 公開の部屋の一覧から入る
-//   → 入った人のクラスと往復時間を並べ、ホストが 2人以上そろったら「開始」(チャレンジタワー。入力の遅れは net.js の coopAutoLag)
+//   部屋を作る(→ ステージ選択(meta-ui.js の stageSelect の協力プレイの形)で遊ぶステージと、公開(公開ロビーに載る: lobby.js)かコード(6文字)かを選ぶ → 部屋)
+//   / コードで入る / 公開の部屋の一覧から入る
+//   → 入った人のクラスと往復時間を並べ、ホストが 2人以上そろったら「開始」(部屋のモード COOP.mode。入力の遅れは net.js の coopAutoLag)
 //   通信は net.js の NET(Trystero の P2P。仲介は Supabase。?net=bc で同じブラウザのウィンドウどうし)
 //   相手から届いた物(クラス・人数)は net.js・lobby.js で確かめた物だけを、文字として出す(HTML として入れない)
 'use strict';
@@ -9,6 +10,7 @@ const CoopUI = (() => {
   const CODE_CH = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // 見間違えやすい I・O・0・1 は使わない(lobby.js の CODE と同じ字)
   const newCode = () => Array.from({ length: 6 }, () => CODE_CH[NATIVE_RANDOM() * CODE_CH.length | 0]).join('');
   const clsName = k => (DATA.classes[k] ? DATA.classes[k].name : String(k));
+  const modeName = k => (k === 'escalation' ? _t('エスカレーション') : _t('チャレンジタワー')); // 部屋のモード(net.js の okMode で確かめた物)
   const div = (cls, text) => { const d = document.createElement('div'); d.className = cls; d.textContent = text; return d; };
   const inRoom = () => !!(COOP.room && NET.isOpen);
   let msgEl = null;
@@ -24,7 +26,7 @@ const CoopUI = (() => {
     $('coop-code').placeholder = _t('コード');
     $('coop-cls').textContent = _t`自分のクラス: ${clsName(META.cls)}(クラス画面で変える)`;
     const noRtc = NET.kind === 'p2p' && typeof RTCPeerConnection === 'undefined'; // WebRTC の無いブラウザ
-    $('coop-make').disabled = $('coop-make-pub').disabled = $('coop-enter').disabled = noRtc;
+    $('coop-make').disabled = $('coop-enter').disabled = noRtc;
     $('coop-cls').textContent += noRtc ? ' / ' + _t('このブラウザでは協力プレイができません(WebRTC がない)') : '';
     if (!noRtc) Lobby.open(pubList);
     refresh();
@@ -37,8 +39,10 @@ const CoopUI = (() => {
     $('coop-join-row').classList.toggle('hidden', on);
     box.classList.toggle('hidden', !on);
     box.textContent = '';
+    $('coop-back').textContent = on ? _t('部屋を出る') : _t('戻る'); // 部屋を出ると協力プレイの画面(一覧)に戻る
     pubList();
     if (!on) return;
+    if (COOP.host || COOP.members.length) box.appendChild(div('coop-mode', modeName(COOP.mode))); // 参加者は部屋の並びが届いてから
     box.appendChild(div('coop-code-big', (COOP.pub ? _t('公開の部屋') + '  ' : '') + _t`部屋のコード ${COOP.room}`));
     const list = div('coop-list', '');
     COOP.members.forEach((m, i) => {
@@ -52,7 +56,7 @@ const CoopUI = (() => {
     if (COOP.host) {
       const b = document.createElement('button');
       b.className = 'btn big'; b.textContent = _t('開始'); b.disabled = COOP.members.length < 2;
-      b.onclick = () => { AudioMan.click(); coopStart({ mode: 'tower' }); };
+      b.onclick = () => { AudioMan.click(); coopStart(); };
       box.appendChild(b);
     } else if (COOP.members.length) box.appendChild(div('coop-mem dim', _t('ホストが開始するのを待っています')));
     tick();
@@ -86,21 +90,32 @@ const CoopUI = (() => {
     if (st !== 'ok') return box.appendChild(div('coop-mem dim', _t('公開の部屋を探しています…')));
     if (!rs.length) return box.appendChild(div('coop-mem dim', _t('公開の部屋はありません')));
     for (const r of rs) {
-      const row = div('coop-pub-row', _t`${clsName(r.cls)} の部屋  ${r.n} / 4`), b = document.createElement('button');
+      const row = div('coop-pub-row', _t`${modeName(r.mode)} ・ ${clsName(r.cls)} の部屋  ${r.n} / 4`), b = document.createElement('button');
       b.className = 'btn'; b.textContent = _t('入る');
       b.onclick = () => { AudioMan.click(); say(''); coopJoin(r.code, META.cls); refresh(); };
       row.appendChild(b); box.appendChild(row);
     }
   }
   function leave() { coopQuit(); }
+  // 部屋を作る(ステージ選択で選んだ時に meta-ui.js から): mode = 遊ぶモード / pub = 公開ロビーに載せるか
+  function create(mode, pub) {
+    say('');
+    coopHost(newCode(), META.cls, 0, pub, mode);
+    open();
+  }
+  // 戻る: 部屋の中なら部屋を出て一覧へ、外ならタイトルへ
+  function back() {
+    if (inRoom()) { leave(); refresh(); return; }
+    leave(); Lobby.close(); state = 'title'; UI.title();
+  }
+  function onKey(e) { if (state === 'coop' && e.code === 'Escape') { AudioMan.click(); back(); } }
   $('btn-coop').onclick = () => { AudioMan.click(); open(); };
-  $('coop-make').onclick = () => { AudioMan.click(); say(''); coopHost(newCode(), META.cls); refresh(); };
-  $('coop-make-pub').onclick = () => { AudioMan.click(); say(''); coopHost(newCode(), META.cls, 0, true); refresh(); };
+  $('coop-make').onclick = () => { AudioMan.click(); MetaUI.stageSelect(false, true); };
   $('coop-enter').onclick = () => {
     const c = ($('coop-code').value || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 6);
     if (c.length !== 6) { $('coop-code').focus(); return; }
     AudioMan.click(); say(''); coopJoin(c, META.cls); refresh();
   };
-  $('coop-back').onclick = () => { AudioMan.click(); leave(); Lobby.close(); state = 'title'; UI.title(); };
-  return { open, refresh, tick, leave, say };
+  $('coop-back').onclick = () => { AudioMan.click(); back(); };
+  return { open, create, refresh, tick, leave, say, onKey };
 })();

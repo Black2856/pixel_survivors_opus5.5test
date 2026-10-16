@@ -72,6 +72,7 @@ const COOP = {
   query: null, // 決める人: 外す人の入力を集めている途中 { x, t, ans: 番号 → { f: その人の今のフレーム, have: [[フレーム, 入力]] } }
   hello: null, // 参加者: 名乗る(ホストとつながるたびに)
   pub: false, // ホスト: 公開の部屋(公開ロビーに載せる。lobby.js)
+  mode: 'tower', // 部屋のモード(ホストが部屋を作る時にステージ選択で決める。参加者は部屋の並び lobby で知る)
   rtt: new Map(), // 往復時間(始まる前): 相手の ID → 最近の往復 ms(#1・#3)
   worst: new Map(), // ホスト: 参加者の ID → その人が測った一番遅い相手の往復(95%)
   rttN: 0,
@@ -79,6 +80,10 @@ const COOP = {
 // ゲームの版(coop.md 4章「版の確認」): ビルドした版はファイル名のハッシュ(js/game.<hash>.js)、開発中は 'dev'。違う人は部屋に入れない
 const GAME_VER = (() => { const s = document.currentScript && document.currentScript.src, m = s && /game\.([0-9a-f]+)\.js/.exec(s); return m ? m[1] : 'dev'; })();
 const COOP_CLASSES = () => DATA.classOrder;
+// 協力プレイで遊べるモード(部屋を作る時のステージ選択に出す物)。届いた物はこの中の物だけにする(知らない物は先頭)
+//   escalation は試験の道具だけが coopStart({ mode }) で使う(部屋のモードにはしない)
+const COOP_MODES = ['tower'];
+const okMode = m => (COOP_MODES.includes(m) ? m : COOP_MODES[0]);
 
 function coopReset() {
   Object.assign(COOP, { on: false, f: 0, sentTo: -1, desync: null, stalls: 0, log: [], hostId: '', query: null, waitF: -1, waitFrom: 0, waitOn: [], waitSec: 0 });
@@ -88,12 +93,12 @@ function coopReset() {
 function coopQuit() {
   if (NET.isOpen) NET.send({ t: 'bye' });
   NET.close(); coopReset();
-  Object.assign(COOP, { room: '', members: [], host: false, hello: null, pub: false });
+  Object.assign(COOP, { room: '', members: [], host: false, hello: null, pub: false, mode: COOP_MODES[0] });
   if (typeof Lobby !== 'undefined') Lobby.announce(); // 公開ロビーから外す
 }
 // 部屋の並びを送る(ホスト。キットは「開始」で送るので入れない)
 function coopLobby() {
-  NET.send({ t: 'lobby', ver: GAME_VER, members: COOP.members.map(({ kit, ...x }) => x) });
+  NET.send({ t: 'lobby', ver: GAME_VER, mode: COOP.mode, members: COOP.members.map(({ kit, ...x }) => x) });
   if (typeof Lobby !== 'undefined') Lobby.announce(); // 公開の部屋: 人数を直す(4人で外す)
   if (typeof CoopUI !== 'undefined') CoopUI.refresh();
 }
@@ -109,10 +114,10 @@ function coopPeerGone(id) {
   else if (COOP.host) { COOP.members.splice(i, 1); coopLobby(); }
   else if (i === 0) { coopQuit(); if (typeof CoopUI !== 'undefined') CoopUI.say(_t('ホストが部屋を閉じました')); }
 }
-// 部屋を作る(ホスト)。n: この人数がそろったら開始する(省略で coopStart を呼ぶまで待つ)/ pub: 公開ロビーに載せる
-function coopHost(room, cls = META.cls, n = 0, pub = false) {
+// 部屋を作る(ホスト)。n: この人数がそろったら開始する(省略で coopStart を呼ぶまで待つ)/ pub: 公開ロビーに載せる / mode: 遊ぶモード(COOP_MODES)
+function coopHost(room, cls = META.cls, n = 0, pub = false, mode = COOP_MODES[0]) {
   coopReset();
-  Object.assign(COOP, { host: true, room: String(room), want: n | 0, pub: !!pub });
+  Object.assign(COOP, { host: true, room: String(room), want: n | 0, pub: !!pub, mode: okMode(mode) });
   NET.open(COOP.room, coopOnMsg, coopOnPeer);
   COOP.members = [{ id: NET.me, cls, vw: GFX.VW, vh: GFX.VH, kit: coopKit(META) }];
   if (typeof Lobby !== 'undefined') Lobby.announce();
@@ -121,17 +126,17 @@ function coopHost(room, cls = META.cls, n = 0, pub = false) {
 // 部屋に入る
 function coopJoin(room, cls = META.cls) {
   coopReset();
-  Object.assign(COOP, { host: false, room: String(room), members: [] });
+  Object.assign(COOP, { host: false, room: String(room), members: [], mode: COOP_MODES[0] });
   const kit = coopKit(META); // 入った時のセーブ(この後にクラス画面で変えた物は届かない)
   COOP.hello = () => NET.send({ t: 'join', ver: GAME_VER, cls, vw: GFX.VW, vh: GFX.VH, kit });
   NET.open(COOP.room, coopOnMsg, coopOnPeer); // p2p: つながった人ごとに名乗る
   COOP.hello(); // bc: すぐ届く
   console.info('COOP: 部屋 ' + COOP.room + ' に入る');
 }
-// 開始(ホスト): 種・モード・入力の遅れ(o.lag か、往復時間から coopAutoLag)・全員の並び・計算用の画面の大きさ(全員の一番大きい窓。#16)を送り、自分も始める
+// 開始(ホスト): 種・モード(部屋のモード。o.mode があればそれ)・入力の遅れ(o.lag か、往復時間から coopAutoLag)・全員の並び・計算用の画面の大きさ(全員の一番大きい窓。#16)を送り、自分も始める
 function coopStart(o = {}) {
   if (!COOP.host || COOP.on) return;
-  const ms = COOP.members, mode = o.mode === 'escalation' ? 'escalation' : 'tower';
+  const ms = COOP.members, mode = o.mode === 'escalation' ? 'escalation' : okMode(o.mode || COOP.mode);
   const m = { t: 'start', seed: NATIVE_RANDOM() * 4294967296 >>> 0, mode, stage: o.stage || 1, lag: o.lag || coopAutoLag(), members: ms,
     view: { w: Math.max(...ms.map(x => x.vw)), h: Math.max(...ms.map(x => x.vh)) }, chaos: coopChaos(chaosSetting(mode), mode) }; // カオス強化はホストの設定
   NET.send(m);
@@ -213,6 +218,7 @@ function coopOnMsg(m) {
       if (COOP.host || COOP.on || !Array.isArray(m.members) || m.members.length > 4 || !m.members[0] || m.members[0].id !== m.from || (COOP.hostId && COOP.hostId !== m.from)) return;
       if (m.ver !== GAME_VER) { coopQuit(); if (typeof CoopUI !== 'undefined') CoopUI.say(_t('ゲームの版が違うので入れません(ページを読み直してください)')); return; }
       COOP.hostId = m.from; // 最初に並びを送ってきた人をホストとする(自分を 0 番に書いている人だけ)
+      COOP.mode = okMode(m.mode);
       COOP.members = m.members.map(x => ({ id: String(x && x.id).slice(0, 32), cls: okCls(x && x.cls), vw: okView(x && x.vw, 480), vh: okView(x && x.vh, 270) }));
       if (typeof CoopUI !== 'undefined') CoopUI.refresh();
       return;
@@ -220,7 +226,7 @@ function coopOnMsg(m) {
       if (COOP.host || COOP.on || !Array.isArray(m.members) || m.members.length > 4 || m.from !== (COOP.hostId || (m.members[0] && m.members[0].id))) return;
       const members = m.members.map(x => ({ id: String(x && x.id), cls: okCls(x && x.cls), vw: okView(x && x.vw, 480), vh: okView(x && x.vh, 270), kit: coopKit(x && x.kit) }));
       if (!members.some(x => x.id === NET.me)) return;
-      const mode = m.mode === 'tower' ? 'tower' : 'escalation';
+      const mode = m.mode === 'escalation' ? 'escalation' : okMode(m.mode); // coopStart と同じ決まり(知らない物は部屋のモードの先頭)
       coopBegin({ seed: m.seed >>> 0, mode, stage: 1, lag: clamp(m.lag | 0, 1, 8), members,
         view: { w: okView(m.view && m.view.w, 480), h: okView(m.view && m.view.h, 270) }, chaos: coopChaos(m.chaos, mode) });
       return;

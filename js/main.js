@@ -79,6 +79,7 @@ function onKey(e) {
   if (e.code === 'Escape') { if (state === 'play') pauseGame(); else if (state === 'pause') resumeGame(); else if (state === 'settings') UI.closeSettings(); }
   if ((state === 'over' || state === 'victory') && e.code === 'KeyR') startRun(S.mode, S.stageNo); // タイトルの Enter は UI.onKey(選んでいるメニュー)
   else if (state === 'victory' && e.code === 'Enter' && S.mode === 'escalation') startEndless();
+  CoopUI.onKey(e); // 先に(ステージ選択の ESC で協力プレイの画面に戻った時、同じ ESC でタイトルまで戻らないように)
   UI.onKey(e);
   MetaUI.onKey(e);
   Gacha.onKey(e);

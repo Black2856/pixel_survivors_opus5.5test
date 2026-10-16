@@ -160,7 +160,7 @@ const MetaUI = (() => {
     const g = e.target.closest('.cl-go');
     if (g && !g.disabled && META.cls !== clSel) { META.cls = clSel; saveMeta(); AudioMan.select(); renderClass(); }
   };
-  const closeClass = () => { if (back === 'stage') stageSelect(); else { state = 'title'; UI.title(); } };
+  const closeClass = () => { if (back === 'stage') stageSelect(false, stCoop); else { state = 'title'; UI.title(); } };
   $('cl-back').onclick = () => { AudioMan.click(); closeClass(); };
   $('btn-class').onclick = () => { AudioMan.click(); classScreen(); };
 
@@ -314,19 +314,24 @@ const MetaUI = (() => {
       .sort((a, b) => a.tier - b.tier), // 通常モード: tier の順
   ];
   // again: カオス強化の設定を閉じて並べ直すとき(並ぶ動きを出さない)
-  function stageSelect(again) {
-    state = 'stage';
+  // coop: 協力プレイの部屋を作る(協力プレイの画面の「部屋を作る」から)。協力プレイで遊べる物(net.js の COOP_MODES)だけを並べ、公開かコードかを選ぶ。選ぶと部屋ができて協力プレイの画面へ。戻ると協力プレイの画面へ
+  //   クラス画面へ行って戻った時・カオス強化を閉じた時は、前の形(coop)のまま
+  let stCoop = false, stPub = true;
+  function stageSelect(again, coop = again ? stCoop : false) {
+    state = 'stage'; stCoop = coop;
     UI.only('stage-screen');
     const c = DATA.classes[META.cls], m = META.classes[META.cls];
     $('st-class').style.setProperty('--cc', c.col);
     $('st-class').innerHTML = _t`<img src="${portrait(META.cls)}" alt=""><span><b>${c.name}</b> Lv${m.lv} ・ ${DATA.weapons[m.weapon].name}</span><small>クラス変更 ▶</small>`;
-    const items = STAGE_ITEMS();
+    $('st-coop').classList.toggle('hidden', !coop);
+    if (coop) pubSync();
+    const items = STAGE_ITEMS().filter(s => !coop || COOP_MODES.includes(s.mode));
     $('stage-list').classList.toggle('calm', !!again);
     $('stage-list').innerHTML = items.map((s, i) => {
       const clear = META.stageClear[s.key], open = stageUnlocked(s);
       const pt = open ? chaosPoints(chaosSetting(s.key), s.key) : 0;
       // 右のカオス強化の札: 上に「カオス強化」と pt、下に(クリアまでは「クリアまで固定」と)設定・見るのボタン。幅はどのカードも同じ
-      const best = META.best.towerFloor || 0;
+      const best = (coop ? META.best.coopFloor : META.best.towerFloor) || 0; // 協力プレイの記録は別(main.js の endRun)
       const right = !open ? _t`<span class="lock">未解放: tier ${needTier(s)} のステージを1つクリア</span>`
         : s.mode === 'tower' ? `<span class="chaos on${best ? ' has' : ''}"><span class="cz-l">${_t('最高到達')}</span><b class="cz-v">${best}<small>F</small></b><span class="cz-tag">${_t`カオス強化は ${DATA.tower.lap + 1}階から`}</span></span>` // タワーのカオス強化は階で決まる(設定は出さない)
         : `<span class="chaos${clear ? ' on' : ''}${pt ? ' has' : ''}"><span class="cz-l">${_t('カオス強化')}</span><b class="cz-v">${pt}<small>pt</small></b>`
@@ -350,8 +355,16 @@ const MetaUI = (() => {
     if (c) { AudioMan.click(); chaosPanel(c.dataset.chaos); return; } // カオス強化の設定(出撃はしない)
     const b = e.target.closest('.stg'); if (!b) return;
     if (b.classList.contains('locked')) { AudioMan.hurt(); b.classList.remove('deny'); void b.offsetWidth; b.classList.add('deny'); return; } // 未解放: 小さく揺れるだけ
-    AudioMan.click(); startRun(b.dataset.mode, +b.dataset.n);
+    AudioMan.click();
+    if (stCoop) CoopUI.create(b.dataset.mode, stPub); else startRun(b.dataset.mode, +b.dataset.n);
   };
+  // 協力プレイ: 公開の部屋(公開ロビーに載る)か、コードの部屋か(既定は公開。ページを開いている間は前に選んだ物)
+  function pubSync() {
+    for (const b of $('st-pub').children) b.classList.toggle('on', (b.dataset.v === '1') === stPub);
+    $('st-pub-note').textContent = stPub ? _t('一覧に載り、誰でも入れる') : _t('コードを伝えた人だけが入れる');
+  }
+  $('st-pub').onclick = e => { const b = e.target.closest('button'); if (!b) return; stPub = b.dataset.v === '1'; AudioMan.click(); pubSync(); };
+  const stBack = () => { if (stCoop) CoopUI.open(); else { state = 'title'; UI.title(); } };
   // ---------- カオス強化の設定 ----------
   // 項目ごとに Lv を上げ下げ。合計ポイントと、その報酬(そのランの間だけ効く)を表示する。クリアするまでは tier の値で固定(見るだけ)
   let czKey = null;
@@ -388,7 +401,7 @@ const MetaUI = (() => {
   };
   function closeChaos() { UI.hide($('chaos-panel')); czKey = null; stageSelect(true); }
   $('st-class').onclick = () => { AudioMan.click(); classScreen('stage'); };
-  $('st-back').onclick = () => { AudioMan.click(); state = 'title'; UI.title(); };
+  $('st-back').onclick = () => { AudioMan.click(); stBack(); };
 
   // ---------- 入力 ----------
   $('btn-equip').onclick = () => { AudioMan.click(); open(); };
@@ -414,7 +427,7 @@ const MetaUI = (() => {
   };
   function onKey(e) {
     if (state === 'equip' && e.code === 'Escape') close();
-    if (state === 'stage' && e.code === 'Escape') { if (czKey) closeChaos(); else { state = 'title'; UI.title(); } }
+    if (state === 'stage' && e.code === 'Escape') { if (czKey) closeChaos(); else stBack(); }
     if (state === 'class' && e.code === 'Escape') { if (wpOpen()) closeWp(); else closeClass(); }
     if (state === 'tree' && e.code === 'Escape') { state = 'title'; UI.title(); }
   }

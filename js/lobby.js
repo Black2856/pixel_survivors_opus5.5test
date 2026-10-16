@@ -1,5 +1,5 @@
 // lobby.js — 協力プレイの公開ロビー(claudedocs/coop.md #10・4章): Supabase の Realtime の Presence(つないでいる間だけ載る一覧)
-//   載るのは公開の部屋のホストだけ(部屋のコード・ホストのクラス・人数)。見ている人は載らない。ホストが抜ける・始める・4人になると消える
+//   載るのは公開の部屋のホストだけ(部屋のコード・ホストのクラス・人数・モード)。見ている人は載らない。ホストが抜ける・始める・4人になると消える
 //   チャンネルは版ごと(nocturne-lobby-<GAME_VER>): 違う版の部屋(開発中と公開版も)は見えない
 //   載っている物は知らない人が書いた物なので、決まった形の物だけを文字として出す(コードの字・人数 1〜3・クラス。20件まで)
 //   Supabase の client はセーブ(localStorage)に触らない・URL を読まない設定で作る
@@ -36,10 +36,10 @@ const Lobby = (() => {
   function announce() {
     if (!ch || st !== 'ok') return;
     const want = COOP.host && COOP.pub && !COOP.on && !!COOP.room && COOP.members.length >= 1 && COOP.members.length < 4;
-    if (want) { ch.track({ code: COOP.room, cls: COOP.members[0].cls, n: COOP.members.length }).catch(() => {}); tracked = true; }
+    if (want) { ch.track({ code: COOP.room, cls: COOP.members[0].cls, n: COOP.members.length, mode: COOP.mode }).catch(() => {}); tracked = true; }
     else if (tracked) { ch.untrack().catch(() => {}); tracked = false; }
   }
-  // 一覧(確かめた物だけ): [{ code, cls, n }](人数の多い順。自分の部屋は出さない)
+  // 一覧(確かめた物だけ): [{ code, cls, n, mode }](人数の多い順。自分の部屋は出さない。モードは net.js の COOP_MODES の物だけ)
   function rooms() {
     if (!ch || st !== 'ok') return [];
     const ps = ch.presenceState(), out = [], seen = new Set();
@@ -47,7 +47,7 @@ const Lobby = (() => {
       if (k === key || out.length >= 20) continue;
       for (const p of Array.isArray(ps[k]) ? ps[k] : []) {
         if (!p || typeof p !== 'object' || typeof p.code !== 'string' || !CODE.test(p.code) || seen.has(p.code) || !Number.isInteger(p.n) || p.n < 1 || p.n > 3) continue;
-        seen.add(p.code); out.push({ code: p.code, cls: okCls(p.cls), n: p.n });
+        seen.add(p.code); out.push({ code: p.code, cls: okCls(p.cls), n: p.n, mode: okMode(p.mode) });
         if (out.length >= 20) break;
       }
     }
