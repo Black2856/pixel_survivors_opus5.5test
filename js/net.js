@@ -152,7 +152,7 @@ function coopStepOnce(dt) {
   interpSave();
   withPlayer(players[0], () => simScope(() => update(dt, row)));
   COOP.f = f + 1;
-  if (COOP.f % 60 === 0) { const h = coopHash(); COOP.log.push([COOP.f, h]); coopHashPut(COOP.f, COOP.pid, h); NET.send({ t: 'hash', f: COOP.f, pid: COOP.pid, h }); }
+  if (COOP.f % 60 === 0) { const h = coopHash(); COOP.log.push([COOP.f, h]); NET.send({ t: 'hash', f: COOP.f, pid: COOP.pid, h }); coopHashPut(COOP.f, COOP.pid, h); } // 送ってから比べる(ずれていると比べた所で閉じるので)
   return true;
 }
 // 試験: 画面のフレームに関係なく、入力がそろう所まで最大 n 回計算する。今のフレームを返す
@@ -181,6 +181,7 @@ function coopHashPut(f, pid, h) {
   COOP.desync = { f, hashes: row.slice() };
   console.error('COOP: 同期がずれた(フレーム ' + f + ')', row.map(x => x.toString(16)));
   UI.banner('DESYNC', _t('同期がずれました'), 4000);
+  if (COOP.on && state === 'play') endRun(false); // ランを終える(報酬はそこまでの分を各自に: #4)
 }
 // 止まらないレベルアップ(#8): 選ぶカードは計算の中で決めて P.lvPick に置き、選んだ物は入力の pick で届く(全員が同じフレームで使う)
 //   P.lvPick = { lv, list, n }(n: リロールした回数。画面が出し直すため)。カードを取る・スキップ(+10G)・リロール(残りがあれば)
@@ -215,13 +216,13 @@ function coopRevive() {
   addRing(P.x, P.y, 40, '#ffd23f', { w: 2, life: 0.5 }); burst(P.x, P.y, 30, ['#ffd23f', '#ffffff'], { sp: 80, up: 30, glow: true, life: 0.6 });
   S.hudDirty = true;
 }
-// ランの終わり(4段の仮): 記録・報酬はまだ保存しない(5段)。止めてタイトルへ
-function coopEndRun(win) {
+// ランの終わり(endRun から): 自分を P にして協力プレイを閉じる(報酬・記録は endRun が自分の分で入れる)
+function coopFinish() {
   COOP.on = false;
   P = players[COOP.pid] || P;
-  state = win ? 'victory' : 'over';
-  UI.banner('GAME OVER', _t('協力プレイの記録と報酬は、まだ保存しません'), 4000);
-  setTimeout(() => { NET.close(); SIM_VIEW.on = false; FIXED_STEP.on = false; goTitle(); }, 4000);
+  NET.close();
+  SIM_VIEW.on = false;
+  if (!NET_SIM.on) FIXED_STEP.on = false;
 }
 // URL で試す: ?coop=host&room=abc(&n=2 でその人数がそろったら開始)/ ?coop=join&room=abc。別々のウィンドウで開く(隠れたタブは画面のフレームが止まり、全員が待つ)
 {

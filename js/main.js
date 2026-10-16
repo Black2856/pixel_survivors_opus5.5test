@@ -25,15 +25,16 @@ const runKey = () => (S.mode === 'stage' ? 'stage' + S.stageNo : S.mode);
 function pauseGame() { if (state !== 'play' || COOP.on) return; state = 'pause'; UI.pause(true); AudioMan.pauseMusic(); }
 function resumeGame() { if (state !== 'pause') return; state = 'play'; UI.pause(false); AudioMan.resumeMusic(); }
 function endRun(win) {
-  if (COOP.on) return coopEndRun(win); // 協力プレイ(4段の仮): 記録・報酬はまだ保存しない
+  const coop = COOP.on;
+  if (coop) coopFinish(); // 協力プレイ: 自分(players[COOP.pid])の分で終える。報酬は各自のセーブへ、記録は 1人とは別(coop.md #17・#18)
   const earned = P.gold + Math.floor(P.kills / 25);
   META.gold += earned; META.runs++;
   if (S.mode === 'arena') { // 闘技場は専用の記録(撃破ラウンド / 最速クリア)
     META.best.arenaRound = Math.max(META.best.arenaRound || 0, S.arena.idx);
     if (win) META.best.arenaTime = Math.min(META.best.arenaTime || Infinity, S.time);
   } else if (S.mode === 'tower') { // タワーも専用の記録(着いた階の一番上 / その階に着いたときの経過時間。同じ階なら早い方)
-    const B = META.best, T = S.tower;
-    if (T.top > (B.towerFloor || 0) || (T.top && T.top === B.towerFloor && T.topT < (B.towerTime ?? Infinity))) { B.towerFloor = T.top; B.towerTime = T.topT; }
+    const B = META.best, T = S.tower, fk = coop ? 'coopFloor' : 'towerFloor', tk = coop ? 'coopTime' : 'towerTime';
+    if (T.top > (B[fk] || 0) || (T.top && T.top === B[fk] && T.topT < (B[tk] ?? Infinity))) { B[fk] = T.top; B[tk] = T.topT; }
   } else {
     if (S.time > META.best.time) META.best.time = S.time;
     META.best.kills = Math.max(META.best.kills, P.kills);
