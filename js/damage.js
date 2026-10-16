@@ -48,6 +48,7 @@ function hitEnemy(e, base, o = {}) {
   if (!o.dot && (o.eHit || (o.src && P.weapons[o.src]))) clsOnWeaponHit(e, dmg, crit, o); // 武器の命中(炎上などの継続ダメージは除く)
   P.totalDmg += dmg;
   if (o.src) P.dmgBy[o.src] = (P.dmgBy[o.src] || 0) + dmg;
+  if (players.length > 1) { const ag = e.aggro || (e.aggro = []); ag[P.pid] = (ag[P.pid] || 0) + dmg; } // 協力プレイ: この敵に誰がどれだけ当てたか(狙いの重み。enemies.js の enemyTarget)
   if (o.kb && o.ang !== undefined && !e.boss) {
     const k = o.kb * (1 - (e.kbRes || 0));
     e.kx += Math.cos(o.ang) * k; e.ky += Math.sin(o.ang) * k;

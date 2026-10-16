@@ -292,10 +292,45 @@ function dollRise(m) {
   burst(m.x, m.y - 4, 18, SAND, { sp: 70, up: 30, g: 160, life: 0.5 }); AudioMan.thud();
 }
 
-function updEnemies(dt) {
+// ---------- 敵の狙い(協力プレイ: claudedocs/coop.md #14)----------
+//   敵ごとに狙う人(e.tPl)を持ち、その敵を計算する間は P をその人にする(動き・技の向き・弾と床の当たる人)。1人用は選ばない(乱数も引かない)
+//   5〜10秒ごとに選び直す。重み = その人がこの敵に与えたダメージ(e.aggro。選び直すたびに半分)+ 全員の合計 × 0.1。誰も当てていなければ一番近い人
+//   狙っている人が倒れたらすぐ選び直す。ボスは構えの途中と、後で起きる技が残っている間は変えない(技を撃つ時に P の位置を読むので)
+function enemyTarget(e) {
+  if (players.length === 1) return players[0];
+  const t = e.tPl, busy = e.boss && e.ai && (e.ai.wind > 0 || (e.ai.q && e.ai.q.length > 0));
+  if (t && !t.dead && (busy || S.time < e.retT)) return t;
+  const alive = players.filter(p => !p.dead);
+  if (!alive.length) return t || players[0];
+  const ag = e.aggro || [], sum = alive.reduce((s, p) => s + (ag[p.pid] || 0), 0);
+  let pick = null;
+  if (sum <= 0) { let bd = Infinity; for (const p of alive) { const d = d2(e.x, e.y, p.x, p.y); if (d < bd) { bd = d; pick = p; } } }
+  else {
+    let r = Math.random() * sum * (1 + 0.1 * alive.length);
+    for (const p of alive) { r -= (ag[p.pid] || 0) + sum * 0.1; if (r <= 0) { pick = p; break; } }
+    pick = pick || alive[alive.length - 1];
+  }
+  for (const k in ag) ag[k] *= 0.5;
+  e.tPl = pick; e.retT = S.time + 5 + Math.random() * 5;
+  return pick;
+}
+// 弾・床は、作った敵が狙っている人の物(tPl。動かすときも P をその人に。当たるのもその人だけ: coop.md #25)
+//   敵 1体を計算する前の数を覚え、次の敵に進む時に、増えた物へ今の P(前の敵の狙い)を付ける(continue で抜けても付く)
+const tagN = { e: 0, h: 0 };
+function tagTargets() {
+  for (let i = tagN.e; i < eprojs.length; i++) if (eprojs[i].tPl === undefined) eprojs[i].tPl = P;
+  for (let i = tagN.h; i < hazards.length; i++) if (hazards[i].tPl === undefined) hazards[i].tPl = P;
+  tagN.e = eprojs.length; tagN.h = hazards.length;
+}
+
+function updEnemies(dt) { const P0 = P; try { updEnemies1(dt); } finally { tagTargets(); P = P0; } }
+function updEnemies1(dt) {
   const R2 = Math.pow(Math.hypot(GFX.VW, GFX.VH) * 0.75, 2);
+  tagN.e = eprojs.length; tagN.h = hazards.length;
   for (const e of enemies) {
+    tagTargets();
     if (e.dead) continue;
+    P = enemyTarget(e);
     S.eatk = (e.atkDownT > S.time ? 1 - DATA.weapons.bhole.evo.atkDown : 1) * (1 + buffOn(e, 'atk')); // ビッグクランチ: ブラックホールの中の敵は攻撃力が下がる(体当たり・矢・ボスの攻撃)/ ファイアーメイジのバフ
     e.t += dt; e.flash -= dt;
     if (e.prop) { if (d2(e.x, e.y, P.x, P.y) > R2 * 2) e.dead = true; continue; }
@@ -702,7 +737,7 @@ function updEnemies(dt) {
     const td = !e.boss && DATA.enemies[e.type]; // 触れたとき: 鬼火は当たらない / ヘルハウンドは噛みつくと炎上 / クラゲはスタミナを吸う / 毒蜘蛛は毒 / 影法師の飛びかかりは ×n
     const tk = e.dash > 0 && td && td.lunge ? td.lunge.n : 1;
     S.taint = e.boss === 'shadowking' && !e.shadow ? (e.ai.enraged ? 2 : 1) : 0; // 蝕む影: 体当たりでも
-    if (e.dmg > 0 && !e.air && !(td && td.noTouch) && d2(e.x, e.y, P.x, P.y) < Math.pow(e.r + 4, 2) && hurtPlayer(e.dmg * tk, TOUCH) && td) { if (td.touchBurn) burnPlayer(e.dmg * td.touchBurn); if (td.touchSta) drainSta(td.touchSta); if (td.touchFrost) frostPlayer(td.touchFrost); if (td.touchPoison) poisonPlayer(td.touchPoison); if (td.touchNumb) numbPlayer(td.touchNumb); if (td.touchDust) dustPlayer(td.touchDust); if (td.touchLight) randomLight(td.touchLight, e.dmg); if (td.rush && td.rush.weak && e.dash > 0) weakPlayer(td.rush.weak); } // 森蜂: 突っ込んだ針が当たると衰弱
+    if (e.dmg > 0 && !e.air && !(td && td.noTouch)) for (const pl of players) withPlayer(pl, () => { if (d2(e.x, e.y, P.x, P.y) < Math.pow(e.r + 4, 2) && hurtPlayer(e.dmg * tk, TOUCH) && td) { if (td.touchBurn) burnPlayer(e.dmg * td.touchBurn); if (td.touchSta) drainSta(td.touchSta); if (td.touchFrost) frostPlayer(td.touchFrost); if (td.touchPoison) poisonPlayer(td.touchPoison); if (td.touchNumb) numbPlayer(td.touchNumb); if (td.touchDust) dustPlayer(td.touchDust); if (td.touchLight) randomLight(td.touchLight, e.dmg); if (td.rush && td.rush.weak && e.dash > 0) weakPlayer(td.rush.weak); } }); // 森蜂: 突っ込んだ針が当たると衰弱。体当たりは全員と(狙っている人に限らない。coop.md #25)
     S.taint = 0;
   }
   S.eatk = 1; FX_MINE = false;

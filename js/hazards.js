@@ -2,11 +2,14 @@
 'use strict';
 
 // ---------- 敵弾 ----------
-function updEprojs(dt0) {
+// 敵の弾・床は、作った敵が狙っていた人(tPl。enemies.js の tagTargets)を P にして動かす。当たるのもその人だけ(協力プレイ: coop.md #25)
+function updEprojs(dt0) { const P0 = P; try { updEprojs1(dt0, P0); } finally { P = P0; } }
+function updEprojs1(dt0, P0) {
   updTimeMods(dt0);
   const tk = eprojTimeK(); // 時の操作(終刻の死神): 敵の弾の時間の倍率
   for (let i = eprojs.length - 1; i >= 0; i--) {
     const p = eprojs[i];
+    P = p.tPl || P0;
     // 時間停止(アストロマンサーの重力圏): 止まった弾は当たらず、時間が来たら消える
     if (p.stopT) { if (S.time >= p.stopT) { burst(p.x, p.y - (p.z || 0), 5, ['#8a2a6e', '#3a1438'], { sp: 30, life: 0.25 }); eprojs.splice(i, 1); } continue; }
     const dt = dt0 * clsProjTime(p) * tk; // 時の歪み: 重力圏の中の弾は時間がゆっくり進む(0 = 止まった)/ 時間停止・狂い時計・逆戻し
@@ -85,10 +88,12 @@ function updEprojs(dt0) {
 }
 
 // ---------- 設置物(粘液床 / 燃える床 / 衝撃波 / スロウタイム / 渦) ----------
-function updHazards(dt) {
+function updHazards(dt) { const P0 = P; try { updHazards1(dt, P0); } finally { P = P0; } }
+function updHazards1(dt, P0) {
   S.inInk = false; S.lee = false;
   for (let i = hazards.length - 1; i >= 0; i--) {
     const h = hazards[i];
+    P = h.tPl || P0;
     if (h.delay > 0) { h.delay -= dt; continue; } // 予告のあとに出る床
     h.t += dt;
     if (h.owner) { if (h.owner.dead) h.t = h.dur; else { h.x = h.owner.x; h.y = h.owner.y; } }
