@@ -185,7 +185,10 @@ const StatusUI = (() => {
   let coopBack = false;
   const coopShown = () => COOP.on && state === 'play' && UI.shown('status-screen');
   function open() {
-    if (COOP.on && state === 'play') { coopBack = UI.shown('pause-screen'); UI.only('status-screen'); render($('status-panel'), true); return; }
+    if (COOP.on && state === 'play') {
+      if (UI.menuOpen() && !UI.shown('pause-screen')) return; // 設定・ガイドの上からは開かない(1人の時と同じ)
+      coopBack = UI.shown('pause-screen'); UI.only('status-screen'); render($('status-panel'), true); return;
+    }
     if (state !== 'play' && state !== 'pause') return;
     back = state; state = 'status';
     if (back === 'play') AudioMan.pauseMusic();

@@ -158,7 +158,7 @@ addEventListener('keydown', e => {
   const typing = e.target && /^(INPUT|TEXTAREA|SELECT)$/i.test(e.target.tagName); // 文字の入力中(ガイドの検索)・プルダウン(言語)はゲームの操作にしない(スペース・矢印も使えるように)
   if (!typing) {
     keys[e.code] = true;
-    if ((e.code === 'ShiftLeft' || e.code === 'ShiftRight') && !e.repeat && state === 'play') toggleAim();
+    if ((e.code === 'ShiftLeft' || e.code === 'ShiftRight') && !e.repeat && state === 'play' && !(COOP.on && UI.menuOpen())) toggleAim(); // 協力プレイのメニュー(止まらないので state は play)では切り替えない
     // E(武器スキル)/ Q(クラススキル)は押した瞬間だけ受け付ける
     if (e.code === 'KeyE' && !e.repeat && state === 'play') keys._e = true;
     if (e.code === 'KeyQ' && !e.repeat && state === 'play') keys._q = true;
