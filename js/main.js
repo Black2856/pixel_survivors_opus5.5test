@@ -152,11 +152,20 @@ function updCam(dt) {
 // メインループ
 // ============================================================
 let lastT = performance.now();
+// 計算を 1/60 秒ずつ進める形(協力プレイは全員が同じ長さで進める。協力プレイの時に on にする: claudedocs/coop.md #23)
+//   1人用は今までどおり画面のフレームの長さで進める(120Hz・144Hz の画面でもなめらか)。試すときはコンソールで FIXED_STEP.on = true
+//   溜まった実時間の分だけ進める。遅れが大きいときは max 回まで(残りは捨てる)。60Hz の画面の揺らぎで 0回 / 2回にならないよう、少し早めに進める
+const FIXED_STEP = { on: false, dt: 1 / 60, acc: 0, max: 4, slack: 0.002 };
+function stepFixed(sec) {
+  const F = FIXED_STEP;
+  F.acc = Math.min(F.acc + sec, F.dt * F.max);
+  while (F.acc >= F.dt - F.slack && state === 'play') { F.acc -= F.dt; simScope(() => update(F.dt)); }
+}
 function frame(ts) {
-  const rdt = Math.min(1 / 30, (ts - lastT) / 1000);
+  const sec = (ts - lastT) / 1000, rdt = Math.min(1 / 30, sec);
   lastT = ts;
-  if (state === 'play') simScope(() => update(rdt)); // 計算の乱数の列で(core.js)
-  else if (state === 'over' || state === 'victory') updFx(rdt * 0.3);
+  if (state === 'play') { if (FIXED_STEP.on) stepFixed(sec); else simScope(() => update(rdt)); } // 計算の乱数の列で(core.js)
+  else { FIXED_STEP.acc = 0; if (state === 'over' || state === 'victory') updFx(rdt * 0.3); }
   if (state !== 'pause' && state !== 'levelup' && state !== 'chest') updCam(rdt);
   GFX.updateFx(rdt);
   render();
