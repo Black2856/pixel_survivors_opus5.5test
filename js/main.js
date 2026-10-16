@@ -21,9 +21,11 @@ function startRun(mode = 'escalation', stageNo = 1) {
 }
 // クリア記録のキー: escalation / arena / stage1〜12
 const runKey = () => (S.mode === 'stage' ? 'stage' + S.stageNo : S.mode);
-function pauseGame() { if (state !== 'play') return; state = 'pause'; UI.pause(true); AudioMan.pauseMusic(); }
+// 協力プレイは止めない(#9。ESC・ウィンドウを離れた時・縦向きでも)
+function pauseGame() { if (state !== 'play' || COOP.on) return; state = 'pause'; UI.pause(true); AudioMan.pauseMusic(); }
 function resumeGame() { if (state !== 'pause') return; state = 'play'; UI.pause(false); AudioMan.resumeMusic(); }
 function endRun(win) {
+  if (COOP.on) return coopEndRun(win); // 協力プレイ(4段の仮): 記録・報酬はまだ保存しない
   const earned = P.gold + Math.floor(P.kills / 25);
   META.gold += earned; META.runs++;
   if (S.mode === 'arena') { // 闘技場は専用の記録(撃破ラウンド / 最速クリア)
@@ -124,7 +126,8 @@ function updWorld(rdt) {
   for (const p of players) { p.comboT -= dt; if (p.comboT <= 0 && p.combo > 0) p.combo = 0; }
 
   // レベルアップ演出 → 選択画面(自分 = players[0]。協力プレイのほかの人の止まらないレベルアップは 5段)
-  if (P.pendingLv > 0 && !P.dead && state === 'play') {
+  if (COOP.on) coopAutoLevel(); // 協力プレイ(4段の仮): 止まらないレベルアップの画面は 5段
+  else if (P.pendingLv > 0 && !P.dead && state === 'play') {
     if (P.lvUpT <= 0) {
       P.lvUpT = 0.4;
       AudioMan.levelup(); slowmo(0.15, 0.3);
@@ -169,6 +172,10 @@ const FIXED_STEP = { on: false, dt: 1 / 60, acc: 0, max: 4, slack: 0.002, lerp: 
 function stepFixed(sec) {
   const F = FIXED_STEP;
   F.acc = Math.min(F.acc + sec, F.dt * F.max);
+  if (COOP.on) { // 協力プレイ: 全員の入力がそろったフレームだけ進める(net.js)
+    if (!COOP.manual) while (F.acc >= F.dt - F.slack && state === 'play' && !COOP.desync) { if (!coopStepOnce(F.dt)) { COOP.stalls++; break; } F.acc -= F.dt; }
+    return;
+  }
   while (F.acc >= F.dt - F.slack && state === 'play') {
     if (NET_SIM.on && !netHeadReady()) { NET_SIM.stalls++; break; } // 相手の入力がまだ届いていない: 届くまで進めない
     F.acc -= F.dt; interpSave();

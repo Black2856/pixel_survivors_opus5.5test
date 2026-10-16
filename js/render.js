@@ -1456,8 +1456,8 @@ function drawFrame() {
   }
 
   // ---- プレイヤー ----
-  // 協力プレイ: 全員を描く(ほかの人を先に、自分 = players[0] を最後に重ねる。名前・矢印・薄さは 5段)
-  for (const pl of players.slice().reverse()) withPlayer(pl, () => { if (!P.dead) {
+  // 協力プレイ: 全員を描く(ほかの人を先に、自分 = P を最後に重ねる。名前・矢印・薄さは 5段)
+  for (const pl of [...players.filter(p => p !== P), P]) withPlayer(pl, () => { if (!P.dead) {
     // クラスの部位アニメーション: スキルのモーション中は補間した姿勢、それ以外は待機・歩きのフレーム。なければ旧プレイヤー
     const rig = ART.S[DATA.classes[P.cls].rig];
     const mn = rig && P.anim ? (rig.alias && rig.alias[P.anim.name]) || P.anim.name : null;

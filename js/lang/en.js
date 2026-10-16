@@ -1485,6 +1485,8 @@ const I18N_EN = {
   "最高到達": "Best",
   "カオス強化は {0}階から": "Chaos from {0}F",
   "ボスの階": "Boss floor",
+  "同期がずれました": "Out of sync",
+  "協力プレイの記録と報酬は、まだ保存しません": "Co-op records and rewards are not saved yet",
   "{0}体 倒すと次の階へ": "Defeat {0} enemies to go up",
   "{0}階 スキップ! 経験値 ×{1}": "Skipped {0} {0|floor|floors}! EXP ×{1}",
   "次の階へ": "On to the next floor",
