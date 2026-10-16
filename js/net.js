@@ -3,19 +3,42 @@
 'use strict';
 
 // ============================================================
-// 通信の窓口(NET): 送る・受け取るだけ。中身は入れ替える(今は BroadcastChannel = 同じブラウザのほかのウィンドウ。6段で Trystero)
-//   届いた物は相手が何を送ってきても壊れないよう、COOP の側で形と範囲を確かめてから使う(コードとして動かすことはしない)
+// 通信の窓口(NET): 送る・受け取る・入った・抜けただけ。中身は 2つから選ぶ
+//   p2p: Trystero(js/vendor/p2p.js。Supabase の Realtime で仲介し、部屋の全員が WebRTC で直接つなぐ。coop.md 4章)
+//   bc: BroadcastChannel(同じブラウザのほかのウィンドウだけ。開発・試験の道具。URL に ?net=bc)
+//   送ってきた人(from)は通信の側が付けた ID を使い、中身の from は信じない。中身は COOP の側で形と範囲を確かめてから使う(コードとして動かさない)
 // ============================================================
+//   Supabase のプロジェクト(公開キー: ブラウザのコードに入れて公開する前提のキー。表は作らず、仲介の Realtime だけに使う)
+const NET_CFG = { appId: 'https://onpbbaahinguyjauzrpj.supabase.co', relayConfig: { supabaseKey: 'sb_publishable_ZzuhMKY4wtk2zn7xXTuolQ_qrSKrZhL' } };
 const NET = {
-  me: '', ch: null,
-  open(room, onMsg) {
+  kind: new URLSearchParams(location.search).get('net') === 'bc' || typeof P2P === 'undefined' ? 'bc' : 'p2p',
+  me: '', ch: null, room: null, act: null,
+  // onMsg(m): m.from は送ってきた人 / onPeer(id, joined): 相手がつながった・切れた(p2p だけ)
+  open(room, onMsg, onPeer) {
     this.close();
-    this.me = (NATIVE_RANDOM() * 4294967296 >>> 0).toString(36) + (NATIVE_RANDOM() * 4294967296 >>> 0).toString(36);
-    this.ch = new BroadcastChannel('nocturne-coop-' + room);
-    this.ch.onmessage = e => { const m = e.data; if (m && typeof m === 'object' && typeof m.t === 'string' && typeof m.from === 'string' && m.from !== this.me) onMsg(m); };
+    const ok = (m, from) => { if (m && typeof m === 'object' && !Array.isArray(m) && typeof m.t === 'string' && typeof from === 'string' && from !== this.me) onMsg(Object.assign({}, m, { from })); };
+    if (this.kind === 'p2p') {
+      this.me = P2P.selfId;
+      this.room = P2P.joinRoom(NET_CFG, 'nocturne-' + room);
+      this.act = this.room.makeAction('m');
+      this.act.onMessage = (data, meta) => ok(data, meta && meta.peerId);
+      this.room.onPeerJoin = id => onPeer && onPeer(id, true);
+      this.room.onPeerLeave = id => onPeer && onPeer(id, false);
+    } else {
+      this.me = (NATIVE_RANDOM() * 4294967296 >>> 0).toString(36) + (NATIVE_RANDOM() * 4294967296 >>> 0).toString(36);
+      this.ch = new BroadcastChannel('nocturne-coop-' + room);
+      this.ch.onmessage = e => ok(e.data, e.data && e.data.from);
+    }
   },
-  send(msg) { if (this.ch) this.ch.postMessage(Object.assign({ from: this.me }, msg)); },
-  close() { if (this.ch) this.ch.close(); this.ch = null; },
+  send(msg) {
+    if (this.act) this.act.send(msg).catch(() => {});
+    else if (this.ch) this.ch.postMessage(Object.assign({}, msg, { from: this.me }));
+  },
+  close() {
+    if (this.room) { this.room.leave().catch(() => {}); this.room = null; this.act = null; }
+    if (this.ch) { this.ch.close(); this.ch = null; }
+  },
+  get isOpen() { return !!(this.room || this.ch); },
 };
 
 // ============================================================
@@ -26,7 +49,7 @@ const NET = {
 //   計算の間の P はどの人の画面でもホスト(players[0])。計算の外の P は自分(players[COOP.pid])
 // ============================================================
 const COOP = {
-  on: false, host: false, room: '', pid: 0, lag: 4, f: 0,
+  on: false, host: false, room: '', pid: 0, lag: 4, f: 0, hostId: '', // hostId: 参加者が知っているホストの ID(並び・開始はこの人からだけ受ける)
   members: [], // [{ id, cls, vw, vh }](0 番がホスト)
   want: 0, // ホスト: この人数がそろったら自分で開始する(URL の n)
   inq: new Map(), // フレーム → 入力の記録の配列(players の順)
@@ -41,14 +64,14 @@ const COOP = {
 const COOP_CLASSES = () => DATA.classOrder;
 
 function coopReset() {
-  Object.assign(COOP, { on: false, f: 0, sentTo: -1, desync: null, stalls: 0, log: [] });
+  Object.assign(COOP, { on: false, f: 0, sentTo: -1, desync: null, stalls: 0, log: [], hostId: '' });
   COOP.inq.clear(); COOP.hashes.clear();
 }
 // 部屋を作る(ホスト)。n: この人数がそろったら開始する(省略で coopStart を呼ぶまで待つ)
 function coopHost(room, cls = META.cls, n = 0) {
   coopReset();
   Object.assign(COOP, { host: true, room: String(room), want: n | 0 });
-  NET.open(COOP.room, coopOnMsg);
+  NET.open(COOP.room, coopOnMsg, null);
   COOP.members = [{ id: NET.me, cls, vw: GFX.VW, vh: GFX.VH }];
   console.info('COOP: 部屋 ' + COOP.room + ' を作った。ほかのウィンドウで ?coop=join&room=' + COOP.room + ' を開き、そろったら coopStart()');
 }
@@ -56,8 +79,9 @@ function coopHost(room, cls = META.cls, n = 0) {
 function coopJoin(room, cls = META.cls) {
   coopReset();
   Object.assign(COOP, { host: false, room: String(room), members: [] });
-  NET.open(COOP.room, coopOnMsg);
-  NET.send({ t: 'join', cls, vw: GFX.VW, vh: GFX.VH });
+  const hello = () => NET.send({ t: 'join', cls, vw: GFX.VW, vh: GFX.VH });
+  NET.open(COOP.room, coopOnMsg, (id, joined) => { if (joined && !COOP.on) hello(); }); // p2p: つながった人ごとに名乗る(ホストだけが受ける)
+  hello(); // bc: すぐ届く
   console.info('COOP: 部屋 ' + COOP.room + ' に入る');
 }
 // 開始(ホスト): 種・モード・入力の遅れ・全員の並び・計算用の画面の大きさ(全員の一番大きい窓。#16)を送り、自分も始める
@@ -82,26 +106,29 @@ function coopOnMsg(m) {
       if (COOP.want && COOP.members.length >= COOP.want) coopStart();
       return;
     case 'lobby': // 参加者: 部屋の人の並び(画面に出す。確かめた物だけ)
-      if (COOP.host || COOP.on || !Array.isArray(m.members) || m.members.length > 4) return;
+      if (COOP.host || COOP.on || !Array.isArray(m.members) || m.members.length > 4 || !m.members[0] || m.members[0].id !== m.from || (COOP.hostId && COOP.hostId !== m.from)) return;
+      COOP.hostId = m.from; // 最初に並びを送ってきた人をホストとする(自分を 0 番に書いている人だけ)
       COOP.members = m.members.map(x => ({ id: String(x && x.id).slice(0, 32), cls: okCls(x && x.cls), vw: okView(x && x.vw, 480), vh: okView(x && x.vh, 270) }));
       if (typeof CoopUI !== 'undefined') CoopUI.refresh();
       return;
     case 'start': {
-      if (COOP.host || COOP.on || !Array.isArray(m.members) || m.members.length > 4) return;
+      if (COOP.host || COOP.on || !Array.isArray(m.members) || m.members.length > 4 || m.from !== (COOP.hostId || (m.members[0] && m.members[0].id))) return;
       const members = m.members.map(x => ({ id: String(x && x.id), cls: okCls(x && x.cls), vw: okView(x && x.vw, 480), vh: okView(x && x.vh, 270) }));
       if (!members.some(x => x.id === NET.me)) return;
       coopBegin({ seed: m.seed >>> 0, mode: m.mode === 'tower' ? 'tower' : 'escalation', stage: 1, lag: clamp(m.lag | 0, 1, 8), members,
         view: { w: okView(m.view && m.view.w, 480), h: okView(m.view && m.view.h, 270) } });
       return;
     }
-    case 'in': coopPut(m.f, m.pid, m.inp); return;
-    case 'hash': if (COOP.on && Number.isInteger(m.f) && m.pid >= 0 && m.pid < COOP.members.length && typeof m.h === 'number') coopHashPut(m.f, m.pid, m.h); return;
+    // 入力・ハッシュは、その番号の人が送ってきた物だけ(ほかの人の番号を名乗れない)
+    case 'in': if (coopFromPid(m)) coopPut(m.f, m.pid, m.inp); return;
+    case 'hash': if (COOP.on && coopFromPid(m) && Number.isInteger(m.f) && typeof m.h === 'number') coopHashPut(m.f, m.pid, m.h >>> 0); return;
   }
 }
+const coopFromPid = m => Number.isInteger(m.pid) && m.pid >= 0 && m.pid < COOP.members.length && COOP.members[m.pid].id === m.from;
 // 全員が同じ手順でランを始める(計算の乱数の列で。players の 0 番はホストのクラス)
 function coopBegin(m) {
   COOP.members = m.members; COOP.pid = m.members.findIndex(x => x.id === NET.me); COOP.lag = m.lag;
-  COOP.f = 0; COOP.sentTo = m.lag - 1; COOP.inq.clear(); COOP.hashes.clear(); COOP.log = []; COOP.desync = null;
+  COOP.f = 0; COOP.sentTo = m.lag - 1; COOP.log = []; COOP.desync = null; // 入力は消さない(全員が直接つなぐので、ほかの人の入力が「開始」より先に届くことがある)
   Object.assign(SIM_VIEW, { on: true, w: m.view.w, h: m.view.h });
   FIXED_STEP.on = true; FIXED_STEP.acc = 0;
   const cls0 = META.cls;
@@ -112,6 +139,7 @@ function coopBegin(m) {
     for (let i = 1; i < m.members.length; i++) addPlayer(m.members[i].cls, P.x + 30 * i, P.y + 12 * i);
   });
   for (let f = 0; f < m.lag; f++) COOP.inq.set(f, players.map(() => NO_INPUT)); // 始めの lag フレームは全員入力なし
+  for (const [f, row] of COOP.inq) if (row.length !== players.length) COOP.inq.delete(f); // 人数の違う並びで届いていた物は捨てる
   P = players[COOP.pid]; // 計算の外の P は自分
   cam.fx = P.x - GFX.VW / 2; cam.fy = P.y - GFX.VH / 2;
   COOP.on = true;

@@ -6,6 +6,8 @@
     "build": "node scripts/build.js"
   },
   "devDependencies": {
+    "@supabase/supabase-js": "2.118.0",
+    "@trystero-p2p/supabase": "0.26.0",
     "esbuild": "0.28.2"
   }
 }

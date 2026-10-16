@@ -1,6 +1,6 @@
 // coop-ui.js — 協力プレイの部屋の画面(タイトルの「協力プレイ」から。claudedocs/coop.md #10)
 //   部屋を作る(6文字のコード)/ コードで入る → 入った人のクラスを並べ、ホストが 2人以上そろったら「開始」(チャレンジタワー)
-//   公開ロビー・ネット越しは 6段(Trystero + Supabase)。今の通信は BroadcastChannel(同じブラウザのウィンドウどうし)
+//   通信は net.js の NET(Trystero の P2P。仲介は Supabase。?net=bc で同じブラウザのウィンドウどうし)。公開ロビーは 6段④
 //   相手から届いた物(クラス・人数)は net.js で確かめた物だけを、文字として出す(HTML として入れない)
 'use strict';
 const CoopUI = (() => {
@@ -13,12 +13,15 @@ const CoopUI = (() => {
     if (COOP.on) return;
     $('coop-code').placeholder = _t('コード');
     $('coop-cls').textContent = _t`自分のクラス: ${clsName(META.cls)}(クラス画面で変える)`;
+    const noRtc = NET.kind === 'p2p' && typeof RTCPeerConnection === 'undefined'; // WebRTC の無いブラウザ
+    $('coop-make').disabled = $('coop-enter').disabled = noRtc;
+    $('coop-cls').textContent += noRtc ? ' / ' + _t('このブラウザでは協力プレイができません(WebRTC がない)') : '';
     refresh();
     UI.only('coop-screen');
   }
   // 部屋の中(コード・入った人・開始 / 待ち)。入った・抜けた時に net.js からも呼ぶ
   function refresh() {
-    const box = $('coop-room'), inRoom = !!(COOP.room && NET.ch);
+    const box = $('coop-room'), inRoom = !!(COOP.room && NET.isOpen);
     $('coop-join-row').classList.toggle('hidden', inRoom);
     box.classList.toggle('hidden', !inRoom);
     box.textContent = '';
