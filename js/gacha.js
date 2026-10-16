@@ -48,7 +48,7 @@ const Gacha = (() => {
   // ---------- 画面 ----------
   function open() { state = 'gacha'; UI.only('gacha-screen'); render(); }
   function render() {
-    $('gc-gold').textContent = '● ' + META.gold.toLocaleString() + ' G';
+    UI.gold();
     const btn = (i, n) => {
       const b = gachaBlock(i, n), p = (DATA.gacha.tiers[i].price * n).toLocaleString();
       return `<button class="btn gc-pull${n > 1 ? ' ten' : ''}" data-t="${i}" data-n="${n}" ${b ? 'disabled' : ''}>${b === 'full' ? _t('インベントリが一杯') : n > 1 ? _t`${n}連 ● ${p}` : _t`1回 ● ${p}`}</button>`;

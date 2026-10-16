@@ -6,7 +6,12 @@ const UI = (() => {
   const el = (tag, cls, html) => { const e = document.createElement(tag); if (cls) e.className = cls; if (html !== undefined) e.innerHTML = html; return e; };
   const show = e => e.classList.remove('hidden'), hide = e => e.classList.add('hidden');
   const screens = ['title-screen', 'stage-screen', 'class-screen', 'tree-screen', 'gacha-screen', 'status-screen', 'equip-screen', 'choice-screen', 'chest-screen', 'pause-screen', 'settings-screen', 'result-screen', 'help-screen', 'coop-screen'];
-  const only = id => { screens.forEach(s => (s === id ? show : hide)($(s))); hideTip(); }; // 画面を替えたら説明の吹き出しを消す(スマホでは指を離しても残るため)
+  const only = id => { screens.forEach(s => (s === id ? show : hide)($(s))); hideTip(); gold(); }; // 画面を替えたら説明の吹き出しを消す(スマホでは指を離しても残るため)
+  // ラン外の画面の右上のゴールド(どの画面も同じ所)。ラン中(ポーズ画面から開いたガイド・設定)は出さない。買った・売った後にも呼ぶ
+  function gold() {
+    const run = !$('hud').classList.contains('hidden'), t = '● ' + META.gold.toLocaleString() + ' G';
+    for (const g of document.querySelectorAll('.screen > .gold-chip')) { g.textContent = t; g.classList.toggle('hidden', run); }
+  }
 
   // ---------- アイコン(スプライト → dataURL) ----------
   const iconCache = {};
@@ -759,10 +764,9 @@ const UI = (() => {
   TM.forEach((b, i) => b.addEventListener('pointerenter', () => tmSet(i)));
   tmSet(0);
   function title() {
-    only('title-screen');
     hide($('hud'));
+    only('title-screen');
     tmSet(tmSel);
-    $('title-gold').textContent = '● ' + META.gold.toLocaleString() + ' G';
     const nNew = META.inventory.filter(it => it.isNew).length;
     $('btn-equip').querySelector('.lbl').innerHTML = _t('装備') + (nNew ? ` <span class="nw-badge">NEW ${nNew}</span>` : '');
     const b = META.best, arena = b.arenaTime ? `ARENA ${fmtTime(b.arenaTime)}` : b.arenaRound ? `ARENA ROUND ${b.arenaRound}/${DATA.arena.rounds}` : '';
@@ -901,5 +905,5 @@ const UI = (() => {
     cwText = txt; cwEl.textContent = txt; cwEl.classList.toggle('hidden', !txt);
   }
 
-  return { announce, skillCut, enrage, banner, toast, hud, bossBar, enemyLvUp, openChest, levelUp, beginPlay: close, only, weaponIcon: k => icon('weapon', k), title, pause, closeSettings, result, onKey, show, hide, $ };
+  return { announce, skillCut, enrage, banner, toast, hud, bossBar, enemyLvUp, openChest, levelUp, beginPlay: close, only, gold, weaponIcon: k => icon('weapon', k), title, pause, closeSettings, result, onKey, show, hide, $ };
 })();

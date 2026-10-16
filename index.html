@@ -51,7 +51,7 @@
   <!-- タイトル: 真ん中にロゴとメニュー(縦に1列。↑↓ とマウスで選び、Enter で決める。ui.js)。右上にゴールド、左下に記録、右下にガイド・設定とキーの説明
        メニューの印は data-ic(art.js の uiIcon。ui.js が入れる)。字は .lbl の中だけを書き換える -->
   <div id="title-screen" class="screen">
-    <div id="title-gold" class="gold-chip"></div>
+    <div class="gold-chip"></div>
     <div class="title-wrap">
       <div class="logo"><span class="l1">PIXEL</span><span class="l2">SURVIVORS</span><span class="l3">— NOCTURNE —</span></div>
       <div id="title-menu" class="title-menu">
@@ -70,93 +70,112 @@
     </div>
   </div>
 
+  <!-- ラン外の画面の共通の形(.mscr。見本: claudedocs/img/tree.png・lobby.png。claudedocs/ui.md の「ラン外の画面の共通の形」)
+       左上に見出し(ms-head: 英字と日本語)、右上にゴールド(gold-chip。ui.js の only が数字を入れる)、真ん中に中身(ms-body)、下の真ん中に戻る(ms-foot。ESC の札はスマホでは出さない)
+       枠は ui-card(札)+ ui-frame(角の鉤の飾り)、見出しは札の h3(下に両端が菱形の線)。スクロールする物は枠の中の子に(枠の飾りが切れないように) -->
+
   <!-- 協力プレイ(ラン外。coop-ui.js)。見本: claudedocs/img/lobby.png
-       大きな枠の中に、見出しと自分のクラス(押すとクラス画面)/ 左: 部屋を作る(→ ステージ選択 → 部屋)・コードで参加 / 右: 公開の部屋の一覧 / 下: 知らせと説明。枠の外に戻る
+       大きな枠の中に、見出しと自分のクラス(押すとクラス画面)/ 左: 部屋を作る(→ ステージ選択 → 部屋)・コードで参加 / 右: 公開の部屋の一覧 / 下: 知らせと説明。枠の外の下の真ん中に戻る
        部屋の中では、左が部屋の札(coop-room)、右が入った人(coop-mems)。印は data-ic(ui.js が入れる) -->
-  <div id="coop-screen" class="screen hidden">
-    <div class="cp-panel cp-frame">
-      <div class="cp-head">
-        <span class="cp-hic" data-ic="party"></span>
-        <div class="cp-ttl"><h2>協力プレイ</h2><small>2〜4人で一緒に挑む</small></div>
-        <button id="coop-cls" class="cp-me cp-frame"></button>
-      </div>
-      <div class="cp-body">
-        <div class="cp-left">
-          <section id="cp-make-card" class="cp-card cp-frame gold">
-            <h3 data-ic="gate">部屋を作る</h3>
-            <p>ステージと公開範囲を選んで招待しよう</p>
-            <button id="coop-make" class="cp-btn gold cp-frame" data-ic="plus"><span class="lbl">部屋を作る</span></button>
-          </section>
-          <section id="cp-code-card" class="cp-card cp-frame cyan">
-            <h3 data-ic="link">コードで参加</h3>
-            <label for="coop-code">部屋のコード</label>
-            <input id="coop-code" maxlength="6" autocomplete="off" spellcheck="false" placeholder="コードを入力">
-            <button id="coop-enter" class="cp-btn cp-frame">参加する</button>
-          </section>
-          <section id="coop-room" class="cp-card cp-frame gold hidden"></section>
+  <div id="coop-screen" class="screen mscr hidden">
+    <div class="gold-chip"></div>
+    <div class="ms-body">
+      <div class="cp-panel ui-frame">
+        <div class="cp-head">
+          <span class="cp-hic" data-ic="party"></span>
+          <div class="cp-ttl"><h2>協力プレイ</h2><small>2〜4人で一緒に挑む</small></div>
+          <button id="coop-cls" class="cp-me ui-frame"></button>
         </div>
-        <section id="coop-pub" class="cp-card cp-frame cp-right"></section>
-        <section id="coop-mems" class="cp-card cp-frame cp-right hidden"></section>
+        <div class="cp-body">
+          <div class="cp-left">
+            <section id="cp-make-card" class="ui-card ui-frame gold">
+              <h3 data-ic="gate">部屋を作る</h3>
+              <p>ステージと公開範囲を選んで招待しよう</p>
+              <button id="coop-make" class="ui-btn gold ui-frame" data-ic="plus"><span class="lbl">部屋を作る</span></button>
+            </section>
+            <section id="cp-code-card" class="ui-card ui-frame cyan">
+              <h3 data-ic="link">コードで参加</h3>
+              <label for="coop-code">部屋のコード</label>
+              <input id="coop-code" maxlength="6" autocomplete="off" spellcheck="false" placeholder="コードを入力">
+              <button id="coop-enter" class="ui-btn ui-frame">参加する</button>
+            </section>
+            <section id="coop-room" class="ui-card ui-frame gold hidden"></section>
+          </div>
+          <section id="coop-pub" class="ui-card ui-frame cp-right"></section>
+          <section id="coop-mems" class="ui-card ui-frame cp-right hidden"></section>
+        </div>
+        <div id="coop-msg" class="cp-msg hidden"></div>
+        <div class="cp-info" data-ic="info">公開の部屋は誰でも入れる。コードの部屋はコードを知っている人だけが入れる</div>
       </div>
-      <div id="coop-msg" class="cp-msg hidden"></div>
-      <div class="cp-info" data-ic="info">公開の部屋は誰でも入れる。コードの部屋はコードを知っている人だけが入れる</div>
     </div>
-    <div class="cp-foot">
-      <button id="coop-back" class="cp-back cp-frame" data-ic="back"><span class="lbl">戻る</span></button><span class="cp-esc">ESC</span>
+    <div class="ms-foot cp-foot">
+      <button id="coop-back" class="ui-back ui-frame" data-ic="back"><span class="lbl">戻る</span><span class="ui-esc">ESC</span></button>
       <span class="cp-hint">つながるまで数秒かかることがあります</span>
     </div>
   </div>
 
   <!-- ステージ選択(ラン外)。協力プレイの部屋を作る時にも使う(協力プレイで遊べる物だけを並べ、公開かコードかを選ぶ st-coop を出す。meta-ui.js) -->
-  <div id="stage-screen" class="screen hidden">
-    <h2 class="scr-title">SELECT STAGE</h2>
-    <button id="st-class" class="st-class"></button>
-    <div id="st-coop" class="st-coop hidden">
-      <span class="st-coop-h">協力プレイの部屋</span>
-      <div id="st-pub" class="seg"><button data-v="1">公開の部屋</button><button data-v="0">コードの部屋</button></div>
-      <span id="st-pub-note" class="dim"></span>
+  <div id="stage-screen" class="screen mscr hidden">
+    <div class="ms-head"><h2 class="ms-ttl">SELECT STAGE</h2><span class="ms-sub">ステージ選択</span></div>
+    <div class="gold-chip"></div>
+    <div class="ms-body">
+      <div class="st-top">
+        <button id="st-class" class="st-class"></button>
+        <div id="st-coop" class="st-coop hidden">
+          <span class="st-coop-h">協力プレイの部屋</span>
+          <div id="st-pub" class="seg"><button data-v="1">公開の部屋</button><button data-v="0">コードの部屋</button></div>
+          <span id="st-pub-note" class="dim"></span>
+        </div>
+      </div>
+      <div class="ui-card ui-frame st-panel"><div id="stage-list"></div></div>
     </div>
-    <div id="stage-list"></div>
     <div id="chaos-panel" class="hidden"></div>
-    <div class="menu row"><button id="st-back" class="btn">戻る (ESC)</button></div>
+    <div class="ms-foot"><button id="st-back" class="ui-back ui-frame" data-ic="back"><span class="lbl">戻る</span><span class="ui-esc">ESC</span></button></div>
   </div>
 
   <!-- クラス画面(ラン外) -->
-  <div id="class-screen" class="screen hidden">
-    <h2 class="scr-title">CLASS</h2>
-    <div class="cl-wrap">
-      <div id="cl-list"></div>
-      <div id="cl-detail"></div>
-      <div id="cl-status" class="sv"></div>
+  <div id="class-screen" class="screen mscr hidden">
+    <div class="ms-head"><h2 class="ms-ttl">CLASS</h2><span class="ms-sub">クラス</span></div>
+    <div class="gold-chip"></div>
+    <div class="ms-body">
+      <div class="cl-wrap">
+        <div id="cl-list"></div>
+        <div id="cl-detail" class="ui-card ui-frame"></div>
+        <div id="cl-status" class="sv ui-card ui-frame"></div>
+      </div>
     </div>
-    <div class="menu row"><button id="cl-back" class="btn">戻る (ESC)</button></div>
+    <div class="ms-foot"><button id="cl-back" class="ui-back ui-frame" data-ic="back"><span class="lbl">戻る</span><span class="ui-esc">ESC</span></button></div>
   </div>
 
-  <!-- 永続強化ツリー(ラン外) -->
-  <div id="tree-screen" class="screen hidden">
-    <h2 class="scr-title">SKILL TREE</h2>
-    <div id="tr-gold" class="gold-chip"></div>
-    <div class="tr-wrap">
-      <div class="tr-view">
-        <svg id="tr-svg" viewBox="-378 -378 756 756"></svg>
-        <div class="tr-zoom"><button data-z="in" title="拡大">+</button><button data-z="out" title="縮小">−</button><button data-z="reset" title="元に戻す">⟲</button></div>
-        <div class="tr-zhint">ホイールで拡大 ・ ドラッグで移動</div>
-      </div>
-      <div class="tr-side">
-        <div id="tr-info"></div>
-        <div id="tr-sum"></div>
+  <!-- 永続強化ツリー(ラン外)。見本: claudedocs/img/tree.png。左の大きな枠にツリー(左上に拡大・縮小、左下に操作の説明)、右にノード詳細と取得済み効果 -->
+  <div id="tree-screen" class="screen mscr hidden">
+    <div class="ms-head"><h2 class="ms-ttl">SKILL TREE</h2><span class="ms-sub">強化ツリー</span></div>
+    <div class="gold-chip"></div>
+    <div class="ms-body">
+      <div class="tr-wrap">
+        <div class="tr-view ui-card ui-frame">
+          <svg id="tr-svg" viewBox="-378 -378 756 756"></svg>
+          <div class="tr-zoom"><button data-z="in" title="拡大">+</button><button data-z="out" title="縮小">−</button><button data-z="reset" title="元に戻す">⟲</button></div>
+          <div class="tr-zhint">ホイールで拡大 ・ ドラッグで移動</div>
+        </div>
+        <div class="tr-side">
+          <section class="ui-card ui-frame tr-infoc"><h3>ノード詳細</h3><div id="tr-info"></div></section>
+          <section class="ui-card ui-frame tr-sumc"><h3>取得済み効果<span id="tr-cnt" class="ui-cnt"></span></h3><div id="tr-sum"></div></section>
+        </div>
       </div>
     </div>
-    <div class="menu row"><button id="tr-back" class="btn">戻る (ESC)</button></div>
+    <div class="ms-foot"><button id="tr-back" class="ui-back ui-frame" data-ic="back"><span class="lbl">戻る</span><span class="ui-esc">ESC</span></button></div>
   </div>
 
   <!-- ガチャ(ラン外)。gc-show は引いたときの演出(画面いっぱいに重ねる。canvas は後ろ(光の筋・玉・輪)と前(粒・稲妻)の2枚。gc-slot は 1回のカード、gc-grid は 10連のカード) -->
-  <div id="gacha-screen" class="screen hidden">
-    <h2 class="scr-title">GACHA</h2>
-    <div id="gc-gold" class="gold-chip"></div>
-    <div id="gc-list"></div>
-    <div id="gc-rates"></div>
-    <div class="menu row"><button id="gc-back" class="btn">戻る (ESC)</button></div>
+  <div id="gacha-screen" class="screen mscr hidden">
+    <div class="ms-head"><h2 class="ms-ttl">GACHA</h2><span class="ms-sub">ガチャ</span></div>
+    <div class="gold-chip"></div>
+    <div class="ms-body">
+      <div id="gc-list"></div>
+      <div id="gc-rates" class="ui-card ui-frame"></div>
+    </div>
+    <div class="ms-foot"><button id="gc-back" class="ui-back ui-frame" data-ic="back"><span class="lbl">戻る</span><span class="ui-esc">ESC</span></button></div>
     <div id="gc-show" class="hidden">
       <canvas id="gc-cv0"></canvas>
       <div id="gc-label"></div>
@@ -169,20 +188,23 @@
     </div>
   </div>
 
-  <!-- 装備画面(ラン外) -->
-  <div id="equip-screen" class="screen hidden">
-    <h2 class="scr-title">EQUIPMENT</h2>
-    <div id="eq-gold" class="gold-chip"></div>
-    <div class="eq-wrap">
-      <div id="eq-slots"></div>
-      <div class="eq-mid">
-        <div class="eq-bar"><div id="eq-tabs" class="seg"><button data-f="all">全部</button><button data-f="weapon">武器</button><button data-f="armor">防具</button><button data-f="ring">指輪</button></div><span id="eq-count" class="dim"></span></div>
-        <div id="eq-list"></div>
+  <!-- 装備画面(ラン外)。左から 装備中の3枠 / 持っている装備(下に一括売却)/ 選んだ装備の詳細 / ステータス -->
+  <div id="equip-screen" class="screen mscr hidden">
+    <div class="ms-head"><h2 class="ms-ttl">EQUIPMENT</h2><span class="ms-sub">装備</span></div>
+    <div class="gold-chip"></div>
+    <div class="ms-body">
+      <div class="eq-wrap">
+        <div id="eq-slots"></div>
+        <div class="eq-mid ui-card ui-frame">
+          <div class="eq-bar"><div id="eq-tabs" class="seg"><button data-f="all">全部</button><button data-f="weapon">武器</button><button data-f="armor">防具</button><button data-f="ring">指輪</button></div><span id="eq-count" class="dim"></span></div>
+          <div id="eq-list"></div>
+          <button id="eq-sellall" class="btn ghost"></button>
+        </div>
+        <div class="eq-detc ui-card ui-frame"><div id="eq-detail"></div></div>
+        <div id="eq-status" class="sv ui-card ui-frame"></div>
       </div>
-      <div id="eq-detail"></div>
-      <div id="eq-status" class="sv"></div>
     </div>
-    <div class="menu row"><button id="eq-sellall" class="btn ghost"></button><button id="eq-back" class="btn">戻る (ESC)</button></div>
+    <div class="ms-foot"><button id="eq-back" class="ui-back ui-frame" data-ic="back"><span class="lbl">戻る</span><span class="ui-esc">ESC</span></button></div>
   </div>
 
   <div id="choice-screen" class="screen hidden">
@@ -223,19 +245,24 @@
   </div>
 
   <!-- ガイド(操作・遊び方・用語の辞典)。タイトルとポーズ画面から -->
-  <div id="help-screen" class="screen hidden">
-    <h2 class="scr-title">GUIDE</h2>
-    <div class="hp-wrap">
-      <div class="hp-side"><input id="hp-q" type="search" placeholder="用語を検索" autocomplete="off"><div id="hp-cats"></div></div>
-      <div id="hp-body"></div>
+  <div id="help-screen" class="screen mscr hidden">
+    <div class="ms-head"><h2 class="ms-ttl">GUIDE</h2><span class="ms-sub">ガイド</span></div>
+    <div class="gold-chip"></div>
+    <div class="ms-body">
+      <div class="hp-wrap">
+        <div class="hp-side"><input id="hp-q" type="search" placeholder="用語を検索" autocomplete="off"><div id="hp-cats"></div></div>
+        <div class="hp-main ui-card ui-frame"><div id="hp-body"></div></div>
+      </div>
     </div>
-    <div class="menu row"><button id="hp-back" class="btn">戻る (ESC)</button></div>
+    <div class="ms-foot"><button id="hp-back" class="ui-back ui-frame" data-ic="back"><span class="lbl">戻る</span><span class="ui-esc">ESC</span></button></div>
   </div>
 
-  <div id="settings-screen" class="screen hidden">
-    <h2 class="scr-title">設定</h2>
-    <div id="settings-slot">
-      <div id="settings-panel">
+  <!-- 設定(タイトルとポーズ画面から。ポーズ画面からの時はゴールドを出さない) -->
+  <div id="settings-screen" class="screen mscr hidden">
+    <div class="ms-head"><h2 class="ms-ttl">SETTINGS</h2><span class="ms-sub">設定</span></div>
+    <div class="gold-chip"></div>
+    <div class="ms-body">
+      <div id="settings-panel" class="ui-card ui-frame">
         <!-- 言語: プルダウン。選択肢はそれぞれの言語の名前のまま(translate="no"。ui.js が LANGS から作る) -->
         <div class="vol" data-tip="set:lang"><label>🌐 言語</label>
           <select id="set-lang" translate="no"></select></div>
@@ -250,7 +277,7 @@
         <div class="vol" data-tip="set:hints"><label>初見の説明</label><div class="seg" id="set-hints"><button data-v="1">ON</button><button data-v="0">OFF</button></div></div>
       </div>
     </div>
-    <div class="menu"><button id="btn-set-back" class="btn">戻る (ESC)</button></div>
+    <div class="ms-foot"><button id="btn-set-back" class="ui-back ui-frame" data-ic="back"><span class="lbl">戻る</span><span class="ui-esc">ESC</span></button></div>
   </div>
 
   <div id="result-screen" class="screen hidden">

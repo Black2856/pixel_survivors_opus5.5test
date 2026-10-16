@@ -12,7 +12,7 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: var(--ink)
 button { font: inherit; color: inherit; cursor: pointer; border: 0; background: none; }
 
 /* ---------- ドット枠 ---------- */
-.pframe, .btn, .card, #tooltip, .slot, .gold-chip {
+.pframe, .btn, .card, #tooltip, .slot {
   background: var(--panel);
   box-shadow:
     0 calc(var(--px) * -1) 0 0 var(--ink), 0 var(--px) 0 0 var(--ink), calc(var(--px) * -1) 0 0 0 var(--ink), var(--px) 0 0 0 var(--ink),
@@ -150,7 +150,6 @@ button { font: inherit; color: inherit; cursor: pointer; border: 0; background: 
 .btn.big { font-size: 18px; padding: 16px 30px; --line: var(--gold); color: var(--gold); animation: pulse 1.2s ease-in-out infinite; }
 .btn.ghost { background: transparent; --line: #3a2e5e; color: var(--dim); }
 @keyframes pulse { 50% { filter: drop-shadow(0 0 8px var(--gold)); } }
-.gold-chip { padding: 8px 16px; font: 12px 'Press Start 2P'; color: var(--gold); }
 
 /* ---------- タイトル ---------- */
 #title-screen, #stage-screen, #coop-screen, #class-screen, #tree-screen, #gacha-screen, #equip-screen, #status-screen, #help-screen, #settings-screen, #pause-screen, #result-screen { overflow-y: auto; justify-content: safe center; } /* UI サイズを大きくして画面に収まらないときはスクロール */
@@ -190,7 +189,6 @@ button { font: inherit; color: inherit; cursor: pointer; border: 0; background: 
 @keyframes tmCur { 50% { transform: translateX(4px); } }
 .tm .nw-badge { margin-left: 14px; padding: 3px 6px; font-size: 10px; letter-spacing: 1px; text-shadow: none; }
 /* 角: ゴールド(右上)・記録(左下。上に両端が菱形の線)・ガイドと設定とキーの説明(右下) */
-#title-gold { position: absolute; top: 16px; right: 20px; --line: #8a6a1a; }
 .title-rec { position: absolute; left: 22px; bottom: 16px; padding-top: 14px;
   background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 5 5' shape-rendering='crispEdges'%3E%3Cpath fill='%237a6eb0' d='M2 0h1v1H2zM1 1h1v1H1zM3 1h1v1H3zM0 2h1v1H0zM4 2h1v1H4zM1 3h1v1H1zM3 3h1v1H3zM2 4h1v1H2z'/%3E%3C/svg%3E") left top / 10px 10px no-repeat,
     url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 5 5' shape-rendering='crispEdges'%3E%3Cpath fill='%237a6eb0' d='M2 0h1v1H2zM1 1h1v1H1zM3 1h1v1H3zM0 2h1v1H0zM4 2h1v1H4zM1 3h1v1H1zM3 3h1v1H3zM2 4h1v1H2z'/%3E%3C/svg%3E") right top / 10px 10px no-repeat,
@@ -315,7 +313,7 @@ button { font: inherit; color: inherit; cursor: pointer; border: 0; background: 
 .vol label { width: 70px; text-align: right; }
 input[type=range] { width: 220px; accent-color: var(--gold); }
 .vol label { white-space: nowrap; width: 96px; }
-#settings-panel { display: flex; flex-direction: column; align-items: center; gap: 12px; }
+#settings-panel { display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 18px 30px 20px; }
 .seg { display: flex; gap: 6px; width: 220px; }
 .sv .seg { width: auto; }
 .seg button { flex: 1; padding: 6px 0; background: var(--panel); box-shadow: inset 0 0 0 2px var(--line); color: var(--dim); }
@@ -373,14 +371,16 @@ input[type=range] { width: 220px; accent-color: var(--gold); }
 .card .opt em { color: var(--green); font-style: normal; font-size: 11px; }
 
 /* ---------- 装備画面 ---------- */
-.eq-wrap { display: grid; grid-template-columns: 200px minmax(240px, 430px) 325px minmax(300px, 1fr); gap: 14px; width: min(1440px, calc(98vw / var(--ui))); height: min(520px, calc(62vh / var(--ui))); }
+.eq-wrap { display: grid; grid-template-columns: 200px minmax(240px, 450px) 325px minmax(300px, 1fr); gap: 16px; width: min(1440px, calc(96vw / var(--ui))); height: min(600px, calc(100vh / var(--ui) - 170px)); }
 #eq-slots { display: flex; flex-direction: column; gap: 10px; }
 .eq-slot { position: relative; display: flex; align-items: center; gap: 10px; padding: 10px; min-height: 76px; text-align: left; background: var(--panel); box-shadow: inset 0 0 0 3px var(--rc); }
 .eq-slot.sel { outline: 3px solid var(--gold); }
 .eq-slot .lbl { position: absolute; top: 2px; left: 8px; font-size: 11px; color: var(--dim); }
 .eq-slot .big, .eq-head .big { width: 44px; image-rendering: pixelated; }
 .eq-slot .nm { font-size: 14px; color: var(--rc); margin-top: 8px; }
-.eq-mid { display: flex; flex-direction: column; gap: 8px; min-height: 0; }
+.eq-mid { display: flex; flex-direction: column; gap: 8px; min-height: 0; padding: 10px 10px 12px; }
+#eq-sellall { width: 100%; padding: 7px 6px; font-size: 14px; letter-spacing: 1px; }
+.eq-detc { display: flex; flex-direction: column; min-height: 0; padding: 0; }
 .eq-bar { display: flex; align-items: center; justify-content: space-between; }
 #eq-list { flex: 1; overflow-y: auto; scrollbar-gutter: stable; display: grid; grid-template-columns: repeat(auto-fill, 52px); gap: 8px; align-content: start; padding: 4px; background: rgba(12,9,19,.5); } /* スクロールバーの幅(10px)はいつもあけておく(出たときに列が1つ減らないように。枠の最大 430px = 7列 + スクロールバー) */
 .eq-item { position: relative; width: 52px; height: 52px; display: grid; place-items: center; background: var(--panel); box-shadow: inset 0 0 0 3px var(--rc); }
@@ -391,7 +391,7 @@ input[type=range] { width: 220px; accent-color: var(--gold); }
 .eq-item .nw { position: absolute; left: -4px; bottom: -5px; font: 7px 'Press Start 2P'; color: var(--ink); background: var(--gold); padding: 1px 2px; animation: flick .6s steps(2) infinite; }
 .eq-item .en { position: absolute; right: 2px; bottom: 1px; font: 8px 'Press Start 2P'; color: var(--cyan); text-shadow: 1px 1px 0 var(--ink); }
 .eq-empty { grid-column: 1 / -1; padding: 20px; text-align: center; }
-#eq-detail { padding: 14px; background: var(--panel); box-shadow: inset 0 0 0 3px var(--line); display: flex; flex-direction: column; gap: 8px; overflow-y: auto; }
+#eq-detail { flex: 1; min-height: 0; padding: 14px; display: flex; flex-direction: column; gap: 8px; overflow-y: auto; }
 .eq-head { display: flex; gap: 10px; align-items: center; }
 .eq-head .rar { font-size: 12px; color: var(--rc); }
 .eq-head .nm { font-size: 18px; color: var(--rc); }
@@ -403,7 +403,7 @@ input[type=range] { width: 220px; accent-color: var(--gold); }
 .eq-note { font-size: 11px; }
 .eq-enh { font-size: 12px; color: var(--dim); }
 .eq-btns { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: auto; }
-.eq-btns .btn { min-width: 0; padding: 10px 6px; font-size: 10px; }
+.mscr .eq-btns .btn { padding: 8px 6px; font-size: 14px; letter-spacing: 1px; }
 .btn:disabled { opacity: .4; cursor: default; }
 .btn.warn { --line: var(--red); color: var(--red); }
 :where(.vn820) .eq-wrap { grid-template-columns: 1fr; height: auto; max-height: calc(70vh / var(--ui)); overflow-y: auto; } :where(.vn820) #eq-slots { flex-direction: row; }
@@ -433,9 +433,9 @@ input[type=range] { width: 220px; accent-color: var(--gold); }
 .st .gl { position: relative; font: calc(var(--px) * 7) 'DotGothic16'; color: var(--sc); text-shadow: 0 0 calc(var(--px) * 2) var(--sc); line-height: 1; }
 
 /* ---------- ステージ選択 ---------- */
-#stage-screen { padding: 26px 0 14px; } /* 画面が低いと見出しが上で切れるので、上下をあけてリストの枠を縮ませる */
-#coop-screen { padding: 10px 0 8px; } /* 低い窓ではスクロール(枠の飾りが端で切れないように少しあける) */
-#stage-list { display: flex; flex-direction: column; gap: 6px; width: min(900px, calc(94vw / var(--ui))); max-height: calc(60vh / var(--ui)); min-height: 0; overflow-y: auto; padding: 2px 8px 2px 2px; } /* 1列で、枠の中をスクロール(エスカレーション・闘技場・ステージを tier の順に)。枠の高さはカード 10枚ぶん(meta-ui.js が並べてから測って決める。60vh は測る前の値) */
+.st-top { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 12px; }
+.st-panel { padding: 8px 6px 8px 8px; }
+#stage-list { display: flex; flex-direction: column; gap: 6px; width: min(900px, calc(92vw / var(--ui))); max-height: min(var(--lh, 100vh), max(240px, calc(100vh / var(--ui) - 236px))); min-height: 0; overflow-y: auto; padding: 2px 8px 2px 2px; } /* 1列で、枠の中をスクロール(エスカレーション・闘技場・ステージを tier の順に)。枠の高さはカード 10枚ぶん(meta-ui.js が並べてから測って --lh に入れる)まで */
 /* カード: 左に tier の札、名前と説明の2行、右にカオス強化。背景はステージの床の絵(--art。2倍のドット)に、左を暗くする影を重ねて文字を読めるように */
 .stg { --art: none; position: relative; overflow: hidden; flex: 0 0 auto; display: grid; grid-template-columns: 44px 1fr auto; grid-template-rows: 1fr 1fr; column-gap: 12px; align-items: center; min-height: 58px; padding: 5px 12px 5px 8px; text-align: left; image-rendering: pixelated;
   background: linear-gradient(90deg, rgba(12,9,19,.95) 0, rgba(12,9,19,.84) 36%, rgba(12,9,19,.3) 66%, rgba(12,9,19,.62)), var(--art) left center / auto 96px repeat-x, var(--panel);
@@ -484,7 +484,7 @@ html[lang="en"] .stg .sub { grid-template-columns: 10em 11em auto; }
 @keyframes stDeny { 25% { transform: translateX(-4px); } 75% { transform: translateX(4px); } }
 
 /* ---------- クラス画面 ---------- */
-.cl-wrap { display: grid; grid-template-columns: 240px 1fr 380px; gap: 16px; width: min(1300px, calc(98vw / var(--ui))); height: min(560px, calc(66vh / var(--ui))); }
+.cl-wrap { display: grid; grid-template-columns: 240px 1fr 380px; gap: 16px; width: min(1300px, calc(96vw / var(--ui))); height: min(600px, calc(100vh / var(--ui) - 170px)); }
 #cl-list { display: flex; flex-direction: column; gap: 10px; min-height: 0; overflow-y: auto; padding-right: 4px; } /* クラスが増えたら枠の中でスクロール */
 .cl-card { position: relative; overflow: hidden; display: grid; grid-template-columns: 64px 1fr; grid-template-rows: auto auto; column-gap: 10px; align-items: center; padding: 10px; text-align: left; background: var(--panel); box-shadow: inset 4px 0 0 0 var(--cc), inset 0 0 0 2px #3a3060; }
 .cl-card.sel { box-shadow: inset 4px 0 0 0 var(--cc), inset 0 0 0 3px var(--cc); }
@@ -498,7 +498,7 @@ html[lang="en"] .stg .sub { grid-template-columns: 10em 11em auto; }
 .cl-card .lv { font: 10px 'Press Start 2P'; color: var(--txt); }
 .cl-card { flex: none; }
 .cl-card .use { position: absolute; right: 8px; bottom: 6px; font-size: 11px; color: var(--gold); } /* 右下(長いクラス名と重ならないように) */
-#cl-detail { padding: 14px 16px; background: var(--panel); box-shadow: inset 0 0 0 3px var(--line); display: flex; flex-direction: column; gap: 8px; min-height: 0; }
+#cl-detail { padding: 14px 16px; display: flex; flex-direction: column; gap: 8px; min-height: 0; }
 .cl-head { display: flex; align-items: baseline; gap: 14px; }
 .cl-head .nm { font-size: 22px; color: var(--cc); }
 .cl-head .lv { font: 14px 'Press Start 2P'; color: var(--gold); }
@@ -549,17 +549,18 @@ html[lang="en"] .stg .sub { grid-template-columns: 10em 11em auto; }
 .st-class small { color: var(--gold); font-size: 11px; }
 :where(.vn820) .cl-wrap { grid-template-columns: 1fr; height: auto; max-height: calc(72vh / var(--ui)); overflow-y: auto; } :where(.vn820) #cl-list { flex-direction: row; }
 
-/* ---------- 永続強化ツリー ---------- */
-.tr-wrap { display: grid; grid-template-columns: auto 300px; gap: 14px; align-items: stretch; }
-.tr-view { position: relative; overflow: hidden; }
-/* 大きさは画面に対して決め、UI サイズ(zoom)で割って拡大後も画面に収める */
-#tr-svg { --trs: calc(min(64vh, 54vw) / var(--ui)); width: var(--trs); height: var(--trs); background: radial-gradient(circle, rgba(106,76,255,.12), transparent 70%); }
+/* ---------- 永続強化ツリー(見本 claudedocs/img/tree.png) ---------- */
+/* 左の大きな枠にツリー(左上に拡大・縮小、左下に操作の説明)、右にノード詳細と取得済み効果(中をスクロール)
+   ツリーの大きさ(--trs)は画面に対して決め、UI サイズ(zoom)で割って、拡大しても見出し・戻るに重ならないように */
+.tr-wrap { --trs: min(calc(100vh / var(--ui) - 190px), calc(54vw / var(--ui))); display: grid; grid-template-columns: minmax(calc(var(--trs) + 20px), 1fr) 340px; gap: 16px; width: min(1240px, calc(96vw / var(--ui))); height: calc(var(--trs) + 20px); }
+.tr-view { display: grid; place-items: center; min-width: 0; padding: 8px; }
+#tr-svg { width: var(--trs); height: var(--trs); background: radial-gradient(circle, rgba(106,76,255,.12), transparent 70%); }
 #tr-svg { display: block; cursor: grab; touch-action: none; }
 #tr-svg.drag { cursor: grabbing; }
-.tr-zoom { position: absolute; left: 6px; top: 6px; display: flex; flex-direction: column; gap: 4px; }
-.tr-zoom button { width: 28px; height: 28px; padding: 0; font-size: 16px; line-height: 1; color: var(--txt); background: rgba(18,13,34,.85); box-shadow: inset 0 0 0 2px #3a3060; }
-@media (hover: hover) { .tr-zoom button:hover { box-shadow: inset 0 0 0 2px var(--gold); color: var(--gold); } }
-.tr-zhint { position: absolute; left: 6px; bottom: 4px; font-size: 11px; color: var(--dim); pointer-events: none; }
+.tr-zoom { position: absolute; left: 14px; top: 14px; display: flex; flex-direction: column; gap: 8px; }
+.tr-zoom button { width: 38px; height: 38px; padding: 0; font-size: 22px; line-height: 1; color: var(--txt); background: rgba(14,12,34,.9); box-shadow: inset 0 0 0 2px #5b4ca6, 0 0 0 2px var(--ink); }
+@media (hover: hover) { .tr-zoom button:hover { box-shadow: inset 0 0 0 2px var(--gold), 0 0 0 2px var(--ink); color: var(--gold); } }
+.tr-zhint { position: absolute; left: 16px; bottom: 10px; font-size: 13px; color: var(--dim); text-shadow: 2px 2px 0 var(--ink); pointer-events: none; }
 #tr-svg .ring { fill: none; stroke: rgba(255,255,255,.05); stroke-width: 1; }
 #tr-svg line { stroke: #3a3060; stroke-width: 2; }
 #tr-svg line.half { stroke: color-mix(in srgb, var(--dc) 45%, #3a3060); }
@@ -579,15 +580,22 @@ html[lang="en"] .stg .sub { grid-template-columns: 10em 11em auto; }
 #tr-svg .nd.sel .sh { stroke: #fff; stroke-width: 3; }
 @media (hover: hover) { #tr-svg .nd:hover .sh { stroke: #fff; } }
 @keyframes trPulse { 50% { filter: drop-shadow(0 0 4px var(--dc)); } }
-.tr-side { display: flex; flex-direction: column; gap: 12px; min-height: 0; }
-#tr-info { padding: 12px; background: var(--panel); box-shadow: inset 0 0 0 3px var(--line); display: flex; flex-direction: column; gap: 6px; min-height: 120px; font-size: 13px; }
+.tr-side { display: flex; flex-direction: column; gap: 16px; min-height: 0; }
+/* ノード詳細: 選んでいない時(empty)は真ん中に菱形の印・「ノードを選択」・説明 */
+.tr-infoc { flex: none; display: flex; flex-direction: column; }
+#tr-info { display: flex; flex-direction: column; gap: 6px; min-height: 150px; font-size: 13px; }
+#tr-info.empty { align-items: center; justify-content: center; gap: 6px; padding: 0 6px; text-align: center; line-height: 1.6; }
+#tr-info.empty .pxi { width: 40px; height: 40px; color: #8f80e0; filter: drop-shadow(0 0 6px rgba(143,128,224,.45)); }
+#tr-info.empty b { font-size: 18px; font-weight: normal; letter-spacing: 1px; color: var(--txt); text-shadow: 2px 2px 0 var(--ink); }
 .tr-nm { font-size: 17px; }
 .tr-buy { margin-top: auto; }
-#tr-sum { flex: 1 1 0; min-height: 0; overflow-y: auto; padding: 12px; background: rgba(12,9,19,.6); font-size: 12px; display: flex; flex-direction: column; gap: 3px; }
-.tr-h { color: var(--gold); margin-bottom: 4px; }
-.tr-s { display: flex; justify-content: space-between; }
+/* 取得済み効果: 1行ずつ(1行おきに少し明るく)。見出しの右に 取得した数 / 全部 */
+.tr-sumc { flex: 1 1 0; min-height: 0; display: flex; flex-direction: column; }
+#tr-sum { flex: 1 1 0; min-height: 0; overflow-y: auto; font-size: 14px; display: flex; flex-direction: column; }
+.tr-s { display: flex; justify-content: space-between; padding: 3px 10px; }
+.tr-s:nth-child(odd) { background: rgba(255,255,255,.045); }
 .tr-s b { color: var(--gold); font-weight: normal; }
-:where(.vn820) .tr-wrap { grid-template-columns: 1fr; } :where(.vn820) #tr-svg { width: calc(92vw / var(--ui)); height: calc(92vw / var(--ui)); }
+:where(.vn820) .tr-wrap { grid-template-columns: 1fr; height: auto; } :where(.vn820) #tr-svg { width: calc(88vw / var(--ui)); height: calc(88vw / var(--ui)); } :where(.vn820) .tr-sumc { flex: none; max-height: 320px; }
 
 /* ---------- ガチャ ---------- */
 /* 3台(一般・高級・最高級): ガチャの色の枠、後ろで回る光、ドットの玉(乗せると揺れる) */
@@ -604,7 +612,7 @@ html[lang="en"] .stg .sub { grid-template-columns: 10em 11em auto; }
 .gc-cap { font-size: 11px; color: var(--dim); text-align: center; line-height: 1.6; }
 .gc-pull { min-width: 0; width: 100%; margin-top: 4px; }
 .gc-pull.ten { --line: var(--gc); color: var(--gc); margin-top: 0; } /* 10連 */
-#gc-rates { display: flex; flex-wrap: wrap; justify-content: center; gap: 4px 16px; max-width: min(760px, calc(94vw / var(--ui))); padding: 8px 14px; font-size: 13px; background: rgba(12,9,19,.6); box-shadow: inset 0 0 0 2px #3a3060; }
+#gc-rates { display: flex; flex-wrap: wrap; justify-content: center; gap: 4px 16px; max-width: min(760px, calc(94vw / var(--ui))); padding: 8px 14px; font-size: 13px; }
 #gc-rates b { font-weight: normal; color: var(--txt); }
 #gc-rates .note { flex-basis: 100%; text-align: center; font-size: 11px; color: var(--dim); }
 :where(.vn820) #gc-list { grid-template-columns: 1fr; }
@@ -651,6 +659,7 @@ html[lang="en"] .stg .sub { grid-template-columns: 10em 11em auto; }
 #gc-card.gc-in { animation: gcCardIn .6s cubic-bezier(.34,1.56,.64,1) backwards; } /* 裏返って出る */
 @keyframes gcCardIn { 0% { transform: rotateY(90deg) scale(.4); filter: brightness(4); } 60% { filter: brightness(1.6); } 100% { transform: none; } }
 #gc-btns { display: flex; gap: 14px; }
+#gc-btns .btn { min-width: 150px; }
 #gc-btns.off { visibility: hidden; }
 #gc-hint { min-height: 1.2em; }
 /* レアリティの文字(上がるほど光る。レジェンダリーは虹、ミシックは赤く脈打つ) */
@@ -709,7 +718,7 @@ html[lang="en"] .stg .sub { grid-template-columns: 10em 11em auto; }
 .sv-it { padding: 0 4px; }
 .sv-uq { color: #ffb347; font-size: 11px; padding: 0 4px; }
 .sv-break { min-height: 80px; max-height: 30%; overflow-y: auto; padding: 6px; background: rgba(12,9,19,.6); }
-:where(.vn1140) .eq-wrap, :where(.vn1140) .cl-wrap { grid-template-columns: 1fr; height: auto; max-height: calc(72vh / var(--ui)); overflow-y: auto; } :where(.vn1140) .sv { max-height: calc(60vh / var(--ui)); }
+:where(.vn1140) .eq-wrap, :where(.vn1140) .cl-wrap { grid-template-columns: 1fr; height: auto; max-height: calc(100vh / var(--ui) - 170px); overflow-y: auto; padding: 4px; } :where(.vn1140) .sv { max-height: calc(60vh / var(--ui)); }
 
 /* ステータス画面: スキルの詳細 */
 .sv-sk { padding: 0 2px 2px; cursor: pointer; }
@@ -769,15 +778,16 @@ html[lang="en"] .stg .sub { grid-template-columns: 10em 11em auto; }
 .cz-note { font-size: 10px; }
 
 /* ---------- ガイド(操作・遊び方・用語の辞典) ---------- */
-.hp-wrap { display: grid; grid-template-columns: 180px 1fr; gap: 14px; width: min(860px, calc(96vw / var(--ui))); height: min(560px, calc(66vh / var(--ui))); }
+.hp-wrap { display: grid; grid-template-columns: 190px 1fr; gap: 16px; width: min(960px, calc(96vw / var(--ui))); height: min(600px, calc(100vh / var(--ui) - 170px)); }
+.hp-main { display: flex; flex-direction: column; min-height: 0; padding: 0; }
 .hp-side { display: flex; flex-direction: column; gap: 8px; min-height: 0; }
 #hp-q { width: 100%; padding: 6px 8px; font: 14px 'DotGothic16', sans-serif; color: var(--txt); background: var(--ink); border: 0; box-shadow: inset 0 0 0 2px var(--line); outline: none; }
 #hp-q:focus { box-shadow: inset 0 0 0 2px var(--gold); }
 #hp-cats { display: flex; flex-direction: column; gap: 4px; overflow-y: auto; }
 #hp-cats button { padding: 6px 10px; text-align: left; font: 14px 'DotGothic16', sans-serif; color: var(--dim); background: var(--panel); box-shadow: inset 0 0 0 2px var(--panel2); cursor: pointer; }
 @media (hover: hover) { #hp-cats button:hover { color: var(--txt); } }
-#hp-cats button.on { color: var(--ink); background: var(--gold); box-shadow: none; }
-#hp-body { overflow-y: auto; padding: 12px 14px; background: var(--panel); box-shadow: inset 0 0 0 3px var(--line); display: flex; flex-direction: column; gap: 10px; font-size: 14px; line-height: 1.6; }
+#hp-cats button.on { color: var(--gold); background: linear-gradient(90deg, rgba(255,210,63,.2), rgba(255,210,63,.04)); box-shadow: inset 3px 0 0 0 var(--gold), inset 0 0 0 2px #8a6a1a; } /* 選んでいる分類: タイトルのメニューと同じ金のグラデーション */
+#hp-body { flex: 1; min-height: 0; overflow-y: auto; padding: 14px 18px; display: flex; flex-direction: column; gap: 10px; font-size: 14px; line-height: 1.6; }
 .hp-ent b { display: block; color: var(--gold); font-weight: normal; font-size: 15px; }
 .hp-ent div { color: var(--txt); }
 .hp-key { display: grid; grid-template-columns: 130px 1fr; gap: 10px; align-items: baseline; }
@@ -822,8 +832,11 @@ html.touch .title-keys { display: none; } /* キーの説明(指の操作はガ�
 html.touch .logo .l1 { font-size: clamp(24px, calc(min(7vw, 9vh) / var(--ui)), 76px); } html.touch .logo .l2 { font-size: clamp(20px, calc(min(6vw, 7.5vh) / var(--ui)), 64px); }
 html.touch #choice-screen { overflow-y: auto; justify-content: safe center; } /* レベルアップ: 小さいスマホ(667×375)では入りきらない */
 /* 横向きのスマホは高さが足りないので、強化ツリー・ガチャは縦に積まない(幅 760 まで。狭い窓の組み方は PC の縦長の窓のためのもの) */
-html.touch:not(.vn760) .tr-wrap { grid-template-columns: auto 300px; }
+html.touch .tr-wrap { --trs: min(calc(100vh / var(--ui) - 150px), calc(54vw / var(--ui))); }
+html.touch:not(.vn760) .tr-wrap { grid-template-columns: minmax(calc(var(--trs) + 20px), 1fr) 300px; height: calc(var(--trs) + 20px); }
 html.touch:not(.vn760) #tr-svg { width: var(--trs); height: var(--trs); }
+html.touch:not(.vn760) .tr-sumc { flex: 1 1 0; max-height: none; }
+html.touch .tr-zoom { left: 10px; top: 10px; gap: 6px; } html.touch .tr-zoom button { width: 30px; height: 30px; font-size: 18px; }
 html.touch:not(.vn760) #gc-list { grid-template-columns: repeat(3, 230px); }
 /* ボタン: 窓の大きさに関係なく指の大きさ(設定の UIサイズの倍率 --um だけ掛ける)。HUD が出ている間だけ。メニュー画面(後ろに並ぶ .screen)の下になる */
 #touch-ctl { display: none; position: absolute; inset: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left); pointer-events: none; }
@@ -855,23 +868,81 @@ html.touch #hud:not(.hidden) ~ #touch-ctl { display: block; }
 #coop-pick .cp-btns { display: flex; gap: 10px; }
 #coop-pick.sent .card, #coop-pick.sent .btn { opacity: .45; pointer-events: none; }
 #coop-wait { position: absolute; left: 50%; top: 92px; transform: translateX(-50%); color: var(--txt); font-size: 13px; text-shadow: 0 1px 2px #000; white-space: nowrap; }
-/* 協力プレイの画面(coop-ui.js。見本 claudedocs/img/lobby.png): 大きな枠の中に見出しと自分のクラス、左に部屋を作る・コードで参加、右に公開の部屋の一覧、下に説明。枠の外に戻る
-   部屋の中では左が部屋の札、右が入った人。枠・札の色は --ac(角の飾り・見出しの下の線・印) */
-#coop-screen { gap: 10px; }
-.cp-frame { position: relative; --ac: #8f80e0; }
-.cp-frame::before { content: ''; position: absolute; inset: -4px; pointer-events: none; /* 角の鉤(かぎ)の飾り */
+/* ---------- ラン外の画面の共通の形(.mscr。見本 claudedocs/img/tree.png・lobby.png。claudedocs/ui.md の「ラン外の画面の共通の形」) ----------
+   左上に見出し(英字と日本語)、右上にゴールド(タイトルと同じ所)、真ん中に中身(ms-body。上の帯と下の戻るの間の真ん中)、下の真ん中に戻る(中に ESC の札)
+   見出しとゴールドは画面の角に置き(中身と一緒にスクロールする)、画面の上はその分あける。UI の大きさの zoom は .screen の子(ms-head・ms-body・ms-foot など)に 1回だけかかる */
+.mscr { justify-content: flex-start; gap: 0; padding-top: calc(58px * var(--ui)); }
+#coop-screen { padding-top: calc(50px * var(--ui)); } /* 協力プレイは見出しが枠の中なので、右上のゴールドの分だけあける */
+#hud:not(.hidden) ~ .mscr { background: rgba(8,5,16,.9); } /* ラン中(ポーズ画面から開いた設定・ガイド)は後ろの HUD を隠す(左上の見出しと重ならないように) */
+.mscr > .ms-body { flex: 1 0 auto; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; }
+.ms-head { position: absolute; left: 22px; top: 14px; display: flex; align-items: baseline; gap: 16px; white-space: nowrap; pointer-events: none; }
+/* 見出しの英字: タイトルのロゴの SURVIVORS と同じ金のグラデーションと縁(background-clip: text の字には text-shadow を使わない) */
+.ms-ttl { font: 28px 'Press Start 2P'; line-height: 1.25; letter-spacing: 2px; color: transparent; -webkit-background-clip: text; background-clip: text; background-image: linear-gradient(180deg, #fff4b0 0%, #ffd23f 35%, #ffb526 68%, #f0861b 100%);
+  filter: drop-shadow(2px 0 0 #2a1206) drop-shadow(-2px 0 0 #2a1206) drop-shadow(0 2px 0 #2a1206) drop-shadow(0 -2px 0 #2a1206) drop-shadow(3px 3px 0 #6e2c0c); }
+.ms-sub { font: 18px 'DotGothic16', monospace; letter-spacing: 2px; color: #c8c0e8; text-shadow: 2px 2px 0 var(--ink); }
+html[lang="en"] .ms-sub { display: none; } /* 英語では見出しと同じ言葉になる */
+/* ゴールド(どの画面も右上の同じ所。数字は ui.js の gold) */
+.gold-chip { padding: 8px 16px 7px; font: 13px 'Press Start 2P'; color: var(--gold); white-space: nowrap; background: rgba(12,10,28,.88); box-shadow: inset 0 0 0 2px #6a5ab0, inset 0 0 0 4px #0e0c22, 0 0 0 2px var(--ink); }
+.screen > .gold-chip { position: absolute; top: 14px; right: 20px; }
+.ms-foot { display: flex; justify-content: center; align-items: center; padding: 10px 0 12px; }
+/* 戻る(協力プレイの部屋の中では「部屋を出る」)。ESC の札は中に(スマホでは出さない) */
+.ui-back { --ac: #b8a8ff; display: flex; align-items: center; justify-content: center; gap: 10px; min-width: 180px; padding: 8px 14px; font: 18px 'DotGothic16', monospace; letter-spacing: 2px; color: var(--txt); background: rgba(12,10,28,.88); box-shadow: inset 0 0 0 2px #6a5ab0, 0 0 0 2px var(--ink); }
+.ui-back .pxi { width: 22px; height: 22px; }
+.ui-esc { margin-left: 4px; padding: 3px 6px; font: 9px 'Press Start 2P'; letter-spacing: 0; color: var(--dim); box-shadow: inset 0 0 0 1px #4a3e8a; }
+@media (hover: hover) { .ui-back:hover { color: var(--gold); box-shadow: inset 0 0 0 2px var(--gold), 0 0 0 2px var(--ink); } .ui-back:hover .ui-esc { color: var(--gold); box-shadow: inset 0 0 0 1px #8a6a1a; } }
+.ui-back:active { transform: translateY(1px); }
+html.touch .ui-esc { display: none; }
+/* 枠の角の鉤(かぎ)の飾り。色は --ac。外に 4px はみ出すので、overflow で切れないよう、スクロールする物は枠の中の子にする */
+.ui-frame { position: relative; --ac: #8f80e0; }
+.ui-frame::before { content: ''; position: absolute; inset: -4px; pointer-events: none;
   background: linear-gradient(var(--ac), var(--ac)) left top / 10px 2px no-repeat, linear-gradient(var(--ac), var(--ac)) left top / 2px 10px no-repeat,
     linear-gradient(var(--ac), var(--ac)) right top / 10px 2px no-repeat, linear-gradient(var(--ac), var(--ac)) right top / 2px 10px no-repeat,
     linear-gradient(var(--ac), var(--ac)) left bottom / 10px 2px no-repeat, linear-gradient(var(--ac), var(--ac)) left bottom / 2px 10px no-repeat,
     linear-gradient(var(--ac), var(--ac)) right bottom / 10px 2px no-repeat, linear-gradient(var(--ac), var(--ac)) right bottom / 2px 10px no-repeat; }
+/* 札: 暗い地に細い枠。見出し(h3)は印・題・右の数(ui-cnt)で、下に両端が菱形の線。金(gold)・水色(cyan)の札もある */
+.ui-card { --ac: #8f80e0; padding: 10px 18px 12px; background: rgba(20,17,46,.9); box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--ac) 38%, #251e4c); }
+.ui-card.gold { --ac: #ffd23f; --hc: var(--gold); }
+.ui-card.cyan { --ac: #6ee7ff; --hc: #8ff0ff; }
+.ui-card h3 { position: relative; display: flex; align-items: center; gap: 12px; margin-bottom: 8px; padding-bottom: 8px; font: 21px 'DotGothic16', monospace; font-weight: normal; letter-spacing: 2px; color: var(--hc, var(--txt)); text-shadow: 2px 2px 0 var(--ink); }
+.ui-card h3 .pxi { flex: none; width: 30px; height: 30px; color: var(--ac); filter: drop-shadow(2px 2px 0 var(--ink)); }
+.ui-cnt { margin-left: auto; padding: 1px 10px; font-size: 16px; letter-spacing: 1px; color: var(--ac); box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--ac) 40%, #251e4c); }
+.ui-cnt:empty { display: none; }
+.ui-card p { margin: 0 0 12px 42px; font-size: 14px; line-height: 1.6; color: #c8c0e8; }
+.ui-card label { display: block; margin: 0 0 6px 2px; font-size: 14px; color: #c8c0e8; }
 /* 見出しの下の線(両端が菱形。色は --ac。菱形は mask で切り抜く) */
-.cp-head::after, .cp-card h3::after { content: ''; position: absolute; left: 0; bottom: 0; height: 10px; pointer-events: none; background: var(--ac); opacity: .75;
+.cp-head::after, .ui-card h3::after { content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 10px; pointer-events: none; background: var(--ac); opacity: .75;
   -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 5 5' shape-rendering='crispEdges'%3E%3Cpath d='M2 0h1v1H2zM1 1h1v1H1zM3 1h1v1H3zM0 2h1v1H0zM4 2h1v1H4zM1 3h1v1H1zM3 3h1v1H3zM2 4h1v1H2z'/%3E%3C/svg%3E") left center / 10px 10px no-repeat,
     url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 5 5' shape-rendering='crispEdges'%3E%3Cpath d='M2 0h1v1H2zM1 1h1v1H1zM3 1h1v1H3zM0 2h1v1H0zM4 2h1v1H4zM1 3h1v1H1zM3 3h1v1H3zM2 4h1v1H2z'/%3E%3C/svg%3E") right center / 10px 10px no-repeat,
     linear-gradient(#000, #000) 10px center / calc(100% - 20px) 2px no-repeat;
   mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 5 5' shape-rendering='crispEdges'%3E%3Cpath d='M2 0h1v1H2zM1 1h1v1H1zM3 1h1v1H3zM0 2h1v1H0zM4 2h1v1H4zM1 3h1v1H1zM3 3h1v1H3zM2 4h1v1H2z'/%3E%3C/svg%3E") left center / 10px 10px no-repeat,
     url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 5 5' shape-rendering='crispEdges'%3E%3Cpath d='M2 0h1v1H2zM1 1h1v1H1zM3 1h1v1H3zM0 2h1v1H0zM4 2h1v1H4zM1 3h1v1H1zM3 3h1v1H3zM2 4h1v1H2z'/%3E%3C/svg%3E") right center / 10px 10px no-repeat,
     linear-gradient(#000, #000) 10px center / calc(100% - 20px) 2px no-repeat; }
+/* ボタン: ふつうは紫、大事な物(部屋を作る・開始・取得)は金 */
+.ui-btn { --ac: #b8a8ff; display: flex; align-items: center; justify-content: center; gap: 10px; width: 100%; padding: 9px; font: 18px 'DotGothic16', monospace; letter-spacing: 3px; color: #fff; text-shadow: 2px 2px 0 var(--ink);
+  background: linear-gradient(180deg, #3a2f80, #2a2160); box-shadow: inset 0 0 0 2px #7a6ad0, 0 0 0 2px var(--ink); }
+.ui-btn .pxi { width: 24px; height: 24px; }
+.ui-btn.gold { --ac: #fff0b0; padding: 10px; font-size: 22px; color: var(--gold); background: linear-gradient(180deg, #4a3812, #2c1f08); box-shadow: inset 0 0 0 2px var(--gold), 0 0 0 2px var(--ink), 0 0 18px rgba(255,210,63,.3); }
+@media (hover: hover) { .ui-btn:hover:not(:disabled) { filter: brightness(1.2); } }
+.ui-btn:active:not(:disabled) { transform: translateY(1px); }
+.ui-btn:disabled { opacity: .45; cursor: default; }
+.ui-btn.small { width: auto; flex: none; padding: 5px 18px; font-size: 15px; }
+/* 画面の中のボタン(.btn)も ui-btn と同じ見た目に(DotGothic16 の字、紫の地と枠)。枠の色は --line(控えめ・赤・ガチャの色はそれぞれ) */
+.mscr .btn { --line: #7a6ad0; min-width: 0; padding: 9px 14px; font: 16px 'DotGothic16', monospace; letter-spacing: 2px; color: #fff; text-shadow: 2px 2px 0 var(--ink); background: linear-gradient(180deg, #3a2f80, #2a2160); box-shadow: inset 0 0 0 2px var(--line), 0 0 0 2px var(--ink); }
+.mscr .btn.ghost { --line: #4a3e8a; color: var(--dim); background: rgba(12,10,28,.7); }
+.mscr .btn.warn { --line: var(--red); color: var(--red); }
+.mscr .gc-pull.ten { --line: var(--gc); color: var(--gc); background: rgba(12,10,28,.75); }
+@media (hover: hover) { .mscr .btn:hover:not(:disabled) { --line: var(--gold); color: var(--gold); transform: none; filter: brightness(1.15); } }
+/* スマホ: 見出し・ゴールド・戻るを小さく、上の帯を詰める */
+html.touch .mscr { padding-top: calc(48px * var(--ui)); }
+html.touch .ms-head { top: 10px; left: 16px; gap: 12px; } html.touch .ms-ttl { font-size: 20px; } html.touch .ms-sub { font-size: 14px; }
+html.touch .screen > .gold-chip { top: 10px; right: 14px; padding: 6px 12px 5px; font-size: 11px; }
+html.touch .ms-foot { padding: 8px 0 10px; } html.touch .ui-back { min-width: 150px; padding: 6px 12px; font-size: 16px; }
+html.touch .ui-card { padding: 8px 12px 10px; } html.touch .ui-card h3 { margin-bottom: 6px; padding-bottom: 6px; font-size: 18px; } html.touch .ui-card h3 .pxi { width: 24px; height: 24px; }
+html.touch .ui-btn { padding: 6px; font-size: 16px; } html.touch .ui-btn.gold { padding: 8px; font-size: 19px; }
+
+/* ---------- 協力プレイの画面(coop-ui.js。見本 claudedocs/img/lobby.png) ----------
+   大きな枠の中に見出しと自分のクラス、左に部屋を作る・コードで参加、右に公開の部屋の一覧、下に説明。枠の外の下の真ん中に戻る、右につながる時間の注意
+   部屋の中では左が部屋の札、右が入った人。枠・札の色は --ac(角の飾り・見出しの下の線・印) */
 .cp-panel { width: min(1120px, calc(94vw / var(--ui))); display: flex; flex-direction: column; gap: 10px; padding: 12px 20px 10px; background: rgba(14,12,34,.94);
   box-shadow: inset 0 0 0 2px #5b4ca6, inset 0 0 0 5px #0e0c22, inset 0 0 0 6px #2e2560, 0 0 0 2px var(--ink), 0 10px 40px rgba(0,0,0,.5); }
 /* 見出し: 印・題・ひとこと(下に線)と、右に自分のクラス */
@@ -894,27 +965,9 @@ html.touch #hud:not(.hidden) ~ #touch-ctl { display: block; }
 /* 中: 左の列(部屋を作る・コードで参加 / 部屋の札)と右の札(公開の部屋の一覧 / 入った人) */
 .cp-body { display: grid; grid-template-columns: 400px 1fr; gap: 16px; }
 .cp-left { display: flex; flex-direction: column; gap: 12px; }
-.cp-card { padding: 10px 18px 12px; background: rgba(20,17,46,.9); box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--ac) 38%, #251e4c); }
-.cp-card.gold { --ac: #ffd23f; --hc: var(--gold); }
-.cp-card.cyan { --ac: #6ee7ff; --hc: #8ff0ff; }
-.cp-card h3 { position: relative; display: flex; align-items: center; gap: 12px; margin-bottom: 8px; padding-bottom: 8px; font: 21px 'DotGothic16', monospace; font-weight: normal; letter-spacing: 2px; color: var(--hc, var(--txt)); text-shadow: 2px 2px 0 var(--ink); }
-.cp-card h3::after { right: 0; }
-.cp-card h3 .pxi { flex: none; width: 30px; height: 30px; color: var(--ac); filter: drop-shadow(2px 2px 0 var(--ink)); }
-.cp-cnt { margin-left: auto; font-size: 18px; color: var(--ac); }
-.cp-card p { margin: 0 0 12px 42px; font-size: 14px; line-height: 1.6; color: #c8c0e8; }
-.cp-card label { display: block; margin: 0 0 6px 2px; font-size: 14px; color: #c8c0e8; }
 #coop-code { display: block; width: 100%; margin-bottom: 8px; padding: 8px 14px; font: 18px 'DotGothic16', monospace; letter-spacing: 6px; text-transform: uppercase; color: var(--txt); background: #0c0a20; border: 2px solid #3d6aa8; }
 #coop-code::placeholder { letter-spacing: 1px; text-transform: none; color: #6a6490; }
 #coop-code:focus { outline: none; border-color: var(--cyan); }
-/* ボタン: ふつうは紫、部屋を作る・開始は金 */
-.cp-btn { --ac: #b8a8ff; display: flex; align-items: center; justify-content: center; gap: 10px; width: 100%; padding: 9px; font: 18px 'DotGothic16', monospace; letter-spacing: 3px; color: #fff; text-shadow: 2px 2px 0 var(--ink);
-  background: linear-gradient(180deg, #3a2f80, #2a2160); box-shadow: inset 0 0 0 2px #7a6ad0, 0 0 0 2px var(--ink); }
-.cp-btn .pxi { width: 24px; height: 24px; }
-.cp-btn.gold { --ac: #fff0b0; padding: 10px; font-size: 22px; color: var(--gold); background: linear-gradient(180deg, #4a3812, #2c1f08); box-shadow: inset 0 0 0 2px var(--gold), 0 0 0 2px var(--ink), 0 0 18px rgba(255,210,63,.3); }
-@media (hover: hover) { .cp-btn:hover:not(:disabled) { filter: brightness(1.2); } }
-.cp-btn:active:not(:disabled) { transform: translateY(1px); }
-.cp-btn:disabled { opacity: .45; cursor: default; }
-.cp-btn.small { width: auto; flex: none; padding: 5px 18px; font-size: 15px; }
 .cp-right { display: flex; flex-direction: column; min-height: 0; }
 .cp-list { flex: 1; display: flex; flex-direction: column; gap: 8px; min-height: 0; max-height: 360px; overflow-y: auto; }
 /* 公開の部屋が無い・探している・取れない */
@@ -950,23 +1003,18 @@ html.touch #hud:not(.hidden) ~ #touch-ctl { display: block; }
 .cp-msg { padding: 7px 14px; font-size: 15px; color: #ffb070; background: rgba(60,30,10,.5); box-shadow: inset 0 0 0 2px #7a4a1a; }
 .cp-info { display: flex; align-items: center; gap: 12px; padding: 7px 16px; font-size: 14px; color: #c8c0e8; background: rgba(12,10,28,.7); box-shadow: inset 0 0 0 2px #2e2858; }
 .cp-info .pxi { flex: none; width: 22px; height: 22px; color: #7ab0ff; }
-/* 枠の外: 戻る(部屋の中では「部屋を出る」)・ESC・つながる時間の注意 */
-.cp-foot { width: min(1120px, calc(94vw / var(--ui))); display: flex; align-items: center; gap: 10px; }
-.cp-back { --ac: #b8a8ff; display: flex; align-items: center; gap: 10px; padding: 7px 22px 7px 14px; font: 17px 'DotGothic16', monospace; letter-spacing: 2px; color: var(--txt); background: rgba(12,10,28,.85); box-shadow: inset 0 0 0 2px #6a5ab0, 0 0 0 2px var(--ink); }
-.cp-back .pxi { width: 22px; height: 22px; }
-@media (hover: hover) { .cp-back:hover { color: var(--gold); box-shadow: inset 0 0 0 2px var(--gold), 0 0 0 2px var(--ink); } }
-.cp-esc { padding: 3px 8px; font: 9px 'Press Start 2P'; color: var(--dim); box-shadow: inset 0 0 0 1px #4a3e8a; }
-.cp-hint { margin-left: auto; font-size: 13px; color: var(--dim); text-shadow: 2px 2px 0 var(--ink); }
-html.touch .cp-esc { display: none; }
+/* 枠の外: 真ん中に戻る(部屋の中では「部屋を出る」)、右につながる時間の注意 */
+.ms-foot.cp-foot { display: grid; grid-template-columns: 1fr auto 1fr; align-self: center; width: min(1120px, calc(94vw / var(--ui))); }
+.cp-foot .ui-back { grid-column: 2; }
+.cp-hint { grid-column: 3; justify-self: end; font-size: 13px; color: var(--dim); text-shadow: 2px 2px 0 var(--ink); }
 /* 狭い窓: 左の列を細く(横向きのスマホも 2列のまま)。もっと狭いと 1列 */
 :where(.vn820) .cp-body { grid-template-columns: 320px 1fr; } :where(.vn820) .cp-head::after { right: 300px; } :where(.vn820) .cp-me { width: 280px; }
 :where(.vn760) .cp-body { grid-template-columns: 1fr; }
 /* スマホ: 低いので小さく詰める(入りきらない分はスクロール。部屋を作るの説明は出さない) */
 html.touch .cp-panel { gap: 8px; padding: 10px 14px 8px; } html.touch .cp-head { gap: 12px; padding-bottom: 6px; } html.touch .cp-hic .pxi { width: 36px; height: 36px; }
 html.touch .cp-ttl h2 { font-size: 28px; } html.touch .cp-ttl small { font-size: 13px; } html.touch .cp-me { padding: 4px 10px; } html.touch .cp-me .cp-face { width: 40px; height: 40px; }
-html.touch .cp-body { gap: 12px; } html.touch .cp-left { gap: 10px; } html.touch .cp-card { padding: 8px 12px 10px; } html.touch .cp-card p { display: none; }
-html.touch .cp-card h3 { margin-bottom: 6px; padding-bottom: 6px; font-size: 18px; } html.touch .cp-card h3 .pxi { width: 24px; height: 24px; }
-html.touch .cp-btn { padding: 6px; font-size: 16px; } html.touch .cp-btn.gold { padding: 8px; font-size: 19px; } html.touch #coop-code { margin-bottom: 6px; padding: 6px 12px; }
+html.touch .cp-body { gap: 12px; } html.touch .cp-left { gap: 10px; } html.touch .ui-card p { display: none; }
+html.touch #coop-code { margin-bottom: 6px; padding: 6px 12px; }
 html.touch .cp-info { padding: 5px 12px; font-size: 13px; } html.touch .cp-empty .pxi { width: 64px; height: 59px; } html.touch .cp-code { padding: 6px; font-size: 20px; }
 html.touch .cp-slot { min-height: 46px; } html.touch .cp-slot .cp-face { width: 36px; height: 36px; } html.touch .cp-slot .cp-face img { width: 32px; }
 /* ステージ選択の協力プレイの形: 公開の部屋かコードの部屋か */

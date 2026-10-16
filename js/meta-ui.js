@@ -21,7 +21,7 @@ const MetaUI = (() => {
   function close() { state = 'title'; UI.title(); }
 
   function render() {
-    $('eq-gold').textContent = '● ' + META.gold.toLocaleString() + ' G';
+    UI.gold();
     // 装備中の3枠
     $('eq-slots').innerHTML = Object.entries(DATA.equip.slots).map(([slot, label]) => {
       const it = itemById(META.loadout[slot]);
@@ -211,7 +211,7 @@ const MetaUI = (() => {
     if (z.dataset.z === 'reset') { trView = { s: 1, cx: 0, cy: 0 }; applyTrView(); } else zoomTr(z.dataset.z === 'in' ? 1.3 : 1 / 1.3);
   };
   function renderTree() {
-    $('tr-gold').textContent = '● ' + META.gold.toLocaleString() + ' G';
+    UI.gold();
     const T = DATA.tree, nodes = Object.values(TREE);
     let svg = '';
     // リング(深さの目安)と方向の名前
@@ -240,15 +240,18 @@ const MetaUI = (() => {
     }
     $('tr-svg').innerHTML = svg;
     treeInfo();
-    // 合計(ツリーから得ているステータス)
+    // 取得済み効果(ツリーから得ているステータス)。見出しの右に 取得した数 / 全部
     const tc = treeCounts(), total = Object.values(TREE).length;
-    $('tr-sum').innerHTML = _t`<div class="tr-h">取得 ${META.tree.length} / ${total}</div>` + (Object.keys(tc).length
+    $('tr-cnt').textContent = `${META.tree.length} / ${total}`;
+    $('tr-sum').innerHTML = Object.keys(tc).length
       ? Object.keys(tc).map(k => `<div class="tr-s"><span>${DATA.stats[k].label}</span><b>${optVal({ k, v: DATA.stats[k].kind === 'red' ? 1 - Math.pow(1 - treeNodeValue(k), tc[k]) : treeNodeValue(k) * tc[k] })}</b></div>`).join('')
-      : _t('<div class="dim">まだ何も取得していません</div>'));
+      : _t('<div class="dim">まだ何も取得していません</div>');
   }
+  // ノード詳細: 選んでいない時は菱形の印と「ノードを選択」と説明
   function treeInfo() {
     const box = $('tr-info'), nd = trSel && TREE[trSel];
-    if (!nd) { box.innerHTML = _t('<div class="dim">ノードを選ぶと詳細が表示されます。中心に近いノードから、取得済みのノードの隣へ広げていきます</div>'); return; }
+    box.classList.toggle('empty', !nd);
+    if (!nd) { box.innerHTML = ART.uiIcon('node') + `<b>${_t('ノードを選択')}</b>` + _t('<div class="dim">ノードを選ぶと詳細が表示されます。中心に近いノードから、取得済みのノードの隣へ広げていきます</div>'); return; }
     const D = DATA.tree.dirs[nd.dir], own = treeOwned(nd.id), open = treeOpen(nd), cost = treeCost(nd);
     box.innerHTML = `<div class="tr-nm" style="color:${D.col}">${DATA.tree.glyph[nd.k]} ${nodeName(nd)}</div>
       <div class="dim">${D.name}${_t` ・ 深さ ${nd.depth}`}${nd.big ? _t(' ・ 特別なノード') : nd.leaf ? _t(' ・ 行き止まり') : ''}</div>
@@ -342,9 +345,10 @@ const MetaUI = (() => {
         <span class="nm">${open ? s.name : _t('？？？')}${clear ? ' <b class="clr">★ CLEAR</b>' : open && s.first ? _t` <span class="fc">初クリア ● ${s.first.toLocaleString()}</span>` : ''}</span>${right}<span class="sub">${open ? s.sub : _t('？？？')}</span></button>`;
     }).join('');
     // 枠の高さはカード 10枚ぶん(それより下はスクロール)。カードの高さは言語・画面の幅で変わるので、並べてから測る。画面が低いときは枠がさらに縮む
+    //   測った高さは --lh に入れる(CSS の max-height が、窓の高さで見出し・戻るに重ならないように更に縮める)
     const L = $('stage-list'), its = L.children, LIST_N = 10;
-    L.style.maxHeight = '';
-    if (its.length > LIST_N) { const cs = getComputedStyle(L); L.style.maxHeight = (its[LIST_N - 1].offsetTop + its[LIST_N - 1].offsetHeight - its[0].offsetTop + parseFloat(cs.paddingTop) + parseFloat(cs.paddingBottom)) + 'px'; }
+    L.style.removeProperty('--lh');
+    if (its.length > LIST_N) { const cs = getComputedStyle(L); L.style.setProperty('--lh', (its[LIST_N - 1].offsetTop + its[LIST_N - 1].offsetHeight - its[0].offsetTop + parseFloat(cs.paddingTop) + parseFloat(cs.paddingBottom)) + 'px'); }
   }
   // 解放に必要な tier(そのクリアが要る。0 = 最初から): 通常モードは tier − 1、エスカレーション・闘技場は tier 4、タワーは最初から
   const tierCleared = t => DATA.stageRuns.some(R => R.tier === t && META.stageClear['stage' + R.no]);

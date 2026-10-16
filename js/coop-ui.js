@@ -18,7 +18,7 @@ const CoopUI = (() => {
   // クラスの絵を丸い台に載せる(台の色はクラスの色)
   const faceEl = k => { const f = el('span', 'cp-face'), i = el('img'); i.src = face(k); i.alt = ''; f.appendChild(i); if (DATA.classes[k]) f.style.setProperty('--cc', DATA.classes[k].col); return f; };
   // 札の見出し(印・題・右の数)
-  const head = (box, ic, title, right) => { const h = el('h3', null, title); h.insertAdjacentHTML('afterbegin', ART.uiIcon(ic)); if (right) h.appendChild(el('span', 'cp-cnt', right)); box.appendChild(h); };
+  const head = (box, ic, title, right) => { const h = el('h3', null, title); h.insertAdjacentHTML('afterbegin', ART.uiIcon(ic)); if (right) h.appendChild(el('span', 'ui-cnt', right)); box.appendChild(h); };
   const inRoom = () => !!(COOP.room && NET.isOpen);
   let noRtc = false;
   // 知らせ(入れなかった・ホストが閉じた・WebRTC が無い)。次に部屋を作る・入る・開くまで出す
@@ -71,7 +71,7 @@ const CoopUI = (() => {
     if (COOP.host) box.appendChild(el('p', null, _t('このコードを伝えると、ほかの人も入れる')));
     box.appendChild(el('div', 'coop-lag', ''));
     if (COOP.host) {
-      const b = el('button', 'cp-btn gold cp-frame', _t('開始'));
+      const b = el('button', 'ui-btn gold ui-frame', _t('開始'));
       b.disabled = COOP.members.length < 2;
       b.onclick = () => { AudioMan.click(); coopStart(); };
       box.appendChild(b);
@@ -134,7 +134,7 @@ const CoopUI = (() => {
     if (st !== 'ok') return empty(_t('公開の部屋を探しています…'));
     if (!rs.length) return empty(_t('公開中の部屋はありません'), _t('部屋を作って仲間を募集しよう'), true);
     for (const r of rs) {
-      const row = el('div', 'cp-room'), t = el('span', 'cp-rt'), b = el('button', 'cp-btn small cp-frame', _t('入る'));
+      const row = el('div', 'cp-room'), t = el('span', 'cp-rt'), b = el('button', 'ui-btn small ui-frame', _t('入る'));
       row.appendChild(faceEl(r.cls));
       t.appendChild(el('b', null, _t`${clsName(r.cls)} の部屋`));
       t.appendChild(el('small', null, modeName(r.mode)));
