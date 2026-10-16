@@ -48,23 +48,25 @@
   <div id="banner" class="cutband"></div>
   <div id="toast"></div>
 
+  <!-- タイトル: 真ん中にロゴとメニュー(縦に1列。↑↓ とマウスで選び、Enter で決める。ui.js)。右上にゴールド、左下に記録、右下にガイド・設定とキーの説明
+       メニューの印は data-ic(art.js の uiIcon。ui.js が入れる)。字は .lbl の中だけを書き換える -->
   <div id="title-screen" class="screen">
+    <div id="title-gold" class="gold-chip"></div>
     <div class="title-wrap">
       <div class="logo"><span class="l1">PIXEL</span><span class="l2">SURVIVORS</span><span class="l3">— NOCTURNE —</span></div>
-      <!-- START は1行、ほかは2列(クラス・強化ツリー / 装備・ガチャ / ガイド・設定)-->
-      <div class="menu title-menu">
-        <button id="btn-start" class="btn big">▶ START</button>
-        <button id="btn-coop" class="btn">協力プレイ</button>
-        <button id="btn-class" class="btn">クラス</button>
-        <button id="btn-tree" class="btn">強化ツリー</button>
-        <button id="btn-equip" class="btn">装備</button>
-        <button id="btn-gacha" class="btn">ガチャ</button>
-        <button id="btn-help" class="btn sub">ガイド</button>
-        <button id="btn-settings" class="btn sub">設定</button>
+      <div id="title-menu" class="title-menu">
+        <button id="btn-start" class="tm big" data-ic="swords"><span class="lbl">冒険開始</span></button>
+        <button id="btn-coop" class="tm" data-ic="party"><span class="lbl">協力プレイ</span></button>
+        <button id="btn-class" class="tm" data-ic="helm"><span class="lbl">クラス</span></button>
+        <button id="btn-tree" class="tm" data-ic="tree"><span class="lbl">強化ツリー</span></button>
+        <button id="btn-equip" class="tm" data-ic="chest"><span class="lbl">装備</span></button>
+        <button id="btn-gacha" class="tm" data-ic="gacha"><span class="lbl">ガチャ</span></button>
       </div>
-      <div id="title-gold" class="gold-chip"></div>
-      <div id="title-best" class="best"></div>
-      <div class="howto">WASD / 矢印 移動 ・ SPACE 防御スキル ・ E 武器スキル ・ Q クラススキル ・ 攻撃は自動(SHIFT でマウス照準切替) ・ ESC ポーズ ・ M ミュート</div>
+    </div>
+    <div id="title-rec" class="title-rec"><div id="title-best" class="best"></div></div>
+    <div class="title-side">
+      <div class="title-sub"><button id="btn-help" class="tsb" data-ic="book"><span class="lbl">ガイド</span></button><button id="btn-settings" class="tsb" data-ic="gear"><span class="lbl">設定</span></button></div>
+      <div class="title-keys"><b>↑↓</b> 選択 <b>ENTER</b> 決定 <b>ESC</b> 戻る</div>
     </div>
   </div>
 

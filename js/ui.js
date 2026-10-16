@@ -751,14 +751,23 @@ const UI = (() => {
   // ============================================================
   // 画面
   // ============================================================
+  // タイトルのメニュー: ↑↓(W / S)で選び、Enter / Space で決める。マウスを乗せた物も選ぶ。選んだ物に ▶ と下線(最初は冒険開始。ほかの画面から戻っても前に選んだ物のまま)
+  for (const b of document.querySelectorAll('[data-ic]')) b.insertAdjacentHTML('afterbegin', ART.uiIcon(b.dataset.ic));
+  const TM = [...document.querySelectorAll('#title-menu .tm')];
+  let tmSel = 0;
+  const tmSet = i => { tmSel = (i + TM.length) % TM.length; TM.forEach((b, k) => b.classList.toggle('sel', k === tmSel)); };
+  TM.forEach((b, i) => b.addEventListener('pointerenter', () => tmSet(i)));
+  tmSet(0);
   function title() {
     only('title-screen');
     hide($('hud'));
+    tmSet(tmSel);
     $('title-gold').textContent = '● ' + META.gold.toLocaleString() + ' G';
     const nNew = META.inventory.filter(it => it.isNew).length;
-    $('btn-equip').innerHTML = _t('装備') + (nNew ? ` <span class="nw-badge">NEW ${nNew}</span>` : '');
+    $('btn-equip').querySelector('.lbl').innerHTML = _t('装備') + (nNew ? ` <span class="nw-badge">NEW ${nNew}</span>` : '');
     const b = META.best, arena = b.arenaTime ? `ARENA ${fmtTime(b.arenaTime)}` : b.arenaRound ? `ARENA ROUND ${b.arenaRound}/${DATA.arena.rounds}` : '';
     $('title-best').innerHTML = [b.time ? `BEST ${fmtTime(b.time)} · ${b.kills} KILLS · LV ${b.level}` : '', arena].filter(Boolean).join('<br>');
+    $('title-rec').classList.toggle('hidden', !$('title-best').innerHTML); // 記録が無ければ飾りの線も出さない
     if (metaMigratedGold) { announce(_t`+${metaMigratedGold.toLocaleString()} G 返金`, _t('永続強化は新しいツリーに移行しました')); metaMigratedGold = 0; }
     if (metaTreeRefund) { announce(_t`+${metaTreeRefund.toLocaleString()} G 返金`, _t('永続ツリーの調整で、なくなったノードを返金しました')); metaTreeRefund = 0; }
   }
@@ -821,7 +830,6 @@ const UI = (() => {
   // スマホ: ボタンのキーの表示を消し、操作の説明をタッチの言い方にする
   if (TOUCH_UI) {
     for (const b of document.querySelectorAll('.btn')) { const s = b.textContent, n = s.replace(/\s*[(（](ESC|TAB|R|SPACE|Enter)[)）]\s*$/i, ''); if (n !== s) b.textContent = n; }
-    document.querySelector('#title-screen .howto').textContent = _t('ボタン以外の所に指を置いて移動 ・ 攻撃は自動 ・ 右下のボタンで防御スキル・E・Q ・ 右上の II でポーズ');
     document.querySelector('#choice-screen .hint').textContent = _t('タップで選択 ・ 下線の用語をタップすると説明');
     document.querySelector('.tr-zhint').textContent = _t('+ / - で拡大 ・ ドラッグで移動');
   }
@@ -836,6 +844,10 @@ const UI = (() => {
     if (state === 'levelup') {
       if (/^Digit[1-4]$/.test(e.code)) choose(+e.code.slice(5) - 1);
       if (e.code === 'KeyR') reroll();
+    } else if (state === 'title') {
+      if (e.code === 'ArrowUp' || e.code === 'KeyW') tmSet(tmSel - 1);
+      else if (e.code === 'ArrowDown' || e.code === 'KeyS') tmSet(tmSel + 1);
+      else if ((e.code === 'Enter' || e.code === 'Space') && !e.repeat) { if (e.preventDefault) e.preventDefault(); TM[tmSel].click(); } // preventDefault: マウスで押した後に focus が残ったボタンを、ブラウザが Enter でもう一度押さないように
     } else if (state === 'chest' && (e.code === 'Space' || e.code === 'Enter')) chestAct();
     else if (state === 'play' && COOP.on && P.lvPick) { // 協力プレイの止まらないレベルアップ
       if (/^Digit[1-3]$/.test(e.code)) coopPick(+e.code.slice(5));

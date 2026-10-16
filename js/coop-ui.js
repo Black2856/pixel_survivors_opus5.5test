@@ -28,6 +28,7 @@ const CoopUI = (() => {
     $('coop-cls').textContent += noRtc ? ' / ' + _t('このブラウザでは協力プレイができません(WebRTC がない)') : '';
     if (!noRtc) Lobby.open(pubList);
     refresh();
+    state = 'coop'; // タイトルのキー(↑↓・Enter)を効かせない
     UI.only('coop-screen');
   }
   // 部屋の中(コード・入った人・往復時間・開始 / 待ち)。入った・抜けた時に net.js からも呼ぶ。往復時間の数字は tick で書き換える
@@ -100,6 +101,6 @@ const CoopUI = (() => {
     if (c.length !== 6) { $('coop-code').focus(); return; }
     AudioMan.click(); say(''); coopJoin(c, META.cls); refresh();
   };
-  $('coop-back').onclick = () => { AudioMan.click(); leave(); Lobby.close(); UI.title(); };
+  $('coop-back').onclick = () => { AudioMan.click(); leave(); Lobby.close(); state = 'title'; UI.title(); };
   return { open, refresh, tick, leave, say };
 })();

@@ -77,8 +77,7 @@ function onKey(e) {
   if (Help.onKey(e)) return; // ガイド画面(ESC で戻る)
   if (e.code === 'KeyM') AudioMan.toggleMute();
   if (e.code === 'Escape') { if (state === 'play') pauseGame(); else if (state === 'pause') resumeGame(); else if (state === 'settings') UI.closeSettings(); }
-  if (state === 'title' && (e.code === 'Enter' || e.code === 'Space')) MetaUI.stageSelect();
-  else if ((state === 'over' || state === 'victory') && e.code === 'KeyR') startRun(S.mode, S.stageNo);
+  if ((state === 'over' || state === 'victory') && e.code === 'KeyR') startRun(S.mode, S.stageNo); // タイトルの Enter は UI.onKey(選んでいるメニュー)
   else if (state === 'victory' && e.code === 'Enter' && S.mode === 'escalation') startEndless();
   UI.onKey(e);
   MetaUI.onKey(e);

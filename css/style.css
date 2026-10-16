@@ -154,20 +154,54 @@ button { font: inherit; color: inherit; cursor: pointer; border: 0; background: 
 
 /* ---------- タイトル ---------- */
 #title-screen, #stage-screen, #class-screen, #tree-screen, #gacha-screen, #equip-screen, #status-screen, #help-screen, #settings-screen, #pause-screen, #result-screen { overflow-y: auto; justify-content: safe center; } /* UI サイズを大きくして画面に収まらないときはスクロール */
+/* 真ん中にロゴとメニュー(縦に1列)。右上にゴールド、左下に記録、右下にガイド・設定とキーの説明(角の物も .screen の直下に置き、UI の大きさの zoom を受ける) */
 #title-screen { background: radial-gradient(ellipse at center, rgba(8,5,16,.1) 0%, rgba(8,5,16,.75) 80%); }
-.title-wrap { display: flex; flex-direction: column; align-items: center; gap: 22px; }
-/* タイトルのメニュー: START は1行、ほかは2列。ガイド・設定は補助の色(水色) */
-.title-menu { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; align-items: stretch; }
-.title-menu #btn-start { grid-column: 1 / -1; justify-self: center; margin-bottom: 4px; }
+#title-screen::before { content: ''; position: absolute; inset: 0; pointer-events: none; background: linear-gradient(90deg, transparent 20%, rgba(8,5,16,.45) 38%, rgba(8,5,16,.45) 62%, transparent 80%); } /* メニューの後ろを少し暗く(動く背景の上でも字が読めるように) */
+.title-wrap { position: relative; display: flex; flex-direction: column; align-items: center; gap: 26px; }
 .btn.sub { --line: #2a6a80; color: var(--cyan); background: #12203a; }
 @media (hover: hover) { .btn.sub:hover:not(:disabled) { --line: var(--cyan); color: #fff; } }
-.logo { display: flex; flex-direction: column; align-items: center; margin-bottom: 18px; }
-.logo .l1, .logo .l2 { font-family: 'Press Start 2P'; line-height: 1.1; letter-spacing: 4px; }
-.logo .l1 { font-size: clamp(34px, calc(7vw / var(--ui)), 76px); color: #fff; text-shadow: 6px 6px 0 #4c3a86, 12px 12px 0 var(--ink), 0 0 40px rgba(159,247,255,.6); animation: bob 2s ease-in-out infinite; }
-.logo .l2 { font-size: clamp(28px, calc(6vw / var(--ui)), 64px); color: var(--gold); text-shadow: 6px 6px 0 #a0122a, 12px 12px 0 var(--ink), 0 0 40px rgba(255,210,63,.6); animation: bob 2s ease-in-out .25s infinite; }
-.logo .l3 { margin-top: 18px; font-size: 20px; color: var(--cyan); letter-spacing: 8px; text-shadow: 2px 2px 0 var(--ink); }
-.best { font: 10px 'Press Start 2P'; color: var(--dim); text-shadow: 2px 2px 0 var(--ink); }
-.howto { font-size: 13px; color: var(--dim); text-shadow: 2px 2px 0 var(--ink); text-align: center; padding: 0 16px; }
+/* ロゴ: 字の中は上から下へのグラデーション、縁と影は drop-shadow(background-clip: text の字には text-shadow が上に重なるので使わない) */
+.logo { display: flex; flex-direction: column; align-items: center; }
+.logo .l1, .logo .l2 { font-family: 'Press Start 2P'; line-height: 1.1; letter-spacing: 4px; color: transparent; -webkit-background-clip: text; background-clip: text; }
+.logo .l1 { font-size: clamp(34px, calc(7vw / var(--ui)), 76px); background-image: linear-gradient(180deg, #fff 0%, #fff 45%, #e2d8ff 70%, #b9a6f5 100%); animation: bob 2s ease-in-out infinite;
+  filter: drop-shadow(2px 0 0 #1a1030) drop-shadow(-2px 0 0 #1a1030) drop-shadow(0 2px 0 #1a1030) drop-shadow(0 -2px 0 #1a1030) drop-shadow(5px 5px 0 #5b3fb0) drop-shadow(0 0 22px rgba(159,247,255,.35)); }
+.logo .l2 { font-size: clamp(28px, calc(6vw / var(--ui)), 64px); background-image: linear-gradient(180deg, #fff4b0 0%, #ffd23f 35%, #ffb526 68%, #f0861b 100%); animation: bob 2s ease-in-out .25s infinite;
+  filter: drop-shadow(2px 0 0 #2a1206) drop-shadow(-2px 0 0 #2a1206) drop-shadow(0 2px 0 #2a1206) drop-shadow(0 -2px 0 #2a1206) drop-shadow(4px 5px 0 #6e2c0c) drop-shadow(0 0 24px rgba(255,190,60,.4)); }
+.logo .l3 { margin-top: 20px; font-size: 20px; color: #a8f0e8; letter-spacing: 10px; text-shadow: 2px 2px 0 var(--ink), 0 0 10px rgba(159,247,255,.35); }
+/* メニュー: 印と字。選んでいる物は金色にして、左に ▶(ドットの三角)、下に両端が菱形の線。冒険開始は大きく。字の左端(印)はそろえる */
+.title-menu { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; }
+.tm { position: relative; display: flex; align-items: center; gap: 16px; padding: 5px 22px 7px 42px; font: 26px 'DotGothic16', monospace; letter-spacing: 3px; color: #d6cff0; text-shadow: 2px 2px 0 var(--ink); }
+.tm:focus { outline: none; }
+.tm .pxi { width: 32px; height: 32px; flex: none; color: #a99fd0; filter: drop-shadow(2px 2px 0 var(--ink)); }
+.tm.big { margin-bottom: 10px; font-size: 40px; letter-spacing: 6px; padding-left: 46px; }
+.tm.big .pxi { width: 48px; height: 48px; }
+.tm::before { content: ''; position: absolute; left: 14px; top: 50%; width: 10px; height: 18px; margin-top: -9px; opacity: 0; pointer-events: none;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 5 9' shape-rendering='crispEdges'%3E%3Cpath fill='%23ffd23f' d='M0 0h1v9H0zM1 1h1v7H1zM2 2h1v5H2zM3 3h1v3H3zM4 4h1v1H4z'/%3E%3C/svg%3E") center / contain no-repeat; }
+.tm.big::before { width: 14px; height: 24px; margin-top: -12px; }
+.tm::after { content: ''; position: absolute; left: 36px; right: -8px; bottom: -5px; height: 14px; opacity: 0; pointer-events: none;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 5 5' shape-rendering='crispEdges'%3E%3Cpath fill='%23ffd23f' d='M2 0h1v1H2zM1 1h1v1H1zM3 1h1v1H3zM0 2h1v1H0zM4 2h1v1H4zM1 3h1v1H1zM3 3h1v1H3zM2 4h1v1H2z'/%3E%3C/svg%3E") left center / 10px 10px no-repeat,
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 7 7' shape-rendering='crispEdges'%3E%3Cpath fill='%23ffd23f' d='M3 0h1v1H3zM2 1h1v1H2zM4 1h1v1H4zM1 2h1v1H1zM5 2h1v1H5zM0 3h1v1H0zM3 3h1v1H3zM6 3h1v1H6zM1 4h1v1H1zM5 4h1v1H5zM2 5h1v1H2zM4 5h1v1H4zM3 6h1v1H3z'/%3E%3C/svg%3E") right center / 14px 14px no-repeat,
+    linear-gradient(var(--gold), var(--gold)) 10px center / calc(100% - 24px) 2px no-repeat; }
+.tm.sel { color: var(--gold); text-shadow: 3px 3px 0 var(--ink), 0 0 16px rgba(255,210,63,.5); }
+.tm.sel .pxi { color: var(--gold); filter: drop-shadow(2px 2px 0 var(--ink)) drop-shadow(0 0 6px rgba(255,210,63,.45)); }
+.tm.sel::before, .tm.sel::after { opacity: 1; }
+.tm.sel::before { animation: tmCur .9s ease-in-out infinite; }
+@keyframes tmCur { 50% { transform: translateX(4px); } }
+.tm .nw-badge { margin-left: 14px; padding: 3px 6px; font-size: 10px; letter-spacing: 1px; text-shadow: none; }
+/* 角: ゴールド(右上)・記録(左下。上に両端が菱形の線)・ガイドと設定とキーの説明(右下) */
+#title-gold { position: absolute; top: 16px; right: 20px; --line: #8a6a1a; }
+.title-rec { position: absolute; left: 22px; bottom: 16px; padding-top: 14px;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 5 5' shape-rendering='crispEdges'%3E%3Cpath fill='%237a6eb0' d='M2 0h1v1H2zM1 1h1v1H1zM3 1h1v1H3zM0 2h1v1H0zM4 2h1v1H4zM1 3h1v1H1zM3 3h1v1H3zM2 4h1v1H2z'/%3E%3C/svg%3E") left top / 10px 10px no-repeat,
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 5 5' shape-rendering='crispEdges'%3E%3Cpath fill='%237a6eb0' d='M2 0h1v1H2zM1 1h1v1H1zM3 1h1v1H3zM0 2h1v1H0zM4 2h1v1H4zM1 3h1v1H1zM3 3h1v1H3zM2 4h1v1H2z'/%3E%3C/svg%3E") right top / 10px 10px no-repeat,
+    linear-gradient(#4a4078, #4a4078) 10px 4px / calc(100% - 20px) 2px no-repeat; }
+.best { padding: 0 8px; font: 15px 'DotGothic16', monospace; letter-spacing: 2px; line-height: 1.5; color: #b8b0d8; text-shadow: 2px 2px 0 var(--ink); }
+.title-side { position: absolute; right: 20px; bottom: 14px; display: flex; flex-direction: column; align-items: flex-end; gap: 10px; }
+.title-sub { display: flex; gap: 12px; }
+.tsb { display: flex; align-items: center; gap: 10px; padding: 7px 18px 7px 12px; font: 16px 'DotGothic16', monospace; letter-spacing: 2px; color: var(--txt); background: rgba(12,9,19,.72); box-shadow: inset 0 0 0 2px #5a4e8e, 0 0 0 2px var(--ink); }
+.tsb .pxi { width: 24px; height: 24px; flex: none; color: #c8c0e8; }
+@media (hover: hover) { .tsb:hover { color: var(--gold); box-shadow: inset 0 0 0 2px var(--gold), 0 0 0 2px var(--ink); } .tsb:hover .pxi { color: var(--gold); } }
+.title-keys { font: 13px 'DotGothic16', monospace; letter-spacing: 1px; color: var(--dim); text-shadow: 2px 2px 0 var(--ink); }
+.title-keys b { margin: 0 4px 0 14px; font-weight: normal; color: var(--txt); }
 
 /* ---------- カード ---------- */
 #cards, #chest-rewards { display: flex; gap: 22px; flex-wrap: wrap; justify-content: center; padding: 0 16px; }
@@ -778,7 +812,11 @@ html.touch .screen { padding-left: env(safe-area-inset-left); padding-right: env
 html.touch #hud-top { right: calc((12px + 52px * var(--um)) / var(--uh)); } /* 右上のポーズのボタンの分あける(#hud-top は --uh で拡大されるので割る) */
 html.touch .card-key, html.touch #choice-btns small { display: none; } /* キーの番号・R */
 /* タイトル: ロゴを窓の高さでも小さくして、スクロールせずに収める */
-html.touch .title-wrap { gap: 12px; } html.touch .logo { margin-bottom: 4px; } html.touch .logo .l3 { margin-top: 8px; }
+html.touch .title-wrap { gap: 10px; } html.touch .logo .l3 { margin-top: 8px; }
+/* メニューも小さく(667×375 でも左下の記録・右下のボタンに重ならないように) */
+html.touch .title-menu { gap: 0; } html.touch .tm { gap: 12px; font-size: 17px; padding-top: 2px; padding-bottom: 3px; } html.touch .tm .pxi { width: 22px; height: 22px; }
+html.touch .tm.big { margin-bottom: 4px; font-size: 24px; } html.touch .tm.big .pxi { width: 28px; height: 28px; } html.touch .tm::after { bottom: -6px; }
+html.touch .title-keys { display: none; } /* キーの説明(指の操作はガイドに) */
 html.touch .logo .l1 { font-size: clamp(24px, calc(min(7vw, 9vh) / var(--ui)), 76px); } html.touch .logo .l2 { font-size: clamp(20px, calc(min(6vw, 7.5vh) / var(--ui)), 64px); }
 html.touch #choice-screen { overflow-y: auto; justify-content: safe center; } /* レベルアップ: 小さいスマホ(667×375)では入りきらない */
 /* 横向きのスマホは高さが足りないので、強化ツリー・ガチャは縦に積まない(幅 760 まで。狭い窓の組み方は PC の縦長の窓のためのもの) */
@@ -816,7 +854,6 @@ html.touch #hud:not(.hidden) ~ #touch-ctl { display: block; }
 #coop-pick.sent .card, #coop-pick.sent .btn { opacity: .45; pointer-events: none; }
 #coop-wait { position: absolute; left: 50%; top: 92px; transform: translateX(-50%); color: var(--txt); font-size: 13px; text-shadow: 0 1px 2px #000; white-space: nowrap; }
 /* 協力プレイの部屋(coop-ui.js) */
-.title-menu #btn-coop { grid-column: 1 / -1; }
 #coop-screen .coop-box { display: flex; flex-direction: column; align-items: center; gap: 14px; max-width: 640px; margin: 0 auto; padding: 0 16px; }
 .coop-cls { color: var(--txt); font-size: 14px; }
 .coop-row { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; align-items: center; }

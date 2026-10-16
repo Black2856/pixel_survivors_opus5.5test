@@ -31,7 +31,7 @@ function hexRgb(h) { const n = parseInt(h.slice(1), 16); return [(n >> 16) / 255
 // ============================================================
 // 状態
 // ============================================================
-let state = 'title'; // title | play | levelup | chest | pause | over | victory | settings
+let state = 'title'; // title | play | levelup | chest | pause | over | victory | settings | coop(協力プレイの部屋の画面)など
 let S = null, P = null;
 // プレイヤー(協力プレイでは入った順。ホストが 0。全員で同じ順)。P は「いま計算しているプレイヤー」で、計算の外では players[0](自分)
 //   1人ずつの処理は withPlayer で P を入れ替えて、players の順に回す(全員の乱数の引き方をそろえるため、順を変えない)
@@ -204,7 +204,7 @@ if (TOUCH_UI) {
   document.getElementById('touch-ctl').addEventListener('contextmenu', e => e.preventDefault()); // 長押しのメニューを出さない
   document.addEventListener('gesturestart', e => e.preventDefault()); // iPhone の 2本指の拡大(user-scalable=no が効かない)
 }
-// スマホ: START を押したときに全画面にして横向きに固定する(できる端末だけ。iPhone は requestFullscreen がない)
+// スマホ: 冒険開始を押したときに全画面にして横向きに固定する(できる端末だけ。iPhone は requestFullscreen がない)
 function touchFullscreen() {
   const d = document.documentElement;
   if (!TOUCH_UI || document.fullscreenElement || !d.requestFullscreen) return;
