@@ -48,7 +48,7 @@ function updEprojs1(dt0, P0) {
     else if ((p.kind === 'eice' || p.kind === 'ispear' || p.kind === 'flake') && Math.random() < dt * (p.kind === 'ispear' ? 60 : 25)) part(p.x + rand(-1, 1), p.y + rand(-1, 1), -p.vx * 0.1, -p.vy * 0.1, 0.3, pick(['#bff4ff', '#ffffff', '#7ad7ff']), { glow: true, drag: 2 }); // 氷の弾: 霜のきらめき
     else if (p.kind === 'bigsnow') { p.spin = (p.spin || 0) + dt * Math.hypot(p.vx, p.vy) / 14; if (Math.random() < dt * 30) part(p.x + rand(-10, 10), p.y + 10, -p.vx * 0.2 + rand(-15, 15), -rand(10, 30), 0.5, pick(['#ffffff', '#e8f4ff']), { g: 120, drag: 1 }); } // 大雪玉: 転がって雪煙
     if (p.kind === 'cog') p.spin = (p.spin || 0) + dt * 10;
-    if (p.nx && !P.dead && P.invT <= 0 && eprojs.includes(p.nx) && !p.nx.stopT && segD2(P.x, P.y, p.x, p.y, p.nx.x, p.nx.y) < Math.pow(2 * CHAOS.area + 3, 2) && hurtPlayer(p.dmg, p.pierce ? SHOT_PIERCE : SHOT)) { numbPlayer(p.numb); if (p.light) randomLight(p.light, p.src); } // 雷の網(雷神): となりの玉と結ぶ稲妻にも当たる(玉と同じ ×0.6・痺れ +2)
+    if (p.nx && eprojs.includes(p.nx) && !p.nx.stopT) forHit(() => { if (!P.dead && P.invT <= 0 && segD2(P.x, P.y, p.x, p.y, p.nx.x, p.nx.y) < Math.pow(2 * CHAOS.area + 3, 2) && hurtPlayer(p.dmg, p.pierce ? SHOT_PIERCE : SHOT)) { numbPlayer(p.numb); if (p.light) randomLight(p.light, p.src); } }); // 雷の網(雷神): となりの玉と結ぶ稲妻にも当たる(玉と同じ ×0.6・痺れ +2)
     if (p.kind === 'tnet' && Math.random() < dt * 16) part(p.x + rand(-2, 2), p.y + rand(-2, 2), rand(-10, 10), rand(-10, 10), 0.25, pick(THUN), { glow: true, drag: 2 }); // 雷の網の玉: 火花
     if (p.turnT && p.t >= p.turnT) { // 歯車弾: 1回だけプレイヤーへ向きを変える
       p.turnT = 0; const ta = Math.atan2(P.y - p.y, P.x - p.x), sp = Math.hypot(p.vx, p.vy);
@@ -72,12 +72,19 @@ function updEprojs1(dt0, P0) {
       forEachNear(p.x, p.y, p.r, o => { if (o.obj === p.blk && !(p.ignore && p.ignore.has(o))) { wall = o; return false; } }); // blk: 遮る物の種類(結晶の柱)
       if (wall) { burst(p.x, p.y, 7, ['#efe9d4', '#6ee7ff', '#ffffff'], { sp: 45, glow: true, life: 0.25 }); wall.flash = 0.06; eprojs.splice(i, 1); continue; }
     }
-    const near = p.kind === 'vslash' ? segD2(P.x, P.y, p.x - Math.cos(p.a) * p.len, p.y - Math.sin(p.a) * p.len, p.x + Math.cos(p.a) * p.len, p.y + Math.sin(p.a) * p.len) : d2(p.x, p.y, P.x, P.y); // 影刃は地面の線で当たる
-    if (near < Math.pow(p.r + 3, 2)) {
-      if (P.invT > 0) continue;
-      if (!p.keep && clsBlockProj()) { burst(p.x, p.y, 8, ['#fff27a', '#ffffff'], { sp: 60, glow: true, life: 0.25 }); eprojs.splice(i, 1); continue; } // 静電気
+    // 当たり: 生きている全員と(forHit)。消える弾は players の順で最初に触れた人に当たって消える(無敵中の人はすり抜ける)。残る弾(keep)は触れた全員に
+    let gone = null; // 消える時: 'block' = 静電気で防いだ / 'hit' = 当たった
+    forHit(() => {
+      if (gone) return false;
+      const near = p.kind === 'vslash' ? segD2(P.x, P.y, p.x - Math.cos(p.a) * p.len, p.y - Math.sin(p.a) * p.len, p.x + Math.cos(p.a) * p.len, p.y + Math.sin(p.a) * p.len) : d2(p.x, p.y, P.x, P.y); // 影刃は地面の線で当たる
+      if (!(near < Math.pow(p.r + 3, 2)) || P.invT > 0) return false; // !(<) で(位置が NaN の弾は当たらない。前と同じ)
+      if (!p.keep && clsBlockProj()) { gone = 'block'; return false; } // 静電気
       if (hurtPlayer(p.dmg, p.pierce ? SHOT_PIERCE : SHOT)) { if (p.light) randomLight(p.light, p.src); if (p.tri) triStatus(p.tri, p.src); if (p.burn) burnPlayer(p.burn); if (p.sta) drainSta(p.sta); if (p.frost) frostPlayer(p.frost); if (p.dark) darkPlayer(p.dark); if (p.poison) poisonPlayer(p.poison); if (p.taint) shadowTaint(p.taint); if (p.numb) numbPlayer(p.numb); if (p.dust) dustPlayer(p.dust); if (p.weak) weakPlayer(p.weak); if (p.pushK) pushPlayer(Math.atan2(p.vy, p.vx), p.pushK, 0.2); } // 火の玉: 炎上 / 海淵の弾: スタミナ / 霊峰の弾: 凍傷 / 王墓の弾: 暗闇・毒 / 痺れ・砂塵・衰弱
-      if (p.keep) continue;
+      if (!p.keep) gone = 'hit';
+      return true;
+    });
+    if (gone === 'block') { burst(p.x, p.y, 8, ['#fff27a', '#ffffff'], { sp: 60, glow: true, life: 0.25 }); eprojs.splice(i, 1); continue; }
+    if (gone === 'hit') {
       const icy = p.frost > 0;
       if (p.dark) { burst(p.x, p.y, 14, ['#c79bff', '#7a3ab0', '#2a1240', '#ffffff'], { sp: 60, glow: true, life: 0.4 }); eprojs.splice(i, 1); continue; } // 闇の玉: 黒紫のしぶき
       if (p.kind === 'corb') { burst(p.x, p.y, 12, BREATH_COL[p.el], { sp: 60, glow: true, life: 0.4 }); eprojs.splice(i, 1); continue; } // 三獄の魔弾: 属性の色のしぶき
