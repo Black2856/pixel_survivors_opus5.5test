@@ -4,9 +4,9 @@
 // ============================================================
 // 画面遷移
 // ============================================================
-function startRun(mode = 'escalation', stageNo = 1) {
+function startRun(mode = 'escalation', stageNo = 1, o = {}) {
   AudioMan.unlock();
-  initRun(mode, stageNo);
+  initRun(mode, stageNo, o); // o: 協力プレイの開始だけ(world.js の initRun)
   GFX.fx.sat = 1; // 時間停止・変身の途中で終わったランの色あせを戻す
   UI.bossBar(null); // 前のランでボス戦中に倒れたときのボスの HP バーを消す
   cam.fx = P.x - GFX.VW / 2; cam.fy = P.y - GFX.VH / 2;

@@ -93,10 +93,13 @@ function treeBuy(id) {
   return true;
 }
 
+// K(キット): ステータスに要るセーブの物(classes・tree・loadout・inventory)。ふつうは META、ラン中は P.kit
+//   (1人用は META そのもの。協力プレイは参加の時に送り合って確かめた物: net.js の coopKit)
+const kitItem = (K, slot) => { const id = K.loadout[slot]; return id ? K.inventory.find(x => x.id === id) : undefined; };
 // 取得済みノード数を stat ごとに数える(今のツリーにない ID は無視)
-function treeCounts() {
+function treeCounts(K = META) {
   const c = {};
-  for (const id of META.tree) { const nd = TREE[id]; if (nd) c[nd.k] = (c[nd.k] || 0) + 1; }
+  for (const id of K.tree) { const nd = TREE[id]; if (nd) c[nd.k] = (c[nd.k] || 0) + 1; }
   return c;
 }
 function treeNodeValue(stat) {
@@ -105,11 +108,10 @@ function treeNodeValue(stat) {
 }
 
 // 装備中のアイテムのオプションを列挙する。lvOf(slot, i, opt) でそのオプションの Lv を返す
-function equippedOpts(lvOf) {
+function equippedOpts(lvOf, K = META) {
   const out = [];
   for (const slot in DATA.equip.slots) {
-    const id = META.loadout[slot];
-    const it = id && META.inventory.find(x => x.id === id);
+    const it = kitItem(K, slot);
     if (!it) continue;
     it.opts.forEach((o, i) => out.push({ k: o.k, v: o.v, lv: lvOf(slot, i, o) }));
   }
@@ -142,7 +144,7 @@ const clsNameShown = k => (clsUnlocked(k) ? DATA.classes[k].name : _t('？？？
 
 // ---------- クラスLv の効果 ----------
 // 専用 = クラスの lv 表(そのクラスの Lv)/ 共通 = 武器の mastery 表(その武器を持つクラスの Lv)
-const classLvOf = cls => (META.classes[cls] || { lv: 1 }).lv;
+const classLvOf = (cls, K = META) => (K.classes[cls] || { lv: 1 }).lv;
 const weaponOwner = k => Object.keys(DATA.classes).find(c => DATA.classes[c].weapon === k);
 function sumLvFx(tbl, lv) {
   const o = {};
@@ -152,8 +154,8 @@ function sumLvFx(tbl, lv) {
   }
   return o;
 }
-const classLvFx = cls => sumLvFx(DATA.classes[cls].lv, classLvOf(cls));
-const weaponMastery = k => { const o = weaponOwner(k); return o ? sumLvFx(DATA.weapons[k].mastery, classLvOf(o)) : {}; };
+const classLvFx = (cls, K = META) => sumLvFx(DATA.classes[cls].lv, classLvOf(cls, K));
+const weaponMastery = (k, K = META) => { const o = weaponOwner(k); return o ? sumLvFx(DATA.weapons[k].mastery, classLvOf(o, K)) : {}; };
 // Lv ごとの解放内容(クラス画面用): 2〜最大Lv の { lv, kind: '専用' | '共通', d }
 function classLvTable(cls) {
   const c = DATA.classes[cls], m = DATA.weapons[c.weapon] && DATA.weapons[c.weapon].mastery, out = [];
@@ -165,8 +167,8 @@ function classLvTable(cls) {
   return out;
 }
 
-// eq: 装備オプションの Lv の扱い。'run' = ラン中の現在Lv / 'zero' = ラン開始時(全て0) / 'max' = 全て最大Lv
-function computeStats({ cls = META.cls, run = false, eq = run ? 'run' : 'zero' } = {}) {
+// eq: 装備オプションの Lv の扱い。'run' = ラン中の現在Lv / 'zero' = ラン開始時(全て0) / 'max' = 全て最大Lv / kit: クラスLv・ツリー・装備を読むセーブ(上の K)
+function computeStats({ cls = META.cls, run = false, eq = run ? 'run' : 'zero', kit = META } = {}) {
   const by = {}, mul = {};
   for (const k in DATA.stats) { by[k] = {}; mul[k] = 1; }
   const add = (src, k, v) => {
@@ -183,22 +185,22 @@ function computeStats({ cls = META.cls, run = false, eq = run ? 'run' : 'zero' }
 
   // クラス基礎 / クラスLv
   for (const k in c.base) add('class', k, c.base[k]);
-  const clv = classLvOf(cls);
+  const clv = classLvOf(cls, kit);
   for (const l in c.lv) if (clv >= +l) for (const k in c.lv[l].st || {}) add('classLv', k, c.lv[l].st[k]);
 
   // 永続ツリー
-  const tc = treeCounts();
+  const tc = treeCounts(kit);
   for (const k in tc) addN('tree', k, treeNodeValue(k), tc[k]);
 
   // 装備(オプションは Lv0 開始。ラン中にレベルアップで伸びる)
   const lvOf = eq === 'run' ? (slot, i) => (P && P.eqLv && P.eqLv[slot] ? P.eqLv[slot][i] || 0 : 0)
     : eq === 'max' ? (slot, i, o) => o.max : () => 0;
-  for (const o of equippedOpts(lvOf)) addN('equip', o.k, o.v, o.lv);
+  for (const o of equippedOpts(lvOf, kit)) addN('equip', o.k, o.v, o.lv);
 
   // 固有効果(レジェンダリー)。ステータス以外の効果は uq のキーで各処理が見る
   const uq = {};
   for (const slot in DATA.equip.slots) {
-    const it = META.loadout[slot] && META.inventory.find(x => x.id === META.loadout[slot]);
+    const it = kitItem(kit, slot);
     if (!it || !it.uq) continue;
     const U = DATA.uniques[it.uq];
     uq[it.uq] = true;
@@ -225,7 +227,7 @@ function computeStats({ cls = META.cls, run = false, eq = run ? 'run' : 'zero' }
 
 // computeStats の結果をプレイヤーの実数値に反映する
 function applyStats() {
-  const st = computeStats({ cls: P.cls, run: true }), v = st.v, m = st.mul;
+  const st = computeStats({ cls: P.cls, run: true, kit: P.kit }), v = st.v, m = st.mul;
   P.stats = st;
   P.maxhpBase = Math.max(1, Math.round(v.hp * m.hp) + clsHpAdd()); // クラスの最大HP の追加(ウェポンマスターの頑健など。変わったらクラスが recalc する)
   P.maxhp = Math.max(1, Math.round(P.maxhpBase * (1 - DATA.debuffTomb.poison * (P.poison || 0)))); // 毒(王墓): 1スタックごとに最大HP が下がる(HP バーの紫の部分)

@@ -1,15 +1,17 @@
 // coop2.js — 協力プレイ(4段)の確かめ: 1つのブラウザで 2つのページを開き、BroadcastChannel でつないで 2人で同じ計算になるかを比べる
-//   PLAYWRIGHT_DIR=<playwright を入れたフォルダ> node scripts/dev/coop2.js [chromium|firefox|webkit] [frames=1800] [inject] [classes=knight,mage] [mode=tower|escalation] [net=bc|p2p] [mix]
+//   PLAYWRIGHT_DIR=<playwright を入れたフォルダ> node scripts/dev/coop2.js [chromium|firefox|webkit] [frames=1800] [inject] [classes=knight,mage] [mode=tower|escalation] [net=bc|p2p] [mix] [kits] [nokit]
 //   python -m http.server 8765 --bind 127.0.0.1(リポジトリの直下で)を先に立てる
 //   画面のフレームでは進めず(COOP.manual)、両方のページを交互に COOP.pump で進める。入力は決まった物(COOP.testInput)
 //   inject: 2つ目のページだけ 600フレームで敵の HP を変える → 次のハッシュ(660)で「同期がずれた」と出るはず(見つける仕組みの確かめ)
+//   kits: ページごとに違うセーブ(クラスLv・強化ツリー・装備と固有効果・武器・クリア済みとカオス強化)にする(6段②。別々の端末と同じ)
+//   nokit: kits と一緒に。届いたキットとカオス強化を使わず、全員を自分のセーブで計算する(6段②の前の形)→ ずれるはず(キットが本当に使われている確かめ)
 'use strict';
 const path = require('path');
 const pw = require(process.env.PLAYWRIGHT_DIR ? path.join(process.env.PLAYWRIGHT_DIR, 'node_modules', 'playwright') : 'playwright');
 const args = process.argv.slice(2);
 const name = args.find(a => ['chromium', 'firefox', 'webkit'].includes(a)) || 'chromium';
 const arg = (k, d) => { const a = args.find(x => x.startsWith(k + '=')); return a ? a.slice(k.length + 1) : d; };
-const mix = args.includes('mix'), net = arg('net', mix ? 'p2p' : 'bc'), mode = arg('mode', 'tower'), N = +arg('frames', 1800), inject = args.includes('inject'), classes = arg('classes', 'knight,mage').split(',');
+const kits = args.includes('kits'), nokit = args.includes('nokit'), mix = args.includes('mix'), net = arg('net', mix ? 'p2p' : 'bc'), mode = arg('mode', 'tower'), N = +arg('frames', 1800), inject = args.includes('inject'), classes = arg('classes', 'knight,mage').split(',');
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
 (async () => {
@@ -33,6 +35,23 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
       await page.goto('http://127.0.0.1:8765/?net=' + net + '&t=' + Date.now());
     }
     await page.evaluate(() => { window.saveMeta = () => {}; });
+    if (kits) await page.evaluate(i => { // 決まった作り方の違うセーブ(genItem は見た目の列の乱数を引くので使わない)
+      const top = DATA.classLevel.need.length + 1, mains = DATA.classOrder.map(k => DATA.classes[k].weapon).filter(Boolean);
+      Object.keys(DATA.classes).forEach((k, j) => { META.classes[k].lv = 1 + (i * 7 + j * 3) % top; });
+      if (META.classes.weaponmaster) META.classes.weaponmaster.weapon = mains[(i * 5) % mains.length];
+      META.tree = Object.keys(TREE).filter((_, j) => (j + i) % (3 + i) === 0);
+      META.inventory = []; META.loadout = { weapon: null, armor: null, ring: null };
+      for (const slot in DATA.equip.slots) {
+        const ts = Object.keys(DATA.equip.types).filter(t => DATA.equip.types[t].slot === slot), type = ts[i % ts.length], O = DATA.equip.types[type].opts;
+        const us = Object.keys(DATA.uniques).filter(u => DATA.uniques[u].slot === slot);
+        const it = { id: 100 + META.inventory.length, type, rarity: 'legendary', uq: us[i % us.length], enh: 0, spent: 0, lock: false,
+          opts: Object.keys(O).slice(i % 2, (i % 2) + 3).map((k, j) => ({ k, v: Math.round(O[k][1] * (0.4 + 0.15 * (i + j)) * 1000) / 1000, max: 3 + i, q: 0.5 })) };
+        META.inventory.push(it); META.loadout[slot] = it.id;
+      }
+      META.stageClear = i === 0 ? { escalation: true } : {}; // ホストだけクリア済み → カオス強化はホストの設定(エスカレーション)
+      META.chaos = { escalation: Object.fromEntries(chaosMods('escalation').slice(0, 3).map(m => [m.k, m.max])) };
+    }, i);
+    if (nokit) await page.evaluate(() => { const begin = coopBegin; window.coopBegin = m => { for (const x of m.members) x.kit = META; delete m.chaos; begin(m); }; });
     pages.push(page);
   }
   const room = 't' + Date.now().toString(36);
@@ -61,11 +80,12 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
     await sleep(0);
   }
   const res = await Promise.all(pages.map(p => p.evaluate(() => ({ pid: COOP.pid, f: COOP.f, log: COOP.log, desync: COOP.desync, stalls: COOP.stalls,
-    floor: S.tower && S.tower.floor, per: players.map(q => ({ cls: q.cls, kills: q.kills, lv: q.level, w: Object.keys(q.weapons).length, picking: !!q.lvPick, x: Math.round(q.x), y: Math.round(q.y) })) }))));
+    floor: S.tower && S.tower.floor, chaos: JSON.stringify(S.chaos), per: players.map(q => ({ cls: q.cls, hp: q.maxhp, wpn: q.mainW, uq: Object.keys(q.uq || {}).join(','), kills: q.kills, lv: q.level, w: Object.keys(q.weapons).length, picking: !!q.lvPick, x: Math.round(q.x), y: Math.round(q.y) })) }))));
   for (const b of Object.values(browsers)) await b.close();
   const L0 = res[0].log, same = res.every(r => r.log.length === L0.length && r.log.every((x, i) => x[1] === L0[i][1]));
   const firstDiff = (() => { for (let i = 0; i < L0.length; i++) if (res.some(r => !r.log[i] || r.log[i][1] !== L0[i][1])) return L0[i][0]; return null; })();
-  console.log(`${mix ? kinds.join('+') : name} ${net}  ${classes.join('+')}  フレーム ${res.map(r => r.f).join(' / ')}  ハッシュ ${L0.length}回 ${same ? 'すべて同じ' : '違う(最初は ' + firstDiff + ')'}  最後 ${L0.length ? L0[L0.length - 1][1].toString(16) : '-'}  ${((Date.now() - t0) / 1000).toFixed(1)}秒`);
+  console.log(`${mix ? kinds.join('+') : name} ${net}${kits ? ' kits' : ''}${nokit ? ' nokit' : ''}  ${classes.join('+')}  フレーム ${res.map(r => r.f).join(' / ')}  ハッシュ ${L0.length}回 ${same ? 'すべて同じ' : '違う(最初は ' + firstDiff + ')'}  最後 ${L0.length ? L0[L0.length - 1][1].toString(16) : '-'}  ${((Date.now() - t0) / 1000).toFixed(1)}秒`);
+  if (kits) for (const r of res) console.log('  ページ ' + r.pid + ': カオス ' + r.chaos + '  ' + r.per.map(q => `${q.cls}(${q.wpn}) 最大HP ${q.hp} 固有 ${q.uq}`).join('  '));
   console.log('  階 ' + res[0].floor + '  ' + res[0].per.map(q => `${q.cls} 撃破${q.kills} Lv${q.lv} 武器${q.w}${q.picking ? "(選択中)" : ""}`).join('  ') + '  待った回数 ' + res.map(r => r.stalls).join(' / '));
   for (const r of res) if (r.desync) console.log(`  ページ ${r.pid}: 同期がずれた フレーム ${r.desync.f} ${r.desync.hashes.map(h => h.toString(16)).join(' / ')}`);
   for (const e of errs.slice(0, 5)) console.log('  例外 ' + e);

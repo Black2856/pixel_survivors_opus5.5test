@@ -130,14 +130,14 @@ function escStage(tier, first) {
   UI.banner('TIER ' + tier, _t`${DATA.stages[R.stage - 1].label} ・ 報酬 ×${S.rewMul.toFixed(1)}`, 2200);
   screenFlash(0.4); shockAt(P.x, P.y, 1.5, 0.8);
 }
-// プレイヤーを 1人作る(ラン中の状態の初期値)。cls: クラス
-function makePlayer(cls) {
+// プレイヤーを 1人作る(ラン中の状態の初期値)。cls: クラス / kit: クラスLv・選んだ武器・強化ツリー・装備を読むセーブ(stats.js の K。ふつうは META)
+function makePlayer(cls, kit = META) {
   return {
     pid: 0, // プレイヤーの番号(協力プレイでは入った順。ホストが 0。全員で同じ)
     kills: 0, totalDmg: 0, dmgBy: {}, combo: 0, comboT: 0, bestCombo: 0, gemStreak: 0, gemStreakT: 0,
     pendingLv: 0, lvUpT: 0, lvQueue: [], rerolls: 0, weaponSlots: 4, gold: 0, deathT: 0, decoy: null, bossKills: 0, loot: [],
     cxpK: 0, cxpB: 0, // 撃破数・ボス撃破数に、倒したときの報酬の倍率を掛けて足したもの(クラス経験値)
-    cls, mainW: META.classes[cls].weapon, micro: {}, lvFx: classLvFx(cls), wm: {}, x: 0, y: 0, hp: 0, maxhp: 100, level: 1, xp: 0, xpNext: xpFor(1), weapons: {},
+    cls, kit, mainW: kit.classes[cls].weapon, micro: {}, lvFx: classLvFx(cls, kit), wm: {}, x: 0, y: 0, hp: 0, maxhp: 100, level: 1, xp: 0, xpNext: xpFor(1), weapons: {},
     bank: 0, // タワーの貯蓄経験値(階の間に拾った分。経験値の倍率を掛けた値。階をクリアすると入る)
     inp: NO_INPUT, wantE: false, wantQ: false, // 入力の記録(update が毎回入れる。core.js の readInput)/ E・Q を押した印(スキルの処理で使い切る)
     ifr: 0, facing: 1, animT: 0, moving: false, hurtT: 0, dead: false,
@@ -161,16 +161,17 @@ function setupPlayer() {
   P.rerolls = st.v.reroll; P.weaponSlots = st.v.wslot;
   clsInit();
 }
-// プレイヤーを足す(協力プレイ: 入った順に pid。試験の道具の 2人の通しも)。装備・強化ツリーは、今は自分のセーブ(META)から(4段で各自のセーブに)
-function addPlayer(cls, x = P.x, y = P.y) {
-  const p = makePlayer(cls);
+// プレイヤーを足す(協力プレイ: 入った順に pid。試験の道具の 2人の通しも)。kit: その人のセーブ(協力プレイは net.js の coopKit。省略で自分の META)
+function addPlayer(cls, x = P.x, y = P.y, kit = META) {
+  const p = makePlayer(cls, kit);
   p.pid = players.length; p.x = x; p.y = y;
   players.push(p);
   withPlayer(p, () => { setupPlayer(); recalc(); });
   if (S.tower) S.tower.hpK = DATA.tower.partyHp[Math.min(players.length, DATA.tower.partyHp.length) - 1]; // タワー: 敵の HP の人数の倍率
   return p;
 }
-function initRun(mode = 'escalation', stageNo = 1) {
+// o: 協力プレイの開始(net.js の coopBegin)だけ。{ cls: 0 番の人のクラス, kit: その人のセーブ, chaos: ホストのカオス強化 }
+function initRun(mode = 'escalation', stageNo = 1, o = {}) {
   clearSimTimers(); // 前のランの「少し後で」は捨てる
   S = {
     mode, arena: null, tower: null, time: 0, stage: 1, loop: 1,
@@ -181,7 +182,7 @@ function initRun(mode = 'escalation', stageNo = 1) {
     victoryT: 0, hudDirty: true, won: false, hint: {},
     rewMul: 1, // エスカレーションの報酬の倍率(tier が進むたびに上がる)
   };
-  P = makePlayer(META.cls); // プレイヤー 1人ずつの物は P(協力プレイでは players の 1人ずつ。claudedocs/coop.md 2章)
+  P = makePlayer(o.cls || META.cls, o.kit || META); // プレイヤー 1人ずつの物は P(協力プレイでは players の 1人ずつ。claudedocs/coop.md 2章)
   players = [P];
   enemies = []; projs = []; eprojs = []; gems = []; drops = []; props = []; hazards = [];
   parts = []; floats = []; rings = []; zones = []; slashes = []; bolts = []; warns = []; flashes = []; bfx = []; sfx = [];
@@ -193,7 +194,7 @@ function initRun(mode = 'escalation', stageNo = 1) {
   if (mode === 'tower') towerInit(); // チャレンジタワー: 1周の顔ぶれを決め、1階の前の短い休憩から(tower.js)
   // カオス強化: クリアするまでは tier の値で固定(エスカレーション・闘技場は無し)。クリア後は META.chaos[キー]
   const ck = mode === 'stage' ? 'stage' + stageNo : mode;
-  S.chaos = Object.assign({}, chaosSetting(ck));
+  S.chaos = Object.assign({}, o.chaos || chaosSetting(ck));
   S.chaosPt = chaosPoints(S.chaos, ck); S.chaosReward = chaosReward(S.chaosPt);
   setupChaos(S.chaos, ck);
   S.elv += CHAOS.startLv;

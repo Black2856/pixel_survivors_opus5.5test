@@ -301,7 +301,7 @@ const UI = (() => {
     pt += dt;
     if (last.cls !== P.cls) { last.cls = P.cls; box.style.setProperty('--cc', c.col); $('touch-ctl').style.setProperty('--cc', c.col); hpLag = 1; lastHp = P.hp; }
     if (last.px !== GFX.PX) { last.px = GFX.PX; box.style.setProperty('--px', GFX.PX + 'px'); box.style.setProperty('--pxn', GFX.PX); pcv.style.width = PW * GFX.PX + 'px'; pcv.style.height = PH * GFX.PX + 'px'; }
-    set('ps-name', `<b>${c.en}</b> Lv${META.classes[P.cls].lv}`, 'innerHTML');
+    set('ps-name', `<b>${c.en}</b> Lv${classLvOf(P.cls, P.kit)}`, 'innerHTML');
     const base = P.maxhpBase || P.maxhp, k = clamp(P.hp / base, 0, 1), low = P.hp / P.maxhp < 0.3, pz = clamp(P.maxhp / base, 0, 1); // pz: 毒で下がった最大HP の割合(右端の紫)
     hpLag = Math.max(k, hpLag - dt * 0.5);
     if (P.hp > lastHp + 0.5) healT = 0.3;
@@ -447,7 +447,7 @@ const UI = (() => {
   // ============================================================
   let mode = 'level', choices = [], chosen = false, curLv = 1;
   // 進化の条件(メイン武器もサブ武器も、その武器を持つクラスの Lv10 で解放)
-  const evoCond = k => _t`武器Lv5 + ${clsNameShown(weaponOwner(k))} Lv10` + ((P.wm[k] || weaponMastery(k)).evo ? ' ✔' : ''); // まだ持っていない武器(NEW のカード)は熟練をその場で計算
+  const evoCond = k => _t`武器Lv5 + ${clsNameShown(weaponOwner(k))} Lv10` + ((P.wm[k] || weaponMastery(k, P.kit)).evo ? ' ✔' : ''); // まだ持っていない武器(NEW のカード)は熟練をその場で計算
   function statDiff(k, from, to) {
     const a = from ? (from.evo ? DATA.weapons[k].evo.st : DATA.weapons[k].lv[from.lv - 1]) : null, b = DATA.weapons[k].lv[to - 1];
     if (!a) return '';
@@ -486,7 +486,7 @@ const UI = (() => {
       foot = `<div class="evohint">${c.sold ? _t`インベントリが満杯 → 売却 +${c.sold}G` : _t('インベントリに追加')}</div>`;
     } else if (c.type === 'eqopt') {
       // 装備カード: 装備中のアイテムのオプション1つを +1Lv
-      const it = itemById(META.loadout[c.slot]), o = it.opts[c.i], lv = P.eqLv[c.slot][c.i], R = DATA.equip.rarity[it.rarity];
+      const it = kitItem(P.kit, c.slot), o = it.opts[c.i], lv = P.eqLv[c.slot][c.i], R = DATA.equip.rarity[it.rarity];
       ic = icon('equip', it.type, 'big'); head = `<span style="color:${R.col}">${DATA.equip.slots[c.slot]}</span> Lv ${lv} → ${lv + 1}`;
       name = `<small>${itemName(it)}</small>${DATA.stats[o.k].label}`;
       rar = lv + 1 === o.max ? 'epic' : 'rare';

@@ -97,14 +97,14 @@ function enhanceItem(it) {
 //   装備初期レベル(永続ツリー): 各オプションが その割合の確率で +1Lv から始まる。100% ごとに確定で +1(150% = +1 と 50% でさらに +1)。最大Lv まで
 function eqInitRun() {
   P.eqLv = {};
-  const up = computeStats({ cls: P.cls }).v.eqInit || 0, sure = Math.floor(up + 1e-9), rest = up - sure;
-  for (const slot in DATA.equip.slots) { const it = itemById(META.loadout[slot]); if (it) P.eqLv[slot] = it.opts.map(o => Math.min(o.max, sure + (Math.random() < rest ? 1 : 0))); }
+  const up = computeStats({ cls: P.cls, kit: P.kit }).v.eqInit || 0, sure = Math.floor(up + 1e-9), rest = up - sure;
+  for (const slot in DATA.equip.slots) { const it = kitItem(P.kit, slot); if (it) P.eqLv[slot] = it.opts.map(o => Math.min(o.max, sure + (Math.random() < rest ? 1 : 0))); }
 }
 // 装備カードの候補: 最大Lv に達していないオプション
 function eqCards() {
   const out = [];
   for (const slot in P.eqLv) {
-    const it = itemById(META.loadout[slot]);
+    const it = kitItem(P.kit, slot);
     it.opts.forEach((o, i) => { if (P.eqLv[slot][i] < o.max) out.push({ type: 'eqopt', slot, i }); });
   }
   return out;
@@ -112,7 +112,7 @@ function eqCards() {
 // オプションの Lv ごとの値(乗算系は (1 - v)^Lv)
 const optAt = (o, lv) => (DATA.stats[o.k].kind === 'red' ? 1 - Math.pow(1 - o.v, lv) : o.v * lv);
 function eqLvUp(slot, i) {
-  const o = itemById(META.loadout[slot]).opts[i];
+  const o = kitItem(P.kit, slot).opts[i];
   P.eqLv[slot][i]++;
   recalc();
   addFloat(P.x, P.y - 30, `${DATA.stats[o.k].label} Lv${P.eqLv[slot][i]}`, '#9ff7ff', 0.9, -24);

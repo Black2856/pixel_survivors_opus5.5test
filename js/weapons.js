@@ -7,7 +7,7 @@
 function addWeapon(k) {
   const w = P.weapons[k];
   // 新しい武器は Lv1(クラスLv の startLv: ラン中に手に入れた武器はその分だけ高い Lv から。はじめのメイン武器は除く)
-  if (!w) { P.weapons[k] = { lv: Math.min(5, 1 + (Object.keys(P.weapons).length ? P.lvFx.startLv || 0 : 0)), cd: 0.3, evo: false, t: 0, q: [], tick: 0 }; P.wm[k] = weaponMastery(k); }
+  if (!w) { P.weapons[k] = { lv: Math.min(5, 1 + (Object.keys(P.weapons).length ? P.lvFx.startLv || 0 : 0)), cd: 0.3, evo: false, t: 0, q: [], tick: 0 }; P.wm[k] = weaponMastery(k, P.kit); }
   else w.lv = Math.min(5, w.lv + 1);
   S.hudDirty = true;
 }

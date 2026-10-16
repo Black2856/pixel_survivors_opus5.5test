@@ -50,7 +50,7 @@ const NET = {
 // ============================================================
 const COOP = {
   on: false, host: false, room: '', pid: 0, lag: 4, f: 0, hostId: '', // hostId: 参加者が知っているホストの ID(並び・開始はこの人からだけ受ける)
-  members: [], // [{ id, cls, vw, vh }](0 番がホスト)
+  members: [], // [{ id, cls, vw, vh, kit }](0 番がホスト。kit: その人のセーブのうちステータスに要る物。coopKit で確かめた物)
   want: 0, // ホスト: この人数がそろったら自分で開始する(URL の n)
   inq: new Map(), // フレーム → 入力の記録の配列(players の順)
   sentTo: -1, // 自分の入力を送った一番先のフレーム
@@ -72,14 +72,15 @@ function coopHost(room, cls = META.cls, n = 0) {
   coopReset();
   Object.assign(COOP, { host: true, room: String(room), want: n | 0 });
   NET.open(COOP.room, coopOnMsg, null);
-  COOP.members = [{ id: NET.me, cls, vw: GFX.VW, vh: GFX.VH }];
+  COOP.members = [{ id: NET.me, cls, vw: GFX.VW, vh: GFX.VH, kit: coopKit(META) }];
   console.info('COOP: 部屋 ' + COOP.room + ' を作った。ほかのウィンドウで ?coop=join&room=' + COOP.room + ' を開き、そろったら coopStart()');
 }
 // 部屋に入る
 function coopJoin(room, cls = META.cls) {
   coopReset();
   Object.assign(COOP, { host: false, room: String(room), members: [] });
-  const hello = () => NET.send({ t: 'join', cls, vw: GFX.VW, vh: GFX.VH });
+  const kit = coopKit(META); // 入った時のセーブ(この後にクラス画面で変えた物は届かない)
+  const hello = () => NET.send({ t: 'join', cls, vw: GFX.VW, vh: GFX.VH, kit });
   NET.open(COOP.room, coopOnMsg, (id, joined) => { if (joined && !COOP.on) hello(); }); // p2p: つながった人ごとに名乗る(ホストだけが受ける)
   hello(); // bc: すぐ届く
   console.info('COOP: 部屋 ' + COOP.room + ' に入る');
@@ -87,20 +88,61 @@ function coopJoin(room, cls = META.cls) {
 // 開始(ホスト): 種・モード・入力の遅れ・全員の並び・計算用の画面の大きさ(全員の一番大きい窓。#16)を送り、自分も始める
 function coopStart(o = {}) {
   if (!COOP.host || COOP.on) return;
-  const ms = COOP.members;
-  const m = { t: 'start', seed: NATIVE_RANDOM() * 4294967296 >>> 0, mode: o.mode || 'tower', stage: o.stage || 1, lag: o.lag || COOP.lag, members: ms,
-    view: { w: Math.max(...ms.map(x => x.vw)), h: Math.max(...ms.map(x => x.vh)) } };
+  const ms = COOP.members, mode = o.mode === 'escalation' ? 'escalation' : 'tower';
+  const m = { t: 'start', seed: NATIVE_RANDOM() * 4294967296 >>> 0, mode, stage: o.stage || 1, lag: o.lag || COOP.lag, members: ms,
+    view: { w: Math.max(...ms.map(x => x.vw)), h: Math.max(...ms.map(x => x.vh)) }, chaos: coopChaos(chaosSetting(mode), mode) }; // カオス強化はホストの設定
   NET.send(m);
   coopBegin(m);
 }
 const okCls = c => (typeof c === 'string' && COOP_CLASSES().includes(c) ? c : 'knight');
 const okView = (v, d) => (typeof v === 'number' && isFinite(v) ? clamp(Math.round(v), 200, 1200) : d);
+const ownKey = (o, k) => typeof k === 'string' && Object.prototype.hasOwnProperty.call(o, k); // DATA にある名前か(__proto__ などを通さない)
+// キット: セーブのうちステータスに要る物(クラスLv・選んだ武器・強化ツリー・装備中の 3つ。stats.js の K)を、決まった形に作り直す
+//   自分のセーブ(META)にも、届いた物にも同じ物を使う。全員が同じ物から同じキットを作るよう、ホストも自分の分をこれで作った物を使う(何度通しても同じ)
+//   名前は DATA にある物だけ・数は範囲の中に直す・知らない物は捨てる(無い人は Lv1・ツリーなし・装備なし)。セーブの改変は防げない(coop.md 5章)
+const KIT_V = 3, KIT_MAXLV = 20; // 装備のロール値の上限(範囲の最大 × KIT_V。装備ロール上限の分の余り)/ オプションの最大Lv の上限
+function coopKit(x) {
+  const o = x && typeof x === 'object' ? x : {}, src = o.classes && typeof o.classes === 'object' ? o.classes : {};
+  const top = DATA.classLevel.need.length + 1, mains = DATA.classOrder.map(k => DATA.classes[k].weapon).filter(Boolean);
+  const classes = {};
+  for (const k of Object.keys(DATA.classes)) {
+    const c = ownKey(src, k) && src[k] && typeof src[k] === 'object' ? src[k] : {}, C = DATA.classes[k], def = C.weapon || C.startW;
+    const lv = Number.isInteger(c.lv) ? clamp(c.lv, 1, top) : 1;
+    const swap = !C.weapon || !!sumLvFx(C.lv, lv).swap; // クラス画面と同じ: 専用武器が無いか、Lv で切り替えが解放
+    classes[k] = { lv, weapon: c.weapon === def || (swap && mains.includes(c.weapon)) ? c.weapon : def };
+  }
+  const tree = [...new Set((Array.isArray(o.tree) ? o.tree : []).filter(id => ownKey(TREE, id)))];
+  const inv = Array.isArray(o.inventory) ? o.inventory : [], lo = o.loadout && typeof o.loadout === 'object' ? o.loadout : {};
+  const loadout = {}, inventory = [];
+  for (const slot in DATA.equip.slots) {
+    const id = ownKey(lo, slot) ? lo[slot] : null, g = coopItem(id != null ? inv.find(v => v && v.id === id) : null, slot);
+    loadout[slot] = g ? (g.id = inventory.length + 1) : null;
+    if (g) inventory.push(g);
+  }
+  return { classes, tree, loadout, inventory };
+}
+function coopItem(it, slot) {
+  if (!it || typeof it !== 'object' || !ownKey(DATA.equip.types, it.type) || DATA.equip.types[it.type].slot !== slot || !ownKey(DATA.equip.rarity, it.rarity)) return null;
+  const T = DATA.equip.types[it.type].opts, opts = [];
+  for (const p of Array.isArray(it.opts) ? it.opts : []) {
+    if (!p || typeof p !== 'object' || !ownKey(T, p.k) || opts.some(q => q.k === p.k) || typeof p.v !== 'number' || !isFinite(p.v) || !Number.isInteger(p.max)) continue;
+    const v = clamp(p.v, 0, T[p.k][1] * KIT_V);
+    opts.push({ k: p.k, v: v === 0 ? 0 : v, max: clamp(p.max, 0, KIT_MAXLV) });
+  }
+  return { id: 0, type: it.type, rarity: it.rarity, opts, uq: ownKey(DATA.uniques, it.uq) && DATA.uniques[it.uq].slot === slot ? it.uq : null };
+}
+// カオス強化の設定(ホストの物を「開始」で送る): そのモードの項目だけ、Lv は 0〜最大の整数
+function coopChaos(x, ck) {
+  const o = x && typeof x === 'object' ? x : {}, out = {};
+  for (const m of chaosMods(ck)) { const v = ownKey(o, m.k) ? o[m.k] : 0; out[m.k] = Number.isInteger(v) ? clamp(v, 0, m.max) : 0; }
+  return out;
+}
 function coopOnMsg(m) {
   switch (m.t) {
     case 'join': // ホストだけ受ける(始まる前・4人まで)
       if (!COOP.host || COOP.on || COOP.members.length >= 4 || COOP.members.some(x => x.id === m.from)) return;
-      COOP.members.push({ id: m.from, cls: okCls(m.cls), vw: okView(m.vw, 480), vh: okView(m.vh, 270) });
-      NET.send({ t: 'lobby', members: COOP.members });
+      COOP.members.push({ id: m.from, cls: okCls(m.cls), vw: okView(m.vw, 480), vh: okView(m.vh, 270), kit: coopKit(m.kit) });
+      NET.send({ t: 'lobby', members: COOP.members.map(({ kit, ...x }) => x) }); // 並びにキットは要らない(「開始」で送る)
       if (typeof CoopUI !== 'undefined') CoopUI.refresh();
       console.info('COOP: ' + COOP.members.length + '人');
       if (COOP.want && COOP.members.length >= COOP.want) coopStart();
@@ -113,10 +155,11 @@ function coopOnMsg(m) {
       return;
     case 'start': {
       if (COOP.host || COOP.on || !Array.isArray(m.members) || m.members.length > 4 || m.from !== (COOP.hostId || (m.members[0] && m.members[0].id))) return;
-      const members = m.members.map(x => ({ id: String(x && x.id), cls: okCls(x && x.cls), vw: okView(x && x.vw, 480), vh: okView(x && x.vh, 270) }));
+      const members = m.members.map(x => ({ id: String(x && x.id), cls: okCls(x && x.cls), vw: okView(x && x.vw, 480), vh: okView(x && x.vh, 270), kit: coopKit(x && x.kit) }));
       if (!members.some(x => x.id === NET.me)) return;
-      coopBegin({ seed: m.seed >>> 0, mode: m.mode === 'tower' ? 'tower' : 'escalation', stage: 1, lag: clamp(m.lag | 0, 1, 8), members,
-        view: { w: okView(m.view && m.view.w, 480), h: okView(m.view && m.view.h, 270) } });
+      const mode = m.mode === 'tower' ? 'tower' : 'escalation';
+      coopBegin({ seed: m.seed >>> 0, mode, stage: 1, lag: clamp(m.lag | 0, 1, 8), members,
+        view: { w: okView(m.view && m.view.w, 480), h: okView(m.view && m.view.h, 270) }, chaos: coopChaos(m.chaos, mode) });
       return;
     }
     // 入力・ハッシュは、その番号の人が送ってきた物だけ(ほかの人の番号を名乗れない)
@@ -125,18 +168,16 @@ function coopOnMsg(m) {
   }
 }
 const coopFromPid = m => Number.isInteger(m.pid) && m.pid >= 0 && m.pid < COOP.members.length && COOP.members[m.pid].id === m.from;
-// 全員が同じ手順でランを始める(計算の乱数の列で。players の 0 番はホストのクラス)
+// 全員が同じ手順でランを始める(計算の乱数の列で。players の 0 番はホスト。ステータスは各自のキット・カオス強化はホストの設定)
 function coopBegin(m) {
   COOP.members = m.members; COOP.pid = m.members.findIndex(x => x.id === NET.me); COOP.lag = m.lag;
   COOP.f = 0; COOP.sentTo = m.lag - 1; COOP.log = []; COOP.desync = null; // 入力は消さない(全員が直接つなぐので、ほかの人の入力が「開始」より先に届くことがある)
   Object.assign(SIM_VIEW, { on: true, w: m.view.w, h: m.view.h });
   FIXED_STEP.on = true; FIXED_STEP.acc = 0;
-  const cls0 = META.cls;
   simSeed(m.seed);
   simScope(() => {
-    META.cls = m.members[0].cls; // 0 番(ホスト)のクラスで始める。セーブに残さないよう、すぐ戻す
-    try { startRun(m.mode, m.stage); } finally { META.cls = cls0; }
-    for (let i = 1; i < m.members.length; i++) addPlayer(m.members[i].cls, P.x + 30 * i, P.y + 12 * i);
+    startRun(m.mode, m.stage, { cls: m.members[0].cls, kit: m.members[0].kit, chaos: m.chaos });
+    for (let i = 1; i < m.members.length; i++) addPlayer(m.members[i].cls, P.x + 30 * i, P.y + 12 * i, m.members[i].kit);
   });
   for (let f = 0; f < m.lag; f++) COOP.inq.set(f, players.map(() => NO_INPUT)); // 始めの lag フレームは全員入力なし
   for (const [f, row] of COOP.inq) if (row.length !== players.length) COOP.inq.delete(f); // 人数の違う並びで届いていた物は捨てる
