@@ -155,20 +155,55 @@ let lastT = performance.now();
 // 計算を 1/60 秒ずつ進める形(協力プレイは全員が同じ長さで進める。協力プレイの時に on にする: claudedocs/coop.md #23)
 //   1人用は今までどおり画面のフレームの長さで進める(120Hz・144Hz の画面でもなめらか)。試すときはコンソールで FIXED_STEP.on = true
 //   溜まった実時間の分だけ進める。遅れが大きいときは max 回まで(残りは捨てる)。60Hz の画面の揺らぎで 0回 / 2回にならないよう、少し早めに進める
-const FIXED_STEP = { on: false, dt: 1 / 60, acc: 0, max: 4, slack: 0.002 };
+//   lerp: 描く間だけ、動く物を「1つ前の計算」と「今の計算」の間に置く(補間。画面が 144Hz でもなめらか。見た目は最大 1/60 秒遅れる)
+const FIXED_STEP = { on: false, dt: 1 / 60, acc: 0, max: 4, slack: 0.002, lerp: true };
 function stepFixed(sec) {
   const F = FIXED_STEP;
   F.acc = Math.min(F.acc + sec, F.dt * F.max);
-  while (F.acc >= F.dt - F.slack && state === 'play') { F.acc -= F.dt; simScope(() => update(F.dt)); }
+  while (F.acc >= F.dt - F.slack && state === 'play') { F.acc -= F.dt; interpSave(); simScope(() => update(F.dt)); }
 }
+
+// ---------- 描画の補間 ----------
+//   計算の前に位置を控え(_ix / _iy)、描く前に間の値へ置き換え、描いた後に戻す。計算はこの値を読まない
+//   配列の外の座標(ボスの体の部品・鎖・光線の端など)は 1/60 秒刻みのまま
+const INTERP_JUMP = 48; // 1回の計算でこれより動いた物(瞬間移動・出し直し)は補間しない
+const interpLists = () => [enemies, projs, eprojs, hazards, zones, gems, drops, parts, floats, bfx, sfx, S.flamePuffs || []];
+const interpMoved = [];
+let interpReady = false; // 直前に計算を進めた(控えが今の計算の 1つ前)
+function interpSave() {
+  P._ix = P.x; P._iy = P.y;
+  for (const a of interpLists()) for (const o of a) { o._ix = o.x; o._iy = o.y; }
+  interpReady = true;
+}
+function interpOne(o, k) {
+  if (o._ix === undefined) return; // この計算で出てきた物
+  const dx = o.x - o._ix, dy = o.y - o._iy;
+  if (Math.abs(dx) + Math.abs(dy) > INTERP_JUMP) return;
+  o._cx = o.x; o._cy = o.y; o.x = o._ix + dx * k; o.y = o._iy + dy * k;
+  interpMoved.push(o);
+}
+function interpApply(k) {
+  interpOne(P, k);
+  for (const a of interpLists()) for (const o of a) interpOne(o, k);
+}
+function interpRestore() {
+  for (const o of interpMoved) { o.x = o._cx; o.y = o._cy; }
+  interpMoved.length = 0;
+}
+
 function frame(ts) {
   const sec = (ts - lastT) / 1000, rdt = Math.min(1 / 30, sec);
   lastT = ts;
   if (state === 'play') { if (FIXED_STEP.on) stepFixed(sec); else simScope(() => update(rdt)); } // 計算の乱数の列で(core.js)
   else { FIXED_STEP.acc = 0; if (state === 'over' || state === 'victory') updFx(rdt * 0.3); }
-  if (state !== 'pause' && state !== 'levelup' && state !== 'chest') updCam(rdt);
-  GFX.updateFx(rdt);
-  render();
+  if (state !== 'play' || !FIXED_STEP.on) interpReady = false;
+  const lerpK = FIXED_STEP.lerp && interpReady ? clamp(FIXED_STEP.acc / FIXED_STEP.dt, 0, 1) : 1;
+  if (lerpK < 1) interpApply(lerpK); // カメラも補間した位置を追う
+  try {
+    if (state !== 'pause' && state !== 'levelup' && state !== 'chest') updCam(rdt);
+    GFX.updateFx(rdt);
+    render();
+  } finally { if (lerpK < 1) interpRestore(); } // 描画で落ちても計算の位置は必ず戻す
   GFX.present();
   UI.hud(rdt);
   requestAnimationFrame(frame);
