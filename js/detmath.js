@@ -1,8 +1,7 @@
-// detmath.js — ブラウザ(JS エンジン)で結果が変わらない Math の関数(試作)
+// detmath.js — ブラウザ(JS エンジン)で結果が変わらない Math の関数。index.html で一番先に読み、Math のこれらを置き換える
+//   ネイティブの Math.sin などはエンジンで最後の 1桁が違い、協力プレイ(全員が同じ計算をする)がずれる(claudedocs/coop.md 3章・#22)
 //   + - * / % と Math.sqrt・floor・round・abs(IEEE で結果が決まっている物)だけで計算する。係数は fdlibm(FreeBSD の libm)から
-//   ゲームが使う sin / cos / tan / atan / atan2 / asin / hypot / pow / exp を置き換える(log は pow の中で使う)
-//   協力プレイ(claudedocs/coop.md 3章・7章 0段)の確かめ用。まだ index.html にもビルドにも入れていない(入れ方は 7章 1段で決める)
-//   ゲームより先に読むと Math のこれらの関数を置き換える(window.__detMathInstall = false なら置き換えず、DETMATH / NATIVEMATH に置くだけ)
+//   置き換える物: sin / cos / tan / atan / atan2 / asin / hypot / pow / exp / log。ゲームでは ** を使わない(エンジンの累乗になる。Math.pow で書く)
 //   確かめた結果(2026-10-16, Chromium 156 / Firefox 157 / WebKit 27.2): 3つで 1ビットも違わない。ネイティブとの差は相対 2〜4e-16(pow の小数乗は 6e-15)
 'use strict';
 (() => {
@@ -133,6 +132,5 @@
     return exp(y * log(x));
   };
 
-  const DET = { sin, cos, tan, atan, atan2, asin, hypot, pow, exp, log };
-  if (typeof window !== 'undefined') { window.DETMATH = DET; window.NATIVEMATH = N; if (window.__detMathInstall !== false) Object.assign(Math, DET); }
+  Object.assign(Math, { sin, cos, tan, atan, atan2, asin, hypot, pow, exp, log });
 })();

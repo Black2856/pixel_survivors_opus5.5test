@@ -19,6 +19,7 @@
 - 改行は CRLF(js / md / css / html。`core.autocrlf=true`)。書いたら `node scripts/dev/eol.js`(`--fix` でそろえる)。sed -i は使わない
 - 表示する日本語は `_t` を通し、訳を `js/lang/en.js`・`zh.js`・`ko.js` に足す(キー = 日本語の文)。`node scripts/i18n-check.js` で抜けを見る。DATA の文は読み込み時にまるごと訳す
   - 強化のパスの `desc` は多くが値を差し込む型(`'バラージュの威力 +{p}%'` + `v`。表示は `pathDesc`)。数値だけの調整は `v` を変えるだけで、説明も辞書も触らない。配列のもの(Lv ごとに文が違う)は今までどおり 3つの文と辞書を直す
+- 計算(update の中)はどのブラウザでも同じ結果にする(協力プレイ: `claudedocs/coop.md` 3章): `**` は使わない(`Math.pow` で。Math の関数は `js/detmath.js` が置き換えている)/ 計算に関わる「少し後で」は `setTimeout` ではなく `simTimeout`
 - `claudedocs/db.xlsx` はユーザーの物。ステージもコミットもしない
 - 作業は feature ブランチ。`release` は公開元(GitHub Pages)で、マージだけ。マージはユーザーに言われた時だけ
 
@@ -35,7 +36,7 @@
 ## 試験
 - 道具: `scripts/dev/harness.js`(使い方は先頭のコメント)。`python -m http.server 8765 --bind 127.0.0.1` を立て、Playwright の `browser_run_code_unsafe` に `filename: scripts/dev/open.pw.js` で開く → `T.setup` / `T.step` / `T.boss` で手で進める
 - 通し: `T.classSmoke()`(全クラス × 特殊強化 3通り、約 8秒)・`T.bossSmoke()`(全ステージのボス、約 20秒)→ 例外の数とハッシュ
-- ブラウザどうし(協力プレイのずれ): `scripts/dev/cross.js` が通しを Chromium / Firefox / WebKit で回して、画素なしのハッシュを比べる(Playwright はリポジトリの外に入れる。使い方は先頭のコメント)。`det` で `scripts/dev/detmath.js`(エンジンで結果が変わらない Math)を先に読む
+- ブラウザどうし(協力プレイのずれ): `scripts/dev/cross.js` が通しを Chromium / Firefox / WebKit で回して、画素なしのハッシュを比べる(Playwright はリポジトリの外に入れる。使い方は先頭のコメント)
 - 動かすだけのリファクタリングは、前後でハッシュが同じか比べる。ページを開き直して `classSmoke()` → `bossSmoke()` の順に呼ぶ(初回だけ作るキャッシュがあるので順番をそろえる)
 - 試験はセーブに書かない(T.init が saveMeta を止める)。公開版を手で遊ばせるときは先にセーブ(localStorage)を写し、`/scripts/`(ゲームを読まないページ)で戻す。終わったらサーバーを止め、`.playwright-mcp/` を消す
 - 遊ばせても時計が進まないときは rAF が止まっている(この環境で起きる)。`page.bringToFront()` してから

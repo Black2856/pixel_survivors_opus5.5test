@@ -175,7 +175,7 @@ function elGain(n) {
 function elShockMod(e) {
   const p = EL(), q = DATA.classes.electro.q;
   let n = Math.floor((P.charge || 0) / p.perChain);
-  const rod = hasSp('q', 'cd') && zones.some(z => z.kind === 'tower' && d2(z.x, z.y, e.x, e.y) < (z.big ? q.r * q.bigR : q.r) ** 2); // 避雷針: 連鎖 +1・感電ダメージアップ
+  const rod = hasSp('q', 'cd') && zones.some(z => z.kind === 'tower' && d2(z.x, z.y, e.x, e.y) < Math.pow(z.big ? q.r * q.bigR : q.r, 2)); // 避雷針: 連鎖 +1・感電ダメージアップ
   if (rod) n++;
   const focus = hasSp('trait', 'conduct');
   return { n, nMul: focus ? p.focusN : 1, r: 1 + cuV('trait', 'conduct'), dmg: (focus ? p.focusDmg : 1) * (P.elT > 0 && hasSp('passive', 'shock') ? 1 + p.flash : 1) * (rod ? 1 + q.rodDmg : 1) };

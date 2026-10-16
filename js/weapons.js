@@ -339,7 +339,7 @@ function cutPt(s, u) {
 }
 // 点 (x, y) が一閃の線(三日月)から W 以内か(当たり判定)
 function cutNear(s, x, y, W) {
-  const L2 = (s.x1 - s.x0) ** 2 + (s.y1 - s.y0) ** 2, u = clamp(((x - s.x0) * (s.x1 - s.x0) + (y - s.y0) * (s.y1 - s.y0)) / L2, 0, 1), [px, py] = cutPt(s, u);
+  const L2 = Math.pow(s.x1 - s.x0, 2) + Math.pow(s.y1 - s.y0, 2), u = clamp(((x - s.x0) * (s.x1 - s.x0) + (y - s.y0) * (s.y1 - s.y0)) / L2, 0, 1), [px, py] = cutPt(s, u);
   return d2(x, y, px, py) <= W * W;
 }
 // 一閃を作る(村正・居合・乱れ桜で共有)。時刻 omen / run / hit と life はゲーム時間
@@ -374,11 +374,11 @@ function muramasaCut(st, org = P_ORG) {
 function cutHit(s, st, W) {
   if (state !== 'play') return;
   asMine(() => {
-    const L2 = (s.x1 - s.x0) ** 2 + (s.y1 - s.y0) ** 2, cx = (s.x0 + s.x1) / 2, cy = (s.y0 + s.y1) / 2, ca = Math.cos(s.a), sa = Math.sin(s.a);
+    const L2 = Math.pow(s.x1 - s.x0, 2) + Math.pow(s.y1 - s.y0, 2), cx = (s.x0 + s.x1) / 2, cy = (s.y0 + s.y1) / 2, ca = Math.cos(s.a), sa = Math.sin(s.a);
     let marks = 0;
     forEachNear(cx, cy, s.len / 2 + W, e => {
       const u = clamp(((e.x - s.x0) * (s.x1 - s.x0) + (e.y - s.y0) * (s.y1 - s.y0)) / L2, 0, 1), [px, py] = cutPt(s, u);
-      if (d2(e.x, e.y, px, py) > (W + (e.r || 4)) ** 2) return;
+      if (d2(e.x, e.y, px, py) > Math.pow(W + (e.r || 4), 2)) return;
       if (e.prop) { killEnemy(e); return; }
       const sd = (e.x - px) * s.nx + (e.y - py) * s.ny < 0 ? -1 : 1; // 線のどちら側にいるか(そちらへ押し出す)
       hitEnemy(e, st.dmg * 8, { src: 'katana', ang: Math.atan2(s.ny * sd, s.nx * sd), kb: 70, col: '#ff3b5c' });
@@ -521,7 +521,7 @@ const ICE_FALL = 0.15; // つららが落ちてくる時間
 // アローレインの見た目の矢: RAIN_FALL 秒で空から落ち(高さ RAIN_H)、刺さってから RAIN_STUCK 秒で消える
 const RAIN_FALL = 0.12, RAIN_H = 60, RAIN_STUCK = 0.6;
 // 1回に降らせる見た目の矢: nArrows は半径 60 のときの本数。広いほど増やして密度を保つ(最大 2.5倍)。画質で減らす
-const rainArrowN = z => Math.max(2, Math.round(z.nArrows * clamp((z.r / 60) ** 2, 1, 2.5) * Math.min(1, 0.3 + gq().parts)));
+const rainArrowN = z => Math.max(2, Math.round(z.nArrows * clamp(Math.pow(z.r / 60, 2), 1, 2.5) * Math.min(1, 0.3 + gq().parts)));
 // 矢が刺さった瞬間: 土煙と火花(炎の矢は火の粉)
 function rainImpact(z, ar) {
   asMine(() => {
@@ -629,7 +629,7 @@ function updZones(dt) {
         z.wireT -= dt;
         if (z.wireT <= 0) {
           z.wireT = DATA.classes.electro.q.wireEvery;
-          const W = DATA.classes.electro.q.wireW, ax = z.x, ay = top + 3, bx = P.x, by = P.y - 8, L2 = (bx - ax) ** 2 + (by - ay) ** 2 || 1;
+          const W = DATA.classes.electro.q.wireW, ax = z.x, ay = top + 3, bx = P.x, by = P.y - 8, L2 = Math.pow(bx - ax, 2) + Math.pow(by - ay, 2) || 1;
           asMine(() => forEachNear((ax + bx) / 2, (ay + by) / 2, Math.sqrt(L2) / 2 + W, e => {
             if (e.prop) return;
             const u = clamp(((e.x - ax) * (bx - ax) + (e.y - ay) * (by - ay)) / L2, 0, 1), px = ax + (bx - ax) * u, py = ay + (by - ay) * u;

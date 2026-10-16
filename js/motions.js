@@ -3,7 +3,7 @@
 //           lean(前傾。足元基準)/ sy(縦の伸縮)。すべて右向き基準で、描画側で左右反転する
 'use strict';
 
-const EASE = { lin: u => u, out: u => 1 - (1 - u) ** 3, in: u => u * u * u, inOut: u => (u < 0.5 ? 4 * u * u * u : 1 - (-2 * u + 2) ** 3 / 2) };
+const EASE = { lin: u => u, out: u => 1 - Math.pow(1 - u, 3), in: u => u * u * u, inOut: u => (u < 0.5 ? 4 * u * u * u : 1 - Math.pow(-2 * u + 2, 3) / 2) };
 // keys: [[時刻, 値, イージング], ...] を t で補間する
 function track(keys, t) {
   if (t <= keys[0][0]) return keys[0][1];
