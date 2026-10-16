@@ -160,7 +160,7 @@ const MetaUI = (() => {
     const g = e.target.closest('.cl-go');
     if (g && !g.disabled && META.cls !== clSel) { META.cls = clSel; saveMeta(); AudioMan.select(); renderClass(); }
   };
-  const closeClass = () => { if (back === 'stage') stageSelect(false, stCoop); else { state = 'title'; UI.title(); } };
+  const closeClass = () => { if (back === 'stage') stageSelect(false, stCoop); else if (back === 'coop') CoopUI.open(); else { state = 'title'; UI.title(); } }; // coop: 協力プレイの画面の「自分のクラス」から
   $('cl-back').onclick = () => { AudioMan.click(); closeClass(); };
   $('btn-class').onclick = () => { AudioMan.click(); classScreen(); };
 
@@ -432,5 +432,5 @@ const MetaUI = (() => {
     if (state === 'tree' && e.code === 'Escape') { state = 'title'; UI.title(); }
   }
 
-  return { open, stageSelect, classScreen, treeScreen, onKey };
+  return { open, stageSelect, classScreen, treeScreen, onKey, portrait };
 })();

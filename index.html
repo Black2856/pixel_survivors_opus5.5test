@@ -70,19 +70,40 @@
     </div>
   </div>
 
-  <!-- 協力プレイの部屋(ラン外。coop-ui.js): 部屋を作る(→ ステージ選択 → 部屋)/ コードで入る / 公開の部屋の一覧から入る -->
+  <!-- 協力プレイ(ラン外。coop-ui.js)。見本: claudedocs/img/lobby.png
+       大きな枠の中に、見出しと自分のクラス(押すとクラス画面)/ 左: 部屋を作る(→ ステージ選択 → 部屋)・コードで参加 / 右: 公開の部屋の一覧 / 下: 知らせと説明。枠の外に戻る
+       部屋の中では、左が部屋の札(coop-room)、右が入った人(coop-mems)。印は data-ic(ui.js が入れる) -->
   <div id="coop-screen" class="screen hidden">
-    <h2 class="scr-title">協力プレイ</h2>
-    <div class="coop-box">
-      <div id="coop-cls" class="coop-cls"></div>
-      <div id="coop-join-row" class="coop-row">
-        <button id="coop-make" class="btn big">部屋を作る</button>
-        <span class="coop-row"><input id="coop-code" maxlength="6" autocomplete="off" spellcheck="false"><button id="coop-enter" class="btn">コードで入る</button></span>
+    <div class="cp-panel cp-frame">
+      <div class="cp-head">
+        <span class="cp-hic" data-ic="party"></span>
+        <div class="cp-ttl"><h2>協力プレイ</h2><small>2〜4人で一緒に挑む</small></div>
+        <button id="coop-cls" class="cp-me cp-frame"></button>
       </div>
-      <div id="coop-room" class="coop-room hidden"></div>
-      <div id="coop-pub" class="coop-pub hidden"></div>
-      <div class="coop-note">2〜4人で遊ぶ。部屋を作る時に、遊ぶステージと、公開の部屋(一覧から誰でも入れる)かコードの部屋(コードを伝えた人だけが入れる)かを選ぶ。別の PC やスマホからも入れる(つながるまで数秒)</div>
-      <button id="coop-back" class="btn ghost">戻る</button>
+      <div class="cp-body">
+        <div class="cp-left">
+          <section id="cp-make-card" class="cp-card cp-frame gold">
+            <h3 data-ic="gate">部屋を作る</h3>
+            <p>ステージと公開範囲を選んで招待しよう</p>
+            <button id="coop-make" class="cp-btn gold cp-frame" data-ic="plus"><span class="lbl">部屋を作る</span></button>
+          </section>
+          <section id="cp-code-card" class="cp-card cp-frame cyan">
+            <h3 data-ic="link">コードで参加</h3>
+            <label for="coop-code">部屋のコード</label>
+            <input id="coop-code" maxlength="6" autocomplete="off" spellcheck="false" placeholder="コードを入力">
+            <button id="coop-enter" class="cp-btn cp-frame">参加する</button>
+          </section>
+          <section id="coop-room" class="cp-card cp-frame gold hidden"></section>
+        </div>
+        <section id="coop-pub" class="cp-card cp-frame cp-right"></section>
+        <section id="coop-mems" class="cp-card cp-frame cp-right hidden"></section>
+      </div>
+      <div id="coop-msg" class="cp-msg hidden"></div>
+      <div class="cp-info" data-ic="info">公開の部屋は誰でも入れる。コードの部屋はコードを知っている人だけが入れる</div>
+    </div>
+    <div class="cp-foot">
+      <button id="coop-back" class="cp-back cp-frame" data-ic="back"><span class="lbl">戻る</span></button><span class="cp-esc">ESC</span>
+      <span class="cp-hint">つながるまで数秒かかることがあります</span>
     </div>
   </div>
 

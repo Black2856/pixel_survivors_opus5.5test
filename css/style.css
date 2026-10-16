@@ -433,7 +433,8 @@ input[type=range] { width: 220px; accent-color: var(--gold); }
 .st .gl { position: relative; font: calc(var(--px) * 7) 'DotGothic16'; color: var(--sc); text-shadow: 0 0 calc(var(--px) * 2) var(--sc); line-height: 1; }
 
 /* ---------- ステージ選択 ---------- */
-#stage-screen, #coop-screen { padding: 26px 0 14px; } /* 画面が低いと見出しが上で切れるので、上下をあけてリストの枠を縮ませる(協力プレイの画面は低いとスクロール) */
+#stage-screen { padding: 26px 0 14px; } /* 画面が低いと見出しが上で切れるので、上下をあけてリストの枠を縮ませる */
+#coop-screen { padding: 10px 0 8px; } /* 低い窓ではスクロール(枠の飾りが端で切れないように少しあける) */
 #stage-list { display: flex; flex-direction: column; gap: 6px; width: min(900px, calc(94vw / var(--ui))); max-height: calc(60vh / var(--ui)); min-height: 0; overflow-y: auto; padding: 2px 8px 2px 2px; } /* 1列で、枠の中をスクロール(エスカレーション・闘技場・ステージを tier の順に)。枠の高さはカード 10枚ぶん(meta-ui.js が並べてから測って決める。60vh は測る前の値) */
 /* カード: 左に tier の札、名前と説明の2行、右にカオス強化。背景はステージの床の絵(--art。2倍のドット)に、左を暗くする影を重ねて文字を読めるように */
 .stg { --art: none; position: relative; overflow: hidden; flex: 0 0 auto; display: grid; grid-template-columns: 44px 1fr auto; grid-template-rows: 1fr 1fr; column-gap: 12px; align-items: center; min-height: 58px; padding: 5px 12px 5px 8px; text-align: left; image-rendering: pixelated;
@@ -854,25 +855,122 @@ html.touch #hud:not(.hidden) ~ #touch-ctl { display: block; }
 #coop-pick .cp-btns { display: flex; gap: 10px; }
 #coop-pick.sent .card, #coop-pick.sent .btn { opacity: .45; pointer-events: none; }
 #coop-wait { position: absolute; left: 50%; top: 92px; transform: translateX(-50%); color: var(--txt); font-size: 13px; text-shadow: 0 1px 2px #000; white-space: nowrap; }
-/* 協力プレイの部屋(coop-ui.js) */
-#coop-screen .coop-box { display: flex; flex-direction: column; align-items: center; gap: 14px; max-width: 640px; margin: 0 auto; padding: 0 16px; }
-.coop-cls { color: var(--txt); font-size: 14px; }
-.coop-row { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; align-items: center; }
-#coop-code { font: 15px 'Press Start 2P'; width: 9em; text-transform: uppercase; padding: 10px; background: #12203a; color: var(--txt); border: 2px solid #2a6a80; text-align: center; }
-.coop-room { display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 16px 24px; border: 2px solid #3a2a6a; background: #1a1030; }
-.coop-code-big { font: 16px 'Press Start 2P'; color: var(--gold); letter-spacing: 2px; }
-.coop-mode { font-size: 20px; color: #5dffc8; letter-spacing: 2px; text-shadow: 2px 2px 0 var(--ink), 0 0 10px rgba(93,255,200,.35); } /* 部屋のモード(色はステージ選択のタワーのカード) */
+/* 協力プレイの画面(coop-ui.js。見本 claudedocs/img/lobby.png): 大きな枠の中に見出しと自分のクラス、左に部屋を作る・コードで参加、右に公開の部屋の一覧、下に説明。枠の外に戻る
+   部屋の中では左が部屋の札、右が入った人。枠・札の色は --ac(角の飾り・見出しの下の線・印) */
+#coop-screen { gap: 10px; }
+.cp-frame { position: relative; --ac: #8f80e0; }
+.cp-frame::before { content: ''; position: absolute; inset: -4px; pointer-events: none; /* 角の鉤(かぎ)の飾り */
+  background: linear-gradient(var(--ac), var(--ac)) left top / 10px 2px no-repeat, linear-gradient(var(--ac), var(--ac)) left top / 2px 10px no-repeat,
+    linear-gradient(var(--ac), var(--ac)) right top / 10px 2px no-repeat, linear-gradient(var(--ac), var(--ac)) right top / 2px 10px no-repeat,
+    linear-gradient(var(--ac), var(--ac)) left bottom / 10px 2px no-repeat, linear-gradient(var(--ac), var(--ac)) left bottom / 2px 10px no-repeat,
+    linear-gradient(var(--ac), var(--ac)) right bottom / 10px 2px no-repeat, linear-gradient(var(--ac), var(--ac)) right bottom / 2px 10px no-repeat; }
+/* 見出しの下の線(両端が菱形。色は --ac。菱形は mask で切り抜く) */
+.cp-head::after, .cp-card h3::after { content: ''; position: absolute; left: 0; bottom: 0; height: 10px; pointer-events: none; background: var(--ac); opacity: .75;
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 5 5' shape-rendering='crispEdges'%3E%3Cpath d='M2 0h1v1H2zM1 1h1v1H1zM3 1h1v1H3zM0 2h1v1H0zM4 2h1v1H4zM1 3h1v1H1zM3 3h1v1H3zM2 4h1v1H2z'/%3E%3C/svg%3E") left center / 10px 10px no-repeat,
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 5 5' shape-rendering='crispEdges'%3E%3Cpath d='M2 0h1v1H2zM1 1h1v1H1zM3 1h1v1H3zM0 2h1v1H0zM4 2h1v1H4zM1 3h1v1H1zM3 3h1v1H3zM2 4h1v1H2z'/%3E%3C/svg%3E") right center / 10px 10px no-repeat,
+    linear-gradient(#000, #000) 10px center / calc(100% - 20px) 2px no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 5 5' shape-rendering='crispEdges'%3E%3Cpath d='M2 0h1v1H2zM1 1h1v1H1zM3 1h1v1H3zM0 2h1v1H0zM4 2h1v1H4zM1 3h1v1H1zM3 3h1v1H3zM2 4h1v1H2z'/%3E%3C/svg%3E") left center / 10px 10px no-repeat,
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 5 5' shape-rendering='crispEdges'%3E%3Cpath d='M2 0h1v1H2zM1 1h1v1H1zM3 1h1v1H3zM0 2h1v1H0zM4 2h1v1H4zM1 3h1v1H1zM3 3h1v1H3zM2 4h1v1H2z'/%3E%3C/svg%3E") right center / 10px 10px no-repeat,
+    linear-gradient(#000, #000) 10px center / calc(100% - 20px) 2px no-repeat; }
+.cp-panel { width: min(1120px, calc(94vw / var(--ui))); display: flex; flex-direction: column; gap: 10px; padding: 12px 20px 10px; background: rgba(14,12,34,.94);
+  box-shadow: inset 0 0 0 2px #5b4ca6, inset 0 0 0 5px #0e0c22, inset 0 0 0 6px #2e2560, 0 0 0 2px var(--ink), 0 10px 40px rgba(0,0,0,.5); }
+/* 見出し: 印・題・ひとこと(下に線)と、右に自分のクラス */
+.cp-head { position: relative; display: flex; align-items: center; gap: 16px; padding: 0 4px 10px; --ac: #8f80e0; }
+.cp-head::after { right: 330px; }
+.cp-hic .pxi { width: 48px; height: 48px; color: #9a8cf0; filter: drop-shadow(3px 3px 0 var(--ink)); }
+.cp-ttl { flex: 1; display: flex; flex-direction: column; }
+.cp-ttl h2 { font: 36px 'DotGothic16', monospace; line-height: 1.1; letter-spacing: 4px; color: var(--gold); text-shadow: 3px 3px 0 #4a2a06, 0 0 18px rgba(255,210,63,.3); }
+.cp-ttl small { font-size: 16px; letter-spacing: 2px; color: #c8c0e8; text-shadow: 2px 2px 0 var(--ink); }
+.cp-me { display: flex; align-items: center; gap: 14px; width: 310px; padding: 8px 14px; text-align: left; background: rgba(12,10,28,.85); box-shadow: inset 0 0 0 2px #4a3e8a; }
+@media (hover: hover) { .cp-me:hover:not(:disabled) { box-shadow: inset 0 0 0 2px var(--gold); } }
+.cp-me:disabled { cursor: default; }
+.cp-me-t { flex: 1; display: flex; flex-direction: column; line-height: 1.35; }
+.cp-me-t small { font-size: 12px; color: var(--dim); }
+.cp-me-t b { font-size: 20px; font-weight: normal; color: var(--txt); text-shadow: 2px 2px 0 var(--ink); }
+.cp-me-go { font-size: 12px; color: var(--gold); }
+/* クラスの絵(丸い台の上。--cc はクラスの色) */
+.cp-face { flex: none; display: grid; place-items: center; width: 50px; height: 50px; border-radius: 50%; background: radial-gradient(circle, color-mix(in srgb, var(--cc, #8f80e0) 40%, #1a1438) 0%, #120e28 72%); box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--cc, #8f80e0) 65%, #000); }
+.cp-face img { width: 44px; image-rendering: pixelated; }
+/* 中: 左の列(部屋を作る・コードで参加 / 部屋の札)と右の札(公開の部屋の一覧 / 入った人) */
+.cp-body { display: grid; grid-template-columns: 400px 1fr; gap: 16px; }
+.cp-left { display: flex; flex-direction: column; gap: 12px; }
+.cp-card { padding: 10px 18px 12px; background: rgba(20,17,46,.9); box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--ac) 38%, #251e4c); }
+.cp-card.gold { --ac: #ffd23f; --hc: var(--gold); }
+.cp-card.cyan { --ac: #6ee7ff; --hc: #8ff0ff; }
+.cp-card h3 { position: relative; display: flex; align-items: center; gap: 12px; margin-bottom: 8px; padding-bottom: 8px; font: 21px 'DotGothic16', monospace; font-weight: normal; letter-spacing: 2px; color: var(--hc, var(--txt)); text-shadow: 2px 2px 0 var(--ink); }
+.cp-card h3::after { right: 0; }
+.cp-card h3 .pxi { flex: none; width: 30px; height: 30px; color: var(--ac); filter: drop-shadow(2px 2px 0 var(--ink)); }
+.cp-cnt { margin-left: auto; font-size: 18px; color: var(--ac); }
+.cp-card p { margin: 0 0 12px 42px; font-size: 14px; line-height: 1.6; color: #c8c0e8; }
+.cp-card label { display: block; margin: 0 0 6px 2px; font-size: 14px; color: #c8c0e8; }
+#coop-code { display: block; width: 100%; margin-bottom: 8px; padding: 8px 14px; font: 18px 'DotGothic16', monospace; letter-spacing: 6px; text-transform: uppercase; color: var(--txt); background: #0c0a20; border: 2px solid #3d6aa8; }
+#coop-code::placeholder { letter-spacing: 1px; text-transform: none; color: #6a6490; }
+#coop-code:focus { outline: none; border-color: var(--cyan); }
+/* ボタン: ふつうは紫、部屋を作る・開始は金 */
+.cp-btn { --ac: #b8a8ff; display: flex; align-items: center; justify-content: center; gap: 10px; width: 100%; padding: 9px; font: 18px 'DotGothic16', monospace; letter-spacing: 3px; color: #fff; text-shadow: 2px 2px 0 var(--ink);
+  background: linear-gradient(180deg, #3a2f80, #2a2160); box-shadow: inset 0 0 0 2px #7a6ad0, 0 0 0 2px var(--ink); }
+.cp-btn .pxi { width: 24px; height: 24px; }
+.cp-btn.gold { --ac: #fff0b0; padding: 10px; font-size: 22px; color: var(--gold); background: linear-gradient(180deg, #4a3812, #2c1f08); box-shadow: inset 0 0 0 2px var(--gold), 0 0 0 2px var(--ink), 0 0 18px rgba(255,210,63,.3); }
+@media (hover: hover) { .cp-btn:hover:not(:disabled) { filter: brightness(1.2); } }
+.cp-btn:active:not(:disabled) { transform: translateY(1px); }
+.cp-btn:disabled { opacity: .45; cursor: default; }
+.cp-btn.small { width: auto; flex: none; padding: 5px 18px; font-size: 15px; }
+.cp-right { display: flex; flex-direction: column; min-height: 0; }
+.cp-list { flex: 1; display: flex; flex-direction: column; gap: 8px; min-height: 0; max-height: 360px; overflow-y: auto; }
+/* 公開の部屋が無い・探している・取れない */
+.cp-empty { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; padding: 12px; text-align: center; }
+.cp-empty .pxi { width: 96px; height: 88px; margin-bottom: 8px; color: #5a5098; }
+.cp-empty b { font-size: 20px; font-weight: normal; letter-spacing: 1px; color: var(--txt); text-shadow: 2px 2px 0 var(--ink); }
+.cp-empty span { font-size: 14px; color: var(--dim); }
+/* 公開の部屋の行: ホストのクラスの絵・「◯◯ の部屋」とモード・人数・入る */
+.cp-room { display: flex; align-items: center; gap: 14px; padding: 7px 12px; background: rgba(12,10,28,.7); box-shadow: inset 0 0 0 2px #3a3070; }
+@media (hover: hover) { .cp-room:hover { background: linear-gradient(90deg, rgba(143,128,224,.16), rgba(12,10,28,.7)); box-shadow: inset 0 0 0 2px #8f80e0; } }
+.cp-rt { flex: 1; display: flex; flex-direction: column; line-height: 1.35; }
+.cp-rt b { font-size: 17px; font-weight: normal; color: var(--txt); }
+.cp-rt small { font-size: 12px; color: #5dffc8; }
+.cp-n { font: 12px 'Press Start 2P'; color: var(--txt); }
+/* 部屋の札: モード・公開かコードか・部屋のコード・入力の遅れ・開始 / 待ち */
+.cp-tag { display: inline-block; margin: 0 0 10px; padding: 2px 10px; font-size: 13px; color: var(--cyan); box-shadow: inset 0 0 0 1px #3d6aa8; }
+.cp-tag.pub { color: #5dff8a; box-shadow: inset 0 0 0 1px #2f7a4a; }
+.cp-code { margin-bottom: 4px; padding: 10px; text-align: center; font: 26px 'Press Start 2P'; letter-spacing: 6px; color: var(--gold); text-shadow: 2px 2px 0 var(--ink); background: #0c0a20; box-shadow: inset 0 0 0 2px #5a4a16; user-select: text; }
+#coop-room p { margin: 0; font-size: 13px; color: var(--dim); }
+.coop-lag { min-height: 1.5em; margin: 8px 0; font-size: 13px; color: var(--dim); }
+.coop-lag.warn { color: #ffb070; }
+.cp-wait { margin-top: 8px; text-align: center; font-size: 15px; color: var(--dim); }
+/* 入った人: P1〜P4(色は頭の上の字と同じ PL_COL)・クラスの絵と名前・ホスト / 自分・往復時間。空きは薄く */
+.cp-slot { display: flex; align-items: center; gap: 12px; min-height: 58px; padding: 5px 12px; background: rgba(12,10,28,.7); box-shadow: inset 4px 0 0 0 var(--pc), inset 0 0 0 2px #3a3070; }
+.cp-slot.empty { opacity: .5; box-shadow: inset 0 0 0 2px #2a2450; background: repeating-linear-gradient(135deg, rgba(255,255,255,.03) 0 8px, transparent 8px 16px); }
+.cp-pn { width: 34px; font: 13px 'Press Start 2P'; color: var(--pc); text-shadow: 2px 2px 0 var(--ink); }
+.cp-slot .cp-face { width: 44px; height: 44px; } .cp-slot .cp-face img { width: 38px; }
+.cp-nm { font-size: 18px; color: var(--txt); }
+.cp-badge { padding: 1px 8px; font-size: 12px; color: var(--ink); background: var(--gold); }
+.cp-badge.me { background: var(--cyan); }
+.coop-rtt { margin-left: auto; font: 11px 'Press Start 2P'; color: var(--dim); }
+/* 知らせ(入れなかった・ホストが閉じた・WebRTC が無い)と、下の説明 */
+.cp-msg { padding: 7px 14px; font-size: 15px; color: #ffb070; background: rgba(60,30,10,.5); box-shadow: inset 0 0 0 2px #7a4a1a; }
+.cp-info { display: flex; align-items: center; gap: 12px; padding: 7px 16px; font-size: 14px; color: #c8c0e8; background: rgba(12,10,28,.7); box-shadow: inset 0 0 0 2px #2e2858; }
+.cp-info .pxi { flex: none; width: 22px; height: 22px; color: #7ab0ff; }
+/* 枠の外: 戻る(部屋の中では「部屋を出る」)・ESC・つながる時間の注意 */
+.cp-foot { width: min(1120px, calc(94vw / var(--ui))); display: flex; align-items: center; gap: 10px; }
+.cp-back { --ac: #b8a8ff; display: flex; align-items: center; gap: 10px; padding: 7px 22px 7px 14px; font: 17px 'DotGothic16', monospace; letter-spacing: 2px; color: var(--txt); background: rgba(12,10,28,.85); box-shadow: inset 0 0 0 2px #6a5ab0, 0 0 0 2px var(--ink); }
+.cp-back .pxi { width: 22px; height: 22px; }
+@media (hover: hover) { .cp-back:hover { color: var(--gold); box-shadow: inset 0 0 0 2px var(--gold), 0 0 0 2px var(--ink); } }
+.cp-esc { padding: 3px 8px; font: 9px 'Press Start 2P'; color: var(--dim); box-shadow: inset 0 0 0 1px #4a3e8a; }
+.cp-hint { margin-left: auto; font-size: 13px; color: var(--dim); text-shadow: 2px 2px 0 var(--ink); }
+html.touch .cp-esc { display: none; }
+/* 狭い窓: 左の列を細く(横向きのスマホも 2列のまま)。もっと狭いと 1列 */
+:where(.vn820) .cp-body { grid-template-columns: 320px 1fr; } :where(.vn820) .cp-head::after { right: 300px; } :where(.vn820) .cp-me { width: 280px; }
+:where(.vn760) .cp-body { grid-template-columns: 1fr; }
+/* スマホ: 低いので小さく詰める(入りきらない分はスクロール。部屋を作るの説明は出さない) */
+html.touch .cp-panel { gap: 8px; padding: 10px 14px 8px; } html.touch .cp-head { gap: 12px; padding-bottom: 6px; } html.touch .cp-hic .pxi { width: 36px; height: 36px; }
+html.touch .cp-ttl h2 { font-size: 28px; } html.touch .cp-ttl small { font-size: 13px; } html.touch .cp-me { padding: 4px 10px; } html.touch .cp-me .cp-face { width: 40px; height: 40px; }
+html.touch .cp-body { gap: 12px; } html.touch .cp-left { gap: 10px; } html.touch .cp-card { padding: 8px 12px 10px; } html.touch .cp-card p { display: none; }
+html.touch .cp-card h3 { margin-bottom: 6px; padding-bottom: 6px; font-size: 18px; } html.touch .cp-card h3 .pxi { width: 24px; height: 24px; }
+html.touch .cp-btn { padding: 6px; font-size: 16px; } html.touch .cp-btn.gold { padding: 8px; font-size: 19px; } html.touch #coop-code { margin-bottom: 6px; padding: 6px 12px; }
+html.touch .cp-info { padding: 5px 12px; font-size: 13px; } html.touch .cp-empty .pxi { width: 64px; height: 59px; } html.touch .cp-code { padding: 6px; font-size: 20px; }
+html.touch .cp-slot { min-height: 46px; } html.touch .cp-slot .cp-face { width: 36px; height: 36px; } html.touch .cp-slot .cp-face img { width: 32px; }
 /* ステージ選択の協力プレイの形: 公開の部屋かコードの部屋か */
 .st-coop { display: flex; align-items: center; gap: 12px; padding: 6px 14px; background: var(--panel); box-shadow: inset 4px 0 0 0 #5dffc8, inset 0 0 0 2px #3a3060; font-size: 14px; }
 .st-coop-h { color: #5dffc8; }
 .st-coop .seg { width: 260px; }
 .st-coop .dim { color: var(--dim); font-size: 12px; }
-.coop-list { display: flex; flex-direction: column; gap: 6px; font-size: 14px; color: var(--txt); min-width: 220px; }
-.coop-mem.dim { color: var(--dim); }
-.coop-note { color: var(--dim); font-size: 12px; text-align: center; max-width: 520px; line-height: 1.6; }
-.coop-rtt { color: var(--dim); font-size: 12px; }
-.coop-lag { color: var(--dim); font-size: 12px; text-align: center; }
-.coop-lag.warn { color: #ffb070; }
-.coop-pub { display: flex; flex-direction: column; align-items: stretch; gap: 8px; padding: 12px 18px; border: 2px solid #2a4a6a; background: #101a30; min-width: 300px; max-height: 260px; overflow-y: auto; }
-.coop-pub-h { font: 11px 'Press Start 2P'; color: var(--gold); text-align: center; }
-.coop-pub-row { display: flex; justify-content: space-between; align-items: center; gap: 12px; color: var(--txt); font-size: 14px; }
