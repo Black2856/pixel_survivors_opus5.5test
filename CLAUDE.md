@@ -32,6 +32,10 @@
 ## ビルド・公開
 - `npm run build` → `dist/`(index.html の `<script>` を順につなぎ、1つの関数で包んで esbuild で小さくする)。新しい js は index.html に `<script>` を足せばビルドにも入る
 - release に push → `.github/workflows/pages.yml` がビルドして Pages に出す(手で POST しなくてよい)
+- 1.0(タグ `v1.0.0`。2026-10-17)からの公開の手順: release へは `git merge --no-ff feature/… -m "v1.1.0: …"`(公開 1回 = マージコミット 1つ。`git log --first-parent release` が公開の一覧)→ 注釈付きのタグ `git tag -a v1.1.0 -m "…"` → `git push origin release --follow-tags`
+  - 版の番号: 足した物があれば 1.x.0、直しだけなら 1.0.x。前の公開からの変化は `git log v1.0.0..v1.1.0`
+  - 公開を取り消す: そのマージコミットを `git revert -m 1 <コミット>` して push(Pages が前の中身で出し直す)。急ぎの直しは release から `hotfix/…` を作って同じ手順
+  - `main` は使っていない(9月26日で止まっている。GitHub の既定のブランチ)
 - 公開版はコンソールから `P` などが見えない。小さくして動きが変わらないかは `node scripts/build.js --no-wrap`(包まない版)を `http://127.0.0.1:8765/dist/` で開き、試験の通しのハッシュを開発版と比べる
 
 ## 試験
