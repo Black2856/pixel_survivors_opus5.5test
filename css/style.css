@@ -896,7 +896,7 @@ html[lang="en"] .ms-sub { display: none; } /* 英語では見出しと同じ言�
 /* ゴールド(どの画面も右上の同じ所。数字は ui.js の gold) */
 .gold-chip { padding: 8px 16px 7px; font: 13px 'Press Start 2P'; color: var(--gold); white-space: nowrap; background: rgba(12,10,28,.88); box-shadow: inset 0 0 0 2px #6a5ab0, inset 0 0 0 4px #0e0c22, 0 0 0 2px var(--ink); }
 .screen > .gold-chip { position: absolute; top: 14px; right: 20px; }
-.ms-foot { display: flex; justify-content: center; align-items: center; padding: 10px 0 12px; }
+.ms-foot { display: flex; justify-content: center; align-items: center; padding: 6px 0 28px; } /* 戻るは下の端から少し上げて、中身に寄せる(前は 10px 0 12px で下すぎた。ユーザーの指定 2026-10-17) */
 /* 戻る(協力プレイの部屋の中では「部屋を出る」)。ESC の札は中に(スマホでは出さない) */
 .ui-back { --ac: #b8a8ff; display: flex; align-items: center; justify-content: center; gap: 10px; min-width: 180px; padding: 8px 14px; font: 18px 'DotGothic16', monospace; letter-spacing: 2px; color: var(--txt); background: rgba(12,10,28,.88); box-shadow: inset 0 0 0 2px #6a5ab0, 0 0 0 2px var(--ink); }
 .ui-back .pxi { width: 22px; height: 22px; }
