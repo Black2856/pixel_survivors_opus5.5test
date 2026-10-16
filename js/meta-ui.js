@@ -13,13 +13,18 @@ const MetaUI = (() => {
   const icon = (it, cls = 'icon') => `<img class="${cls}" src="${ART.S.eqIcons[it.type].c.toDataURL()}" alt="">`;
   const rcol = it => DATA.equip.rarity[it.rarity].col;
 
+  // 装備中の枠は右のパネルの「装備」タブにあるので、開いた時はそのタブ。パネルのタブはクラス画面・ラン中と共有なので、閉じたら元に戻す
+  let prevTab = null;
   function open() {
     state = 'equip'; sel = null;
-    if (typeof StatusUI !== 'undefined') StatusUI.setTab('equip'); // 装備中の枠は右のパネルの「装備」タブにあるので、開いた時はそのタブ
+    if (typeof StatusUI !== 'undefined') prevTab = StatusUI.setTab('equip');
     UI.only('equip-screen');
     render();
   }
-  function close() { state = 'title'; UI.title(); }
+  function close() {
+    if (prevTab) { StatusUI.setTab(prevTab); prevTab = null; }
+    state = 'title'; UI.title();
+  }
 
   // 装備中の枠(右のパネルの「装備」タブに出す。押すと詳細)
   const slotBtn = (slot, it) => `<button class="eq-slot ${it && sel === it ? 'sel' : ''}" data-id="${it ? it.id : ''}" style="--rc:${it ? rcol(it) : '#3a3060'}">

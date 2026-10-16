@@ -200,5 +200,5 @@ const StatusUI = (() => {
     if (e.preventDefault) e.preventDefault();
     if (state === 'status') close(); else if (e.code === 'Tab') open();
   }
-  return { render, open, close, onKey, modalOpen, closeModal, setTab: t => { tab = t; }, blocks: (run, cls) => blocksOf(ctx(run, run ? P.cls : cls)) };
+  return { render, open, close, onKey, modalOpen, closeModal, setTab: t => { const p = tab; tab = t; return p; }, blocks: (run, cls) => blocksOf(ctx(run, run ? P.cls : cls)) };
 })();
