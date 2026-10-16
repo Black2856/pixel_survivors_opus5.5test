@@ -357,7 +357,7 @@ function coopHashCheck(f) {
 //   P.lvPick = { lv, list, n }(n: リロールした回数。画面が出し直すため)。カードを取る・スキップ(+10G)・リロール(残りがあれば)
 const PICK = { skip: 8, reroll: 9 };
 function coopLevel() {
-  for (const p of players) withPlayer(p, () => {
+  for (const p of players) if (!p.left) withPlayer(p, () => { // 抜けた人は選ばない(経験値は全員に入るのでたまるが、選択は出さない)
     const c = P.lvPick, k = P.inp.pick | 0;
     if (c && k) {
       if (k >= 1 && k <= c.list.length) {

@@ -43,7 +43,7 @@ function updTower(dt) {
     if (!T.boss && T.kills >= T.goal) towerClear();
     return T.wave;
   }
-  const choosing = players.some(p => p.pendingLv > 0 || p.lvPick);
+  const choosing = players.some(p => !p.left && (p.pendingLv > 0 || p.lvPick)); // 抜けた人は待たない
   if (players.length > 1) T.waitT = (T.waitT || 0) + dt; // 協力プレイ: クリアからの秒(tower.md #31)
   else if (choosing) return false; // 1人: レベルアップの選択中は休憩の時計も止まる
   T.rest -= dt;
@@ -97,11 +97,13 @@ function towerChaos(n, lap) {
 function towerClear() {
   const T = S.tower, C = DATA.tower, skip = T.boss ? 0 : towerSkip(T.floor, T.t);
   T.wave = false;
-  for (const g of gems) P.bank += g.v * P.xpMul;
+  for (const p of players) withPlayer(p, () => { // 1人ずつ(協力プレイ: ジェムは全員が得る・倍率は各自)
+    for (const g of gems) P.bank += g.v * P.xpMul;
+    const xp = P.bank * (1 + skip);
+    P.bank = 0;
+    if (xp > 0) xpIn(xp);
+  });
   gems = [];
-  const xp = P.bank * (1 + skip);
-  P.bank = 0;
-  if (xp > 0) xpIn(xp);
   for (const e of enemies) if (!e.dead && !e.boss && !e.prop) { e.dead = true; burst(e.x, e.y, 6, ['#3a3040', '#6a6070', '#ffffff'], { sp: 40, up: 15 }); }
   eprojs = []; warns = []; hazards = [];
   S.phase = null; // 闇の霧も晴れる

@@ -98,7 +98,7 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
   }
   // 抜けた人: 外したフレーム(全員同じはず)・次の階でも戻らないか(比べた後に、残りのページで次の階を始めてみる)
   const leaveInfo = lv ? await Promise.all(pages.map((p, i) => p.evaluate(([x, me]) => {
-    const r = { D: COOP.gone.has(x) ? COOP.gone.get(x) : null, left: !!(players[x] && players[x].left), dead: !!(players[x] && players[x].dead), on: COOP.on, st: state };
+    const r = { D: COOP.gone.has(x) ? COOP.gone.get(x) : null, left: !!(players[x] && players[x].left), dead: !!(players[x] && players[x].dead), on: COOP.on, st: state, pick: !!(players[x] && players[x].lvPick), lv: players[x] ? players[x].level : 0, floor: S.tower ? S.tower.floor : 0 };
     if (!me && COOP.on && S.tower) { simScope(() => withPlayer(players[0], () => towerFloor(S.tower.floor + 1))); r.afterFloor = players[x].dead; }
     return r;
   }, [LX, i === LP]))) : [];
@@ -110,7 +110,7 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
   console.log(`${mix ? kinds.join('+') : name} ${net}${kits ? ' kits' : ''}${nokit ? ' nokit' : ''}  ${classes.join('+')}  フレーム ${res.map(r => r.f).join(' / ')}  ハッシュ ${L0.length}回 ${same ? 'すべて同じ' : '違う(最初は ' + firstDiff + ')'}  最後 ${L0.length ? L0[L0.length - 1][1].toString(16) : '-'}  ${((Date.now() - t0) / 1000).toFixed(1)}秒`);
   if (kits) for (const r of res) console.log('  ページ ' + r.pid + ': カオス ' + r.chaos + '  ' + r.per.map(q => `${q.cls}(${q.wpn}) 最大HP ${q.hp} 固有 ${q.uq}`).join('  '));
   console.log('  階 ' + res[0].floor + '  ' + res[0].per.map(q => `${q.cls} 撃破${q.kills} Lv${q.lv} 武器${q.w}${q.picking ? "(選択中)" : ""}`).join('  ') + '  待った回数 ' + res.map(r => r.stalls).join(' / '));
-  if (lv) console.log(`  抜けた: P${LX + 1}(${how}${behind >= 0 ? '・P' + (behind + 1) + ' を遅らせた' : ''}${norelay ? '・渡さない' : ''})  外したフレーム ${leaveInfo.map(r => r.D).join(' / ')}  抜けた人のページ: ${leaveInfo[LP].on ? '続いている' : '終わった'}(${leaveInfo[LP].st})  次の階で戻らない ${leaveInfo.filter((_, i) => i !== LP).map(r => r.afterFloor === true ? 'はい' : String(r.afterFloor)).join(' / ')}`);
+  if (lv) console.log(`  抜けた: P${LX + 1}(${how}${behind >= 0 ? '・P' + (behind + 1) + ' を遅らせた' : ''}${norelay ? '・渡さない' : ''})  外したフレーム ${leaveInfo.map(r => r.D).join(' / ')}  抜けた人のページ: ${leaveInfo[LP].on ? '続いている' : '終わった'}(${leaveInfo[LP].st})  次の階で戻らない ${leaveInfo.filter((_, i) => i !== LP).map(r => r.afterFloor === true ? 'はい' : String(r.afterFloor)).join(' / ')}  抜けた人の選択 ${leaveInfo.filter((_, i) => i !== LP).map(r => (r.pick ? 'ある' : 'ない') + '(Lv' + r.lv + '・' + r.floor + '階)').join(' / ')}`);
   for (const r of res) if (r.desync) console.log(`  ページ ${r.pid}: 同期がずれた フレーム ${r.desync.f} ${r.desync.hashes.map(h => (h === null ? '-' : h.toString(16))).join(' / ')}`);
   for (const e of errs.slice(0, 5)) console.log('  例外 ' + e);
 })().catch(e => { console.error(e); process.exit(1); });
