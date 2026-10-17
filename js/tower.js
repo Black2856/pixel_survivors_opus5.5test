@@ -30,7 +30,7 @@ function towerInit() {
   S.tower = {
     floor: 0, next: 1, lap: 1, plan, top: 0, topT: 0, // top / topT: 着いた階の一番上と、そこに着いたときの経過時間(記録)
     wave: false, boss: false, kills: 0, goal: 0, t: 0, // wave: 階の途中(経験値は貯めるだけ)/ t: その階の経過秒(スキップの速さ)
-    rest: 2, warned: false, hpK: DATA.tower.partyHp[0], twinEx: [], // rest: 休憩の残り秒 / hpK: 敵の HP の人数の倍率 / twinEx: 双王の相方に選ばないボス(その階のステージのボス2体)
+    rest: 2, warned: false, twinEx: [], // rest: 休憩の残り秒 / twinEx: 双王の相方に選ばないボス(その階のステージのボス2体)
   };
   S.stage = plan[0].run.stage; S.tier = 1;
 }

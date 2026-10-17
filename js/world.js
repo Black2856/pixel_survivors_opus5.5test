@@ -167,7 +167,6 @@ function addPlayer(cls, x = P.x, y = P.y, kit = META) {
   p.pid = players.length; p.x = x; p.y = y;
   players.push(p);
   withPlayer(p, () => { setupPlayer(); recalc(); });
-  if (S.tower) S.tower.hpK = DATA.tower.partyHp[Math.min(players.length, DATA.tower.partyHp.length) - 1]; // タワー: 敵の HP の人数の倍率
   return p;
 }
 // o: 協力プレイの開始(net.js の coopBegin)だけ。{ cls: 0 番の人のクラス, kit: その人のセーブ, chaos: ホストのカオス強化 }
@@ -246,6 +245,8 @@ const enemyBase = () => (P.uq.pact ? 1.1 : 1); // 背徳の: 敵の基礎ステ�
 const lvK = (kind, lv = S.elv) => 1 + DATA.enemyLevel[kind] * (lv - 1);
 // HP倍率 = 線形 + 指数(Lv1 = 1)。雑魚とボスで共通
 const hpK = (lv = S.elv) => DATA.enemyLevel.hpLin * (lv - 1) + Math.pow(DATA.enemyLevel.hpExp, lv - 1);
+// 協力プレイ: 敵・ボスの HP の人数の倍率(1人は ×1)。抜けた人も players に残るので、始めた時の人数のまま
+const partyHpK = () => DATA.coop.partyHp[Math.min(players.length, DATA.coop.partyHp.length) - 1];
 const enemyDmgK = () => enemyBase() * lvK('dmg');
 function updEnemyLevel(dt) {
   if (S.phase || S.mode === 'arena' || S.mode === 'tower') return; // ボス・エリート群のフェーズ中は停止(闘技場はラウンドごと・タワーは階ごとに固定)

@@ -95,8 +95,8 @@ function updMorph(rdt) { // main.js の update から(この間はほかのす�
   const e = m.e;
   S.morph = null; GFX.fx.sat = 1; e.dead = true;
   const partner = (S.bosses || []).filter(b => b !== e && !b.dead), wasMain = S.boss === e;
-  const f = spawnBoss('fhour', e.final, true);
-  f.x = e.x; f.y = e.y;
+  const f = spawnBoss('fhour', e.final, true, !e.twin2); // 双王の2体目の死神なら、曲はステージのボスのまま
+  f.x = e.x; f.y = e.y; if (e.twin2) f.twin2 = true;
   S.bosses = wasMain ? [f, ...partner] : [...partner, f]; S.boss = S.bosses[0]; UI.bossBar(S.boss);
   burst(f.x, f.y, 120, ['#ff3b5c', '#1a0a14', '#c8a050', '#ffffff'], { sp: 220, glow: true, life: 1.2 });
   addRing(f.x, f.y, 120, '#ff3b5c', { w: 3, life: 0.7 }); addFlash(f.x, f.y, 240, '#ff3b5c', 1);

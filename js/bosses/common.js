@@ -14,7 +14,7 @@ const BFX_DRAW = {};
 // ボスの体を作る(出現の演出・曲・HP バーなどの副作用なし)。hpMul: HP の倍率(影の王が呼ぶ影は 0.25)
 function makeBoss(key, x, y, hpMul = 1) {
   const b = DATA.bosses[key];
-  const hp = b.hp * enemyBase() * hpK() * CHAOS.bossHp * hpMul * (S.tower ? S.tower.hpK : 1); // カオス: ボスの基礎体力(闘技場)/ タワー: 人数の倍率
+  const hp = b.hp * enemyBase() * hpK() * CHAOS.bossHp * hpMul * partyHpK(); // カオス: ボスの基礎体力(闘技場)/ 協力プレイ: 人数の倍率
   const e = {
     id: nextId++, type: key, boss: key, name: b.name, final: false, enrage: b.enrage ?? 0.6, x, y,
     hp, maxhp: hp, spd: b.spd * Math.min(DATA.enemyLevel.spdMax, lvK('spd')), dmg: b.dmg * enemyDmgK(), r: b.r, col: b.col, xp: 0, kbRes: 1,
@@ -27,9 +27,10 @@ function makeBoss(key, x, y, hpMul = 1) {
   Object.assign(e.ai, BOSS_AI0[key] || {});
   return e;
 }
-function spawnBoss(key, final, companion) {
+// companion: 双王のもう1体を出さない(双王の2体目・終刻の死神)/ music: 曲をこのボスのに変える(双王の2体目は変えず、ステージのボスの曲のまま)
+function spawnBoss(key, final, companion, music = true) {
   const b = DATA.bosses[key];
-  AudioMan.roar(); AudioMan.warning(); AudioMan.playMusic(b.music);
+  AudioMan.roar(); AudioMan.warning(); if (music) AudioMan.playMusic(b.music);
   UI.banner('⚠ WARNING ⚠', b.name);
   shake(8); screenFlash(0.3, '#ff3b5c');
   const a = rand(0, TAU), R = Math.hypot(GFX.VW, GFX.VH) / 2 + 30;
@@ -48,7 +49,8 @@ function spawnBoss(key, final, companion) {
     const solo = k => !DATA.bosses[k].form2 && !DATA.bosses[k].noTwin; // 第二形態(終刻の死神)は単独では出ない / 影の王は相方に選ばれない
     const pool = Object.keys(DATA.bosses).filter(k => k !== key && !here.has(k) && solo(k));
     const k2 = pick(pool.length ? pool : Object.keys(DATA.bosses).filter(k => k !== key && solo(k)));
-    const e2 = spawnBoss(k2, false, true);
+    const e2 = spawnBoss(k2, false, true, false);
+    e2.twin2 = true; // 双王の2体目(曲を変えない。終刻の死神になっても)
     S.bosses = [e, e2]; S.boss = e; UI.bossBar(e);
   }
   return e;
