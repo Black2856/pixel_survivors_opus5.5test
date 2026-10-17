@@ -21,7 +21,6 @@
   - 強化のパスの `desc` は多くが値を差し込む型(`'バラージュの威力 +{p}%'` + `v`。表示は `pathDesc`)。数値だけの調整は `v` を変えるだけで、説明も辞書も触らない。配列のもの(Lv ごとに文が違う)は今までどおり 3つの文と辞書を直す
 - 計算(update の中)はどのブラウザでも同じ結果にする(協力プレイ: `claudedocs/coop.md` 3章): `**` は使わない(`Math.pow` で。Math の関数は `js/detmath.js` が置き換えている)/ 計算に関わる「少し後で」は `setTimeout` ではなく `simTimeout` / update の中の `Math.random` は計算の乱数の列(core.js)。見た目だけで、引く回数が設定(画質・攻撃の濃さ)・画面・実時間で変わる物は `fxScope(() => …)` の中か `frand` / `fpick` で引く(確かめは `T.classSmoke({ pix: false })` を `SET.gfx`・`SET.fxA` を変えて比べる)/ 計算は入力を `P.inp`(core.js の `readInput` の記録)から読み、`keys`・`touch`・`mouse`・`SET` を直接読まない / update の中の `cam`・`GFX.VW / VH` は、協力プレイの形(`SIM_VIEW.on`)では計算用の四角に入れ替わる(画面の位置に直すのは描画の側で)
 - 協力プレイ(players は 1〜4人。`P` は「いま計算しているプレイヤー」): 1人ずつの物は `P` に置く(`S` に置かない)/ プレイヤーごとの処理は `withPlayer` / `setP` で players の順に / プレイヤーが作る弾・ゾーン・斬撃は `owned(…)` で作った人を付ける / 敵の処理の間の `P` はその敵の狙い(`e.tPl`)/ 敵の攻撃がプレイヤーに当たる所は、範囲にいる全員に: `hitCircle` / `hitLine` / `hitFan`(当たった人ごとの追加効果は最後の引数の関数)か `forHit(() => …)` で。1回だけ当たる印は `hitDone` / `hitMark`、何秒ごとの時計・壁のどちら側かは `perP` で人ごと。`P` に直接 `hurtPlayer` するのは、つかみ技など狙った人だけの物(coop.md #25)/ 計算の状態(番号の数え `nextId` など)はランごとに `initRun` で始め直す(同じページで前に遊んだ物を持ち越すと、まっさらなページの人とずれる)/ 2人以上の通しは `T.coopSmoke()`
-- `claudedocs/db.xlsx` はユーザーの物。ステージもコミットもしない
 - 作業は feature ブランチ。`release` は公開元(GitHub Pages)で、マージだけ。マージはユーザーに言われた時だけ
 
 ## 仕様書のコメント(ユーザーと AI のやり取り)
