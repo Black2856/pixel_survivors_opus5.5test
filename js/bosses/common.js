@@ -14,7 +14,7 @@ const BFX_DRAW = {};
 // ボスの体を作る(出現の演出・曲・HP バーなどの副作用なし)。hpMul: HP の倍率(影の王が呼ぶ影は 0.25)
 function makeBoss(key, x, y, hpMul = 1) {
   const b = DATA.bosses[key];
-  const hp = b.hp * enemyBase() * hpK() * CHAOS.bossHp * hpMul * (S.tower ? S.tower.hpK : 1); // カオス: ボスの基礎体力(闘技場)/ タワー: 人数の倍率
+  const hp = b.hp * enemyBase() * hpK() * CHAOS.bossHp * hpMul * partyHpK(); // カオス: ボスの基礎体力(闘技場)/ 協力プレイ: 人数の倍率
   const e = {
     id: nextId++, type: key, boss: key, name: b.name, final: false, enrage: b.enrage ?? 0.6, x, y,
     hp, maxhp: hp, spd: b.spd * Math.min(DATA.enemyLevel.spdMax, lvK('spd')), dmg: b.dmg * enemyDmgK(), r: b.r, col: b.col, xp: 0, kbRes: 1,

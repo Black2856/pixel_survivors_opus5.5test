@@ -20,7 +20,7 @@ function spawnEnemy(type, o = {}) {
     x = c.x + Math.cos(a) * R; y = c.y + Math.sin(a) * R;
   }
   const EL = DATA.enemyLevel, base = enemyBase();
-  const hpk = base * hpK() * (o.elite ? EL.elite : 1) * (S.tower ? S.tower.hpK : 1); // タワー: 人数の倍率
+  const hpk = base * hpK() * (o.elite ? EL.elite : 1) * partyHpK(); // 協力プレイ: 人数の倍率
   const spk = base * Math.min(EL.spdMax, lvK('spd')) * (P.uq.clock ? 1.15 : 1) * (o.elite ? 1.1 : 1); // 狂時の: 速度 +15%
   const e = {
     id: nextId++, type, x, y, hp: d.hp * hpk, maxhp: d.hp * hpk, spd: d.spd * spk * rand(0.9, 1.1), dmg: d.dmg * enemyDmgK() * (o.elite ? EL.eliteDmg : 1),
