@@ -81,7 +81,7 @@ const UI = (() => {
   // スキルのカットイン: 画面の上の方を横切る帯にスキル名。色はスキルの色。設定で消せる(SET.cutin)
   //   q: Q は太い帯にクラスの印(glyph)/ E は細い帯に武器のアイコン(icon: 武器のキー)。sub: 2行目(武神降臨の武器スキル)
   function skillCut(name, col, q, o = {}) {
-    if (!SET.cutin) return;
+    if (!SET.cutin || !fxForMe()) return; // 協力プレイ: 自分のスキルの時だけ(計算の中の P = 使った人)
     const mark = q ? (o.glyph ? `<span class="sc-glyph">${I18N.glyph(o.glyph, name)}</span>` : '') : o.icon ? icon('weapon', o.icon) : '';
     cutBand('skillcut', name, o.sub, col, { size: q ? 'q' : 'e', mark, dur: q ? 1150 : 850 });
   }

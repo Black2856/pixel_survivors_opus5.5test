@@ -22,7 +22,7 @@ function raijinAI(e, ai, dt, a, dist, slow) {
 }
 // 落雷(雷神の技で共通): 円(半径 r)の中に ×n・痺れ +numb と、紫白の稲妻
 function raijinStrike(e, x, y, r, n, numb, o) {
-  if (hitCircle(x, y, r, e.dmg * n)) numbPlayer(numb);
+  hitCircle(x, y, r, e.dmg * n, () => numbPlayer(numb));
   skyBolt(x, y, r * CHAOS.area, o);
 }
 // ★雷鼓の輪: 背中の太鼓を「ドン・ドン・ドドン」のリズムで叩き(1小節 = 0・0.5・1.0・1.25秒。1.75秒ごと)、1打ごとに太鼓の輪から雷の玉 8つの輪を撃つ(速さ 55・5秒)。

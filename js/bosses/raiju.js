@@ -40,7 +40,7 @@ function updRaijuDash(e, ai, dt) {
     const segs = [], tot = d.pts.slice(1).reduce((s, p, i) => { const L = Math.hypot(p.x - d.pts[i].x, p.y - d.pts[i].y); segs.push(L); return s + L; }, 0);
     let at = Math.min(1, d.t / 0.15) * tot, i = 0; while (i < 3 && at > segs[i]) at -= segs[i++];
     const A = d.pts[i], B = d.pts[i + 1], u = Math.min(1, at / (segs[i] || 1)); e.x = lerp(A.x, B.x, u); e.y = lerp(A.y, B.y, u);
-    if (!d.hit && d2(e.x, e.y, P.x, P.y) < Math.pow(e.r + 4, 2) && hurtPlayer(e.dmg * 1.1)) { d.hit = true; numbPlayer(3); }
+    forHit(() => { if (!hitDone(d) && d2(e.x, e.y, P.x, P.y) < Math.pow(e.r + 4, 2) && hurtPlayer(e.dmg * 1.1)) { hitMark(d); numbPlayer(3); } });
     if (Math.random() < 0.7) part(e.x + rand(-6, 6), e.y + rand(-6, 6), rand(-20, 20), rand(-20, 20), 0.35, pick(THUN), { glow: true, drag: 3 });
     if (d.t >= 0.15) {
       raijuLine(e, d.pts); d.ph = 'gap'; d.t = 0; ai.dn--;
@@ -73,7 +73,7 @@ function raijuBlink(e, ai) {
       pushWarn({ kind: 'line', x, y, a, len: B.D * 2, w: e.r * 2, t: 0, life: B.tele, fixed: true, owner: e }); // 突進の経路(体当たりなので広げない)
       burst(x, y, 8, THUN, { sp: 50, glow: true, life: 0.3 }); AudioMan.zap();
     });
-    later(ai, 1 + B.tele + k * B.gap, () => { const b = ai.bl, p = b.paths[k]; b.i = k; b.t = 0; b.hit = false; e.x = p.x; e.y = p.y; Object.assign(e, { hidden: false, flying: false, air: false }); AudioMan.dash(); });
+    later(ai, 1 + B.tele + k * B.gap, () => { const b = ai.bl, p = b.paths[k]; b.i = k; b.t = 0; b.hit = false; b.hitBy = null; e.x = p.x; e.y = p.y; Object.assign(e, { hidden: false, flying: false, air: false }); AudioMan.dash(); });
   }
   later(ai, 1 + B.tele + (n - 1) * B.gap + B.run + 0.05, () => { ai.act = null; ai.bl = null; Object.assign(e, { hidden: false, flying: false, air: false }); });
   hint('raiju_blink', _t('瞬雷光'), _t('消えたあと、まわりから続けて突進してくる。帯の予告を見てよける'));
@@ -83,7 +83,7 @@ function updRaijuBlink(e, ai, dt) {
   const p = b.paths[b.i], u0 = Math.min(1, b.t / RUN); b.t += dt; const u = Math.min(1, b.t / RUN);
   const x0 = p.x + Math.cos(p.a) * p.len * u0, y0 = p.y + Math.sin(p.a) * p.len * u0;
   e.x = p.x + Math.cos(p.a) * p.len * u; e.y = p.y + Math.sin(p.a) * p.len * u;
-  if (!b.hit && segD2(P.x, P.y, x0, y0, e.x, e.y) < Math.pow(e.r + 4, 2) && hurtPlayer(e.dmg)) { b.hit = true; numbPlayer(2); } // 速いので、この 1コマで通った線で当てる
+  forHit(() => { if (!hitDone(b) && segD2(P.x, P.y, x0, y0, e.x, e.y) < Math.pow(e.r + 4, 2) && hurtPlayer(e.dmg)) { hitMark(b); numbPlayer(2); } }); // 速いので、この 1コマで通った線で当てる
   for (let k = 0; k < 3; k++) part(lerp(x0, e.x, Math.random()) + rand(-4, 4), lerp(y0, e.y, Math.random()) + rand(-4, 4), rand(-20, 20), rand(-20, 20), 0.3, pick(THUN), { glow: true, drag: 3 });
   if (u >= 1) {
     bfx.push({ kind: 'ebolt', x: p.x, y: p.y, x1: e.x, y1: e.y, t: 0, life: 0.18, w: 2, jit: 3 }); // 駆け抜けた跡が光る
@@ -94,7 +94,7 @@ function updRaijuBlink(e, ai, dt) {
 function raijuDischarge(e, ai) {
   pushWarn({ kind: 'circle', x: e.x, y: e.y, r: 80, t: 0, life: 0.7, owner: e, track: w => { w.x = e.x; w.y = e.y; } });
   windup(e, 0.7, () => {
-    if (hitCircle(e.x, e.y, 80, e.dmg)) numbPlayer(4);
+    hitCircle(e.x, e.y, 80, e.dmg, () => numbPlayer(4));
     const RR = 80 * CHAOS.area;
     for (let k = 0; k < 9; k++) { const pa = TAU / 9 * k + rand(-0.2, 0.2), L = RR * rand(0.6, 1); bfx.push({ kind: 'ebolt', x: e.x, y: e.y - 4, x1: e.x + Math.cos(pa) * L, y1: e.y + Math.sin(pa) * L, t: 0, life: 0.22, w: 1, jit: 5, col: '#c8b8ff' }); } // 放射する稲妻は芯を淡い紫に(白い線が重なると白く飛ぶ)
     addRing(e.x, e.y, RR, '#b8a0ff', { w: 2, life: 0.35 }); addFlash(e.x, e.y, RR * 1.6, '#5a3aa8', 0.4); shake(7); AudioMan.zap(); AudioMan.boom(); // 光芒は出さない(放射する稲妻と輪で見せる)

@@ -49,8 +49,7 @@ function updTriLamps(e, ai, dt) {
   }
   if (L.t >= 0.6 && L.t < L.dur && (L.tick -= dt) <= 0) {
     L.tick = 0.5;
-    const mask = triLampMask(ai);
-    if (mask && hurtPlayer(e.dmg * [0, 0.1, 0.3, 0.6][TRI_N[mask]])) triStatus(mask | triBallMask(e, ai), e.dmg); // ミラーボールの光と重なった所は色が混ざる
+    forHit(() => { const mask = triLampMask(ai); if (mask && hurtPlayer(e.dmg * [0, 0.1, 0.3, 0.6][TRI_N[mask]])) triStatus(mask | triBallMask(e, ai), e.dmg); }); // ミラーボールの光と重なった所は色が混ざる
   }
   if (L.t >= L.dur + 0.5) ai.lamp = null; // 終わりの 0.5秒で光が消えて灯が戻る
 }
@@ -71,7 +70,7 @@ function triConverge(e, ai) {
   later(ai, Q.lock, () => { cv.lock = true; pushWarn({ kind: 'circle', x: cv.cx, y: cv.cy, r: 50, t: 0, life: Q.end - Q.lock, owner: e }); });
   later(ai, Q.end, () => {
     const cx = cv.cx, cy = cv.cy;
-    if (hitCircle(cx, cy, 50, e.dmg * 1.4)) randomLight(2, e.dmg);
+    hitCircle(cx, cy, 50, e.dmg * 1.4, () => randomLight(2, e.dmg));
     const R0 = 50 * CHAOS.area;
     bossBlast(cx, cy, R0, { col: '#8a8ab8', core: '#d8dcff', decal: false, n: 22, light: 0.6 });
     fxRays(cx, cy, R0 * 1.4, '#c8d0ff', { foe: true, n: 18, core: '#ffffff', life: 0.45, light: 0.5 });
@@ -97,7 +96,7 @@ function triPillars(e, ai) {
     const [x, y] = serClamp(P.x + (P.ivx || 0) * TRI_PILL.lead, P.y + (P.ivy || 0) * TRI_PILL.lead); pts.push([x, y]); // 歩きの速さ(押し流し・ダッシュは入れない)で lead 秒先へ
     pushWarn({ kind: 'circle', x, y, r: 30, t: 0, life: TRI_PILL.warn, owner: e });
     later(ai, TRI_PILL.warn, () => {
-      if (hitCircle(x, y, 30, e.dmg * 0.6)) triStatus(1 << i, e.dmg);
+      hitCircle(x, y, 30, e.dmg * 0.6, () => triStatus(1 << i, e.dmg));
       const R0 = 30 * CHAOS.area + 3;
       if (i === 2 && P.invT <= 0 && !P.dead && pts.every(([qx, qy]) => d2(qx, qy, P.x, P.y) < R0 * R0)) { randomLight(2, e.dmg); addFlash(x, y, 70, '#c8c8d8', 0.4); fxRays(x, y, 50, '#e8e8ff', { foe: true, n: 14, core: '#ffffff', life: 0.35, light: 0.4 }); } // 3色が重なった白
       fxBeam(x, y, { foe: true, w: 9 * CHAOS.area, H: 180, col: TRI.col[i], mid: TRI.col[i], core: '#ffffff', life: 0.5, drop: 0.07 });
@@ -167,8 +166,7 @@ function updTriBall(e, ai, dt) {
   const bs = triBallBeams(e, B);
   if ((B.tick -= dt) <= 0) {
     B.tick = Q.tick;
-    const m = triBallMask(e, ai);
-    if (m && !P.dead && hurtPlayer(e.dmg * Q.dmg[TRI_N[m]])) triStatus(m | triLampMask(ai), e.dmg); // 三原の灯の円と重なった所は色が混ざる
+    forHit(() => { const m = triBallMask(e, ai); if (m && !P.dead && hurtPlayer(e.dmg * Q.dmg[TRI_N[m]])) triStatus(m | triLampMask(ai), e.dmg); }); // 三原の灯の円と重なった所は色が混ざる
   }
   if (Math.random() < dt * 12) { // 照らされた地面から光の粒が昇る(その光の色)
     const b = pick(bs), c = Math.cos(b.a), sn = Math.sin(b.a), q = rand(0, TAU), r = Math.sqrt(Math.random()), lu = b.o.c + Math.cos(q) * b.o.a * r, lv = Math.sin(q) * b.o.b * r;

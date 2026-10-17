@@ -109,7 +109,7 @@ function skSlash(e, a) {
   if (e.dead) return;
   slashes.push({ x: e.x, y: e.y, a, r: 100 * CHAOS.area, t: 0, life: 0.3, span: 2.1, pal: SWING_PAL.shadow, enemy: true });
   slashes.push({ x: e.x, y: e.y, a, r: 74 * CHAOS.area, t: 0, life: 0.24, span: 2.1, flip: 1, pal: SWING_PAL.shadow, enemy: true }); // 二重の刃筋
-  if (hitFan(e.x, e.y, a, 100, 1.05, e.dmg * 0.9)) pushPlayer(a, 100, 0.3);
+  hitFan(e.x, e.y, a, 100, 1.05, e.dmg * 0.9, () => pushPlayer(a, 100, 0.3));
   fxRays(e.x + Math.cos(a) * 42, e.y + Math.sin(a) * 42, 80, '#3a1a5a', { foe: true, n: 14, life: 0.3, core: '#a66bff', light: 0.6 });
   for (let i = 0; i < 22; i++) { const pa = a + rand(-1, 1), r = rand(24, 100) * CHAOS.area; part(e.x + Math.cos(pa) * r, e.y + Math.sin(pa) * r, Math.cos(pa) * 60, Math.sin(pa) * 60, 0.4, pick(SKC), { glow: Math.random() < 0.4, drag: 2 }); }
   shake(5); AudioMan.slash(); AudioMan.cutHit();
@@ -126,8 +126,8 @@ function skRings(e, ai) {
 }
 function skRingHit(e, x, y, r0, r1) {
   if (e.dead) return;
-  const R0 = r0 * CHAOS.area, R1 = r1 * CHAOS.area, d = Math.sqrt(d2(x, y, P.x, P.y));
-  if (d >= R0 - 3 && d <= R1 + 3 && hurtPlayer(e.dmg)) pushPlayer(d > 1 ? Math.atan2(P.y - y, P.x - x) : rand(0, TAU), 40, 0.18);
+  const R0 = r0 * CHAOS.area, R1 = r1 * CHAOS.area;
+  forHit(() => { const d = Math.sqrt(d2(x, y, P.x, P.y)); if (d >= R0 - 3 && d <= R1 + 3 && hurtPlayer(e.dmg)) pushPlayer(d > 1 ? Math.atan2(P.y - y, P.x - x) : rand(0, TAU), 40, 0.18); });
   bfx.push({ kind: 'skring', x, y, r0: R0, r1: R1, t: 0, life: 0.45 });
   const n = Math.round(12 + R1 * 0.5);
   for (let i = 0; i < n; i++) { const pa = TAU / n * i + rand(-0.1, 0.1), r = rand(R0, R1); part(x + Math.cos(pa) * r, y + Math.sin(pa) * r, Math.cos(pa) * 70, Math.sin(pa) * 50 - rand(10, 40), rand(0.4, 0.7), pick(SKC), { glow: Math.random() < 0.4, drag: 2, sz: pick([1, 2]) }); }

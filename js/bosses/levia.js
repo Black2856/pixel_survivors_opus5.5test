@@ -9,7 +9,7 @@ function leviaAI(e, ai, dt, a, dist, slow) {
     ai.pt += dt;
     const k = Math.min(1, ai.pt / 1.5);
     ai.ba = ai.ba0 + ai.bdir * (Math.PI / 2) * k;
-    if (!ai.bhit && hitLine(e.x, e.y, ai.ba, 220, 14, e.dmg)) { ai.bhit = true; drainSta(20); }
+    forHit(() => { if (!hitDone(ai, 'bhit') && inLine(e.x, e.y, ai.ba, 220, 14) && hurtPlayer(e.dmg)) { hitMark(ai, 'bhit'); drainSta(20); } }); // 1回の吐息で 1人 1回
     for (let i = 0; i < 2; i++) { const r = rand(10, 220 * CHAOS.area); part(e.x + Math.cos(ai.ba) * r, e.y + Math.sin(ai.ba) * r, rand(-30, 30), rand(-30, 30), 0.35, pick(SPLASH), { drag: 2 }); }
     if (k >= 1) { ai.act = null; ai.ba = null; }
     return;
@@ -89,7 +89,7 @@ function leviaTail(e, ai, a) {
   pushWarn({ kind: 'fan', x: e.x, y: e.y, a, r: 70, h: 1.047, t: 0, life: 0.5 });
   windup(e, 0.5, () => {
     slashes.push({ x: e.x, y: e.y, a, r: 70 * CHAOS.area, t: 0, life: 0.26, span: 2.1, pal: SWING_PAL.enemy, enemy: true });
-    if (inFan(e.x, e.y, a, 70, 1.047)) { if (hurtPlayer(e.dmg * 0.9)) drainSta(20); pushPlayer(Math.atan2(P.y - e.y, P.x - e.x), 110, 0.35); }
+    forHit(() => { if (inFan(e.x, e.y, a, 70, 1.047)) { if (hurtPlayer(e.dmg * 0.9)) drainSta(20); pushPlayer(Math.atan2(P.y - e.y, P.x - e.x), 110, 0.35); } });
     burst(e.x + Math.cos(a) * 30, e.y + Math.sin(a) * 30, 18, SPLASH, { sp: 110 }); AudioMan.splash(); shake(5);
   });
 }
@@ -97,7 +97,7 @@ function leviaTail(e, ai, a) {
 function leviaBreath(e, ai, a) {
   pushWarn({ kind: 'line', x: e.x, y: e.y, a, len: 220, w: 14, t: 0, life: 0.6, track: w => { w.x = e.x; w.y = e.y; } });
   AudioMan.charge(0.6);
-  windup(e, 0.6, () => { ai.act = 'breath'; ai.pt = 0; ai.bdir = Math.random() < 0.5 ? 1 : -1; ai.ba0 = a - ai.bdir * Math.PI / 4; ai.bhit = false; AudioMan.roar(); });
+  windup(e, 0.6, () => { ai.act = 'breath'; ai.pt = 0; ai.bdir = Math.random() < 0.5 ? 1 : -1; ai.ba0 = a - ai.bdir * Math.PI / 4; ai.bhit = false; ai.bhitBy = null; AudioMan.roar(); });
 }
 
 // ---------- 描画(render.js の render / drawBossFx / drawBossGround から呼ぶ)----------

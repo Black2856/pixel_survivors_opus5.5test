@@ -24,7 +24,7 @@ function giantHammer(e, ai, a) {
   e.sq = 1.3; ai.raise = T; AudioMan.charge(T);
   if (big) { hint('shatter', _t('凍て割り'), _t('凍傷が 6 以上だと、氷槌がもっと重く広くなる')); AudioMan.frost(); }
   windup(e, T, () => {
-    if (hitCircle(cx, cy, R0, e.dmg * (big ? 1.6 : 1.3))) frostPlayer(3);
+    hitCircle(cx, cy, R0, e.dmg * (big ? 1.6 : 1.3), () => frostPlayer(3));
     const RR = R0 * CHAOS.area;
     burst(cx, cy, big ? 70 : 45, [...SNOW, '#7ad7ff'], { sp: big ? 190 : 140, up: 60, g: 220, life: 0.7 });
     for (let i = 0; i < 10; i++) { const pa = TAU / 10 * i; bfx.push({ kind: 'icespike', x: cx + Math.cos(pa) * RR * 0.75, y: cy + Math.sin(pa) * RR * 0.75, t: 0, life: 0.8, h: rand(8, 14) }); } // 氷の棘が突き出る

@@ -66,7 +66,7 @@ function reflectBeam(e, ai) {
 function updReflect(e, ai, dt) {
   const b = ai.rbeam;
   if (!b) return;
-  for (let i = 0; i + 1 < b.pts.length; i++) { const A = b.pts[i], B = b.pts[i + 1]; if (segD2(P.x, P.y, A.x, A.y, B.x, B.y) < Math.pow(b.W / 2 + 3, 2)) { hurtPlayer(e.dmg); break; } }
+  forHit(() => { for (let i = 0; i + 1 < b.pts.length; i++) { const A = b.pts[i], B = b.pts[i + 1]; if (segD2(P.x, P.y, A.x, A.y, B.x, B.y) < Math.pow(b.W / 2 + 3, 2)) { hurtPlayer(e.dmg); break; } } });
   if ((b.t -= dt) <= 0) ai.rbeam = null;
 }
 // 乱反射: 0.4秒(女王が白く光る)→ 速い光の弾(速さ 320)を 2発(激昂 3発。0.12秒おき)女王の弾へ撃つ。当たるたびに 0.06秒きらめいて、次の一番近い女王の弾(または鏡)へ跳ねる

@@ -14,7 +14,7 @@ function elderAI(e, ai, dt, a, dist, slow) {
       tl.swung = true; AudioMan.slash(); AudioMan.dash(); shake(3);
       slashes.push({ x: e.x, y: e.y, a: tl.a0 + tl.dir * Math.PI / 2, r: L, t: 0, life: 0.5, flip: tl.dir < 0 ? 1 : 0, span: Math.PI, pal: SWING_PAL.enemy, enemy: true });
     }
-    if (!tl.hit && hitLine(e.x, e.y, ang, 110, 18, e.dmg)) { tl.hit = true; pushPlayer(ang + tl.dir * Math.PI / 2, 60, 0.25); }
+    forHit(() => { if (!hitDone(tl) && inLine(e.x, e.y, ang, 110, 18) && hurtPlayer(e.dmg)) { hitMark(tl); pushPlayer(ang + tl.dir * Math.PI / 2, 60, 0.25); } }); // 1回の薙ぎで 1人 1回
     for (let i = 0; i < 2; i++) { const r = rand(0.5, 1) * L; part(e.x + Math.cos(ang) * r, e.y + Math.sin(ang) * r, rand(-20, 20), -rand(10, 40), 0.5, pick(LEAF), { g: 80, drag: 1 }); } // 散る葉
     if (k >= 1) { ai.act = null; shake(4); AudioMan.thud(); }
     return;
@@ -64,9 +64,9 @@ function rootWave(e, ai, a, dist) {
   }
   AudioMan.charge(1); e.sq = 1.15;
   later(ai, 1, () => {
-    let hit = false;
+    const hit = new Set(); // 3本のうちどれかで 1人 1回
     for (const q of pts) {
-      if (!hit && hitCircle(q.x, q.y, 20, e.dmg * 1.2)) { hit = true; weakPlayer(2); }
+      forHit(() => { if (!hit.has(P) && inCircle(q.x, q.y, 20) && hurtPlayer(e.dmg * 1.2)) { hit.add(P); weakPlayer(2); } });
       const RR = 20 * CHAOS.area;
       for (let k = 0; k < 5; k++) { const pa = TAU / 5 * k + rand(-0.3, 0.3), pr = RR * rand(0.2, 0.7); bfx.push({ kind: 'rootspike', x: q.x + Math.cos(pa) * pr, y: q.y + Math.sin(pa) * pr, t: 0, life: 0.8, h: rand(9, 15), a: pa }); }
       burst(q.x, q.y, 20, ['#5a3a1a', '#8a5a2a', '#3a6a34', '#c8a060'], { sp: 100, up: 50, g: 240, life: 0.5 });
@@ -98,7 +98,7 @@ function rootCage(e, ai) {
     if (h.done) return;
     h.done = true;
     warns.push({ kind: 'circle', x: cx, y: cy, r: h.r, snap: true, t: 0, life: 0.12 }); // 当たる瞬間: 円が一瞬光る(h.r は攻撃範囲の倍率が掛かっている)
-    if (hitCircle(cx, cy, 70, e.dmg * 1.3)) weakPlayer(5);
+    hitCircle(cx, cy, 70, e.dmg * 1.3, () => weakPlayer(5));
     const RR = 70 * CHAOS.area;
     for (let k = 0; k < 14; k++) { const pa = TAU / 14 * k + rand(-0.2, 0.2), pr = RR * rand(0.15, 0.85); bfx.push({ kind: 'rootspike', x: cx + Math.cos(pa) * pr, y: cy + Math.sin(pa) * pr, t: 0, life: 0.9, h: rand(10, 18), a: pa }); }
     burst(cx, cy, 50, ['#5a3a1a', '#8a5a2a', '#3a6a34', '#c8a060'], { sp: 150, up: 60, g: 240, life: 0.6 });

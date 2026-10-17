@@ -43,7 +43,7 @@ function iceTomb(e, ai) {
     later(ai, 1.65, () => bfx.push({ kind: 'skyspear', x: w.x, y: w.y, t: 0, life: 0.25, up: false })); // 空から落ちてくる
     later(ai, 1.9, () => {
       const x = w.x, y = w.y, R0 = 44 * CHAOS.area;
-      if (hitCircle(x, y, 44, e.dmg * 1.3)) frostPlayer(3);
+      hitCircle(x, y, 44, e.dmg * 1.3, () => frostPlayer(3));
       burst(x, y, 50, [...SNOW, '#ffffff'], { sp: 150, up: 40, glow: true, life: 0.6 }); addRing(x, y, R0, '#bff4ff', { w: 3, life: 0.4 });
       for (let k = 0; k < 8; k++) { const pa = TAU / 8 * k; bfx.push({ kind: 'icespike', x: x + Math.cos(pa) * R0 * 0.6, y: y + Math.sin(pa) * R0 * 0.6, t: 0, life: 0.7, h: rand(8, 13) }); }
       shockAt(x, y, 2, 0.75); shake(10); hitstop(0.05, true); AudioMan.boom(); AudioMan.frost();
@@ -74,9 +74,9 @@ function snowDance(e, ai) {
   }
   AudioMan.chime();
   later(ai, 3.3, () => {
-    let hit = false;
+    const hit = new Set(); // どれかで 1人 1回
     for (const w of ws) {
-      if (!hit && hitCircle(w.x, w.y, 30, e.dmg)) { hit = true; frostPlayer(2); }
+      forHit(() => { if (!hit.has(P) && inCircle(w.x, w.y, 30) && hurtPlayer(e.dmg)) { hit.add(P); frostPlayer(2); } });
       burst(w.x, w.y, 28, SNOW, { sp: 110, glow: true, life: 0.45 }); addRing(w.x, w.y, 30 * CHAOS.area, '#bff4ff', { w: 2, life: 0.3 });
       for (let k = 0; k < 6; k++) { const pa = TAU / 6 * k; bfx.push({ kind: 'icespike', x: w.x + Math.cos(pa) * 15 * CHAOS.area, y: w.y + Math.sin(pa) * 15 * CHAOS.area, t: 0, life: 0.6, h: rand(7, 11) }); }
     }

@@ -56,7 +56,7 @@ function ifritAI(e, ai, dt, a, dist, slow) {
     windup(e, 0.7, () => {
       const R0 = 80 * CHAOS.area, inside = d2(e.x, e.y, P.x, P.y) < (R0 + 3) * (R0 + 3), d = e.dmg * e.altK;
       bossBlast(e.x, e.y, R0 * 0.8, Object.assign({ n: 18 }, BFX.ifrit)); // 焼け焦げた地面と燻る火の粉
-      if (hitCircle(e.x, e.y, 80, d)) burnPlayer(d * 0.03); // 爆炎: 半径 80 に ×1.0・炎上
+      hitCircle(e.x, e.y, 80, d, () => burnPlayer(d * 0.03)); // 爆炎: 半径 80 に ×1.0・炎上
       if (inside) pushPlayer(Math.atan2(P.y - e.y, P.x - e.x), 100, 0.35);
       burst(e.x, e.y, 60, ['#ff6a2a', '#ffc34a', '#fff0b0', '#ff3b1a'], { sp: 200, glow: true, life: 0.6 });
       addRing(e.x, e.y, R0, '#ffc34a', { w: 3, life: 0.4 }); addRing(e.x, e.y, R0 * 1.3, '#ff6a2a', { w: 2, life: 0.55 }); addFlash(e.x, e.y, R0 * 3, '#ff8a3d', 1);
@@ -107,7 +107,7 @@ function fireWhip(e, ai, a, wind = 0.5) {
     const R0 = 60 * CHAOS.area, d = e.dmg * e.altK, wa = a;
     for (const [c, k, o] of [[0, 1, undefined], [1, 0.6, { pierce: true }]]) later(ai, c * 0.2, () => {
       slashes.push({ x: e.x, y: e.y, a: wa, r: R0, t: 0, life: 0.24, flip: c, span: 2.1, pal: SWING_PAL.fire, enemy: true });
-      if (hitFan(e.x, e.y, wa, 60, 1.047, d * k, o)) burnPlayer(d * 0.03);
+      hitFan(e.x, e.y, wa, 60, 1.047, d * k, o, () => burnPlayer(d * 0.03));
       AudioMan.slash(); AudioMan.fire(); shake(3);
       burst(e.x + Math.cos(wa) * R0 * 0.7, e.y + Math.sin(wa) * R0 * 0.7, 10, ['#ff6a2a', '#ffc34a', '#fff0b0'], { sp: 80, glow: true, life: 0.3 });
     });

@@ -13,7 +13,7 @@ function dragonAI(e, ai, dt, a, dist, slow) {
       const aa = ai.ba + rand(-H, H), sp = rand(120, 170) * CHAOS.area; // 炎の届く距離 = 当たり判定の長さ L
       part(mx, my, Math.cos(aa) * sp, Math.sin(aa) * sp, rand(0.55, 0.8), pick(['#ff6a2a', '#ffc34a', '#ff4a8a', '#fff6c8']), { glow: true, drag: 0.6, sz: pick([1, 2, 2]) });
     }
-    if (dist < L && Math.abs(angDiff(a, ai.ba)) < H + 4 / Math.max(dist, 1)) { hurtPlayer(e.dmg * 0.3); burnPlayer(e.dmg * 0.03); }
+    const T = P; forHit(() => { const [pa, pd] = P === T ? [a, dist] : aimTo(e); if (pd < L && Math.abs(angDiff(pa, ai.ba)) < H + 4 / Math.max(pd, 1)) { hurtPlayer(e.dmg * 0.3); burnPlayer(e.dmg * 0.03); } });
     AudioMan.fire();
     if (ai.pt <= 0) endAct();
     return;
@@ -22,7 +22,7 @@ function dragonAI(e, ai, dt, a, dist, slow) {
     ai.pt += dt;
     const k = ai.pt / ai.T;
     ai.bA = ai.b0 + ai.dir * TAU * Math.min(1, k);
-    if (hitLine(e.x, e.y, ai.bA, BEAM_LEN, 10, e.dmg * 1.2)) burnPlayer(e.dmg * 0.03); // 当たると炎上
+    hitLine(e.x, e.y, ai.bA, BEAM_LEN, 10, e.dmg * 1.2, () => burnPlayer(e.dmg * 0.03)); // 当たると炎上
     const r = rand(20, BEAM_LEN * CHAOS.area);
     part(e.x + Math.cos(ai.bA) * r, e.y + Math.sin(ai.bA) * r, rand(-30, 30), rand(-30, 30), 0.4, pick(['#ff4a8a', '#ffd0f0', '#ffffff']), { glow: true });
     shake(1.5);
@@ -35,9 +35,9 @@ function dragonAI(e, ai, dt, a, dist, slow) {
     if (ai.pt > 0) return;
     endAct();
     for (let c = 0; c < 2; c++) later(ai, c * 0.14, () => {
-      const ca = Math.atan2(P.y - e.y, P.x - e.x), R = 47 * CHAOS.area;
+      const R = 47 * CHAOS.area;
       slashes.push({ x: e.x, y: e.y, a: ai.la, r: R, t: 0, life: 0.22, flip: c % 2, span: 2.2, pal: SWING_PAL.enemy, enemy: true }); // 見た目 = 当たり判定(半径 R・角度 ±1.1)
-      if (d2(e.x, e.y, P.x, P.y) < R * R && Math.abs(angDiff(ca, ai.la)) < 1.1) hurtPlayer(e.dmg * 0.6, { pierce: true }); // 2回とも当たる(被弾後の無敵を無視。回避では防げる)
+      forHit(() => { if (d2(e.x, e.y, P.x, P.y) < R * R && Math.abs(angDiff(Math.atan2(P.y - e.y, P.x - e.x), ai.la)) < 1.1) hurtPlayer(e.dmg * 0.6, { pierce: true }); }); // 2回とも当たる(被弾後の無敵を無視。回避では防げる)
       AudioMan.slash();
     });
     return;
@@ -91,7 +91,7 @@ function dragonAI(e, ai, dt, a, dist, slow) {
     const mark = off => arms(off).forEach(r => pushWarn({ kind: 'line', x: r.x, y: r.y, a: r.a, len: L * 2, w: W, t: 0, life: T }));
     const blast = off => {
       for (const r of arms(off)) {
-        if (hitLine(r.x, r.y, r.a, L * 2, W, e.dmg * 1.3)) burnPlayer(e.dmg * 0.03); // 当たると炎上
+        hitLine(r.x, r.y, r.a, L * 2, W, e.dmg * 1.3, () => burnPlayer(e.dmg * 0.03)); // 当たると炎上
         slashes.push({ line: true, x: r.x, y: r.y, x1: r.x + Math.cos(r.a) * LA * 2, y1: r.y + Math.sin(r.a) * LA * 2, t: 0, life: 0.45, w: 10 * CHAOS.area, enemy: true });
       }
       addFlash(tx, ty, 160 * CHAOS.area, '#ff4a8a', 0.5); shockAt(tx, ty, 1.6, 0.9); shake(7); AudioMan.boom(); AudioMan.zap();
@@ -132,7 +132,7 @@ function updRaid(e, ai, dt) {
     e.x = rd.sx + c * run; e.y = rd.sy + s * run; // 竜は影の真上を飛ぶ
     if (!rd.band) { rd.band = true; addHazard('fband', rd.sx, rd.sy, { a: rd.th, L: rd.L, spd: 280, stay: 8, w: 60 * CHAOS.area, dur: 8 + rd.L / 280, dmg: e.dmg }); } // 燃える床: 影と同じ速さで伸び、通ってから 8秒で消える
     const R0 = 30 * CHAOS.area; // 影の当たり判定 = 帯の幅の半分
-    if (d2(e.x, e.y, P.x, P.y) < (R0 + 3) * (R0 + 3) && hurtPlayer(e.dmg)) burnPlayer(e.dmg * 0.03);
+    forHit(() => { if (d2(e.x, e.y, P.x, P.y) < (R0 + 3) * (R0 + 3) && hurtPlayer(e.dmg)) burnPlayer(e.dmg * 0.03); });
     if (Math.random() < dt * 30) part(e.x + rand(-12, 12), e.y + rand(-6, 6), c * 60 + rand(-20, 20), s * 60 - rand(10, 30), 0.5, pick(['#ff6a2a', '#ffc34a', '#ff4a8a']), { glow: true, drag: 1 }); // 炎の粉が降る
     rd.wind = (rd.wind || 0) - dt;
     if (rd.wind <= 0) { rd.wind = 0.3; AudioMan.fire(); }

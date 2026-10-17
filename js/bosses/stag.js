@@ -21,7 +21,7 @@ function stagAI(e, ai, dt, a, dist, slow) {
     pushWarn({ kind: 'fan', x: e.x, y: e.y, a: ba, r: 55, h: 1.22, t: 0, life: 0.4 });
     windup(e, 0.4, () => {
       slashes.push({ x: e.x, y: e.y, a: ba, r: 55 * CHAOS.area, t: 0, life: 0.24, span: 2.44, pal: SWING_PAL.enemy, enemy: true });
-      if (inFan(e.x, e.y, ba, 55, 1.22)) { hurtPlayer(e.dmg * 1.1, { pierce: true }); pushPlayer(ba, 100, 0.3); }
+      forHit(() => { if (inFan(e.x, e.y, ba, 55, 1.22)) { hurtPlayer(e.dmg * 1.1, { pierce: true }); pushPlayer(ba, 100, 0.3); } });
       AudioMan.slash(); shake(4);
       startStagRush(e, ai, 1, { pierce: true, k: 0.9 });
     });
@@ -37,7 +37,7 @@ function startStagRush(e, ai, n, o) {
 }
 function stagTele(e, ai) {
   const rs = ai.rs;
-  rs.ph = 'tele'; rs.t = 0; rs.dir = Math.atan2(P.y - e.y, P.x - e.x); rs.hit = false;
+  rs.ph = 'tele'; rs.t = 0; rs.dir = Math.atan2(P.y - e.y, P.x - e.x); rs.hit = false; rs.hitBy = null;
   pushWarn({ kind: 'line', x: e.x, y: e.y, a: rs.dir, len: 220, w: e.r * 2, t: 0, life: 0.45, fixed: true, track: q => { q.x = e.x; q.y = e.y; if (q.t < 0.3) rs.dir = q.a = Math.atan2(P.y - e.y, P.x - e.x); } }); // 突進の経路(体当たりなので広げない)
 }
 function updStagRush(e, ai, dt) {
@@ -55,7 +55,7 @@ function updStagRush(e, ai, dt) {
   const step = 380 * dt;
   e.x += Math.cos(rs.dir) * step; e.y += Math.sin(rs.dir) * step; e.face = Math.cos(rs.dir) < 0 ? -1 : 1;
   for (let i = 0; i < 2; i++) part(e.x + rand(-8, 8), e.y + rand(-6, 6), -Math.cos(rs.dir) * 60, -Math.sin(rs.dir) * 60, 0.35, pick(PRISM), { glow: true, drag: 3 }); // 七色の光の尾
-  if (rs.pierce && !rs.hit && d2(e.x, e.y, P.x, P.y) < Math.pow(e.r + 4, 2)) { rs.hit = true; hurtPlayer(e.dmg * rs.k, { pierce: true }); }
+  if (rs.pierce) forHit(() => { if (!hitDone(rs) && d2(e.x, e.y, P.x, P.y) < Math.pow(e.r + 4, 2)) { hitMark(rs); hurtPlayer(e.dmg * rs.k, { pierce: true }); } });
   for (const o of enemies) { // 結晶の柱にぶつかった: 柱が砕けて、大鹿は 1.5秒ひるむ
     if (o.obj !== 'crystal' || o.dead || rs.ignore.has(o) || d2(o.x, o.y, e.x, e.y) > Math.pow(o.r + e.r, 2)) continue;
     o.dead = true; objDown(o, true); e.air = false;

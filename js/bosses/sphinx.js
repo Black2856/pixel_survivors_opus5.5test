@@ -54,7 +54,7 @@ function sphinxRiddle(e, ai) {
   later(ai, 3.4, () => { pushWarn({ kind: 'sun', x: P.x, y: P.y, safe, t: 0, life: 0.6, owner: e }); AudioMan.warning(); });
   later(ai, 4, () => {
     ai.rq = null;
-    if (!P.dead && !safe.some(s => d2(P.x, P.y, s.x, s.y) < s.r * s.r)) hurtPlayer(e.dmg * 1.6);
+    forHit(() => { if (!P.dead && !safe.some(s => d2(P.x, P.y, s.x, s.y) < s.r * s.r)) hurtPlayer(e.dmg * 1.6); });
     for (let i = 0; i < 7; i++) { const pa = rand(0, TAU), pr = rand(10, 170), x = P.x + Math.cos(pa) * pr, y = P.y + Math.sin(pa) * pr; if (safe.some(s => d2(x, y, s.x, s.y) < Math.pow(s.r + 8, 2))) continue; fxBeam(x, y, { foe: true, w: 6, H: 170, col: '#5a4018', mid: '#c88a30', core: '#e8b860', life: 0.45, drop: 0.1 }); } // 陽光の柱(明るい砂の上で白く飛ばないように暗めの金)
     for (const s of safe) addRing(s.x, s.y, s.r, '#ffd27a', { w: 2, life: 0.4 });
     screenFlash(0.08, '#ffb040'); shake(8); AudioMan.boom();
@@ -81,7 +81,7 @@ function sphinxFeathers(e, ai, a) {
 function sphinxPaw(e, ai, a) {
   pushWarn({ kind: 'fan', x: e.x, y: e.y, a, r: 70, h: 1.05, t: 0, life: 0.5, owner: e });
   windup(e, 0.5, () => {
-    if (hitFan(e.x, e.y, a, 70, 1.05, e.dmg * 1.2)) pushPlayer(a, 80, 0.25);
+    hitFan(e.x, e.y, a, 70, 1.05, e.dmg * 1.2, () => pushPlayer(a, 80, 0.25));
     slashes.push({ x: e.x, y: e.y, a, r: 70 * CHAOS.area, t: 0, life: 0.22, flip: Math.random() < 0.5, span: 2.1, pal: SWING_PAL.enemy, enemy: true });
     burst(e.x + Math.cos(a) * 30, e.y + Math.sin(a) * 30, 14, SAND, { sp: 80, g: 160 }); e.sq = 0.75; shake(3); AudioMan.slash(); AudioMan.thud();
   });

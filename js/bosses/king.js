@@ -59,7 +59,7 @@ function kingAI(e, ai, dt, a, dist, slow) {
     windup(e, 0.4, () => {
       const R0 = 45 * CHAOS.area;
       for (const f of [0, 1]) slashes.push({ x: e.x, y: e.y, a: ba, r: R0, t: 0, life: 0.22, flip: f, span: 1.75, pal: SWING_PAL.enemy, enemy: true }); // 上下から閉じる顎
-      if (hitFan(e.x, e.y, ba, 45, 0.873, e.dmg * 0.9)) { bleedPlayer(2); hint('bite', _t('腐肉の噛みつき'), _t('出血: 5秒受けなければ消える')); }
+      hitFan(e.x, e.y, ba, 45, 0.873, e.dmg * 0.9, () => { bleedPlayer(2); if (fxForMe()) hint('bite', _t('腐肉の噛みつき'), _t('出血: 5秒受けなければ消える')); });
       AudioMan.slash(); AudioMan.thud(); shake(3);
       burst(e.x + Math.cos(ba) * R0 * 0.6, e.y + Math.sin(ba) * R0 * 0.6, 12, ['#c2483a', '#7a2a20', '#e8e0c0'], { sp: 70, g: 160 });
     });

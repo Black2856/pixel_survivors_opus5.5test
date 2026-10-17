@@ -8,14 +8,14 @@ function qbeeAI(e, ai, dt, a, dist, slow) {
   e.spr = Math.floor(e.t * 18) % 2 ? 'qbee' : 'qbee2'; // 羽ばたき
   if (ai.ph === 'tele') { // 急降下突きの予告: 経路の帯。体を後ろへ引いて構える
     ai.pt -= dt; e.flash = Math.sin(ai.pt * 40) > 0 ? 0.05 : 0; e.sq = 0.85;
-    if (ai.pt <= 0) { ai.ph = 'dive'; ai.pt = ai.diveLen / 360; ai.hit = false; AudioMan.dash(); }
+    if (ai.pt <= 0) { ai.ph = 'dive'; ai.pt = ai.diveLen / 360; ai.hit = false; ai.hitBy = null; AudioMan.dash(); }
     return;
   }
   if (ai.ph === 'dive') { // 急降下突き: 速さ 360 で突く(×1.2・衰弱 +3)
     ai.pt -= dt;
     e.x += Math.cos(ai.dir) * 360 * dt; e.y += Math.sin(ai.dir) * 360 * dt;
     if (Math.random() < dt * 40) part(e.x + rand(-4, 4), e.y + rand(-4, 4), -Math.cos(ai.dir) * 60, -Math.sin(ai.dir) * 60, 0.3, pick(HONEY), { glow: true, drag: 3 });
-    if (!ai.hit && d2(e.x, e.y, P.x, P.y) < Math.pow(e.r + 5, 2) && hurtPlayer(e.dmg * 1.2)) { ai.hit = true; weakPlayer(3); }
+    forHit(() => { if (!hitDone(ai) && d2(e.x, e.y, P.x, P.y) < Math.pow(e.r + 5, 2) && hurtPlayer(e.dmg * 1.2)) { hitMark(ai); weakPlayer(3); } });
     if (ai.pt <= 0) { ai.ph = 'fly'; }
     return;
   }
