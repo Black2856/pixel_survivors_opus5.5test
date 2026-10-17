@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
 <title>PIXEL SURVIVORS: NOCTURNE</title>
 <link rel="icon" href="data:,">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -16,9 +16,16 @@
   <div id="hud" class="hidden">
     <div id="xpbar"><div id="xpfill"></div><div id="lvl">LV 1</div></div>
     <div id="hud-top">
-      <div id="slotbox"><div id="wslots"></div><div id="pslots"></div><div id="aslots"></div></div>
+      <div id="slotbox"><div id="wslots"></div></div>
       <div id="timebox"><div id="timer">00:00</div><div id="stage-name"></div><div id="elv"><span id="elv-n">ENEMY LV 1</span><div id="elv-bar"><div id="elv-fill"></div></div></div></div>
       <div id="counters"><div id="dmgtotal"></div><div id="kills"></div><div id="gold"></div></div>
+    </div>
+    <!-- 左下のステータスパネル(HP / スタミナ / クラスリソース / E・Q) -->
+    <div id="pstat">
+      <canvas id="ps-cv"></canvas>
+      <div id="ps-name"></div>
+      <div id="ps-skills"></div>
+      <div id="ps-status"></div>
     </div>
     <div id="combo"><div id="combo-n">0</div><div class="combo-lbl">COMBO</div><div id="combo-bar"><div id="combo-fill"></div></div></div>
     <div id="bossbar" class="hidden">
@@ -26,37 +33,185 @@
       <div class="track"><div id="bossfill-lag"></div><div id="bossfill"></div></div>
     </div>
   </div>
+  <!-- スマホのボタン(html.touch で HUD が出ている間。押したときの動きは core.js、E / Q の字と CD は ui.js) -->
+  <div id="touch-ctl">
+    <button id="tc-pause" class="tc">II</button>
+    <button id="tc-q" class="tc sk" data-slot="q"></button>
+    <button id="tc-e" class="tc sk" data-slot="e"></button>
+    <button id="tc-def" class="tc def">SPACE</button>
+  </div>
+  <div id="rotate-msg"><div class="rot-ico"></div><div>横向きにしてください</div></div>
 
-  <div id="announce"></div>
-  <div id="banner"></div>
+  <div id="announce" class="cutband"></div>
+  <div id="skillcut" class="cutband"></div>
+  <div id="bosscut" class="cutband"></div>
+  <div id="banner" class="cutband"></div>
+  <div id="toast"></div>
 
+  <!-- タイトル: 真ん中にロゴとメニュー(縦に1列。↑↓ とマウスで選び、Enter で決める。ui.js)。右上にゴールド、左下に記録、右下にガイド・設定とキーの説明
+       メニューの印は data-ic(art.js の uiIcon。ui.js が入れる)。字は .lbl の中だけを書き換える -->
   <div id="title-screen" class="screen">
+    <div class="gold-chip"></div>
     <div class="title-wrap">
       <div class="logo"><span class="l1">PIXEL</span><span class="l2">SURVIVORS</span><span class="l3">— NOCTURNE —</span></div>
-      <div class="menu">
-        <button id="btn-start" class="btn big">▶ START</button>
-        <button id="btn-arena" class="btn arena">⚔ 闘技場 <small>BOSS RUSH</small></button>
-        <button id="btn-shop" class="btn">永続強化</button>
-        <button id="btn-settings" class="btn ghost">設定</button>
+      <div id="title-menu" class="title-menu">
+        <button id="btn-start" class="tm big" data-ic="swords"><span class="lbl">冒険開始</span></button>
+        <button id="btn-coop" class="tm" data-ic="party"><span class="lbl">協力プレイ</span></button>
+        <button id="btn-class" class="tm" data-ic="helm"><span class="lbl">クラス</span></button>
+        <button id="btn-tree" class="tm" data-ic="tree"><span class="lbl">強化ツリー</span></button>
+        <button id="btn-equip" class="tm" data-ic="chest"><span class="lbl">装備</span></button>
+        <button id="btn-gacha" class="tm" data-ic="gacha"><span class="lbl">ガチャ</span></button>
       </div>
-      <div id="title-gold" class="gold-chip"></div>
-      <div id="title-best" class="best"></div>
-      <div class="howto">WASD / 矢印 移動 ・ SPACE ダッシュ(無敵) ・ 攻撃は自動(SHIFT でマウス照準切替) ・ ESC ポーズ ・ M ミュート</div>
+    </div>
+    <div id="title-rec" class="title-rec"><div id="title-best" class="best"></div></div>
+    <div class="title-side">
+      <div class="title-sub"><button id="btn-help" class="tsb" data-ic="book"><span class="lbl">ガイド</span></button><button id="btn-settings" class="tsb" data-ic="gear"><span class="lbl">設定</span></button></div>
+      <div class="title-keys"><b>↑↓</b> 選択 <b>ENTER</b> 決定 <b>ESC</b> 戻る</div>
     </div>
   </div>
 
-  <div id="shop-screen" class="screen hidden">
-    <h2 class="scr-title">永続強化</h2>
-    <div id="shop-gold" class="gold-chip"></div>
-    <div id="shop-list"></div>
-    <div class="menu row"><button id="btn-shop-reset" class="btn ghost">リセット(全額返金)</button><button id="btn-shop-back" class="btn">戻る</button></div>
+  <!-- ラン外の画面の共通の形(.mscr。見本: claudedocs/img/tree.png・lobby.png。claudedocs/ui.md の「ラン外の画面の共通の形」)
+       左上に見出し(ms-head: 英字と日本語)、右上にゴールド(gold-chip。ui.js の only が数字を入れる)、真ん中に中身(ms-body)、下の真ん中に戻る(ms-foot。ESC の札はスマホでは出さない)
+       枠は ui-card(札)+ ui-frame(角の鉤の飾り)、見出しは札の h3(下に両端が菱形の線)。スクロールする物は枠の中の子に(枠の飾りが切れないように) -->
+
+  <!-- 協力プレイ(ラン外。coop-ui.js)。見本: claudedocs/img/lobby.png
+       大きな枠の中に、見出しと自分のクラス(押すとクラス画面)/ 左: 部屋を作る(→ ステージ選択 → 部屋)・コードで参加 / 右: 公開の部屋の一覧 / 下: 知らせと説明。枠の外の下の真ん中に戻る
+       部屋の中では、左が部屋の札(coop-room)、右が入った人(coop-mems)。印は data-ic(ui.js が入れる) -->
+  <div id="coop-screen" class="screen mscr hidden">
+    <div class="gold-chip"></div>
+    <div class="ms-body">
+      <div class="cp-panel ui-frame">
+        <div class="cp-head">
+          <span class="cp-hic" data-ic="party"></span>
+          <div class="cp-ttl"><h2>協力プレイ</h2><small>2〜4人で一緒に挑む</small></div>
+          <button id="coop-cls" class="cp-me ui-frame"></button>
+        </div>
+        <div class="cp-body">
+          <div class="cp-left">
+            <section id="cp-make-card" class="ui-card ui-frame gold">
+              <h3 data-ic="gate">部屋を作る</h3>
+              <p>ステージと公開範囲を選んで招待しよう</p>
+              <button id="coop-make" class="ui-btn gold ui-frame" data-ic="plus"><span class="lbl">部屋を作る</span></button>
+            </section>
+            <section id="cp-code-card" class="ui-card ui-frame cyan">
+              <h3 data-ic="link">コードで参加</h3>
+              <label for="coop-code">部屋のコード</label>
+              <input id="coop-code" maxlength="6" autocomplete="off" spellcheck="false" placeholder="コードを入力">
+              <button id="coop-enter" class="ui-btn ui-frame">参加する</button>
+            </section>
+            <section id="coop-room" class="ui-card ui-frame gold hidden"></section>
+          </div>
+          <section id="coop-pub" class="ui-card ui-frame cp-right"></section>
+          <section id="coop-mems" class="ui-card ui-frame cp-right hidden"></section>
+        </div>
+        <div id="coop-msg" class="cp-msg hidden"></div>
+        <div class="cp-info" data-ic="info">公開の部屋は誰でも入れる。コードの部屋はコードを知っている人だけが入れる</div>
+      </div>
+    </div>
+    <div class="ms-foot cp-foot">
+      <button id="coop-back" class="ui-back ui-frame" data-ic="back"><span class="lbl">戻る</span><span class="ui-esc">ESC</span></button>
+      <span class="cp-hint">つながるまで数秒かかることがあります</span>
+    </div>
+  </div>
+
+  <!-- ステージ選択(ラン外)。協力プレイの部屋を作る時にも使う(協力プレイで遊べる物だけを並べ、公開かコードかを選ぶ st-coop を出す。meta-ui.js) -->
+  <div id="stage-screen" class="screen mscr hidden">
+    <div class="ms-head"><h2 class="ms-ttl">SELECT STAGE</h2><span class="ms-sub">ステージ選択</span></div>
+    <div class="gold-chip"></div>
+    <div class="ms-body">
+      <div class="st-top">
+        <button id="st-class" class="st-class"></button>
+        <div id="st-coop" class="st-coop hidden">
+          <span class="st-coop-h">協力プレイの部屋</span>
+          <div id="st-pub" class="seg"><button data-v="1">公開の部屋</button><button data-v="0">コードの部屋</button></div>
+          <span id="st-pub-note" class="dim"></span>
+        </div>
+      </div>
+      <div class="ui-card ui-frame st-panel"><div id="stage-list"></div></div>
+    </div>
+    <div id="chaos-panel" class="hidden"></div>
+    <div class="ms-foot"><button id="st-back" class="ui-back ui-frame" data-ic="back"><span class="lbl">戻る</span><span class="ui-esc">ESC</span></button></div>
+  </div>
+
+  <!-- クラス画面(ラン外) -->
+  <div id="class-screen" class="screen mscr hidden">
+    <div class="ms-head"><h2 class="ms-ttl">CLASS</h2><span class="ms-sub">クラス</span></div>
+    <div class="gold-chip"></div>
+    <div class="ms-body">
+      <div class="cl-wrap">
+        <div id="cl-list"></div>
+        <div id="cl-detail" class="ui-card ui-frame"></div>
+        <div id="cl-status" class="sv ui-card ui-frame"></div>
+      </div>
+    </div>
+    <div class="ms-foot"><button id="cl-back" class="ui-back ui-frame" data-ic="back"><span class="lbl">戻る</span><span class="ui-esc">ESC</span></button></div>
+  </div>
+
+  <!-- 永続強化ツリー(ラン外)。見本: claudedocs/img/tree.png。左の大きな枠にツリー(左上に拡大・縮小、左下に操作の説明)、右にノード詳細と取得済み効果 -->
+  <div id="tree-screen" class="screen mscr hidden">
+    <div class="ms-head"><h2 class="ms-ttl">SKILL TREE</h2><span class="ms-sub">強化ツリー</span></div>
+    <div class="gold-chip"></div>
+    <div class="ms-body">
+      <div class="tr-wrap">
+        <div class="tr-view ui-card ui-frame">
+          <svg id="tr-svg" viewBox="-378 -378 756 756"></svg>
+          <div class="tr-zoom"><button data-z="in" title="拡大">+</button><button data-z="out" title="縮小">−</button><button data-z="reset" title="元に戻す">⟲</button></div>
+          <div class="tr-zhint">ホイールで拡大 ・ ドラッグで移動</div>
+        </div>
+        <div class="tr-side">
+          <section class="ui-card ui-frame tr-infoc"><h3>ノード詳細</h3><div id="tr-info"></div></section>
+          <section class="ui-card ui-frame tr-sumc"><h3>取得済み効果<span id="tr-cnt" class="ui-cnt"></span></h3><div id="tr-sum"></div></section>
+        </div>
+      </div>
+    </div>
+    <div class="ms-foot"><button id="tr-back" class="ui-back ui-frame" data-ic="back"><span class="lbl">戻る</span><span class="ui-esc">ESC</span></button></div>
+  </div>
+
+  <!-- ガチャ(ラン外)。gc-show は引いたときの演出(画面いっぱいに重ねる。canvas は後ろ(光の筋・玉・輪)と前(粒・稲妻)の2枚。gc-slot は 1回のカード、gc-grid は 10連のカード) -->
+  <div id="gacha-screen" class="screen mscr hidden">
+    <div class="ms-head"><h2 class="ms-ttl">GACHA</h2><span class="ms-sub">ガチャ</span></div>
+    <div class="gold-chip"></div>
+    <div class="ms-body">
+      <div id="gc-list"></div>
+      <div id="gc-rates" class="ui-card ui-frame"></div>
+    </div>
+    <div class="ms-foot"><button id="gc-back" class="ui-back ui-frame" data-ic="back"><span class="lbl">戻る</span><span class="ui-esc">ESC</span></button></div>
+    <div id="gc-show" class="hidden">
+      <canvas id="gc-cv0"></canvas>
+      <div id="gc-label"></div>
+      <div id="gc-slot"><div id="gc-card"></div></div>
+      <div id="gc-grid"></div>
+      <div id="gc-hint" class="hint"></div>
+      <div id="gc-btns"><button id="gc-again" class="btn"></button><button id="gc-ok" class="btn">OK</button></div>
+      <canvas id="gc-cv1"></canvas>
+      <div id="gc-flash"></div>
+    </div>
+  </div>
+
+  <!-- 装備画面(ラン外)。左から 所持品(見出しの右に数、下に一括売却。一覧の幅は 6列ちょうど)/ 選んだ装備の詳細 / ステータス(装備中の3枠は、この「装備」タブに) -->
+  <div id="equip-screen" class="screen mscr hidden">
+    <div class="ms-head"><h2 class="ms-ttl">EQUIPMENT</h2><span class="ms-sub">装備</span></div>
+    <div class="gold-chip"></div>
+    <div class="ms-body">
+      <div class="eq-wrap">
+        <section class="eq-mid ui-card ui-frame">
+          <h3>所持品<span id="eq-count" class="ui-cnt"></span></h3>
+          <div id="eq-tabs" class="seg"><button data-f="all">全部</button><button data-f="weapon">武器</button><button data-f="armor">防具</button><button data-f="ring">指輪</button></div>
+          <div id="eq-list"></div>
+          <button id="eq-sellall" class="btn ghost"></button>
+        </section>
+        <section class="eq-detc ui-card ui-frame"><h3>装備の詳細</h3><div id="eq-detail"></div></section>
+        <div id="eq-status" class="sv ui-card ui-frame"></div>
+      </div>
+    </div>
+    <div class="ms-foot"><button id="eq-back" class="ui-back ui-frame" data-ic="back"><span class="lbl">戻る</span><span class="ui-esc">ESC</span></button></div>
   </div>
 
   <div id="choice-screen" class="screen hidden">
     <h2 id="choice-title" class="scr-title">LEVEL UP!</h2>
     <div id="cards"></div>
     <div id="choice-btns"></div>
-    <div class="hint">クリック / 1〜3 キーで選択 ・ R でリロール</div>
+    <div class="hint">クリック / 1〜3 キーで選択 ・ R でリロール ・ 下線の用語にマウスを乗せると説明</div>
   </div>
 
   <div id="chest-screen" class="screen hidden">
@@ -72,25 +227,58 @@
   </div>
 
   <div id="pause-screen" class="screen hidden">
-    <h2 class="scr-title">PAUSED</h2>
+    <h2 id="pause-title" class="scr-title">PAUSED</h2>
+    <div id="pause-note" class="hint hidden">協力プレイ中はゲームが止まりません</div>
     <div id="pause-build"></div>
-    <div id="settings-panel">
-      <div class="vol"><label>音楽</label><input type="range" id="vol-music" min="0" max="100"></div>
-      <div class="vol"><label>効果音</label><input type="range" id="vol-sfx" min="0" max="100"></div>
-      <div class="vol"><label>画質</label><div class="seg" id="set-gfx"><button data-v="high">高</button><button data-v="mid">中</button><button data-v="low">低</button></div></div>
-      <div class="vol"><label>攻撃の濃さ</label><input type="range" id="set-fxa" min="15" max="100"><span id="set-fxa-n" class="set-n"></span></div>
-      <div class="set-note">画質: 低いほどブルーム・画面の歪み・パーティクルを減らし軽くなります<br>攻撃の濃さ: 自分の攻撃エフェクトの不透明度(敵の攻撃は常にくっきり表示)</div>
-    </div>
     <div class="menu">
       <button id="btn-resume" class="btn">再開 (ESC)</button>
+      <button id="btn-status" class="btn">ステータス (TAB)</button>
+      <button id="btn-help-p" class="btn sub">ガイド</button>
+      <button id="btn-settings-p" class="btn sub">設定</button>
       <button id="btn-quit" class="btn ghost">あきらめる</button>
     </div>
   </div>
 
-  <div id="settings-screen" class="screen hidden">
-    <h2 class="scr-title">設定</h2>
-    <div id="settings-slot"></div>
-    <div class="menu"><button id="btn-set-back" class="btn">戻る</button></div>
+  <div id="status-screen" class="screen hidden">
+    <h2 class="scr-title">STATUS</h2>
+    <div id="status-panel" class="sv sv-big"></div>
+    <div class="menu row"><button id="st-close" class="btn">閉じる (TAB)</button></div>
+  </div>
+
+  <!-- ガイド(操作・遊び方・用語の辞典)。タイトルとポーズ画面から -->
+  <div id="help-screen" class="screen mscr hidden">
+    <div class="ms-head"><h2 class="ms-ttl">GUIDE</h2><span class="ms-sub">ガイド</span></div>
+    <div class="gold-chip"></div>
+    <div class="ms-body">
+      <div class="hp-wrap">
+        <div class="hp-side"><input id="hp-q" type="search" placeholder="用語を検索" autocomplete="off"><div id="hp-cats"></div></div>
+        <div class="hp-main ui-card ui-frame"><div id="hp-body"></div></div>
+      </div>
+    </div>
+    <div class="ms-foot"><button id="hp-back" class="ui-back ui-frame" data-ic="back"><span class="lbl">戻る</span><span class="ui-esc">ESC</span></button></div>
+  </div>
+
+  <!-- 設定(タイトルとポーズ画面から。ポーズ画面からの時はゴールドを出さない) -->
+  <div id="settings-screen" class="screen mscr hidden">
+    <div class="ms-head"><h2 class="ms-ttl">SETTINGS</h2><span class="ms-sub">設定</span></div>
+    <div class="gold-chip"></div>
+    <div class="ms-body">
+      <div id="settings-panel" class="ui-card ui-frame">
+        <!-- 言語: プルダウン。選択肢はそれぞれの言語の名前のまま(translate="no"。ui.js が LANGS から作る) -->
+        <div class="vol" data-tip="set:lang"><label>🌐 言語</label>
+          <select id="set-lang" translate="no"></select></div>
+        <div class="vol"><label>音楽</label><input type="range" id="vol-music" min="0" max="100"></div>
+        <div class="vol"><label>効果音</label><input type="range" id="vol-sfx" min="0" max="100"></div>
+        <div class="vol" data-tip="set:gfx"><label>画質</label><div class="seg" id="set-gfx"><button data-v="high">高</button><button data-v="mid">中</button><button data-v="low">低</button></div></div>
+        <div class="vol" data-tip="set:fxA"><label>攻撃の濃さ</label><input type="range" id="set-fxa" min="15" max="100"><span id="set-fxa-n" class="set-n"></span></div>
+        <div class="vol" data-tip="set:ui"><label>UIサイズ</label><input type="range" id="set-ui" min="50" max="150" step="5"><span id="set-ui-n" class="set-n"></span></div>
+        <div class="vol" data-tip="set:autoE"><label>E 自動発動</label><div class="seg" id="set-autoE"><button data-v="1">ON</button><button data-v="0">OFF</button></div></div>
+        <div class="vol" data-tip="set:autoQ"><label>Q 自動発動</label><div class="seg" id="set-autoQ"><button data-v="1">ON</button><button data-v="0">OFF</button></div></div>
+        <div class="vol" data-tip="set:cutin"><label>カットイン</label><div class="seg" id="set-cutin"><button data-v="1">ON</button><button data-v="0">OFF</button></div></div>
+        <div class="vol" data-tip="set:hints"><label>初見の説明</label><div class="seg" id="set-hints"><button data-v="1">ON</button><button data-v="0">OFF</button></div></div>
+      </div>
+    </div>
+    <div class="ms-foot"><button id="btn-set-back" class="ui-back ui-frame" data-ic="back"><span class="lbl">戻る</span><span class="ui-esc">ESC</span></button></div>
   </div>
 
   <div id="result-screen" class="screen hidden">
@@ -99,6 +287,8 @@
       <div id="result-stats"></div>
       <div id="result-dmg"></div>
     </div>
+    <div id="result-cls"></div>
+    <div id="result-loot"></div>
     <div class="menu row">
       <button id="btn-endless" class="btn big hidden">ENDLESS (Enter)</button>
       <button id="btn-retry" class="btn">RETRY (R)</button>
@@ -106,17 +296,85 @@
     </div>
   </div>
 
-  <div id="tooltip" class="hidden"></div>
 </div>
+<!-- ツールチップは #wrap の外(#wrap は position: fixed で重なりの層を作るので、中だと body 直下のモーダルの後ろになる) -->
+<div id="tooltip" class="hidden"></div>
 
+<script src="js/detmath.js"></script>
 <script src="js/data.js"></script>
+<script src="js/lang/en.js"></script>
+<script src="js/lang/zh.js"></script>
+<script src="js/lang/ko.js"></script>
+<script src="js/i18n.js"></script>
 <script src="js/art.js"></script>
 <script src="js/audio.js"></script>
 <script src="js/gfx.js"></script>
 <script src="js/core.js"></script>
+<script src="js/stats.js"></script>
+<script src="js/equip.js"></script>
+<script src="js/motions.js"></script>
+<script src="js/skillfx.js"></script>
+<script src="js/classes/common.js"></script>
+<script src="js/classes/samurai.js"></script>
+<script src="js/classes/mage.js"></script>
+<script src="js/classes/archer.js"></script>
+<script src="js/classes/knight.js"></script>
+<script src="js/classes/pyro.js"></script>
+<script src="js/classes/assassin.js"></script>
+<script src="js/classes/necro.js"></script>
+<script src="js/classes/cryo.js"></script>
+<script src="js/classes/electro.js"></script>
+<script src="js/classes/cleric.js"></script>
+<script src="js/classes/astro.js"></script>
+<script src="js/classes/berserker.js"></script>
+<script src="js/classes/weaponmaster.js"></script>
+<script src="js/classes/hooks.js"></script>
 <script src="js/world.js"></script>
+<script src="js/player.js"></script>
+<script src="js/weapons.js"></script>
+<script src="js/damage.js"></script>
+<script src="js/enemies.js"></script>
+<script src="js/bosses/common.js"></script>
+<script src="js/bosses/king.js"></script>
+<script src="js/bosses/wyrm.js"></script>
+<script src="js/bosses/gslime.js"></script>
+<script src="js/bosses/golem.js"></script>
+<script src="js/bosses/cdragon.js"></script>
+<script src="js/bosses/ifrit.js"></script>
+<script src="js/bosses/stag.js"></script>
+<script src="js/bosses/pqueen.js"></script>
+<script src="js/bosses/kraken.js"></script>
+<script src="js/bosses/levia.js"></script>
+<script src="js/bosses/fgiant.js"></script>
+<script src="js/bosses/squeen.js"></script>
+<script src="js/bosses/qbee.js"></script>
+<script src="js/bosses/elder.js"></script>
+<script src="js/bosses/escorp.js"></script>
+<script src="js/bosses/sphinx.js"></script>
+<script src="js/bosses/raiju.js"></script>
+<script src="js/bosses/raijin.js"></script>
+<script src="js/bosses/trichroma.js"></script>
+<script src="js/bosses/seraph.js"></script>
+<script src="js/bosses/warden.js"></script>
+<script src="js/bosses/cerberus.js"></script>
+<script src="js/bosses/shadowking.js"></script>
+<script src="js/bosses/reaper.js"></script>
+<script src="js/phase.js"></script>
+<script src="js/hazards.js"></script>
+<script src="js/drops.js"></script>
+<script src="js/spawner.js"></script>
+<script src="js/tower.js"></script>
+<script src="js/rewards.js"></script>
 <script src="js/render.js"></script>
 <script src="js/ui.js"></script>
+<script src="js/meta-ui.js"></script>
+<script src="js/gacha.js"></script>
+<script src="js/status-ui.js"></script>
+<script src="js/help.js"></script>
+<script src="js/vendor/p2p.js"></script>
+<script src="js/net.js"></script>
+<script src="js/lobby.js"></script>
+<script src="js/coop-ui.js"></script>
 <script src="js/main.js"></script>
 </body>
 </html>

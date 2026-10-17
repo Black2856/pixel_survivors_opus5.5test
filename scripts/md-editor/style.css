@@ -1,0 +1,172 @@
+/* style.css — 仕様書エディタの見た目。暗い色(ナイトモード)は html の data-theme="dark"(app.js がシステムの設定か 🌙 の切り替えで付ける) */
+:root {
+  --bg: #f6f6f3; --panel: #ffffff; --side: #efefe9; --line: #dcdcd4; --text: #23242a; --dim: #6c6f7a;
+  --acc: #2f6fde; --acc-bg: #dde8fb; --warn: #b8620a; --warn-bg: #fff1dc; --ok: #24854a; --ok-bg: #e2f4e8; --code: #f0efe9;
+  --del: #fde4e4; --del-t: #a32020; --add: #e0f4e4; --add-t: #1b6b34; --mark: #ffe58a; --cur: #fff7d6;
+  --user: #e8eefc; --ai: #eef7ee;
+  --mono: "BIZ UDGothic", "Cascadia Mono", Consolas, "Yu Gothic UI", monospace;
+  --sans: "BIZ UDPGothic", "Yu Gothic UI", "Meiryo", system-ui, sans-serif;
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #17181d; --panel: #1d1f26; --side: #15161b; --line: #2e313b; --text: #e4e5ea; --dim: #959aa6;
+  --acc: #7aa2ff; --acc-bg: #263355; --warn: #ffb454; --warn-bg: #3a2c16; --ok: #7bd88f; --ok-bg: #1d3325; --code: #262832;
+  --del: #3d1f22; --del-t: #ff9b9b; --add: #1c3524; --add-t: #8fe3a5; --mark: #6b5a12; --cur: #2c2a1c;
+  --user: #222b40; --ai: #1f2e24;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html, body { height: 100%; margin: 0; }
+body { background: var(--bg); color: var(--text); font: 14px/1.6 var(--sans); display: grid; grid-template-columns: 270px 1fr auto; grid-template-rows: 44px 1fr; overflow: hidden; }
+button { font: inherit; font-size: 13px; color: inherit; background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 2px 9px; cursor: pointer; white-space: nowrap; }
+button:hover { border-color: var(--acc); }
+button.primary { background: var(--acc); border-color: var(--acc); color: #fff; }
+button:disabled { opacity: 0.45; cursor: default; }
+button.on { background: var(--acc-bg); color: var(--acc); border-color: var(--acc); }
+input, textarea { font: inherit; color: var(--text); background: var(--panel); border: 1px solid var(--line); border-radius: 6px; }
+.sp { flex: 1; }
+.dim { color: var(--dim); }
+
+header { grid-column: 1 / 4; display: flex; align-items: center; gap: 8px; padding: 0 12px; border-bottom: 1px solid var(--line); background: var(--panel); }
+header h1 { font-size: 15px; margin: 0 8px 0 0; }
+#msg { color: var(--dim); font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#msg.ok { color: var(--ok); } #msg.warn { color: var(--warn); }
+
+/* 左: ファイル / 検索 / コメント */
+aside { grid-row: 2; background: var(--side); border-right: 1px solid var(--line); display: flex; flex-direction: column; min-height: 0; }
+#rootName { padding: 8px 12px 2px; font-weight: bold; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#tabs { display: flex; gap: 4px; padding: 6px 10px; }
+#tabs button { flex: 1; padding: 2px 4px; }
+.tab { display: flex; flex-direction: column; min-height: 0; flex: 1; }
+.tab > input, .tab .row { margin: 2px 10px 8px; }
+.tab > input { padding: 4px 8px; }
+.tab .row { display: flex; gap: 6px; align-items: center; font-size: 13px; }
+select { font: inherit; font-size: 12px; color: var(--text); background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 1px 2px; }
+.tab .row > span { white-space: nowrap; }
+/* まとめて消す: 1段目に範囲、2段目に消すボタン 2つ(幅を分け合う)。サイドバーは狭いので 1行には入らない */
+.tab .row.del { margin-bottom: 4px; }
+.tab .row.del + .row.del { margin-bottom: 8px; }
+.tab .row.del button { flex: 1; }
+#delResolved, #delAll { color: var(--warn); }
+.list { overflow: auto; flex: 1; padding: 0 4px 12px; }
+.list .dir { color: var(--dim); font-size: 12px; padding: 8px 8px 2px; }
+.list .f { display: flex; align-items: center; gap: 6px; padding: 3px 8px 3px 14px; border-radius: 5px; cursor: pointer; white-space: nowrap; overflow: hidden; }
+.list .f .nm { overflow: hidden; text-overflow: ellipsis; }
+.list .f:hover { background: var(--panel); }
+.list .f.on { background: var(--acc-bg); color: var(--acc); font-weight: bold; }
+.list .f .dot { width: 7px; height: 7px; border-radius: 50%; flex: none; }
+.list .f.dirty .dot { background: var(--warn); }
+.list .f .cnt { margin-left: auto; font-size: 11px; background: var(--warn-bg); color: var(--warn); border-radius: 9px; padding: 0 6px; font-weight: normal; }
+.list .empty { color: var(--dim); padding: 12px; font-size: 13px; }
+.list .grp { font-size: 12px; color: var(--dim); padding: 10px 8px 2px; font-weight: bold; }
+.list .sr, .list .ci { padding: 4px 8px; border-radius: 5px; cursor: pointer; font-size: 13px; }
+.list .sr:hover, .list .ci:hover { background: var(--panel); }
+.list .sr .hp, .list .ci .hp { color: var(--dim); font-size: 11px; display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.list .sr .tx { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: var(--mono); font-size: 12px; }
+.list mark { background: var(--mark); color: inherit; border-radius: 2px; }
+.list .ci .tt { font-weight: bold; }
+.list .ci .last { display: block; color: var(--dim); font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* 真ん中: 編集とプレビュー */
+main { grid-column: 2; grid-row: 2; display: flex; flex-direction: column; min-width: 0; min-height: 0; }
+#bar { display: flex; align-items: center; gap: 6px; padding: 6px 12px; border-bottom: 1px solid var(--line); background: var(--panel); flex-wrap: wrap; }
+#path { font-family: var(--mono); font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 40%; }
+#dirty { color: var(--warn); font-size: 12px; white-space: nowrap; }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
+.seg button { border: 0; border-radius: 0; }
+#banner { display: none; align-items: center; gap: 10px; padding: 6px 12px; background: var(--warn-bg); color: var(--warn); border-bottom: 1px solid var(--line); font-size: 13px; }
+#banner.on { display: flex; }
+#panes { flex: 1; display: grid; grid-template-columns: 1fr 1fr; min-height: 0; }
+#panes.edit, #panes.view { grid-template-columns: 1fr; } /* 隠した方は列を取らないので 1列にする(0 の列を残すと、見せる方がそこに入って消える) */
+#panes.edit #pvWrap, #panes.view #ed { display: none; }
+#panes.view #ed { border-right: 0; }
+#ed { width: 100%; height: 100%; resize: none; border: 0; border-radius: 0; border-right: 1px solid var(--line); outline: none; padding: 14px 16px; background: var(--panel); font: 14px/1.7 var(--mono); tab-size: 2; white-space: pre-wrap; overflow-wrap: anywhere; overflow: auto; }
+#mirror { position: absolute; left: -10000px; top: 0; visibility: hidden; padding: 14px 16px; font: 14px/1.7 var(--mono); white-space: pre-wrap; overflow-wrap: anywhere; }
+#pvWrap { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
+#pvBar { display: flex; gap: 6px; align-items: center; white-space: nowrap; overflow: hidden; padding: 5px 12px; border-bottom: 1px solid var(--line); font-size: 12px; color: var(--dim); }
+#pvBar label { display: inline-flex; gap: 4px; align-items: center; }
+#pv { position: relative; overflow: auto; padding: 4px 28px 80px; min-width: 0; flex: 1; }
+#start { grid-column: 2; grid-row: 2; display: flex; align-items: center; justify-content: center; color: var(--dim); }
+#start .box { max-width: 520px; line-height: 1.9; }
+
+/* プレビュー */
+#pv h1, #pv h2, #pv h3, #pv h4, #pv h5 { line-height: 1.35; margin: 1.1em 0 0.4em; cursor: pointer; display: flex; align-items: baseline; gap: 6px; }
+#pv h1 { font-size: 1.55em; } #pv h2 { font-size: 1.28em; border-bottom: 1px solid var(--line); padding-bottom: 4px; } #pv h3 { font-size: 1.1em; } #pv h4, #pv h5 { font-size: 1em; }
+#pv .fold::before { content: '▾'; color: var(--dim); font-size: 0.8em; display: inline-block; width: 1em; }
+#pv .sec.folded > .hd .fold::before { content: '▸'; }
+#pv .sec.folded > .sb { display: none; }
+#pv .sec.folded > .hd::after { content: '…たたんでいます'; color: var(--dim); font-size: 12px; font-weight: normal; }
+#pv p { margin: 0.45em 0; }
+#pv ul, #pv ol { margin: 0.3em 0; padding-left: 1.5em; }
+#pv li { margin: 0.1em 0; }
+#pv code { font-family: var(--mono); background: var(--code); padding: 0 4px; border-radius: 4px; font-size: 0.92em; }
+#pv pre { background: var(--code); padding: 10px 12px; border-radius: 6px; overflow: auto; }
+#pv pre code { padding: 0; background: none; }
+#pv blockquote { margin: 0.5em 0; padding: 2px 12px; border-left: 3px solid var(--line); color: var(--dim); }
+#pv hr { border: 0; border-top: 1px solid var(--line); margin: 1.2em 0; }
+#pv .tw { overflow-x: auto; margin: 0.6em 0; }
+#pv table { border-collapse: collapse; font-size: 13px; }
+#pv th, #pv td { border: 1px solid var(--line); padding: 4px 9px; vertical-align: top; cursor: text; }
+#pv th { background: var(--code); text-align: left; }
+#pv td:hover, #pv th:hover { outline: 1px solid var(--acc); outline-offset: -1px; }
+#pv a { color: var(--acc); }
+#pv .cur-blk { background: var(--cur); box-shadow: -10px 0 0 var(--cur); }
+#pv .flash { animation: flash 1.2s; }
+@keyframes flash { 0% { background: var(--mark); } 100% { background: transparent; } }
+#pv .cell-in { width: 100%; min-width: 80px; font: inherit; padding: 1px 4px; border: 1px solid var(--acc); border-radius: 3px; }
+#pv .blk-ed { width: 100%; font: 13px/1.6 var(--mono); padding: 6px 8px; border: 1px solid var(--acc); border-radius: 6px; display: block; }
+#pv .blk-hint { font-size: 11px; color: var(--dim); }
+/* ブロックの上に出す小さな道具(💬 / 📋 / ✎) */
+#tool { position: absolute; display: none; gap: 2px; z-index: 5; background: var(--panel); border: 1px solid var(--line); border-radius: 7px; padding: 2px; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12); }
+#tool.on { display: flex; }
+#tool button { border: 0; padding: 0 6px; font-size: 13px; }
+#tool button:hover { background: var(--acc-bg); }
+/* 表に行・列を追加するメニュー(マスの右クリック / ⊞)。足す基準のマスを枠で示す */
+#tmenu { position: fixed; z-index: 20; display: flex; flex-direction: column; gap: 1px; background: var(--panel); border: 1px solid var(--line); border-radius: 7px; padding: 3px; box-shadow: 0 4px 14px rgba(0, 0, 0, 0.18); }
+#tmenu button { border: 0; text-align: left; padding: 3px 12px 3px 8px; }
+#tmenu button:hover:not(:disabled) { background: var(--acc-bg); }
+#pv .tm-cell { outline: 2px solid var(--acc); outline-offset: -2px; }
+
+/* コメントのスレッド */
+.thread { border: 1px solid var(--line); border-left: 3px solid var(--warn); border-radius: 8px; margin: 0.6em 0; background: var(--panel); font-size: 13px; }
+.thread.resolved { border-left-color: var(--ok); opacity: 0.8; }
+.thread.resolved .th-body { display: none; }
+.thread.resolved.open .th-body { display: block; }
+#pv.hide-resolved .thread.resolved { display: none; }
+.th-h { display: flex; align-items: center; gap: 8px; padding: 5px 10px; cursor: pointer; }
+.th-t { font-weight: bold; }
+.badge { font-size: 11px; border-radius: 9px; padding: 0 7px; }
+.badge.wait { background: var(--warn-bg); color: var(--warn); }
+.badge.ai { background: var(--acc-bg); color: var(--acc); }
+.badge.done { background: var(--ok-bg); color: var(--ok); }
+.th-body { padding: 0 10px 8px; }
+.msg { border-radius: 8px; padding: 5px 9px; margin: 5px 0; max-width: 92%; }
+.msg.user { background: var(--user); margin-left: auto; }
+.msg.ai { background: var(--ai); }
+.msg .mh { display: flex; gap: 8px; font-size: 11px; color: var(--dim); }
+.th-reply { display: flex; gap: 6px; align-items: flex-end; margin-top: 6px; }
+.th-reply textarea { flex: 1; resize: vertical; padding: 4px 8px; font-size: 13px; }
+.composer { border: 1px dashed var(--acc); border-radius: 8px; padding: 8px 10px; margin: 0.6em 0; background: var(--panel); font-size: 13px; }
+.composer input, .composer textarea { width: 100%; padding: 4px 8px; margin: 3px 0; }
+.composer .row { display: flex; gap: 6px; justify-content: flex-end; }
+
+/* 右: 変更 / 履歴 */
+#drawer { grid-column: 3; grid-row: 2; width: 400px; border-left: 1px solid var(--line); background: var(--panel); display: flex; flex-direction: column; min-height: 0; }
+#drawer .dh { display: flex; align-items: center; gap: 6px; padding: 8px 12px; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+#drawer .dh b { font-size: 14px; }
+#dBody { overflow: auto; flex: 1; padding: 8px 12px 30px; font-size: 13px; }
+.hunk { border: 1px solid var(--line); border-radius: 7px; margin: 0 0 10px; overflow: hidden; cursor: pointer; }
+.hunk .hp { background: var(--code); padding: 3px 9px; font-size: 12px; color: var(--dim); }
+.hunk .it { padding: 4px 9px; border-top: 1px solid var(--line); }
+.hunk .rowc { font-weight: bold; }
+.hunk .rowc span { font-weight: normal; }
+.hunk .d, .hunk .a { font-family: var(--mono); font-size: 12px; white-space: pre-wrap; overflow-wrap: anywhere; padding: 1px 6px; border-radius: 3px; margin: 2px 0; }
+.hunk .d { background: var(--del); color: var(--del-t); }
+.hunk .a { background: var(--add); color: var(--add-t); }
+.ver { padding: 5px 8px; border-radius: 6px; cursor: pointer; display: flex; gap: 8px; align-items: center; }
+.ver:hover { background: var(--code); }
+.ver.on { background: var(--acc-bg); }
+.ver .k { font-size: 11px; border-radius: 9px; padding: 0 6px; background: var(--code); }
+.ver .k.ext { background: var(--acc-bg); color: var(--acc); }
+.ver .st { margin-left: auto; font-size: 11px; color: var(--dim); }
+.dsec { font-size: 12px; color: var(--dim); margin: 12px 0 6px; font-weight: bold; }

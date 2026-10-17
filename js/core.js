@@ -11,52 +11,143 @@ const d2 = (ax, ay, bx, by) => (ax - bx) * (ax - bx) + (ay - by) * (ay - by);
 const hash2 = (x, y) => { let h = (x * 374761393 + y * 668265263) | 0; h = (h ^ (h >>> 13)) * 1274126177; return ((h ^ (h >>> 16)) >>> 0) / 4294967296; };
 const fmtTime = t => String((t / 60) | 0).padStart(2, '0') + ':' + String((t % 60) | 0).padStart(2, '0');
 const shuffle = a => { for (let i = a.length - 1; i > 0; i--) { const j = (Math.random() * (i + 1)) | 0; [a[i], a[j]] = [a[j], a[i]]; } return a; };
+
+// ---------- 乱数: 計算の列と見た目の列 ----------
+//   協力プレイは全員が同じ計算をするので、計算(update の中)が引く乱数は、全員で同じ列・同じ回数にする(claudedocs/coop.md 3章)
+//   Math.random は simScope の中(main.js の frame が update を包む)では計算の列、外では見た目の列(ネイティブ)
+//   update の中でも、引く回数が設定(画質・攻撃の濃さ)・画面・実時間で変わる見た目は、fxScope の中で引くか frand / fpick で引く
+const NATIVE_RANDOM = Math.random;
+const mulberry32 = s => { let a = s >>> 0; return () => { a = (a + 0x6d2b79f5) >>> 0; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; };
+let simRandom = mulberry32(NATIVE_RANDOM() * 4294967296), fxRandom = NATIVE_RANDOM, inSim = 0;
+Math.random = () => (inSim > 0 ? simRandom() : fxRandom());
+function simSeed(s) { simRandom = mulberry32(s); } // 協力プレイでは部屋の種
+function setFxRandom(f) { fxRandom = f || NATIVE_RANDOM; } // 試験の道具が見た目の列も固定するとき
+function simScope(fn) { inSim++; try { return fn(); } finally { inSim--; } }
+function fxScope(fn) { const k = inSim; inSim = 0; try { return fn(); } finally { inSim = k; } }
+const frand = (a, b) => a + fxRandom() * (b - a);
+const fpick = a => a[(fxRandom() * a.length) | 0];
 function hexRgb(h) { const n = parseInt(h.slice(1), 16); return [(n >> 16) / 255, ((n >> 8) & 255) / 255, (n & 255) / 255]; }
 
 // ============================================================
 // 状態
 // ============================================================
-let state = 'title'; // title | play | levelup | chest | pause | over | victory | shop
+let state = 'title'; // title | play | levelup | chest | pause | over | victory | settings | coop(協力プレイの部屋の画面)など
 let S = null, P = null;
+// プレイヤー(協力プレイでは入った順。ホストが 0。全員で同じ順)。P は「いま計算しているプレイヤー」で、計算の外では players[0](自分)
+//   1人ずつの処理は withPlayer で P を入れ替えて、players の順に回す(全員の乱数の引き方をそろえるため、順を変えない)
+let players = [];
+function withPlayer(p, fn) { const p0 = P; setP(p); try { return fn(); } finally { setP(p0); } }
+// P を入れ替える(協力プレイの形では、計算用のカメラの四角もその人に合わせる: simView)
+function setP(p) { P = p; if (simViewOn && p) { cam.x = Math.round(p.x - SIM_VIEW.w / 2); cam.y = Math.round(p.y - SIM_VIEW.h / 2); } }
+const anyAlive = () => players.some(p => !p.dead);
+// プレイヤーが作った物(弾・ゾーン・斬撃)に、作った人を付ける(pl)。動かすときに P をその人にして、撃破・ダメージ・倍率をその人のものにする
+const owned = o => { if (o.pl === undefined) o.pl = P; return o; };
 let enemies = [], projs = [], eprojs = [], gems = [], drops = [], props = [];
 let parts = [], floats = [], rings = [], zones = [], slashes = [], bolts = [], warns = [], flashes = [];
 let hazards = []; // ボスが設置する床・フィールド(粘液 / 衝撃波 / スロウタイム)
+let bfx = []; // ボスの技の見た目だけの演出(死者の手・地割れの噴出・空襲の影など。render.js の drawBfx が kind ごとに描く)
+let sfx = []; // E / Q スキルの演出(足元の陣・光芒・集中線・光の柱など。skillfx.js)
 let nextId = 1;
 const cam = { x: 0, y: 0, shake: 0, sx: 0, sy: 0 };
 
-// ---------- 永続データ(ゴールド・永続強化・記録) ----------
+// ---------- 永続データ(v2: ゴールド・永続ツリー・クラス・装備・記録) ----------
+// v1(旧・永続強化)のセーブは、購入済みの強化を全額ゴールドに返金して v2 へ移行する。移行前のデータは別キーに残す
+const META_KEY = 'ps55_meta';
+const V1_COSTS = {
+  might: [100, 200, 600, 2400, 12000], vital: [60, 120, 360, 1440, 7200], swift: [80, 160, 480, 1920, 9600],
+  haste: [125, 250, 750, 3000, 15000], growth: [100, 200, 600, 2400, 12000], greed: [60, 120, 360, 1440, 7200],
+  reroll: [100, 200, 600, 2400, 12000], reach: [90, 180, 540, 2160, 10800], crit: [120, 240, 720, 2880, 14400],
+  weapon: [5000], passive: [5000], chaos: [1000, 2500, 5000, 7500, 10000],
+};
+let metaMigratedGold = 0; // v1 からの移行で返金した額(タイトルで1回だけ通知する)
+let metaTreeRefund = 0; // 永続ツリーから消したノードの返金額(タイトルで1回だけ通知する)
 const META = (() => {
-  const def = { gold: 0, up: {}, best: { time: 0, kills: 0, level: 0 }, runs: 0 };
-  let m;
-  try { m = Object.assign(def, JSON.parse(localStorage.getItem('ps55_meta') || '{}')); } catch (e) { m = def; }
-  for (const k in m.up) if (!DATA.meta[k]) delete m.up[k]; // 廃止された項目(不死鳥など)
+  const m = {
+    ver: 2, gold: 0, cls: 'samurai', classes: {}, tree: [], inventory: [], nextItemId: 1,
+    loadout: { weapon: null, armor: null, ring: null }, stageClear: {}, chaos: {}, best: { time: 0, kills: 0, level: 0 }, runs: 0,
+  };
+  let raw = null;
+  try { raw = JSON.parse(localStorage.getItem(META_KEY) || 'null'); } catch (e) { /* 壊れたデータは初期値で続行 */ }
+  if (raw && raw.ver === 2) Object.assign(m, raw);
+  else if (raw) {
+    try { localStorage.setItem(META_KEY + '_v1_backup', JSON.stringify(raw)); } catch (e) { /* 保存不可でも続行 */ }
+    let back = 0;
+    for (const k in raw.up || {}) { const c = V1_COSTS[k] || []; for (let i = 0; i < raw.up[k]; i++) back += c[i] || 0; }
+    m.gold = (raw.gold || 0) + back;
+    if (raw.best) m.best = raw.best;
+    m.runs = raw.runs || 0;
+    metaMigratedGold = back;
+  }
+  delete m.shop; // ショップの商品(2026-10-13 にガチャへ変えたので使わない)
+  // バーサーカーの解放を 闘技場 → 常闇の王墓 に変えた:闘技場をクリアして解放済みだったセーブは、そのまま使える(1回だけ記録)
+  if (!m.clsGrant) { m.clsGrant = {}; if (m.stageClear.arena) m.clsGrant.berserker = true; }
+  // クラスの解放をステージの並びの順に変えた(2026-10-13。最初からはサムライだけ): 前の決まりで使えたクラスは、そのまま使える(1回だけ記録)。新しいセーブは記録しない
+  if (m.clsV !== 2) {
+    const OLD = { cleric: 'stage1', electro: 'stage2', pyro: 'stage3', necro: 'stage4', cryo: 'stage5', assassin: 'stage6', astro: 'stage7', weaponmaster: 'escalation', berserker: 'stage8' };
+    if (raw) for (const k in DATA.classes) if (!OLD[k] || m.stageClear[OLD[k]] || m.clsGrant[k]) m.clsGrant[k] = true;
+    m.clsV = 2;
+  }
+  for (const k in DATA.classes) m.classes[k] = Object.assign({ lv: 1, xp: 0, weapon: DATA.classes[k].weapon || DATA.classes[k].startW }, m.classes[k]); // 専用武器がないクラスは startW から
+  if (!DATA.classes[m.cls]) m.cls = 'samurai';
+  if (DATA.classUnlock[m.cls] && !m.stageClear[DATA.classUnlock[m.cls]] && !m.clsGrant[m.cls]) m.cls = 'samurai'; // まだ解放されていないクラス(解放の条件を後から足した)
+  // 永続ツリー: 守護の先端を 無敵時間 → 食べ物の効果 に変えた。取得済みならそのまま引き継ぐ
+  m.tree = m.tree.map(id => (id === 'iframe#1' ? 'food#1' : id));
+  // 永続ツリー: 先端を足した 活力・持久・剛撃・広域 の行き止まりを 5 → 4 に減らした(方向ごとに 40ノード)。消えた #5 は外して返金(公開版では深さ6)
+  const gone = ['regen#5', 'staRegen#5', 'critDmg#5', 'spd#5'].filter(id => m.tree.includes(id));
+  if (gone.length) { m.tree = m.tree.filter(id => !gone.includes(id)); metaTreeRefund = gone.length * DATA.tree.costBase * Math.pow(2, 6); m.gold += metaTreeRefund; }
+  // tier の開始の敵Lv・報酬をカオス強化に置き換えた: クリア済みのステージの設定は、tier の値を下回る項目だけ tier の値まで上げる(1回だけ)
+  if (m.tierChaos !== 3) { // 2: 群れの目覚めを足した版 / 3: 荒野・晶窟の tier を入れ替えた版
+    for (const R of DATA.stageRuns) { const k = 'stage' + R.no, c = m.chaos[k], T = DATA.flow.tierChaos[R.tier - 1]; if (m.stageClear[k] && c) for (const s in T) c[s] = Math.max(c[s] || 0, T[s]); }
+    m.tierChaos = 3;
+  }
   return m;
 })();
-function saveMeta() { try { localStorage.setItem('ps55_meta', JSON.stringify(META)); } catch (e) { /* 保存不可でも続行 */ } }
-const metaLv = k => META.up[k] || 0;
+function saveMeta() { try { localStorage.setItem(META_KEY, JSON.stringify(META)); } catch (e) { /* 保存不可でも続行 */ } }
+if (metaMigratedGold || metaTreeRefund || !localStorage.getItem(META_KEY)) saveMeta(); // 返金はすぐ保存(読み込むたびに返金しない)
 
 // ---------- 設定(グラフィック品質 / 自分の攻撃の濃さ) ----------
 // gfx: high=全演出 / mid=ブルーム弱・歪みや粒状ノイズなし・パーティクル60% / low=ブルームなし・パーティクル35%
 const GFX_Q = { high: { bloom: 1, post: 1, parts: 1 }, mid: { bloom: 0.55, post: 0, parts: 0.6 }, low: { bloom: 0, post: 0, parts: 0.35 } };
 const SET = (() => {
-  const d = { gfx: 'high', fxA: 1 };
+  const d = { gfx: 'high', fxA: 1, autoE: false, autoQ: false, uiMul: 1, cutin: true, hints: true, lang: LANG }; // autoE / autoQ: スキルの自動発動 / uiMul: UI の大きさの倍率(窓に合わせた大きさに掛ける)/ cutin: スキルのカットイン / hints: 初見の説明(敵の技・状態異常を初めて見たときの帯)/ lang: 言語(i18n.js)
   try { Object.assign(d, JSON.parse(localStorage.getItem('ps55_set') || '{}')); } catch (e) { /* 既定値で続行 */ }
   if (!GFX_Q[d.gfx]) d.gfx = 'high';
   d.fxA = clamp(+d.fxA || 1, 0.15, 1);
+  d.autoE = !!d.autoE; d.autoQ = !!d.autoQ; d.cutin = d.cutin !== false; d.hints = d.hints !== false;
+  delete d.ui; // 前の設定(UI の大きさをそのまま拡大率にしていた)。窓に合わせる形に変えたので使わない(倍率は 100% から)
+  d.uiMul = clamp(+d.uiMul || 1, 0.5, 1.5);
+  if (!LANGS[d.lang]) d.lang = LANG;
   return d;
 })();
+// UI の大きさ(HUD とメニュー画面の中身を css の zoom で拡大縮小する): uiZ = 窓に合わせた拡大率 × 設定の倍率(SET.uiMul)
+//   窓に合わせた拡大率: 高さは 720 を 1 として合わせる。幅は 1280 を超えた分だけ大きくし、900 以上なら縮めずに狭い組み方に切り替え、900 未満で幅に合わせて縮める。どちらも 0.5 まで
+//     (どれも測った値: メニュー画面は 1280×720 から約 1070×600 まで収まるので 100% は少し余裕がある。設定の倍率は 120% まで収まり、それより大きいとメニュー画面はスクロールになる。
+//      狭い組み方では幅 900 で全ての画面が収まり、820 では強化ツリー・ガチャがスクロールになる)
+//   zoom は中の vw / vh も拡大するので、css は画面に対する大きさを --ui で割って書く。狭い画面の組み方は、拡大した後の幅(innerWidth / uiZ)で html に付ける vn1140 / vn820 / vn760 で切り替える(1140: 装備画面の 4列が入らなくなる幅)
+//   --ui は数のまま入れる(gacha.js が parseFloat で読む)。HUD は --uh(PC では --ui と同じ)
+//   スマホ(TOUCH_UI)では下限を上げる: メニュー画面などは 0.85(文字が 11px 以上)、HUD は 0.7(ゲームの画面を隠しすぎない)。入りきらないメニュー画面はスクロール
+//   宝箱・ガチャを引いた画面(--uc)はスクロールできないので、窓の高さ ÷ 680 を上限にする(中身は 1倍で約 610)
+const UI_REF = { w: 1280, h: 720, nw: 900, touch: { ui: 0.85, hud: 0.7 }, reveal: 680 }; // nw: 狭い組み方で全ての画面が収まる最小の幅
+// スマホ: 主な入力が指で、マウスを乗せられない端末。窓の大きさでは決めない(PC の小さい窓は今までどおり)。html に touch を付ける
+const TOUCH_UI = matchMedia('(hover: none) and (pointer: coarse)').matches;
+document.documentElement.classList.toggle('touch', TOUCH_UI);
+let uiZ = 1;
+function applyUiScale() {
+  const fitW = Math.max(innerWidth / UI_REF.w, Math.min(1, innerWidth / UI_REF.nw));
+  const fit = Math.max(0.5, Math.min(fitW, innerHeight / UI_REF.h)), r = document.documentElement, t = TOUCH_UI && UI_REF.touch;
+  uiZ = (t ? Math.max(fit, t.ui) : fit) * SET.uiMul;
+  r.style.setProperty('--ui', String(uiZ));
+  r.style.setProperty('--uh', String((t ? Math.max(fit, t.hud) : fit) * SET.uiMul));
+  r.style.setProperty('--uc', String(Math.min(uiZ, innerHeight / UI_REF.reveal)));
+  r.style.setProperty('--um', String(SET.uiMul)); // タッチのボタン(窓の大きさに関係なく指の大きさ)に掛ける倍率
+  const vw = innerWidth / uiZ;
+  for (const n of [1140, 820, 760]) r.classList.toggle('vn' + n, vw <= n);
+  if (TOUCH_UI && innerHeight > innerWidth && state === 'play') pauseGame(); // 縦向きは「横向きにしてください」を出すので止める
+}
+applyUiScale();
+addEventListener('resize', applyUiScale);
 function saveSet() { try { localStorage.setItem('ps55_set', JSON.stringify(SET)); } catch (e) { /* 保存不可でも続行 */ } }
 const gq = () => GFX_Q[SET.gfx];
-const metaMax = k => DATA.meta[k].costs.length;
-const metaCost = k => DATA.meta[k].costs[metaLv(k)];
-// 購入済みの永続強化をすべて返金してリセット
-function metaRefund() {
-  let back = 0;
-  for (const k in META.up) { const c = DATA.meta[k] ? DATA.meta[k].costs : []; for (let i = 0; i < META.up[k]; i++) back += c[i] || 0; }
-  META.gold += back; META.up = {};
-  saveMeta();
-  return back;
-}
 
 // ============================================================
 // 入力
@@ -64,11 +155,15 @@ function metaRefund() {
 const keys = {};
 const touch = { active: false, id: null, ox: 0, oy: 0, dx: 0, dy: 0 };
 addEventListener('keydown', e => {
-  keys[e.code] = true;
-  // ダッシュは押した瞬間のみ受け付ける(長押し・キーリピートで連続発動させない)
-  if (e.code === 'Space' && !e.repeat && state === 'play') keys._dash = true;
-  if ((e.code === 'ShiftLeft' || e.code === 'ShiftRight') && !e.repeat && state === 'play') toggleAim();
-  if (['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code)) e.preventDefault();
+  const typing = e.target && /^(INPUT|TEXTAREA|SELECT)$/i.test(e.target.tagName); // 文字の入力中(ガイドの検索)・プルダウン(言語)はゲームの操作にしない(スペース・矢印も使えるように)
+  if (!typing) {
+    keys[e.code] = true;
+    if ((e.code === 'ShiftLeft' || e.code === 'ShiftRight') && !e.repeat && state === 'play' && !(COOP.on && UI.menuOpen())) toggleAim(); // 協力プレイのメニュー(止まらないので state は play)では切り替えない
+    // E(武器スキル)/ Q(クラススキル)は押した瞬間だけ受け付ける
+    if (e.code === 'KeyE' && !e.repeat && state === 'play') keys._e = true;
+    if (e.code === 'KeyQ' && !e.repeat && state === 'play') keys._q = true;
+    if (['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code)) e.preventDefault();
+  }
   AudioMan.unlock();
   if (typeof onKey === 'function') onKey(e);
 });
@@ -76,12 +171,13 @@ addEventListener('keyup', e => { keys[e.code] = false; });
 addEventListener('blur', () => { for (const k in keys) keys[k] = false; if (state === 'play') pauseGame(); });
 addEventListener('pointerdown', () => AudioMan.unlock());
 
-// タッチ: 画面左半分で仮想スティック / 右半分タップでダッシュ
+// タッチ: 画面左 6割で仮想スティック / 右側を押している間は防御スキル
+//   スマホ(TOUCH_UI)はボタン以外のどこでもスティック。防御スキル・E・Q・ポーズは #touch-ctl のボタン(下)
 const cvsEl = document.getElementById('game');
 cvsEl.addEventListener('touchstart', e => {
   for (const t of e.changedTouches) {
-    if (t.clientX < innerWidth * 0.6 && !touch.active) { Object.assign(touch, { active: true, id: t.identifier, ox: t.clientX, oy: t.clientY, dx: 0, dy: 0 }); }
-    else keys._dash = true;
+    if ((TOUCH_UI || t.clientX < innerWidth * 0.6) && !touch.active) { Object.assign(touch, { active: true, id: t.identifier, ox: t.clientX, oy: t.clientY, dx: 0, dy: 0 }); }
+    else if (!TOUCH_UI) keys.TouchDef = true;
   }
   e.preventDefault();
 }, { passive: false });
@@ -91,13 +187,35 @@ cvsEl.addEventListener('touchmove', e => {
   }
   e.preventDefault();
 }, { passive: false });
-cvsEl.addEventListener('touchend', e => { for (const t of e.changedTouches) if (t.identifier === touch.id) { touch.active = false; touch.dx = touch.dy = 0; } });
+const touchEnd = e => { for (const t of e.changedTouches) { if (t.identifier === touch.id) { touch.active = false; touch.dx = touch.dy = 0; } else if (!TOUCH_UI) keys.TouchDef = false; } };
+cvsEl.addEventListener('touchend', touchEnd);
+cvsEl.addEventListener('touchcancel', touchEnd); // 通知などで指が外れたとき(スティックが倒れたまま残らないように)
+// スマホのボタン(index.html の #touch-ctl。E / Q の字と CD の円は ui.js の skillIcons)。押した瞬間に効かせる(click は指を離すまで来ない)
+if (TOUCH_UI) {
+  const hold = (id, on) => {
+    const b = document.getElementById(id);
+    b.addEventListener('pointerdown', e => { e.preventDefault(); b.setPointerCapture(e.pointerId); on(true); });
+    for (const ev of ['pointerup', 'pointercancel']) b.addEventListener(ev, () => on(false));
+  };
+  hold('tc-def', v => { keys.TouchDef = v; });
+  hold('tc-e', v => { if (v && state === 'play') keys._e = true; });
+  hold('tc-q', v => { if (v && state === 'play') keys._q = true; });
+  hold('tc-pause', v => { if (v) pauseGame(true); }); // 協力プレイでは止めずにメニューだけ
+  document.getElementById('touch-ctl').addEventListener('contextmenu', e => e.preventDefault()); // 長押しのメニューを出さない
+  document.addEventListener('gesturestart', e => e.preventDefault()); // iPhone の 2本指の拡大(user-scalable=no が効かない)
+}
+// スマホ: 冒険開始を押したときに全画面にして横向きに固定する(できる端末だけ。iPhone は requestFullscreen がない)
+function touchFullscreen() {
+  const d = document.documentElement;
+  if (!TOUCH_UI || document.fullscreenElement || !d.requestFullscreen) return;
+  d.requestFullscreen({ navigationUI: 'hide' }).then(() => screen.orientation && screen.orientation.lock && screen.orientation.lock('landscape')).catch(() => { /* できない端末はそのまま */ });
+}
 
 // マウス位置(内部解像度の画面座標)。Shift でマウス照準モードを切り替える
 const mouse = { x: 0, y: 0, aim: false };
 function toggleAim() {
   mouse.aim = !mouse.aim;
-  UI.announce(mouse.aim ? 'マウス照準 ON' : '自動照準', mouse.aim ? 'SHIFT で自動照準に戻す' : '');
+  UI.toast(mouse.aim ? _t('<span class="k">マウス照準</span> ・ SHIFT で戻す') : _t('<span class="k">自動照準</span>'), mouse.aim ? '#ff9aa6' : '#9a8fc0'); // 控えめに(画面の下に小さく)
   AudioMan.click();
 }
 addEventListener('pointermove', e => {
@@ -105,8 +223,8 @@ addEventListener('pointermove', e => {
   const r = cvsEl.getBoundingClientRect();
   mouse.x = (e.clientX - r.left) / GFX.PX; mouse.y = (e.clientY - r.top) / GFX.PX;
 });
-// 照準点(ワールド座標)。マウス照準モードでなければ null(従来の自動照準)
-const mouseAimPt = () => (mouse.aim ? { x: cam.x + mouse.x, y: cam.y + mouse.y } : null);
+// 照準点(ワールド座標)。マウス照準モードでなければ null(従来の自動照準)。計算の中では入力の記録(P.inp)から
+const mouseAimPt = () => { const a = P && P.inp && P.inp.aim; return a ? { x: a.x, y: a.y } : null; };
 
 function moveInput() {
   let x = 0, y = 0;
@@ -118,6 +236,18 @@ function moveInput() {
   const l = Math.hypot(x, y);
   return l > 1 ? [x / l, y / l] : [x, y];
 }
+// 計算が読む 1人分の入力(計算 1回ごとの記録。協力プレイではこれを送り合う: claudedocs/coop.md 2章)。計算は keys・touch・mouse を直接読まない
+//   mx, my: 移動 / e, q: E・Q を押した印(押した瞬間だけ。取ったら消す)/ def: 防御のキー / aim: マウスの照準(ワールド座標)/ autoE, autoQ: スキルの自動発動の設定
+//   pick: 協力プレイの止まらないレベルアップで選んだ物(1〜7 = カード / 8 = スキップ / 9 = リロール。net.js の coopLevel)
+const NO_INPUT = Object.freeze({ mx: 0, my: 0, e: false, q: false, def: false, aim: null, autoE: false, autoQ: false, pick: 0 });
+function readInput() {
+  // 協力プレイでメニュー・ステータス・設定・ガイドを開いている間は何もしない(止まらないので。ガイドの検索に打つ字で動かないように)
+  if (COOP.on && UI.menuOpen()) { keys._e = keys._q = false; keys._pick = 0; return NO_INPUT; }
+  const [mx, my] = moveInput();
+  const r = { mx, my, e: !!keys._e, q: !!keys._q, def: !!(keys.Space || keys.TouchDef), aim: mouse.aim ? { x: cam.x + mouse.x, y: cam.y + mouse.y } : null, autoE: !!SET.autoE, autoQ: !!SET.autoQ, pick: keys._pick | 0 };
+  keys._e = keys._q = false; keys._pick = 0;
+  return r;
+}
 
 // ============================================================
 // 演出ヘルパー
@@ -127,9 +257,9 @@ const MAX_PARTS = 2600;
 let FX_MINE = false;
 // 汎用パーティクル: glow=true でグロー層にも描画(ブルームの光源になる)
 function part(x, y, vx, vy, life, col, o = {}) {
-  if (gq().parts < 1 && Math.random() > gq().parts) return;
+  if (gq().parts < 1 && fxRandom() > gq().parts) return; // 画質で間引く(見た目の列で引く。計算の列の回数を画質で変えない)
   if (parts.length >= MAX_PARTS) parts.shift();
-  parts.push({ x, y, vx, vy, t: 0, life, col, sz: o.sz || 1, g: o.g || 0, drag: o.drag ?? 2.5, glow: !!o.glow, shrink: !!o.shrink, up: o.up || 0, mine: FX_MINE });
+  parts.push({ x, y, vx, vy, t: 0, life, col, sz: o.sz || 1, g: o.g || 0, drag: o.drag ?? 2.5, glow: !!o.glow, shrink: !!o.shrink, up: o.up || 0, mine: FX_MINE && P }); // mine: 自分の攻撃なら作った人
 }
 function burst(x, y, n, cols, o = {}) {
   const sp = o.sp || 60;
@@ -145,14 +275,65 @@ function addFloat(x, y, txt, col, scale = 1, vy = -30, k = 1) {
 }
 // イージング
 const easeOutCubic = t => 1 - Math.pow(1 - clamp(t, 0, 1), 3);
+const easeInQuart = t => Math.pow(clamp(t, 0, 1), 4);
 const easeOutBack = t => { t = clamp(t, 0, 1); const c = 1.70158; return 1 + (c + 1) * Math.pow(t - 1, 3) + c * Math.pow(t - 1, 2); };
-function addRing(x, y, r, col, o = {}) { rings.push({ x, y, r0: o.r0 || 2, r, t: 0, life: o.life || 0.4, col, w: o.w || 1, mine: FX_MINE }); }
-function addFlash(x, y, r, col, life = 0.25) { flashes.push({ x, y, r, col, t: 0, life, mine: FX_MINE }); }
-function shake(n) { cam.shake = Math.max(cam.shake, n); }
-function hitstop(t) { S.freeze = Math.max(S.freeze, t); }
-function slowmo(k, dur) { S.ts = k; S.tsBack = dur; }
-function screenFlash(a, col = '#ffffff') { GFX.fx.flash = Math.max(GFX.fx.flash, a); GFX.fx.flashCol = hexRgb(col); }
-function shockAt(x, y, k = 1, spd = 0.9) { if (gq().post) GFX.shock(x - cam.x, y - cam.y, k * (FX_MINE ? SET.fxA : 1), spd); }
+function addRing(x, y, r, col, o = {}) { rings.push({ x, y, r0: o.r0 || 2, r, t: 0, life: o.life || 0.4, col, w: o.w || 1, mine: FX_MINE && P }); }
+function addFlash(x, y, r, col, life = 0.25) { flashes.push({ x, y, r, col, t: 0, life, mine: FX_MINE && P }); }
+// 協力プレイ: 揺れ・画面の閃光は、起こした人(計算の中の P)が自分の時だけ(coop.md #5 の仮。見た目だけで計算には入らない)
+const fxForMe = () => !COOP.on || P === players[COOP.pid];
+// 敵の攻撃の当たり判定を、生きている全員に(協力プレイ: coop.md #25)。players の順に P をその人にして fn を呼ぶ(1人なら今の P で 1回)。fn が true の人がいれば true
+//   動き・狙い(どこへ撃つか・追う玉)は狙われた人(tPl)のまま。当たる・押される・遅くなるなどを全員に
+function forHit(fn) {
+  if (players.length <= 1) return !!fn();
+  let any = false;
+  for (const pl of players) if (!pl.dead && !pl.left && withPlayer(pl, fn)) any = true;
+  return any;
+}
+// 1回だけ当たる技の「当たった」印を人ごとに(1人なら o[k] のまま。協力プレイは o[k + 'By'] に当たった人を入れる。印を消す所では o[k + 'By'] も消す)
+const hitDone = (o, k = 'hit') => (players.length <= 1 ? !!o[k] : !!(o[k + 'By'] && o[k + 'By'].has(P)));
+const hitMark = (o, k = 'hit') => { if (players.length <= 1) o[k] = true; else (o[k + 'By'] || (o[k + 'By'] = new Set())).add(P); };
+// 人ごとの状態(当たる間隔の時計・壁のどちら側にいたか など)。1人の時と、狙われた人(o.tPl。無ければ 1人目)は o そのもの(1人の計算は変わらない)。
+//   ほかの人は o.pp に人ごとの入れ物を作る(init: 初めの値。配列を持つ物は関数で)
+function perP(o, init) {
+  if (players.length <= 1 || P === (o.tPl || players[0])) return o;
+  const m = o.pp || (o.pp = new Map());
+  let s = m.get(P);
+  if (!s) m.set(P, s = typeof init === 'function' ? init() : Object.assign({}, init));
+  return s;
+}
+function shake(n) { if (fxForMe()) cam.shake = Math.max(cam.shake, n); }
+// all: 全員に関わる物(ボスの技・撃破・エリート群など)。協力プレイ(2人以上)では all の物だけ時間を止める・遅くする(1人が起こす物は止めない: coop.md #5)
+function hitstop(t, all) { if (!all && players.length > 1) return; S.freeze = Math.max(S.freeze, t); }
+function slowmo(k, dur, all) { if (!all && players.length > 1) return; S.ts = k; S.tsBack = dur; }
+// ゲームの時間のタイマー(計算に関わる「少し後で」は setTimeout ではなくこれ)。update の最後に進むので、ポーズ・レベルアップの間は止まる
+//   実時間の setTimeout は人によって呼ばれる時がずれる(協力プレイ: claudedocs/coop.md 3章)。画面だけの物(ui.js など)は setTimeout のまま
+let simTq = [], simTNow = 0, simTId = 0;
+function simTimeout(fn, ms = 0) { simTq.push({ t: simTNow + (+ms || 0) / 1000, fn, id: ++simTId, pl: P }); } // pl: 足した時のプレイヤー(呼ぶときもその人で)
+function clearSimTimers() { simTq = []; simTNow = 0; }
+function tickSimTimers(rdt) { // 時刻の来たものを、早い順(同じなら足した順)に。呼んだ中で足された 0ms の物も同じフレームで
+  simTNow += rdt;
+  for (;;) {
+    let k = -1;
+    for (let i = 0; i < simTq.length; i++) { const q = simTq[i]; if (q.t <= simTNow + 1e-9 && (k < 0 || q.t < simTq[k].t || (q.t === simTq[k].t && q.id < simTq[k].id))) k = i; }
+    if (k < 0) return;
+    const q = simTq.splice(k, 1)[0];
+    try { withPlayer(q.pl || P, q.fn); } catch (e) { (self.reportError || console.error)(e); } // 1つの失敗でフレームを止めない(setTimeout と同じ)
+  }
+}
+function screenFlash(a, col = '#ffffff') { if (!fxForMe()) return; GFX.fx.flash = Math.max(GFX.fx.flash, a); GFX.fx.flashCol = hexRgb(col); }
+function shockAt(x, y, k = 1, spd = 0.9) { if (gq().post) { const c = simViewOn ? camReal : cam; GFX.shock(x - c.x, y - c.y, k * (FX_MINE ? SET.fxA : 1), spd); } } // 画面の位置なので本当のカメラで
+// 計算用のカメラと画面の大きさ(協力プレイ: claudedocs/coop.md 3章・#16)。窓の大きさ・なめらかに追うカメラ・揺れは人によって違うので、計算に入れない
+//   on の間は、計算(update)の間だけ cam を「自分が真ん中の揺れない w × h の四角」、GFX.VW / VH を w / h に入れ替える(描画は元のまま)
+//   1人用は off(今までどおり本当のカメラと窓の大きさで計算する)。通信の遅れを試す NET_SIM と協力プレイで on
+const SIM_VIEW = { on: false, w: 480, h: 270 };
+const camReal = { x: 0, y: 0 };
+let simViewOn = false;
+function simView(fn) {
+  const G = GFX, vw = G.VW, vh = G.VH;
+  camReal.x = cam.x; camReal.y = cam.y; simViewOn = true;
+  G.VW = SIM_VIEW.w; G.VH = SIM_VIEW.h; cam.x = Math.round(P.x - SIM_VIEW.w / 2); cam.y = Math.round(P.y - SIM_VIEW.h / 2);
+  try { return fn(); } finally { cam.x = camReal.x; cam.y = camReal.y; G.VW = vw; G.VH = vh; simViewOn = false; }
+}
 const onScreen = (x, y, m = 16) => x > cam.x - m && x < cam.x + GFX.VW + m && y > cam.y - m && y < cam.y + GFX.VH + m;
 
 // ============================================================
@@ -164,7 +345,7 @@ const gkey = (cx, cy) => (cx + 32768) * 65536 + (cy + 32768);
 function buildGrid() {
   grid.clear();
   for (const e of enemies) {
-    if (e.dead) continue;
+    if (e.dead || e.flying) continue; // 空を飛んでいるボス・地中のマグマワーム: 攻撃が当たらないので入れない(弾が吸われない)
     const k = gkey(Math.floor(e.x / CELL), Math.floor(e.y / CELL));
     let c = grid.get(k);
     if (!c) grid.set(k, c = []);
@@ -189,7 +370,7 @@ function nearestEnemy(x, y, maxD = 200, skip) {
   let best = null, bd = maxD * maxD;
   for (const e of enemies) {
     if (e.dead || e === skip || e.hidden) continue;
-    const d = d2(x, y, e.x, e.y);
+    const d = d2(x, y, e.x, e.y) * (e.boss === 'shadowking' && e.ai.shade && !e.ai.shade.dead ? 9 : 1); // 影の王が影を呼んでいる間は、影を先に狙う(影の王は 3倍遠いものとして扱う)
     if (d < bd) { bd = d; best = e; }
   }
   return best;

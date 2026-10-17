@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>仕様書エディタ</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="style.css">
+<script>/* ナイトモードを描く前に決める(白く光らないように)。切り替えは app.js */ try { const t = JSON.parse(localStorage.getItem('mde-theme')); document.documentElement.dataset.theme = (t ? t === 'dark' : matchMedia('(prefers-color-scheme: dark)').matches) ? 'dark' : 'light'; } catch (e) { /* 既定 */ }</script>
+<!--
+  仕様書エディタ — フォルダの md をブラウザで読み書きする(Chrome / Edge。File System Access API)
+    開き方: このファイルをダブルクリック(file://)か、python -m http.server で開く
+    - 左: ファイル(サブフォルダも)/ 全文検索 / コメントの一覧   真ん中: 編集とプレビュー   右: 変更(基準から)/ 履歴
+    - プレビューで直せる: 表のマスはクリック、ほかはダブルクリック(か ✎)。表の行・列はマスの右クリック(か ⊞)で足す。見出しをクリックで節をたたむ
+    - コメント: ブロックにマウスを乗せて 💬。md の中に HTML のコメントで残す(書き方は md.js の先頭)。AI も同じ形で返事を書く
+    - 保存は Ctrl+S。改行コード(CRLF / LF)と BOM は元のファイルのまま。外(LLM など)で書き換わると気づく
+  ファイル: md.js(Markdown の解釈・差分)/ app.js(画面と操作)/ style.css
+-->
+</head>
+<body>
+<header>
+  <h1>仕様書エディタ</h1>
+  <button class="primary" id="openBtn">フォルダを開く</button>
+  <button id="lastBtn" hidden></button>
+  <button id="rescanBtn" disabled title="ファイルが増えた・消えたときに一覧を作り直す">一覧を更新</button>
+  <span class="sp"></span>
+  <span id="msg"></span>
+  <button id="themeBtn" title="ナイトモード(暗い色)の切り替え"></button>
+</header>
+<aside>
+  <div id="rootName">フォルダ未選択</div>
+  <div id="tabs"><button data-tab="files" class="on">ファイル</button><button data-tab="search" title="Ctrl+Shift+F">検索</button><button data-tab="cmt">コメント</button></div>
+  <div class="tab" id="tab-files">
+    <input id="filter" placeholder="ファイル名で絞り込む" autocomplete="off">
+    <div class="list" id="tree"><div class="empty">「フォルダを開く」で、md のあるフォルダ(例: claudedocs)を選ぶ</div></div>
+  </div>
+  <div class="tab" id="tab-search" hidden>
+    <input id="q" placeholder="全部の md から探す" autocomplete="off">
+    <div class="row dim" id="srCount"></div>
+    <div class="list" id="srList"></div>
+  </div>
+  <div class="tab" id="tab-cmt" hidden>
+    <div class="row"><label><input type="checkbox" id="openOnly" checked> 未解決だけ</label><span class="sp"></span><button id="cmtCopy" title="一覧のコメントを、場所つきで LLM に渡す形にしてコピー">コピー</button></div>
+    <div class="row del"><span class="dim">まとめて消す</span><span class="sp"></span><select id="delScope" title="消す範囲"><option value="all">全ファイル</option><option value="cur">開いているファイル</option></select></div>
+    <div class="row del"><button id="delResolved" title="解決にしたやり取りを消す">解決済みを消す</button><button id="delAll" title="範囲の中のやり取りを全部消す(未解決も)">全部消す</button></div>
+    <div class="list" id="cmtList"></div>
+  </div>
+</aside>
+<main id="main" hidden>
+  <div id="bar">
+    <span id="path"></span><span id="dirty"></span>
+    <span class="sp"></span>
+    <button id="undoBtn" hidden title="プレビューでの書き換えを 1つ戻す(Ctrl+Z)">↶ 戻す</button>
+    <span class="seg" id="viewSeg"><button data-v="edit">編集</button><button data-v="split">両方</button><button data-v="view">プレビュー</button></span>
+    <button id="locBtn" title="編集欄のカーソルの場所(と選んだ文)を、LLM に渡す形でコピー">📋 場所</button>
+    <button id="diffBtn" title="基準からの変更(LLM に渡す形でコピーできる)">変更</button>
+    <button id="histBtn" title="開いた時・保存・外での変更ごとの版">履歴</button>
+    <button id="reloadBtn" title="ディスクの内容で読み直す">読み直す</button>
+    <button class="primary" id="saveBtn" title="Ctrl+S">保存</button>
+  </div>
+  <div id="banner"><span id="bannerText"></span><span class="sp"></span><button id="bnReload">ディスクの内容で読み直す(自分の変更は捨てる)</button><button id="bnKeep">このまま編集を続ける</button></div>
+  <div id="panes">
+    <textarea id="ed" spellcheck="false"></textarea>
+    <div id="pvWrap">
+      <div id="pvBar"><button id="foldAll" title="節をたたむ(見出しのクリックでも)">たたむ</button><button id="openAll">ひらく</button><label title="解決にしたコメントのやり取りを隠す"><input type="checkbox" id="hideRes"> 解決済みを隠す</label><span class="sp"></span><span class="dim" title="表のマスはクリック、ほかはダブルクリック(か ✎)で直せる。表の行・列はマスの右クリック(か ⊞)で足す。見出しのクリックで節をたたむ">直し方 ⓘ</span></div>
+      <div id="pv"></div>
+    </div>
+  </div>
+</main>
+<div id="drawer" hidden>
+  <div class="dh"><b id="dTitle"></b><span class="dim" id="dSub"></span><span class="sp"></span><button id="dClose" title="閉じる">✕</button><div id="dActs" style="width: 100%; display: flex; gap: 6px; flex-wrap: wrap;"></div></div>
+  <div id="dBody"></div>
+</div>
+<div id="start"><div class="box">
+  左上の「フォルダを開く」で、md ファイルのあるフォルダを選んでください。<br>
+  ・プレビューで直せます(表のマスはクリック、ほかはダブルクリック)。表の行・列はマスの右クリックで足せます。見出しのクリックで節をたたみます<br>
+  ・ブロックにマウスを乗せて 💬 でコメント。AI とのやり取りは md の中に残ります<br>
+  ・「変更」で基準からの変更を、LLM に渡す形でコピーできます。保存は Ctrl+S<br>
+  ・開いているファイルがほかのソフト(LLM など)で書き換わると、自動で知らせます
+</div></div>
+<div id="mirror"></div>
+<script src="md.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

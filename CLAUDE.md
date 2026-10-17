@@ -1,0 +1,47 @@
+# PIXEL SURVIVORS: NOCTURNE — 作業の地図
+
+素の HTML / CSS / JS のブラウザゲーム。開発中は index.html の `<script>` を順に読む(全部 グローバル。モジュールなし)。
+
+## どこに何があるか
+- 数値・文: `js/data.js` の `DATA`(classes / weapons / bosses / enemies / stages / stageRuns / flow …)。値は `node scripts/dev/data.js classes.knight.params` で引ける(長い行を読まない)
+- クラス: `js/classes/<クラス>.js`(1クラス 1ファイル: その武器の E スキル `WEAPON_SKILL.<武器>` → `CLASS_RT.<クラス>`(特性・パッシブ・Q)→ そのクラスの関数。仕様書 `claudedocs/classes/<名前>.md` と同じ単位)
+  - 共通は `classes/common.js`(スタミナ・強化ツリーの値 cuV / hasSp・E / Q の共通)、ゲームの側からの入口は `classes/hooks.js`(`cls*`: `clsShieldMod` `clsResistDebuff` など)。クラス名で分ける所をゲームの側に作らない
+  - クラスのファイルの読み込み順 = WEAPON_SKILL の並び(hooks.js の WS_TAKEN がこの順に掛ける)。足すときは末尾に
+- ラン: `js/world.js`(ラン初期化・ステータス・カオス強化・敵Lv)/ `player.js` / `weapons.js`(自動攻撃・弾・ゾーン)/ `damage.js`(hitEnemy・撃破)/ `enemies.js`(出現・通常敵)/ `phase.js`(ボスの撃破・フェーズ)/ `hazards.js`(敵弾・ボスの床などの動きと当たり)/ `drops.js` / `spawner.js`(出現・闘技場)/ `tower.js`(チャレンジタワー: 階・休憩・スキップ・貯蓄経験値。`S.tower`)/ `net.js`(協力プレイ: 通信の窓口 NET・ロックステップ COOP・キット・抜けた人・往復時間・止まらないレベルアップ・復活)/ `lobby.js`(公開ロビー: Supabase の Presence)/ `coop-ui.js`(協力プレイの部屋の画面)/ `vendor/p2p.js`(Trystero と supabase-js をまとめた物。`node scripts/vendor/p2p.js` で作る。手で直さない)/ `rewards.js`(レベルアップの選択肢)
+- ボス: `js/bosses/common.js`(makeBoss・spawnBoss・eball・later・壊せる物・`bossAI` の分岐)と `js/bosses/<キー>.js`(1体 1ファイル。キーは DATA.bosses。死神と終刻の死神は reaper.js、分裂した犬は cerberus.js)
+- 描画: `js/render.js` の `render()`(地面 → 自分の攻撃(地面側)→ ボスの設置物 → ジェム → 敵 → 自分 → 自分の攻撃(手前)→ 敵の攻撃・予兆 → 数値)
+  - ボスの描画は各ボスのファイルの末尾の「描画」: 設置物 `HAZ_DRAW.<種類>`・見た目だけの演出 `BFX_DRAW.<種類>`(どちらも共有する種類だけ render.js)、体まわりは `drawBossFx` から呼ぶ `draw<ボス>Fx`、熾天使・三原の光精・ケルベロス・影の王の専用の描画も。敵弾の描画は render.js
+- 絵: `js/art.js`(ASCII のドット絵)/ 光の層: `js/gfx.js`(scene・light・glow・over + WebGL の仕上げ)
+- 画面: `js/ui.js`(ラン中)/ `js/meta-ui.js`(ラン外)/ `js/status-ui.js` / `js/gacha.js` / `js/help.js`(用語集)
+- 仕様書(ユーザーが直接直す): `claudedocs/`(索引は `claudedocs/README.md`。モード・戦いの決まり・ステージ・通常敵・ボス `bosses/<キー>.md`・クラス `classes/<名前>.md`・ラン外の成長・装備・画面。`archive/` は控えで仕様ではない)
+
+## 決まり
+- 改行は CRLF(js / md / css / html。`core.autocrlf=true`)。書いたら `node scripts/dev/eol.js`(`--fix` でそろえる)。sed -i は使わない
+- 表示する日本語は `_t` を通し、訳を `js/lang/en.js`・`zh.js`・`ko.js` に足す(キー = 日本語の文)。`node scripts/i18n-check.js` で抜けを見る。DATA の文は読み込み時にまるごと訳す
+  - 強化のパスの `desc` は多くが値を差し込む型(`'バラージュの威力 +{p}%'` + `v`。表示は `pathDesc`)。数値だけの調整は `v` を変えるだけで、説明も辞書も触らない。配列のもの(Lv ごとに文が違う)は今までどおり 3つの文と辞書を直す
+- 計算(update の中)はどのブラウザでも同じ結果にする(協力プレイ: `claudedocs/coop.md` 3章): `**` は使わない(`Math.pow` で。Math の関数は `js/detmath.js` が置き換えている)/ 計算に関わる「少し後で」は `setTimeout` ではなく `simTimeout` / update の中の `Math.random` は計算の乱数の列(core.js)。見た目だけで、引く回数が設定(画質・攻撃の濃さ)・画面・実時間で変わる物は `fxScope(() => …)` の中か `frand` / `fpick` で引く(確かめは `T.classSmoke({ pix: false })` を `SET.gfx`・`SET.fxA` を変えて比べる)/ 計算は入力を `P.inp`(core.js の `readInput` の記録)から読み、`keys`・`touch`・`mouse`・`SET` を直接読まない / update の中の `cam`・`GFX.VW / VH` は、協力プレイの形(`SIM_VIEW.on`)では計算用の四角に入れ替わる(画面の位置に直すのは描画の側で)
+- 協力プレイ(players は 1〜4人。`P` は「いま計算しているプレイヤー」): 1人ずつの物は `P` に置く(`S` に置かない)/ プレイヤーごとの処理は `withPlayer` / `setP` で players の順に / プレイヤーが作る弾・ゾーン・斬撃は `owned(…)` で作った人を付ける / 敵の処理の間の `P` はその敵の狙い(`e.tPl`)/ 敵の攻撃がプレイヤーに当たる所は、範囲にいる全員に: `hitCircle` / `hitLine` / `hitFan`(当たった人ごとの追加効果は最後の引数の関数)か `forHit(() => …)` で。1回だけ当たる印は `hitDone` / `hitMark`、何秒ごとの時計・壁のどちら側かは `perP` で人ごと。`P` に直接 `hurtPlayer` するのは、つかみ技など狙った人だけの物(coop.md #25)/ 計算の状態(番号の数え `nextId` など)はランごとに `initRun` で始め直す(同じページで前に遊んだ物を持ち越すと、まっさらなページの人とずれる)/ 2人以上の通しは `T.coopSmoke()`
+- 作業は feature ブランチ。`release` は公開元(GitHub Pages)で、マージだけ。マージはユーザーに言われた時だけ
+
+## 仕様書のコメント(ユーザーと AI のやり取り)
+- ユーザーは `scripts/md-editor/index.html`(仕様書エディタ)で md を直し、md の中に HTML のコメントでやり取りを残す。「コメントに返事して」と言われたら `<!-- 💬` を探す(`💬✅` は解決済み)
+- 書き方: `<!-- 💬 題` → `@user 2026-10-15 14:20` の行 → 本文 → `@ai 2026-10-15 14:25` → 本文 → `-->`。返事は `-->` の前に `@ai <今の日時>` と本文を足す(本文に `-->` を書かない)。対象は直前のブロック(表の行なら題に「◯◯ の行」)
+- エディタは外での書き換えに気づいて読み直すので、AI の返事はそのまま画面に出る。CRLF のまま書く
+
+## ビルド・公開
+- `npm run build` → `dist/`(index.html の `<script>` を順につなぎ、1つの関数で包んで esbuild で小さくする)。新しい js は index.html に `<script>` を足せばビルドにも入る
+- release に push → `.github/workflows/pages.yml` がビルドして Pages に出す(手で POST しなくてよい)
+- 1.0(タグ `v1.0.0`。2026-10-17)からの公開の手順: release へは `git merge --no-ff feature/… -m "v1.1.0: …"`(公開 1回 = マージコミット 1つ。`git log --first-parent release` が公開の一覧)→ 注釈付きのタグ `git tag -a v1.1.0 -m "…"` → `git push origin release --follow-tags`
+  - 版の番号: 足した物があれば 1.x.0、直しだけなら 1.0.x。前の公開からの変化は `git log v1.0.0..v1.1.0`
+  - 公開を取り消す: そのマージコミットを `git revert -m 1 <コミット>` して push(Pages が前の中身で出し直す)。急ぎの直しは release から `hotfix/…` を作って同じ手順
+  - `main` は使っていない(9月26日で止まっている。GitHub の既定のブランチ)
+- 公開版はコンソールから `P` などが見えない。小さくして動きが変わらないかは `node scripts/build.js --no-wrap`(包まない版)を `http://127.0.0.1:8765/dist/` で開き、試験の通しのハッシュを開発版と比べる
+
+## 試験
+- 道具: `scripts/dev/harness.js`(使い方は先頭のコメント)。`python -m http.server 8765 --bind 127.0.0.1` を立て、Playwright の `browser_run_code_unsafe` に `filename: scripts/dev/open.pw.js` で開く → `T.setup` / `T.step` / `T.boss` で手で進める
+- 通し: `T.classSmoke()`(全クラス × 特殊強化 3通り、約 8秒)・`T.bossSmoke()`(全ステージのボス、約 20秒)→ 例外の数とハッシュ
+- ブラウザどうし(協力プレイのずれ): `scripts/dev/cross.js` が通しを Chromium / Firefox / WebKit で回して、画素なしのハッシュを比べる(Playwright はリポジトリの外に入れる。使い方は先頭のコメント)。`sim` / `coop` で協力プレイの形
+- 協力プレイの通信(js/net.js の NET・COOP): `scripts/dev/coop2.js` が 2〜4ページをつなぎ、交互に進めてハッシュを比べる(既定は BroadcastChannel。`net=p2p`・`mix`(chromium と firefox)で Supabase を通す。`inject` でわざとずらす・`kits` で違うセーブ・`leave=1@600` で抜ける・`dirty` で 1つ目のページだけ先に 1人のランを遊ぶ。使い方は先頭のコメント)。手で試すときは別々のウィンドウで `?coop=host&room=abc&n=2` と `?coop=join&room=abc`(`&net=bc` で同じブラウザだけ)
+- 動かすだけのリファクタリングは、前後でハッシュが同じか比べる。ページを開き直して `classSmoke()` → `bossSmoke()` の順に呼ぶ(初回だけ作るキャッシュがあるので順番をそろえる)
+- 試験はセーブに書かない(T.init が saveMeta を止める)。公開版を手で遊ばせるときは先にセーブ(localStorage)を写し、`/scripts/`(ゲームを読まないページ)で戻す。終わったらサーバーを止め、`.playwright-mcp/` を消す
+- 遊ばせても時計が進まないときは rAF が止まっている(この環境で起きる)。`page.bringToFront()` してから

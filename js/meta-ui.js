@@ -1,0 +1,446 @@
+// meta-ui.js — ラン外の画面(ステージ選択 / クラス / 強化ツリー / 装備)。ガチャは gacha.js
+'use strict';
+
+const MetaUI = (() => {
+  const $ = UI.$;
+  let filter = 'all', sel = null, sellArm = null;
+
+  // ロール品質の表示: 範囲の最小 = 0%、最大 = 100%(強化の上限)。数値の背景に薄いゲージ(--q)。100% は金色
+  const qualHTML = q => {
+    const p = Math.round(q * 100);
+    return `<b class="${p >= 100 ? 'over' : ''}" style="--q:${Math.min(100, Math.max(0, p))}%">${p >= 100 ? 'MAX' : p + '%'}</b>`;
+  };
+  const icon = (it, cls = 'icon') => `<img class="${cls}" src="${ART.S.eqIcons[it.type].c.toDataURL()}" alt="">`;
+  const rcol = it => DATA.equip.rarity[it.rarity].col;
+
+  // 装備中の枠は右のパネルの「装備」タブにあるので、開いた時はそのタブ。パネルのタブはクラス画面・ラン中と共有なので、閉じたら元に戻す
+  let prevTab = null;
+  function open() {
+    state = 'equip'; sel = null;
+    if (typeof StatusUI !== 'undefined') prevTab = StatusUI.setTab('equip');
+    UI.only('equip-screen');
+    render();
+  }
+  function close() {
+    if (prevTab) { StatusUI.setTab(prevTab); prevTab = null; }
+    state = 'title'; UI.title();
+  }
+
+  // 装備中の枠(右のパネルの「装備」タブに出す。押すと詳細)
+  const slotBtn = (slot, it) => `<button class="eq-slot ${it && sel === it ? 'sel' : ''}" data-id="${it ? it.id : ''}" style="--rc:${it ? rcol(it) : '#3a3060'}">
+        <span class="lbl">${DATA.equip.slots[slot]}</span>${it ? icon(it, 'big') + `<span class="nm">${itemName(it)}${it.enh ? ' +' + it.enh : ''}</span>` : _t('<span class="nm dim">なし</span>')}</button>`;
+
+  function render() {
+    UI.gold();
+    // 一覧(部位で絞り込み・レアリティの高い順 → 新しい順)
+    const list = META.inventory.filter(it => filter === 'all' || itemSlot(it) === filter)
+      .sort((a, b) => RARITY_KEYS.indexOf(b.rarity) - RARITY_KEYS.indexOf(a.rarity) || b.id - a.id);
+    $('eq-count').textContent = `${META.inventory.length} / ${DATA.equip.invMax}`;
+    for (const b of $('eq-tabs').children) b.classList.toggle('on', b.dataset.f === filter);
+    $('eq-list').innerHTML = list.length ? list.map(it => `<button class="eq-item ${sel === it ? 'sel' : ''}" data-id="${it.id}" style="--rc:${rcol(it)}" title="${itemName(it)}">
+        ${icon(it)}${it.lock ? '<span class="lk">🔒</span>' : ''}${isEquipped(it) ? '<span class="eqd">E</span>' : ''}${it.enh ? `<span class="en">+${it.enh}</span>` : ''}${it.isNew ? '<span class="nw">NEW</span>' : ''}</button>`).join('')
+      : _t('<div class="dim eq-empty">装備がありません。ボスを倒すと装備宝箱を落とします</div>');
+    detail();
+    const unlocked = META.inventory.filter(it => !it.lock && !isEquipped(it));
+    const b = $('eq-sellall');
+    b.disabled = !unlocked.length;
+    if (!sellArm) b.textContent = _t`ロック以外を売却 (${unlocked.length}個 +${unlocked.reduce((a, it) => a + sellValue(it), 0)}G)`;
+    statusPanel('eq-status', undefined, slotBtn);
+  }
+
+  // 選んだ装備の詳細と操作
+  function detail() {
+    const box = $('eq-detail'), it = sel, none = !it || !META.inventory.includes(it);
+    box.classList.toggle('empty', none);
+    if (none) { box.innerHTML = ART.uiIcon('chest') + `<b>${_t('装備を選択')}</b>` + _t('<div class="dim">装備を選ぶと詳細が表示されます</div>'); return; } // 選んでいない時は強化ツリーのノード詳細と同じ形
+    const R = DATA.equip.rarity[it.rarity], eq = isEquipped(it);
+    box.innerHTML = `
+      <div class="eq-head" style="--rc:${R.col}">${icon(it, 'big')}<div><div class="rar">${R.name}${_t(' ・ ')}${DATA.equip.slots[itemSlot(it)]}</div><div class="nm">${itemName(it)}</div></div></div>
+      <div class="eq-opts">${it.opts.map(o => `<div class="eq-opt"><span>${optHTML(o)}</span><em>${_t`〜Lv${o.max}`}</em>${qualHTML(o.q)}</div>`).join('')}</div>
+      ${it.uq ? `<div class="eq-uq">★ ${DATA.uniques[it.uq].desc}</div>` : ''}
+      <div class="dim eq-note">${_t('ラン開始時は全オプション Lv0。レベルアップの装備カードで選んだオプションが +1Lv')}</div>
+      <div class="eq-enh">${_t`強化 ${it.enh} / ${R.enh}`}</div>
+      <div class="eq-btns">
+        <button class="btn" data-act="equip">${eq ? _t('外す') : _t('装備する')}</button>
+        <button class="btn ghost" data-act="lock">${it.lock ? _t('ロック解除') : _t('ロック')}</button>
+        <button class="btn" data-act="enh" ${canEnhance(it) && META.gold >= enhCost(it) ? '' : 'disabled'}>${canEnhance(it) ? _t`強化 ● ${enhCost(it)}` : it.enh >= R.enh ? _t('強化 回数上限') : _t('強化 全て最大')}</button>
+        <button class="btn ghost" data-act="sell" ${it.lock || eq ? 'disabled' : ''}>${_t`売却 +${sellValue(it)}G`}</button>
+      </div>`;
+  }
+
+  function act(a) {
+    const it = sel;
+    if (!it) return;
+    if (a === 'equip') { if (isEquipped(it)) unequipSlot(itemSlot(it)); else equipItem(it); AudioMan.select(); }
+    else if (a === 'lock') { it.lock = !it.lock; saveMeta(); AudioMan.click(); }
+    else if (a === 'enh') {
+      const o = enhanceItem(it);
+      if (o) { AudioMan.levelup(); UI.announce(_t('強化成功!'), _t`${DATA.stats[o.k].label} のロール値アップ`); }
+    } else if (a === 'sell') { const g = sellItem(it); if (g) { AudioMan.coin(); sel = null; } }
+    render();
+  }
+
+  // ---------- クラス ----------
+  // 実装済みのクラス(ランタイムがあるもの)だけ選べる。Lv15 でメイン武器を他クラスのメイン武器に変更できる
+  let clSel = null, back = 'title';
+  const clsReady = k => !!CLASS_RT[k];
+  const portrait = k => { const r = ART.S[DATA.classes[k].rig]; return (r ? ART.rigFrame(r, 'idle', 0) : ART.S.player).c.toDataURL(); }; // 待機の1フレーム目(持ち物も描かれる)
+  function classScreen(from = 'title') {
+    state = 'class'; back = from; clSel = META.cls;
+    UI.only('class-screen');
+    renderClass();
+    const sel = document.querySelector('.cl-card.sel'); if (sel) sel.scrollIntoView({ block: 'nearest' }); // 開いたときは選択中のクラスが見えるように
+  }
+  function renderClass() {
+    const st = $('cl-list').scrollTop; // 描き直してもスクロール位置を保つ
+    $('cl-list').innerHTML = DATA.classOrder.map(k => {
+      const c = DATA.classes[k], m = META.classes[k];
+      if (!clsUnlocked(k)) return `<button class="cl-card ${clSel === k ? 'sel' : ''} locked" data-k="${k}"><span class="en">???</span><img src="${portrait(k)}" alt=""><span class="nm">${_t('？？？')}</span><span class="lv">🔒</span></button>`; // 未解放: 名前・色を伏せたシルエット
+      return `<button class="cl-card ${clSel === k ? 'sel' : ''} ${clsReady(k) ? '' : 'off'}" data-k="${k}" style="--cc:${c.col}">
+        <span class="en">${c.en}</span><img src="${portrait(k)}" alt=""><span class="nm">${c.name}</span>
+        <span class="lv">${clsReady(k) ? 'Lv ' + m.lv : _t('準備中')}</span>${META.cls === k ? _t('<span class="use">使用中</span>') : ''}</button>`;
+    }).join('');
+    $('cl-list').scrollTop = st;
+    if (!clsUnlocked(clSel)) { // 未解放: 何も明かさない
+      $('cl-detail').innerHTML = `<div class="cl-head"><span class="nm">${_t('？？？')}</span></div>
+        <div class="cl-lock">🔒 ${_t('まだ解放されていないクラス')}</div>
+        <div class="dim cl-note">${_t('ステージを初めてクリアすると、新しいクラスが解放されることがある')}</div>
+        <button class="btn cl-go" disabled>🔒 ${_t('未解放')}</button>`;
+      $('cl-status').innerHTML = _t('<div class="dim sv-note">？？？</div>');
+      return;
+    }
+    const k = clSel, c = DATA.classes[k], m = META.classes[k], need = DATA.classLevel.need, max = need.length + 1;
+    const xpP = m.lv >= max ? 100 : m.xp / need[m.lv - 1] * 100;
+    const rows = classLvTable(k).map(r => `<div class="cl-row ${m.lv >= r.lv ? 'got' : ''} ${m.lv + 1 === r.lv ? 'next' : ''}">
+      <b>Lv${r.lv}</b><span class="tag ${r.kind === '共通' ? 'wp' : ''}">${_t(r.kind)}</span><span>${r.d}</span><em>${m.lv >= r.lv ? '✔' : need[r.lv - 2].toLocaleString()}</em></div>`).join('');
+    const swap = canSwap(k), cw = m.weapon || c.weapon || c.startW;
+    const note = c.weapon ? _t`<span class="tag">専用</span>このクラスだけ <span class="tag wp">共通</span>${DATA.weapons[c.weapon].name}を使うどのクラスにも効く`
+      : _t('<span class="tag">専用</span>このクラスだけ');
+    $('cl-detail').innerHTML = `
+      <div class="cl-head" style="--cc:${c.col}"><span class="nm">${c.name}</span><span class="lv">Lv ${m.lv}${m.lv >= max ? ' MAX' : ''}</span></div>
+      <div class="cl-xp"><i style="width:${xpP.toFixed(1)}%"></i><span>${m.lv >= max ? 'MAX' : `${m.xp.toLocaleString()} / ${need[m.lv - 1].toLocaleString()} EXP`}</span></div>
+      <div class="dim cl-note">${note}</div>
+      <div class="cl-rows">${rows}</div>
+      <div class="cl-sub">${_t('メイン武器')} ${swap ? '' : _t('<span class="dim">(Lv15 で切り替え解放)</span>')}</div>
+      <button class="cl-wsel">${UI.weaponIcon(cw)}<span>${DATA.weapons[cw].name}${cw === c.weapon ? _t('<small>専用</small>') : ''}</span><em>${swap ? _t('変更 ▸') : _t('一覧 ▸')}</em></button>
+      <button class="btn cl-go" ${clsReady(k) ? '' : 'disabled'}>${META.cls === k ? _t('使用中') : _t('このクラスにする')}</button>`;
+    Help.glossify($('cl-detail'), { cls: k, per: '.cl-row, .cl-note' });
+    statusPanel('cl-status', k);
+  }
+  // MetaUI は StatusUI より先に読み込まれるので、実行時に参照する
+  const statusPanel = (id, cls, slotFn) => { if (typeof StatusUI !== 'undefined') StatusUI.render($(id), false, cls, slotFn); };
+  $('cl-list').onclick = e => { const b = e.target.closest('.cl-card'); if (!b) return; clSel = b.dataset.k; AudioMan.click(); renderClass(); };
+  // メイン武器の切り替え(モーダル)。Lv15 まではクラス専用の武器だけ選べる(一覧は見られる)。専用武器がないクラスは Lv1 から選べる
+  const canSwap = k => !DATA.classes[k].weapon || !!classLvFx(k).swap;
+  const wpModal = document.createElement('div');
+  wpModal.id = 'wp-modal'; wpModal.className = 'hidden';
+  wpModal.innerHTML = '<div class="svm"><button class="svm-x">×</button><div class="svm-body"></div></div>';
+  document.body.appendChild(wpModal);
+  const wpOpen = () => !wpModal.classList.contains('hidden');
+  const closeWp = () => wpModal.classList.add('hidden');
+  function openWp() {
+    const k = clSel, c = DATA.classes[k], m = META.classes[k], swap = canSwap(k), cw = m.weapon || c.weapon || c.startW;
+    const weps = [...new Set(DATA.classOrder.map(k => DATA.classes[k].weapon).filter(Boolean))]; // クラスの並びの順
+    const owner = w => Object.values(DATA.classes).find(x => x.weapon === w), ownerName = w => clsNameShown(weaponOwner(w)); // 未解放のクラスの名前は伏せる
+    wpModal.querySelector('.svm-body').innerHTML = `<div class="wp-h">${_t('メイン武器を選ぶ')} <span class="dim">— ${c.name}</span></div>
+      ${swap ? '' : _t('<div class="dim wp-note">Lv15 で切り替えが解放されます</div>')}
+      <div class="wp-list">${weps.map(w => {
+        const d = DATA.weapons[w], o = owner(w), ok = swap || w === c.weapon;
+        return `<button class="wp-card ${cw === w ? 'on' : ''}" data-w="${w}" ${ok ? '' : 'disabled'} style="--cc:${o ? o.col : '#fff'}">
+          ${UI.weaponIcon(w)}<div class="wp-b"><div class="wp-nm">${d.name}${w === c.weapon ? _t('<small>専用</small>') : ''}${cw === w ? _t('<small class="use">使用中</small>') : ''}</div>
+          <div class="dim">${d.desc}</div>
+          <div class="wp-e">${d.skill ? `E: ${d.skill.name}` : _t('<span class="dim">E なし</span>')}${o ? _t`<span class="dim"> ・ ${ownerName(w)}の武器(熟練は${ownerName(w)}の Lv)</span>` : ''}</div></div></button>`;
+      }).join('')}</div>`;
+    Help.glossify(wpModal.querySelector('.wp-list'), { per: '.wp-b' });
+    wpModal.classList.remove('hidden');
+    const on = wpModal.querySelector('.wp-card.on'); if (on) on.scrollIntoView({ block: 'nearest' }); // 使用中の武器が見えるように
+  }
+  wpModal.onclick = e => {
+    if (e.target === wpModal || e.target.closest('.svm-x')) { AudioMan.click(); closeWp(); return; }
+    const b = e.target.closest('.wp-card');
+    if (b && !b.disabled) { META.classes[clSel].weapon = b.dataset.w; saveMeta(); AudioMan.select(); closeWp(); renderClass(); }
+  };
+  $('cl-detail').onclick = e => {
+    if (e.target.closest('.cl-wsel')) { AudioMan.click(); openWp(); return; }
+    const g = e.target.closest('.cl-go');
+    if (g && !g.disabled && META.cls !== clSel) { META.cls = clSel; saveMeta(); AudioMan.select(); renderClass(); }
+  };
+  const closeClass = () => { if (back === 'stage') stageSelect(false, stCoop); else if (back === 'coop') CoopUI.open(); else { state = 'title'; UI.title(); } }; // coop: 協力プレイの画面の「自分のクラス」から
+  $('cl-back').onclick = () => { AudioMan.click(); closeClass(); };
+  $('btn-class').onclick = () => { AudioMan.click(); classScreen(); };
+
+  // ---------- 永続強化ツリー ----------
+  // 円形のツリー。取得済みに隣接するノードが取れる(深さ1 は最初から)。費用 = 50 × 2^深さ。リセットなし
+  let trSel = null;
+  const nodeName = nd => (DATA.stats[nd.k].kind === 'flag' ? DATA.stats[nd.k].label : `${DATA.stats[nd.k].label} ${optVal({ k: nd.k, v: treeNodeValue(nd.k) })}`); // あり・なしの効果は名前だけ
+  function treeScreen() {
+    state = 'tree'; trSel = null;
+    UI.only('tree-screen');
+    trView = { s: 1, cx: 0, cy: 0 }; applyTrView();
+    renderTree();
+  }
+  // 拡大・移動: viewBox を動かす(s = 倍率 1〜3、cx / cy = 見ている中心)
+  const TR_HALF = 378;
+  let trView = { s: 1, cx: 0, cy: 0 }, trDrag = null, trMoved = false;
+  function applyTrView() {
+    const v = trView, lim = TR_HALF * (1 - 1 / v.s), size = TR_HALF * 2 / v.s;
+    v.cx = clamp(v.cx, -lim, lim); v.cy = clamp(v.cy, -lim, lim);
+    $('tr-svg').setAttribute('viewBox', `${(v.cx - size / 2).toFixed(1)} ${(v.cy - size / 2).toFixed(1)} ${size.toFixed(1)} ${size.toFixed(1)}`);
+  }
+  // 画面上の点(ux, uy: 0〜1)を動かさずに倍率を変える
+  function zoomTr(k, ux = 0.5, uy = 0.5) {
+    const v = trView, size = TR_HALF * 2 / v.s, px = v.cx - size / 2 + ux * size, py = v.cy - size / 2 + uy * size;
+    v.s = clamp(v.s * k, 1, 3);
+    const ns = TR_HALF * 2 / v.s;
+    v.cx = px - ux * ns + ns / 2; v.cy = py - uy * ns + ns / 2;
+    applyTrView();
+  }
+  $('tr-svg').addEventListener('wheel', e => {
+    e.preventDefault();
+    const b = $('tr-svg').getBoundingClientRect();
+    zoomTr(e.deltaY < 0 ? 1.15 : 1 / 1.15, (e.clientX - b.left) / b.width, (e.clientY - b.top) / b.height);
+  }, { passive: false });
+  $('tr-svg').addEventListener('pointerdown', e => { trDrag = { x: e.clientX, y: e.clientY, cx: trView.cx, cy: trView.cy }; trMoved = false; });
+  addEventListener('pointermove', e => {
+    if (!trDrag) return;
+    const dx = e.clientX - trDrag.x, dy = e.clientY - trDrag.y;
+    if (!trMoved && Math.hypot(dx, dy) < 5) return; // 少し動いただけならクリック扱い
+    trMoved = true; $('tr-svg').classList.add('drag');
+    const k = TR_HALF * 2 / trView.s / $('tr-svg').getBoundingClientRect().width;
+    trView.cx = trDrag.cx - dx * k; trView.cy = trDrag.cy - dy * k; applyTrView();
+  });
+  addEventListener('pointerup', () => { trDrag = null; $('tr-svg').classList.remove('drag'); });
+  document.querySelector('.tr-zoom').onclick = e => {
+    const z = e.target.closest('button'); if (!z) return;
+    AudioMan.click();
+    if (z.dataset.z === 'reset') { trView = { s: 1, cx: 0, cy: 0 }; applyTrView(); } else zoomTr(z.dataset.z === 'in' ? 1.3 : 1 / 1.3);
+  };
+  function renderTree() {
+    UI.gold();
+    const T = DATA.tree, nodes = Object.values(TREE);
+    let svg = '';
+    // リング(深さの目安)と方向の名前
+    for (let d = 1; d <= 7; d++) svg += `<circle class="ring" r="${TREE_R(d)}"/>`;
+    Object.keys(T.dirs).forEach((dk, di) => {
+      const a = -Math.PI / 2 + di * Math.PI * 2 / 3, D = T.dirs[dk];
+      svg += `<text class="dirname" x="${Math.cos(a) * 104}" y="${Math.sin(a) * 104 + 5}" fill="${D.col}">${D.name}</text>`;
+    });
+    // 線(両端の状態で明るさを変える)
+    const seen = new Set();
+    for (const nd of nodes) for (const id of nd.adj) {
+      const key = nd.id < id ? nd.id + '|' + id : id + '|' + nd.id;
+      if (seen.has(key)) continue; seen.add(key);
+      const o = TREE[id], lit = treeOwned(nd.id) && treeOwned(id), half = treeOwned(nd.id) || treeOwned(id);
+      svg += `<line class="${lit ? 'lit' : half ? 'half' : ''}" style="--dc:${T.dirs[nd.dir].col}" x1="${nd.x.toFixed(1)}" y1="${nd.y.toFixed(1)}" x2="${o.x.toFixed(1)}" y2="${o.y.toFixed(1)}"/>`;
+    }
+    // 根どうしをつなぐ中心
+
+    for (const nd of nodes) {
+      const st = treeOwned(nd.id) ? 'own' : treeOpen(nd) ? (META.gold >= treeCost(nd) ? 'open' : 'poor') : 'lock';
+      const r = nd.big ? (nd.mid ? 13 : 15) : 10.5; // 本線の間の特別なノードは少し小さく(隣と重ならないように)
+      // 行き止まり(貴重なステータス)はひし形
+      const sh = nd.leaf ? `<rect class="sh" x="-9" y="-9" width="18" height="18" transform="rotate(45)"/>` : `<circle class="sh" r="${r}"/>`;
+      svg += `<g class="nd ${st} ${nd.big ? 'big' : ''} ${nd.leaf ? 'leaf' : ''} ${trSel === nd.id ? 'sel' : ''}" data-id="${nd.id}" style="--dc:${T.dirs[nd.dir].col}" transform="translate(${nd.x.toFixed(1)} ${nd.y.toFixed(1)})">
+        ${sh}<text y="${nd.big ? 5.5 : 4.5}">${T.glyph[nd.k]}</text></g>`;
+    }
+    $('tr-svg').innerHTML = svg;
+    treeInfo();
+    // 取得済み効果(ツリーから得ているステータス)。見出しの右に 取得した数 / 全部
+    const tc = treeCounts(), total = Object.values(TREE).length;
+    $('tr-cnt').textContent = `${META.tree.length} / ${total}`;
+    $('tr-sum').innerHTML = Object.keys(tc).length
+      ? Object.keys(tc).map(k => `<div class="tr-s"><span>${DATA.stats[k].label}</span><b>${optVal({ k, v: DATA.stats[k].kind === 'red' ? 1 - Math.pow(1 - treeNodeValue(k), tc[k]) : treeNodeValue(k) * tc[k] })}</b></div>`).join('')
+      : _t('<div class="dim">まだ何も取得していません</div>');
+  }
+  // ノード詳細: 選んでいない時は菱形の印と「ノードを選択」と説明
+  function treeInfo() {
+    const box = $('tr-info'), nd = trSel && TREE[trSel];
+    box.classList.toggle('empty', !nd);
+    if (!nd) { box.innerHTML = ART.uiIcon('node') + `<b>${_t('ノードを選択')}</b>` + _t('<div class="dim">ノードを選ぶと詳細が表示されます。中心に近いノードから、取得済みのノードの隣へ広げていきます</div>'); return; }
+    const D = DATA.tree.dirs[nd.dir], own = treeOwned(nd.id), open = treeOpen(nd), cost = treeCost(nd);
+    box.innerHTML = `<div class="tr-nm" style="color:${D.col}">${DATA.tree.glyph[nd.k]} ${nodeName(nd)}</div>
+      <div class="dim">${D.name}${_t` ・ 深さ ${nd.depth}`}${nd.big ? _t(' ・ 特別なノード') : nd.leaf ? _t(' ・ 行き止まり') : ''}</div>
+      <button class="btn tr-buy" ${!own && open && META.gold >= cost ? '' : 'disabled'}>${own ? _t('取得済み') : !open ? _t('隣のノードを先に取得') : _t`取得 ● ${cost.toLocaleString()}`}</button>`;
+  }
+  $('tr-svg').onclick = e => {
+    if (trMoved) { trMoved = false; return; } // ドラッグで移動した後はクリックにしない
+    const g = e.target.closest('.nd'); if (!g) return;
+    trSel = g.dataset.id; AudioMan.click(); renderTree();
+  };
+  // 取得済みでないノードをダブルクリックでも取得できる
+  $('tr-svg').ondblclick = e => { const g = e.target.closest('.nd'); if (g && treeBuy(g.dataset.id)) { AudioMan.levelup(); renderTree(); } };
+  $('tr-info').onclick = e => {
+    if (!e.target.closest('.tr-buy') || !trSel) return;
+    if (treeBuy(trSel)) { AudioMan.levelup(); UI.announce(_t('強化!'), nodeName(TREE[trSel])); renderTree(); }
+  };
+  $('tr-back').onclick = () => { AudioMan.click(); state = 'title'; UI.title(); };
+  $('btn-tree').onclick = () => { AudioMan.click(); treeScreen(); };
+
+  // ---------- ステージ選択 ----------
+  // 1列で、枠の中をスクロール: エスカレーション / 闘技場 / チャレンジタワー / 通常モードのステージ(ステージを1つ選ぶ。3分 → エリート群 → 3分 → ボス → 3分 → ボス)を tier の順に。帯の色は tier
+  // クリアしたものに ★。カオス強化はクリアするまで tier の値で固定(見るだけ)、クリアすると変えられる
+  // 解放: 通常モードのステージは tier 1 が最初から、tier N は tier N−1 のステージを1つクリアすると。エスカレーション・闘技場は tier 4 のステージをクリアすると
+  // 未解放のカードは、名前を「？？？」にして説明(tier・敵Lv・報酬)を伏せる。解放の条件だけ出す(クラス画面の未解放と同じ考え)
+  const TIER_COL = ['#9ff7ff', '#7dff9a', '#ff8a3d', '#c78bff'];
+  const startLvOf = key => { const m = chaosMods(key).find(x => x.k === 'startLv'); return (key === 'arena' ? DATA.arena.elv[0] : 1) + chaosLv(chaosSetting(key), m) * m.per; }; // 開始の敵Lv(闘技場は1ラウンド目の敵Lv)+ 深い闇
+  // 報酬の倍率(tier): 通常モードはステージの tier の値、エスカレーションは tier が進むたびに上がる(最大 escRew.max)、闘技場は 2ラウンドごとに上がる / first: 初クリアのゴールド
+  const rewX = x => '×' + x.toFixed(1), TR = DATA.flow.tierRew;
+  // カードの絵: 背景はステージの床(ゲームと同じ手続きでチャンクを横に並べ、環境光の色をかけて発光の層を足す)。作った絵は覚えておく
+  //   エスカレーションは tier 1〜4 の床を斜めに区切って並べる(カードの幅に収まるように細く)。闘技場は石畳の床。未解放のカードには絵を出さない(伏せる)
+  //   ボスは出さない(絵も名前も伏せる。ユーザーの指定)
+  const artCache = new Map();
+  function stageArt(ids) {
+    const key = ids.join(',');
+    if (!artCache.has(key)) {
+      const n = ids.length, W = n > 1 ? 440 : 512, H = 48, sk = 10, c = ART.canvas(W, H), x = c.getContext('2d');
+      ids.forEach((id, i) => {
+        const st = DATA.stages[id - 1], x0 = W / n * i, x1 = W / n * (i + 1), chs = [];
+        x.save();
+        x.beginPath(); x.moveTo(i ? x0 + sk : 0, 0); x.lineTo(i < n - 1 ? x1 + sk : W, 0); x.lineTo(i < n - 1 ? x1 - sk : W, H); x.lineTo(i ? x0 - sk : 0, H); x.clip();
+        for (let k = 0; k * CH < W; k++) { const ch = buildChunk(k, 0, st); chs.push(ch); x.drawImage(ch.c, k * CH, (H - CH) / 2); }
+        x.globalCompositeOperation = 'multiply'; // 環境光(暗いステージは暗く)
+        x.fillStyle = `rgb(${st.amb.map(v => Math.min(255, Math.round(v * 1.3 * 255))).join(',')})`; x.fillRect(0, 0, W, H);
+        x.globalCompositeOperation = 'lighter'; // 発光の層(溶岩・結晶・光る苔)
+        chs.forEach((ch, k) => x.drawImage(ch.g, k * CH, (H - CH) / 2));
+        x.restore();
+      });
+      artCache.set(key, c.toDataURL());
+    }
+    return artCache.get(key);
+  }
+  // 説明の行: 敵Lv ・ 報酬 ・(エスカレーション・闘技場は)モードの説明。欄の幅を決めて、どのカードでも縦にそろえる(tier は左の札にあるので書かない)
+  const subOf = (key, rew, note) => `<span>${_t`敵Lv ${startLvOf(key)} から`}</span><span>${rew}</span>${note ? `<span>${note}</span>` : ''}`;
+  const STAGE_ITEMS = () => [
+    { key: 'escalation', mode: 'escalation', n: 1, name: _t('エスカレーション'), sub: subOf('escalation', _t`報酬 ${rewX(TR[0])}〜${rewX(DATA.flow.escRew.max)}`, _t('tier 1 → 4 を通す')), col: '#ffd23f',
+      art: [1, 5, 3, 9], badge: ['TIER', '1-4'] }, // 絵: 草原(tier 1)→ 晶窟(2)→ 奈落(3)→ 王墓(4)。だんだん暗く危なく
+    { key: 'arena', mode: 'arena', n: 1, name: _t('闘技場'), sub: subOf('arena', _t`報酬 ${rewX(TR[0])}〜${rewX(TR[TR.length - 1])}`, _t`ボス${DATA.arena.rounds}体の連戦`), col: '#ff3b5c',
+      art: [4], badge: ['BOSS', '×' + DATA.arena.rounds] },
+    { key: 'tower', mode: 'tower', n: 1, name: _t('チャレンジタワー'), sub: subOf('tower', _t`報酬 ${rewX(TR[0])}〜${rewX(DATA.flow.escRew.max)}`, _t('倒した数で次の階へ')), col: '#5dffc8',
+      art: [10, 11, 12, 8], badge: ['TOWER', '∞'] }, // 絵: 森 → 砂海 → 雲海 → 時計塔
+    ...DATA.stageRuns.map(R => ({ key: 'stage' + R.no, mode: 'stage', n: R.no, tier: R.tier, name: DATA.stages[R.stage - 1].label, first: DATA.flow.firstClear[R.tier - 1],
+      sub: subOf('stage' + R.no, _t`報酬 ${rewX(TR[R.tier - 1])}`), col: TIER_COL[R.tier - 1], art: [R.stage], badge: ['TIER', R.tier] }))
+      .sort((a, b) => a.tier - b.tier), // 通常モード: tier の順
+  ];
+  // again: カオス強化の設定を閉じて並べ直すとき(並ぶ動きを出さない)
+  // coop: 協力プレイの部屋を作る(協力プレイの画面の「部屋を作る」から)。協力プレイで遊べる物(net.js の COOP_MODES)だけを並べ、公開かコードかを選ぶ。選ぶと部屋ができて協力プレイの画面へ。戻ると協力プレイの画面へ
+  //   協力プレイの形ではクラス変更を出さない。カオス強化を閉じた時は、前の形(coop)のまま
+  let stCoop = false, stPub = true;
+  function stageSelect(again, coop = again ? stCoop : false) {
+    state = 'stage'; stCoop = coop;
+    UI.only('stage-screen');
+    const c = DATA.classes[META.cls], m = META.classes[META.cls];
+    $('st-class').style.setProperty('--cc', c.col);
+    $('st-class').innerHTML = _t`<img src="${portrait(META.cls)}" alt=""><span><b>${c.name}</b> Lv${m.lv} ・ ${DATA.weapons[m.weapon].name}</span><small>クラス変更 ▶</small>`;
+    $('st-coop').classList.toggle('hidden', !coop);
+    $('st-class').classList.toggle('hidden', coop); // 部屋を作る時はクラス変更を出さない(クラスは協力プレイの画面の「自分のクラス」で変える)
+    if (coop) pubSync();
+    const items = STAGE_ITEMS().filter(s => !coop || COOP_MODES.includes(s.mode));
+    $('stage-list').classList.toggle('calm', !!again);
+    $('stage-list').innerHTML = items.map((s, i) => {
+      const clear = META.stageClear[s.key], open = stageUnlocked(s);
+      const pt = open ? chaosPoints(chaosSetting(s.key), s.key) : 0;
+      // 右のカオス強化の札: 上に「カオス強化」と pt、下に(クリアまでは「クリアまで固定」と)設定・見るのボタン。幅はどのカードも同じ
+      const best = (coop ? META.best.coopFloor : META.best.towerFloor) || 0; // 協力プレイの記録は別(main.js の endRun)
+      const right = !open ? _t`<span class="lock">未解放: tier ${needTier(s)} のステージを1つクリア</span>`
+        : s.mode === 'tower' ? `<span class="chaos on${best ? ' has' : ''}"><span class="cz-l">${_t('最高到達')}</span><b class="cz-v">${best}<small>F</small></b><span class="cz-tag">${_t`カオス強化は ${DATA.tower.lap + 1}階から`}</span></span>` // タワーのカオス強化は階で決まる(設定は出さない)
+        : `<span class="chaos${clear ? ' on' : ''}${pt ? ' has' : ''}"><span class="cz-l">${_t('カオス強化')}</span><b class="cz-v">${pt}<small>pt</small></b>`
+          + `<span class="cz-tag">${clear ? '' : _t('クリアまで固定')}</span><span class="cz-btn" data-chaos="${s.key}">${clear ? _t('設定 ▶') : _t('見る ▶')}</span></span>`;
+      const badge = open ? s.badge : [s.badge[0], '?'];
+      return `<button class="stg${open ? '' : ' locked'}" data-mode="${s.mode}" data-n="${s.n}" style="--sc:${s.col};--i:${i}${open ? `;--art:url(${stageArt(s.art)})` : ''}">
+        <span class="tb${String(badge[1]).length > 2 ? ' long' : ''}"><small>${badge[0]}</small>${badge[1]}</span>
+        <span class="nm">${open ? s.name : _t('？？？')}${clear ? ' <b class="clr">★ CLEAR</b>' : open && s.first ? _t` <span class="fc">初クリア ● ${s.first.toLocaleString()}</span>` : ''}</span>${right}<span class="sub">${open ? s.sub : _t('？？？')}</span></button>`;
+    }).join('');
+    // 枠の高さはカード 10枚ぶん(それより下はスクロール)。カードの高さは言語・画面の幅で変わるので、並べてから測る。画面が低いときは枠がさらに縮む
+    //   測った高さは --lh に入れる(CSS の max-height が、窓の高さで見出し・戻るに重ならないように更に縮める)
+    const L = $('stage-list'), its = L.children, LIST_N = 10;
+    L.style.removeProperty('--lh');
+    if (its.length > LIST_N) { const cs = getComputedStyle(L); L.style.setProperty('--lh', (its[LIST_N - 1].offsetTop + its[LIST_N - 1].offsetHeight - its[0].offsetTop + parseFloat(cs.paddingTop) + parseFloat(cs.paddingBottom)) + 'px'); }
+  }
+  // 解放に必要な tier(そのクリアが要る。0 = 最初から): 通常モードは tier − 1、エスカレーション・闘技場は tier 4、タワーは最初から
+  const tierCleared = t => DATA.stageRuns.some(R => R.tier === t && META.stageClear['stage' + R.no]);
+  const needTier = s => (s.mode === 'stage' ? s.tier - 1 : s.mode === 'tower' ? 0 : 4);
+  const stageUnlocked = s => needTier(s) < 1 || tierCleared(needTier(s));
+  $('stage-list').onclick = e => {
+    const c = e.target.closest('[data-chaos]');
+    if (c) { AudioMan.click(); chaosPanel(c.dataset.chaos); return; } // カオス強化の設定(出撃はしない)
+    const b = e.target.closest('.stg'); if (!b) return;
+    if (b.classList.contains('locked')) { AudioMan.hurt(); b.classList.remove('deny'); void b.offsetWidth; b.classList.add('deny'); return; } // 未解放: 小さく揺れるだけ
+    AudioMan.click();
+    if (stCoop) CoopUI.create(b.dataset.mode, stPub); else startRun(b.dataset.mode, +b.dataset.n);
+  };
+  // 協力プレイ: 公開の部屋(公開ロビーに載る)か、コードの部屋か(既定は公開。ページを開いている間は前に選んだ物)
+  function pubSync() {
+    for (const b of $('st-pub').children) b.classList.toggle('on', (b.dataset.v === '1') === stPub);
+    $('st-pub-note').textContent = stPub ? _t('一覧に載り、誰でも入れる') : _t('コードを伝えた人だけが入れる');
+  }
+  $('st-pub').onclick = e => { const b = e.target.closest('button'); if (!b) return; stPub = b.dataset.v === '1'; AudioMan.click(); pubSync(); };
+  const stBack = () => { if (stCoop) CoopUI.open(); else { state = 'title'; UI.title(); } };
+  // ---------- カオス強化の設定 ----------
+  // 項目ごとに Lv を上げ下げ。合計ポイントと、その報酬(そのランの間だけ効く)を表示する。クリアするまでは tier の値で固定(見るだけ)
+  let czKey = null;
+  // 報酬の一覧(右の欄に1行ずつ。今の報酬と次の報酬を横に並べる)
+  const REWARD_ROWS = [[_t('装備ロール上限'), r => `+${Math.round(r.eqMaxVal * 100)}%`], [_t('装備Lv上限'), r => (r.eqMaxLv ? `+${r.eqMaxLv}` : '—')], [_t('装備品質'), r => `+${Math.round(r.eqQual * 100)}%`], [_t('宝箱品質'), r => `+${Math.round(r.chestQual * 100)}%`], [_t('獲得ゴールド'), r => `+${Math.round(r.gold * 100)}%`]];
+  const rewardRows = (r, nx) => REWARD_ROWS.map(([a, f]) => `<div class="cz-rw"><span>${a}</span><b>${r ? f(r) : '—'}</b><i>${nx ? f(nx) : ''}</i></div>`).join('');
+  function chaosPanel(key) {
+    czKey = key; const lv = chaosSetting(key), fixed = chaosFixed(key);
+    const pt = chaosPoints(lv, key), r = chaosReward(pt), next = DATA.chaos.rewards.find(x => x.pt > pt);
+    const item = STAGE_ITEMS().find(s => s.key === key);
+    $('chaos-panel').innerHTML = `<div class="cz">
+      <div class="cz-head"><b>${_t('カオス強化')}</b> ${item ? item.name : ''}${fixed ? _t('<span class="cz-fix">クリアするまで固定(見るだけ)</span>') : ''}<button class="cz-x" data-cz="close">×</button></div>
+      <div class="cz-body"><div class="cz-list">${chaosMods(key).map(m => { const l = chaosLv(lv, m); return `<div class="cz-row ${l ? 'on' : ''}">
+        <span class="nm">${m.name}<small>${chaosDesc(m, Math.max(1, l))}${m.max > 1 ? ` (1Lv ${m.per}${m.unit ?? '%'})` : ''}</small></span>
+        <span class="pt">${m.pt} pt/Lv</span>
+        <button data-cz="-" data-k="${m.k}" ${l && !fixed ? '' : 'disabled'}>−</button><b>${l} / ${m.max}</b><button data-cz="+" data-k="${m.k}" ${l < m.max && !fixed ? '' : 'disabled'}>+</button></div>`; }).join('')}</div>
+      <div class="cz-sum">
+        <div class="cz-pt">${_t('合計')}<b>${pt}</b><small>pt</small></div>
+        <div class="cz-rw cz-h"><span>${_t('報酬')}</span><b>${r ? `${r.pt} pt` : _t('なし')}</b><i>${next ? _t`次 ${next.pt} pt` : _t('最大')}</i></div><div class="cz-rws">${rewardRows(r, next)}</div>
+        <div class="dim cz-note">${fixed ? (item && item.tier ? _t`クリアするまで tier ${item.tier} のカオス強化で固定。` : _t('クリアするまでカオス強化なし。')) + _t('クリアすると変えられる。') : ''}${_t('報酬はこのモード・ステージのランの間だけ効く。敵が強くなる分、装備とゴールドが増える')}</div>
+      </div></div>
+    </div>`;
+    Help.glossify($('chaos-panel'), { per: '.cz-row .nm small, .cz-rw, .cz-note' });
+    UI.show($('chaos-panel'));
+  }
+  $('chaos-panel').onclick = e => {
+    if (e.target === $('chaos-panel')) { closeChaos(); return; }
+    const b = e.target.closest('[data-cz]'); if (!b || b.disabled) return;
+    if (b.dataset.cz === 'close') { closeChaos(); return; }
+    if (chaosFixed(czKey)) return; // クリアするまでは見るだけ
+    const lv = chaosSetting(czKey), m = chaosMods(czKey).find(x => x.k === b.dataset.k);
+    lv[m.k] = clamp(chaosLv(lv, m) + (b.dataset.cz === '+' ? 1 : -1), 0, m.max);
+    saveMeta(); AudioMan.click(); chaosPanel(czKey);
+  };
+  function closeChaos() { UI.hide($('chaos-panel')); czKey = null; stageSelect(true); }
+  $('st-class').onclick = () => { AudioMan.click(); classScreen('stage'); };
+  $('st-back').onclick = () => { AudioMan.click(); stBack(); };
+
+  // ---------- 入力 ----------
+  $('btn-equip').onclick = () => { AudioMan.click(); open(); };
+  $('eq-back').onclick = () => { AudioMan.click(); close(); };
+  $('eq-tabs').onclick = e => { const b = e.target.closest('button'); if (!b) return; filter = b.dataset.f; AudioMan.click(); render(); };
+  const pickItem = e => {
+    const b = e.target.closest('[data-id]'); if (!b || !b.dataset.id) return;
+    sel = itemById(+b.dataset.id);
+    if (sel.isNew) { sel.isNew = false; saveMeta(); } // 見たら NEW を消す
+    AudioMan.click(); render();
+  };
+  $('eq-list').onclick = pickItem;
+  $('eq-status').addEventListener('click', pickItem); // 装備中の枠(onclick は StatusUI が描くたびに付け直すので、こちらは足す形で)
+  $('eq-detail').onclick = e => { const b = e.target.closest('[data-act]'); if (b && !b.disabled) act(b.dataset.act); };
+  // 一括売却は2回押しで確定(誤操作防止)
+  $('eq-sellall').onclick = () => {
+    const b = $('eq-sellall');
+    if (!sellArm) { b.textContent = _t('本当に売却? もう一度押す'); b.classList.add('warn'); sellArm = setTimeout(() => { sellArm = null; b.classList.remove('warn'); render(); }, 3000); return; }
+    clearTimeout(sellArm); sellArm = null; b.classList.remove('warn');
+    const [n, g] = sellAllUnlocked();
+    if (n) { AudioMan.coinRain(10); UI.announce(`+${g.toLocaleString()} G`, _t`${n}個 売却しました`); }
+    sel = null; render();
+  };
+  function onKey(e) {
+    if (state === 'equip' && e.code === 'Escape') close();
+    if (state === 'stage' && e.code === 'Escape') { if (czKey) closeChaos(); else stBack(); }
+    if (state === 'class' && e.code === 'Escape') { if (wpOpen()) closeWp(); else closeClass(); }
+    if (state === 'tree' && e.code === 'Escape') { state = 'title'; UI.title(); }
+  }
+
+  return { open, stageSelect, classScreen, treeScreen, onKey, portrait };
+})();
